@@ -1,9 +1,12 @@
 import argparse;
 from hiclib import mapping;
+from hiclib.fragmentHiC import HiCdataset
 from mirnylib import h5dict, genome;
 import time;
 import os.path;
 
+import string
+import random
 
 def main(args):
     print args;
@@ -17,8 +20,12 @@ def main(args):
     # read in genome object
     genome_db = genome.Genome(args.genomeFolder, readChrms=args.readChrms)
     
+    # generate random temporary filename
+    rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(n))  # @UndefinedVariable
+    tmpFilename = args.output + '.' + rs + '.tmp'
+    
     # merge SAM files into Hi-C map
-    mapped_reads = h5dict.h5dict(args.output)
+    mapped_reads = h5dict.h5dict(tmpFilename)
     
     sam_base1 = os.path.splitext(args.sam1)[0];
     sam_base2 = os.path.splitext(args.sam2)[0];
@@ -35,7 +42,11 @@ def main(args):
         genome_db=genome_db,
 	    save_seqs=False
         )
-
+    
+    TR = HiCdataset(args.output, genome=genome_db)
+    TR.parseInputData(dictLike=mapped_reads)
+    
+    os.unlink(tmpFilename)
 
 def splitList(thisList):
     return thisList.split(",");
