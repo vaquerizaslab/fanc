@@ -6,7 +6,7 @@ import time;
 import os.path;
 
 import string
-import random
+import hicrandom
 
 def main(args):
     print args;
@@ -20,8 +20,8 @@ def main(args):
     # read in genome object
     genome_db = genome.Genome(args.genomeFolder, readChrms=args.readChrms)
     
-    # generate random temporary filename
-    rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(n))  # @UndefinedVariable
+    # generate hicrandom temporary filename
+    rs = ''.join(hicrandom.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(n))  # @UndefinedVariable
     tmpFilename = args.output + '.' + rs + '.tmp'
     
     # merge SAM files into Hi-C map
