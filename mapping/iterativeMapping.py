@@ -35,7 +35,7 @@ def main(args):
             nthreads=args.threads,
             # max_reads_per_chunk = 10000000,  #optional, on low-memory machines
             temp_dir=args.tmp,
-            bowtie_flags=" --very-sensitive "
+            bowtie_flags=" --very-sensitive --no-unal "
         )
         
         print("Iterative mapping done.");
