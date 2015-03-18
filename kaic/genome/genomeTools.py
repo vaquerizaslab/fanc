@@ -10,6 +10,9 @@ from mirnylib import genome;
 def createGenomeObject(folder, re, readChrms):
     # read in genome object
     genome_db = genome.Genome(folder, readChrms=readChrms)
+    genome_db.clearCache()
+    #read in again after cache has been emptied to prevent weird chromosome shit from happening...
+    genome_db = genome.Genome(folder, readChrms=readChrms)
     
     if re != '':
         genome_db.setEnzyme(re);
