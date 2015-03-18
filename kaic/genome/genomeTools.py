@@ -1,6 +1,6 @@
 import argparse;
 import time;
-import pickle;
+import dill as pickle;
 from mirnylib import genome;
 
 #
