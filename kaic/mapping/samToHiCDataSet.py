@@ -4,6 +4,7 @@ from hiclib.fragmentHiC import HiCdataset
 from mirnylib import h5dict, genome;
 import time;
 import os.path;
+import kaic.genome.genomeTools as gt
 
 import string
 import random
@@ -18,7 +19,8 @@ def main(args):
     time.sleep(5);
     
     # read in genome object
-    genome_db = genome.Genome(args.genomeFolder, readChrms=args.readChrms)
+    #genome_db = genome.Genome(args.genomeFolder, readChrms=args.readChrms)
+    genome_db = gt.loadGenomeObject(args.genome)
     
     # generate hicrandom temporary filename
     rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(6))  # @UndefinedVariable
@@ -65,20 +67,14 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
-        'genomeFolder',
-        help='''Path to the folder with the FASTA genome files'''
+        'genome',
+        help='''Genome object file'''
     );
     
     parser.add_argument(
         'output',
         help='''Output file for Hi-C object'''
     );
-    
-    parser.add_argument(
-        '-r', '--read-chromosomes', dest='readChrms',
-        type=splitList,
-        default=["#","X"],
-        help='''Comma-separated list of chromosomes to read (options: #=numbered, X, Y, M). Default: #,X'''
-    );
+
     
     main(parser.parse_args());
