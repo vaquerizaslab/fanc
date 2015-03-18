@@ -16,9 +16,6 @@ def main(args):
     # read in genome object
     genome_db = gt.loadGenomeObject(args.genome)
     
-    if args.restrictionEnzyme != '':
-        genome_db.setEnzyme(args.restrictionEnzyme);
-    
     BD = binnedData.binnedData(args.resolution, genome_db)
     BD.simpleLoad(args.input, 'hm')
     
