@@ -67,5 +67,7 @@ if __name__ == '__main__':
         print arg, " = ", val;
     print "<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
     
+    time.sleep(5)
+    
     genome = createGenomeObject(args.input, args.restrictionEnzyme, args.readChrms)
     saveGenomeObject(genome, args.output);
