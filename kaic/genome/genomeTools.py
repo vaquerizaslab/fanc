@@ -1,6 +1,7 @@
 import argparse;
 import time;
 import cPickle as pickle;
+from mirnylib import genome;
 
 #
 # TODO FUNCTIONS HERE
@@ -8,23 +9,23 @@ import cPickle as pickle;
 
 def createGenomeObject(folder, re, readChrms):
     # read in genome object
-    genome = genome.Genome(folder, readChrms=readChrms)
+    genome_db = genome.Genome(folder, readChrms=readChrms)
     
     if args.restrictionEnzyme != '':
-        genome.setEnzyme(re);
+        genome_db.setEnzyme(re);
         
-    return genome;
+    return genome_db;
 
-def saveGenomeObject(genome, output):
+def saveGenomeObject(genome_db, output):
     time.sleep(5);
     
     with open(output, 'wb') as o:
-        pickle.dump(genome, o, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(genome_db, o, pickle.HIGHEST_PROTOCOL)
     
 def loadGenomeObject(inFile):
     with open(inFile, 'rb') as i:
-        genome = pickle.load(i)
-    return genome
+        genome_db = pickle.load(i)
+    return genome_db
 
 
 def splitList(thisList):
