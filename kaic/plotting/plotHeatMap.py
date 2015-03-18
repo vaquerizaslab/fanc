@@ -39,8 +39,8 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
-        'genomeFolder',
-        help='''Genome folder with FASTA files'''
+        'genome',
+        help='''Genome object file'''
     );
     
     parser.add_argument(
