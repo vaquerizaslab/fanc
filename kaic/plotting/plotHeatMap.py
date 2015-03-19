@@ -22,11 +22,15 @@ def main(args):
     hm = BD.dataDict['hm']
     
     if args.absolute == False:
+        BD.removeZeros()
+        hm = BD.dataDict['hm']
         nrows = hm.shape[0]
         ncols = hm.shape[1]
         ex = np.sum(hm)/(nrows*ncols)
         print "Expected: ", ex
         hm = np.log2(hm/ex)
+        BD.dataDict['hm'] = hm
+        BD.restoreZeros()
     
     fig, ax = plt.subplots()
     hm = ax.imshow(hm, interpolation='none',aspect=1,vmin=args.min,vmax=args.max)
