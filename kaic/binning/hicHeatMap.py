@@ -16,7 +16,10 @@ def main(args):
     TR = HiCdataset("memory", genome=genome_db, inMemory=True);
     TR.load(args.input);
     
-    TR.saveHeatmap(args.output, args.resolution);
+    if args.whole:
+        TR.saveHeatmap(args.output, args.resolution);
+    else:
+        TR.saveByChromosomeHeatmap(args.output, args.resolution);
 
 def splitList(thisList):
     return thisList.split(",");
@@ -45,5 +48,14 @@ if __name__ == '__main__':
         help='''Cutoff for filtering very large fragments''',
         required=True
     );
+    
+    parser.add_argument(
+        '-w', '--whole', dest='whole',
+        action='store_true',
+        help='''Store the whole heatmap in one piece rather than by chromosome'''
+    );
+    
+    
+    parser.set_defaults(whole=False);
     
     main(parser.parse_args());
