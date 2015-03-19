@@ -16,7 +16,7 @@ def main(args):
     TR = HiCdataset("memory", genome=genome_db, inMemory=True);
     TR.load(args.input);
     
-    if args.whole:
+    if args.whole == True:
         TR.saveHeatmap(args.output, args.resolution);
     else:
         TR.saveByChromosomeHeatmap(args.output, args.resolution);
