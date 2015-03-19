@@ -25,6 +25,7 @@ def main(args):
         nrows = hm.shape[0]
         ncols = hm.shape[1]
         ex = np.sum(hm)/(nrows*ncols)
+        print "Expected: ", ex
         hm = np.log2(hm/ex)
     
     fig, ax = plt.subplots()
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-min', dest='min',
         type=int,
-        default=0,
+        default=-3,
         help='''Lower plotting boundary'''
     );
     
