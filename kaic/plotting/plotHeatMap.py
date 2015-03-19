@@ -4,7 +4,7 @@ import argparse;
 from hiclib import binnedData
 import matplotlib.pyplot as plt
 import kaic.genome.genomeTools as gt
-
+import numpy as np
 
 def main(args):
     print("Using the following settings");
@@ -19,8 +19,16 @@ def main(args):
     BD = binnedData.binnedData(args.resolution, genome_db)
     BD.simpleLoad(args.input, 'hm')
     
+    hm = BD.dataDict['hm']
+    
+    if args.absolute == False:
+        nrows = hm.shape[0]
+        ncols = hm.shape[1]
+        ex = np.sum(hm)/(nrows*ncols)
+        hm = np.log2(hm/ex)
+    
     fig, ax = plt.subplots()
-    hm = ax.imshow(BD.dataDict['hm'], interpolation='none',aspect=1,vmin=args.min,vmax=args.max)
+    hm = ax.imshow(hm, interpolation='none',aspect=1,vmin=args.min,vmax=args.max)
     plt.show()
     
 
@@ -60,5 +68,12 @@ if __name__ == '__main__':
         default=3,
         help='''Upper plotting boundary'''
     );
+    
+    parser.add_argument(
+        '-a', '--absolute', dest='absolute',
+        action='store_true',
+        help='''Plot absolute values instead of log2-fold enrichment over expectation'''
+    );
+    parser.set_defaults(absolute=False);
     
     main(parser.parse_args());
