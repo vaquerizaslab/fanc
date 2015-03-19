@@ -54,7 +54,7 @@ def main(args):
             TR.filterExtreme(cutH=args.extremehigh,cutL=0);
     
     # filter 
-    if args.restrictionEnzyme != '' and args.restrictionOffset > 0:
+    if args.restrictionOffset > 0:
         print "Removing reads that start within ", args.restrictionOffset, "bp from the RE site"
         TR.filterRsiteStart(offset=args.restrictionOffset);
     
