@@ -17,7 +17,7 @@ def main(args):
     genome_db = gt.loadGenomeObject(args.genome)
     
     BD = binnedData.binnedData(args.resolution, genome_db)
-    BD.simpleLoad(args.input, 'hm')
+    BD.simpleLoad(args.input, 'hm', chromosomeOrder=args.order)
     
     hm = BD.dataDict['hm']
     
@@ -31,6 +31,7 @@ def main(args):
         hm = np.log2(hm/ex)
         BD.dataDict['hm'] = hm
         BD.restoreZeros()
+        hm = BD.dataDict['hm']
     
     fig, ax = plt.subplots()
     hm = ax.imshow(hm, interpolation='none',aspect=1,vmin=args.min,vmax=args.max)
@@ -61,6 +62,13 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
+        '-o', '--order', dest='order',
+        type=splitList,
+        default=None,
+        help='''comma-separated list of chromosome names for heatmap order'''
+    );
+    
+    parser.add_argument(
         '-min', dest='min',
         type=int,
         default=-3,
@@ -79,6 +87,8 @@ if __name__ == '__main__':
         action='store_true',
         help='''Plot absolute values instead of log2-fold enrichment over expectation'''
     );
+    
+    
     parser.set_defaults(absolute=False);
     
     main(parser.parse_args());
