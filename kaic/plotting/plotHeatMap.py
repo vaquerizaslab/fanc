@@ -35,7 +35,8 @@ def main(args):
         hm = BD.dataDict['hm']
     
     fig, ax = plt.subplots()
-    hm = ax.imshow(hm, interpolation='none',aspect=1,vmin=args.min,vmax=args.max)
+    myPlot = ax.imshow(hm, interpolation='none',aspect=1,vmin=args.min,vmax=args.max)
+    myPlot.set_cmap(args.colormap)
     plt.show()
     
 
@@ -89,6 +90,12 @@ if __name__ == '__main__':
         help='''Plot absolute values instead of log2-fold enrichment over expectation'''
     );
     
+    parser.add_argument(
+        '-c', '--color-map', dest='colormap',
+        default='YlGnBu',
+        help='''Matplotlib color map name to use''',
+        required=True
+    );
     
     parser.set_defaults(absolute=False);
     
