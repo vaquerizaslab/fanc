@@ -52,7 +52,9 @@ def main(args):
             else:
                 os.popen('{ head -n 100 -q %s.* | grep "^@[HD|SQ]" | sort | uniq & cat %s.* | awk \'!/^@/\' | sort -k 1,1; } > %s' % (args.output[i],args.output[i],args.output[i]));
             # remove partial sam files
-            os.popen('rm -f %s.*' % (args.output[i]));
+            
+            if args.clean:
+                os.popen('rm -f %s.*' % (args.output[i]));
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
@@ -123,6 +125,12 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
+        '-nc', '--no-clean', dest='clean',
+        action='store_false',
+        help='''Do not delete partial SAM files (*.sam.\d)'''
+    );
+    
+    parser.add_argument(
         '-q', '--quality', dest='quality',
         type=int,
         default=30,
@@ -131,6 +139,7 @@ if __name__ == '__main__':
     
     parser.set_defaults(join=True);
     parser.set_defaults(filter=True);
+    parser.set_defaults(clean=True);
     
     
     main(parser.parse_args());
