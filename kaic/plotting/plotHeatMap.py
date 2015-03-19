@@ -17,7 +17,8 @@ def main(args):
     genome_db = gt.loadGenomeObject(args.genome)
     
     BD = binnedData.binnedData(args.resolution, genome_db)
-    BD.simpleLoad(args.input, 'hm', chromosomeOrder=args.order)
+    #BD.simpleLoad(args.input, 'hm', chromosomeOrder=args.order)
+    BD.simpleLoad(args.input, 'hm', chromosomeOrder=[11])
     
     hm = BD.dataDict['hm']
     
