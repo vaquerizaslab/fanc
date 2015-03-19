@@ -18,11 +18,14 @@ def main(args):
     BD.simpleLoad(args.input, 'hm')
     
     
-    BD.removeDiagonal()   #we never ever use diagonal
-    BD.removeBySequencedCount(0.5)
-    BD.removePoorRegions(cutoff=1)
-    BD.truncTrans(high=0.0005)
-    BD.iterativeCorrectWithoutSS(force=True)
+    if args.diagonal == True:
+        BD.removeDiagonal()   #we never ever use diagonal
+    if args.sf > 0:
+        BD.removeBySequencedCount(args.sf)
+    if args.poor > 0:
+        BD.removePoorRegions(cutoff=args.poor)
+    if args.trunc > 0:
+        BD.truncTrans(high=args.trunc)
     
     BD.export("hm",args.output,byChromosome=True)
     
@@ -57,8 +60,40 @@ if __name__ == '__main__':
         required=True
     );
 
+    parser.add_argument(
+        '-d', '--diagonal', dest='diagonal',
+        action='store_true',
+        help='''Remove diagonal'''
+    );
+    parser.set_defaults(diagonal=False);
     
-
+    parser.add_argument(
+        '-c', '--sequenced-count', dest='sq',
+        action='store_true',
+        help='''Remove bins that have less than sequencedFraction*resolution sequenced counts.'''
+    );
+    parser.set_defaults(sq=False);
+    
+    parser.add_argument(
+        '-sf', '--sequenced-fraction', dest='sf',
+        type=float,
+        default=0.0,
+        help='''Remove bins that have less than sequencedFraction*resolution sequenced counts.'''
+    );
+    
+    parser.add_argument(
+        '-p', '--poor', dest='poor',
+        type=float,
+        default=0.0,
+        help='''Remove this percent of bins with least counts'''
+    );
+    
+    parser.add_argument(
+        '-t', '--truncate-trans', dest='trunc',
+        type=float,
+        default=0.0,
+        help='''Truncates this fraction of trans contacts to remove blowouts'''
+    );
     
 
     main(parser.parse_args());
