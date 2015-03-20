@@ -1,0 +1,33 @@
+import argparse;
+import kaic.mapping.samToHiCDataSet as sam
+
+
+
+def splitList(thisList):
+    return thisList.split(",");
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser();
+    
+    parser.add_argument(
+        'sam1',
+        help='''SAM file with first side of Hi-C reads'''
+    );
+    
+    parser.add_argument(
+        'sam2',
+        help='''SAM file with second side of Hi-C reads'''
+    );
+    
+    parser.add_argument(
+        'genome',
+        help='''Genome object file'''
+    );
+    
+    parser.add_argument(
+        'output',
+        help='''Output file for Hi-C object'''
+    );
+
+    
+    sam.main(parser.parse_args());

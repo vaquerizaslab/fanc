@@ -1,0 +1,29 @@
+import argparse;
+import kaic.merging.mergeHiCDataSets as merge
+
+
+def splitList(thisList):
+    return thisList.split(",");
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser();
+    
+    parser.add_argument(
+        'datasets',
+        type=splitList,
+        help='''Mirny HiCdataset structure(s)'''
+    );
+    
+    parser.add_argument(
+        'genome',
+        help='''Genome object file'''
+    );
+    
+    parser.add_argument(
+        'output',
+        help='''Output filename'''
+    );
+    
+   
+    
+    merge.main(parser.parse_args());
