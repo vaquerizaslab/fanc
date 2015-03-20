@@ -8,7 +8,7 @@ def splitList(thisList):
 
 
 
-def main(args):
+def map(args):
     if not len(args.input) == len(args.output): raise ValueError("Input and output arguments must have the same number of elements!");
     print("Performing iterative mapping on " + ', '.join(args.input));
         
@@ -142,4 +142,4 @@ if __name__ == '__main__':
     parser.set_defaults(clean=True);
     
     
-    main(parser.parse_args());
+    map(parser.parse_args());
