@@ -1,0 +1,74 @@
+import time;
+import argparse;
+import kaic.correcting.filterHiCDataSet as fhc
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser();
+    
+    parser.add_argument(
+        'input',
+        help='''Input Hi-C data set (not binned)'''
+    );
+    
+    parser.add_argument(
+        'genome',
+        help='''Genome object file'''
+    );
+    
+    parser.add_argument(
+        'output',
+        help='''Output file'''
+    );
+    
+    parser.add_argument(
+        '-m', '--memory', dest='memory',
+        action='store_true',
+        help='''Perform operations in memory, only then save'''
+    );
+    
+    parser.add_argument(
+        '-d', '--duplicates', dest='duplicates',
+        action='store_true',
+        help='''Enable duplicate read filtering'''
+    );
+    parser.set_defaults(duplicates=False);
+    
+    parser.add_argument(
+        '-l', '--large', dest='large',
+        type=int,
+        default=-1,
+        help='''Cutoff for filtering very large fragments'''
+    );
+    
+    parser.add_argument(
+        '-s', '--small', dest='small',
+        type=int,
+        default=-1,
+        help='''Cutoff for filtering very small fragments'''
+    );
+    
+    parser.add_argument(
+        '-el', '--extreme-low', dest='extremelow',
+        type=float,
+        default=0.0,
+        help='''Cutoff (fraction of fragments) for filtering fragments with a very small number of reads'''
+    );
+    
+    parser.add_argument(
+        '-eh', '--extreme-high', dest='extremehigh',
+        type=float,
+        default=0.0,
+        help='''Cutoff (fraction of fragments) for filtering fragments with a very high number of reads'''
+    );
+    
+    parser.add_argument(
+        '-ro', '--restriction-offset', dest='restrictionOffset',
+        type=int,
+        default=0,
+        help='''Cutoff (in base-pairs) for filtering reads located less than this value from an the RE site'''
+    );
+    
+
+    
+    fhc.main(parser.parse_args());
