@@ -27,7 +27,7 @@ def main(args):
     if args.trunc > 0:
         BD.truncTrans(high=args.trunc)
     
-    BD.export("hm",args.output,byChromosome=True)
+    BD.export("hm",args.output)
     
     
 
