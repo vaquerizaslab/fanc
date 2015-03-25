@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import time;
 import argparse;
 import kaic.plotting.plotHeatMap as phm
