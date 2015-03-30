@@ -82,8 +82,16 @@ if __name__ == '__main__':
         help='''Mapping quality to filter mapped reads'''
     );
     
+    parser.add_argument(
+        '-nc', '--no-clean', dest='clean',
+        action='store_false',
+        help='''Do not delete partial SAM files (*.sam.\d)'''
+    );
+    
     parser.set_defaults(join=True);
     parser.set_defaults(filter=True);
+    parser.set_defaults(clean=True);
+
     
     
     im.main(parser.parse_args());
