@@ -68,13 +68,6 @@ if __name__ == '__main__':
     parser.set_defaults(diagonal=False);
     
     parser.add_argument(
-        '-c', '--sequenced-count', dest='sq',
-        action='store_true',
-        help='''Remove bins that have less than sequencedFraction*resolution sequenced counts.'''
-    );
-    parser.set_defaults(sq=False);
-    
-    parser.add_argument(
         '-sf', '--sequenced-fraction', dest='sf',
         type=float,
         default=0.0,
