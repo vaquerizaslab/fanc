@@ -123,20 +123,24 @@ def compare(genome, resolution, hicMap, positions1, positions2 = None, output = 
 #     hm = ax.imshow(BD.dataDict['hm'], interpolation='none',aspect=1,vmin=args.min,vmax=args.max)
 #     plt.show()
     
-    fig, ax = plt.subplots(nrows=1,ncols=1,sharex=True)
-    ax.errorbar(x, np.median(enrichment1,axis=1), yerr=np.std(enrichment1,axis=1), label='pos1')
-    ax.errorbar(x, np.median(randomEnrichment1,axis=1), yerr=np.std(randomEnrichment1,axis=1), label='rand1')
+    if output != None:
+        plt.ioff()
+    
+    fig = plt.figure()
+    fig.errorbar(x, np.median(enrichment1,axis=1), yerr=np.std(enrichment1,axis=1), label='pos1')
+    fig.errorbar(x, np.median(randomEnrichment1,axis=1), yerr=np.std(randomEnrichment1,axis=1), label='rand1')
     if positions2 != None:
-        ax.errorbar(x, np.median(enrichment2,axis=1), yerr=np.std(enrichment2,axis=1), label='pos2')
-        ax.errorbar(x, np.median(randomEnrichment2,axis=1), yerr=np.std(randomEnrichment2,axis=1), label='rand2')
+        fig.errorbar(x, np.median(enrichment2,axis=1), yerr=np.std(enrichment2,axis=1), label='pos2')
+        fig.errorbar(x, np.median(randomEnrichment2,axis=1), yerr=np.std(randomEnrichment2,axis=1), label='rand2')
     plt.legend(loc='upper left')
     
     if output == None:
         plt.show();
     else:
-        pp = PdfPages(output)
-        pp.savefig()
-        pp.close()
+        #pp = PdfPages(output)
+        fig.savefig(output)
+        plt.close(fig)
+        #pp.close()
     
 
 def splitList(thisList):
