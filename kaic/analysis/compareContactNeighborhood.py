@@ -163,8 +163,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-cmp', '--compare', dest='elementPositions2',
         default= None,
-        help='''Comparison data set (element positions)''',
-        required=True
+        help='''Comparison data set (element positions)'''
     );
     
     args = parser.parse_args()
