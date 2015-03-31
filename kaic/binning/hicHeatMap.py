@@ -50,12 +50,12 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
-        '-bc', '--by-chromosome', dest='bychromosome',
+        '-bc', '--by-chromosome', dest='byChromosome',
         action='store_true',
         help='''Store the heatmap by chromosome rather than as a whole'''
     );
     
     
-    parser.set_defaults(bychromosome=False);
+    parser.set_defaults(byChromosome=False);
     
     main(parser.parse_args());
