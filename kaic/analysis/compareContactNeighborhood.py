@@ -135,7 +135,7 @@ def compare(genome, resolution, hicMap, positions1, positions2 = None, output = 
         plt.show();
     else:
         pp = PdfPages(output)
-        pp.saveFig();
+        pp.savefig();
     
 
 def splitList(thisList):
