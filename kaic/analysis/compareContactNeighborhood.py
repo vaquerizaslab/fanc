@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from bisect import bisect_right
 import random
+from matplotlib.backends.backend_pdf import PdfPages
 
 def findBins(start, end, chromosome, genome):
     if isinstance( chromosome, (int, long) ):
@@ -36,7 +37,7 @@ def randomPosition(length, chromosome, genome):
     return start, end, chromosome;
     
 
-def compare(genome, resolution, hicMap, positions1, positions2 = None):
+def compare(genome, resolution, hicMap, positions1, positions2 = None, output = None):
     print("Using the following settings");
     print "genome = ", genome
     print "hicMap = ", hicMap
@@ -129,7 +130,12 @@ def compare(genome, resolution, hicMap, positions1, positions2 = None):
         ax.errorbar(x, np.median(enrichment2,axis=1), yerr=np.std(enrichment2,axis=1), label='pos2')
         ax.errorbar(x, np.median(randomEnrichment2,axis=1), yerr=np.std(randomEnrichment2,axis=1), label='rand2')
     plt.legend(loc='upper left')
-    plt.show();
+    
+    if output == None:
+        plt.show();
+    else:
+        pp = PdfPages(output)
+        pp.saveFig();
     
 
 def splitList(thisList):
@@ -166,10 +172,21 @@ if __name__ == '__main__':
         help='''Comparison data set (element positions)'''
     );
     
+    parser.add_argument(
+        '-o', '--output', dest='output',
+        default= None,
+        help='''Output file (pdf) - suppresses plotting window'''
+    );
+    
     args = parser.parse_args()
     
-    if args.elementPositions2 != None:
-        compare(args.genome, args.resolution, args.hicMap, args.elementPositions, positions2 = args.elementPositions2)
+    if args.output == None:
+        if args.elementPositions2 != None:
+            compare(args.genome, args.resolution, args.hicMap, args.elementPositions, positions2 = args.elementPositions2)
+        else:
+            compare(args.genome, args.resolution, args.hicMap, args.elementPositions)
     else:
-        compare(args.genome, args.resolution, args.hicMap, args.elementPositions)
-    
+        if args.elementPositions2 != None:
+            compare(args.genome, args.resolution, args.hicMap, args.elementPositions, positions2 = args.elementPositions2, output = args.output)
+        else:
+            compare(args.genome, args.resolution, args.hicMap, args.elementPositions, output = args.output)
