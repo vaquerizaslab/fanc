@@ -48,7 +48,7 @@ def main(args):
                 # - mappability
                 # - mapping quality
                 # - uniqueness
-                os.popen('{ head -n 100 -q %s.* | grep "^@[HD|SQ]" | sort | uniq & cat %s.* | awk \'{ duplicate=0; for(i=12; i<=NF; ++i) if($i ~ /^YS/) duplicate=1; if(duplicate == 0 && $1 !~ /^@/ && $2 != 4 && $5 > %d) print $0; }\' | sort -k1,1 -k5,5rn | awk -v last="" \'{ if(last != $1) print $0; last=$1}\'; } > %s' % (args.output[i], args.output[i], args.quality, args.output[i]));
+                os.popen('{ head -n 100 -q %s.* | grep "^@[HD|SQ]" | sort | uniq & cat %s.* | awk \'{ duplicate=0; for(i=12; i<=NF; ++i) if($i ~ /^XS/) duplicate=1; if(duplicate == 0 && $1 !~ /^@/ && $2 != 4 && $5 > %d) print $0; }\' | sort -k1,1 -k5,5rn | awk -v last="" \'{ if(last != $1) print $0; last=$1}\'; } > %s' % (args.output[i], args.output[i], args.quality, args.output[i]));
             else:
                 os.popen('{ head -n 100 -q %s.* | grep "^@[HD|SQ]" | sort | uniq & cat %s.* | awk \'!/^@/\' | sort -k1,1 -k5,5rn | awk -v last="" \'{ if(last != $1) print $0; last=$1}\'; } > %s' % (args.output[i],args.output[i],args.output[i]));
             # remove partial sam files

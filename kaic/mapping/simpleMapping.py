@@ -31,7 +31,7 @@ def simpleMap(fastq,
         #subprocess.call('{ head -n %d %s & tail -n +%d %s | sort -k1,1 -k5,5rn; } > %s' % (nHeaderLines, tmpFilename, nHeaderLines, tmpFilename, outputSam), shell=True);
         subprocess.call("{ head -n %d %s & tail -n +%d %s | awk \'{ if($5 > %d) print $0; }\' | sort -k1,1 -k5,5rn; } > %s" % (nHeaderLines, tmpFilename, nHeaderLines+1, tmpFilename, qualityCutoff, outputSam), shell=True);
     else:
-        subprocess.call("{ head -n %d %s & tail -n +%d %s | awk \'{ duplicate=0; for(i=12; i<=NF; ++i) if($i ~ /^YS/) duplicate=1; if(duplicate == 0 && $1 !~ /^@/ && $2 != 4 && $5 > %d) print $0; }\' | sort -k1,1 -k5,5rn; } > %s" % (nHeaderLines, tmpFilename, nHeaderLines+1, tmpFilename, qualityCutoff, outputSam), shell=True);
+        subprocess.call("{ head -n %d %s & tail -n +%d %s | awk \'{ duplicate=0; for(i=12; i<=NF; ++i) if($i ~ /^XS/) duplicate=1; if(duplicate == 0 && $1 !~ /^@/ && $2 != 4 && $5 > %d) print $0; }\' | sort -k1,1 -k5,5rn; } > %s" % (nHeaderLines, tmpFilename, nHeaderLines+1, tmpFilename, qualityCutoff, outputSam), shell=True);
         
     os.unlink(tmpFilename);
     
