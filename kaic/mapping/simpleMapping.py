@@ -25,7 +25,7 @@ def simpleMap(fastq,
     print bowtieMapCommand
     subprocess.call(bowtieMapCommand, shell=True)
     
-    nHeaderLines = subprocess.Popen("head -n 500 " + tmpFilename + " | grep \"^@\" | wc -l", stdout=subprocess.PIPE, shell=True).stdout.read().rstrip()
+    nHeaderLines = int(subprocess.Popen("head -n 500 " + tmpFilename + " | grep \"^@\" | wc -l", stdout=subprocess.PIPE, shell=True).stdout.read().rstrip())
         
     if not filterDuplicates:
         #subprocess.call('{ head -n %d %s & tail -n +%d %s | sort -k1,1 -k5,5rn; } > %s' % (nHeaderLines, tmpFilename, nHeaderLines, tmpFilename, outputSam), shell=True);
