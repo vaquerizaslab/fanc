@@ -20,7 +20,9 @@ def simpleMap(fastq,
     
     bowtieExecutablePath = subprocess.Popen("which bowtie2", shell=True, stdout=subprocess.PIPE).stdout.read().rstrip();
     
-    subprocess.call([bowtieExecutablePath, '--very-sensitive', '--no-unal', '-x', indexPath, '-f', fastq, '-S', tmpFilename], shell=True)
+    bowtieMapCommand = [bowtieExecutablePath, '--very-sensitive', '--no-unal', '-x', indexPath, '-f', fastq, '-S', tmpFilename]
+    print bowtieMapCommand
+    subprocess.call(bowtieMapCommand, shell=True)
     
     process = subprocess.Popen("head -n 500 " + tmpFilename + " | grep \"^@\" | wc -l", stdout=subprocess.PIPE, shell=True);
     
