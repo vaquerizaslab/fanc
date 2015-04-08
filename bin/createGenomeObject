@@ -28,6 +28,12 @@ if __name__ == '__main__':
         required=True
     );
     
+    parser.add_argument(
+        '-c', '--chromosome-file-template', dest='chrmFileTemplate',
+        default='chr%s.fa',
+        help='''Chromosome file template default: chr%s.fa'''
+    );
+    
     
     parser.add_argument(
         '-r', '--read-chromosomes', dest='readChrms',
@@ -47,5 +53,5 @@ if __name__ == '__main__':
     
     time.sleep(5)
     
-    genome = gt.createGenomeObject(args.input, args.restrictionEnzyme, args.readChrms)
+    genome = gt.createGenomeObject(args.input, args.restrictionEnzyme, args.readChrms, chrmFileTemplate=args.chrmFileTemplate)
     gt.saveGenomeObject(genome, args.output);

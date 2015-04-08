@@ -7,7 +7,7 @@ from mirnylib import genome;
 # TODO FUNCTIONS HERE
 #
 
-def createGenomeObject(folder, re, readChrms):
+def createGenomeObject(folder, re, readChrms, chrmFileTemplate='chr%s.fa'):
     # read in genome object
     genome_db = genome.Genome(folder, readChrms=readChrms)
     genome_db.clearCache()
