@@ -23,7 +23,7 @@ def main(args):
         #BD.simpleLoad(args.input, 'hm', chromosomeOrder=[11])
         hm = BD.dataDict['hm']
     else:
-        BD = highResBinnedData.HiResHiC(args.resolution, genome_db)
+        BD = highResBinnedData.HiResHiC(genome_db, args.resolution)
         BD.loadData(args.input)
         hm = BD.getCombinedMatrix();
         

@@ -20,7 +20,7 @@ def main(args):
         BD.iterativeCorrectWithoutSS(force=True)
         BD.export("hm",args.output)
     else:
-        BD = highResBinnedData.HiResHiC(args.resolution, genome_db)
+        BD = highResBinnedData.HiResHiC(genome_db, args.resolution)
         BD.loadData(args.input)
         BD.iterativeCorrection()
         BD.export(args.output)
