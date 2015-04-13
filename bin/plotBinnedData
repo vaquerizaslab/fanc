@@ -63,4 +63,11 @@ if __name__ == '__main__':
     
     parser.set_defaults(absolute=False);
     
+    parser.add_argument(
+        '-l', '--low-res', dest='lr',
+        action='store_true',
+        help='''Use low-resolution analysis'''
+    );
+    parser.set_defaults(lr=False);
+    
     phm.main(parser.parse_args());
