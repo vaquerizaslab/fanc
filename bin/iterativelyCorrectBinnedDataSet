@@ -29,4 +29,11 @@ if __name__ == '__main__':
         required=True
     );
     
+    parser.add_argument(
+        '-l', '--low-res', dest='lr',
+        action='store_true',
+        help='''Use low-resolution analysis'''
+    );
+    parser.set_defaults(lr=False);
+    
     itCor.main(parser.parse_args());
