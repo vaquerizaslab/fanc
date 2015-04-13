@@ -2,6 +2,7 @@ import time;
 import argparse;
 import kaic.genome.genomeTools as gt
 from hiclib import binnedData
+from hiclib import highResBinnedData
 
 def main(args):
     print("Using the following settings");
@@ -12,15 +13,17 @@ def main(args):
 
     # read in genome object
     genome_db = gt.loadGenomeObject(args.genome)
-
-    BD = binnedData.binnedData(args.resolution, genome_db)
-    BD.simpleLoad(args.input, 'hm')
     
-
-    BD.iterativeCorrectWithoutSS(force=True)
-    
-    BD.export("hm",args.output)
-    
+    if args.lr == True:
+        BD = binnedData.binnedData(args.resolution, genome_db)
+        BD.simpleLoad(args.input, 'hm')
+        BD.iterativeCorrectWithoutSS(force=True)
+        BD.export("hm",args.output)
+    else:
+        BD = highResBinnedData.HiResHiC(args.resolution, genome_db)
+        BD.loadData(args.input)
+        BD.iterativeCorrection()
+        BD.export(args.output)
     
 
 
@@ -51,5 +54,13 @@ if __name__ == '__main__':
         help='''Cutoff for filtering very large fragments''',
         required=True
     );
+    
+    parser.add_argument(
+        '-l', '--low-res', dest='lr',
+        action='store_true',
+        help='''Use low-resolution analysis'''
+    );
+    parser.set_defaults(lr=False);
+    
     
     main(parser.parse_args());

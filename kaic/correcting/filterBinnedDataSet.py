@@ -2,6 +2,7 @@ import time;
 import argparse;
 import kaic.genome.genomeTools as gt
 from hiclib import binnedData
+from hiclib import highResBinnedData
 
 def main(args):
     print("Using the following settings");
@@ -13,22 +14,30 @@ def main(args):
     # read in genome object
     genome_db = gt.loadGenomeObject(args.genome)
 
-
-    BD = binnedData.binnedData(args.resolution, genome_db)
-    BD.simpleLoad(args.input, 'hm')
-    
-    
-    if args.diagonal == True:
-        BD.removeDiagonal()   #we never ever use diagonal
-    if args.sf > 0:
-        BD.removeBySequencedCount(args.sf)
-    if args.poor > 0:
-        BD.removePoorRegions(cutoff=args.poor)
-    if args.trunc > 0:
-        BD.truncTrans(high=args.trunc)
-    
-    BD.export("hm",args.output)
-    
+    if args.lr == True:
+        BD = binnedData.binnedData(args.resolution, genome_db)
+        BD.simpleLoad(args.input, 'hm')
+        if args.diagonal == True:
+            BD.removeDiagonal()   #we never ever use diagonal
+        if args.sf > 0:
+            BD.removeBySequencedCount(args.sf)
+        if args.poor > 0:
+            BD.removePoorRegions(cutoff=args.poor)
+        if args.trunc > 0:
+            BD.truncTrans(high=args.trunc)
+        BD.export("hm",args.output)
+    else:
+        BD = highResBinnedData.HiResHiC(args.resolution, genome_db)
+        BD.loadData(args.input)
+        if args.diagonal == True:
+            BD.removeDiagonal()   #we never ever use diagonal
+        if args.sf > 0:
+            print "[WARNING] Cannot removed poorly sequenced bins (not supported for high resolution data sets)"
+        if args.poor > 0:
+            BD.removePoorRegions(percent=args.poor)
+        if args.trunc > 0:
+            print "[WARNING] Cannot truncate top trans bins (not supported for high resolution data sets)"
+        BD.export(args.output);
     
 
 
@@ -87,6 +96,13 @@ if __name__ == '__main__':
         default=0.0,
         help='''Truncates this fraction of trans contacts to remove blowouts'''
     );
+    
+    parser.add_argument(
+        '-l', '--low-res', dest='lr',
+        action='store_true',
+        help='''Use low-resolution analysis'''
+    );
+    parser.set_defaults(lr=False);
     
 
     main(parser.parse_args());
