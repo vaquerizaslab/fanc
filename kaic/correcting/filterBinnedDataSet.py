@@ -27,7 +27,7 @@ def main(args):
             BD.truncTrans(high=args.trunc)
         BD.export("hm",args.output)
     else:
-        BD = highResBinnedData.HiResHiC(args.resolution, genome_db)
+        BD = highResBinnedData.HiResHiC(genome_db,args.resolution)
         BD.loadData(args.input)
         if args.diagonal == True:
             BD.removeDiagonal()   #we never ever use diagonal
