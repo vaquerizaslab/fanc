@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+
+import argparse;
+import kaic.correcting.filterUnwantedLigations as ful
+import kaic.genome.genomeTools as gt
+
+def splitList(thisList):
+    return thisList.split(",");
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser();
+    
+    parser.add_argument(
+        'sams',
+        type=splitList,
+        help='''List of input SAM files, comma separated'''
+    );
+    
+    parser.add_argument(
+        'genome',
+        help='''Genome object file'''
+    );
+    
+    parser.add_argument(
+        '-o', '--output', dest='output',
+        type=splitList,
+        default=None,
+        help='''List of output files (same length as input files) - if omitted, creates \".filtered.sam\" files in same directory as input'''
+    );
+    
+    
+    parser.add_argument(
+        '-s', '--self', dest='selflig',
+        action='store_true',
+        help='''Remove fragment self-ligations'''
+    );
+    parser.set_defaults(selflig=False);
+    
+    parser.add_argument(
+        '-i', '--single', dest='single',
+        action='store_true',
+        help='''Remove single ended fragments'''
+    );
+    parser.set_defaults(single=False);
+    
+    
+    parser.add_argument(
+        '-in', '--inward', dest='inward',
+        type=int,
+        default=None,
+        help='''Base pair cutoff for minimum fragment distance of inward-facing ligations (Jin 2013 uses 1000)'''
+    );
+    
+    parser.add_argument(
+        '-out', '--outward', dest='outward',
+        type=int,
+        default=None,
+        help='''Base pair cutoff for minimum fragment distance of outward-facing ligations (Jin 2013 uses 25000)'''
+    );
+    
+    parser.add_argument(
+        '-r', '--re-dist', dest='redist',
+        type=int,
+        default=None,
+        help='''Base pair cutoff for minimum distance of read to nearest RE site (size selection, Jin 2013 uses 500)'''
+    );
+    
+    parser.add_argument(
+        '-w', '--warnings', dest='warnings',
+        action='store_true',
+        help='''Show warnings'''
+    );
+    parser.set_defaults(warnings=False);
+    
+    args = parser.parse_args()
+    
+    # read in genome object
+    genome_db = gt.loadGenomeObject(args.genome)
+    pairs = ful.ReadPairs(genome_db)
+    
+    print "Loading SAM files"
+    for sam in args.sams:
+        print sam
+        pairs.loadSamFile(sam, warnings=args.warnings)
+    print "done."
+    
+    print "Filtering..."
+    pairs.removeUnwantedLigations(args.inward, args.outward, args.redist, args.single, args.selflig)
+    print "done."
+    
+    print "Writing new SAM files"
+    pairs.filterSamFiles(args.output)
+    
