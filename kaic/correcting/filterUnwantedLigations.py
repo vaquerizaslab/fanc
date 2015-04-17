@@ -283,6 +283,7 @@ class ReadPairs(object):
                 if removeSingle == True:
                     del self.pairs[name]
                     singleRemoved += 1
+                    removed += 1
                 elif reDistCutoff != None and (  (pair.hasLeftRead() and
                          pair.left.getRestrictionSiteDistance() > reDistCutoff) or
                         (pair.hasRightRead() and 
