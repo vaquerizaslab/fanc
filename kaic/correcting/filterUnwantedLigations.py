@@ -131,9 +131,21 @@ class ReadPairs(object):
         
         leftReadMemory = set()
         
-        # read reads
+        # get number of lines
+        totalLineCount = 0
         with open(sam, 'r') as s:
             for x in s:
+                totalLineCount += 1
+        
+        # read reads
+        lineCount = 0
+        with open(sam, 'r') as s:
+            for x in s:
+                lineCount += 1
+                if lineCount % int(totalLineCount/20) == 0:
+                    percent = int(lineCount/int(totalLineCount/20))
+                    print "%d%% done" % (percent*5)
+                    
                 if x.startswith("@") or len(x) == 0:
                     continue;
                 readId, flag, chromosome, position = self._extractReadInformation(x)
