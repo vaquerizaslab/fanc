@@ -248,6 +248,7 @@ class ReadPairs(object):
         inwardTotal = 0
         outwardTotal = 0
         selfTotal = 0
+        singleTotal = 0
         total = 0
         removed = 0
         for name in self.pairs.keys():
@@ -277,23 +278,25 @@ class ReadPairs(object):
                         del self.pairs[name]
                         removed += 1
                         inwardRemoved += 1
-            elif removeSingle == True:
-                del self.pairs[name]
-                singleRemoved += 1
-            elif reDistCutoff != None and (  (pair.hasLeftRead() and
-                     pair.left.getRestrictionSiteDistance() > reDistCutoff) or
-                    (pair.hasRightRead() and 
-                     pair.right.getRestrictionSiteDistance() > reDistCutoff)  ):
-                del self.pairs[name]
-                removed += 1
-                reRemoved += 1
+            else:
+                singleTotal += 1
+                if removeSingle == True:
+                    del self.pairs[name]
+                    singleRemoved += 1
+                elif reDistCutoff != None and (  (pair.hasLeftRead() and
+                         pair.left.getRestrictionSiteDistance() > reDistCutoff) or
+                        (pair.hasRightRead() and 
+                         pair.right.getRestrictionSiteDistance() > reDistCutoff)  ):
+                    del self.pairs[name]
+                    removed += 1
+                    reRemoved += 1
         stat = ("Statistics (removed total):\n" +
-                "Total\t%d\t%d\n" % (removed, total) + 
-                "Single\t%d\t%d\n" % (singleRemoved, singleRemoved) +
-                "RE site\t%d\t%d\n" % (reRemoved, total) +
-                "Self\t%d\t%d\n" % (selfRemoved, selfTotal) +
-                "Inward\t%d\t%d\n" % (inwardRemoved, inwardTotal) +
-                "Outward\t%d\t%d" % (outwardRemoved, outwardTotal)
+                "Total\t%d\t%d\t%.2f\n" % (removed, total, removed/total*100) + 
+                "Single\t%d\t%d\t%.2f\n" % (singleRemoved, singleTotal, singleRemoved/singleTotal*100) +
+                "RE site\t%d\t%d\t%.2f\n" % (reRemoved, total, reRemoved/total*100) +
+                "Self\t%d\t%d\t%.2f\n" % (selfRemoved, selfTotal, selfRemoved/selfTotal*100) +
+                "Inward\t%d\t%d\t%.2f\n" % (inwardRemoved, inwardTotal, inwardRemoved/inwardTotal*100) +
+                "Outward\t%d\t%d\t%.2f" % (outwardRemoved, outwardTotal, outwardRemoved/outwardTotal*100)
                 )
         print stat
     
