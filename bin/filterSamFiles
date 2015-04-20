@@ -11,9 +11,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser();
     
     parser.add_argument(
-        'sams',
-        type=splitList,
-        help='''List of input SAM files, comma separated'''
+        'sam1',
+        help='''First half of SAM map'''
+    );
+    
+    parser.add_argument(
+        'sam2',
+        help='''Second half of SAM map'''
     );
     
     parser.add_argument(
@@ -23,9 +27,9 @@ if __name__ == '__main__':
     
     parser.add_argument(
         '-o', '--output', dest='output',
-        type=splitList,
         default=None,
-        help='''List of output files (same length as input files) - if omitted, creates \".filtered.sam\" files in same directory as input'''
+        nargs=2,
+        help='''Two output files - if omitted, creates \".filtered.sam\" files in same directory as input'''
     );
     
     
@@ -42,6 +46,13 @@ if __name__ == '__main__':
         help='''Remove single ended fragments'''
     );
     parser.set_defaults(single=False);
+    
+    parser.add_argument(
+        '-d', '--duplicates', dest='dup',
+        action='store_true',
+        help='''Remove duplicate reads with the same ID'''
+    );
+    parser.set_defaults(dup=False);
     
     
     parser.add_argument(
@@ -78,16 +89,28 @@ if __name__ == '__main__':
     genome_db = gt.loadGenomeObject(args.genome)
     pairs = ful.ReadPairs(genome_db)
     
-    print "Loading SAM files"
-    for sam in args.sams:
-        print sam
-        pairs.loadSamFile(sam, warnings=args.warnings)
-    print "done."
-    
+
     print "Filtering..."
-    pairs.removeUnwantedLigations(args.inward, args.outward, args.redist, args.single, args.selflig)
+    if args.output == None:
+        pairs.removeUnwantedLigationsLowMem(args.sam1,
+                                            args.sam2,
+                                            inwardCutoff=args.inward,
+                                            outwardCutoff=args.outward,
+                                            reDistCutoff=args.redist,
+                                            removeSingle=args.single,
+                                            removeSelf=args.selflig,
+                                            removeDuplicates=args.dup)
+    else:
+        pairs.removeUnwantedLigationsLowMem(args.sam1,
+                                            args.sam2,
+                                            outputSam1=args.output[0],
+                                            outputSam2=args.output[1],
+                                            inwardCutoff=args.inward,
+                                            outwardCutoff=args.outward,
+                                            reDistCutoff=args.redist,
+                                            removeSingle=args.single,
+                                            removeSelf=args.selflig,
+                                            removeDuplicates=args.dup)
     print "done."
-    
-    print "Writing new SAM files"
-    pairs.filterSamFiles(args.output)
+
     

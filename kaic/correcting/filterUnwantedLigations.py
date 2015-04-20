@@ -10,7 +10,8 @@ from matplotlib import pyplot as plt
 from warnings import warn
 
 class Read(object):
-    def __init__(self, chromosome, position, reverse=False):
+    def __init__(self, name, chromosome, position, reverse=False):
+        self.name = name
         self.chromosome = chromosome
         self.position = position
         self.reverse = reverse
@@ -113,14 +114,29 @@ class ReadPairs(object):
 
     def _extractReadInformation(self, line):
         x = line.rstrip()
+        if x == '':
+            return None
         fields = x.split("\t")
-        readId = fields[0]
+        if len(fields) < 4:
+            return None
+        name = fields[0]
         flag = int(fields[1])
         chromosome = fields[2]
         position = int(fields[3])
         
-        return readId, flag, chromosome, position
-    
+        if flag == 16:
+            reverse = True
+        elif flag == 0:
+            reverse = False
+        else:
+            return None
+        
+        chrLabel = self.genome._extractChrmLabel(chromosome)
+        if not chrLabel in self.genome.label2idx:
+            return None
+        
+        return Read(name, chromosome, position, reverse)
+            
     def loadSamFiles(self, sam1, sam2, warnings=False):
         self.loadSamFile(sam1, warnings=warnings)
         self.loadSamFile(sam2, warnings=warnings)
@@ -250,7 +266,413 @@ class ReadPairs(object):
             pair = self.pairs[name]
             if pair.isOutwardPair() and pair.getGapSize() < cutoffDistance:
                 del self.pairs[name]
+    
+    def removeUnwantedLigationsLowMem(self, inputSam1, inputSam2,
+                                      outputSam1=None, outputSam2=None,
+                                      inwardCutoff=1000, outwardCutoff=25000,
+                                      reDistCutoff=500, removeSingle=True,
+                                      removeSelf=True, sortFiles=False,
+                                      removeDuplicates=True):
+        inputSam1 = os.path.abspath(os.path.expanduser(inputSam1))
+        inputSam2 = os.path.abspath(os.path.expanduser(inputSam2))
+        
+        # create output files
+        if outputSam1 == None:
+            folder1, fileName1 = os.path.split(inputSam1)
+            base1 = os.path.splitext(fileName1)[0]
+            outputSam1 = folder1 + '/' + base1 + '.filtered.sam'
+        if outputSam2 == None:
+            folder2, fileName2 = os.path.split(inputSam2)
+            base2 = os.path.splitext(fileName2)[0]
+            outputSam2 = folder2 + '/' + base2 + '.filtered.sam'
+        
+        # get number of lines
+        totalLineCount = 0
+        with open(inputSam1, 'r') as s:
+            for x in s:
+                totalLineCount += 1
+        
+        
+        def getNextRead(line):
+            x = line.rstrip()
+            if x == '':
+                return None
+            fields = x.split("\t")
+            if len(fields) < 4:
+                return None
+            name = fields[0]
+            flag = int(fields[1])
+            chromosome = fields[2]
+            position = int(fields[3])
+            
+            if flag == 16:
+                reverse = True
+            elif flag == 0:
+                reverse = False
+            else:
+                return None
+            
+            chrLabel = self.genome._extractChrmLabel(chromosome)
+            if not chrLabel in self.genome.label2idx:
+                return None
+            
+            return Read(name, chromosome, position, reverse)
+        
+        def advanceByOne(sam, last):
+            line = sam.readline()
+            read = getNextRead(line)
+            return line, read, last
+            
+        
+        inwardRemoved = 0
+        outwardRemoved = 0
+        reRemoved = 0
+        singleRemoved = 0
+        selfRemoved = 0
+        inwardTotal = 0
+        outwardTotal = 0
+        selfTotal = 0
+        singleTotal = 0
+        total = 0
+        removed = 0
+        
+        lineCount = 0
+        with open(inputSam1, 'r') as s1:
+            with open(inputSam2, 'r') as s2:
+                with open(outputSam1, 'w') as o1:
+                    with open(outputSam2, 'w') as o2:
+                        # skip headers
+                        line1 = s1.readline()
+                        while line1 != '' and line1.startswith("@"):
+                            line1 = s1.readline()
+                            lineCount += 1
+                            o1.write(line1)
+                        line2 = s2.readline()
+                        while line2 != '' and line2.startswith("@"):
+                            line2 = s2.readline()
+                            o2.write(line2)
+                        
+                        last1 = None
+                        last2 = None
+                        read1 = getNextRead(line1)
+                        read2 = getNextRead(line2)
+                        lastPercent = -1
+                        while line1 != '' and line2 != '':
+                            if lineCount % int(totalLineCount/20) == 0:
+                                percent = int(lineCount/int(totalLineCount/20))
+                                if percent != lastPercent:
+                                    print "%d%% done" % (percent*5)
+                                    lastPercent = percent
+                            
+                            if read1 == None:
+                                line1, read1, last1 = advanceByOne(s1, read1)
+                                lineCount += 1
+                            elif read2 == None:
+                                line2, read2, last2 = advanceByOne(s2, read2)
+                            elif last1 != None and read1.name == last1.name:
+                                if removeDuplicates == False:
+                                    o1.write(line1)
+                                line1, read1, last1 = advanceByOne(s1, read1)
+                                lineCount += 1
+                            elif last2 != None and read2.name == last2.name:
+                                if removeDuplicates == False:
+                                    o2.write(line2)
+                                line2, read2, last2 = advanceByOne(s2, read2)
+                            elif read1.name < read2.name:
+                                singleTotal += 1
+                                if removeSingle == True:
+                                    singleRemoved += 1
+                                else:
+                                    if reDistCutoff != None:
+                                        self._updateFragmentPosition(read1)
+                                        if read1.getRestrictionSiteDistance() > reDistCutoff:
+                                            singleRemoved += 1
+                                        else:
+                                            o1.write(line1)
+                                    else:
+                                        o1.write(line1)
+                                line1, read1, last1 = advanceByOne(s1, read1)
+                                lineCount += 1
+                            elif read2.name < read1.name:
+                                singleTotal += 1
+                                if removeSingle == True:
+                                    singleRemoved += 1
+                                else:
+                                    if reDistCutoff != None:
+                                        self._updateFragmentPosition(read2)
+                                        if read2.getRestrictionSiteDistance() > reDistCutoff:
+                                            singleRemoved += 1
+                                        else:
+                                            o2.write(line2)
+                                    else:
+                                        o2.write(line2)
+                                line2, read2, last2 = advanceByOne(s2, read2)
+                            else: # must be identical
+                                total += 1
+                                
+                                pair = ReadPair(read1.name)
+                                self._updateFragmentPosition(read1)
+                                self._updateFragmentPosition(read2)
+                                pair.setLeftRead(read1)
+                                pair.setRightRead(read2)
+                                
+                                if pair.isSameFragment():
+                                    selfTotal += 1
+                                    if removeSelf == False:
+                                        o1.write(line1)
+                                        o2.write(line2)
+                                    else:
+                                        removed += 1
+                                        selfRemoved += 1
+                                elif ( reDistCutoff != None and 
+                                       (pair.left.getRestrictionSiteDistance() > reDistCutoff
+                                        or pair.right.getRestrictionSiteDistance() > reDistCutoff) ):
+                                    removed += 1
+                                    reRemoved += 1
+                                elif pair.isOutwardPair():
+                                    outwardTotal += 1
+                                    if outwardCutoff != None and pair.getGapSize() < outwardCutoff:
+                                        removed += 1
+                                        outwardRemoved += 1
+                                    else:
+                                        o1.write(line1)
+                                        o2.write(line2)
+                                elif pair.isInwardPair():
+                                    inwardTotal += 1
+                                    if inwardCutoff != None and pair.getGapSize() < inwardCutoff:
+                                        removed += 1
+                                        inwardRemoved += 1
+                                    else:
+                                        o1.write(line1)
+                                        o2.write(line2)
+                                else:
+                                    o1.write(line1)
+                                    o2.write(line2)
+                                
+                                line1, read1, last1 = advanceByOne(s1, read1)
+                                line2, read2, last2 = advanceByOne(s2, read2)
+                                lineCount += 1
+                         
+                        # rest must be single
+                        while line1 != '':
+                            singleTotal += 1
+                            if removeSingle == True:
+                                singleRemoved += 1
+                            else:
+                                if reDistCutoff != None and read1 != None:
+                                    self._updateFragmentPosition(read1)
+                                    if read1.getRestrictionSiteDistance() > reDistCutoff:
+                                        singleRemoved += 1
+                                    else:
+                                        o1.write(line1)
+                                else:
+                                    o1.write(line1)
+                            line1, read1, last1 = advanceByOne(s1, read1)
+                        while line2 != '':
+                            singleTotal += 1
+                            if removeSingle == True:
+                                singleRemoved += 1
+                            else:
+                                if reDistCutoff != None and read2 != None:
+                                    self._updateFragmentPosition(read2)
+                                    if read2.getRestrictionSiteDistance() > reDistCutoff:
+                                        singleRemoved += 1
+                                    else:
+                                        o2.write(line2)
+                                else:
+                                    o2.write(line2)
+                            line2, read2, last2 = advanceByOne(s2, read2)
+                        
+        
+        stat = ("Statistics\tremoved\ttotal\tpercent\tpercentOfTotal\n" +
+                "Pairs    \t%d\t%d\t%.2f\t%.2f\n" % (removed, total, removed/total*100, total/(total+singleTotal)*100) + 
+                "- RE site\t%d\t%d\t%.2f\t%.2f\n" % (reRemoved, total, reRemoved/total*100, 100) +
+                "- Self   \t%d\t%d\t%.2f\t%.2f\n" % (selfRemoved, selfTotal, selfRemoved/selfTotal*100, selfTotal/total*100) +
+                "- Inward \t%d\t%d\t%.2f\t%.2f\n" % (inwardRemoved, inwardTotal, inwardRemoved/inwardTotal*100, inwardTotal/total*100) +
+                "- Outward\t%d\t%d\t%.2f\t%.2f\n" % (outwardRemoved, outwardTotal, outwardRemoved/outwardTotal*100, outwardTotal/total*100) +
+                "Single   \t%d\t%d\t%.2f\t%.2f" % (singleRemoved, singleTotal, singleRemoved/singleTotal*100, singleTotal/(total+singleTotal)*100)
+                )
+        print stat
+    
+    def plotErrorStructureLowMem(self, inputSam1, inputSam2, skipSelfLigated=True, dataPoints=100, output=None):
+        inputSam1 = os.path.abspath(os.path.expanduser(inputSam1))
+        inputSam2 = os.path.abspath(os.path.expanduser(inputSam2))
+        
+        # get number of lines
+        totalLineCount = 0
+        with open(inputSam1, 'r') as s:
+            for x in s:
+                totalLineCount += 1
+        
+        def getNextRead(line):
+            x = line.rstrip()
+            if x == '':
+                return None
+            fields = x.split("\t")
+            if len(fields) < 4:
+                return None
+            name = fields[0]
+            flag = int(fields[1])
+            chromosome = fields[2]
+            position = int(fields[3])
+            
+            if flag == 16:
+                reverse = True
+            elif flag == 0:
+                reverse = False
+            else:
+                return None
+            
+            chrLabel = self.genome._extractChrmLabel(chromosome)
+            if not chrLabel in self.genome.label2idx:
+                return None
+            
+            return Read(name, chromosome, position, reverse)
+        
+        def advanceByOne(sam, last):
+            line = sam.readline()
+            read = getNextRead(line)
+            return line, read, last
+            
+        
+        
+        gaps = []
+        # same = 0
+        # in = 1
+        # out = 2
+        types = []
+        lineCount = 0
+        with open(inputSam1, 'r') as s1:
+            with open(inputSam2, 'r') as s2:
+                # skip headers
+                line1 = s1.readline()
+                while line1 != '' and line1.startswith("@"):
+                    line1 = s1.readline()
+                    lineCount += 1
+                line2 = s2.readline()
+                while line2 != '' and line2.startswith("@"):
+                    line2 = s2.readline()
                 
+                last1 = None
+                last2 = None
+                read1 = getNextRead(line1)
+                read2 = getNextRead(line2)
+                lastPercent = -1
+                while line1 != '' and line2 != '':
+                    if lineCount % int(totalLineCount/20) == 0:
+                        percent = int(lineCount/int(totalLineCount/20))
+                        if percent != lastPercent:
+                            print "%d%% done" % (percent*5)
+                            lastPercent = percent
+                    if read1 == None:
+                        line1, read1, last1 = advanceByOne(s1, read1)
+                        lineCount += 1
+                    elif read2 == None:
+                        line2, read2, last2 = advanceByOne(s2, read2)
+                    elif last1 != None and read1.name == last1.name:
+                        line1, read1, last1 = advanceByOne(s1, read1)
+                        lineCount += 1
+                    elif last2 != None and read2.name == last2.name:
+                        line2, read2, last2 = advanceByOne(s2, read2)
+                    elif read1.name < read2.name:
+                        line1, read1, last1 = advanceByOne(s1, read1)
+                        lineCount += 1
+                    elif read2.name < read1.name:
+                        line2, read2, last2 = advanceByOne(s2, read2)
+                    else: # must be identical
+                        pair = ReadPair(read1.name)
+                        self._updateFragmentPosition(read1)
+                        self._updateFragmentPosition(read2)
+                        pair.setLeftRead(read1)
+                        pair.setRightRead(read2)
+                        
+                        if pair.isSameFragment() and skipSelfLigated == True:
+                            line1, read1, last1 = advanceByOne(s1, read1)
+                            lineCount += 1
+                            line2, read2, last2 = advanceByOne(s2, read2)
+                            continue
+                        
+                        if pair.isSameChromosome():
+                            gapSize = pair.getGapSize()
+                            if gapSize > 0:
+                                if pair.isOutwardPair():
+                                    gaps.append(gapSize)
+                                    types.append(2)
+                                elif pair.isInwardPair():
+                                    gaps.append(gapSize)
+                                    types.append(1)
+                                else:
+                                    gaps.append(gapSize)
+                                    types.append(0)
+                        
+                        line1, read1, last1 = advanceByOne(s1, read1)
+                        line2, read2, last2 = advanceByOne(s2, read2)
+                        lineCount += 1
+        
+        
+        # sort data
+        points = zip(gaps,types)
+        sortedPoints = sorted(points)
+        gaps = [point[0] for point in sortedPoints]
+        types = [point[1] for point in sortedPoints]
+                
+        x = []
+        inwardRatios = []
+        outwardRatios = []
+        counter = 0
+        sameCounter = 0
+        mids = 0
+        outwards = 0
+        inwards = 0
+        same = 0
+        for i in range(0,len(gaps)):
+            mids += gaps[i]
+            if types[i] ==0:
+                same += 1
+                sameCounter += 1
+            elif types[i] == 1:
+                inwards += 1
+            else:
+                outwards += 1
+            counter += 1
+            
+            if sameCounter > dataPoints:
+                x.append(mids/counter)
+                inwardRatios.append(inwards/same)
+                outwardRatios.append(outwards/same)
+                
+                sameCounter = 0
+                counter = 0
+                mids = 0
+                outwards = 0
+                inwards = 0
+                same = 0
+                
+            
+                
+        if output != None:
+            plt.ioff()
+        
+        fig = plt.figure()
+        fig.suptitle("Error structure by distance")
+        plt.plot(x,inwardRatios, 'b', label="inward/same strand")
+        plt.plot(x,outwardRatios, 'r', label="outward/same strand")
+        plt.xscale('log')
+        plt.axhline(y=0.5,color='black',ls='dashed')
+        plt.ylim(0,3)
+        plt.xlabel('gap size between fragments')
+        plt.ylabel('ratio of number of reads')
+        plt.legend(loc='upper right')
+
+        if output == None:
+            plt.show();
+        else:
+            fig.savefig(output)
+            plt.close(fig)
+            plt.ion()
+        
+    
+    
     def removeUnwantedLigations(self, inwardCutoff=1000, outwardCutoff=25000, reDistCutoff=500, removeSingle=True, removeSelf=True):
         inwardRemoved = 0
         outwardRemoved = 0
