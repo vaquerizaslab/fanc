@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+import argparse;
+import kaic.correcting.filterUnwantedLigations as ful
+import kaic.genome.genomeTools as gt
+
+def splitList(thisList):
+    return thisList.split(",");
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser();
+    
+    parser.add_argument(
+        'sam1',
+        help='''First half of SAM map'''
+    );
+    
+    parser.add_argument(
+        'sam2',
+        help='''Second half of SAM map'''
+    );
+    
+    parser.add_argument(
+        'genome',
+        help='''Genome object file'''
+    );
+    
+    parser.add_argument(
+        '-o', '--output', dest='output',
+        default=None,
+        help='''Output file for plot (default is 'None', which plots to window)'''
+    );
+    
+    parser.add_argument(
+        '-s', '--self', dest='selflig',
+        action='store_false',
+        help='''Do not skip fragment self-ligations when counting'''
+    );
+    parser.set_defaults(selflig=True);
+    
+    parser.add_argument(
+        '-dp', '--data-points', dest='dp',
+        type=int,
+        default=1000,
+        help='''Number of same-strand data points per point in the plot'''
+    );
+    
+    
+    
+    args = parser.parse_args()
+    
+    # read in genome object
+    genome_db = gt.loadGenomeObject(args.genome)
+    pairs = ful.ReadPairs(genome_db)
+    
+
+    print "Counting..."
+
+    pairs.removeUnwantedLigationsLowMem(args.sam1,
+                                        args.sam2,
+                                        output=args.output,
+                                        dataPoints =args.dp,
+                                        skipSelfLigated=args.selflig)
+    print "done."
+
+    
