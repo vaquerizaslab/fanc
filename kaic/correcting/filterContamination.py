@@ -44,8 +44,8 @@ def filterContaminationLowMem(samSample, samContaminant, output):
                 # skip headers
                 line1 = s.readline()
                 while line1 != '' and line1.startswith("@"):
-                    line1 = s.readline()
                     o.write(line1)
+                    line1 = s.readline()
                 line2 = sc.readline()
                 while line2 != '' and line2.startswith("@"):
                     line2 = sc.readline()
@@ -65,5 +65,12 @@ def filterContaminationLowMem(samSample, samContaminant, output):
                         line1 = s.readline()
                         nOriginal += 1
                         line2 = sc.readline()
-    
-    print "Kept %d of %d reads %.2f" % (nFiltered, nOriginal, nFiltered/nOriginal*100);
+                
+                # rest must be uncontaminated
+                while line1 != '':
+                    o.write(line1)
+                    line1 = s.readline()
+                    nOriginal += 1
+                    nFiltered += 1
+                    
+    print "Kept %d of %d reads (%.2f%%)" % (nFiltered, nOriginal, nFiltered/nOriginal*100);
