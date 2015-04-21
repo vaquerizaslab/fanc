@@ -26,7 +26,16 @@ if __name__ == '__main__':
         help='''Output SAM file'''
     );
     
+    parser.add_argument(
+        '-m', '--memory', dest='memory',
+        action='store_true',
+        help='''Perform everything in memory'''
+    );
+    parser.set_defaults(warnings=False);
+    
     args = parser.parse_args()
     
-    fc.filterContamination(args.input,args.contaminant,args.output)
-    
+    if args.memory == True:
+        fc.filterContamination(args.input,args.contaminant,args.output)
+    else:
+        fc.filterContaminationLowMem(args.input,args.contaminant,args.output)
