@@ -31,3 +31,39 @@ def filterContamination(samSample, samContaminant, output):
                     nFiltered+=1
     
     print "Kept %d of %d reads " % (nFiltered, nOriginal);
+    
+    
+def filterContaminationLowMem(samSample, samContaminant, output):
+    
+    nOriginal = 0
+    nFiltered = 0
+    # collect all ID's of mapped contaminant
+    with open(samContaminant, 'r') as sc:
+        with open(samSample, 'r') as s:
+            with open(output, 'w') as o:
+                # skip headers
+                line1 = s.readline()
+                while line1 != '' and line1.startswith("@"):
+                    line1 = s.readline()
+                    o.write(line1)
+                line2 = sc.readline()
+                while line2 != '' and line2.startswith("@"):
+                    line2 = sc.readline()
+                
+                
+                while line1 != '' and line2 != '':
+                    id1 = line1.split("\t")[0]
+                    id2 = line2.split("\t")[0]
+                    if id1 < id2:
+                        o.write(line1)
+                        line1 = s.readline()
+                        nOriginal += 1
+                    elif id1 > id2:
+                        line2 = sc.readline()
+                    else:
+                        line1 = s.readline()
+                        nOriginal += 1
+                        nFiltered += 1
+                        line2 = sc.readline()
+    
+    print "Kept %d of %d reads " % (nFiltered, nOriginal);

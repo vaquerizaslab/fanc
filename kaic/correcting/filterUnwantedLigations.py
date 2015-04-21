@@ -6,6 +6,8 @@ Created on Apr 14, 2015
 from __future__ import division
 import os.path
 from bisect import bisect_right
+import matplotlib
+matplotlib.use('pdf')
 from matplotlib import pyplot as plt
 from warnings import warn
 
