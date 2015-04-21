@@ -3,7 +3,7 @@ Created on Apr 7, 2015
 
 @author: kkruse1
 '''
-
+from __future__ import division
 
 def filterContamination(samSample, samContaminant, output):
     # collect all ID's of mapped contaminant
@@ -58,12 +58,12 @@ def filterContaminationLowMem(samSample, samContaminant, output):
                         o.write(line1)
                         line1 = s.readline()
                         nOriginal += 1
+                        nFiltered += 1
                     elif id1 > id2:
                         line2 = sc.readline()
                     else:
                         line1 = s.readline()
                         nOriginal += 1
-                        nFiltered += 1
                         line2 = sc.readline()
     
-    print "Kept %d of %d reads " % (nFiltered, nOriginal);
+    print "Kept %d of %d reads %.2f" % (nFiltered, nOriginal, nFiltered/nOriginal*100);
