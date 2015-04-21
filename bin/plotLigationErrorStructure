@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     print "Counting..."
 
-    pairs.plotErrorStructureLowMemLowMem(args.sam1,
+    pairs.plotErrorStructureLowMem(args.sam1,
                                         args.sam2,
                                         output=args.output,
                                         dataPoints =args.dp,
