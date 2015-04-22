@@ -2,7 +2,8 @@
 
 import argparse;
 import kaic.merging.mergeHiCDataSets as merge
-
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 def splitList(thisList):
     return thisList.split(",");
