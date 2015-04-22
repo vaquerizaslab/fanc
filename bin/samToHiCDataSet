@@ -3,6 +3,8 @@
 import argparse;
 import kaic.mapping.samToHiCDataSet as sam
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 
 def splitList(thisList):

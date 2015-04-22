@@ -346,13 +346,15 @@ class ReadPairs(object):
                         # skip headers
                         line1 = s1.readline()
                         while line1 != '' and line1.startswith("@"):
+                            o1.write(line1)
                             line1 = s1.readline()
                             lineCount += 1
-                            o1.write(line1)
+                            
                         line2 = s2.readline()
                         while line2 != '' and line2.startswith("@"):
-                            line2 = s2.readline()
                             o2.write(line2)
+                            line2 = s2.readline()
+                            
                         
                         last1 = None
                         last2 = None
