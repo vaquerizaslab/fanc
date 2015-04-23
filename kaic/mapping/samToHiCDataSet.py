@@ -47,6 +47,7 @@ def main(args):
     
     TR = HiCdataset(args.output, genome=genome_db)
     TR.parseInputData(dictLike=mapped_reads)
+    TR._sortData()
     
     os.unlink(tmpFilename)
 
