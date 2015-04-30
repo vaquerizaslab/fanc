@@ -847,10 +847,10 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
                            'd': d_peaks_inter[peak][1],
                            'h': h_peaks_inter[peak][1],
                            'v': v_peaks_inter[peak][1],
-                           'll_fdr': ll_peaks_intra[peak][2],
-                           'd_fdr': d_peaks_intra[peak][2],
-                           'h_fdr': h_peaks_intra[peak][2],
-                           'v_fdr': v_peaks_intra[peak][2],
+                           'll_fdr': ll_peaks_inter[peak][2],
+                           'd_fdr': d_peaks_inter[peak][2],
+                           'h_fdr': h_peaks_inter[peak][2],
+                           'v_fdr': v_peaks_inter[peak][2],
                            'obs': v_peaks_inter[peak][0],
                            'fdr': max(ll_peaks_inter[peak][2],
                                       h_peaks_inter[peak][2],
@@ -925,6 +925,6 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
                 line = "%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n" % (o,fdr,d,ll,v,h,d_fdr,ll_fdr,h_fdr,v_fdr)
                 o.write(line)
         
-    
+    return peaks
         
     return peaks
