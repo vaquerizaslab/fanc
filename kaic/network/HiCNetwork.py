@@ -833,6 +833,7 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
                            'h_fdr': h_peaks_intra[peak][2],
                            'v_fdr': v_peaks_intra[peak][2],
                            'obs': v_peaks_intra[peak][0],
+                           'inter': 0,
                            'fdr': max(ll_peaks_intra[peak][2],
                                       h_peaks_intra[peak][2],
                                       v_peaks_intra[peak][2],
@@ -852,6 +853,7 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
                            'h_fdr': h_peaks_inter[peak][2],
                            'v_fdr': v_peaks_inter[peak][2],
                            'obs': v_peaks_inter[peak][0],
+                           'inter': 1,
                            'fdr': max(ll_peaks_inter[peak][2],
                                       h_peaks_inter[peak][2],
                                       v_peaks_inter[peak][2],
@@ -909,11 +911,12 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
     
     if output != None:
         with open(output, 'w') as out:
-            out.write("i\tj\tobs\tfdr\td\tll\tv\th\td_fdr\tll_fdr\tv_fdr\th_fdr\n")
+            out.write("i\tj\tinter\t\tobs\tfdr\td\tll\tv\th\td_fdr\tll_fdr\tv_fdr\th_fdr\n")
             
             for peak in peaks:
                 i = peak[0]
                 j = peak[1]
+                inter = peaks[peak]['inter']
                 o = int(peaks[peak]['obs'])
                 fdr = float(peaks[peak]['fdr'])
                 d = float(peaks[peak]['d'])
@@ -924,7 +927,7 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
                 ll_fdr = float(peaks[peak]['ll_fdr'])
                 h_fdr = float(peaks[peak]['h_fdr'])
                 v_fdr = float(peaks[peak]['v_fdr'])
-                line = "%d\t%d\t%d\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\n" % (i,j,o,fdr,d,ll,v,h,d_fdr,ll_fdr,h_fdr,v_fdr)
+                line = "%d\t%d\t%d\t%d\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\n" % (i,j,inter,o,fdr,d,ll,v,h,d_fdr,ll_fdr,h_fdr,v_fdr)
                 out.write(line)
         
     return peaks
