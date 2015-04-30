@@ -924,7 +924,7 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
                 ll_fdr = float(peaks[peak]['ll_fdr'])
                 h_fdr = float(peaks[peak]['h_fdr'])
                 v_fdr = float(peaks[peak]['v_fdr'])
-                line = "%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n" % (i,j,o,fdr,d,ll,v,h,d_fdr,ll_fdr,h_fdr,v_fdr)
+                line = "%d\t%d\t%d\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\n" % (i,j,o,fdr,d,ll,v,h,d_fdr,ll_fdr,h_fdr,v_fdr)
                 out.write(line)
         
     return peaks
