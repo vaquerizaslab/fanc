@@ -14,6 +14,7 @@ import numpy as np
 from scikits.statsmodels.sandbox.stats.multicomp import multipletests
 from __builtin__ import classmethod
 from collections import Counter
+from bisect import bisect_right
 
 class Edge(t.IsDescription):
     idNumber = t.Int64Col()   # @UndefinedVariable
@@ -84,7 +85,7 @@ class HiCNetwork(object):
             self.file.create_table(self.genome, 'chromosomes', Chromosome, 'Chromosome information')
     
     @classmethod
-    def liebermannBinnedHiC(cls, fileName, hic, genome=None, resolution=None):
+    def liebermannBinnedHiC(cls, fileName, hic, genome=None, resolution=None, fdr=0.01, findInterPeaks=True):
         if type(genome) == str:
             genome = kaic.genome.genomeTools.loadGenomeObject(genome)
         
@@ -94,20 +95,60 @@ class HiCNetwork(object):
                 tmpHic.loadData(hic)
                 hic = tmpHic
         
+        print "Checking bin mappability"
+        mappableChrm = {}
+        for i in hic.genome.idx2label:
+            mappableChrm[i] = []
+            
+        interObserved = 0
+        for i in range(0,len(hic.genome.chrmIdxBinCont)):
+            chrm = hic.genome.chrmIdxBinCont[i]
+            mappableChrm[chrm].append(False)
+        for chr1, chr2 in hic.data:
+            M = hic.data[(chr1, chr2)].getData()
+            
+            for i in range(0,M.shape[0]):
+                for j in range(i,M.shape[1]):
+                    
+                    if M[i,j] > 0:
+                        mappableChrm[chr1][i] = True
+                        mappableChrm[chr2][j] = True
+                        if chr1 != chr2:
+                            interObserved += M[i,j]
+        
+        print "Calculating possible contacts"
+        interPossible = 0
+        for i in range(0,len(mappableChrm)):
+            i_mappable = sum(mappableChrm[i])
+            for j in range(i, len(mappableChrm)):
+                j_mappable = sum(mappableChrm[j])
+                if i != j:
+                    interPossible += i_mappable * j_mappable
+        
+        interExpected = interPossible/interObserved
+        
+        print "Creating 1D model"
+        oeDiff = {}
         # calculating reads at all distances
         nDistances = max(Counter(genome.chrmIdxBinCont).values())
         pixelsAtDistances = np.zeros(nDistances)
         readsAtDistances = np.zeros(nDistances)
         for chr1, chr2 in hic.data:
             if chr1 == chr2:
-                data = hic.data[(chr1, chr2)].getData()
+                oeDiff[chr1] = []
                 
-                for i in range(0,data.shape[0]):
-                    for j in range(i,data.shape[1]):
-                        distance = j-i   
-                        readsAtDistances[distance] += data[i,j]                 
-                        pixelsAtDistances[distance] += 1
-        
+                M = hic.data[(chr1, chr2)].getData()
+                
+                for i in range(0,M.shape[0]):
+                    for j in range(i,M.shape[1]):
+                        # only count mappable bins
+                        if mappableChrm[chr1][i] and mappableChrm[chr2][j]:
+                            distance = j-i
+                            readsAtDistances[distance] += M[i,j]
+                            pixelsAtDistances[distance] += 1
+
+                        
+        print "Smoothing 1D model"
         # smoothing distance vector
         smoothedPixelsAtDistances = np.zeros(len(pixelsAtDistances))
         smoothedReadsAtDistances = np.zeros(len(readsAtDistances))
@@ -131,154 +172,167 @@ class HiCNetwork(object):
             smoothedPixelsAtDistances[i] = newPixels
         
         OE = smoothedReadsAtDistances/smoothedPixelsAtDistances
+        print "1D model length is %d" %len(OE)
         
-        def E(i,j):
+        def E(i,j,inter=False):
+            if inter:
+                return interExpected
             d = abs(i-j)
             return OE[d]
         
-        # lower-left neighborhood
-        def E_ll(M,i,j,w=1,p=0):
-            sum1 = 0
-            for a in range(i+1, i+w+1):
-                for b in range(j-w, j):
-                    sum1 += M[a,b]
-            
-            sum2 = 0
-            for a in range(i+1, i+p+1):
-                for b in range (j-p, j):
-                    sum2 += M[a,b]
-            
-            sum3 = 0
-            for a in range(i+1, i+w+1):
-                for b in range(j-w, j):
-                    sum3 += E(a,b)
-            
-            sum4 = 0
-            for a in range(i+1, i+p+1):
-                for b in range (j-p, j):
-                    sum4 += E(a,b)
-            
-            return (sum1-sum2)/(sum3-sum4)*E(i,j)
-        
         # sum of reads in lower-left neighborhood
         def ll_sum(M,i,j,w=1,p=0):
+            i_max, j_max = M.shape
+            
             sum1 = 0
-            for a in range(i+1, i+w+1):
-                for b in range(j-w, j):
+            for a in range(max(0,i+1), min(i_max,i+w+1)):
+                for b in range(max(0,j-w), min(j_max,j)):
                     sum1 += M[a,b]
             
             sum2 = 0
-            for a in range(i+1, i+p+1):
-                for b in range (j-p, j):
+            for a in range(max(0,i+1), min(i_max,i+p+1)):
+                for b in range (max(0,j-p), min(j_max,j)):
                     sum2 += M[a,b]
             
             return (sum1-sum2)
+        
+        # lower-left neighborhood
+        def E_ll(M,i,j,w=1,p=0,inter=False):
+            i_max, j_max = M.shape
             
-        # vertical neighborhood
-        def E_v(M,i,j,w=1,p=0):
             sum1 = 0
-            for a in range(i-w, i-p):
-                for b in range(j-1, j+2):
+            for a in range(max(0,i+1), min(i+w+1,i_max)):
+                for b in range(max(0,j-w), min(j_max,j)):
                     sum1 += M[a,b]
             
             sum2 = 0
-            for a in range(i+p+1, i+w+1):
-                for b in range (j-1, j+2):
+            for a in range(max(0,i+1), min(i_max,i+p+1)):
+                for b in range (max(0,j-p), min(j_max,j)):
                     sum2 += M[a,b]
             
             sum3 = 0
-            for a in range(i-w, i-p):
-                for b in range(j-1, j+2):
-                    sum3 += E(a,b)
+            for a in range(max(0,i+1), min(i_max,i+w+1)):
+                for b in range(max(0,j-w), min(j_max,j)):
+                    sum3 += E(a,b,inter)
             
             sum4 = 0
-            for a in range(i+p+1, i+w+1):
-                for b in range (j-1, j+2):
-                    sum4 += E(a,b)
+            for a in range(max(0,i+1), min(i_max,i+p+1)):
+                for b in range (max(0,j-p), min(j_max,j)):
+                    sum4 += E(a,b,inter)
             
-            return (sum1-sum2)/(sum3-sum4)*E(i,j)
+            return (sum1-sum2)/(sum3-sum4)*E(i,j,inter)
+                        
+        # vertical neighborhood
+        def E_v(M,i,j,w=1,p=0,inter=False):
+            i_max, j_max = M.shape
+            
+            sum1 = 0
+            for a in range(max(0,i-w), min(i_max,i+w)):
+                for b in range(max(0,j-1), min(j_max,j+2)):
+                    sum1 += M[a,b]
+            
+            sum2 = 0
+            for a in range(max(0,i-p), min(i_max,i+p+1)):
+                for b in range (max(0,j-1), min(j_max,j+2)):
+                    sum2 += M[a,b]
+            
+            sum3 = 0
+            for a in range(max(0,i-w), min(i_max,i+w)):
+                for b in range(max(0,j-1), min(j_max,j+2)):
+                    sum3 += E(a,b,inter)
+            
+            sum4 = 0
+            for a in range(max(0,i-p), min(i_max,i+p+1)):
+                for b in range (max(0,j-1), min(j_max,j+2)):
+                    sum4 += E(a,b,inter)
+            
+            return (sum1-sum2)/(sum3-sum4)*E(i,j,inter)
         
         #horizontal neighborhood
-        def E_h(M,i,j,w=1,p=0):
+        def E_h(M,i,j,w=1,p=0,inter=False):
+            i_max, j_max = M.shape
+            
             sum1 = 0
-            for a in range(i-1, i+2):
-                for b in range(j-w, j-p):
+            for a in range(max(0,i-1), min(i_max,i+2)):
+                for b in range(max(0,j-w), min(j_max,j+w)):
                     sum1 += M[a,b]
             
             sum2 = 0
-            for a in range(i-1, i+2):
-                for b in range (j+p+1, j+w+1):
+            for a in range(max(0,i-1), min(i_max,i+2)):
+                for b in range (max(0,j-p), min(j_max,j+p+1)):
                     sum2 += M[a,b]
             
             sum3 = 0
-            for a in range(i-1, i+2):
-                for b in range(j-w, j-p):
-                    sum3 += E(a,b)
+            for a in range(max(0,i-1), min(i_max,i+2)):
+                for b in range(max(0,j-w), min(j_max,j+w)):
+                    sum3 += E(a,b,inter)
             
             sum4 = 0
-            for a in range(i-1, i+2):
-                for b in range (j+p+1, j+w+1):
-                    sum4 += E(a,b)
+            for a in range(max(0,i-1), min(i_max,i+2)):
+                for b in range (max(0,j-p), min(j_max,j+p+1)):
+                    sum4 += E(a,b,inter)
             
-            return (sum1-sum2)/(sum3-sum4)*E(i,j)
+            return (sum1-sum2)/(sum3-sum4)*E(i,j,inter)
         
         # donut neighborhood
-        def E_d(M,i,j,w=1,p=0):
+        def E_d(M,i,j,w=1,p=0,inter=False):
+            i_max, j_max = M.shape
+            
             topSum1 = 0
-            for a in range(i-w, i+w+1):
-                for b in range(j-w, j+w+1):
+            for a in range(max(0,i-w), min(i_max,i+w+1)):
+                for b in range(max(0,j-w), min(j_max,j+w+1)):
                     topSum1 += M[a,b]
         
             topSum2 = 0
-            for a in range(i-p, i+p+1):
-                for b in range (j-p, j+p+1):
+            for a in range(max(0,i-p), min(i_max,i+p+1)):
+                for b in range (max(0,j-p), min(j_max,j+p+1)):
                     topSum2 += M[a,b]
                     
             topSum3 = 0
-            for a in range(i-w, i-p):
+            for a in range(max(0,i-w), min(i_max,i-p)):
                 topSum3 += M[a,j]
             
             topSum4 = 0
-            for a in range(i+p+1, i+w+1):
+            for a in range(max(0,i+p+1), min(i_max,i+w+1)):
                 topSum4 += M[a,j]
                 
             topSum5 = 0
-            for b in range(j-w,j-p):
+            for b in range(max(0,j-w),min(j_max,j-p)):
                 topSum5 += M[i,b]
             
             topSum6 = 0
-            for b in range(j+p+1,j+w+1):
+            for b in range(max(0,j+p+1),min(j_max,j+w+1)):
                 topSum6 += M[i,b]
             
             bottomSum1 = 0
-            for a in range(i-w, i+w+1):
-                for b in range(j-w, j+w+1):
-                    bottomSum1 += E(a,b)
+            for a in range(max(0,i-w), min(i_max,i+w+1)):
+                for b in range(max(0,j-w), min(j_max,j+w+1)):
+                    bottomSum1 += E(a,b,inter)
         
             bottomSum2 = 0
-            for a in range(i-p, i+p+1):
-                for b in range (j-p, j+p+1):
-                    bottomSum2 += E(a,b)
+            for a in range(max(0,i-p), min(i_max,i+p+1)):
+                for b in range (max(0,j-p), min(j_max,j+p+1)):
+                    bottomSum2 += E(a,b,inter)
                     
             bottomSum3 = 0
-            for a in range(i-w, i-p):
-                bottomSum3 += E(a,j)
+            for a in range(max(0,i-w), min(i_max,i-p)):
+                bottomSum3 += E(a,j,inter)
             
             bottomSum4 = 0
-            for a in range(i+p+1, i+w+1):
-                bottomSum4 += E(a,j)
+            for a in range(max(0,i+p+1), min(i_max,i+w+1)):
+                bottomSum4 += E(a,j,inter)
                 
             bottomSum5 = 0
-            for b in range(j-w,j-p):
-                bottomSum5 += E(i,b)
+            for b in range(max(0,j-w),min(j_max,j-p)):
+                bottomSum5 += E(i,b,inter)
             
             bottomSum6 = 0
-            for b in range(j+p+1,j+w+1):
-                bottomSum6 += E(i,b)
+            for b in range(max(0,j+p+1),min(j_max,j+w+1)):
+                bottomSum6 += E(i,b,inter)
                 
             return (topSum1-topSum2-topSum3-topSum4-topSum5-topSum6) / \
                 (bottomSum1-bottomSum2-bottomSum3-bottomSum4-bottomSum5-bottomSum6) * \
-                E(i,j)
+                E(i,j,inter)
         
         
         # determine p according to resolution
@@ -287,30 +341,231 @@ class HiCNetwork(object):
             wInit = 3
         else:
             p = int(24999/resolution)
-            wInit = round(25000/resolution) + 2
+            wInit = int(round(25000/resolution) + 2)
+        C = hic.biases
         
-        # for every pixel calculate neighborhoods
-        for chr1, chr2 in hic.data:
-            if chr1 == chr2:
-                M = hic.data[(chr1, chr2)].getData()
-                
-                for i in range(0,data.shape[0]):
-                    for j in range(i,data.shape[1]):
-                        # do not examine loci closer than p+3
-                        if abs(i-j) > p+2:
+        print "Initial values:\np=%d, w=%d" % (p,wInit)
+        
+        
+        def calculate_neighborhood(E_local=E_d):
+            print "Calculating neighborhood"
+            
+            ij = []
+            exp = []
+            obs = []
+            for chr1, chr2 in hic.data:
+                if chr1 == chr2:
+                    print "Checking chr %d (%s)" % (chr1, genome.idx2label[chr1])
+                    
+                    M = hic.data[(chr1, chr2)].getData()
+                    
+                    # to convert chromosome into global (genome-wide) indices
+                    chr1StartBin = hic.genome.chrmStartsBinCont[chr1]
+                    chr2StartBin = hic.genome.chrmStartsBinCont[chr2]
+                    
+                    for i in range(0,M.shape[0]):
+                        iNode = i+chr1StartBin
+                        for j in range(i,M.shape[1]):
+                            jNode = j+chr2StartBin
+                                                    
+                            # do not examine loci closer than p+3
+                            if abs(i-j) > p+2:
+                                w = wInit
+                                while ll_sum(M,i,j,w=w,p=p) < 16 and w < 20:
+                                    w += 1
+                                    
+                                # reproduce original value
+                                o = int(M[i,j]*C[iNode]*C[jNode])
+                                
+                                # neighborhood expected values
+                                ij.append([iNode,jNode])
+                                e = E_local(M,i,j,w=w,p=p)
+                                exp.append(e)
+                                obs.append(o)
+                                
+                                oeDiff[chr1].append(o-e)
+                elif findInterPeaks:
+                    print "Checking chr %d and chr %d " % (chr1, chr2)
+                    M = hic.data[(chr1, chr2)].getData()
+                    
+                    # to convert chromosome into global (genome-wide) indices
+                    chr1StartBin = hic.genome.chrmStartsBinCont[chr1]
+                    chr2StartBin = hic.genome.chrmStartsBinCont[chr2]
+                    
+                    for i in range(0,M.shape[0]):
+                        iNode = i+chr1StartBin
+                        for j in range(i,M.shape[1]):
+                            jNode = j+chr2StartBin
+                            
                             w = wInit
-                            while ll_sum(M,i,j,w=w,p=p) < 16 or w > 19:
+                            while ll_sum(M,i,j,w=w,p=p) < 16 and w < 20:
                                 w += 1
+                                
+                            # reproduce original value
+                            o = int(M[i,j]*C[iNode]*C[jNode])
                             
                             # neighborhood expected values
-                            ll = E_ll(M,i,j,w=w,p=p)
-                            #p_ll = 1-poisson.cdf(obs,expectedInterReads)
-                            h = E_h(M,i,j,w=w,p=p)
-                            v = E_v(M,i,j,w=w,p=p)
-                            d = E_d(M,i,j,w=w,p=p)
-                                
+                            ij.append([iNode,jNode])
+                            e = E_local(M,i,j,w=w,p=p,inter=True)
+                            exp.append(e)
+                            obs.append(o)
+                            
+                    
+            return ij, exp, obs
         
-        return cls([OE,smoothedReadsAtDistances,smoothedPixelsAtDistances])
+        def get_chunks(ij,exp,obs):
+            print "Chunking results"
+            
+            # lambda-chunking
+            e_max = 1
+            e_exp = 0
+            chunks_max = []
+            chunks = []
+            max_exp = max(exp)
+            while e_max < max_exp:
+                chunks_max.append(e_max)
+                
+                chunks.append({'ij':[], 'exp':[], 'obs':[], 'max': e_max})
+                e_exp += 1
+                e_max = 2**(e_exp/3)
+            chunks_max.append(e_max)
+            chunks.append({'ij':[], 'exp':[], 'obs':[], 'max': e_max})
+            
+            
+            
+            for i in range(0,len(exp)):
+                chunk = bisect_right(chunks_max, exp[i])
+                chunks[chunk]['exp'].append(exp[i])
+                chunks[chunk]['obs'].append(obs[i])
+                chunks[chunk]['ij'].append(ij[i])
+                #print ij[i]
+            
+            return chunks
+        
+        def get_peaks(chunks, fdr=0.01):
+            print "Calculating peaks"
+            
+            peaks = {}
+            for chunk in chunks:
+                obs_counts = Counter(chunk['obs'])
+                obs_sum = 0
+                for count in obs_counts:
+                    obs_sum += obs_counts[count]
+                x = []
+                y = []
+                for count in obs_counts:
+                    x.append(count)
+                    y.append(obs_counts[count]/obs_sum)
+                
+                # calculate x where FDR=fdr
+                obs_integral_left = 0
+                x_cutoff = None
+                for i in range(0,len(x)):
+                    obs_integral_left += y[i]
+                    obs_integral = 1-obs_integral_left
+                    poisson_integral = 1-poisson(chunk['max']).cdf(x[i])
+                    
+                    if poisson_integral < obs_integral*fdr:
+                        x_cutoff = x[i]
+                        break
+                
+                if x_cutoff != None:
+                    for i in range(0,len(chunk['ij'])):
+                        if chunk['obs'][i] > x_cutoff:
+                            peaks[(chunk['ij'][i][0], chunk['ij'][i][1])] = [chunk['obs'][i], chunk['exp'][i]]
+            return peaks
+        
+        print "Processing h neighborhood"
+        h_ij, h_e, h_o = calculate_neighborhood(E_local=E_h)
+        h_chunks = get_chunks(h_ij, h_e, h_o)
+        h_peaks = get_peaks(h_chunks, fdr=fdr)
+        
+        print "Processing ll neighborhood"
+        ll_ij, ll_e, ll_o = calculate_neighborhood(E_local=E_ll)
+        ll_chunks = get_chunks(ll_ij, ll_e, ll_o)
+        ll_peaks = get_peaks(ll_chunks, fdr=fdr)
+        
+        print "Processing d neighborhood"
+        d_ij, d_e, d_o = calculate_neighborhood(E_local=E_d)
+        d_chunks = get_chunks(d_ij, d_e, d_o)
+        d_peaks = get_peaks(d_chunks, fdr=fdr)
+        
+        print "Processing v neighborhood"
+        v_ij, v_e, v_o = calculate_neighborhood(E_local=E_v)
+        v_chunks = get_chunks(v_ij, v_e, v_o)
+        v_peaks = get_peaks(v_chunks, fdr=fdr)
+        
+        
+        peaks = {}
+        print "Calling significant peaks"
+        for peak in ll_peaks:
+            if (peak in d_peaks and
+                peak in h_peaks and
+                peak in v_peaks):
+                peaks[peak] = {'ll': ll_peaks[peak][1],
+                               'd': d_peaks[peak][1],
+                               'h': h_peaks[peak][1],
+                               'v': v_peaks[peak][1],
+                               'obs': v_peaks[peak][0]}
+                
+
+#         print "Merging peaks"
+#         mergedPeaks = {}
+#         while len(peaks) > 0: 
+#             # find maximum peak
+#             max_peak_height = 0
+#             max_peak = None
+#             for peak in peaks:
+#                 if max_peak_height < peaks[peak]['obs']:
+#                     max_peak_height = peaks[peak]['obs']
+#                     max_peak = peak
+#             
+#             mergedPeak = { 'obs': max_peak_height,
+#                            'list': [max_peak],
+#                            'centroid': max_peak,
+#                            'radius': 0
+#                           }
+#             
+#             stepSize = 20000/resolution + 1 # +1 because neighboring bins have dist 0
+#             foundClusterMember = True
+#             while len(peaks) > 0 and foundClusterMember:
+#                 foundClusterMember = False
+#                 maxDist = mergedPeak['radius'] + stepSize
+#                 for peak in peaks.keys():
+#                     d = np.sqrt((mergedPeak['centroid'][0]-peak[0])**2+(mergedPeak['centroid'][1]-peak[1])**2)
+#                     if d < maxDist:
+#                         print "found peak to merge ", mergedPeak['list']
+#                         foundClusterMember = True
+#                         mergedPeak['list'].append(peak)
+#                         
+#                         #calculate new centroid
+#                         x = 0
+#                         y = 0
+#                         r = 0
+#                         for mpeak in mergedPeak['list']:
+#                             x += mpeak[0]
+#                             y += mpeak[1]
+#                             r = max(r,np.sqrt((mergedPeak['centroid'][0]-mpeak[0])**2+(mergedPeak['centroid'][1]-mpeak[1])**2))
+#                         mergedPeak['centroid'] = (x/len(mergedPeak['list']), y/len(mergedPeak['list']))
+#                         mergedPeak['radius'] = r
+#                         
+#                         del peaks[peak]
+#                         
+#                         break
+#             
+#             print "Adding new merged peak"
+#             mergedPeaks[mergedPeak['centroid']] = mergedPeak
+#             print mergedPeak['list']
+            
+            
+            
+            
+            
+            
+            
+        return cls(peaks)
+        
+        # lambda-chunking
         
         
     @classmethod
