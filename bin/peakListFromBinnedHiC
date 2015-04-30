@@ -54,7 +54,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    net.liebermannBinnedHiC(args.input, args.genome, args.resolution, fdrIntra=args.intra_fdr, fdrInter=args.inter_fdr, findInterPeaks=args.inter, output=args.output)
+    net.get_peaks_from_hic(args.input, args.genome, args.resolution, fdrIntra=args.intra_fdr, fdrInter=args.inter_fdr, findInterPeaks=args.inter, output=args.output)
     
 
     
