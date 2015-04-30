@@ -2,7 +2,6 @@
 
 import argparse;
 import kaic.network.HiCNetwork as net
-import kaic.genome.genomeTools as gt
 
 def splitList(thisList):
     return thisList.split(",");
