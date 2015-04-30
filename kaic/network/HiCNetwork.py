@@ -729,7 +729,7 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
                 obs_integral = 1-obs_integral_left
                 poisson_integral = 1-poisson(chunk['max']).cdf(x[i])
                 
-                if poisson_integral > obs_integral:
+                if poisson_integral > obs_integral or obs_integral == 0:
                     currentFdr = 1
                 else:
                     currentFdr = poisson_integral/obs_integral
@@ -782,9 +782,9 @@ def get_peaks_from_hic(hic, genome=None, resolution=None, fdrIntra=None, fdrInte
         
         peaks = {}
         for i in range(0,len(fdrs)):
-            if o == 0 or (fdrInter != None and fdrs[i] > fdrIntra):
+            if obs[i] == 0 or (fdrInter != None and fdrs[i] > fdrInter):
                 continue
-            peaks[(ij[i][0],ij[i][1])] = [o,e,fdrs[i]]
+            peaks[(ij[i][0],ij[i][1])] = [obs[i],exp[i],fdrs[i]]
         
         if isinstance(fdrInter,float):
             print "\tFound %d/%d peaks with FDR<%.2f after BH correction" % (len(peaks),l, fdrInter)
