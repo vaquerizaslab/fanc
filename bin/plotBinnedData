@@ -39,14 +39,43 @@ if __name__ == '__main__':
         '-min', dest='min',
         type=int,
         default=-3,
-        help='''Lower plotting boundary'''
+        help='''Lower plotting boundary for color code'''
     );
     
     parser.add_argument(
         '-max', dest='max',
         type=int,
         default=3,
-        help='''Upper plotting boundary'''
+        help='''Upper plotting boundary for color code'''
+    );
+    
+    parser.add_argument(
+        '-i-min', dest='i_min',
+        type=int,
+        default=None,
+        help='''Lower plotting boundary row index'''
+    );
+    
+    parser.add_argument(
+        '-i-max', dest='i_max',
+        type=int,
+        default=None,
+        help='''Upper plotting boundary row index'''
+    );
+    
+    
+    parser.add_argument(
+        '-j-min', dest='j_min',
+        type=int,
+        default=None,
+        help='''Lower plotting boundary column index'''
+    );
+    
+    parser.add_argument(
+        '-j-max', dest='j_max',
+        type=int,
+        default=None,
+        help='''Upper plotting boundary column index'''
     );
     
     parser.add_argument(
@@ -69,5 +98,7 @@ if __name__ == '__main__':
         help='''Use low-resolution analysis'''
     );
     parser.set_defaults(lr=False);
+    
+    
     
     phm.main(parser.parse_args());

@@ -25,11 +25,13 @@ def saveGenomeObject(genome_db, output):
     
 def loadGenomeObject(inFile):
     
-    if type(genome) == str:
+    if type(inFile) == str:
         with open(inFile, 'rb') as i:
             genome_db = pickle.load(i)
-    if isinstance(inFile, genome.Genome):
-        return inFile
+    else:
+        genome_db = inFile
+    #if isinstance(inFile, genome.Genome):
+        #return inFile
     return genome_db
 
 

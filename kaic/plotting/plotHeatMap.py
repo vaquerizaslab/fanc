@@ -14,29 +14,29 @@ def main(args):
     print("Using the following settings");
     for arg, val in args.__dict__.iteritems():
         print arg, " = ", val;
-        
-    time.sleep(5);
-    
-    plotHeatmap(args.input, args.genome, args.resolution, args.chromosomeOrder, args.absolute, args.colormap, args.min, args.max, args.lr)
+            
+    plotHeatmap(args.input, args.genome, args.resolution, args.order, args.absolute, args.colormap, args.min, args.max, args.lr,iStartIndex=args.i_min, iEndIndex=args.i_max, jStartIndex=args.j_min, jEndIndex=args.j_max)
     
 def plotHeatmap(binnedData, 
                 genome, 
                 resolution, 
                 chromosomeOrder=None, 
                 absolute=False, 
-                colormap=False, 
+                colormap=None, 
                 vmin=-3, 
                 vmax=3, 
                 lr=False,
                 iStartIndex=None,
                 iEndIndex=None,
                 jStartIndex=None,
-                jEndIndex=None):
+                jEndIndex=None,
+                highlightPixels=None):
     
     
     
     # read in genome object
     genome_db = gt.loadGenomeObject(genome)
+    genome_db.setResolution(resolution)
     
     if iStartIndex == None:
         iStartIndex = 0
@@ -56,8 +56,8 @@ def plotHeatmap(binnedData,
         BD = highResBinnedData.HiResHiC(genome_db, resolution)
         BD.loadData(binnedData)
         
-        hm = np.zeros((iEndIndex-iStartIndex, jEndIndex-jStartIndex), float)
-        for chr1, chr2 in BD:
+        hm = np.zeros((iEndIndex-iStartIndex+1, jEndIndex-jStartIndex+1), float)
+        for chr1, chr2 in BD.data:
             M = BD.data[(chr1, chr2)].getData()
             
             # to convert chromosome into global (genome-wide) indices
@@ -71,12 +71,42 @@ def plotHeatmap(binnedData,
             if chr2StartBin > jEndIndex or chr2EndBin < jStartIndex:
                 continue
             
-            iStart = max(0, iStartIndex-chr1StartBin)
-            iEnd = min(M.shape[0]-1,chr1EndBin-iStartIndex)
-            jStart = max(0, jStartIndex-chr2StartBin)
-            jEnd = min(M.shape[1]-1,chr2EndBin-jStartIndex)
             
-            hm[iStart+chr1StartBin:iEnd+chr1StartBin, jStart+chr2StartBin:jEnd+chr2StartBin] = M[iStart:iEnd,jStart:jEnd]
+            if iStartIndex >= chr1StartBin and iStartIndex <= chr1EndBin:
+                iStart = iStartIndex-chr1StartBin
+            else:
+                iStart = 0
+            if jStartIndex >= chr2StartBin and jStartIndex <= chr2EndBin:
+                jStart = jStartIndex-chr2StartBin
+            else:
+                jStart = 0
+            
+            if iEndIndex >= chr1StartBin and iEndIndex <= chr1EndBin:
+                iEnd = iEndIndex-chr1StartBin
+            else:
+                iEnd = M.shape[0]
+                
+            if jEndIndex >= chr2StartBin and jEndIndex <= chr2EndBin:
+                jEnd = iEndIndex-chr2StartBin
+            else:
+                jEnd = M.shape[1]
+                
+#             iStart = max(0, iStartIndex-chr1StartBin)
+#             iEnd = min(M.shape[0],chr1EndBin-iStartIndex)
+#             jStart = max(0, jStartIndex-chr2StartBin)
+#             jEnd = min(M.shape[1],chr2EndBin-jStartIndex)
+            
+            print hm.shape
+            print M.shape[0], " ", M.shape[1]
+            print iStart, "-", iEnd, " ", jStart, "-", jEnd
+            M = M[iStart:iEnd,jStart:jEnd]
+            print M.shape[0], " ", M.shape[1]
+            print iStart+chr1StartBin, "-", iEnd+chr1StartBin, " ", jStart+chr2StartBin, "-", jEnd+chr2StartBin
+            print jStart+chr2StartBin, "-", jEnd+chr2StartBin, " ",  iStart+chr1StartBin, "-", iEnd+chr1StartBin
+            
+            
+            hm[iStart+chr1StartBin:iEnd+chr1StartBin, jStart+chr2StartBin:jEnd+chr2StartBin] = M
+            hm[jStart+chr2StartBin:jEnd+chr2StartBin, iStart+chr1StartBin:iEnd+chr1StartBin] = M.T
             
             
         
@@ -115,9 +145,22 @@ def plotHeatmap(binnedData,
     cmap = matplotlib.colors.LinearSegmentedColormap("Sexton colormap", cdict, 256)
     
     fig, ax = plt.subplots()
-    myPlot = ax.imshow(hm, interpolation='none',aspect=1,norm=matplotlib.colors.LogNorm(vmin=vmin,vmax=vmax))
+    myPlot = ax.imshow(hm, interpolation='none',aspect=1,vmin=vmin,vmax=vmax)
     if colormap == None:
         myPlot.set_cmap(cmap)
     else:
         myPlot.set_cmap(colormap)
+    
+    
+    if highlightPixels != None:
+        for pixel in highlightPixels:
+            if pixel[1] < iStartIndex or pixel[1] > iEndIndex:
+                continue
+            if pixel[0] < jStartIndex or pixel[0] > jEndIndex:
+                continue
+            i = pixel[1]-iStartIndex
+            j = pixel[0]-jStartIndex
+            
+            c = plt.Circle((i,j),radius=1,fill=False,color='r')
+            ax.add_patch(c)
     plt.show()
