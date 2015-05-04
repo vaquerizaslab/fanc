@@ -3,9 +3,12 @@ import time;
 import argparse;
 from hiclib import binnedData
 from hiclib import highResBinnedData
+import matplotlib
 import matplotlib.pyplot as plt
 import kaic.genome.genomeTools as gt
 import numpy as np
+
+
 
 def main(args):
     print("Using the following settings");
@@ -14,23 +17,75 @@ def main(args):
         
     time.sleep(5);
     
-    # read in genome object
-    genome_db = gt.loadGenomeObject(args.genome)
+    plotHeatmap(args.input, args.genome, args.resolution, args.chromosomeOrder, args.absolute, args.colormap, args.min, args.max, args.lr)
     
-    if args.lr == True:
-        BD = binnedData.binnedData(args.resolution, genome_db)
-        BD.simpleLoad(args.input, 'hm', chromosomeOrder=args.order)
-        #BD.simpleLoad(args.input, 'hm', chromosomeOrder=[11])
+def plotHeatmap(binnedData, 
+                genome, 
+                resolution, 
+                chromosomeOrder=None, 
+                absolute=False, 
+                colormap=False, 
+                vmin=-3, 
+                vmax=3, 
+                lr=False,
+                iStartIndex=None,
+                iEndIndex=None,
+                jStartIndex=None,
+                jEndIndex=None):
+    
+    
+    
+    # read in genome object
+    genome_db = gt.loadGenomeObject(genome)
+    
+    if iStartIndex == None:
+        iStartIndex = 0
+    if iEndIndex == None:
+        iEndIndex = len(genome_db.posBinCont)-1
+    if jStartIndex == None:
+        jStartIndex = 0
+    if jEndIndex == None:
+        jEndIndex = len(genome_db.posBinCont)-1
+    
+    if lr == True:
+        BD = binnedData.binnedData(resolution, genome_db)
+        BD.simpleLoad(binnedData, 'hm', chromosomeOrder=chromosomeOrder)
         hm = BD.dataDict['hm']
+        hm = hm[iStartIndex:iEndIndex,jStartIndex:jEndIndex]
     else:
-        BD = highResBinnedData.HiResHiC(genome_db, args.resolution)
-        BD.loadData(args.input)
-        hm = BD.getCombinedMatrix();
+        BD = highResBinnedData.HiResHiC(genome_db, resolution)
+        BD.loadData(binnedData)
+        
+        hm = np.zeros((iEndIndex-iStartIndex, jEndIndex-jStartIndex), float)
+        for chr1, chr2 in BD:
+            M = BD.data[(chr1, chr2)].getData()
+            
+            # to convert chromosome into global (genome-wide) indices
+            chr1StartBin = BD.genome.chrmStartsBinCont[chr1]
+            chr2StartBin = BD.genome.chrmStartsBinCont[chr2]
+            chr1EndBin = BD.genome.chrmEndsBinCont[chr1]
+            chr2EndBin = BD.genome.chrmEndsBinCont[chr2]
+            
+            if chr1StartBin > iEndIndex or chr1EndBin < iStartIndex:
+                continue
+            if chr2StartBin > jEndIndex or chr2EndBin < jStartIndex:
+                continue
+            
+            iStart = max(0, iStartIndex-chr1StartBin)
+            iEnd = min(M.shape[0]-1,chr1EndBin-iStartIndex)
+            jStart = max(0, jStartIndex-chr2StartBin)
+            jEnd = min(M.shape[1]-1,chr2EndBin-jStartIndex)
+            
+            hm[iStart+chr1StartBin:iEnd+chr1StartBin, jStart+chr2StartBin:jEnd+chr2StartBin] = M[iStart:iEnd,jStart:jEnd]
+            
+            
+        
+        # hm = BD.getCombinedMatrix();
         
     
     
     
-    if args.absolute == False:
+    if absolute == False:
         #BD.removeZeros()
         #hm = BD.dataDict['hm']
         nrows = hm.shape[0]
@@ -42,75 +97,27 @@ def main(args):
         #BD.restoreZeros()
         #hm = BD.dataDict['hm']
     
+    cdict = {'red': ((0.0, 1.0, 1.0),
+                    (0.28, 0.18, 0.18),
+                    (0.72, 0.78, 0.78),
+                    (1.0, 1.0, 1.0)),
+            'green': ((0.0, 1.0, 1.0),
+                    (0.36, 0.05, 0.05),
+                    (0.49, 0.12, 0.12),
+                    (1.0, 1.0, 1.0)),
+            'blue': ((0.0, 1.0, 1.0),
+                    (0.26, 0.62, 0.62),
+                    (0.37, 0.5, 0.5),
+                    (0.77, 0.2, 0.2),
+                    (0.92, 0.64, 0.64),
+                    (1.0, 1.0, 1.0))
+            }
+    cmap = matplotlib.colors.LinearSegmentedColormap("Sexton colormap", cdict, 256)
+    
     fig, ax = plt.subplots()
-    myPlot = ax.imshow(hm, interpolation='none',aspect=1,vmin=args.min,vmax=args.max)
-    myPlot.set_cmap(args.colormap)
+    myPlot = ax.imshow(hm, interpolation='none',aspect=1,norm=matplotlib.colors.LogNorm(vmin=vmin,vmax=vmax))
+    if colormap == None:
+        myPlot.set_cmap(cmap)
+    else:
+        myPlot.set_cmap(colormap)
     plt.show()
-    
-
-def splitList(thisList):
-    return thisList.split(",");
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser();
-    
-    parser.add_argument(
-        'input',
-        help='''Input Hi-C Map file (hdf5 dict)'''
-    );
-    
-    parser.add_argument(
-        'genome',
-        help='''Genome object file'''
-    );
-    
-    parser.add_argument(
-        '-res', '--resolution', dest='resolution',
-        type=int,
-        help='''Cutoff for filtering very large fragments''',
-        required=True
-    );
-    
-    parser.add_argument(
-        '-o', '--order', dest='order',
-        type=splitList,
-        default=None,
-        help='''comma-separated list of chromosome names for heatmap order'''
-    );
-    
-    parser.add_argument(
-        '-min', dest='min',
-        type=int,
-        default=-3,
-        help='''Lower plotting boundary'''
-    );
-    
-    parser.add_argument(
-        '-max', dest='max',
-        type=int,
-        default=3,
-        help='''Upper plotting boundary'''
-    );
-    
-    parser.add_argument(
-        '-a', '--absolute', dest='absolute',
-        action='store_true',
-        help='''Plot absolute values instead of log2-fold enrichment over expectation'''
-    );
-    
-    parser.add_argument(
-        '-c', '--color-map', dest='colormap',
-        default='YlGnBu',
-        help='''Matplotlib color map name to use'''
-    );
-    
-    parser.add_argument(
-        '-l', '--low-res', dest='lr',
-        action='store_true',
-        help='''Use low-resolution analysis'''
-    );
-    parser.set_defaults(lr=False);
-    
-    parser.set_defaults(absolute=False);
-    
-    main(parser.parse_args());

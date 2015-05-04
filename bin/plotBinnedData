@@ -57,7 +57,7 @@ if __name__ == '__main__':
     
     parser.add_argument(
         '-c', '--color-map', dest='colormap',
-        default='YlGnBu',
+        default=None,
         help='''Matplotlib color map name to use'''
     );
     
