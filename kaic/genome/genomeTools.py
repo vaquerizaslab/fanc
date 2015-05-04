@@ -24,8 +24,12 @@ def saveGenomeObject(genome_db, output):
         pickle.dump(genome_db, o, -1)
     
 def loadGenomeObject(inFile):
-    with open(inFile, 'rb') as i:
-        genome_db = pickle.load(i)
+    
+    if type(genome) == str:
+        with open(inFile, 'rb') as i:
+            genome_db = pickle.load(i)
+    if isinstance(inFile, genome.Genome):
+        return inFile
     return genome_db
 
 
