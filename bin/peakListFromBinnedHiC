@@ -46,9 +46,9 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
-        '-i', '--inter', dest='inter',
+        '-i', '--no-inter', dest='inter',
         action='store_false',
-        help='''Calculate inter-chromosomal peaks'''
+        help='''Do not calculate inter-chromosomal peaks'''
     );
     parser.set_defaults(inter=True);
     
