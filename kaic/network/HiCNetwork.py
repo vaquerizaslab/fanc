@@ -8,6 +8,7 @@ from __future__ import division
 from hiclib import highResBinnedData
 import kaic.genome.genomeTools
 import graph_tool as gt
+import graph_tool.all as gta
 import tables as t
 from scipy.stats import poisson
 import numpy as np
@@ -15,6 +16,8 @@ from scikits.statsmodels.sandbox.stats.multicomp import multipletests
 from __builtin__ import classmethod
 from collections import Counter
 from bisect import bisect_right
+import pylab
+import re
 
 class Edge(t.IsDescription):
     idNumber = t.Int64Col()   # @UndefinedVariable
@@ -40,8 +43,21 @@ class Chromosome(t.IsDescription):
 
 
 class HiCNetwork(object):
-    def __init__(self, data=None, fdrCutoff=0.01):
-        self.data = data
+    def __init__(self, data=None, hic=None, fdrCutoff=0.01):
+        self.g = data
+        self.hic = hic
+        self.posMap = {}
+        self.nodeMap = {}
+        for idx in hic.genome.idx2label:
+            self.posMap[hic.genome.idx2label[idx]] = []
+        for idx in hic.genome.idx2label:
+            self.nodeMap[hic.genome.idx2label[idx]] = []
+        for i in range(0,len(hic.genome.posBinCont)):
+            binStart = hic.genome.posBinCont[i]
+            chrm = hic.genome.idx2label[hic.genome.chrmIdxBinCont[i]]
+            self.posMap[chrm].append(binStart)
+            self.nodeMap[chrm].append(i)
+        self.nNodes = len(hic.genome.posBinCont)
 #         self.file = data
 #         self.network = self.file.get_node("/", 'network')
 #         self.nodes = self.file.get_node(self.network, 'nodes')
@@ -83,6 +99,74 @@ class HiCNetwork(object):
             self.genome = self.file.create_group("/", 'genome', 'Genome information')
         if not hasattr(self, 'chromosomes'):
             self.file.create_table(self.genome, 'chromosomes', Chromosome, 'Chromosome information')
+    
+    
+    
+    def plotDegreeDistribution(self):
+        out_hist = gta.vertex_hist(self.g, "out")
+
+        y = out_hist[0]
+        err = pylab.sqrt(out_hist[0])
+        err[err >= y] = y[err >= y] - 1e-2
+        
+        pylab.figure(figsize=(6,4))
+        pylab.errorbar(out_hist[1][:-1], out_hist[0], fmt="o", yerr=err, label="in", color="grey")
+        pylab.gca().set_yscale("log")
+        pylab.gca().set_xscale("log")
+        pylab.gca().set_ylim(1e-1, 1e5)
+        pylab.gca().set_xlim(0.8, 1e3)
+        pylab.subplots_adjust(left=0.2, bottom=0.2)
+        pylab.xlabel("$degree$")
+        pylab.ylabel("$NP(degree)$")
+        pylab.tight_layout()
+        
+        pylab.show()
+
+    
+    @classmethod
+    def fromPeaks(cls, hic, peaks):
+        g = gt.Graph(directed=False)
+        g.add_vertex(len(hic.genome.posBinCont))
+        vindexes = g.new_vertex_property("int")
+        for node in range(0,len(hic.genome.posBinCont)):
+            vindexes[g.vertex(node)] = node
+        g.vertex_properties["indexes"] = vindexes
+        
+        for peak in peaks:
+            i = peak['i']
+            j = peak['j']
+            g.add_edge(g.vertex(i), g.vertex(j))
+        
+        return cls(g,hic)
+    
+    def mapAnnotations(self, aFile, outFilePos, outFileChrm):
+        v_filter = self.g.new_vertex_property("bool")
+        with open(aFile,'r') as annotationFile:
+            with open(outFilePos,'w') as outputPos:
+                with open(outFileChrm,'w') as outputChrm:
+                    outputPos.write("ix\tposition\n")
+                    outputChrm.write("ix\tchromosome\n")
+                    for line in annotationFile:
+                        if line.startswith("#"):
+                            continue
+                        
+                        if re.match(".*PfEMP1\+%28VAR%29.*", line) is not None:
+                            #print "Found var gene"
+                            fields = line.rstrip().split("\t")
+                            pos = int(fields[3])+abs(int(fields[4])-int(fields[3]))/2
+                            node = self._findNode(pos,fields[0])
+                            v_filter[self.g.vertex(node)] = True
+                            
+                            outputPos.write("x%d\t%d\n" % (node, pos))
+                            outputChrm.write("x%d\t%s\n" % (node, fields[0]))
+                        
+        self.g.vertex_properties["var"] = v_filter
+        #self.g.set_vertex_filter(v_filter)
+    
+    def _findNode(self, position, chrm):
+        i = bisect_right(self.posMap[chrm],position)-1
+        return self.nodeMap[chrm][i]
+        
     
     @classmethod
     def liebermannBinnedHiC(cls, hic, genome=None, resolution=None, fdrIntra=None, fdrInter=None, findInterPeaks=True):
