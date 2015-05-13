@@ -59,3 +59,6 @@ def restoreSparseRows(M,idxs,rows=None):
         A = np.insert(A,idxsn,0,axis=1)
 
     return A
+
+def compare(A,M):
+    return sum(abs(M-A),0)

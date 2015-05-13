@@ -68,9 +68,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         
         # save back to original
         for chr1, chr2 in hic.data:
-            beg1, end1 = hic.genome.chrmStartsBinCont[chr1], hic.genome.chrmEndsBinCont[chr1]
-            beg2, end2 = hic.genome.chrmStartsBinCont[chr2], hic.genome.chrmEndsBinCont[chr2]
-            hic.data[(chr1, chr2)].setData(Mn[beg1:end1, beg2:end2])
+            hic.data[(chr1, chr2)].setData(Mn)
     
     if output:
         print "Saving to file %s" %output
