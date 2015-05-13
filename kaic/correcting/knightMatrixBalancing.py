@@ -33,9 +33,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             hic.data[(chrm,chrm)].setData(Mn)
     else:
         M = hic.getCombinedMatrix(force=True)
-        
-        print M.shape
-        
+                
         hasErrors = True
         iterations = 0
         removed_rows = []
@@ -48,7 +46,6 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
                 logger.info("Matrix balancing failed (this can happen!)",
                             " removing sparsest rows to try again")
                 M, ixs = removeSparseRows(M)
-                print ixs
                 removed_rows.append(ixs)
                 hasErrors=True
             
@@ -56,12 +53,9 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         
         Mn = x*M*x
         
-        print Mn.shape
-        print removed_rows
         # restore zero rows
         for idx in reversed(removed_rows):
             Mn = restoreSparseRows(Mn, idx)
-        print Mn.shape    
         
         hic.biases = x
         

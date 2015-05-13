@@ -49,11 +49,9 @@ def removeSparseRows(M,cutoff=None):
     
     
 def restoreSparseRows(M,idxs,rows=None):
-    print idxs
     idxsn = idxs.copy()
     for i in range(0,len(idxs)):
-        idxsn = idxs[i]-i
-    print idxsn
+        idxsn[i] = idxs[i]-i
     
     A = np.insert(M,idxsn,0,axis=0)
     A = np.insert(A,idxsn,0,axis=1)
