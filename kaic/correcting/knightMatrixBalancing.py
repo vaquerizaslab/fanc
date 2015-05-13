@@ -14,6 +14,10 @@ from hiclib import highResBinnedData
 from kaic.tools.hic import getChromosomeMatrix 
 from kaic.tools.matrix import removeSparseRows, restoreSparseRows
 
+import logging
+logger = logging.getLogger('matrix_balancing')
+logger.setLevel(logging.DEBUG)
+
 def correct(hicFile,genome,resolution,output=None,perChromosome=False):
     genome_db = gt.loadGenomeObject(genome)
     hic = highResBinnedData.HiResHiC(genome_db,resolution)
@@ -37,11 +41,15 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         removed_rows = []
         while hasErrors or iterations > 50:
             hasErrors = False
-            M, ixs = removeSparseRows(M)
-            removed_rows.append(ixs)
+            
             try:
                 x = getBiasVector(M)
             except ValueError:
+                logger.info("Matrix balancing failed (this can happen!)",
+                            " removing sparsest rows to try again")
+                M, ixs = removeSparseRows(M)
+                print ixs
+                removed_rows.append(ixs)
                 hasErrors=True
             
             iterations += 1
@@ -49,7 +57,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         Mn = x*M*x
         
         print Mn.shape
-        
+        print removed_rows
         # restore zero rows
         for idx in reversed(removed_rows):
             Mn = restoreSparseRows(Mn, idx)
