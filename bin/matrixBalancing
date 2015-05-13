@@ -2,6 +2,8 @@
 
 import argparse;
 import kaic.correcting.knightMatrixBalancing as mb
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
