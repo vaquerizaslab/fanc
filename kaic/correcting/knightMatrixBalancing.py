@@ -7,6 +7,8 @@ Created on May 12, 2015
 from __future__ import division
 
 import numpy as np
+import matplotlib
+from matplotlib import pyplot as plt
 np.seterr(all='warn')
 import warnings
 import kaic.genome.genomeTools as gt
@@ -65,6 +67,37 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         print x.shape
         
         hic.biases = x
+        
+
+        nrows = Mn.shape[0]
+        ncols = Mn.shape[1]
+        ex = np.sum(Mn)/(nrows*ncols)
+        print "Expected: ", ex
+        hm = np.log2(Mn/ex)
+
+    
+        cdict = {'red': ((0.0, 1.0, 1.0),
+                        (0.28, 0.18, 0.18),
+                        (0.72, 0.78, 0.78),
+                        (1.0, 1.0, 1.0)),
+                'green': ((0.0, 1.0, 1.0),
+                        (0.36, 0.05, 0.05),
+                        (0.49, 0.12, 0.12),
+                        (1.0, 1.0, 1.0)),
+                'blue': ((0.0, 1.0, 1.0),
+                        (0.26, 0.62, 0.62),
+                        (0.37, 0.5, 0.5),
+                        (0.77, 0.2, 0.2),
+                        (0.92, 0.64, 0.64),
+                        (1.0, 1.0, 1.0))
+            }
+        cmap = matplotlib.colors.LinearSegmentedColormap("Sexton colormap", cdict, 256)
+        
+        fig, ax = plt.subplots()
+        myPlot = ax.imshow(hm, interpolation='none',aspect=1,vmin=-3,vmax=3)
+        myPlot.set_cmap(cmap)
+    
+        plt.show()
         
         # save back to original
         for chr1, chr2 in hic.data:
