@@ -53,6 +53,9 @@ def restoreSparseRows(M,idxs,rows=None):
     for i in range(0,len(idxs)):
         idxsn[i] = idxs[i]-i
     
+    
     A = np.insert(M,idxsn,0,axis=0)
-    A = np.insert(A,idxsn,0,axis=1)
+    if len(M.shape) > 1:
+        A = np.insert(A,idxsn,0,axis=1)
+
     return A

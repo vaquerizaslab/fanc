@@ -53,11 +53,16 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         
         Mn = x*M*x
         
+        print Mn.shape
+        print x.shape
+        
         # restore zero rows
         for idx in reversed(removed_rows):
             Mn = restoreSparseRows(Mn, idx)
+            x = restoreSparseRows(x, idx)
         
         print Mn.shape
+        print x.shape
         
         hic.biases = x
         
