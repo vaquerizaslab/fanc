@@ -7,8 +7,46 @@ Created on May 12, 2015
 from __future__ import division
 
 import numpy as np
+import kaic.genome.genomeTools as gt
+from hiclib import highResBinnedData
+from kaic.tools.hic import getChromosomeMatrix 
 
-def correct(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,*args,**kwargs):
+def correct(hicFile,genome,resolution,output=None,perChromosome=False):
+    genome_db = gt.loadGenomeObject(genome)
+    hic = highResBinnedData.HiResHiC(genome_db,resolution)
+    hic.loadData(hicFile)
+    
+    if perChromosome:
+        hic.biases = {}
+        for chrm in genome_db.label2idx:
+            M = getChromosomeMatrix(hic,genome,chrm)
+            x = getBiasVector(M)
+            hic.biases[chrm] = x
+            Mn = x*M*x
+            hic.data[(chrm,chrm)].setData(Mn)
+    else:
+        M = hic.getCombinedMatrix(force=True)
+        x = getBiasVector(M)
+        Mn = x*M*x
+        hic.biases = x
+        
+        # save back to original
+        for chr1, chr2 in hic.data:
+            beg1, end1 = hic.genome.chrmStartsBinCont[chr1], hic.genome.chrmEndsBinCont[chr1]
+            beg2, end2 = hic.genome.chrmStartsBinCont[chr2], hic.genome.chrmEndsBinCont[chr2]
+            hic.data[(chr1, chr2)].setData(Mn[beg1:end1, beg2:end2])
+    
+    if output:
+        print "Saving to file %s" %output
+        hic.export(output)
+
+def getCorrectedMatrix(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
+    x = getBiasVector(A, x0, tol, delta, Delta, fl)
+    return x*A*x
+    
+    
+
+def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
     
     # basic variables
     #n=size_(A,1)
@@ -81,7 +119,6 @@ def correct(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,*args,**kwargs):
             Z=rk / v
             rho_km1=rk.T.dot(Z)
         
-        # TODO
         x=x*y
         v=x*A.dot(x)
         rk=1 - v
