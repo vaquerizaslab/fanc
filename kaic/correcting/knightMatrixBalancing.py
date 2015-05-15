@@ -29,9 +29,31 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         hic.biases = {}
         for chrm in genome_db.label2idx:
             M = getChromosomeMatrix(hic,genome,chrm)
-            x = getBiasVector(M)
-            hic.biases[chrm] = x
+            hasErrors = True
+            iterations = 0
+            removed_rows = []
+            while hasErrors or iterations > 50:
+                hasErrors = False
+                
+                try:
+                    x = getBiasVector(M)
+                except ValueError:
+                    logger.info("Matrix balancing failed (this can happen!), removing sparsest rows to try again")
+                    M, ixs = removeSparseRows(M)
+                    removed_rows.append(ixs)
+                    hasErrors=True
+                
+                iterations += 1
+            
             Mn = getCorrectedMatrix(M, x=x)
+            
+            
+            # restore zero rows
+            for idx in reversed(removed_rows):
+                Mn = restoreSparseRows(Mn, idx)
+                x = restoreSparseRows(x, idx)
+            
+            hic.biases[chrm] = x
             hic.data[(chrm,chrm)].setData(Mn)
     else:
         M = hic.getCombinedMatrix(force=True)
