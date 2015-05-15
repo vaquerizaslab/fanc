@@ -35,8 +35,6 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             hic.data[(chrm,chrm)].setData(Mn)
     else:
         M = hic.getCombinedMatrix(force=True)
-        print "Symmetric M: ", is_symmetric(M)
-        print M.shape
         
         hasErrors = True
         iterations = 0
@@ -54,23 +52,16 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             
             iterations += 1
         
-        print "Symmetric M after removing sparse: ", is_symmetric(M)
         Mn = getCorrectedMatrix(M, x=x)
         
-        print Mn.shape
-        print x.shape
-        print "Symmetric Mn: ", is_symmetric(Mn)
         
         # restore zero rows
         for idx in reversed(removed_rows):
             Mn = restoreSparseRows(Mn, idx)
             x = restoreSparseRows(x, idx)
         
-        print "Symmetric Mn after restoring sparse: ", is_symmetric(Mn)
-        
-        print Mn.shape
-        print x.shape
-        
+        print "Symmetric Mn: ", is_symmetric(Mn)
+                
         hic.biases = x
         
 
@@ -127,7 +118,6 @@ def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
     for i in range(0,A.shape[0]):
         for j in range(0,A.shape[1]):
             A[i,j] = x[i]*M[i,j]*x[j]
-            A[j,i] = x[j]*M[i,j]*x[i]
     return A
     
     
