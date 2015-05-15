@@ -27,11 +27,11 @@ def writeMatrixToFile(M,file_name,delim="\t",row_names=None,col_names=None):
                 o.write(name + delim)
             o.write("\n")
         
-        for i in n_rows:
+        for i in range(0,n_rows):
             if row_names:
                 o.write(row_names[i] + delim)
             
-            for j in n_cols:
+            for j in range(0,n_cols):
                 o.write("%.6E%s" + (M[i,j],delim))
             o.write("\n")
 

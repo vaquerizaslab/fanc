@@ -127,6 +127,7 @@ def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
     for i in range(0,A.shape[0]):
         for j in range(0,A.shape[1]):
             A[i,j] = x[i]*M[i,j]*x[j]
+            A[j,i] = x[j]*M[i,j]*x[i]
     return A
     
     
