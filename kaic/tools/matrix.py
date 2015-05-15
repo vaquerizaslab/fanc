@@ -63,3 +63,15 @@ def restoreSparseRows(M,idxs,rows=None):
 
 def compare(A,M):
     return sum(abs(M-A),0)
+
+def is_symmetric(M):
+    for i in range(0,M.shape[0]):
+        for j in range(i,M.shape[1]):
+            if M[i,j] != M[j,i]:
+                return False
+    return True
+            
+            
+            
+            
+            

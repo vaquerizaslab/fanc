@@ -14,7 +14,7 @@ import warnings
 import kaic.genome.genomeTools as gt
 from hiclib import highResBinnedData
 from kaic.tools.hic import getChromosomeMatrix 
-from kaic.tools.matrix import removeSparseRows, restoreSparseRows, writeMatrixToFile
+from kaic.tools.matrix import removeSparseRows, restoreSparseRows, writeMatrixToFile, is_symmetric
 
 import logging
 logger = logging.getLogger('matrix_balancing')
@@ -35,6 +35,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             hic.data[(chrm,chrm)].setData(Mn)
     else:
         M = hic.getCombinedMatrix(force=True)
+        print "Symmetric M: ", is_symmetric(M)
         print M.shape
         
         hasErrors = True
@@ -53,15 +54,19 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             
             iterations += 1
         
+        print "Symmetric M after removing sparse: ", is_symmetric(M)
         Mn = getCorrectedMatrix(M, x=x)
         
         print Mn.shape
         print x.shape
+        print "Symmetric Mn: ", is_symmetric(Mn)
         
         # restore zero rows
-        #for idx in reversed(removed_rows):
-        #    Mn = restoreSparseRows(Mn, idx)
-        #    x = restoreSparseRows(x, idx)
+        for idx in reversed(removed_rows):
+            Mn = restoreSparseRows(Mn, idx)
+            x = restoreSparseRows(x, idx)
+        
+        print "Symmetric Mn after restoring sparse: ", is_symmetric(Mn)
         
         print Mn.shape
         print x.shape
