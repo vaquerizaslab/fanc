@@ -31,7 +31,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             M = getChromosomeMatrix(hic,genome,chrm)
             x = getBiasVector(M)
             hic.biases[chrm] = x
-            Mn = x*M*x
+            Mn = getCorrectedMatrix(M, x=x)
             hic.data[(chrm,chrm)].setData(Mn)
     else:
         M = hic.getCombinedMatrix(force=True)
@@ -53,7 +53,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             
             iterations += 1
         
-        Mn = x*M*x
+        Mn = getCorrectedMatrix(M, x=x)
         
         print Mn.shape
         print x.shape
@@ -110,9 +110,18 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         print "Saving to file %s" %output
         hic.export(output)
 
-def getCorrectedMatrix(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
-    x = getBiasVector(A, x0, tol, delta, Delta, fl)
-    return x*A*x
+
+
+def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
+    if x == None:
+        x = getBiasVector(M, x0, tol, delta, Delta, fl)
+    
+    A = M.copy()
+    
+    for i in range(0,A.shape[0]):
+        for j in range(0,A.shape[1]):
+            A[i,j] = x[i]*M[i,j]*x[j]
+    return A
     
     
 
