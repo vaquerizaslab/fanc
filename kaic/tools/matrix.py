@@ -22,9 +22,10 @@ def writeMatrixToFile(M,file_name,delim="\t",row_names=None,col_names=None):
         raise IndexError("Input must be 2D matrix")
 
     with open(file_name, 'w') as o:
-        for name in col_names:
-            o.write(name + delim)
-        o.write("\n")
+        if col_names != None:
+            for name in col_names:
+                o.write(name + delim)
+            o.write("\n")
         
         for i in n_rows:
             if row_names:
