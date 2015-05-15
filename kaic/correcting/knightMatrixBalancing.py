@@ -27,7 +27,8 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
     
     if perChromosome:
         hic.biases = {}
-        for chrm in genome_db.label2idx:
+        for chrmLabel in genome_db.label2idx:
+            chrm = genome_db.label2idx[chrmLabel]
             M = getChromosomeMatrix(hic,genome_db,chrm)
             hasErrors = True
             iterations = 0
