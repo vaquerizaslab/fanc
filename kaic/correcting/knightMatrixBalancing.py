@@ -14,7 +14,7 @@ import warnings
 import kaic.genome.genomeTools as gt
 from hiclib import highResBinnedData
 from kaic.tools.hic import getChromosomeMatrix 
-from kaic.tools.matrix import removeSparseRows, restoreSparseRows
+from kaic.tools.matrix import removeSparseRows, restoreSparseRows, writeMatrixToFile
 
 import logging
 logger = logging.getLogger('matrix_balancing')
@@ -59,9 +59,9 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         print x.shape
         
         # restore zero rows
-        for idx in reversed(removed_rows):
-            Mn = restoreSparseRows(Mn, idx)
-            x = restoreSparseRows(x, idx)
+        #for idx in reversed(removed_rows):
+        #    Mn = restoreSparseRows(Mn, idx)
+        #    x = restoreSparseRows(x, idx)
         
         print Mn.shape
         print x.shape
@@ -108,7 +108,8 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
     
     if output:
         print "Saving to file %s" %output
-        hic.export(output)
+        #hic.export(output)
+        writeMatrixToFile(M,output,delim=",")
 
 
 
