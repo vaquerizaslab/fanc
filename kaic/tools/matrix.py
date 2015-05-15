@@ -65,10 +65,11 @@ def restoreSparseRows(M,idxs,rows=None):
 def compare(A,M):
     return sum(abs(M-A),0)
 
-def is_symmetric(M):
+def is_symmetric(M, tol=1e-10):
     for i in range(0,M.shape[0]):
         for j in range(i,M.shape[1]):
-            if M[i,j] != M[j,i]:
+            if abs(M[i,j]-M[j,i]) > tol:
+                print "(%d,%d) %.6f != %.6f (%d,%d)" % (i,j,M[i,j],M[j,i],j,i)
                 return False
     return True
             
