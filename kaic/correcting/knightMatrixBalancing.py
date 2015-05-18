@@ -123,7 +123,11 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
             A = np.array(A)
         n = A.shape[0]
         #e=ones_(n,1)
-        e = np.ones(n)
+        try:
+            e = np.ones(n,dtype=np.float128)
+        except:
+            e = np.ones(n)
+            
         if not x0:
             try:
                 x0 = np.ones(n,np.float128)
