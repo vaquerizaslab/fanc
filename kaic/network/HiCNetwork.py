@@ -102,25 +102,25 @@ class HiCNetwork(object):
     
     
     
-    def plotDegreeDistribution(self):
-        out_hist = gta.vertex_hist(self.g, "out")
-
-        y = out_hist[0]
-        err = pylab.sqrt(out_hist[0])
-        err[err >= y] = y[err >= y] - 1e-2
-        
-        pylab.figure(figsize=(6,4))
-        pylab.errorbar(out_hist[1][:-1], out_hist[0], fmt="o", yerr=err, label="in", color="grey")
-        pylab.gca().set_yscale("log")
-        pylab.gca().set_xscale("log")
-        pylab.gca().set_ylim(1e-1, 1e5)
-        pylab.gca().set_xlim(0.8, 1e3)
-        pylab.subplots_adjust(left=0.2, bottom=0.2)
-        pylab.xlabel("$degree$")
-        pylab.ylabel("$NP(degree)$")
-        pylab.tight_layout()
-        
-        pylab.show()
+#     def plotDegreeDistribution(self):
+#         out_hist = gta.vertex_hist(self.g, "out")
+# 
+#         y = out_hist[0]
+#         err = pylab.sqrt(out_hist[0])
+#         err[err >= y] = y[err >= y] - 1e-2
+#         
+#         pylab.figure(figsize=(6,4))
+#         pylab.errorbar(out_hist[1][:-1], out_hist[0], fmt="o", yerr=err, label="in", color="grey")
+#         pylab.gca().set_yscale("log")
+#         pylab.gca().set_xscale("log")
+#         pylab.gca().set_ylim(1e-1, 1e5)
+#         pylab.gca().set_xlim(0.8, 1e3)
+#         pylab.subplots_adjust(left=0.2, bottom=0.2)
+#         pylab.xlabel("$degree$")
+#         pylab.ylabel("$NP(degree)$")
+#         pylab.tight_layout()
+#         
+#         pylab.show()
 
     
     @classmethod

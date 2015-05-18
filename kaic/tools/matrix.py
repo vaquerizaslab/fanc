@@ -5,6 +5,9 @@ Created on May 11, 2015
 '''
 
 import numpy as np
+import matplotlib
+
+from matplotlib import pyplot as plt
 
 def readMatrixFromFile(file_name, delim="\t"):
     with open(file_name, 'r') as f:
@@ -76,18 +79,21 @@ def is_symmetric(M, tol=1e-10):
             
 def fromEdgeListFile(inFile, resolution, output=None):
     l = []
+    maxLocus = 0
     with open(inFile,'r') as f:
-        maxLocus = 0
         for line in f:
             line = line.rstrip()
             l1,l2,v = line.split("\t")
-            l.append([int(l1),int(l2),v])
+            l1 = int(l1)
+            l2 = int(l2)
+            l.append([l1,l2,v])
             if maxLocus < l1:
                 maxLocus = l1
             if maxLocus < l2:
                 maxLocus = l2
     
-    names = range(0,int(maxLocus)+resolution,resolution)
+    print maxLocus
+    names = range(0,maxLocus+resolution,resolution)
     locus2idx = {}
     for i in range(0,len(names)):
         locus2idx[names[i]] = i
@@ -112,7 +118,63 @@ def fromEdgeListFile(inFile, resolution, output=None):
     return M
     
     
+def plot(M, absolute=False, colormap = None, vmin=-3, vmax=3, iStartIndex = None, iEndIndex = None, jStartIndex = None, jEndIndex = None, highlightPixels=None):
+    
+    if iStartIndex == None:
+        iStartIndex = 0
+    if iEndIndex == None:
+        iEndIndex = M.shape[0]-1
+    if jStartIndex == None:
+        jStartIndex = 0
+    if jEndIndex == None:
+        jEndIndex = M.shape[1]-1
+    
+    hm = M[iStartIndex:iEndIndex+1, jStartIndex:jEndIndex+1]
+    
+    
+    if absolute == False:
+        ex = np.sum(hm)/(hm.shape[0]*hm.shape[1])
+        print "Expected: ", ex
+        hm = np.log2(hm/ex)
+
+    
+    cdict = {'red': ((0.0, 1.0, 1.0),
+                    (0.28, 0.18, 0.18),
+                    (0.72, 0.78, 0.78),
+                    (1.0, 1.0, 1.0)),
+            'green': ((0.0, 1.0, 1.0),
+                    (0.36, 0.05, 0.05),
+                    (0.49, 0.12, 0.12),
+                    (1.0, 1.0, 1.0)),
+            'blue': ((0.0, 1.0, 1.0),
+                    (0.26, 0.62, 0.62),
+                    (0.37, 0.5, 0.5),
+                    (0.77, 0.2, 0.2),
+                    (0.92, 0.64, 0.64),
+                    (1.0, 1.0, 1.0))
+            }
+    cmap = matplotlib.colors.LinearSegmentedColormap("Sexton colormap", cdict, 256)
+    
+    fig, ax = plt.subplots()
+    myPlot = ax.imshow(hm, interpolation='none',aspect=1,vmin=vmin,vmax=vmax)
+    if colormap == None:
+        myPlot.set_cmap(cmap)
+    else:
+        myPlot.set_cmap(colormap)
+    
+    
+    if highlightPixels != None:
+        for pixel in highlightPixels:
+            if pixel[1] < iStartIndex or pixel[1] > iEndIndex:
+                continue
+            if pixel[0] < jStartIndex or pixel[0] > jEndIndex:
+                continue
+            i = pixel[1]-iStartIndex
+            j = pixel[0]-jStartIndex
             
+            c = plt.Circle((i,j),radius=1,fill=False,color='r')
+            ax.add_patch(c)
+    plt.show()
             
             
             
