@@ -108,7 +108,7 @@ def fromEdgeListFile(inFile, resolution, output=None):
         with open(output,'w') as o:
             line = ""
             for name in names:
-                line = str(name) + "\t"
+                line += str(name) + "\t"
                 #o.write(name, "\t")
             line = re.sub("\t$", "", line)
             o.write(line + "\n")
