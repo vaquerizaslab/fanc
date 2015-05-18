@@ -6,6 +6,7 @@ Created on May 11, 2015
 
 import numpy as np
 import matplotlib
+import re
 
 from matplotlib import pyplot as plt
 
@@ -105,15 +106,21 @@ def fromEdgeListFile(inFile, resolution, output=None):
     
     if output:
         with open(output,'w') as o:
+            line = ""
             for name in names:
-                o.write(name + "\t")
-            o.write("\n")
+                line = str(name) + "\t"
+                #o.write(name, "\t")
+            line = re.sub("\t$", "", line)
+            o.write(line + "\n")
             
             for i in range(0,M.shape[0]):
-                o.write(names[i] + "\t")
+                line = str(names[i]) + "\t"
+                #o.write(names[i], "\t")
                 for j in range(0,M.shape[1]):
-                    o.write("%.6e\t" % M[i,j])
-                o.write("\n")
+                    line += "%.6e\t" % M[i,j]
+                    #o.write("%.6e\t" % M[i,j])
+                line = re.sub("\t$", "", line)
+                o.write(line + "\n")
     
     return M
     
