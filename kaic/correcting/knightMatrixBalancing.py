@@ -125,7 +125,15 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
         #e=ones_(n,1)
         e = np.ones(n)
         if not x0:
-            x0 = np.ones(n)
+            try:
+                x0 = np.ones(n,np.float128)
+            except:
+                x0 = np.ones(n)
+        else:
+            try:
+                x0 = np.array(x0,np.float128)
+            except:
+                x0 = np.array(x0)
         res=np.array([])
         g=0.9
         etamax=0.1
