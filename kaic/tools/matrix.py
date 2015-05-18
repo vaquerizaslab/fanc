@@ -74,6 +74,50 @@ def is_symmetric(M, tol=1e-10):
     return True
             
             
+def fromEdgeListFile(inFile, resolution, output=None):
+    l = []
+    with open(inFile,'r') as f:
+        maxLocus = 0
+        for line in f:
+            line = line.rstrip()
+            l1,l2,v = line.split("\t")
+            l.append([int(l1),int(l2),v])
+            if maxLocus < l1:
+                maxLocus = l1
+            if maxLocus < l2:
+                maxLocus = l2
+    
+    names = range(0,int(maxLocus)+resolution,resolution)
+    locus2idx = {}
+    for i in range(0,len(names)):
+        locus2idx[names[i]] = i
+    
+    M = np.zeros((len(names),len(names)))
+    for l1, l2, v in l:
+        M[locus2idx[l1],locus2idx[l2]] = v
+        M[locus2idx[l2],locus2idx[l1]] = v
+    
+    if output:
+        with open(output,'w') as o:
+            for name in names:
+                o.write(name + "\t")
+            o.write("\n")
+            
+            for i in range(0,M.shape[0]):
+                o.write(names[i] + "\t")
+                for j in range(0,M.shape[1]):
+                    o.write("%.6e\t" % M[i,j])
+                o.write("\n")
+    
+    return M
+    
+    
+            
+            
+            
+            
+            
+            
             
             
             

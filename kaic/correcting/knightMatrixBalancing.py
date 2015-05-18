@@ -7,14 +7,11 @@ Created on May 12, 2015
 from __future__ import division
 
 import numpy as np
-import matplotlib
-from matplotlib import pyplot as plt
-np.seterr(all='warn')
 import warnings
 import kaic.genome.genomeTools as gt
 from hiclib import highResBinnedData
 from kaic.tools.hic import getChromosomeMatrix 
-from kaic.tools.matrix import removeSparseRows, restoreSparseRows, writeMatrixToFile, is_symmetric
+from kaic.tools.matrix import removeSparseRows, restoreSparseRows, is_symmetric
 
 import logging
 logger = logging.getLogger('matrix_balancing')
@@ -194,7 +191,10 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
                 Z=rk / v
                 rho_km1=rk.T.dot(Z)
             
-            x=x*y
+            try:
+                x=x*y
+            except Warning:
+                raise ValueError("Value in x or y too small to represent numerically. Try removing sparse rows")
             v=x*A.dot(x)
             rk=1 - v
             rho_km1=rk.T.dot(rk)
