@@ -3,9 +3,6 @@ import time;
 import dill as pickle;
 from mirnylib import genome;
 
-#
-# TODO FUNCTIONS HERE
-#
 
 def createGenomeObject(folder, re, readChrms, chrmFileTemplate='chr%s.fa'):
     # read in genome object
