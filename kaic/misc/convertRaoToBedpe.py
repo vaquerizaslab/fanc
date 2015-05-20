@@ -30,7 +30,7 @@ if __name__ == '__main__':
     
     with open(in_file, 'r') as f:
         with open(out_file, 'w') as o:
-            header = f.readline().rstrip.split("\t")
+            header = f.readline().rstrip().split("\t")
             header[0] = "chrom1"
             header[1] = "start1"
             header[2] = "end1"
