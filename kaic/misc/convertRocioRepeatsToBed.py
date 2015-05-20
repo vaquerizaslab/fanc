@@ -30,7 +30,7 @@ if __name__ == '__main__':
     
     with open(in_file, 'r') as f:
         with open(out_file, 'w') as o:
-            header = "chrom\tstart\tend\tname\tscore/tstrand"
+            header = "chrom\tstart\tend\tname\tscore\tstrand"
            
             o.write(header + "\n")
             
