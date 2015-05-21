@@ -24,8 +24,13 @@ class Bed(object):
         inMemory = False
         h5file_name = file_name
         isFlatFile = False
-        if is_bed_file(file_name):
+        if file_name == None:
+            inMemory=True
+        elif is_bed_file(file_name):
             isFlatFile = True
+            inMemory=True
+        
+        if inMemory:
             rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(6))  # @UndefinedVariable
             h5file_name = rs
             
@@ -212,8 +217,13 @@ class Bedpe(object):
         inMemory = False
         h5file_name = file_name
         isFlatFile = False
-        if is_bedpe_file(file_name):
+        if file_name == None:
+            inMemory=True
+        elif is_bed_file(file_name):
             isFlatFile = True
+            inMemory=True
+        
+        if inMemory:
             rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(6))  # @UndefinedVariable
             h5file_name = rs
             
