@@ -61,5 +61,5 @@ if __name__ == '__main__':
                 end1 = start1 + resolution
                 end2 = start2 + resolution
                 
-                o.write("%s\t%d\t%d\t%s\t%d\t%d\t%.6E\n" % (chrom, start1, end1, chrom, start1, end1, score))
+                o.write("%s\t%d\t%d\t%s\t%d\t%d\t%.6E\n" % (chrom, start1, end1, chrom, start2, end2, score))
                 
