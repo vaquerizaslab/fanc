@@ -436,8 +436,8 @@ class Hic(Bedpe):
         df = p.DataFrame(np.zeros((len(labels),len(labels))), index=labels, columns=labels)
         
         for c in contacts:
-            df[c[0],c[1]] = c[2]
-            df[c[1],c[0]] = c[2]
+            df[c[0]][c[1]] = c[2]
+            df[c[1]][c[0]] = c[2]
         
         return df
         
