@@ -199,7 +199,59 @@ class Bed(object):
     
     
     
-    
+    def as_data_frame(self, chrom=None, lower_bound=None, upper_bound=None):
+        query = """"""
+        if chrom:
+            if query != '':
+                query += " & "
+            query += "(chrom == '%s')" % chrom
+            
+        if lower_bound:
+            if query != '':
+                query += " & "
+            query += "(end >= %d)" % (lower_bound)
+        
+        if upper_bound:
+            if query != '':
+                query += " & "
+            query += "(start <= %d)" % (upper_bound)
+        
+        
+        # get field names
+        desc = self.table.description._v_colObjects.copy()
+        labels = ['chrom', 'start', 'end']
+        if 'name' in desc:
+            labels.append('name')
+        if 'score' in desc:
+            labels.append('score')
+        if 'strand' in desc:
+            labels.append('strand')
+        if 'thickStart' in desc:
+            labels.append('thickStart')
+        if 'thickEnd' in desc:
+            labels.append('thickEnd')
+        if 'itemRgb' in desc:
+            labels.append('itemRgb')
+        if 'blockCount' in desc:
+            labels.append('blockCount')
+        if 'blockSizes' in desc:
+            labels.append('blockSizes')
+        if 'blockStarts' in desc:
+            labels.append('blockStarts')
+        for label in desc:
+            if label not in labels:
+                labels.append(label)
+        
+        print labels
+        
+        print "Running query"
+        if query != '':
+            contacts = [[x[y] for y in labels] for x in self.table.where(query)]
+        else:
+            contacts = [[x[y] for y in labels] for x in self.table]
+            
+        df = p.DataFrame(contacts, columns=labels)
+        return df
     
     
     
@@ -290,9 +342,7 @@ class Bedpe(object):
                         desc[fields[i]] = t.Float32Col() # @UndefinedVariable
                         headerTypes.append(float)
                     elif (fields[i] == 'start1' or fields[i] == 'start2' or 
-                        fields[i] == 'chromStart1' or fields[i] == 'chromStart2' or
-                        fields[i] == 'end1' or fields[i] == 'end2' or
-                        fields[i] == 'chromEnd1' or fields[i] == 'chromEnd2'):
+                        fields[i] == 'end1' or fields[i] == 'end2'):
                         desc[fields[i]] = t.Int64Col() # @UndefinedVariable
                         headerTypes.append(int)
                     else:
@@ -307,15 +357,15 @@ class Bedpe(object):
                     if i == 0:
                         header.append('chrom1')
                         headerTypes.append(str)
-                        desc['chrom'] = t.StringCol(16) # @UndefinedVariable
+                        desc['chrom1'] = t.StringCol(16) # @UndefinedVariable
                     elif i == 1:
                         header.append('start1')
                         headerTypes.append(str)
-                        desc['start'] = t.Int64Col() # @UndefinedVariable
+                        desc['start1'] = t.Int64Col() # @UndefinedVariable
                     elif i == 2:
                         header.append('end1')
                         headerTypes.append(str)
-                        desc['end'] = t.Int64Col() # @UndefinedVariable
+                        desc['end1'] = t.Int64Col() # @UndefinedVariable
                     elif i == 3:
                         header.append('chrom2')
                         headerTypes.append(str)
@@ -353,9 +403,18 @@ class Bedpe(object):
                         headerTypes.append(str)
                         desc['feature_' + str(i)] = t.StringCol(255) # @UndefinedVariable
             
-            print headerTypes
-            print header
-            print desc
+            if not 'chrom1' in header:
+                raise ImportError("File must contain chrom1 field!")
+            if not 'chrom2' in header:
+                raise ImportError("File must contain chrom2 field!")
+            if not 'start1' in header:
+                raise ImportError("File must contain start1 field!")
+            if not 'start2' in header:
+                raise ImportError("File must contain start2 field!")
+            if not 'end1' in header:
+                raise ImportError("File must contain end1 field!")
+            if not 'end2' in header:
+                raise ImportError("File must contain end2 field!")
             
             table2 = self.file.createTable(self.file.root, 'table2', desc, "bedpe", t.Filters(1))
  
@@ -393,19 +452,107 @@ class Bedpe(object):
             table2.move('/','bedpe')
             self.table = table2
     
-
+    def as_data_frame(self, chrom=None, lower_bound=None, upper_bound=None):
+        query = """"""
+        if chrom:
+            if query != '':
+                query += " & "
+            query += "(chrom1 == '%s')" % chrom
+            
+        if lower_bound:
+            if query != '':
+                query += " & "
+            query += "(end1 >= %d) & (end2 >= %d)" % (lower_bound,lower_bound)
+        
+        if upper_bound:
+            if query != '':
+                query += " & "
+            query += "(start1 <= %d) & (start2 <= %d)" % (upper_bound,upper_bound)
+        
+        
+        # get field names
+        desc = self.table.description._v_colObjects.copy()
+        labels = ['chrom1', 'start1', 'end1', 'chrom2', 'start2', 'end2']
+        if 'name' in desc:
+            labels.append('name')
+        if 'score' in desc:
+            labels.append('score')
+        if 'strand1' in desc:
+            labels.append('strand1')
+        if 'strand2' in desc:
+            labels.append('strand2')
+        if 'blockSizes' in desc:
+            labels.append('blockSizes')
+        for label in desc:
+            if label not in labels:
+                labels.append(label)
+        
+        print labels
+        
+        print "Running query"
+        if query != '':
+            contacts = [[x[y] for y in labels] for x in self.table.where(query)]
+        else:
+            contacts = [[x[y] for y in labels] for x in self.table]
+            
+        df = p.DataFrame(contacts, columns=labels)
+        return df
+        
 
 
 class Hic(Bedpe):
     def __init__(self, file_name=None, name=None):
         Bedpe.__init__(self, file_name=file_name, name=name)
         
-    def as_data_frame(self):
-        print "test"
+
+        
+    def as_data_frame(self, resolution, chrom=None, lower_bound=None, upper_bound=None):
+        
+        query = """"""
+        if chrom:
+            if query != '':
+                query += " & "
+            query += "(chrom1 == '%s')" % chrom
+            
+        if lower_bound:
+            if query != '':
+                query += " & "
+            query += "(end1 >= %d) & (end2 >= %d)" % (lower_bound,lower_bound)
+        
+        if upper_bound:
+            if query != '':
+                query += " & "
+            query += "(start1 <= %d) & (start2 <= %d)" % (upper_bound,upper_bound)
+        
+        print "Running query"
+        if query != '':
+            contacts = [[x['start1'],x['start2'],x['score']] for x in self.table.where(query)]
+        else:
+            contacts = [[x['start1'],x['start2'],x['score']] for x in self.table]
+        
+        print "Calculating lowest bound"
+        min_ix = min(min(contacts)[0:2])
+        max_ix = max(max(contacts)[0:2])
+        print "Calculating upper bound"
+        
+        labels = range(min_ix,max_ix+resolution,resolution)
+        ix_l = int(min_ix/resolution)
+        
+        print "Assigning to matrix"
+        M = np.zeros((len(labels),len(labels)))
+        for c in contacts:
+            i = int(c[0]/resolution)-ix_l
+            j = int(c[1]/resolution)-ix_l
+            M[i,j] = c[2]
+            M[j,i] = c[2]
+        
+        print "Creating data frame"
+        df = p.DataFrame(M, index=labels, columns=labels)
+        
+        return df
         
         
-    def as_structured_array(self, resolution, chrom=None, lower_bound=None, upper_bound=None):
-        
+    def as_matrix(self, resolution, chrom=None, lower_bound=None, upper_bound=None):
         query = """"""
         if chrom:
             if query != '':
@@ -422,26 +569,27 @@ class Hic(Bedpe):
                 query += " & "
             query += "(start1 <= %d) & (start2 <= %d)" % (upper_bound,upper_bound)
         
+        print "Running query"
         if query != '':
             contacts = [[x['start1'],x['start2'],x['score']] for x in self.table.where(query)]
         else:
             contacts = [[x['start1'],x['start2'],x['score']] for x in self.table]
         
-        
+        print "Calculating lowest bound"
         min_ix = min(min(contacts)[0:2])
         max_ix = max(max(contacts)[0:2])
+        print "Calculating upper bound"
         
         labels = range(min_ix,max_ix+resolution,resolution)
+        ix_l = int(min_ix/resolution)
         
-        df = p.DataFrame(np.zeros((len(labels),len(labels))), index=labels, columns=labels)
-        
+        print "Assigning to matrix"
+        M = np.zeros((len(labels),len(labels)))
         for c in contacts:
-            df[c[0]][c[1]] = c[2]
-            df[c[1]][c[0]] = c[2]
+            i = int(c[0]/resolution)-ix_l
+            j = int(c[1]/resolution)-ix_l
+            M[i,j] = c[2]
+            M[j,i] = c[2]
         
-        return df
-        
-        
-        
-        
+        return M
         
