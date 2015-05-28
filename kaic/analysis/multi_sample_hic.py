@@ -170,9 +170,28 @@ if __name__ == '__main__':
     process_jobs(sample_jobs,max_processes=4)
     
     
-    # b. map new files
-    #iterative_mapping([file1,file2], [out1,out2], args.mapping_index, min_length=args.mapping_min, step_size=args.mapping_step)
-            
+    
+    # step 5:
+    # map new files
+    sam_pairs = []
+    sam_jobs = []
+    for i in range(0, len(pairs)):
+        file1 = sample_pairs[i][0]
+        file2 = sample_pairs[i][1]
+        out1 = "%s/%s.%d_1.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
+        out1 = "%s/%s.%d_2.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
+        
+        largs = [[file1,file2],[out1,out2],args.mapping_index]
+        kwargs = {
+            'min_length':args.mapping_min,
+            'step_size': args.mapping_step
+        }
+        job = Job(iterative_mapping,largs,kwlist=kwargs,queue='all.q')
+        sam_jobs.append(job)
+        sam_pairs.append([out1,out2])
+        
+    # do the actual mapping
+    process_jobs(sam_jobs,max_processes=4)
         
     
     
