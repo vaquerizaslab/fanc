@@ -181,13 +181,10 @@ if __name__ == '__main__':
         out1 = "%s/%s.%d_1.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
         out1 = "%s/%s.%d_2.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
         
-        largs = [[file1,file2],[out1,out2],args.mapping_index]
-        kwargs = {
-            'min_length':args.mapping_min,
-            'step_size': args.mapping_step
-        }
-        job = Job(iterative_mapping,largs,kwlist=kwargs,queue='all.q')
-        sam_jobs.append(job)
+        job1 = Job(iterative_mapping,[[file1],[out1],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q')
+        job2 = Job(iterative_mapping,[[file2],[out2],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q')
+        sam_jobs.append(job1)
+        sam_jobs.append(job2)
         sam_pairs.append([out1,out2])
         
     # do the actual mapping
