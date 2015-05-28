@@ -10,10 +10,11 @@ from kaic.tools.files import get_number_of_lines
 def sample_fastq(fastq_file1, fastq_file2, out_fastq1, out_fastq2, sample_size=300000000):
     # get file size
     n_lines = get_number_of_lines(fastq_file1)
+    n_entries = n_lines/4
     # make sure we are not sampling more than we already have
-    sample_size = min(sample_size, n_lines)
+    sample_size = min(sample_size, n_entries)
     # get sample indexes
-    sample_ixs = sorted(random.sample(range(0, n_lines), sample_size))
+    sample_ixs = sorted(random.sample(range(0, n_entries), sample_size))
     
     
     with open(fastq_file1, 'r') as f1:
@@ -28,8 +29,9 @@ def sample_fastq(fastq_file1, fastq_file2, out_fastq1, out_fastq2, sample_size=3
                     
                     while f1_line != '':
                         
-                        if (sample_counter < len(sample_ixs) and 
-                            line_counter == sample_ixs[sample_counter]):
+                        if (line_counter % 4 == 0 and
+                            sample_counter < len(sample_ixs) and 
+                            line_counter/4 == sample_ixs[sample_counter]):
                             o1.write(f1_line)
                             o2.write(f2_line)
                             sample_counter += 1

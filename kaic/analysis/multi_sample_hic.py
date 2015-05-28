@@ -61,7 +61,7 @@ if __name__ == '__main__':
     # reconstruct paired FASTQ file names
     logging.info("Getting FASTQ file sizes...")
     pairs = []
-    n_lines = []
+    n_entries = []
     n_sum = 0
     for basename in args.input:
         
@@ -74,16 +74,16 @@ if __name__ == '__main__':
             raise IOError("File " + file_name2 + " not found")
         
         pairs.append([file_name1, file_name2])
-        n = get_number_of_lines(file_name1)
+        n = int(get_number_of_lines(file_name1)/4)
         n_sum += n
-        n_lines.append(n)
+        n_entries.append(n)
         logging.info("\t%s\t%d" % (basename, n))
     
-    n_lines_ratios = []
-    for n in n_lines:
-        n_lines_ratios.append(n/n_sum)
+    n_entries_ratios = []
+    for n in n_entries:
+        n_entries_ratios.append(n/n_sum)
     
-    print n_lines_ratios
+    print n_entries_ratios
     
     # step 2:
     # extract samples from FASTQ files
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     
         file_sample_sizes = []
         fss_sum = 0
-        for ratio in n_lines_ratios:
+        for ratio in n_entries_ratios:
             fss = int(ratio*sample_size)
             fss_sum += fss
             file_sample_sizes.append(fss)
@@ -123,6 +123,9 @@ if __name__ == '__main__':
         # correct for integer conversion of sample sizes
         if fss_sum != sample_size:
             file_sample_sizes[0] += sample_size-fss_sum
+        
+        print file_sample_sizes
+        print sum(file_sample_sizes)
         
         for i in range(0, len(pairs)):
             file1 = pairs[i][0]
