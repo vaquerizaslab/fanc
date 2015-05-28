@@ -93,15 +93,24 @@ if __name__ == '__main__':
         sample_size = min(n_sum, sample_size)
         
         # create new folders
-        sample_folder = "%s/sample_%d/" % (args.output_folder,sample_size) 
-        make_dir(sample_folder + "fastq")
-        make_dir(sample_folder + "sam")
-        make_dir(sample_folder + "sam/filtered")
-        make_dir(sample_folder + "hic")
-        make_dir(sample_folder + "hic/filtered")
-        make_dir(sample_folder + "binned")
-        make_dir(sample_folder + "binned/filtered")
-        make_dir(sample_folder + "corrected")
+        
+        sample_folder = "%s/sample_%d/" % (args.output_folder,sample_size)
+        fastq_folder = sample_folder + "fastq"
+        make_dir(fastq_folder)
+        sam_folder = sample_folder + "sam"
+        make_dir(sam_folder)
+        sam_filtered_folder = sample_folder + "sam/filtered"
+        make_dir(sam_filtered_folder)
+        hic_folder = sample_folder + "hic"
+        make_dir(hic_folder)
+        hic_filtered_folder = sample_folder + "hic/filtered"
+        make_dir(hic_filtered_folder)
+        binned_folder = sample_folder + "binned"
+        make_dir(binned_folder)
+        binned_filtered_folder = sample_folder + "binned/filtered"
+        make_dir(binned_filtered_folder)
+        corrected_folder = sample_folder + "corrected"
+        make_dir(corrected_folder)
         
     
         file_sample_sizes = []
@@ -111,12 +120,20 @@ if __name__ == '__main__':
             fss_sum += fss
             file_sample_sizes.append(fss)
         
+        # correct for integer conversion of sample sizes
         if fss_sum != sample_size:
             file_sample_sizes[0] += sample_size-fss_sum
         
-        print file_sample_sizes
-        print sum(file_sample_sizes)
-        print sample_size-fss_sum
+        for i in range(0, len(pairs)):
+            file1 = pairs[i][0]
+            file2 = pairs[i][1]
+            fss = file_sample_sizes[i]
+            out1 = "%s/%s.%d_1.fastq" % (fastq_folder,args.input[i],fss)
+            out2 = "%s/%s.%d_2.fastq" % (fastq_folder,args.input[i],fss)
+            
+            
+            sample_fastq(file1,file2,out1,out2,sample_size=fss)
+            
         
         
     
