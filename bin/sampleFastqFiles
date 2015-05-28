@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+
+import argparse;
+from kaic.hrandom.sample_fastq import sample_fastq
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser();
+    
+    parser.add_argument(
+        'fastq1',
+        help='''First file of paired FASTQ files'''
+    );
+    
+    parser.add_argument(
+        'fastq2',
+        help='''Second file of paired FASTQ files'''
+    );
+    
+    parser.add_argument(
+        'output1',
+        help='''First sampled, paired FASTQ output file'''
+    );
+    
+    parser.add_argument(
+        'output2',
+        help='''Second sampled, paired FASTQ output file'''
+    );
+    
+    parser.add_argument(
+        '-s', '--sample_size', dest='sample_size',
+        type=int,
+        default=3000000,
+        help='''Sample size''',
+    );
+
+    args = parser.parse_args()
+    
+    sample_fastq(args.fastq1, args.fastq2, args.output1, args.output2, sample_size=args.sample_size)

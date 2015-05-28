@@ -7,6 +7,11 @@ Created on May 20, 2015
 import tables as t
 import os.path
 
+def get_number_of_lines(file_name):
+    with open(file_name,'r') as f:
+        n = sum(1 for line in f)
+    return n
+
 def create_or_open_pytables_file(file_name, inMemory=False, mode='a'):
     
     mem = 0 if inMemory else 1
