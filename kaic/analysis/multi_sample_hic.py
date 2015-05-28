@@ -160,9 +160,9 @@ if __name__ == '__main__':
         out2 = "%s/%s.%d_2.fastq" % (fastq_folder,args.input[i],fss)
         
         # a. sample new files
-        args = [file1,file2,out1,out2]
+        largs = [file1,file2,out1,out2]
         kwargs = {'sample_size': fss}
-        job = Job(sample_fastq,args,kwlist=kwargs,queue='all.q')
+        job = Job(sample_fastq,largs,kwlist=kwargs,queue='all.q')
         sample_jobs.append(job)
         sample_pairs.append([out1,out2])
     
