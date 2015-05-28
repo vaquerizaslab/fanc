@@ -23,18 +23,24 @@ def sample_fastq(fastq_file1, fastq_file2, out_fastq1, out_fastq2, sample_size=3
                 with open(out_fastq2, 'w') as o2:
                     line_counter = 0
                     sample_counter = 0
+                    write_line = False
                     
                     f1_line = f1.readline()
                     f2_line =  f2.readline()
                     
                     while f1_line != '':
                         
-                        if (line_counter % 4 == 0 and
-                            sample_counter < len(sample_ixs) and 
-                            line_counter/4 == sample_ixs[sample_counter]):
+                        if line_counter % 4 == 0:
+                            write_line = False
+                            if (sample_counter < len(sample_ixs) and 
+                                line_counter/4 == sample_ixs[sample_counter]):
+                                write_line = True
+                                sample_counter += 1
+                        
+                        if write_line:
                             o1.write(f1_line)
                             o2.write(f2_line)
-                            sample_counter += 1
+                            
                         
                         # update counters and lines 
                         f1_line = f1.readline()
