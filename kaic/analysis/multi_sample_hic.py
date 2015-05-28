@@ -47,10 +47,12 @@ if __name__ == '__main__':
     
     # step one:
     # reconstruct paired FASTQ file names
+    logging.info("Getting FASTQ file sizes...")
     pairs = []
     n_lines = []
     n_sum = 0
     for basename in args.input:
+        logging.info("\t" + basename)
         file_name1 = basename + "_1.fastq"
         file_name2 = basename + "_2.fastq"
         
