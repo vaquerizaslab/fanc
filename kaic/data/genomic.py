@@ -84,24 +84,26 @@ class Bed(object):
                     if fields[i] == 'name' or fields[i] == 'blockSizes' or fields[i] == 'blockStarts':
                         desc[fields[i]] = t.StringCol(255) # @UndefinedVariable
                         headerTypes.append(str)
-                    if fields[i] == 'strand':
+                    elif fields[i] == 'strand':
                         desc[fields[i]] = t.StringCol(1) # @UndefinedVariable
                         headerTypes.append(str)
-                    if fields[i] == 'itemRgb':
+                    elif fields[i] == 'itemRgb':
                         desc[fields[i]] = t.StringCol(12) # @UndefinedVariable
                         headerTypes.append(str)
-                    if fields[i] == 'chrom':
+                    elif fields[i] == 'chrom':
                         desc[fields[i]] = t.StringCol(16) # @UndefinedVariable
                         headerTypes.append(str)
-                    if fields[i] == 'score':
+                    elif fields[i] == 'score':
                         desc[fields[i]] = t.Float32Col() # @UndefinedVariable
                         headerTypes.append(float)
-                    if (fields[i] == 'thickStart' or fields[i] == 'thickEnd' or 
-                        fields[i] == 'blockCount' or fields[i] == 'start' or
-                        fields[i] == 'chromStart' or fields[i] == 'end' or
-                        fields[i] == 'chromEnd'):
+                    elif (fields[i] == 'thickStart' or fields[i] == 'thickEnd' or 
+                        fields[i] == 'blockCount' or 
+                        fields[i] == 'start' or fields[i] == 'end'):
                         desc[fields[i]] = t.Int64Col() # @UndefinedVariable
                         headerTypes.append(int)
+                    else:
+                        desc[fields[i]] = t.StringCol(255) # @UndefinedVariable
+                        headerTypes.append(str)
                     header.append(fields[i])
                 line = f.readline()
                 fields = line.rstrip().split("\t")
@@ -112,51 +114,54 @@ class Bed(object):
                         header.append('chrom')
                         headerTypes.append(str)
                         desc['chrom'] = t.StringCol(16) # @UndefinedVariable
-                    if i == 1:
+                    elif i == 1:
                         header.append('start')
                         headerTypes.append(str)
                         desc['start'] = t.Int64Col() # @UndefinedVariable
-                    if i == 2:
+                    elif i == 2:
                         header.append('end')
                         headerTypes.append(str)
                         desc['end'] = t.Int64Col(255) # @UndefinedVariable
-                    if i == 3:
+                    elif i == 3:
                         header.append('name')
                         headerTypes.append(str)
                         desc['name'] = t.StringCol(255) # @UndefinedVariable
-                    if i == 4:
+                    elif i == 4:
                         header.append('score')
                         headerTypes.append(float)
                         desc['score'] = t.Float32Col() # @UndefinedVariable
-                    if i == 5:
+                    elif i == 5:
                         header.append('strand')
                         headerTypes.append(str)
                         desc['strand'] = t.StringCol(1) # @UndefinedVariable
-                    if i == 6:
+                    elif i == 6:
                         header.append('thickStart')
                         headerTypes.append(int)
                         desc['thickStart'] = t.Int64Col() # @UndefinedVariable
-                    if i == 7:
+                    elif i == 7:
                         header.append('thickEnd')
                         headerTypes.append(int)
                         desc['thickEnd'] = t.Int64Col() # @UndefinedVariable
-                    if i == 8:
+                    elif i == 8:
                         header.append('itemRgb')
                         headerTypes.append(str)
                         desc['itemRgb'] = t.StringCol(12) # @UndefinedVariable
-                    if i == 9:
+                    elif i == 9:
                         header.append('blockCount')
                         headerTypes.append(int)
                         desc['blockCount'] = t.Int64Col() # @UndefinedVariable
-                    if i == 10:
+                    elif i == 10:
                         header.append('blockSizes')
                         headerTypes.append(str)
                         desc['blockSizes'] = t.StringCol(255) # @UndefinedVariable
-                    if i == 11:
+                    elif i == 11:
                         header.append('blockStarts')
                         headerTypes.append(str)
                         desc['blockStarts'] = t.StringCol(255) # @UndefinedVariable
-            
+                    else:
+                        header.append('feature_' + str(i))
+                        headerTypes.append(str)
+                        desc['feature_' + str(i)] = t.StringCol(255) # @UndefinedVariable
             print headerTypes
             print header
             print desc
@@ -530,10 +535,18 @@ class Hic(Bedpe):
         else:
             contacts = [[x['start1'],x['start2'],x['score']] for x in self.table]
         
-        print "Calculating lowest bound"
-        min_ix = min(min(contacts)[0:2])
-        max_ix = max(max(contacts)[0:2])
-        print "Calculating upper bound"
+        # TODO
+        # take into account chromosome sizes
+        # pull resolution from Hi-C object
+        min_ix = int(lower_bound/resolution)*resolution
+        max_ix = int(upper_bound/resolution)*resolution+resolution
+#         print "Calculating lowest bound"
+#         min_ix = min(min(contacts)[0:2])
+#         print min_ix
+#         print "Calculating upper bound"
+#         max_ix = max(max(contacts)[0:2])
+#         print max_ix
+        
         
         labels = range(min_ix,max_ix+resolution,resolution)
         ix_l = int(min_ix/resolution)
@@ -543,8 +556,12 @@ class Hic(Bedpe):
         for c in contacts:
             i = int(c[0]/resolution)-ix_l
             j = int(c[1]/resolution)-ix_l
-            M[i,j] = c[2]
-            M[j,i] = c[2]
+            try:
+                M[i,j] = c[2]
+                M[j,i] = c[2]
+            except IndexError:
+                raise IndexError("%d - %d (%d, %d)" % (c[0], c[1], i, j))
+                
         
         print "Creating data frame"
         df = p.DataFrame(M, index=labels, columns=labels)
