@@ -179,7 +179,7 @@ if __name__ == '__main__':
         file1 = sample_pairs[i][0]
         file2 = sample_pairs[i][1]
         out1 = "%s/%s.%d_1.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
-        out1 = "%s/%s.%d_2.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
+        out2 = "%s/%s.%d_2.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
         
         job1 = Job(iterative_mapping,[[file1],[out1],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q')
         job2 = Job(iterative_mapping,[[file2],[out2],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q')
