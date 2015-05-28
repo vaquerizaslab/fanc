@@ -112,11 +112,11 @@ if __name__ == '__main__':
             file_sample_sizes.append(fss)
         
         if fss_sum != sample_size:
-            file_sample_sizes[0] += n_sum-fss_sum
+            file_sample_sizes[0] += sample_size-fss_sum
         
         print file_sample_sizes
         print sum(file_sample_sizes)
-        print n_sum-fss_sum
+        print sample_size-fss_sum
         
         
     
