@@ -107,7 +107,7 @@ if __name__ == '__main__':
         file_sample_sizes = []
         fss_sum = 0
         for ratio in n_lines_ratios:
-            fss = ratio*sample_size
+            fss = int(ratio*sample_size)
             fss_sum += fss
             file_sample_sizes.append(fss)
         
