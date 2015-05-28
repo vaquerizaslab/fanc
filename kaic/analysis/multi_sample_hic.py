@@ -12,6 +12,13 @@ from kaic.hrandom.sample_fastq import sample_fastq
 logging.basicConfig(level=logging.DEBUG)
 
 
+def make_dir(dir_name):
+    try: 
+        os.makedirs(dir_name)
+    except OSError:
+        if not os.path.isdir(sample_folder):
+            raise
+
 def intList(thisList):
     return [int(x) for x in thisList.split(",")]
     
@@ -57,7 +64,7 @@ if __name__ == '__main__':
     n_lines = []
     n_sum = 0
     for basename in args.input:
-        logging.info("\t" + basename)
+        
         file_name1 = basename + "_1.fastq"
         file_name2 = basename + "_2.fastq"
         
@@ -70,6 +77,7 @@ if __name__ == '__main__':
         n = get_number_of_lines(file_name1)
         n_sum += n
         n_lines.append(n)
+        logging.info("\t%s\t%d" % (basename, n))
     
     n_lines_ratios = []
     for n in n_lines:
@@ -80,15 +88,35 @@ if __name__ == '__main__':
     # step 2:
     # extract samples from FASTQ files
     for sample_size in args.sample_sizes:
-        # create new file names
+        
+        # make sure we are not sampling more than we have
+        sample_size = min(n_sum, sample_size)
+        
+        # create new folders
         sample_folder = "%s/sample_%d/" % (args.output_folder,sample_size) 
-        try: 
-            os.makedirs(sample_folder)
-        except OSError:
-            if not os.path.isdir(sample_folder):
-                raise
+        make_dir(sample_folder + "fastq")
+        make_dir(sample_folder + "sam")
+        make_dir(sample_folder + "sam/filtered")
+        make_dir(sample_folder + "hic")
+        make_dir(sample_folder + "hic/filtered")
+        make_dir(sample_folder + "binned")
+        make_dir(sample_folder + "binned/filtered")
+        make_dir(sample_folder + "corrected")
+        
     
-    
-    
+        file_sample_sizes = []
+        fss_sum = 0
+        for ratio in n_lines_ratios:
+            fss = ratio*sample_size
+            fss_sum += fss
+            file_sample_sizes.append(fss)
+        
+        if fss_sum != sample_size:
+            file_sample_sizes[0] += n_sum-fss_sum
+        
+        print file_sample_sizes
+        print n_sum-fss_sum
+        
+        
     
     
