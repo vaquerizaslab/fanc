@@ -5,6 +5,7 @@ import gridmap
 import logging
 import os.path
 from kaic.tools.files import get_number_of_lines
+from kaic.hrandom.sample_fastq import sample_fastq
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -45,7 +46,8 @@ if __name__ == '__main__':
     
     
     
-    # step one:
+    
+    # step 1:
     # reconstruct paired FASTQ file names
     logging.info("Getting FASTQ file sizes...")
     pairs = []
@@ -67,7 +69,17 @@ if __name__ == '__main__':
         n_lines.append(n)
     
     n_lines_ratios = []
-    for i in range(0,len(n_lines)):
-        n_lines_ratios[i] = n_lines[i]/n_sum
+    for n in n_lines:
+        n_lines_ratios.append(n/n_sum)
+    
+    
+    # step 2:
+    # extract samples from FASTQ files
+    for sample_size in args.sample_sizes:
+        # create new file names
         
+    
+    
+    
+    
     print n_lines_ratios
