@@ -28,7 +28,8 @@ def sample_fastq(fastq_file1, fastq_file2, out_fastq1, out_fastq2, sample_size=3
                     
                     while f1_line != '':
                         
-                        if line_counter == sample_ixs[sample_counter]:
+                        if (sample_counter < len(sample_ixs) and 
+                            line_counter == sample_ixs[sample_counter]):
                             o1.write(f1_line)
                             o2.write(f2_line)
                             sample_counter += 1
