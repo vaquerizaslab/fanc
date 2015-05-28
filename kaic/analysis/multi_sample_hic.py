@@ -115,6 +115,7 @@ if __name__ == '__main__':
             file_sample_sizes[0] += n_sum-fss_sum
         
         print file_sample_sizes
+        print sum(file_sample_sizes)
         print n_sum-fss_sum
         
         
