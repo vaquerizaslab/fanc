@@ -3,12 +3,15 @@
 from __future__ import division
 
 import argparse
-import gridmap
+from gridmap import Job, process_jobs
 import logging
 import os.path
 import os
 from kaic.tools.files import get_number_of_lines
 from kaic.hrandom.sample_fastq import sample_fastq
+from kaic.mapping.iterativeMapping import iterative_mapping
+
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -40,15 +43,35 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
-        '-s', '--sample-sizes', dest='sample_sizes',
-        type=intList,
-        help='''Comma-separated list of sample sizes''',
+        '-s', '--sample-size', dest='sample_size',
+        type=int,
+        help='''FASTQ sample size (number of reads)''',
         required=True
     );
     
     parser.add_argument(
         '-o', '--output-folder', dest='output_folder',
         help='''Output folder''',
+        required=True
+    );
+    
+    parser.add_argument(
+        '-mm', '--mapping-min', dest='mapping_min',
+        help='''Minimum read length for iterative mapping''',
+        type=int,
+        default=28
+    );
+    
+    parser.add_argument(
+        '-ms', '--mapping-step', dest='mapping_step',
+        help='''Step size for iterative mapping''',
+        type=int,
+        default=2
+    );
+    
+    parser.add_argument(
+        '-mi', '--mapping-index', dest='mapping_index',
+        help='''Bowtie index for iterative mapping''',
         required=True
     );
     
@@ -86,58 +109,70 @@ if __name__ == '__main__':
     print n_entries_ratios
     
     # step 2:
-    # extract samples from FASTQ files
-    for sample_size in args.sample_sizes:
-        
-        # make sure we are not sampling more than we have
-        sample_size = min(n_sum, sample_size)
-        
-        # create new folders
-        
-        sample_folder = "%s/sample_%d/" % (args.output_folder,sample_size)
-        fastq_folder = sample_folder + "fastq"
-        make_dir(fastq_folder)
-        sam_folder = sample_folder + "sam"
-        make_dir(sam_folder)
-        sam_filtered_folder = sample_folder + "sam/filtered"
-        make_dir(sam_filtered_folder)
-        hic_folder = sample_folder + "hic"
-        make_dir(hic_folder)
-        hic_filtered_folder = sample_folder + "hic/filtered"
-        make_dir(hic_filtered_folder)
-        binned_folder = sample_folder + "binned"
-        make_dir(binned_folder)
-        binned_filtered_folder = sample_folder + "binned/filtered"
-        make_dir(binned_filtered_folder)
-        corrected_folder = sample_folder + "corrected"
-        make_dir(corrected_folder)
-        
+    # create folder structure
+
+    # make sure we are not sampling more than we have
+    sample_size = min(n_sum, args.sample_size)
     
-        file_sample_sizes = []
-        fss_sum = 0
-        for ratio in n_entries_ratios:
-            fss = int(ratio*sample_size)
-            fss_sum += fss
-            file_sample_sizes.append(fss)
+    # create new folders
+    sample_folder = "%s/sample_%d/" % (args.output_folder,sample_size)
+    fastq_folder = sample_folder + "fastq"
+    make_dir(fastq_folder)
+    sam_folder = sample_folder + "sam"
+    make_dir(sam_folder)
+    sam_filtered_folder = sample_folder + "sam/filtered"
+    make_dir(sam_filtered_folder)
+    hic_folder = sample_folder + "hic"
+    make_dir(hic_folder)
+    hic_filtered_folder = sample_folder + "hic/filtered"
+    make_dir(hic_filtered_folder)
+    binned_folder = sample_folder + "binned"
+    make_dir(binned_folder)
+    binned_filtered_folder = sample_folder + "binned/filtered"
+    make_dir(binned_filtered_folder)
+    corrected_folder = sample_folder + "corrected"
+    make_dir(corrected_folder)
+    
+    
+    # step 3:
+    # calculate file sample sizes
+    file_sample_sizes = []
+    fss_sum = 0
+    for ratio in n_entries_ratios:
+        fss = int(ratio*sample_size)
+        fss_sum += fss
+        file_sample_sizes.append(fss)
+    
+    # correct for integer conversion of sample sizes
+    if fss_sum != sample_size:
+        file_sample_sizes[0] += sample_size-fss_sum
+    
+    
+    # step 4:
+    # write new FASTQ files
+    sample_pairs = []
+    sample_jobs = []
+    for i in range(0, len(pairs)):
+        file1 = pairs[i][0]
+        file2 = pairs[i][1]
+        fss = file_sample_sizes[i]
+        out1 = "%s/%s.%d_1.fastq" % (fastq_folder,args.input[i],fss)
+        out2 = "%s/%s.%d_2.fastq" % (fastq_folder,args.input[i],fss)
         
-        # correct for integer conversion of sample sizes
-        if fss_sum != sample_size:
-            file_sample_sizes[0] += sample_size-fss_sum
-        
-        print file_sample_sizes
-        print sum(file_sample_sizes)
-        
-        for i in range(0, len(pairs)):
-            file1 = pairs[i][0]
-            file2 = pairs[i][1]
-            fss = file_sample_sizes[i]
-            out1 = "%s/%s.%d_1.fastq" % (fastq_folder,args.input[i],fss)
-            out2 = "%s/%s.%d_2.fastq" % (fastq_folder,args.input[i],fss)
+        # a. sample new files
+        args = [file1,file2,out1,out2]
+        kwargs = {'sample_size': fss}
+        job = Job(sample_fastq,args,kwlist=kwargs,queue='all.q')
+        sample_jobs.append(job)
+        sample_pairs.append([out1,out2])
+    
+    # do the actual sampling
+    process_jobs(sample_jobs,max_processes=4)
+    
+    
+    # b. map new files
+    #iterative_mapping([file1,file2], [out1,out2], args.mapping_index, min_length=args.mapping_min, step_size=args.mapping_step)
             
-            
-            sample_fastq(file1,file2,out1,out2,sample_size=fss)
-            
-        
         
     
     
