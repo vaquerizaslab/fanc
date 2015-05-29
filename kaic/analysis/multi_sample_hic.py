@@ -216,7 +216,7 @@ if __name__ == '__main__':
         filtered_sam_pairs.append([out1,out2])
     
     # do the actual filtering
-    process_jobs(sam_jobs,max_processes=4)
+    process_jobs(filtered_sam_jobs,max_processes=4)
     
     # step 7:
     # create Hi-C objects
