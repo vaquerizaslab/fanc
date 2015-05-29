@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use('pdf')
 from matplotlib import pyplot as plt
 from warnings import warn
+from kaic.genome.genomeTools import loadGenomeObject
 
 
 def removeUnwantedLigations(inputSam1, inputSam2, genome,
@@ -18,6 +19,7 @@ def removeUnwantedLigations(inputSam1, inputSam2, genome,
                             reDistCutoff=500, removeSingle=True,
                             removeSelf=True, sortFiles=False,
                             removeDuplicates=True):
+    genome = loadGenomeObject(genome)
     pairs = ReadPairs(genome)
     pairs.removeUnwantedLigationsLowMem(inputSam1, inputSam2, outputSam1, outputSam2, inwardCutoff, outwardCutoff, reDistCutoff, removeSingle, removeSelf, sortFiles, removeDuplicates)
     

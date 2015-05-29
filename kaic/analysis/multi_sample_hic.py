@@ -211,7 +211,7 @@ if __name__ == '__main__':
             'removeSelf': True,
             'removeDuplicates': True
         }
-        job = Job(removeUnwantedLigations,[file1,file2,genome],kwlist=kwargs,queue='all.q')
+        job = Job(removeUnwantedLigations,[file1,file2,args.genome],kwlist=kwargs,queue='all.q')
         filtered_sam_jobs.append(job)
         filtered_sam_pairs.append([out1,out2])
     
