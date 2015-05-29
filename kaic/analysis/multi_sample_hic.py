@@ -6,7 +6,7 @@ import argparse
 from gridmap import Job, process_jobs
 import logging
 import os.path
-import os
+#import os
 from kaic.correcting.filterUnwantedLigations import removeUnwantedLigations
 from kaic.genome.genomeTools import loadGenomeObject
 from kaic.tools.files import get_number_of_lines
@@ -15,9 +15,9 @@ from kaic.mapping.iterativeMapping import iterative_mapping
 from kaic.mapping.samToHiCDataSet import sam_to_hic
 from kaic.merging.mergeHiCDataSets import merge_hic
 from kaic.binning.hicHeatMap import bin_hic
-from kaic.correcting.iterativeCorrection import ice
+#from kaic.correcting.iterativeCorrection import ice
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 def make_dir(dir_name):
@@ -81,10 +81,10 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
-        '-r', '--resolution', dest='resolution',
-        type=int,
-        help='''Cutoff for filtering very large fragments''',
-        required=True
+        '-r', '--resolutions', dest='resolutions',
+        type=intList,
+        default=[5000,10000,20000,50000,100000,200000,500000,1000000],
+        help='''List of binning resolutions (comma-separated)''',
     );
     
     args = parser.parse_args()
@@ -251,8 +251,11 @@ if __name__ == '__main__':
     
     # step 8:
     # bin Hi-C object
-    binned_file = "%s/all.hm" % binned_folder
-    bin_hic(hic_file, genome, args.resolution, binned_file)
+    binned_files = []
+    for resolution in args.resolutions:
+        binned_file = "%s/all.%d.hm" % (binned_folder, resolution)
+        bin_hic(hic_file, genome, resolution, binned_file)
+        binned_files.append(binned_file)
     
     # step 9:
     # correct binned Hi-C maps
