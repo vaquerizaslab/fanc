@@ -241,7 +241,7 @@ if __name__ == '__main__':
         hic_jobs.append(job)
         hic_files.append(out)
     
-    # do the actual filtering
+    # do the actual hic creation
     process_jobs(hic_jobs,max_processes=4)
     
     # step 7.b:
@@ -252,10 +252,17 @@ if __name__ == '__main__':
     # step 8:
     # bin Hi-C object
     binned_files = []
+    bin_jobs = []
     for resolution in args.resolutions:
         binned_file = "%s/all.%d.hm" % (binned_folder, resolution)
-        bin_hic(hic_file, genome, resolution, binned_file)
+        
+        
+        job = Job(bin_hic, [hic_file, args.genome, resolution, binned_file],queue='all.q')
+        bin_jobs.append(job)
         binned_files.append(binned_file)
+    
+    # do the actual binning
+    process_jobs(bin_jobs,max_processes=4)
     
     # step 9:
     # correct binned Hi-C maps
