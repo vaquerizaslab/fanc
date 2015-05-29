@@ -12,6 +12,8 @@ from kaic.genome.genomeTools import loadGenomeObject
 from kaic.tools.files import get_number_of_lines
 from kaic.hrandom.sample_fastq import sample_fastq
 from kaic.mapping.iterativeMapping import iterative_mapping
+from kaic.mapping.samToHiCDataSet import sam_to_hic
+from kaic.merging.mergeHiCDataSets import merge_hic
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -183,8 +185,8 @@ if __name__ == '__main__':
         out1 = "%s/%s.%d_1.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
         out2 = "%s/%s.%d_2.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
         
-        job1 = Job(iterative_mapping,[[file1],[out1],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q')
-        job2 = Job(iterative_mapping,[[file2],[out2],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q')
+        job1 = Job(iterative_mapping,[[file1],[out1],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q',num_slots=8)
+        job2 = Job(iterative_mapping,[[file2],[out2],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q',num_slots=8)
         sam_jobs.append(job1)
         sam_jobs.append(job2)
         sam_pairs.append([out1,out2])
@@ -218,9 +220,25 @@ if __name__ == '__main__':
     # do the actual filtering
     process_jobs(filtered_sam_jobs,max_processes=4)
     
-    # step 7:
+    # step 7.a:
     # create Hi-C objects
+    hic_files = []
+    hic_jobs = []
+    for i in range(0, len(filtered_sam_pairs)):
+        file1 = filtered_sam_pairs[i][0]
+        file2 = filtered_sam_pairs[i][1]
+        out = "%s/%s.hic" % (hic_folder, args.input[i])
+        
+        job = Job(sam_to_hic, [file1, file2, args.genome, out],queue='all.q')
+        hic_jobs.append(job)
+        hic_files.append(out)
     
+    # do the actual filtering
+    process_jobs(filtered_sam_jobs,max_processes=4)
+    
+    # step 7.b:
+    # merge Hi-C objects
+    merge_hic(hic_files, genome, "%s/all.hic" % hic_folder)
     
     # step 8:
     # bin Hi-C objects

@@ -3,6 +3,14 @@ import time;
 from hiclib.fragmentHiC import HiCdataset
 import kaic.genome.genomeTools as gt
 
+
+def merge_hic(hics, genome, output):
+    genome_db = gt.loadGenomeObject(genome)
+    
+    merged = HiCdataset(output, genome=genome_db, mode="w")
+    
+    merged.merge(hics)
+    
 def main(args):
     print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>"
     print("Using the following settings");

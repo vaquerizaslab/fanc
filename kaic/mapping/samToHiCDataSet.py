@@ -1,13 +1,46 @@
 import argparse;
 from hiclib import mapping;
 from hiclib.fragmentHiC import HiCdataset
-from mirnylib import h5dict, genome;
+from mirnylib import h5dict;
 import time;
 import os.path;
 import kaic.genome.genomeTools as gt
 
 import string
 import random
+
+
+def sam_to_hic(sam1, sam2, genome, output):
+    # read in genome object
+    #genome_db = genome.Genome(args.genomeFolder, readChrms=args.readChrms)
+    genome_db = gt.loadGenomeObject(genome)
+    
+    # generate hicrandom temporary filename
+    rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(6))  # @UndefinedVariable
+    tmpFilename = output + '.' + rs + '.tmp'
+    
+    # merge SAM files into Hi-C map
+    mapped_reads = h5dict.h5dict(tmpFilename)
+    
+    sam_base1 = os.path.splitext(sam1)[0];
+    sam_base2 = os.path.splitext(sam2)[0];
+    
+    print sam_base1;
+    print sam_base2;
+        
+    mapping.parse_sam(
+        sam_basename1=sam_base1,
+        sam_basename2=sam_base2,
+        out_dict=mapped_reads,
+        genome_db=genome_db,
+        save_seqs=False
+        )
+    
+    TR = HiCdataset(output, genome=genome_db)
+    TR.parseInputData(dictLike=mapped_reads)
+    TR._sortData()
+    
+    os.unlink(tmpFilename)
 
 def main(args):
     print args;
