@@ -98,7 +98,10 @@ if __name__ == '__main__':
     pairs = []
     n_entries = []
     n_sum = 0
+    basenames = []
     for basename in args.input:
+        
+        basenames.append(os.path.basename(basename))
         
         file_name1 = basename + "_1.fastq"
         file_name2 = basename + "_2.fastq"
@@ -168,8 +171,8 @@ if __name__ == '__main__':
         file1 = pairs[i][0]
         file2 = pairs[i][1]
         fss = file_sample_sizes[i]
-        out1 = "%s/%s.%d_1.fastq" % (fastq_folder,args.input[i],fss)
-        out2 = "%s/%s.%d_2.fastq" % (fastq_folder,args.input[i],fss)
+        out1 = "%s/%s.%d_1.fastq" % (fastq_folder,basenames[i],fss)
+        out2 = "%s/%s.%d_2.fastq" % (fastq_folder,basenames[i],fss)
         
         # a. sample new files
         largs = [file1,file2,out1,out2]
@@ -190,8 +193,8 @@ if __name__ == '__main__':
     for i in range(0, len(sample_pairs)):
         file1 = sample_pairs[i][0]
         file2 = sample_pairs[i][1]
-        out1 = "%s/%s.%d_1.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
-        out2 = "%s/%s.%d_2.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
+        out1 = "%s/%s.%d_1.sam" % (sam_folder, basenames[i], file_sample_sizes[i])
+        out2 = "%s/%s.%d_2.sam" % (sam_folder, basenames[i], file_sample_sizes[i])
         
         job1 = Job(iterative_mapping,[[file1],[out1],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q',num_slots=8)
         job2 = Job(iterative_mapping,[[file2],[out2],args.mapping_index],kwlist={ 'min_length':args.mapping_min, 'step_size': args.mapping_step },queue='all.q',num_slots=8)
@@ -209,8 +212,8 @@ if __name__ == '__main__':
     for i in range(0, len(sam_pairs)):
         file1 = sam_pairs[i][0]
         file2 = sam_pairs[i][1]
-        out1 = "%s/%s.%d_1.filtered.sam" % (sam_filtered_folder, args.input[i], file_sample_sizes[i])
-        out2 = "%s/%s.%d_2.filtered.sam" % (sam_filtered_folder, args.input[i], file_sample_sizes[i])
+        out1 = "%s/%s.%d_1.filtered.sam" % (sam_filtered_folder, basenames[i], file_sample_sizes[i])
+        out2 = "%s/%s.%d_2.filtered.sam" % (sam_filtered_folder, basenames[i], file_sample_sizes[i])
         
         kwargs = {
             'outputSam1': out1,
@@ -235,7 +238,7 @@ if __name__ == '__main__':
     for i in range(0, len(filtered_sam_pairs)):
         file1 = filtered_sam_pairs[i][0]
         file2 = filtered_sam_pairs[i][1]
-        out = "%s/%s.hic" % (hic_folder, args.input[i])
+        out = "%s/%s.hic" % (hic_folder, basenames[i])
         
         job = Job(sam_to_hic, [file1, file2, args.genome, out],queue='all.q')
         hic_jobs.append(job)
