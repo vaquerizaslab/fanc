@@ -7,11 +7,12 @@ from gridmap import Job, process_jobs
 import logging
 import os.path
 import os
+from kaic.correcting.filterUnwantedLigations import removeUnwantedLigations
 from kaic.genome.genomeTools import loadGenomeObject
 from kaic.tools.files import get_number_of_lines
 from kaic.hrandom.sample_fastq import sample_fastq
 from kaic.mapping.iterativeMapping import iterative_mapping
-from kaic.correcting.filterUnwantedLigations import removeUnwantedLigations
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -211,8 +212,7 @@ if __name__ == '__main__':
             'removeDuplicates': True
         }
         job = Job(removeUnwantedLigations,[file1,file2,genome],kwlist=kwargs,queue='all.q')
-        filtered_sam_jobs.append(job1)
-        filtered_sam_jobs.append(job2)
+        filtered_sam_jobs.append(job)
         filtered_sam_pairs.append([out1,out2])
     
     # do the actual filtering
