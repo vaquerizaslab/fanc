@@ -36,7 +36,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
                 try:
                     x = getBiasVector(M)
                 except ValueError:
-                    print("Matrix balancing failed (this can happen!), removing sparsest rows to try again")
+                    print "Matrix balancing failed (this can happen!), removing sparsest rows to try again"
                     print "Old M shape:"
                     print M.shape
                     M, ixs = removeSparseRows(M)
