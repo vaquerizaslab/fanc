@@ -171,7 +171,7 @@ if __name__ == '__main__':
         sample_pairs.append([out1,out2])
     
     # do the actual sampling
-    process_jobs(sample_jobs,max_processes=4)
+    #process_jobs(sample_jobs,max_processes=4)
     
     
     
@@ -192,7 +192,7 @@ if __name__ == '__main__':
         sam_pairs.append([out1,out2])
         
     # do the actual mapping
-    process_jobs(sam_jobs,max_processes=4)
+    #process_jobs(sam_jobs,max_processes=4)
     
     # step 6:
     # filter SAM files
@@ -218,7 +218,7 @@ if __name__ == '__main__':
         filtered_sam_pairs.append([out1,out2])
     
     # do the actual filtering
-    process_jobs(filtered_sam_jobs,max_processes=4)
+    #process_jobs(filtered_sam_jobs,max_processes=4)
     
     # step 7.a:
     # create Hi-C objects
