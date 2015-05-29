@@ -4,6 +4,23 @@ import kaic.genome.genomeTools as gt
 from hiclib import binnedData
 from hiclib import highResBinnedData
 
+
+def ice(binned_hic, genome, resolution, output, low_resolution=False):
+    # read in genome object
+    genome_db = gt.loadGenomeObject(genome)
+    
+    if low_resolution:
+        BD = binnedData.binnedData(resolution, genome_db)
+        BD.simpleLoad(binned_hic, 'hm')
+        BD.iterativeCorrectWithoutSS(force=True)
+        BD.export("hm",output)
+    else:
+        BD = highResBinnedData.HiResHiC(genome_db, resolution)
+        BD.loadData(binned_hic)
+        BD.iterativeCorrection()
+        BD.export(output)
+
+
 def main(args):
     print("Using the following settings");
     for arg, val in args.__dict__.iteritems():

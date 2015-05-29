@@ -15,6 +15,7 @@ from kaic.mapping.iterativeMapping import iterative_mapping
 from kaic.mapping.samToHiCDataSet import sam_to_hic
 from kaic.merging.mergeHiCDataSets import merge_hic
 from kaic.binning.hicHeatMap import bin_hic
+from kaic.correcting.iterativeCorrection import ice
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -178,7 +179,7 @@ if __name__ == '__main__':
         sample_pairs.append([out1,out2])
     
     # do the actual sampling
-    #process_jobs(sample_jobs,max_processes=4)
+    process_jobs(sample_jobs,max_processes=4)
     
     
     
@@ -199,7 +200,7 @@ if __name__ == '__main__':
         sam_pairs.append([out1,out2])
         
     # do the actual mapping
-    #process_jobs(sam_jobs,max_processes=4)
+    process_jobs(sam_jobs,max_processes=4)
     
     # step 6:
     # filter SAM files
@@ -225,7 +226,7 @@ if __name__ == '__main__':
         filtered_sam_pairs.append([out1,out2])
     
     # do the actual filtering
-    #process_jobs(filtered_sam_jobs,max_processes=4)
+    process_jobs(filtered_sam_jobs,max_processes=4)
     
     # step 7.a:
     # create Hi-C objects
@@ -241,12 +242,12 @@ if __name__ == '__main__':
         hic_files.append(out)
     
     # do the actual filtering
-    #process_jobs(hic_jobs,max_processes=4)
+    process_jobs(hic_jobs,max_processes=4)
     
     # step 7.b:
     # merge Hi-C objects
     hic_file = "%s/all.hic" % hic_folder
-    #merge_hic(hic_files, genome, hic_file)
+    merge_hic(hic_files, genome, hic_file)
     
     # step 8:
     # bin Hi-C object
@@ -255,5 +256,9 @@ if __name__ == '__main__':
     
     # step 9:
     # correct binned Hi-C maps
+    #corrected_file = "%s/all.ice.hm" % corrected_folder
+    
+    
+    
     
     
