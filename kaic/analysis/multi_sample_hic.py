@@ -234,7 +234,7 @@ if __name__ == '__main__':
         hic_files.append(out)
     
     # do the actual filtering
-    process_jobs(filtered_sam_jobs,max_processes=4)
+    process_jobs(hic_jobs,max_processes=4)
     
     # step 7.b:
     # merge Hi-C objects
