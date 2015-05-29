@@ -83,7 +83,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-r', '--resolutions', dest='resolutions',
         type=intList,
-        default=[5000,10000,20000,50000,100000,200000,500000,1000000],
+        default=[10000,20000,50000,100000,200000,500000,1000000],
         help='''List of binning resolutions (comma-separated)''',
     );
     
