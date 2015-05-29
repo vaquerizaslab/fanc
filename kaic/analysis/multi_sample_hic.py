@@ -7,10 +7,11 @@ from gridmap import Job, process_jobs
 import logging
 import os.path
 import os
+from kaic.genome.genomeTools import loadGenomeObject
 from kaic.tools.files import get_number_of_lines
 from kaic.hrandom.sample_fastq import sample_fastq
 from kaic.mapping.iterativeMapping import iterative_mapping
-
+from kaic.correcting.filterUnwantedLigations import removeUnwantedLigations
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -19,7 +20,7 @@ def make_dir(dir_name):
     try: 
         os.makedirs(dir_name)
     except OSError:
-        if not os.path.isdir(sample_folder):
+        if not os.path.isdir(dir_name):
             raise
 
 def intList(thisList):
@@ -77,7 +78,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    
+    genome = loadGenomeObject(args.genome)
     
     
     # step 1:
@@ -175,7 +176,7 @@ if __name__ == '__main__':
     # map new files
     sam_pairs = []
     sam_jobs = []
-    for i in range(0, len(pairs)):
+    for i in range(0, len(sample_pairs)):
         file1 = sample_pairs[i][0]
         file2 = sample_pairs[i][1]
         out1 = "%s/%s.%d_1.sam" % (sam_folder, args.input[i], file_sample_sizes[i])
@@ -189,6 +190,42 @@ if __name__ == '__main__':
         
     # do the actual mapping
     process_jobs(sam_jobs,max_processes=4)
+    
+    # step 6:
+    # filter SAM files
+    filtered_sam_pairs = []
+    filtered_sam_jobs = []
+    for i in range(0, len(sam_pairs)):
+        file1 = sam_pairs[i][0]
+        file2 = sam_pairs[i][1]
+        out1 = "%s/%s.%d_1.filtered.sam" % (sam_filtered_folder, args.input[i], file_sample_sizes[i])
+        out2 = "%s/%s.%d_2.filtered.sam" % (sam_filtered_folder, args.input[i], file_sample_sizes[i])
         
+        kwargs = {
+            'outputSam1': out1,
+            'outputSam2': out2,
+            'inwardCutoff': 25000,
+            'outwardCutoff': 10000,
+            'removeSingle': True,
+            'removeSelf': True,
+            'removeDuplicates': True
+        }
+        job = Job(removeUnwantedLigations,[file1,file2,genome],kwlist=kwargs,queue='all.q')
+        filtered_sam_jobs.append(job1)
+        filtered_sam_jobs.append(job2)
+        filtered_sam_pairs.append([out1,out2])
+    
+    # do the actual filtering
+    process_jobs(sam_jobs,max_processes=4)
+    
+    # step 7:
+    # create Hi-C objects
+    
+    
+    # step 8:
+    # bin Hi-C objects
+    
+    # step 9:
+    # correct binned Hi-C maps
     
     

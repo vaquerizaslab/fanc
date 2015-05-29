@@ -11,6 +11,19 @@ matplotlib.use('pdf')
 from matplotlib import pyplot as plt
 from warnings import warn
 
+
+def removeUnwantedLigations(inputSam1, inputSam2, genome,
+                            outputSam1=None, outputSam2=None,
+                            inwardCutoff=1000, outwardCutoff=25000,
+                            reDistCutoff=500, removeSingle=True,
+                            removeSelf=True, sortFiles=False,
+                            removeDuplicates=True):
+    pairs = ReadPairs(genome)
+    pairs.removeUnwantedLigationsLowMem(inputSam1, inputSam2, outputSam1, outputSam2, inwardCutoff, outwardCutoff, reDistCutoff, removeSingle, removeSelf, sortFiles, removeDuplicates)
+    
+
+
+
 class Read(object):
     def __init__(self, name, chromosome, position, reverse=False):
         self.name = name
