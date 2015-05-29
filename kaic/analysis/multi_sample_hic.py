@@ -14,7 +14,7 @@ from kaic.hrandom.sample_fastq import sample_fastq
 from kaic.mapping.iterativeMapping import iterative_mapping
 from kaic.mapping.samToHiCDataSet import sam_to_hic
 from kaic.merging.mergeHiCDataSets import merge_hic
-
+from kaic.binning.hicHeatMap import bin_hic
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -76,6 +76,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '-mi', '--mapping-index', dest='mapping_index',
         help='''Bowtie index for iterative mapping''',
+        required=True
+    );
+    
+    parser.add_argument(
+        '-r', '--resolution', dest='resolution',
+        type=int,
+        help='''Cutoff for filtering very large fragments''',
         required=True
     );
     
@@ -234,14 +241,17 @@ if __name__ == '__main__':
         hic_files.append(out)
     
     # do the actual filtering
-    process_jobs(hic_jobs,max_processes=4)
+    #process_jobs(hic_jobs,max_processes=4)
     
     # step 7.b:
     # merge Hi-C objects
-    merge_hic(hic_files, genome, "%s/all.hic" % hic_folder)
+    hic_file = "%s/all.hic" % hic_folder
+    #merge_hic(hic_files, genome, hic_file)
     
     # step 8:
-    # bin Hi-C objects
+    # bin Hi-C object
+    binned_file = "%s/all.hm" % binned_folder
+    bin_hic(hic_file, genome, args.resolution, binned_file)
     
     # step 9:
     # correct binned Hi-C maps

@@ -3,6 +3,18 @@ import time;
 import argparse;
 import kaic.genome.genomeTools as gt
 
+def bin_hic(hic, genome, resolution, output, by_chromosome=True):
+    # read in genome object
+    genome_db = gt.loadGenomeObject(genome)
+    
+    TR = HiCdataset("memory", genome=genome_db, inMemory=True);
+    TR.load(hic);
+    
+    if by_chromosome:
+        TR.saveByChromosomeHeatmap(output, resolution)
+    else:
+        TR.saveHeatmap(output, resolution)
+
 def main(args):
     print("Using the following settings");
     for arg, val in args.__dict__.iteritems():
