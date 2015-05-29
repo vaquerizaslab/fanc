@@ -13,6 +13,19 @@ from kaic.tools.files import is_bedpe_file
 import string
 import random
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
+class Genome(object):
+    def __init__(self, file_name=None):
+        logging.info("Creating new genome object")
+        
+        # chromosomes
+        #   length
+        #   name
+        #   (sequence)
+
+
 class Bed(object):
     '''
     Bed object for genomic features
@@ -609,4 +622,15 @@ class Hic(Bedpe):
             M[j,i] = c[2]
         
         return M
+
+
+class Chromosome(object):
+    def __init__(self, name, length, sequence=None):
+        self.name = name
+        self.length = length
+        self.sequence = sequence
         
+        
+    def get_restriction_sites(self, restriction_enzyme, include_chromosome_end=True, include_chromosome_start=False):
+        logging.info("Calculating RE sites")
+    

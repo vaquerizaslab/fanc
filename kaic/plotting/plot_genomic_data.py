@@ -139,6 +139,31 @@ class BedpePlot(object):
             close_graphics_file()
 
 
+class HiCCorrelationPlot(object):
+    def __init__(self, hic1, hic2):
+        self.hic1 = hic1
+        self.hic2 = hic2
+        
+    def show(self, output=None):
+        p2r.activate()
+        graphics = importr('graphics')
+        base = importr('base')
+        
+        if output:
+            open_graphics_file(output)
+
+
+        l = len(self.panels)
+        graphics.layout(base.matrix(range(1,l+1), l, 1, byrow=True))
+        graphics.par([3,4,1,1])
+        
+        for panel in self.panels:
+            panel.show()
+
+        
+        if output:
+            close_graphics_file()
+
 
 class GenomicDataPlot(object):
     
