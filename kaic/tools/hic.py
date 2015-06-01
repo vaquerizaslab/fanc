@@ -4,9 +4,12 @@ Created on May 13, 2015
 @author: kkruse1
 '''
 
-#import numpy as np
+from hiclib import highResBinnedData
+from kaic.genome.genomeTools import loadGenomeObject
 
-def getChromosomeMatrix(hic,genome,chrm1,chrm2=None):
+def getChromosomeMatrix(hic,chrm1,genome=None,chrm2=None):
+    if genome is None:
+        genome = hic.genome
     if type(chrm1) == str:
         chrm1 = genome.label2idx[chrm1]
     if type(chrm2) == str:
@@ -25,3 +28,18 @@ def getChromosomeMatrix(hic,genome,chrm1,chrm2=None):
     data = hic.data[(chrm1,chrm2)].getData()
     
     return data
+
+
+def load_mirny_binned_hic(file_name, genome, resolution):
+    
+    if type(file_name) == highResBinnedData.HiResHiC:
+        return file_name
+    
+    genome = loadGenomeObject(genome)
+    
+    hic = highResBinnedData.HiResHiC(genome, resolution)
+    hic.loadData(file_name)
+    
+    return hic
+    
+    
