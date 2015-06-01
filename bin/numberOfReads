@@ -27,7 +27,7 @@ if __name__ == '__main__':
    
     args = parser.parse_args()
     
-    hic = load_mirny_binned_hic
+    hic = load_mirny_binned_hic(args.hic, args.genome, args.resolution)
     
     s = 0
     for chr1, chr2 in hic.data:
