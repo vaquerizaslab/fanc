@@ -107,7 +107,7 @@ def correlation_data_frame(hic1, hic2, genome, resolution, include_zeros=False, 
     return df
 
 
-def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=False, order=None, output=None):
+def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=False, order=None, output=None, width=9,height=9):
     df = correlation_data_frame(hic1, hic2, genome, resolution, include_zeros, order)
     df_p = df.copy()
     
@@ -127,7 +127,7 @@ def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=Fa
             
     
     if output:
-        open_graphics_file(output)
+        open_graphics_file(output,width,height)
     
     # plot
     m = base.as_matrix(df)

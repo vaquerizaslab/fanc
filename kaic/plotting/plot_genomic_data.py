@@ -8,17 +8,45 @@ from rpy2.robjects import pandas2ri as p2r
 from rpy2.robjects.packages import importr
 import numpy as np
 
-def open_graphics_file(file_name):
+def open_graphics_file(file_name, width=None, height=None):
     p2r.activate()
     gr = importr('grDevices')
     if file_name.endswith('.pdf'):
-        gr.pdf(file_name)
+        if width is not None and height is not None:
+            gr.pdf(file_name,width=width,height=height)
+        elif width is not None:
+            gr.pdf(file_name,width=width)
+        elif height is not None:
+            gr.pdf(file_name,height=height)
+        else:
+            gr.pdf(file_name)
     elif file_name.endswith('.png'):
-        gr.png(file_name)
+        if width is not None and height is not None:
+            gr.png(file_name,width=width,height=height)
+        elif width is not None:
+            gr.png(file_name,width=width)
+        elif height is not None:
+            gr.png(file_name,height=height)
+        else:
+            gr.png(file_name)
     elif file_name.endswith('.svg'):
-        gr.svg(file_name)
+        if width is not None and height is not None:
+            gr.svg(file_name,width=width,height=height)
+        elif width is not None:
+            gr.svg(file_name,width=width)
+        elif height is not None:
+            gr.svg(file_name,height=height)
+        else:
+            gr.svg(file_name)
     elif file_name.endswith('.jpg') or file_name.endswith('.jpeg'):
-        gr.jpeg(file_name)
+        if width is not None and height is not None:
+            gr.jpeg(file_name,width=width,height=height)
+        elif width is not None:
+            gr.jpeg(file_name,width=width)
+        elif height is not None:
+            gr.jpeg(file_name,height=height)
+        else:
+            gr.jpeg(file_name)
     else:
         raise ValueError("File ending not supported: " + file_name + " (try pdf, svg, png, or jpg)")
 
