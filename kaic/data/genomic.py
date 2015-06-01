@@ -12,6 +12,7 @@ from kaic.tools.files import is_bed_file
 from kaic.tools.files import is_bedpe_file
 import string
 import random
+from Bio import SeqIO, Restriction, Seq
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -625,12 +626,35 @@ class Hic(Bedpe):
 
 
 class Chromosome(object):
-    def __init__(self, name, length, sequence=None):
+    def __init__(self, name=None, length=None, sequence=None):
         self.name = name
         self.length = length
         self.sequence = sequence
+        if length is None and sequence is not None:
+            self.length = len(sequence)
+        if sequence is None and length is not None:
+            self.length = length
+    
+    @classmethod
+    def from_fasta(cls, file_name, name=None, include_sequence=True):
+        fastas = SeqIO.parse(open(file_name,'r'),'fasta')
+        fasta = fastas.next()
+        
+        if include_sequence:
+            return cls(name if name else fasta.id, length=len(fasta), sequence=fasta.seq.tostring())
+        else:
+            return cls(name if name else fasta.id, length=len(fasta))
+            
         
         
     def get_restriction_sites(self, restriction_enzyme, include_chromosome_end=True, include_chromosome_start=False):
         logging.info("Calculating RE sites")
+        re = eval('Restriction.%s' % restriction_enzyme)
+        return re.search(Seq.Seq(self.sequence))
     
+    def __repr__(self):
+        return "Name: %s\nLength: %d\nSequence: %s" % (self.name if self.name else '',
+                                                       self.length if self.length else -1,
+                                                       self.sequence[:20] + "..." if self.sequence else '')
+         
+        
