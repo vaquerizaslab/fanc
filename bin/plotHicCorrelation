@@ -60,6 +60,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     if args.distance:
-        plot_distance_correlation(args.hic1, args.hic2, args.genome, args.resolution, output=args.output)
+        plot_distance_correlation(args.hic1, args.hic2, args.genome, args.resolution, reverse=args.reverse, window=args.window, output=args.output)
     else:
-        plot_chromosome_correlation(args.hic1, args.hic2, args.genome, args.resolution, reverse=args.reverse, window=args.window, output=args.output)
+        plot_chromosome_correlation(args.hic1, args.hic2, args.genome, args.resolution, output=args.output)
