@@ -164,10 +164,9 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zero
         
     r = range(windowSize,len(l1AtDistance))
     
-    
     if reverse and window is None:
-        r = reversed(r)
-        
+        r = list(reversed(r))
+    
     #m = np.zeros((nDistances-windowSize,len(hics)+1))
     m = []
     for i in r:
@@ -242,7 +241,7 @@ def plot_distance_correlation(hic1, hic2, genome, resolution, include_zeros=Fals
     print df
     
     p2r.activate()
-    #ggplot = importr("ggplot2")
+    stats = importr("stats")
     #reshape = importr("reshape2")
     
     if output:
@@ -251,7 +250,7 @@ def plot_distance_correlation(hic1, hic2, genome, resolution, include_zeros=Fals
     # plot
     #dm = reshape.melt(df,id_var=1)
     #print dm
-    gp = ggplot2.ggplot(df)
+    gp = ggplot2.ggplot(stats.na_omit(df))
     pp = gp + ggplot2.aes_string(x='distance',y='correlation',colour='name') + ggplot2.geom_point() + ggplot2.labs(x="distance", y="correlation")
     pp.plot()
     
