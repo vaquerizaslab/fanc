@@ -11,6 +11,7 @@ from rpy2.robjects.packages import importr
 import numpy as np
 from scipy.stats.stats import pearsonr
 from kaic.plotting.plot_genomic_data import open_graphics_file, close_graphics_file
+from collections import Counter
 
 def pairwise_data_frame(hic1, hic2, genome, resolution, include_zeros=False, chromosome1=None, chromosome2=None):
     #genome = loadGenomeObject(genome)
@@ -107,6 +108,69 @@ def correlation_data_frame(hic1, hic2, genome, resolution, include_zeros=False, 
     return df
 
 
+
+def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None):
+    #genome = loadGenomeObject(genome)
+    hic1 = load_mirny_binned_hic(hic1, genome, resolution)
+    hic2 = load_mirny_binned_hic(hic2, genome, resolution)
+    
+    nDistances = max(Counter(hic1.genome.chrmIdxBinCont).values())
+    l1AtDistance = []
+    l2AtDistance = []
+    for i in range(0,nDistances):
+        l1AtDistance.append([])
+        l2AtDistance.append([])
+    
+
+    for chr1, chr2 in hic1.data:
+        if chr1 != chr2:
+            continue
+        
+        if chromosome is not None and chr1 != chromosome:
+            continue
+        
+        data1 = hic1.data[(chr1, chr2)].getData()
+        data2 = hic2.data[(chr1, chr2)].getData()
+        
+        for i in range(0,data1.shape[0]):
+            for j in range(i,data1.shape[1]):
+                d = j-i
+                if not include_zeros and data1[i,j] == 0 and data2[i,j] == 0:
+                    continue
+                    
+                l1AtDistance[d].append(data1[i,j])
+                l2AtDistance[d].append(data2[i,j])
+    
+    windowSize = 0
+    if window is not None:
+        windowSize = max(1,int(window/resolution))
+    r = range(windowSize,len(l1AtDistance))
+    
+    if reverse and window is None:
+        r = reversed(r)
+        
+    m = np.zeros((nDistances-windowSize,2))
+    current_l1 = []
+    current_l2 = []
+    
+    for i in r:
+        d = (i-windowSize)*resolution
+        m[i-windowSize,0] = d
+        
+        if window is not None:
+            current_l1 = []
+            current_l2 = []
+        for j in range(i-windowSize, i+1):
+            current_l1 = current_l1 + l1AtDistance[j]
+            current_l2 = current_l2 + l2AtDistance[j]
+        m[i-windowSize,1] = pearsonr(current_l1,current_l2)[0]
+        
+    
+    df = p.DataFrame(m,columns=["distance", "correlation"])
+                
+    return df
+
+
 def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=False, order=None, output=None, width=9,height=9):
     df = correlation_data_frame(hic1, hic2, genome, resolution, include_zeros, order)
     df_p = df.copy()
@@ -140,5 +204,25 @@ def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=Fa
     if output:
         close_graphics_file()
     
+
+
+def plot_distance_correlation(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None, output=None, width=9,height=9):
+    df = distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros, chromosome, reverse, window)
     
+    p2r.activate()
+    graphics = importr("graphics")
+            
+    
+    if output:
+        open_graphics_file(output,width,height)
+    
+    # plot
+    graphics.plot(df)
+    
+    if output:
+        close_graphics_file()
+
+
+
+
     
