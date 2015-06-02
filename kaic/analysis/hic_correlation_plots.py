@@ -158,6 +158,7 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zero
     
     windowSize = 0
     if window is not None:
+        window = resolution if window < resolution else window
         windowSize = max(1,int(window/resolution))
         print "Window size: %d" % windowSize
         
