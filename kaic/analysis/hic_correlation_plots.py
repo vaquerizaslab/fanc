@@ -8,6 +8,7 @@ import pandas as p
 from kaic.tools.hic import load_mirny_binned_hic
 from rpy2.robjects import pandas2ri as p2r
 from rpy2.robjects.packages import importr
+import rpy2.robjects.lib.ggplot2 as ggplot2
 import numpy as np
 from scipy.stats.stats import pearsonr
 from kaic.plotting.plot_genomic_data import open_graphics_file, close_graphics_file
@@ -109,17 +110,27 @@ def correlation_data_frame(hic1, hic2, genome, resolution, include_zeros=False, 
 
 
 
-def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None):
+def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None, names=None):
     #genome = loadGenomeObject(genome)
     hic1 = load_mirny_binned_hic(hic1, genome, resolution)
-    hic2 = load_mirny_binned_hic(hic2, genome, resolution)
+    hics = []
+    if type(hic2) is list:
+        for hic in hic2:
+            hics.append(load_mirny_binned_hic(hic, genome, resolution))
+    else:
+        hics.append(load_mirny_binned_hic(hic2, genome, resolution))
     
     nDistances = max(Counter(hic1.genome.chrmIdxBinCont).values())
     l1AtDistance = []
-    l2AtDistance = []
+    l2sAtDistance = []
     for i in range(0,nDistances):
         l1AtDistance.append([])
-        l2AtDistance.append([])
+    
+    for j in range(0,len(hic2)):
+        l = []
+        for i in range(0,nDistances):
+            l.append([])
+        l2sAtDistance.append(l)
     
 
     for chr1, chr2 in hic1.data:
@@ -130,16 +141,20 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zero
             continue
         
         data1 = hic1.data[(chr1, chr2)].getData()
-        data2 = hic2.data[(chr1, chr2)].getData()
         
-        for i in range(0,data1.shape[0]):
-            for j in range(i,data1.shape[1]):
-                d = j-i
-                if not include_zeros and data1[i,j] == 0 and data2[i,j] == 0:
-                    continue
+        for k in range(0,len(hics)):
+            hic = hics[k]
+            data2 = hic.data[(chr1, chr2)].getData()
+            
+            for i in range(0,data1.shape[0]):
+                for j in range(i,data1.shape[1]):
+                    d = j-i
+                    if not include_zeros and data1[i,j] == 0:
+                        continue
                     
-                l1AtDistance[d].append(data1[i,j])
-                l2AtDistance[d].append(data2[i,j])
+                    if k == 0:
+                        l1AtDistance[d].append(data1[i,j])
+                    l2sAtDistance[k][d].append(data2[i,j])
     
     windowSize = 0
     if window is not None:
@@ -152,24 +167,36 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zero
     if reverse and window is None:
         r = reversed(r)
         
-    m = np.zeros((nDistances-windowSize,2))
-    current_l1 = []
-    current_l2 = []
-    
+    #m = np.zeros((nDistances-windowSize,len(hics)+1))
+    m = []
     for i in r:
         d = (i-windowSize)*resolution
-        m[i-windowSize,0] = d
-        
-        if window is not None:
-            current_l1 = []
-            current_l2 = []
-        for j in range(i-windowSize, i+1):
-            current_l1 = current_l1 + l1AtDistance[j]
-            current_l2 = current_l2 + l2AtDistance[j]
-        m[i-windowSize,1] = pearsonr(current_l1,current_l2)[0]
+        #m[i-windowSize,0] = d
+    
+    if names is None:
+        names = []
+        for k in range(0,len(hics)):
+            names.append("d_%d" % k)
+    
+    for k in range(0,len(hics)):
+        current_l1 = []
+        current_l2 = []
+        for i in r:
+            d = (i-windowSize)*resolution
+            
+            if window is not None:
+                current_l1 = []
+                current_l2 = []
+            for j in range(i-windowSize, i+1):
+                current_l1 = current_l1 + l1AtDistance[j]
+                current_l2 = current_l2 + l2sAtDistance[k][j]
+            c = pearsonr(current_l1,current_l2)[0]
+            
+            m.append([d,names[k],c])
         
     
-    df = p.DataFrame(m,columns=["distance", "correlation"])
+    
+    df = p.DataFrame(m,columns=["distance", "name", "correlation"])
                 
     return df
 
@@ -209,18 +236,23 @@ def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=Fa
     
 
 
-def plot_distance_correlation(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None, output=None, width=9,height=9):
-    df = distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros, chromosome, reverse, window)
+def plot_distance_correlation(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None, names=None, output=None, width=9,height=9):
+    df = distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros, chromosome, reverse, window, names)
+    print df
     
     p2r.activate()
-    graphics = importr("graphics")
-            
+    #ggplot = importr("ggplot2")
+    #reshape = importr("reshape2")
     
     if output:
         open_graphics_file(output,width,height)
     
     # plot
-    graphics.plot(df)
+    #dm = reshape.melt(df,id_var=1)
+    #print dm
+    gp = ggplot2.ggplot(df)
+    pp = gp + ggplot2.aes_string(x='distance',y='correlation',colour='name') + ggplot2.geom_point() + ggplot2.labs(x="distance", y="correlation")
+    pp.plot()
     
     if output:
         close_graphics_file()

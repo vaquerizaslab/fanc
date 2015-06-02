@@ -5,6 +5,11 @@ from kaic.analysis.hic_correlation_plots import plot_chromosome_correlation, plo
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
+
+def splitList(thisList):
+    return thisList.split(",");
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
     
@@ -15,6 +20,7 @@ if __name__ == '__main__':
     
     parser.add_argument(
         'hic2',
+        type=splitList,
         help='''Hi-C file 2'''
     );
     
