@@ -54,6 +54,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
+    print "TAD file: %s" % args.tad_file 
     tads = gd.Bed(args.tad_file)
     
     for bed_file in args.input:
