@@ -58,7 +58,7 @@ if __name__ == '__main__':
     
     for bed_file in args.input:
         
-        base = os.path.splitext(os.path.basename(bed_file))
+        base = os.path.splitext(os.path.basename(bed_file))[0]
         print base
         
         output_folder = args.output + "/" + base
@@ -66,8 +66,8 @@ if __name__ == '__main__':
         make_dir(output_folder)
         bed = gd.Bed(bed_file)
         
-        bd = pgd.BedDistribution(tads, bed, window=args.window, n_bins=args.bins)
+        bd = pgd.BedDistribution(tads, bed, window_size=args.window, n_bins=args.bins)
         bd.show(output_folder + "/" + base + ".dist.pdf")
         
-        ba = pgd.BedAlignment(tads, bed, window=args.window, n_bins=args.bins)
+        ba = pgd.BedAlignment(tads, bed, window_size=args.window, n_bins=args.bins)
         ba.show(output_folder + "/" + base + ".align.pdf")
