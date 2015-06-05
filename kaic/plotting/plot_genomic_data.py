@@ -54,6 +54,117 @@ def close_graphics_file():
     p2r.activate()
     gr = importr('grDevices')
     gr.dev_off()
+    
+
+
+
+
+
+class BedAlignment(object):
+    def __init__(self, bed1, bed2, chrom=None, start=None, end=None, n_bins=None, window_size=None):
+        self.bed1 = bed1
+        self.bed2 = bed2
+        self.chrom = chrom
+        self.start = start
+        self.end = end
+        self.n_bins = n_bins
+        self.window_size = window_size
+        
+    def show(self, output=None):
+        p2r.activate()
+        genomation = importr('genomation')
+        genomicRanges = importr('GenomicRanges')
+        graphics = importr('graphics')
+        
+        bed1_df = self.bed1.as_data_frame(self.chrom,self.start,self.end)
+        bed2_df = self.bed2.as_data_frame(self.chrom,self.start,self.end)
+        
+        # correct data frame
+        if self.window_size is not None:
+            mean = map(int, (bed2_df["start"]+bed2_df["end"])/2)
+            bed2_df["start"] = [x - int(self.window_size/2) for x in mean]
+            bed2_df["end"]   = [x + int(self.window_size/2) for x in mean]
+        
+        if output:
+            open_graphics_file(output)
+        
+        if bed1_df.shape[0] > 0:
+            # convert to R objects
+            bed1_dfr = p2r.py2ri(bed1_df)
+            bed2_dfr = p2r.py2ri(bed2_df)
+            
+            # get GenomicRange objects
+            bed1_range = genomicRanges.makeGRangesFromDataFrame(bed1_dfr)
+            bed2_range = genomicRanges.makeGRangesFromDataFrame(bed2_dfr)
+            
+            # get score matrix
+            if self.n_bins is not None:
+                sm = genomation.ScoreMatrixBin(target=bed1_range, windows=bed2_range, bin_num=self.n_bins)
+            else:
+                sm = genomation.ScoreMatrix(target=bed1_range, windows=bed2_range)
+            
+            genomation.heatMatrix(sm)
+        else:
+            #empty plot
+            graphics.plot(0,type='n',axes=False,ann=False)
+
+        if output:
+            close_graphics_file()
+
+
+class BedDistribution(object):
+    def __init__(self, bed1, bed2, chrom=None, start=None, end=None, n_bins=None, window_size=None):
+        self.bed1 = bed1
+        self.bed2 = bed2
+        self.chrom = chrom
+        self.start = start
+        self.end = end
+        self.n_bins = n_bins
+        self.window_size = window_size
+        
+    def show(self, output=None):
+        p2r.activate()
+        genomation = importr('genomation')
+        genomicRanges = importr('GenomicRanges')
+        graphics = importr('graphics')
+        
+        bed1_df = self.bed1.as_data_frame(self.chrom,self.start,self.end)
+        bed2_df = self.bed2.as_data_frame(self.chrom,self.start,self.end)
+        
+        # correct data frame
+        if self.window_size is not None:
+            mean = map(int, (bed2_df["start"]+bed2_df["end"])/2)
+            bed2_df["start"] = [x - int(self.window_size/2) for x in mean]
+            bed2_df["end"]   = [x + int(self.window_size/2) for x in mean]
+        
+        if output:
+            open_graphics_file(output)
+        
+        if bed1_df.shape[0] > 0:
+            # convert to R objects
+            bed1_dfr = p2r.py2ri(bed1_df)
+            bed2_dfr = p2r.py2ri(bed2_df)
+            
+            # get GenomicRange objects
+            bed1_range = genomicRanges.makeGRangesFromDataFrame(bed1_dfr)
+            bed2_range = genomicRanges.makeGRangesFromDataFrame(bed2_dfr)
+            
+            # get score matrix
+            if self.n_bins is not None:
+                sm = genomation.ScoreMatrixBin(target=bed1_range, windows=bed2_range, bin_num=self.n_bins)
+            else:
+                sm = genomation.ScoreMatrix(target=bed1_range, windows=bed2_range)
+            
+            genomation.plotMeta(sm)
+        else:
+            #empty plot
+            graphics.plot(0,type='n',axes=False,ann=False)
+
+        if output:
+            close_graphics_file()
+
+
+
 
 class HiCPlot(object):
     def __init__(self, hic, resolution, chrom=None, start=None, end=None,
@@ -167,30 +278,30 @@ class BedpePlot(object):
             close_graphics_file()
 
 
-class HiCCorrelationPlot(object):
-    def __init__(self, hic1, hic2):
-        self.hic1 = hic1
-        self.hic2 = hic2
-        
-    def show(self, output=None):
-        p2r.activate()
-        graphics = importr('graphics')
-        base = importr('base')
-        
-        if output:
-            open_graphics_file(output)
-
-
-        l = len(self.panels)
-        graphics.layout(base.matrix(range(1,l+1), l, 1, byrow=True))
-        graphics.par([3,4,1,1])
-        
-        for panel in self.panels:
-            panel.show()
-
-        
-        if output:
-            close_graphics_file()
+# class HiCCorrelationPlot(object):
+#     def __init__(self, hic1, hic2):
+#         self.hic1 = hic1
+#         self.hic2 = hic2
+#         
+#     def show(self, output=None):
+#         p2r.activate()
+#         graphics = importr('graphics')
+#         base = importr('base')
+#         
+#         if output:
+#             open_graphics_file(output)
+# 
+# 
+#         l = len(self.panels)
+#         graphics.layout(base.matrix(range(1,l+1), l, 1, byrow=True))
+#         graphics.par([3,4,1,1])
+#         
+#         for panel in self.panels:
+#             panel.show()
+# 
+#         
+#         if output:
+#             close_graphics_file()
 
 
 class GenomicDataPlot(object):

@@ -176,9 +176,6 @@ class Bed(object):
                         header.append('feature_' + str(i))
                         headerTypes.append(str)
                         desc['feature_' + str(i)] = t.StringCol(255) # @UndefinedVariable
-            print headerTypes
-            print header
-            print desc
             
             table2 = self.file.createTable(self.file.root, 'table2', desc, "bed", t.Filters(1))
  
@@ -260,10 +257,7 @@ class Bed(object):
         for label in desc:
             if label not in labels:
                 labels.append(label)
-        
-        print labels
-        
-        print "Running query"
+                
         if query != '':
             contacts = [[x[y] for y in labels] for x in self.table.where(query)]
         else:

@@ -7,6 +7,25 @@ Created on May 20, 2015
 import tables as t
 import os.path
 
+def without_extension(file_name):
+    os.path.splitext(file_name)[0]
+
+def get_extension(file_name):
+    os.path.splitext(file_name)[1][1:]
+
+
+def make_dir(dir_name, fail_if_exists=False, make_subdirs=True):
+    if make_subdirs:
+        f = os.makedirs
+    else:
+        f = os.mkdir
+        
+    try: 
+        f(dir_name)
+    except OSError:
+        if not fail_if_exists and not os.path.isdir(dir_name):
+            raise
+
 def get_number_of_lines(file_name):
     with open(file_name,'r') as f:
         n = sum(1 for line in f)
