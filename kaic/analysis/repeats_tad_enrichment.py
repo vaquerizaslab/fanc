@@ -59,6 +59,7 @@ if __name__ == '__main__':
     for bed_file in args.input:
         
         base = os.path.splitext(os.path.basename(bed_file))[0]
+        print "File base:"
         print base
         
         output_folder = args.output + "/" + base
@@ -71,3 +72,6 @@ if __name__ == '__main__':
         
         ba = pgd.BedAlignment(tads, bed, window_size=args.window, n_bins=args.bins)
         ba.show(output_folder + "/" + base + ".align.pdf")
+        
+        
+    
