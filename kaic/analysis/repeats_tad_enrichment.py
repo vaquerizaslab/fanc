@@ -41,14 +41,14 @@ if __name__ == '__main__':
     )
     
     parser.add_argument(
-        '-o', '--output-folder', dest='output',
-        help='''Output folder''',
+        '-o', '--output-file', dest='output',
+        help='''Output file''',
         required=True
     )
     
     parser.add_argument(
         '-t', '--tad-file', dest='tad_file',
-        help='''Output folder''',
+        help='''TADs BED file''',
         required=True
     )
 
@@ -57,22 +57,14 @@ if __name__ == '__main__':
     print "TAD file: %s" % args.tad_file 
     tads = gd.Bed(args.tad_file)
     
+    beds = []
     for bed_file in args.input:
         
-        base = os.path.splitext(os.path.basename(bed_file))[0]
-        print "File base:"
-        print base
-        
-        output_folder = args.output + "/" + base
-        
-        make_dir(output_folder)
         bed = gd.Bed(bed_file)
+        beds.append(bed)
         
-        bd = pgd.BedDistribution(tads, bed, window_size=args.window, n_bins=args.bins)
-        bd.show(output_folder + "/" + base + ".dist.pdf")
+    bd = pgd.BedDistribution(tads, beds, window_size=args.window, n_bins=args.bins)
+    bd.show(args.output)
         
-        ba = pgd.BedAlignment(tads, bed, window_size=args.window, n_bins=args.bins)
-        ba.show(output_folder + "/" + base + ".align.pdf")
-        
-        
+
     
