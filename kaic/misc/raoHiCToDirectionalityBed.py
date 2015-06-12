@@ -60,7 +60,7 @@ if __name__ == '__main__':
             di = hic.directionality(args.resolution, window_size=args.window)
         
             for j in range(0,len(di)):
-                start = j*args.resolution+args.resolution
+                start = j*args.resolution
                 end = start + args.resolution-1
                 name = "di_%s_%d" %(chrm, j)
                 score = di[j]
