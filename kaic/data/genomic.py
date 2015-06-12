@@ -600,16 +600,10 @@ class Bedpe(object):
             table2.flush()
             
             # Copy the columns of source table to destination
-            print repr(self.table.cols)
-            print repr(table2.cols)
             for col in self.table.description._v_colObjects:
-                print col
-                print repr(col)
-                print len(self.table.cols)
-                print getattr(self.table.cols, col)[:]
-                print len(getattr(table2.cols, col)[:])
-                print getattr(table2.cols, col)[:]
-                getattr(table2.cols, col)[:] = getattr(self.table.cols, col)[:]
+                if (len(getattr(self.table.cols, col)[:]) > 0 and
+                    len(getattr(table2.cols, col)[:]) > 0):
+                    getattr(table2.cols, col)[:] = getattr(self.table.cols, col)[:]
              
             # fill with new data
             entry = table2.row
