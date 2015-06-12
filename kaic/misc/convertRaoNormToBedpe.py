@@ -30,6 +30,7 @@ if __name__ == '__main__':
     
     parser.add_argument(
         'resolution',
+        type=int,
         help='''Resolution of the file (e.g. 100000)'''
     );
     
