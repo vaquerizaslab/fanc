@@ -69,7 +69,11 @@ if __name__ == '__main__':
                     end2 = start2 + resolution
                     
                     norm_line = norm.readline().rstrip()
-                    norm_score = float(norm_line)
+                    try:
+                        norm_score = float(norm_line)
+                    except ValueError, e:
+                        print e
+                        norm_score = norm_line
                     
                     o.write("%s\t%d\t%d\t%s\t%d\t%d\t%.6E\n" % (chrom, start1, end1, chrom, start2, end2, norm_score))
                     
