@@ -761,10 +761,11 @@ class Hic(Bedpe):
         else:
             contacts = [[x['start1'],x['start2'],x['score']] for x in self.table]
         
-        print "Calculating lowest bound"
-        min_ix = min(min(contacts)[0:2])
-        max_ix = max(max(contacts)[0:2])
-        print "Calculating upper bound"
+        min_ix = int(lower_bound/resolution)*resolution
+        max_ix = int(upper_bound/resolution)*resolution+resolution
+        
+        labels = range(min_ix,max_ix+resolution,resolution)
+        ix_l = int(min_ix/resolution)
         
         labels = range(min_ix,max_ix+resolution,resolution)
         ix_l = int(min_ix/resolution)
@@ -774,8 +775,11 @@ class Hic(Bedpe):
         for c in contacts:
             i = int(c[0]/resolution)-ix_l
             j = int(c[1]/resolution)-ix_l
-            M[i,j] = c[2]
-            M[j,i] = c[2]
+            try:
+                M[i,j] = c[2]
+                M[j,i] = c[2]
+            except IndexError:
+                raise IndexError("%d - %d (%d, %d)" % (c[0], c[1], i, j))
         
         return M
     
