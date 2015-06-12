@@ -53,6 +53,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     with open(args.output, 'w') as o:
+        
+        o.write("chrom\tstart\tend\tname\tscore\tstrand\n")
+        
         for i in range(0,len(args.input)):
             hic = gd.Hic(args.input[i])
             chrm = args.chromosomes[i]
