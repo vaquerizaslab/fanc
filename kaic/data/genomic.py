@@ -603,6 +603,8 @@ class Bedpe(object):
             print repr(self.table.cols)
             print repr(table2.cols)
             for col in self.table.description._v_colObjects:
+                print col
+                print repr(col)
                 print len(self.table.cols)
                 print getattr(self.table.cols, col)[:]
                 print len(getattr(table2.cols, col)[:])
