@@ -600,7 +600,8 @@ class Bedpe(object):
             table2.flush()
             
             # Copy the columns of source table to destination
-            
+            print self.table.cols
+            print table2.cols
             for col in self.table.description._v_colObjects:
                 print len(self.table.cols)
                 print getattr(self.table.cols, col)[:]
