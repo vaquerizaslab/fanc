@@ -25,6 +25,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
     if perChromosome:
         hic.biases = {}
         for chrmLabel in genome_db.label2idx:
+            logging.info("Chromosome %s" % chrmLabel)
             chrm = genome_db.label2idx[chrmLabel]
             M = getChromosomeMatrix(hic,genome_db,chrm)
             hasErrors = True
@@ -117,6 +118,7 @@ def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
     
 
 def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
+    logging.info("Starting matrix balancing")
     
     with warnings.catch_warnings():
         warnings.filterwarnings('error')
@@ -165,17 +167,20 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
             i=0
                 
             
-            if fl == 1:
-                print "it    in. it    res\n"
-            print "starting iterations\n"
+            
+            logging.info("starting iterations")
+            n_iterations_outer = 0
             while rout > rt:
+                n_iterations_outer += 1
         
                 i+=1
                 k=0
                 y=e.copy()
                 innertol=max(eta ** 2 * rout, rt)
+                n_iterations_inner = 0
                 while rho_km1 > innertol:
-        
+                    n_iterations_inner += 1
+                    
                     k+=1
                     if k == 1:
                         try:
@@ -210,6 +215,8 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
                     rho_km2=rho_km1.copy()
                     Z=rk / v
                     rho_km1=rk.T.dot(Z)
+                    
+                logging.info("Inner iterations: %d" % n_iterations_inner)
                 
                 try:
                     x=x*y
@@ -232,8 +239,10 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
                     print "%d %d   %.3e %.3e %.3e \n" % (i,k,res_norm,min(y),min(x))
                     res=np.array([[res],[res_norm]])
         
-            print "Matrix-vector products = %d\n" % MVP
-        except Warning:
+            logging.info("Matrix-vector products = %d\n" % MVP)
+            logging.info("Outer iterations: %d" % n_iterations_outer)
+        except Warning, e:
+            logging.error(str(e))
             raise ValueError("Generic catch all warnings")
     return x
 
