@@ -13,6 +13,7 @@ from kaic.tools.files import is_bedpe_file
 import string
 import random
 from Bio import SeqIO, Restriction, Seq
+from kaic.data.general import Table
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +28,158 @@ class Genome(object):
         #   (sequence)
 
 
+class GenomicFeature(object):
+    def __init__(self, data, names):
+        self.data = {}
+        self.id2ix = {}
+        self.ix2id = {}
+        
+        if type(data) is dict:
+            self.data = data
+            j = 0
+            for k in data:
+                self.id2ix[k] = j
+                self.ix2id[j] = k
+                
+        elif type(data) is list:
+            self.data = {}
+            for i in range(0,len(data)):
+                self.data[names[i]] = data[i]
+                self.id2ix[names[i]] = i
+                self.ix2id[i] = names[i]
+                
+
+
+class BedImproved(Table):
+    
+    @staticmethod
+    def col_type(name,pos=None):
+        col_type = {
+            'chrom': (0, str, t.StringCol(16,pos=pos)), # @UndefinedVariable
+            'start': (1, int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'end': (2, int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'name': (3, str, t.StringCol(255,pos=pos)), # @UndefinedVariable
+            'score': (4, float, t.Float32Col(pos=pos)), # @UndefinedVariable
+            'strand': (5, str, t.StringCol(2,pos=pos)), # @UndefinedVariable
+            'thickStart': (6, int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'thickEnd': (7, int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'itemRgb': (8, str, t.StringCol(12,pos=pos)), # @UndefinedVariable
+            'blockCount': (9, int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'blockSizes': (10, str, t.StringCol(255,pos=pos)), # @UndefinedVariable
+            'blockStarts': (11, str, t.StringCol(255,pos=pos)) # @UndefinedVariable
+        }
+        if name in col_type:
+            return col_type[name]
+        return (-1, str, t.StringCol(255)) # @UndefinedVariable
+    
+    @classmethod
+    def from_bed_file(cls, file_name, has_header=True, sep="\t", name=None):
+        if not is_bed_file:
+            raise ImportError("File does not appear to be a BED file")
+        
+        all_fields = ['chrom','start','end','name','score','strand','thickStart','thickEnd','itemRgb','blockCount','blockSizes','blockStarts']
+        
+        
+        
+        with open(file_name, 'r') as f:
+            
+            # process first line, update table
+            line = f.readline()
+            fields = line.rstrip().split(sep)
+            header = []
+            col_types = []
+            headerTypes = []
+            if has_header:
+                header = fields[:]
+                line = f.readline()
+                fields = line.rstrip().split(sep)
+            else:
+                header = all_fields[0:len(fields)]
+                for i in (len(header), len(fields)):
+                    header.append("feature_\d" % i)
+                
+            for i in range(0,len(header)):
+                pos, ptype, ttype = BedImproved.col_type(header[i],i+1)
+                col_types.append(ttype)
+                headerTypes.append(ptype)
+                
+            
+            data = []
+            while line != '':
+                d = {}
+                for i in range(0,len(fields)):
+                    d[header[i]] = headerTypes[i](fields[i])
+                data.append(d)
+                    
+                line = f.readline()
+                fields = line.rstrip().split(sep)
+            
+            bed = cls()
+            
+            super(BedImproved, bed).__init__(col_names=header, col_types=col_types, data=data, name=name)
+            
+            return bed
+        
+    
+    def as_data_frame(self, chrom=None, start=None, end=None):
+        query = """"""
+        if chrom:
+            if query != '':
+                query += " & "
+            query += "(chrom == '%s')" % chrom
+            
+        if start is not None:
+            if query != '':
+                query += " & "
+            if type(start) is list:
+                query += "(start >= %d) & (start <= %d)" % (start[0], start[1])
+            else: 
+                query += "(start >= %d)" % (start)
+        
+        if end:
+            if query != '':
+                query += " & "
+            if type(end) is list:
+                query += "(end >= %d) & (end <= %d)" % (end[0], end[1])
+            else:
+                query += "(end <= %d)" % (end)
+        
+        
+        # get field names
+        desc = self._table.description._v_colObjects.copy()
+        labels = ['chrom', 'start', 'end']
+        if 'name' in desc:
+            labels.append('name')
+        if 'score' in desc:
+            labels.append('score')
+        if 'strand' in desc:
+            labels.append('strand')
+        if 'thickStart' in desc:
+            labels.append('thickStart')
+        if 'thickEnd' in desc:
+            labels.append('thickEnd')
+        if 'itemRgb' in desc:
+            labels.append('itemRgb')
+        if 'blockCount' in desc:
+            labels.append('blockCount')
+        if 'blockSizes' in desc:
+            labels.append('blockSizes')
+        if 'blockStarts' in desc:
+            labels.append('blockStarts')
+        for label in desc:
+            if label not in labels and label is not self._rowname_field:
+                labels.append(label)
+                
+        if query != '':
+            contacts = [[x[y] for y in labels] for x in self._table.where(query)]
+        else:
+            contacts = [[x[y] for y in labels] for x in self._table]
+            
+        df = p.DataFrame(contacts, columns=labels)
+        return df
+    
+    
+    
 class Bed(object):
     '''
     Bed object for genomic features
@@ -215,22 +368,28 @@ class Bed(object):
     
     
     
-    def as_data_frame(self, chrom=None, lower_bound=None, upper_bound=None):
+    def as_data_frame(self, chrom=None, start=None, end=None):
         query = """"""
         if chrom:
             if query != '':
                 query += " & "
             query += "(chrom == '%s')" % chrom
             
-        if lower_bound:
+        if start is not None:
             if query != '':
                 query += " & "
-            query += "(end >= %d)" % (lower_bound)
+            if type(start) is list:
+                query += "(start >= %d) & (start <= %d)" % (start[0], start[1])
+            else: 
+                query += "(start >= %d)" % (start)
         
-        if upper_bound:
+        if end:
             if query != '':
                 query += " & "
-            query += "(start <= %d)" % (upper_bound)
+            if type(end) is list:
+                query += "(end >= %d) & (end <= %d)" % (end[0], end[1])
+            else:
+                query += "(end <= %d)" % (end)
         
         
         # get field names
@@ -617,6 +776,29 @@ class Hic(Bedpe):
             M[j,i] = c[2]
         
         return M
+    
+    def directionality(self, resolution, window_size=2000000):
+        M = self.as_matrix(resolution)
+        bin_window_size = int(window_size/resolution)
+        if window_size%resolution > 0:
+            bin_window_size += 1
+        
+        n_bins = M.shape[0]
+        dis = np.zeros(n_bins,dtype='float64')
+        for i in range(0,n_bins):
+            start = max(0, i-bin_window_size)
+            end = min(n_bins, i+window_size, i+i-start)
+            
+            A = np.sum(M[i][start:i])
+            B = np.sum(M[i][i+1:end])
+            E = (A+B)/2
+            
+            if B == A:
+                dis[i] = 0
+            else:
+                dis[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
+        
+        return dis
 
 
 class Chromosome(object):
