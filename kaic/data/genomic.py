@@ -704,6 +704,13 @@ class Hic(Bedpe):
         else:
             contacts = [[x['start1'],x['start2'],x['score']] for x in self.table]
         
+        
+        if lower_bound is None:
+            lower_bound = 0
+        if upper_bound is None:
+            upper_bound = max(max(contacts)[0], max(contacts[1])) + 1
+            
+            
         # TODO
         # take into account chromosome sizes
         # pull resolution from Hi-C object
@@ -794,8 +801,9 @@ class Hic(Bedpe):
         n_bins = M.shape[0]
         dis = np.zeros(n_bins,dtype='float64')
         for i in range(0,n_bins):
-            start = max(0, i-bin_window_size)
-            end = min(n_bins, i+window_size, i+i-start)
+            max_window_size = min(bin_window_size, n_bins-i, i)
+            start = i-max_window_size
+            end = i+max_window_size
             
             A = np.sum(M[i][start:i])
             B = np.sum(M[i][i+1:end])
