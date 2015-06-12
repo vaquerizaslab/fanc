@@ -47,36 +47,40 @@ if __name__ == '__main__':
     resolution = int(args.resolution)
     chrom = args.chromosome
     
+    # read norm vector
+    norm_dict = {}
+    with open(norm_file, 'r') as norm:
+        current = 0
+        for line in norm:
+            line = line.rstrip()
+            v = float(line)
+            
+            norm_dict[current] = v
+            
+            current += args.resolution
+    
     with open(raw_file, 'r') as raw:
-        with open(norm_file, 'r') as norm:
-            with open(out_file, 'w') as o:
-                header = []
-                header.append("chrom1")
-                header.append("start1")
-                header.append("end1")
-                header.append("chrom2")
-                header.append("start2")
-                header.append("end2")
-                header.append("score")
-                o.write("\t".join(header) + "\n")
+        with open(out_file, 'w') as o:
+            header = []
+            header.append("chrom1")
+            header.append("start1")
+            header.append("end1")
+            header.append("chrom2")
+            header.append("start2")
+            header.append("end2")
+            header.append("score")
+            o.write("\t".join(header) + "\n")
+            
+            for line in raw:
+                start1, start2, score = line.rstrip().split("\t")
+                start1 = int(start1)
+                start2 = int(start2)
+                score = float(score)
+                end1 = start1 + resolution
+                end2 = start2 + resolution
                 
-                i = 0
-                for line in raw:
-                    i += 1
-                    start1, start2, score = line.rstrip().split("\t")
-                    start1 = int(start1)
-                    start2 = int(start2)
-                    score = float(score)
-                    end1 = start1 + resolution
-                    end2 = start2 + resolution
-                    
-                    norm_line = norm.readline().rstrip()
-                    try:
-                        norm_score = float(norm_line)
-                    except ValueError, e:
-                        print i, ' ', e, " ", norm_line, "--"
-                        norm_line = norm.readline().rstrip()
-                        norm_score = float(norm_line)
-                    
-                    o.write("%s\t%d\t%d\t%s\t%d\t%d\t%.6E\n" % (chrom, start1, end1, chrom, start2, end2, norm_score))
+                norm_score = score/norm_dict[start1]/norm_dict[start2]
+                
+                
+                o.write("%s\t%d\t%d\t%s\t%d\t%d\t%.6E\n" % (chrom, start1, end1, chrom, start2, end2, norm_score))
                     
