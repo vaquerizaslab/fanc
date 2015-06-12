@@ -60,7 +60,9 @@ if __name__ == '__main__':
                 header.append("score")
                 o.write("\t".join(header) + "\n")
                 
+                i = 0
                 for line in raw:
+                    i += 1
                     start1, start2, score = line.rstrip().split("\t")
                     start1 = int(start1)
                     start2 = int(start2)
@@ -72,8 +74,9 @@ if __name__ == '__main__':
                     try:
                         norm_score = float(norm_line)
                     except ValueError, e:
-                        print e, " ", norm_line, "--"
-                        norm_score = norm_line
+                        print i, ' ', e, " ", norm_line, "--"
+                        norm_line = norm.readline().rstrip()
+                        norm_score = float(norm_line)
                     
                     o.write("%s\t%d\t%d\t%s\t%d\t%d\t%.6E\n" % (chrom, start1, end1, chrom, start2, end2, norm_score))
                     
