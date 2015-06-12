@@ -72,7 +72,7 @@ if __name__ == '__main__':
                     try:
                         norm_score = float(norm_line)
                     except ValueError, e:
-                        print e
+                        print e, " ", norm_line
                         norm_score = norm_line
                     
                     o.write("%s\t%d\t%d\t%s\t%d\t%d\t%.6E\n" % (chrom, start1, end1, chrom, start2, end2, norm_score))
