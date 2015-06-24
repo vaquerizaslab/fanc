@@ -104,7 +104,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
 
 
 def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=False):
-    if x == None:
+    if x is None:
         x = getBiasVector(M, x0, tol, delta, Delta, fl, high_precision)
     
     A = M.copy()
