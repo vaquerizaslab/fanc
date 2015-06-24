@@ -27,7 +27,7 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
         for chrmLabel in genome_db.label2idx:
             logging.info("Chromosome %s" % chrmLabel)
             chrm = genome_db.label2idx[chrmLabel]
-            M = getChromosomeMatrix(hic,genome_db,chrm)
+            M = getChromosomeMatrix(hic,chrm, genome=genome_db)
             hasErrors = True
             iterations = 0
             removed_rows = []
@@ -36,13 +36,12 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
                 
                 try:
                     x = getBiasVector(M)
-                except ValueError:
-                    print "Matrix balancing failed (this can happen!), removing sparsest rows to try again"
-                    print "Old M shape:"
-                    print M.shape
+                except ValueError, e:
+                    logging.warn("Matrix balancing failed (this can happen!).removing sparsest rows to try again")
+                    logging.info("Error message was " + str(e))
+                    
                     M, ixs = removeSparseRows(M)
-                    print "New M shape:"
-                    print M.shape
+                    
                     removed_rows.append(ixs)
                     hasErrors=True
                 
@@ -69,8 +68,9 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             
             try:
                 x = getBiasVector(M)
-            except ValueError:
+            except ValueError, e:
                 logger.info("Matrix balancing failed (this can happen!), removing sparsest rows to try again")
+                logging.info("Error message was " + str(e))
                 M, ixs = removeSparseRows(M)
                 removed_rows.append(ixs)
                 hasErrors=True
@@ -85,14 +85,13 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
             Mn = restoreSparseRows(Mn, idx)
             x = restoreSparseRows(x, idx)
         
-        print "Symmetric Mn: ", is_symmetric(Mn)
+        logging.info( "Symmetric Mn: " + str(is_symmetric(Mn)) )
                 
         hic.biases = x
         
         
         # save back to original
         for chr1, chr2 in hic.data:
-            # TODO something wrong here!
             beg1, end1 = hic.genome.chrmStartsBinCont[chr1], hic.genome.chrmEndsBinCont[chr1]
             beg2, end2 = hic.genome.chrmStartsBinCont[chr2], hic.genome.chrmEndsBinCont[chr2]
             hic.data[(chr1, chr2)].setData(Mn[beg1:end1, beg2:end2])
@@ -104,9 +103,9 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
 
 
 
-def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
+def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=False):
     if x == None:
-        x = getBiasVector(M, x0, tol, delta, Delta, fl)
+        x = getBiasVector(M, x0, tol, delta, Delta, fl, high_precision)
     
     A = M.copy()
     
@@ -117,7 +116,7 @@ def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
     
     
 
-def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
+def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=False):
     logging.info("Starting matrix balancing")
     
     with warnings.catch_warnings():
@@ -128,24 +127,36 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0):
             #n=size_(A,1)
             if not isinstance(A,np.ndarray):
                 try:
-                    A = np.array(A,dtype=np.float128)
+                    if high_precision:
+                        A = np.array(A,dtype=np.float128)
+                    else:
+                        A = np.array(A)
                 except:
                     A = np.array(A)
             n = A.shape[0]
             #e=ones_(n,1)
             try:
-                e = np.ones(n,dtype=np.float128)
+                if high_precision:
+                    e = np.ones(n,dtype=np.float128)
+                else:
+                    e = np.ones(n)
             except:
                 e = np.ones(n)
                 
             if not x0:
                 try:
-                    x0 = np.ones(n,np.float128)
+                    if high_precision:
+                        x0 = np.ones(n,np.float128)
+                    else:
+                        x0 = np.ones(n)
                 except:
                     x0 = np.ones(n)
             else:
                 try:
-                    x0 = np.array(x0,np.float128)
+                    if high_precision:
+                        x0 = np.array(x0,np.float128)
+                    else:
+                        x0 = np.array(x0)
                 except:
                     x0 = np.array(x0)
             res=np.array([])
