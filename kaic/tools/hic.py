@@ -25,6 +25,8 @@ def getChromosomeMatrix(hic,chrm1,genome=None,chrm2=None):
     #rows = genome.chrmEndsBinCont[chrm1]-genome.chrmStartsBinCont[chrm1]
     #cols = genome.chrmEndsBinCont[chrm2]-genome.chrmStartsBinCont[chrm2]
     #M = np.zeros((rows,cols),float)
+    print chrm1
+    print chrm2
     data = hic.data[(chrm1,chrm2)].getData()
     
     return data
