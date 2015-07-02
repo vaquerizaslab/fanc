@@ -48,9 +48,9 @@ def iterative_mapping(input_files, output_files,
                 # - mappability
                 # - mapping quality
                 # - uniqueness
-                os.popen('{ head -n 100 -q %s.* | grep "^@[HD|SQ]" | sort | uniq & cat %s.* | awk \'{ duplicate=0; for(i=12; i<=NF; ++i) if($i ~ /^XS/) duplicate=1; if(duplicate == 0 && $1 !~ /^@/ && $2 != 4 && $5 > %d) print $0; }\' | sort -k1,1 -k5,5rn | awk -v last="" \'{ if(last != $1) print $0; last=$1}\'; } > %s' % (output_files[i], output_files[i], quality, output_files[i]));
+                os.popen('{ head -n 20000 -q %s.* | grep "^@[HD|SQ]" | sort | uniq & cat %s.* | awk \'{ duplicate=0; for(i=12; i<=NF; ++i) if($i ~ /^XS/) duplicate=1; if(duplicate == 0 && $1 !~ /^@/ && $2 != 4 && $5 > %d) print $0; }\' | sort -k1,1 -k5,5rn | awk -v last="" \'{ if(last != $1) print $0; last=$1}\'; } > %s' % (output_files[i], output_files[i], quality, output_files[i]));
             else:
-                os.popen('{ head -n 100 -q %s.* | grep "^@[HD|SQ]" | sort | uniq & cat %s.* | awk \'!/^@/\' | sort -k1,1 -k5,5rn | awk -v last="" \'{ if(last != $1) print $0; last=$1}\'; } > %s' % (output_files[i],output_files[i],output_files[i]));
+                os.popen('{ head -n 20000 -q %s.* | grep "^@[HD|SQ]" | sort | uniq & cat %s.* | awk \'!/^@/\' | sort -k1,1 -k5,5rn | awk -v last="" \'{ if(last != $1) print $0; last=$1}\'; } > %s' % (output_files[i],output_files[i],output_files[i]));
             # remove partial sam files
             
             if do_clean:
