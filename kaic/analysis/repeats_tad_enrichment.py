@@ -10,8 +10,9 @@ Created on Jun 5, 2015
 import argparse
 import kaic.data.genomic as gd
 import kaic.plotting.plot_genomic_data as pgd
-from kaic.tools.files import make_dir
 import os.path
+from kaic.genome.genomeTools import loadGenomeObject
+from kaic.hrandom.genomic import random_bed
 
 def splitList(thisList):
     return thisList.split(",");
@@ -25,7 +26,6 @@ if __name__ == '__main__':
         help='''Bed files'''
     )
 
-    
     parser.add_argument(
         '-w', '--window', dest='window',
         type=int,
@@ -51,20 +51,41 @@ if __name__ == '__main__':
         help='''TADs BED file''',
         required=True
     )
+    
+    parser.add_argument(
+        '-g', '--genome', dest='genome',
+        default=None,
+        help='''Genome file - if provided, will do random comparisons'''
+    )
+    
+    parser.add_argument(
+        '-s', '--scale', dest='scale',
+        action='store_false',
+        help='''DO NOT rescale enrichment scores to [0,1]'''
+    );
+    parser.set_defaults(scale=True)
 
     args = parser.parse_args()
     
     print "TAD file: %s" % args.tad_file 
     tads = gd.Bed(args.tad_file)
     
+    if args.genome is not None:
+        genome = loadGenomeObject(args.genome)
+    
     beds = []
     for bed_file in args.input:
-        
-        bed = gd.Bed(bed_file)
+        base = os.path.splitext(os.path.basename(bed_file))[0]
+        bed = gd.BedImproved.from_bed_file(bed_file,name=base)
         beds.append(bed)
         
-    bd = pgd.BedDistribution(tads, beds, window_size=args.window, n_bins=args.bins)
+        if args.genome is not None:
+            bed_rand = random_bed(genome, bed, name=base + "_random")
+            beds.append(bed_rand)
+        
+    bd = pgd.BedDistribution(tads, beds, window_size=args.window, n_bins=args.bins, rescale=args.scale)
     bd.show(args.output)
         
-
+    
+        
     
