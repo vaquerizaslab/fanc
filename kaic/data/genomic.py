@@ -7,25 +7,21 @@ Created on May 20, 2015
 import tables as t
 import pandas as p
 import numpy as np
-from kaic.tools.files import create_or_open_pytables_file
+from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
+    random_name
 from kaic.tools.files import is_bed_file
 from kaic.tools.files import is_bedpe_file
 import string
 import random
-from Bio import SeqIO, Restriction, Seq
-from kaic.data.general import Table
+from Bio import SeqIO, Restriction, Seq  # @UnusedImport
+from kaic.data.general import Table, TableRow
+import os.path
 
 import logging
 logging.basicConfig(level=logging.INFO)
+from xml.etree import ElementTree as et
 
-class Genome(object):
-    def __init__(self, file_name=None):
-        logging.info("Creating new genome object")
-        
-        # chromosomes
-        #   length
-        #   name
-        #   (sequence)
+
 
 
 class GenomicFeature(object):
@@ -52,21 +48,23 @@ class GenomicFeature(object):
 
 class BedImproved(Table):
     
+    
+    
     @staticmethod
     def col_type(name,pos=None):
         col_type = {
-            'chrom': (0, str, t.StringCol(16,pos=pos)), # @UndefinedVariable
-            'start': (1, int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'end': (2, int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'name': (3, str, t.StringCol(255,pos=pos)), # @UndefinedVariable
-            'score': (4, float, t.Float32Col(pos=pos)), # @UndefinedVariable
-            'strand': (5, str, t.StringCol(2,pos=pos)), # @UndefinedVariable
-            'thickStart': (6, int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'thickEnd': (7, int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'itemRgb': (8, str, t.StringCol(12,pos=pos)), # @UndefinedVariable
-            'blockCount': (9, int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'blockSizes': (10, str, t.StringCol(255,pos=pos)), # @UndefinedVariable
-            'blockStarts': (11, str, t.StringCol(255,pos=pos)) # @UndefinedVariable
+            'chrom': (str, t.StringCol(16,pos=pos)), # @UndefinedVariable
+            'start': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'end': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'name': (str, t.StringCol(255,pos=pos)), # @UndefinedVariable
+            'score': (float, t.Float32Col(pos=pos)), # @UndefinedVariable
+            'strand': (str, t.StringCol(2,pos=pos)), # @UndefinedVariable
+            'thickStart': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'thickEnd': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'itemRgb': (str, t.StringCol(12,pos=pos)), # @UndefinedVariable
+            'blockCount': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
+            'blockSizes': (str, t.StringCol(255,pos=pos)), # @UndefinedVariable
+            'blockStarts': (str, t.StringCol(255,pos=pos)) # @UndefinedVariable
         }
         if name in col_type:
             return col_type[name]
@@ -99,7 +97,7 @@ class BedImproved(Table):
                     header.append("feature_\d" % i)
                 
             for i in range(0,len(header)):
-                pos, ptype, ttype = BedImproved.col_type(header[i],i+1)
+                ptype, ttype = BedImproved.col_type(header[i],i+1)
                 col_types.append(ttype)
                 headerTypes.append(ptype)
                 
@@ -815,6 +813,8 @@ class Hic(Bedpe):
                 dis[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
         
         return dis
+    
+    
 
 
 class Chromosome(object):
@@ -826,11 +826,35 @@ class Chromosome(object):
             self.length = len(sequence)
         if sequence is None and length is not None:
             self.length = length
+            
+    def __repr__(self):
+        return "Name: %s\nLength: %d\nSequence: %s" % (self.name if self.name else '',
+                                                       self.length if self.length else -1,
+                                                       self.sequence[:20] + "..." if self.sequence else '')
+        
+    def __len__(self):
+        return self.length
+    
+    def __getitem__(self, key):
+        if key == 'name':
+            return self.name
+        if key == 'length':
+            return self.length
+        if key == 'sequence':
+            return self.sequence
+        
     
     @classmethod
     def from_fasta(cls, file_name, name=None, include_sequence=True):
-        fastas = SeqIO.parse(open(file_name,'r'),'fasta')
-        fasta = fastas.next()
+        if type(file_name) is file:
+            fastas = SeqIO.parse(file_name,'fasta')
+        else:
+            fastas = SeqIO.parse(open(file_name,'r'),'fasta')
+            
+        try:
+            fasta = fastas.next()
+        except StopIteration:
+            raise ValueError("File %s does not appear to be a FASTA file" % file_name)
         
         if include_sequence:
             return cls(name if name else fasta.id, length=len(fasta), sequence=fasta.seq.tostring())
@@ -839,14 +863,166 @@ class Chromosome(object):
             
         
         
-    def get_restriction_sites(self, restriction_enzyme, include_chromosome_end=True, include_chromosome_start=False):
+    def get_restriction_sites(self, restriction_enzyme):
         logging.info("Calculating RE sites")
-        re = eval('Restriction.%s' % restriction_enzyme)
+        try:
+            re = eval('Restriction.%s' % restriction_enzyme)
+        except SyntaxError:
+            raise ValueError("restriction_enzyme must be a string")
+        except AttributeError:
+            raise ValueError("restriction_enzyme string is not recognized: %s" % restriction_enzyme)
+        
         return re.search(Seq.Seq(self.sequence))
     
-    def __repr__(self):
-        return "Name: %s\nLength: %d\nSequence: %s" % (self.name if self.name else '',
-                                                       self.length if self.length else -1,
-                                                       self.sequence[:20] + "..." if self.sequence else '')
-         
+    
         
+    
+    
+        
+class Genome(Table):
+    def __init__(self, file_name=None, chromosomes=None, max_seq_length=500000000):        
+        # checks
+        max_size = 1
+        names = []
+        i = 0
+        for chromosome in chromosomes:
+            if chromosome.name is not None: 
+                if chromosome.name in names:
+                    raise ValueError("Duplicate chromosome name %s" % chromosome.name)
+                names.append(chromosome.name)
+            else:
+                names.appen(str(i))
+            i += 1
+
+            
+            if chromosome.sequence is not None:
+                max_size = max(max_size, len(chromosome.sequence))
+        
+        if max_size == 1:
+            max_size = max_seq_length
+            
+        columns = ["name", "length", "sequence"]
+        column_types = [t.StringCol(50, pos=0), t.Int32Col(pos=1), t.StringCol(max_size, pos=2)]  # @UndefinedVariable
+                
+        Table.__init__(self, file_name=file_name, col_names=columns, col_types=column_types)
+        
+        for chromosome in chromosomes:
+            self.add_chromosome(chromosome)
+            
+    @classmethod
+    def from_folder(cls, folder_name, file_name=None, exclude=None):
+        chromosomes = []
+        folder_name = os.path.expanduser(folder_name)
+        for f in os.listdir(folder_name):
+            try:
+                chromosome = Chromosome.from_fasta(folder_name + "/" + f)
+                logging.info("Adding chromosome %s" % chromosome.name)
+                if exclude is None:
+                    chromosomes.append(chromosome)
+                elif chromosome.name not in exclude:
+                    chromosomes.append(chromosome)
+            except (ValueError, IOError):
+                pass
+            
+        return cls(chromosomes=chromosomes, file_name=file_name)
+        
+    
+    def __getitem__(self, key):
+        res = Table.__getitem__(self, key)
+        
+        if isinstance(res, TableRow):
+            return Chromosome(name=res.name, length=res.length, sequence=res.sequence)
+        return res
+    
+    def __iter__(self):
+        table = self
+        class Iter:
+            def __init__(self):
+                self.current = 0
+                
+            def __iter__(self):
+                self.current = 0
+                return self
+            
+            def next(self):
+                if self.current >= len(table):
+                    raise StopIteration
+                self.current += 1
+                return table[self.current-1]        
+        return Iter()
+    
+    def __del__(self):
+        self.file.close()
+        super(Genome, self).__del__()
+    
+    
+    def add_chromosome(self, chromosome):
+        i = len(self)-1
+        
+        n = str(i)
+        if chromosome.name is not None:
+            n = chromosome.name
+        i += 1
+        
+        l = 0
+        if chromosome.length is not None:
+            l = chromosome.length
+        
+        s = ''
+        if chromosome.sequence is not None:
+            s = chromosome.sequence
+            if l == 0:
+                l = len(s)
+        
+        self.append([n,l,s], rownames=n)
+        
+    
+    
+    
+    
+    def get_node_list(self, split):
+        nodes = []
+        for chromosome in self:
+            print chromosome
+            if type(split) is str:
+                res = chromosome.get_restriction_sites(split)
+                for i in range(0,len(res)):
+                    node = {}
+                    node['chromosome'] = chromosome.name
+                    
+                    if i == 0:
+                        node['start'] = 1
+                    else:
+                        node['start'] = res[i-1]+1
+                    
+                    node['end'] = res[i]
+                    nodes.append(node)
+                
+                # add last node
+                node = {}
+                node['chromosome'] = chromosome.name
+                node['start'] = res[len(res)-1]
+                node['end'] = chromosome.length
+                nodes.append(node)
+            
+            elif type(split) is int:
+                last = 0
+                for i in range(0, len(chromosome), split):
+                    node = {}
+                    node['chromosome'] = chromosome.name
+                    node['start'] = i + 1
+                    node['end'] = i + split
+                    nodes.append(node)
+                    last = i + split
+                node = {}
+                node['chromosome'] = chromosome.name
+                node['start'] = last + 1
+                node['end'] = chromosome.length
+                if node['start'] < node['end']:
+                    nodes.append(node)
+            else:
+                raise ValueError("split must be integer (bin size) or string (Restriction enzyme name)")
+            
+        return nodes
+            
+     
