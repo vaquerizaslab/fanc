@@ -44,4 +44,4 @@ def load_mirny_binned_hic(file_name, genome, resolution):
     
     return hic
     
-    
+
