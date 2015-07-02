@@ -58,8 +58,6 @@ def close_graphics_file():
 
 
 
-
-
 class BedAlignment(object):
     def __init__(self, bed1, bed2, chrom=None, start=None, end=None, n_bins=None, window_size=None):
         self.bed1 = bed1
@@ -113,7 +111,7 @@ class BedAlignment(object):
 
 
 class BedDistribution(object):
-    def __init__(self, bed1, bed2, chrom=None, start=None, end=None, n_bins=None, window_size=None):
+    def __init__(self, bed1, bed2, chrom=None, start=None, end=None, n_bins=None, window_size=None, rescale=True):
         self.bed1 = bed1
         if type(bed2) is not list:
             self.bed2 = [bed2]
@@ -124,23 +122,28 @@ class BedDistribution(object):
         self.end = end
         self.n_bins = n_bins
         self.window_size = window_size
+        self.rescale=rescale
         
     def show(self, output=None):
         p2r.activate()
+        base = importr('base')
         genomation = importr('genomation')
         genomicRanges = importr('GenomicRanges')
         graphics = importr('graphics')
+        grDevices = importr('grDevices')
         
         bed1_df = self.bed1.as_data_frame(self.chrom,self.start,self.end)
         
         if output:
             open_graphics_file(output)
         
+        names = []
         if bed1_df.shape[0] > 0:
             bed1_dfr = p2r.py2ri(bed1_df)
             bed1_range = genomicRanges.makeGRangesFromDataFrame(bed1_dfr)
             
-            sml = []
+            l = base.vector(mode="list",length=len(self.bed2))
+            i = 0
             for bed2 in self.bed2:
                 bed2_df = bed2.as_data_frame(self.chrom,self.start,self.end)
                 
@@ -159,9 +162,25 @@ class BedDistribution(object):
                 else:
                     sm = genomation.ScoreMatrix(target=bed1_range, windows=bed2_range)
                     
-                sml.append(sm)
+                l[i] = sm
+                names.append(bed2.name)
+                i += 1
+                
+            l.names = names
+            sml = genomation.ScoreMatrixList(l)
             
-            genomation.plotMeta(sml)
+            # prepare plot
+            graphics.layout(base.rbind(1,2), heights=base.c(4,1))
+            
+            graphics.par(mar=base.c(5,4,4,0), oma=base.c(0,0,0,0))
+            colors = grDevices.rainbow(len(names))
+            genomation.plotMeta(sml, meta_rescale=self.rescale, line_col=colors)
+            if self.n_bins is not None:
+                graphics.abline(v=self.n_bins/2)
+            
+            graphics.par(mar=base.c(0,0,0,0))
+            graphics.plot_new()
+            graphics.legend(x="center", legend=base.c(names), lty=base.c(1,1), lwd=base.c(2.5,2.5), col=colors, ncol=2, bty="n")
             
         else:
             #empty plot
