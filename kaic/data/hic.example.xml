@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<hic>
+  <nodes>
+    <node chromosome="chr1" start="1" end="1000" ix="0" />
+	<node chromosome="chr2" start="1001" end="2000" ix="1" />
+  </nodes>
+  <edges>
+    <edge source="0" sink="1" weight="123.45" />
+  </edges>
+</hic>

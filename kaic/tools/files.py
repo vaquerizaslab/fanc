@@ -6,6 +6,9 @@ Created on May 20, 2015
 
 import tables as t
 import os.path
+from xml.etree.ElementTree import iterparse, ParseError
+import string
+import random
 
 def without_extension(file_name):
     os.path.splitext(file_name)[0]
@@ -28,8 +31,12 @@ def make_dir(dir_name, fail_if_exists=False, make_subdirs=True):
 
 def get_number_of_lines(file_name):
     with open(file_name,'r') as f:
-        n = sum(1 for line in f)
+        n = sum(1 for line in f)  # @UnusedVariable
     return n
+
+def random_name(length=6):
+    return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))  # @UndefinedVariable
+        
 
 def create_or_open_pytables_file(file_name, inMemory=False, mode='a'):
     
@@ -91,3 +98,18 @@ def is_bedpe_file(file_name):
             return is_bedpe_line(f.readline())
         else:
             return True
+        
+        
+def is_hic_xml_file(file_name):
+    try:
+        for event, elem in iterparse(file_name):  # @UnusedVariable
+            if elem.tag == 'hic':
+                return True
+            elem.clear()
+    except ParseError:
+        return False
+    
+    return False
+    
+    
+    
