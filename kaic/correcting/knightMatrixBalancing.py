@@ -103,9 +103,9 @@ def correct(hicFile,genome,resolution,output=None,perChromosome=False):
 
 
 
-def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=False):
+def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=False,outer_limit=300):
     if x is None:
-        x = getBiasVector(M, x0, tol, delta, Delta, fl, high_precision)
+        x = getBiasVector(M, x0, tol, delta, Delta, fl, high_precision, outer_limit)
     
     A = M.copy()
     
@@ -116,7 +116,7 @@ def getCorrectedMatrix(M,x=None,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_pr
     
     
 
-def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=False):
+def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=False,outer_limit=300):
     logging.info("Starting matrix balancing")
     
     with warnings.catch_warnings():
@@ -179,10 +179,12 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=Fals
                 
             
             
-            logging.info("starting iterations")
             n_iterations_outer = 0
             while rout > rt:
                 n_iterations_outer += 1
+                
+                if n_iterations_outer > outer_limit:
+                    raise StopIteration("Number of iterations has exceeded the limit (%d)." % outer_limit)
         
                 i+=1
                 k=0
@@ -227,7 +229,7 @@ def getBiasVector(A,x0=None,tol=1e-06,delta=0.1,Delta=3,fl=0,high_precision=Fals
                     Z=rk / v
                     rho_km1=rk.T.dot(Z)
                     
-                logging.info("Inner iterations: %d" % n_iterations_inner)
+                #logging.info("Inner iterations: %d" % n_iterations_inner)
                 
                 try:
                     x=x*y
