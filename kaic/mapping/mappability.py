@@ -11,6 +11,7 @@ import subprocess
 import re
 from gridmap import Job, process_jobs
 import logging
+from kaic.tools.files import random_name
 
 logging.basicConfig(level=logging.INFO)
 
@@ -67,7 +68,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
                 
             
     
-    #unlink(tmp_input_file)
+    unlink(tmp_input_file)
     unlink(tmp_output_file.name)
     
     return mappable
@@ -79,13 +80,11 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         genome =  Genome.from_folder(genome)
     
     jobs = []
-    tmp_files = []
-    def submit(reads):
-        tmp_input_file = tempfile.NamedTemporaryFile(delete=False)
+    def submit(reads):        
+        tmp_input_file = tempfile.NamedTemporaryFile(dir="./", delete=False)
         for r in reads:
             tmp_input_file.write(r)
         tmp_input_file.close()
-        tmp_files.append(tmp_input_file.name)
         
         # set up job
         largs = [tmp_input_file.name, bowtie_index]
@@ -131,8 +130,6 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         for chrm, ix in result:
             mappable[chrm].append(ix)
     
-    for f in tmp_files:
-        unlink(f)
     
     return mappable
     
