@@ -18,6 +18,7 @@ if __name__ == '__main__':
     
     parser.add_argument(
         '-l', '--length', dest='length',
+        type=int,
         help='''Read length''',
         required=True
     )
