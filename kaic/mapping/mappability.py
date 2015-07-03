@@ -78,7 +78,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
     if type(genome) is str:
         genome =  Genome.from_folder(genome)
     
-    
+    jobs = []
     def submit(reads):
         tmp_input_file = tempfile.NamedTemporaryFile(delete=False)
         for r in reads:
@@ -86,17 +86,17 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         tmp_input_file.close()
         
         # set up job
-        #largs = [tmp_input_file, bowtie_index]
-        #kwargs = {'quality_threshold': quality_threshold}
-        #job = Job(_do_map,largs,kwlist=kwargs,queue='all.q')
-        #jobs.append(job)
+        largs = [tmp_input_file, bowtie_index]
+        kwargs = {'quality_threshold': quality_threshold}
+        job = Job(_do_map,largs,kwlist=kwargs,queue='all.q')
+        jobs.append(job)
         reads = []
         
-        result = _do_map(tmp_input_file, bowtie_index, quality_threshold)
-        for pair in result:
-            mappable[pair[0]].append(pair[1])
+        #result = _do_map(tmp_input_file, bowtie_index, quality_threshold)
+        #for pair in result:
+        #    mappable[pair[0]].append(pair[1])
     
-    jobs = []
+    
     mappable = {}
     for chromosome in genome:
         mappable[chromosome.name] = []
@@ -122,12 +122,12 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
             submit(reads)
             
     # do the actual mapping
-    #job_outputs = process_jobs(jobs,max_processes=2)
+    job_outputs = process_jobs(jobs,max_processes=2)
     
     # retrieve results
-    #for (i, result) in enumerate(job_outputs):
-    #    for chrm, ix in result:
-    #        mappable[chrm].append(ix)
+    for (i, result) in enumerate(job_outputs):
+        for chrm, ix in result:
+            mappable[chrm].append(ix)
     
     
     return mappable
