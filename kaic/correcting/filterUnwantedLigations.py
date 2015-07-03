@@ -306,7 +306,7 @@ class ReadPairs(object):
         # get number of lines
         totalLineCount = 0
         with open(inputSam1, 'r') as s:
-            for x in s:
+            for x in s:  # @UnusedVariable
                 totalLineCount += 1
         
         
@@ -520,7 +520,7 @@ class ReadPairs(object):
         # get number of lines
         totalLineCount = 0
         with open(inputSam1, 'r') as s:
-            for x in s:
+            for x in s:  # @UnusedVariable
                 totalLineCount += 1
         
         def getNextRead(line):
