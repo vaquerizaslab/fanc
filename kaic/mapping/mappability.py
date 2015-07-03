@@ -25,7 +25,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
     subprocess.call(bowtieMapCommand, shell=True)
     
     mappable = []
-    with open(tmp_output_file, 'r') as f:
+    with open(tmp_output_file.name, 'r') as f:
         for line in f:
             logging.info(line)
             if line.startswith("@"):
