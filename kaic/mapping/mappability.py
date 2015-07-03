@@ -100,8 +100,8 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
                 #reads = []
                 
                 result = _do_map(tmp_input_file, bowtie_index, quality_threshold)
-                for chrm, ix in result:
-                    mappable[chrm].append(ix)
+                for pair in result:
+                    mappable[pair[0]].append(pair[1])
         
     # do the actual mapping
     #job_outputs = process_jobs(jobs,max_processes=2)
