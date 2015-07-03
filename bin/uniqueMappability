@@ -47,7 +47,7 @@ if __name__ == '__main__':
     
     mappable = unique_mappability(args.genome, args.index, args.length, args.offset, args.chunks)
     
-    with open(args.output) as o:
+    with open(args.output,'w') as o:
         for chromosome in mappable:
             o.write(chromosome + '\t')
             s = ''
