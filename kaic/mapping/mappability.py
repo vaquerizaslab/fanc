@@ -90,7 +90,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
                 continue
             
             read = chromosome.sequence[i:i+read_length]
-            r = "@chr_%s_pos_%d\n" % (chromosome.name, i)
+            r = "@chr_%s_pos_%d\n" % (chromosome.name, i+1)
             r += read + '\n'
             r += '+\n'
             r += 'A' * len(read) + '\n'
