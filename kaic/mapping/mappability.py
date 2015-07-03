@@ -10,6 +10,9 @@ import tempfile
 import subprocess
 import re
 from gridmap import Job, process_jobs
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 
 def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
@@ -24,6 +27,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
     mappable = []
     with open(tmp_output_file, 'r') as f:
         for line in f:
+            logging.info(line)
             if line.startswith("@"):
                 continue
             
@@ -49,7 +53,10 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
                 if ix == fields[3] and chrm == fields[2]:
                     mappable.append([chrm,ix])
             else:
-                raise ValueError("Cannot identify read position")
+                logging.info("WRONG")
+                logging.info(line)
+                return ['chrI', -10]
+                #raise ValueError("Cannot identify read position")
                 
             
     
@@ -58,7 +65,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
     
     return mappable
 
-def unique_mappbility(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_processes=50, quality_threshold=30):
+def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_processes=50, quality_threshold=30):
     
     
     if type(genome) is str:
