@@ -21,7 +21,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
     tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
     tmp_output_file.close()
     
-    bowtieMapCommand = '%s --very-sensitive --no-unal -x %s -f -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file.name,tmp_output_file.name);
+    bowtieMapCommand = '%s --very-sensitive --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file.name,tmp_output_file.name);
     subprocess.call(bowtieMapCommand, shell=True)
     
     mappable = []
@@ -82,14 +82,17 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
             if i >= l-read_length:
                 continue
             
-            r = "> chr_%s_pos_%d\n" % (chromosome.name, i)
-            r += chromosome.sequence[i:i+read_length]
+            read = chromosome.sequence[i:i+read_length]
+            r = "@chr_%s_pos_%d\n" % (chromosome.name, i)
+            r += read + '\n'
+            r += '+\n'
+            r += 'A' * len(read) + '\n'
             reads.append(r)
             
             if len(reads) > chunk_size or i == l-1:
                 tmp_input_file = tempfile.NamedTemporaryFile(delete=False)
                 for r in reads:
-                    tmp_input_file.write(r + '\n')
+                    tmp_input_file.write(r)
                 tmp_input_file.close()
                 
                 # set up job
@@ -97,7 +100,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
                 #kwargs = {'quality_threshold': quality_threshold}
                 #job = Job(_do_map,largs,kwlist=kwargs,queue='all.q')
                 #jobs.append(job)
-                #reads = []
+                reads = []
                 
                 result = _do_map(tmp_input_file, bowtie_index, quality_threshold)
                 for pair in result:
