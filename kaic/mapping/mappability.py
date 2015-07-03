@@ -34,17 +34,25 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
             fields = line.split("\t")
             
             if fields[1] == '4':
+                logging.info("unmapped")
                 continue
             
             try:
                 if int(fields[4]) < quality_threshold:
+                    logging.info("quality")
                     continue
             except ValueError:
                 continue
             
+            xs = False
             for i in range(11,len(fields)):
                 if fields[i].startswith('XS'):
-                    continue
+                    logging.info("XS")
+                    xs = True
+                    break
+            if xs:
+                logging.info("XS")
+                continue
             
             m = re.search('chr_(\w+)_pos_(\d+)', fields[0])
             if m:
@@ -52,11 +60,10 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
                 ix = m.group(2)
                 if ix == fields[3] and chrm == fields[2]:
                     mappable.append([chrm,ix])
+                else:
+                    logging.info("Mismatch: %s-%s, %s-%s" %(chrm, fields[2], ix, fields[3]))
             else:
-                logging.info("WRONG")
-                logging.info(line)
-                return ['chrI', -10]
-                #raise ValueError("Cannot identify read position")
+                raise ValueError("Cannot identify read position")
                 
             
     
