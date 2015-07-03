@@ -86,7 +86,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         tmp_input_file.close()
         
         # set up job
-        largs = [tmp_input_file, bowtie_index]
+        largs = [tmp_input_file.name, bowtie_index]
         kwargs = {'quality_threshold': quality_threshold}
         job = Job(_do_map,largs,kwlist=kwargs,queue='all.q')
         jobs.append(job)
