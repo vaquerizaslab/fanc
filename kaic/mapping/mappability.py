@@ -1,0 +1,107 @@
+'''
+Created on Jul 3, 2015
+
+@author: kkruse1
+'''
+
+from kaic.data.genomic import Genome
+from os import unlink
+import tempfile
+import subprocess
+import re
+from gridmap import Job, process_jobs
+
+
+def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
+    bowtie_executable_path = subprocess.Popen("which bowtie2", shell=True, stdout=subprocess.PIPE).stdout.read().rstrip();
+    
+    tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
+    tmp_output_file.close()
+    
+    bowtieMapCommand = '%s --very-sensitive --no-unal -x %s -f -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file.name,tmp_output_file.name);
+    subprocess.call(bowtieMapCommand, shell=True)
+    
+    mappable = []
+    with open(tmp_output_file, 'r') as f:
+        for line in f:
+            if line.startswith("@"):
+                continue
+            
+            fields = line.split("\t")
+            
+            if fields[1] == '4':
+                continue
+            
+            try:
+                if int(fields[4]) < quality_threshold:
+                    continue
+            except ValueError:
+                continue
+            
+            for i in range(11,len(fields)):
+                if fields[i].startswith('XS'):
+                    continue
+            
+            m = re.search('chr_(\w+)_pos_(\d+)', fields[0])
+            if m:
+                chrm = m.group(1)
+                ix = m.group(2)
+                if ix == fields[3] and chrm == fields[2]:
+                    mappable.append([chrm,ix])
+            else:
+                raise ValueError("Cannot identify read position")
+                
+            
+    
+    unlink(tmp_input_file)
+    unlink(tmp_output_file)
+    
+    return mappable
+
+def unique_mappbility(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_processes=50, quality_threshold=30):
+    
+    
+    if type(genome) is str:
+        genome =  Genome.from_folder(genome)
+    
+    jobs = []
+    mappable = {}
+    for chromosome in genome:
+        mappable[chromosome.name] = []
+        
+        reads = []
+        l = len(chromosome.sequence)
+        for i in range(0,l,offset):
+            if i >= l-read_length:
+                continue
+            
+            r = "> chr_%s_pos_%d\n" % (chromosome.name, i)
+            r += chromosome.sequence[i:i+read_length]
+            reads.append(r)
+            
+            if len(reads) > chunk_size or i == l-1:
+                tmp_input_file = tempfile.NamedTemporaryFile(delete=False)
+                for r in reads:
+                    tmp_input_file.write(r + '\n')
+                tmp_input_file.close()
+                
+                # set up job
+                largs = [tmp_input_file, bowtie_index]
+                kwargs = {'quality_threshold': quality_threshold}
+                job = Job(_do_map,largs,kwlist=kwargs,queue='all.q')
+                jobs.append(job)
+                reads = []
+        
+    # do the actual mapping
+    job_outputs = process_jobs(jobs,max_processes=2)
+    
+    # retrieve results
+    for (i, result) in enumerate(job_outputs):
+        for chrm, ix in result:
+            mappable[chrm].append(ix)
+    
+    
+    return mappable
+    
+        
+        
