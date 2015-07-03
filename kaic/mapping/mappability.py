@@ -21,7 +21,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
     tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
     tmp_output_file.close()
     
-    bowtieMapCommand = '%s --very-sensitive --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file.name,tmp_output_file.name);
+    bowtieMapCommand = '%s --very-sensitive --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
     subprocess.call(bowtieMapCommand, shell=True)
     
     mappable = []
@@ -67,7 +67,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
                 
             
     
-    unlink(tmp_input_file.name)
+    unlink(tmp_input_file)
     unlink(tmp_output_file.name)
     
     return mappable
