@@ -30,7 +30,7 @@ if __name__ == '__main__':
     )
     
     parser.add_argument(
-        '-s', '--chunks', dest='chunks',
+        '-c', '--chunks', dest='chunks',
         type=int,
         help='''Chunk size''',
         required=True
