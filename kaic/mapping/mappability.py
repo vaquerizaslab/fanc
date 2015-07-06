@@ -101,11 +101,19 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         job_outputs = process_jobs(jobs,max_processes=2)
         
         # retrieve results
+        tmp_mappable = {}
+        for chromosome in mappable:
+            tmp_mappable[chromosome] = []
+            
         for (i, result) in enumerate(job_outputs): # @UnusedVariable
             m = result[0]
             chromosome = result[1]
             for ix in m:
-                mappable[chromosome].append(ix)
+                tmp_mappable[chromosome].append(ix)
+        
+        for chromosome in tmp_mappable:
+            tmp_mappable[chromosome].sort()
+            mappable[chromosome] = mappable[chromosome]+tmp_mappable[chromosome]
         
         jobs = []
     
@@ -132,20 +140,22 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
                 prepare(jobs, reads, chromosome.name)
                 if len(jobs) == max_jobs:
                     submit_and_collect(jobs)
+                    jobs = []
                 reads = []
             
         if len(reads) > 0:
             prepare(jobs, reads, chromosome.name)
             if len(jobs) == max_jobs:
                 submit_and_collect(jobs)
+                jobs = []
                 
     if len(jobs) > 0:
         submit_and_collect(jobs)
+        jobs = []
     
     
     mappable_ranges = {} 
     for chrm in mappable:
-        mappable[chrm].sort()
         mappable_ranges[chrm] = []
         
         if len(mappable[chrm]) > 0:
