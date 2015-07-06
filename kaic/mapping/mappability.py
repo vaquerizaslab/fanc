@@ -104,7 +104,9 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         tmp_mappable = {}
         for chromosome in mappable:
             tmp_mappable[chromosome] = []
-            
+        
+        logging.info("Collecting")
+        
         for (i, result) in enumerate(job_outputs): # @UnusedVariable
             m = result[0]
             chromosome = result[1]
@@ -112,7 +114,9 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
                 tmp_mappable[chromosome].append(ix)
         
         for chromosome in tmp_mappable:
+            logging.info("Length %s: %d" % (chromosome, len(tmp_mappable[chromosome])))
             tmp_mappable[chromosome].sort()
+            logging.info("min: %d, max: %d" % (tmp_mappable[chromosome][0], tmp_mappable[chromosome][-1]))
             mappable[chromosome] = mappable[chromosome]+tmp_mappable[chromosome]
         
         jobs = []
