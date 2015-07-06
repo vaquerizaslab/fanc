@@ -38,6 +38,13 @@ if __name__ == '__main__':
     )
     
     parser.add_argument(
+        '-j', '--jobs', dest='jobs',
+        type=int,
+        help='''Maximum number of simultaneous jobs''',
+        required=True
+    )
+    
+    parser.add_argument(
         '-o', '--output', dest='output',
         help='''Output file''',
         required=True
@@ -45,7 +52,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    mappable = unique_mappability(args.genome, args.index, args.length, args.offset, args.chunks)
+    mappable = unique_mappability(args.genome, args.index, args.length, args.offset, args.chunks, max_jobs=args.jobs)
     
     with open(args.output,'w') as o:
         o.write("chromosome\tstart\tend\n")
