@@ -48,11 +48,9 @@ if __name__ == '__main__':
     mappable = unique_mappability(args.genome, args.index, args.length, args.offset, args.chunks)
     
     with open(args.output,'w') as o:
+        o.write("chromosome\tstart\tend\n")
         for chromosome in mappable:
-            o.write(chromosome + '\t')
-            s = ''
-            for ix in mappable[chromosome]:
-                s += str(ix) + ','
-            s = s[:-1]
-            o.write(s + '\n')
+            for mappable_range in mappable[chromosome]:
+                o.write("%s\t%d\t%d\n" % (chromosome, mappable_range[0], mappable_range[1]))
+
     

@@ -130,8 +130,22 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         for chrm, ix in result:
             mappable[chrm].append(ix)
     
-    
-    return mappable
+    mappable_ranges = {} 
+    for chrm in mappable:
+        mappable[chrm].sort()
+        mappable_ranges[chrm] = []
+        
+        if len(mappable[chrm]) > 0:
+            current_start = mappable[chrm][0]
+            previous = mappable[chrm][0]
+            for ix in mappable[chrm]:
+                if ix-previous > offset:
+                    mappable_ranges.append([current_start, previous])
+                    current_start = ix
+                previous = ix
+            mappable_ranges.append([current_start, previous])
+
+    return mappable_ranges
     
         
         
