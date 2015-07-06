@@ -106,6 +106,8 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
             chromosome = result[1]
             for ix in m:
                 mappable[chromosome].append(ix)
+        
+        jobs = []
     
     
     
