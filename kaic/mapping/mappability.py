@@ -81,7 +81,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
     jobs = []
     mappable = {}
     
-    def prepare(reads, chromosome):        
+    def prepare(jobs, reads, chromosome):        
         tmp_input_file = tempfile.NamedTemporaryFile(dir="./", delete=False)
         for r in reads:
             tmp_input_file.write(r)
@@ -96,7 +96,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         reads = []
 
         
-    def submit_and_collect():
+    def submit_and_collect(jobs):
         # do the actual mapping
         job_outputs = process_jobs(jobs,max_processes=2)
         
@@ -129,18 +129,18 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
             reads.append(r)
             
             if len(reads) > chunk_size:
-                prepare(reads, chromosome.name)
+                prepare(jobs, reads, chromosome.name)
                 if len(jobs) == max_jobs:
-                    submit_and_collect()
+                    submit_and_collect(jobs)
                 reads = []
             
         if len(reads) > 0:
-            prepare(reads, chromosome.name)
+            prepare(jobs, reads, chromosome.name)
             if len(jobs) == max_jobs:
-                submit_and_collect()
+                submit_and_collect(jobs)
                 
     if len(jobs) > 0:
-        submit_and_collect()
+        submit_and_collect(jobs)
     
     
     mappable_ranges = {} 
