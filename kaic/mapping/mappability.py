@@ -11,12 +11,11 @@ import subprocess
 import re
 from gridmap import Job, process_jobs
 import logging
-from kaic.tools.files import random_name
 
 logging.basicConfig(level=logging.INFO)
 
 
-def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
+def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
     bowtie_executable_path = subprocess.Popen("which bowtie2", shell=True, stdout=subprocess.PIPE).stdout.read().rstrip();
     
     tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
@@ -71,7 +70,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
     unlink(tmp_input_file)
     unlink(tmp_output_file.name)
     
-    return mappable
+    return mappable, chromosome
 
 def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_jobs=50, quality_threshold=30):
     
@@ -82,31 +81,30 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
     jobs = []
     mappable = {}
     
-    def prepare(reads):        
+    def prepare(reads, chromosome):        
         tmp_input_file = tempfile.NamedTemporaryFile(dir="./", delete=False)
         for r in reads:
             tmp_input_file.write(r)
         tmp_input_file.close()
         
         # set up job
-        largs = [tmp_input_file.name, bowtie_index]
+        largs = [tmp_input_file.name, bowtie_index, chromosome]
         kwargs = {'quality_threshold': quality_threshold}
         job = Job(_do_map,largs,kwlist=kwargs,queue='all.q')
         jobs.append(job)
             
         reads = []
+
         
-        #result = _do_map(tmp_input_file, bowtie_index, quality_threshold)
-        #for pair in result:
-        #    mappable[pair[0]].append(pair[1])
-        
-    def submit_and_collect(chromosome):
+    def submit_and_collect():
         # do the actual mapping
         job_outputs = process_jobs(jobs,max_processes=2)
         
         # retrieve results
         for (i, result) in enumerate(job_outputs): # @UnusedVariable
-            for ix in result:
+            m = result[0]
+            chromosome = result[1]
+            for ix in m:
                 mappable[chromosome].append(ix)
     
     
@@ -129,15 +127,17 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
             reads.append(r)
             
             if len(reads) > chunk_size:
-                prepare(reads)
-                if len(jobs) == max_jobs:
-                    submit_and_collect(chromosome.name)
+                prepare(reads, chromosome.name)
+                
                 reads = []
             
         if len(reads) > 0:
-            prepare(reads)
-            submit_and_collect(chromosome.name)
-            
+            prepare(reads, chromosome.name)
+            if len(jobs) == max_jobs:
+                submit_and_collect()
+                
+    if len(jobs) > 0:
+        submit_and_collect()
     
     
     mappable_ranges = {} 
