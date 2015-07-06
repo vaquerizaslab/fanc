@@ -73,7 +73,7 @@ def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
     return mappable, chromosome
 
 def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_jobs=50, quality_threshold=30):
-    
+    logging.info("Maximum number of jobs: %d" % max_jobs)
     
     if type(genome) is str:
         genome =  Genome.from_folder(genome)
@@ -128,7 +128,8 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
             
             if len(reads) > chunk_size:
                 prepare(reads, chromosome.name)
-                
+                if len(jobs) == max_jobs:
+                    submit_and_collect()
                 reads = []
             
         if len(reads) > 0:
