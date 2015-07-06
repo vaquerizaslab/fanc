@@ -60,7 +60,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
                 chrm = m.group(1)
                 ix = m.group(2)
                 if ix == fields[3] and chrm == fields[2]:
-                    mappable.append([chrm,int(ix)])
+                    mappable.append(int(ix))
                 else:
                     logging.info("Mismatch: %s-%s, %s-%s" %(chrm, fields[2], ix, fields[3]))
             else:
@@ -73,14 +73,16 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
     
     return mappable
 
-def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_processes=50, quality_threshold=30):
+def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_jobs=50, quality_threshold=30):
     
     
     if type(genome) is str:
         genome =  Genome.from_folder(genome)
     
     jobs = []
-    def submit(reads):        
+    mappable = {}
+    
+    def prepare(reads):        
         tmp_input_file = tempfile.NamedTemporaryFile(dir="./", delete=False)
         for r in reads:
             tmp_input_file.write(r)
@@ -91,14 +93,24 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         kwargs = {'quality_threshold': quality_threshold}
         job = Job(_do_map,largs,kwlist=kwargs,queue='all.q')
         jobs.append(job)
+            
         reads = []
         
         #result = _do_map(tmp_input_file, bowtie_index, quality_threshold)
         #for pair in result:
         #    mappable[pair[0]].append(pair[1])
+        
+    def submit_and_collect(chromosome):
+        # do the actual mapping
+        job_outputs = process_jobs(jobs,max_processes=2)
+        
+        # retrieve results
+        for (i, result) in enumerate(job_outputs): # @UnusedVariable
+            for ix in result:
+                mappable[chromosome].append(ix)
     
     
-    mappable = {}
+    
     for chromosome in genome:
         logging.info("Cutting chromosome %s into reads" % chromosome.name)
         mappable[chromosome.name] = []
@@ -117,19 +129,16 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
             reads.append(r)
             
             if len(reads) > chunk_size:
-                submit(reads)
+                prepare(reads)
+                if len(jobs) == max_jobs:
+                    submit_and_collect(chromosome.name)
                 reads = []
             
         if len(reads) > 0:
-            submit(reads)
+            prepare(reads)
+            submit_and_collect(chromosome.name)
             
-    # do the actual mapping
-    job_outputs = process_jobs(jobs,max_processes=2)
     
-    # retrieve results
-    for (i, result) in enumerate(job_outputs):
-        for chrm, ix in result:
-            mappable[chrm].append(ix)
     
     mappable_ranges = {} 
     for chrm in mappable:
