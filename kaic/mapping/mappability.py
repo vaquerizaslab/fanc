@@ -60,7 +60,7 @@ def _do_map(tmp_input_file, bowtie_index, quality_threshold=30):
                 chrm = m.group(1)
                 ix = m.group(2)
                 if ix == fields[3] and chrm == fields[2]:
-                    mappable.append([chrm,ix])
+                    mappable.append([chrm,int(ix)])
                 else:
                     logging.info("Mismatch: %s-%s, %s-%s" %(chrm, fields[2], ix, fields[3]))
             else:
