@@ -15,15 +15,15 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
+def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30, bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
     bowtie_executable_path = subprocess.Popen("which bowtie2", shell=True, stdout=subprocess.PIPE).stdout.read().rstrip();
     
-    tmp_output_file = tempfile.NamedTemporaryFile(dir="./",delete=False)
+    tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
     tmp_output_file.close()
     
     logging.info("SAM file: %s" % tmp_output_file.name)
     
-    bowtieMapCommand = '%s --very-sensitive --no-unal --score-min "C,0,-1" -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
+    bowtieMapCommand = '%s --no-unal %s -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_parameters,bowtie_index,tmp_input_file,tmp_output_file.name);
     subprocess.call(bowtieMapCommand, shell=True)
     
     mappable = []
@@ -69,12 +69,12 @@ def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
                 
             
     
-    #unlink(tmp_input_file)
-    #unlink(tmp_output_file.name)
+    unlink(tmp_input_file)
+    unlink(tmp_output_file.name)
     
     return mappable, chromosome
 
-def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_jobs=50, quality_threshold=30):
+def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_jobs=50, quality_threshold=30, bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
     logging.info("Maximum number of jobs: %d" % max_jobs)
     
     if type(genome) is str:
@@ -91,7 +91,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         
         # set up job
         largs = [tmp_input_file.name, bowtie_index, chromosome]
-        kwargs = {'quality_threshold': quality_threshold}
+        kwargs = {'quality_threshold': quality_threshold, 'bowtie_parameters': bowtie_parameters}
         job = Job(_do_map,largs,kwlist=kwargs,queue='all.q')
         jobs.append(job)
             
@@ -106,9 +106,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         tmp_mappable = {}
         for chromosome in mappable:
             tmp_mappable[chromosome] = []
-        
-        logging.info("Collecting")
-        
+                
         for (i, result) in enumerate(job_outputs): # @UnusedVariable
             m = result[0]
             chromosome = result[1]
@@ -125,15 +123,15 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         jobs = []
     
     
-    for chromosome in [genome["chrV"]]:
-    #for chromosome in genome:
+    #for chromosome in [genome["chrV"]]:
+    for chromosome in genome:
         logging.info("Cutting chromosome %s into reads" % chromosome.name)
         mappable[chromosome.name] = []
         
         reads = []
         l = len(chromosome.sequence)
-        for i in range(3545,3550,offset):
-        #for i in range(0,l,offset):
+        #for i in range(3545,3550,offset):
+        for i in range(0,l,offset):
             if i >= l-read_length:
                 continue
             
@@ -161,9 +159,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         submit_and_collect(jobs)
         jobs = []
     
-    
-    print mappable
-    
+        
     mappable_ranges = {} 
     for chrm in mappable:
         mappable_ranges[chrm] = []
@@ -178,7 +174,6 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
                 previous = ix
             mappable_ranges[chrm].append([current_start, previous])
             
-    print mappable_ranges
 
     return mappable_ranges
     
