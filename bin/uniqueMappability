@@ -50,9 +50,17 @@ if __name__ == '__main__':
         required=True
     )
     
+    parser.add_argument(
+        '-b', '--bowtie2-parameters', dest='bowtie',
+        help='''Optional Bowtie2 parameters, default: --very-sensitive --score-min "C,0,-1"''',
+        default='--very-sensitive --score-min "C,0,-1"'
+    )
+    
+    
+    
     args = parser.parse_args()
     
-    mappable = unique_mappability(args.genome, args.index, args.length, args.offset, args.chunks, max_jobs=args.jobs)
+    mappable = unique_mappability(args.genome, args.index, args.length, args.offset, args.chunks, max_jobs=args.jobs, bowtie_parameters=args.bowtie)
     
     with open(args.output,'w') as o:
         o.write("chromosome\tstart\tend\n")
