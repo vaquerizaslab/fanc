@@ -122,7 +122,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         jobs = []
     
     
-    for chromosome in ["chrV"]:
+    for chromosome in [genome[0]]:
     #for chromosome in genome:
         logging.info("Cutting chromosome %s into reads" % chromosome.name)
         mappable[chromosome.name] = []
