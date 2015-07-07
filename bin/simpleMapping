@@ -14,23 +14,23 @@ if __name__ == '__main__':
     parser.add_argument(
         'fastq',
         help='''FASTQ file with reads'''
-    );
+    )
     
     parser.add_argument(
         'index',
         help='''Bowtie2 index'''
-    );
+    )
     
     parser.add_argument(
         'output',
         help='''Output SAM file'''
-    );
+    )
     
     parser.add_argument(
         '-d', '--allow-duplicates', dest='filterdup',
         action='store_false',
         help='''Do not filter reads that also map elsewhere in the genome'''
-    );
+    )
     
     parser.set_defaults(filterdup=True);
     
@@ -39,9 +39,15 @@ if __name__ == '__main__':
         type=int,
         default=30,
         help='''Quality cutoff for mapped reads (default: 30)'''
-    );
+    )
+    
+    parser.add_argument(
+        '-bo', '--bowtie2-options', dest='bowtie2_options',
+        default='--very-sensitive --no-unal --score-min "C,0,-1"',
+        help='''Bowtie 2 command line options, default: --very-sensitive --no-unal --score-min "C,0,-1"'''
+    )
 
     args = parser.parse_args()
     
-    sm.simpleMap(args.fastq, args.index, args.output, args.filterdup, args.quality);
+    sm.simpleMap(args.fastq, args.index, args.output, args.filterdup, args.quality, args.bowtie2_options);
     
