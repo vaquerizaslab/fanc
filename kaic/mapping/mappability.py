@@ -21,7 +21,7 @@ def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
     tmp_output_file = tempfile.NamedTemporaryFile(dir="./",delete=False)
     tmp_output_file.close()
     
-    bowtieMapCommand = '%s --very-sensitive --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
+    bowtieMapCommand = '%s --sensitive --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
     subprocess.call(bowtieMapCommand, shell=True)
     
     mappable = []
@@ -129,7 +129,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         
         reads = []
         l = len(chromosome.sequence)
-        for i in range(3500,3600,offset):
+        for i in range(3545,3550,offset):
         #for i in range(0,l,offset):
             if i >= l-read_length:
                 continue
