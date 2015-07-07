@@ -21,7 +21,9 @@ def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
     tmp_output_file = tempfile.NamedTemporaryFile(dir="./",delete=False)
     tmp_output_file.close()
     
-    bowtieMapCommand = '%s --very-sensitive --no-1mm-upfront --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
+    logging.info("SAM file: %s" % tmp_output_file.name)
+    
+    bowtieMapCommand = '%s --very-sensitive --no-unal -k 4 -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
     subprocess.call(bowtieMapCommand, shell=True)
     
     mappable = []
