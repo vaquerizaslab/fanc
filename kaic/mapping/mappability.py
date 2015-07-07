@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
     bowtie_executable_path = subprocess.Popen("which bowtie2", shell=True, stdout=subprocess.PIPE).stdout.read().rstrip();
     
-    tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
+    tmp_output_file = tempfile.NamedTemporaryFile(dir="./",delete=False)
     tmp_output_file.close()
     
     bowtieMapCommand = '%s --very-sensitive --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
