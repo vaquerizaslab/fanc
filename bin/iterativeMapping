@@ -2,7 +2,7 @@
 
 import argparse;
 import os;
-import kaic.mapping.iterativeMapping as im
+from kaic.mapping.iterativeMapping import iterative_mapping
 
 def splitList(thisList):
     return thisList.split(",");
@@ -37,7 +37,13 @@ if __name__ == '__main__':
     );
     
     parser.add_argument(
-        '-m', '--min-length', dest='minLength',
+        '-bo', '--bowtie2-options', dest='bowtie2_options',
+        default='--very-sensitive --no-unal --score-min "C,0,-1"',
+        help='''Bowtie 2 command line options, default: --very-sensitive --no-unal --score-min "C,0,-1"'''
+    )
+    
+    parser.add_argument(
+        '-m', '--min-length', dest='min_length',
         type=int,
         default=25,
         help='''Minimum sequence length to attempt the mapping'''
@@ -91,7 +97,7 @@ if __name__ == '__main__':
     parser.set_defaults(join=True);
     parser.set_defaults(filter=True);
     parser.set_defaults(clean=True);
-
     
+    args = parser.parse_args()
     
-    im.main(parser.parse_args());
+    iterative_mapping(args.input, args.output, args.index, args.bowtie, args.min_length, args.step, args.threads, args.tmp, args.quality, args.join, args.filter, args.clean, args.bowtie2_options)
