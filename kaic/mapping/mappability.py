@@ -21,7 +21,7 @@ def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
     tmp_output_file = tempfile.NamedTemporaryFile(dir="./",delete=False)
     tmp_output_file.close()
     
-    bowtieMapCommand = '%s --sensitive --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
+    bowtieMapCommand = '%s --very-sensitive --no-1mm-upfront --no-unal -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_index,tmp_input_file,tmp_output_file.name);
     subprocess.call(bowtieMapCommand, shell=True)
     
     mappable = []
@@ -116,7 +116,8 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         for chromosome in tmp_mappable:
             logging.info("Length %s: %d" % (chromosome, len(tmp_mappable[chromosome])))
             tmp_mappable[chromosome].sort()
-            logging.info("min: %d, max: %d" % (tmp_mappable[chromosome][0], tmp_mappable[chromosome][-1]))
+            if len(tmp_mappable[chromosome]) > 0:
+                logging.info("min: %d, max: %d" % (tmp_mappable[chromosome][0], tmp_mappable[chromosome][-1]))
             mappable[chromosome] = mappable[chromosome]+tmp_mappable[chromosome]
         
         jobs = []
