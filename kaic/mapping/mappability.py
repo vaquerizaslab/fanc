@@ -138,7 +138,7 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
             r = "@chr_%s_pos_%d\n" % (chromosome.name, i+1)
             r += read + '\n'
             r += '+\n'
-            r += 'A' * len(read) + '\n'
+            r += 'G' * len(read) + '\n'
             reads.append(r)
             
             if len(reads) > chunk_size:
