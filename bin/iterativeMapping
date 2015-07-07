@@ -38,8 +38,10 @@ if __name__ == '__main__':
     
     parser.add_argument(
         '-bo', '--bowtie2-options', dest='bowtie2_options',
-        default='--very-sensitive --no-unal --score-min "C,0,-1"',
-        help='''Bowtie 2 command line options, default: --very-sensitive --no-unal --score-min "C,0,-1"'''
+        #default='--very-sensitive --no-unal --score-min "C,0,-1"',
+        default='--very-sensitive --no-unal',
+        #help='''Bowtie 2 command line options, default: --very-sensitive --no-unal --score-min "C,0,-1"'''
+        help='''Bowtie 2 command line options, default: --very-sensitive --no-unal'''
     )
     
     parser.add_argument(

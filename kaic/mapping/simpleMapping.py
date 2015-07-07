@@ -14,7 +14,8 @@ def simpleMap(fastq,
               outputSam,
               filterDuplicates=True,
               qualityCutoff=30,
-              bowtie_options='--very-sensitive --no-unal --score-min "C,0,-1"'):
+              #bowtie_options='--very-sensitive --no-unal --score-min "C,0,-1"'):
+              bowtie_options='--very-sensitive --no-unal'):
     
     rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(6))  # @UndefinedVariable
     tmpFilename = outputSam + '.' + rs + '.tmp'

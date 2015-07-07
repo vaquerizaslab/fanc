@@ -14,7 +14,8 @@ def iterative_mapping(input_files, output_files,
                       threads=4, tmp_dir="/tmp", 
                       quality=30, do_join=True,
                       do_filter=True, do_clean=True,
-                      bowtie_options='--very-sensitive --no-unal --score-min "C,0,-1"'):
+                      #bowtie_options='--very-sensitive --no-unal --score-min "C,0,-1"'):
+                      bowtie_options='--very-sensitive --no-unal'):
     if not len(input_files) == len(output_files):
         raise ValueError("Input and output arguments must have the same number of elements!");
     if bowtie is None:

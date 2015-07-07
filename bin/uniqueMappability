@@ -52,8 +52,10 @@ if __name__ == '__main__':
     
     parser.add_argument(
         '-b', '--bowtie2-parameters', dest='bowtie',
-        help='''Optional Bowtie2 parameters, default: --very-sensitive --score-min "C,0,-1"''',
-        default='--very-sensitive --score-min "C,0,-1"'
+        #help='''Optional Bowtie2 parameters, default: --very-sensitive --score-min "C,0,-1"''',
+        help='''Optional Bowtie2 parameters, default: --very-sensitive''',
+        #default='--very-sensitive --score-min "C,0,-1"'
+        default='--very-sensitive'
     )
     
     

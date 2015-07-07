@@ -15,7 +15,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30, bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
+def _do_map(tmp_input_file, bowtie_index, 
+            chromosome, quality_threshold=30, 
+            #bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
+            bowtie_parameters='--very-sensitive'):
     bowtie_executable_path = subprocess.Popen("which bowtie2", shell=True, stdout=subprocess.PIPE).stdout.read().rstrip();
     
     tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
@@ -74,7 +77,12 @@ def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30, bowt
     
     return mappable, chromosome
 
-def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=500000, max_jobs=50, quality_threshold=30, bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
+def unique_mappability(genome, bowtie_index, 
+                       read_length, offset=1, 
+                       chunk_size=500000, max_jobs=50, 
+                       quality_threshold=30, 
+                       #bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
+                       bowtie_parameters='--very-sensitive'):
     logging.info("Maximum number of jobs: %d" % max_jobs)
     
     if type(genome) is str:
