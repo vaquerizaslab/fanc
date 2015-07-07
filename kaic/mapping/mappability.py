@@ -67,8 +67,8 @@ def _do_map(tmp_input_file, bowtie_index, chromosome, quality_threshold=30):
                 
             
     
-    unlink(tmp_input_file)
-    unlink(tmp_output_file.name)
+    #unlink(tmp_input_file)
+    #unlink(tmp_output_file.name)
     
     return mappable, chromosome
 
@@ -122,14 +122,15 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         jobs = []
     
     
-    
-    for chromosome in genome:
+    for chromosome in ["chrV"]:
+    #for chromosome in genome:
         logging.info("Cutting chromosome %s into reads" % chromosome.name)
         mappable[chromosome.name] = []
         
         reads = []
         l = len(chromosome.sequence)
-        for i in range(0,l,offset):
+        for i in range(3500,3600,offset):
+        #for i in range(0,l,offset):
             if i >= l-read_length:
                 continue
             
@@ -158,6 +159,8 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
         jobs = []
     
     
+    print mappable
+    
     mappable_ranges = {} 
     for chrm in mappable:
         mappable_ranges[chrm] = []
@@ -171,6 +174,8 @@ def unique_mappability(genome, bowtie_index, read_length, offset=1, chunk_size=5
                     current_start = ix
                 previous = ix
             mappable_ranges[chrm].append([current_start, previous])
+            
+    print mappable_ranges
 
     return mappable_ranges
     
