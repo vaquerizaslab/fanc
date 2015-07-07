@@ -24,7 +24,7 @@ def _do_map(tmp_input_file, bowtie_index,
     tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
     tmp_output_file.close()
     
-    logging.info("SAM file: %s" % tmp_output_file.name)
+    #logging.info("SAM file: %s" % tmp_output_file.name)
     
     bowtieMapCommand = '%s --no-unal %s -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_parameters,bowtie_index,tmp_input_file,tmp_output_file.name);
     subprocess.call(bowtieMapCommand, shell=True)
@@ -32,19 +32,19 @@ def _do_map(tmp_input_file, bowtie_index,
     mappable = []
     with open(tmp_output_file.name, 'r') as f:
         for line in f:
-            logging.info(line)
+            #logging.info(line)
             if line.startswith("@"):
                 continue
             
             fields = line.split("\t")
             
             if fields[1] == '4':
-                logging.info("unmapped")
+                #logging.info("unmapped")
                 continue
             
             try:
                 if int(fields[4]) < quality_threshold:
-                    logging.info("quality")
+                    #logging.info("quality")
                     continue
             except ValueError:
                 continue
@@ -52,11 +52,11 @@ def _do_map(tmp_input_file, bowtie_index,
             xs = False
             for i in range(11,len(fields)):
                 if fields[i].startswith('XS'):
-                    logging.info("XS")
+                    #logging.info("XS")
                     xs = True
                     break
             if xs:
-                logging.info("XS")
+                #logging.info("XS")
                 continue
             
             m = re.search('chr_(\w+)_pos_(\d+)', fields[0])
