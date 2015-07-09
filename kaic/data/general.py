@@ -917,23 +917,8 @@ class Table(object):
 
 
     def as_array(self, include_rownames=False):
-        if include_rownames:
-            return self._table[:]
 
-        dtypes = []
-        keys = self._table.colnames[1:]
-        for k in keys:
-            dt = self._table[0:0].dtype[k]
-            dtypes.append((k,dt))
-        if len(dtypes) == 0:
-            a = np.zeros(0)
-        elif len(dtypes) > 1:
-            a = np.zeros((len(self),), dtype=dtypes)
-            a[:] = [tuple([x[k] for k in keys]) for x in self._table.iterrows()]
-        else:
-            a = np.array([x[keys[0]] for x in self._table.iterrows()])
-
-        return a
+        return self[:]
 
 
     def where(self, query):
