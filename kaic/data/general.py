@@ -5,13 +5,15 @@ Created on Jun 8, 2015
 '''
 
 import tables as t
-from kaic.tools.files import create_or_open_pytables_file
+from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file,\
+    random_name
 from __builtin__ import isinstance
 import random
 import string
 from collections import OrderedDict
 import numpy as np
 import warnings
+import os.path
 
 _typemap = {
     str: t.StringCol, # @UndefinedVariable
@@ -417,9 +419,14 @@ class Table(object):
         
         # parse potential unnamed argument
         if data is not None:
-            if data is str:
-                file_name = data
-                data = None
+            if type(data) is str:
+                data = os.path.expanduser(data)
+                # if file does not exist or file is hdf5 dict
+                # treat it as an hdf5 file name
+                if not os.path.isfile(data) or is_hdf5_file(file_name):
+                    file_name = data
+                    data = None
+                # else it is treated as a data file...
             else:
                 data, c, ty = _to_list_and_names(data)
                 if col_names is None:
@@ -427,17 +434,13 @@ class Table(object):
                 if col_types is None:
                     col_types = ty
         
-        # open file if exists
         # open file or keep in memory
-        in_memory  = False
         if file_name == None:
-            in_memory = True
+            file_name = random_name()
+            self.file = create_or_open_pytables_file(file_name, inMemory=True)
+        else:
+            self.file = create_or_open_pytables_file(file_name, inMemory=False)
         
-        if in_memory:
-            rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(6))  # @UndefinedVariable
-            file_name = rs
-        
-        self.file = create_or_open_pytables_file(file_name, inMemory=in_memory)
         
         # create or retrieve table
         if not table_name in self.file.root:
@@ -529,6 +532,20 @@ class Table(object):
         t.append(a, row_names)
         return t
     
+    def append_file(self, file_name, sep="\t", has_colnames=True, has_rownames=False):
+        # 1. check data types
+        with open(file_name, 'r') as f:
+            # 1st line
+            header_line = f.readline().rstrip()
+            header = str.split(header_line,sep)
+            n_fields = len(header)
+            # 2nd line
+            line = f.readline().rstrip()
+            
+            # TODO
+            print "APPENDING FILE"
+        
+    
     def save(self,file_name, table_name='table'):
         self.file.copy_file(file_name)
         self.file.close()
@@ -606,6 +623,10 @@ class Table(object):
     
     
     def append(self, data, rownames=None):
+        # data is file
+        if type(data) is str:
+            self.append_file(data)
+            return
 
         # data is a list of lists?
         try:

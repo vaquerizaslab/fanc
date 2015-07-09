@@ -9,6 +9,7 @@ import os.path
 from xml.etree.ElementTree import iterparse, ParseError
 import string
 import random
+import h5py
 
 def without_extension(file_name):
     os.path.splitext(file_name)[0]
@@ -110,6 +111,13 @@ def is_hic_xml_file(file_name):
         return False
     
     return False
-    
+
+def is_hdf5_file(file_name):
+    try:
+        f = h5py.File(file_name,'r')
+        f.close()
+    except IOError:
+        return False
+    return True
     
     
