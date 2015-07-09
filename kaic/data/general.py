@@ -937,15 +937,28 @@ class Table(object):
 
 
     def where(self, query):
-        l = [x.fetch_all_fields() for x in self._table.where(query)]
+        
+        rn = []
+        cn = []
 
+        # prepare structured numpy array
+        # get column dtypes (always get all columns in _get_rows)
         table_dtypes = self._table[0:0].dtype
         dtypes = []
-        for name in self._table.colnames:
+        for i in range(1,len(self._table.colnames)):
+            name = self._table.colnames[i]
+            cn.append(name)
             dt = str(table_dtypes[name])
             dtypes.append((name,dt))
+        
+        l = []
+        rows = [x.fetch_all_fields() for x in self._table.where(query)]
+        for row in rows:
+            rn.append(row[0])
+            l.append(tuple(row)[1:])
+        
         a = np.zeros((len(l),), dtype=dtypes)
         a[:] = l
 
-        return self._return_appropriate_data_type(a)
+        return _structured_array_to_table_type(a, rownames=rn, colnames=cn)
 
