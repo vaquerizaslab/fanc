@@ -40,6 +40,7 @@ def load_mirny_binned_hic(file_name, genome, resolution):
     genome = loadGenomeObject(genome)
     
     hic = highResBinnedData.HiResHiC(genome, resolution)
+    print file_name
     hic.loadData(file_name)
     
     return hic
