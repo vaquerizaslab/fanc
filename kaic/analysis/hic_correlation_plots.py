@@ -243,7 +243,7 @@ def plot_distance_correlation(hic1, hic2, genome, resolution, include_zeros=Fals
     print df
     
     p2r.activate()
-    stats = importr("stats")
+    stats = importr("stats", robject_translations = {'format.perc': 'format_perc2'})
     #reshape = importr("reshape2")
     
     if output:
