@@ -202,6 +202,8 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zero
 
 
 def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=False, order=None, output=None, width=9,height=9):
+    if len(hic2) == 1:
+        hic2 = hic2[0]
     df = correlation_data_frame(hic1, hic2, genome, resolution, include_zeros, order)
     df_p = df.copy()
     
