@@ -8,8 +8,8 @@ import tables as t
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file,\
     random_name
 from __builtin__ import isinstance
-import random
-import string
+import random # @UnusedImport
+import string # @UnusedImport
 from collections import OrderedDict
 import numpy as np
 import warnings
@@ -131,6 +131,35 @@ def _to_list_and_names(a):
     colnames = ['0']
     return l, colnames, coltypes
 
+
+def _file_to_data(file_name, sep="\t", has_header=None, types=None):
+    data = []
+    rownames = []
+    header = None
+    with open(file_name,'r') as f:
+        # header(?)
+        if has_header:
+            header_line = f.readline().rstrip()
+            header = str.split(header_line, sep)
+        
+        line = f.readline().rstrip()
+        while line != '':
+            fields = str.split(line, sep)
+            if (header is not None) and (len(fields) == len(header) + 1):
+                rownames.append(fields[0])
+                fields = fields[1:]
+            
+            if types is not None:
+                for i in range(0,len(fields)):
+                    print i
+                    print fields[i]
+                    print types[i]
+                    fields[i] = types[i](fields[i])
+                        
+            data.append(fields)
+            line = f.readline().rstrip()
+    
+    return data, header, rownames
 
 class TableRow(tuple):
     def __new__(cls, t, rowname=None, colnames=None):
@@ -423,10 +452,16 @@ class Table(object):
                 data = os.path.expanduser(data)
                 # if file does not exist or file is hdf5 dict
                 # treat it as an hdf5 file name
-                if not os.path.isfile(data) or is_hdf5_file(file_name):
+                if not os.path.isfile(data) or is_hdf5_file(data):
                     file_name = data
                     data = None
                 # else it is treated as a data file...
+                else:
+                    data, tmp_col_names, tmp_row_names = _file_to_data(data, has_header=True, types=col_types)
+                    if col_names is None:
+                        col_names = tmp_col_names
+                    if row_names is None:
+                        row_names = tmp_row_names
             else:
                 data, c, ty = _to_list_and_names(data)
                 if col_names is None:
@@ -488,6 +523,7 @@ class Table(object):
                 self._table = self.file.create_table("/", table_name, columns_dict)
         else:
             self._table = self.file.get_node('/' + table_name)
+            col_names = self._table.colnames
         
         # clean up
         self._table.flush()
@@ -532,19 +568,6 @@ class Table(object):
         t.append(a, row_names)
         return t
     
-    def append_file(self, file_name, sep="\t", has_colnames=True, has_rownames=False):
-        # 1. check data types
-        with open(file_name, 'r') as f:
-            # 1st line
-            header_line = f.readline().rstrip()
-            header = str.split(header_line,sep)
-            n_fields = len(header)
-            # 2nd line
-            line = f.readline().rstrip()
-            
-            # TODO
-            print "APPENDING FILE"
-        
     
     def save(self,file_name, table_name='table'):
         self.file.copy_file(file_name)
