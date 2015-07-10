@@ -88,7 +88,7 @@ if __name__ == '__main__':
         mappable = unique_mappability_at_restriction_sites(args.genome, args.index,
                                                            args.length, args.re,
                                                            args.offset, args.window,
-                                                           max_jobs=args.jobs, 
+                                                           args.chunks, max_jobs=args.jobs, 
                                                            bowtie_parameters=args.bowtie)
         
         with open(args.output, 'w') as o:
