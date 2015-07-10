@@ -132,7 +132,7 @@ def unique_mappability_at_regions(genome, regions, bowtie_index,
                 logging.info("Length %s: %d" % (chromosome, len(tmp_mappable[chromosome])))
                 tmp_mappable[chromosome][reg].sort()
                 if len(tmp_mappable[chromosome][reg]) > 0:
-                    logging.info("min: %d, max: %d" % (tmp_mappable[chromosome][0], tmp_mappable[chromosome][-1]))
+                    logging.info("min: %d, max: %d" % (tmp_mappable[chromosome][reg][0], tmp_mappable[chromosome][reg][-1]))
                 mappable[chromosome][reg] = mappable[chromosome][reg]+tmp_mappable[chromosome][reg]
         
         jobs = []
