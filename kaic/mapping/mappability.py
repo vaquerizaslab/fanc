@@ -166,12 +166,13 @@ def unique_mappability_at_regions(genome, regions, bowtie_index,
                         jobs = []
                     reads = []
                 
-            if len(reads) > 0:
-                prepare(jobs, reads, chromosome.name)
-                if len(jobs) == max_jobs:
-                    submit_and_collect(jobs)
-                    jobs = []
             region_counter += 1
+            
+        if len(reads) > 0:
+            prepare(jobs, reads, chromosome.name)
+            if len(jobs) == max_jobs:
+                submit_and_collect(jobs)
+                jobs = []
                 
     if len(jobs) > 0:
         submit_and_collect(jobs)
@@ -255,9 +256,7 @@ def unique_mappability_at_restriction_sites(genome, bowtie_index, read_length, r
             last_region[1] != regions[chromosome.name][0][1]):
             regions[chromosome.name].append(last_region)
     
-    
-    print regions        
-    
+        
     mappable_regions = unique_mappability_at_regions(genome, regions, bowtie_index, read_length, offset, chunk_size, max_jobs, quality_threshold, bowtie_parameters)
     
     mappable = {}
