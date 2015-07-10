@@ -59,12 +59,13 @@ def _do_map(tmp_input_file, bowtie_index,
                 #logging.info("XS")
                 continue
             
-            m = re.search('chr_(\w+)_pos_(\d+)', fields[0])
+            m = re.search('chr_(\w+)_pos_(\d+)_reg_(\d+)', fields[0])
             if m:
                 chrm = m.group(1)
                 ix = m.group(2)
+                reg = m.group(3)
                 if ix == fields[3] and chrm == fields[2]:
-                    mappable.append(int(ix))
+                    mappable.append([int(reg),int(ix)])
                 else:
                     logging.info("Mismatch: %s-%s, %s-%s" %(chrm, fields[2], ix, fields[3]))
             else:
@@ -77,12 +78,12 @@ def _do_map(tmp_input_file, bowtie_index,
     
     return mappable, chromosome
 
-def unique_mappability(genome, bowtie_index, 
-                       read_length, offset=1, 
-                       chunk_size=500000, max_jobs=50, 
-                       quality_threshold=30, 
-                       #bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
-                       bowtie_parameters='--very-sensitive'):
+
+def unique_mappability_at_regions(genome, regions, bowtie_index, 
+                                  read_length, offset=1, 
+                                  chunk_size=500000, max_jobs=50, 
+                                  quality_threshold=30, 
+                                  bowtie_parameters='--very-sensitive'):
     logging.info("Maximum number of jobs: %d" % max_jobs)
     
     if type(genome) is str:
@@ -112,56 +113,65 @@ def unique_mappability(genome, bowtie_index,
         
         # retrieve results
         tmp_mappable = {}
-        for chromosome in mappable:
-            tmp_mappable[chromosome] = []
+
                 
         for (i, result) in enumerate(job_outputs): # @UnusedVariable
             m = result[0]
             chromosome = result[1]
-            for ix in m:
-                tmp_mappable[chromosome].append(ix)
+            
+            if not chromosome in tmp_mappable:
+                tmp_mappable[chromosome] = {}
+            
+            for reg, ix in m:
+                if not reg in tmp_mappable[chromosome]:
+                    tmp_mappable[chromosome][reg] = []
+                tmp_mappable[chromosome][reg].append(ix)
         
         for chromosome in tmp_mappable:
-            logging.info("Length %s: %d" % (chromosome, len(tmp_mappable[chromosome])))
-            tmp_mappable[chromosome].sort()
-            if len(tmp_mappable[chromosome]) > 0:
-                logging.info("min: %d, max: %d" % (tmp_mappable[chromosome][0], tmp_mappable[chromosome][-1]))
-            mappable[chromosome] = mappable[chromosome]+tmp_mappable[chromosome]
+            for reg in tmp_mappable[chromosome]:
+                logging.info("Length %s: %d" % (chromosome, len(tmp_mappable[chromosome])))
+                tmp_mappable[chromosome][reg].sort()
+                if len(tmp_mappable[chromosome][reg]) > 0:
+                    logging.info("min: %d, max: %d" % (tmp_mappable[chromosome][0], tmp_mappable[chromosome][-1]))
+                mappable[chromosome][reg] = mappable[chromosome][reg]+tmp_mappable[chromosome][reg]
         
         jobs = []
     
     
     #for chromosome in [genome["chrV"]]:
     for chromosome in genome:
-        logging.info("Cutting chromosome %s into reads" % chromosome.name)
+        logging.info("Processing regions for chromosome %s" % chromosome.name)
         mappable[chromosome.name] = []
         
         reads = []
-        l = len(chromosome.sequence)
-        #for i in range(3545,3550,offset):
-        for i in range(0,l,offset):
-            if i >= l-read_length:
-                continue
+        region_counter = 0
+        for region in regions[chromosome.name]:
+            mappable[chromosome.name].append([])
             
-            read = chromosome.sequence[i:i+read_length]
-            r = "@chr_%s_pos_%d\n" % (chromosome.name, i+1)
-            r += read + '\n'
-            r += '+\n'
-            r += 'G' * len(read) + '\n'
-            reads.append(r)
-            
-            if len(reads) > chunk_size:
+            start = max(0,region[0])
+            end = min(chromosome.length-read_length, region[1]-read_length)
+            for i in range(start, end, offset):
+
+                read = chromosome.sequence[i:i+read_length]
+                r = "@chr_%s_pos_%d_reg_%d\n" % (chromosome.name, i+1, region_counter)
+                r += read + '\n'
+                r += '+\n'
+                r += 'G' * len(read) + '\n'
+                reads.append(r)
+                
+                if len(reads) > chunk_size:
+                    prepare(jobs, reads, chromosome.name)
+                    if len(jobs) == max_jobs:
+                        submit_and_collect(jobs)
+                        jobs = []
+                    reads = []
+                
+            if len(reads) > 0:
                 prepare(jobs, reads, chromosome.name)
                 if len(jobs) == max_jobs:
                     submit_and_collect(jobs)
                     jobs = []
-                reads = []
-            
-        if len(reads) > 0:
-            prepare(jobs, reads, chromosome.name)
-            if len(jobs) == max_jobs:
-                submit_and_collect(jobs)
-                jobs = []
+            region_counter += 1
                 
     if len(jobs) > 0:
         submit_and_collect(jobs)
@@ -171,19 +181,54 @@ def unique_mappability(genome, bowtie_index,
     mappable_ranges = {} 
     for chrm in mappable:
         mappable_ranges[chrm] = []
-        
-        if len(mappable[chrm]) > 0:
-            current_start = mappable[chrm][0]
-            previous = mappable[chrm][0]
-            for ix in mappable[chrm]:
-                if ix-previous > offset:
-                    mappable_ranges[chrm].append([current_start, previous])
-                    current_start = ix
-                previous = ix
-            mappable_ranges[chrm].append([current_start, previous])
+        for i in range(0,len(mappable[chrm])):
+            mappable_ranges[chrm].append([])
             
-
+            if len(mappable[chrm][i]) > 0:
+                current_start = mappable[chrm][i][0]
+                previous = mappable[chrm][i][0]
+                for ix in mappable[chrm][i]:
+                    if ix-previous > offset:
+                        mappable_ranges[chrm][i].append([current_start, previous])
+                        current_start = ix
+                    previous = ix
+                mappable_ranges[chrm][i].append([current_start, previous])
+            
     return mappable_ranges
     
-        
+    
+    
+
+def unique_mappability(genome, bowtie_index, 
+                       read_length, offset=1, 
+                       chunk_size=500000, max_jobs=50, 
+                       quality_threshold=30, 
+                       #bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
+                       bowtie_parameters='--very-sensitive'):
+    logging.info("Maximum number of jobs: %d" % max_jobs)
+    
+    if type(genome) is str:
+        genome =  Genome.from_folder(genome)
+    
+    regions = {}
+    
+    for chromosome in genome:
+        regions[chromosome.name] = [[0,chromosome.length]]
+    
+    mappable_regions = unique_mappability_at_regions(genome, regions, bowtie_index, read_length, offset, chunk_size, max_jobs, quality_threshold, bowtie_parameters)
+    mappable = {}
+    for chromosome in mappable_regions:
+        mappable[chromosome] = mappable_regions[chromosome][0]
+        # optimize memory usage
+        del mappable_regions[chromosome]
+    
+    return mappable
+    
+def unique_mappability_at_restriction_sites(genome, bowtie_index,
+                                            read_length, offset=1, 
+                                            chunk_size=500000, max_jobs=50, 
+                                            quality_threshold=30, 
+                                            #bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
+                                            bowtie_parameters='--very-sensitive'):
+    pass
         
