@@ -254,7 +254,9 @@ def unique_mappability_at_restriction_sites(genome, bowtie_index, read_length, r
         if (last_region[0] != regions[chromosome.name][0][0] and
             last_region[1] != regions[chromosome.name][0][1]):
             regions[chromosome.name].append(last_region)
-            
+    
+    
+    print regions        
     
     mappable_regions = unique_mappability_at_regions(genome, regions, bowtie_index, read_length, offset, chunk_size, max_jobs, quality_threshold, bowtie_parameters)
     
