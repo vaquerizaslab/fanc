@@ -520,7 +520,6 @@ class Table(object):
                 self._table = self.file.create_table("/", table_name, columns_dict)
         else:
             self._table = self.file.get_node('/' + table_name)
-            col_names = self._table.colnames
 
         # clean up
         self._table.flush()
@@ -536,8 +535,7 @@ class Table(object):
                     dtypes.append((name,dt[name]))
             data = np.zeros((nrows,), dtype=dtypes)
             self.append(data)
-        self.rownames(row_names)
-        self.colnames = col_names
+        self.set_rownames(row_names)
 
 
 
@@ -571,9 +569,19 @@ class Table(object):
         self.file.close()
         self.file = create_or_open_pytables_file(file_name)
         self._table = self.file.get_node('/' + table_name)
-
-
-    def rownames(self, names=None):
+        
+    def close(self):
+        self.file.close()
+    
+    @property
+    def colnames(self):
+        return self._table.colnames[1:]
+        
+    @property
+    def rownames(self):
+        return self._table[:]['_rowname']
+    
+    def set_rownames(self, names):
         if names is not None:
             if not len(names) == len(self):
                 raise ValueError("names must be the same length as table")
@@ -584,7 +592,7 @@ class Table(object):
                 i += 1
 
             self._table.flush()
-        return self._table[:]['_rowname']
+        
 
     def _id2ix(self, key):
         try:
@@ -700,7 +708,7 @@ class Table(object):
         return len(self._table)
 
     def dim(self):
-        return (len(self), len(self._table.colnames))
+        return (len(self), len(self._table.colnames)-1)
 
     def __repr__(self, *args, **kwargs):
         # find out maximum column width

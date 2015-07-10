@@ -3,7 +3,7 @@ import numpy as np
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
     TableArray
 from __builtin__ import classmethod
-
+import os
 
 class TestSupport:
     
@@ -266,6 +266,60 @@ class TestTable:
         
         self.table = Table(x, row_names=['a','b','c','d','e'], col_names=['A','B','C'])
 
+    
+    def test_intialize(self):
+        # from tsv
+        # no rownames
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        table1 = Table(current_dir + "/test_general/tsv.test.txt")
+        assert table1.dim()[0] == 2
+        assert table1.dim()[1] == 3
+        assert np.array_equal(table1.colnames, ['A','B','C'])
+        assert np.array_equal(table1.rownames, ['0','1'])
+        assert table1[0] == ('a','1','1.')
+        assert table1[1] == ('b','2','2.')
+        assert table1[0] != ('a',1,1.)
+        # with rownames
+        table2 = Table(current_dir + "/test_general/tsv.test2.txt")
+        assert table2.dim()[0] == 2
+        assert table2.dim()[1] == 3
+        assert np.array_equal(table2.colnames, ['A','B','C'])
+        assert np.array_equal(table2.rownames, ['a','b'])
+        assert table2[0] == ('a','1','1.')
+        assert table2[1] == ('b','2','2.')
+        # with rownames and col types
+        table3 = Table(current_dir + "/test_general/tsv.test2.txt", col_types=[str,int,float])
+        assert table3.dim()[0] == 2
+        assert table3.dim()[1] == 3
+        assert np.array_equal(table3.colnames, ['A','B','C'])
+        assert np.array_equal(table3.rownames, ['a','b'])
+        assert table3[0] == ('a',1,1.)
+        assert table3[1] == ('b',2,2.)
+        
+        # from record array
+        x = np.zeros((5,),dtype=('i4,f4,a10'))
+        x[:] = [(1,2.,'Hello'),(2,3.,"World"),(3,4.,'this'),(4,5.,"is"),(5,6.,'me')]
+        table4 = Table(x, row_names=['a','b','c','d','e'], col_names=['A','B','C'])
+        assert table4.dim()[0] == 5
+        assert table4.dim()[1] == 3
+        assert np.array_equal(table4.colnames, ['A','B','C'])
+        assert np.array_equal(table4.rownames, ['a','b','c','d','e'])
+    
+    def test_save_and_load(self, tmpdir):
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        h5_file_name = str(tmpdir) + "/test.h5"
+        print h5_file_name
+        table1 = Table(current_dir + "/test_general/tsv.test.txt", file_name=h5_file_name)
+        table1.close()
+        
+        table2 = Table(h5_file_name)
+        assert table2.dim()[0] == 2
+        assert table2.dim()[1] == 3
+        assert np.array_equal(table2.colnames, ['A','B','C'])
+        assert np.array_equal(table2.rownames, ['0','1'])
+        assert table2[0] == ('a','1','1.')
+        assert table2[1] == ('b','2','2.')
+        
     
     def test_row_selection(self):
         
