@@ -217,7 +217,7 @@ def unique_mappability(genome, bowtie_index,
     
     mappable_regions = unique_mappability_at_regions(genome, regions, bowtie_index, read_length, offset, chunk_size, max_jobs, quality_threshold, bowtie_parameters)
     mappable = {}
-    for chromosome in mappable_regions:
+    for chromosome in mappable_regions.keys():
         mappable[chromosome] = mappable_regions[chromosome][0]
         # optimize memory usage
         del mappable_regions[chromosome]
