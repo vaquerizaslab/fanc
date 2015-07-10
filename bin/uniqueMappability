@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
-from kaic.mapping.mappability import unique_mappability
+from kaic.mapping.mappability import unique_mappability,\
+    unique_mappability_at_restriction_sites
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
@@ -26,15 +27,15 @@ if __name__ == '__main__':
     parser.add_argument(
         '-s', '--offset', dest='offset',
         type=int,
-        help='''Read offset''',
-        required=True
+        default=1,
+        help='''Read offset'''
     )
     
     parser.add_argument(
         '-c', '--chunks', dest='chunks',
         type=int,
-        help='''Chunk size''',
-        required=True
+        default=200000,
+        help='''Chunk size'''
     )
     
     parser.add_argument(
@@ -58,16 +59,45 @@ if __name__ == '__main__':
         default='--very-sensitive'
     )
     
+    parser.add_argument(
+        '-re', '--restriction-enzyme', dest='re',
+        default=None,
+        help='''Restriction enzyme name'''
+    )
     
+    parser.add_argument(
+        '-w', '--window-size', dest='window',
+        type=int,
+        default=1000,
+        help='''Window size around restriction enzyme site (window_size/2 on either side)'''
+    )
     
     args = parser.parse_args()
     
-    mappable = unique_mappability(args.genome, args.index, args.length, args.offset, args.chunks, max_jobs=args.jobs, bowtie_parameters=args.bowtie)
     
-    with open(args.output,'w') as o:
-        o.write("chromosome\tstart\tend\n")
-        for chromosome in mappable:
-            for mappable_range in mappable[chromosome]:
-                o.write("%s\t%d\t%d\n" % (chromosome, mappable_range[0], mappable_range[1]))
-
+    
+    if args.re is None:
+        mappable = unique_mappability(args.genome, args.index, args.length, args.offset, args.chunks, max_jobs=args.jobs, bowtie_parameters=args.bowtie)
+        
+        with open(args.output,'w') as o:
+            o.write("chromosome\tstart\tend\n")
+            for chromosome in mappable:
+                for mappable_range in mappable[chromosome]:
+                    o.write("%s\t%d\t%d\n" % (chromosome, mappable_range[0], mappable_range[1]))
+    else:
+        mappable = unique_mappability_at_restriction_sites(args.genome, args.index,
+                                                           args.length, args.re,
+                                                           args.offset, args.window,
+                                                           max_jobs=args.jobs, 
+                                                           bowtie_parameters=args.bowtie)
+        
+        with open(args.output, 'w') as o:
+            o.write("chrom\tregion_start\tregion_end\tre_site\tmappable_start\tmappable_end\n")
+            for chromosome in mappable:
+                for entry in mappable[chromosome]:
+                    start, end, re_site = entry[0]
+                    for mappable_range in entry[1]:
+                        o.write("%s\t%d\t%d\t%d\t%d\t%d\n" % (chromosome, start, end, re_site,  mappable_range[0], mappable_range[1]))
+    
+    
     
