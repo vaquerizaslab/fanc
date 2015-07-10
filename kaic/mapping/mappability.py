@@ -224,11 +224,56 @@ def unique_mappability(genome, bowtie_index,
     
     return mappable
     
-def unique_mappability_at_restriction_sites(genome, bowtie_index,
-                                            read_length, offset=1, 
+def unique_mappability_at_restriction_sites(genome, bowtie_index, read_length, restriction_enzyme,
+                                            offset=1, max_window_size=1000, 
                                             chunk_size=500000, max_jobs=50, 
                                             quality_threshold=30, 
                                             #bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
                                             bowtie_parameters='--very-sensitive'):
-    pass
+    if type(genome) is str:
+        genome =  Genome.from_folder(genome)
+    
+    max_window_size = int(max_window_size)/2 
+        
+    regions = {}
+    for chromosome in genome:
+        regions[chromosome.name] = []
+        
+        re_sites = chromosome.get_restriction_sites(restriction_enzyme)
+        re_sites.insert(0,0)
+        re_sites.append(chromosome.length)
+        
+        regions[chromosome.name].append([0,min(chromosome.length,max_window_size,re_sites[1]),0])
+        
+        for i in range(1,len(re_sites)-1):
+            start = max(0,re_sites[i]-max_window_size, re_sites[i-1])
+            end = min(re_sites[i]+max_window_size, re_sites[i+1], chromosome.length)
+            regions[chromosome.name].append([start,end,re_sites[i]])
+        
+        last_region = [max(0,re_sites[len(re_sites)-2],re_sites[len(re_sites)-1]-max_window_size),chromosome.length,chromosome.length]
+        if (last_region[0] != regions[chromosome.name][0][0] and
+            last_region[1] != regions[chromosome.name][0][1]):
+            regions[chromosome.name].append(last_region)
+            
+    
+    mappable_regions = unique_mappability_at_regions(genome, regions, bowtie_index, read_length, offset, chunk_size, max_jobs, quality_threshold, bowtie_parameters)
+    
+    mappable = {}
+    for chromosome in mappable_regions.keys():
+        mappable[chromosome] = []
+        
+        for i in range(0,len(mappable_regions[chromosome])):
+            mappable[chromosome].append([regions[chromosome][i],mappable_regions[chromosome][i]])
+
+        # optimize memory usage
+        del mappable_regions[chromosome]
+    
+    return mappable
+    
+    
+    
+    
+    
+    
+    
         
