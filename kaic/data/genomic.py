@@ -94,7 +94,7 @@ class BedImproved(Table):
             else:
                 header = all_fields[0:len(fields)]
                 for i in (len(header), len(fields)):
-                    header.append("feature_\d" % i)
+                    header.append("feature_%d" % i)
                 
             for i in range(0,len(header)):
                 ptype, ttype = BedImproved.col_type(header[i],i+1)
@@ -891,7 +891,7 @@ class Genome(Table):
                     raise ValueError("Duplicate chromosome name %s" % chromosome.name)
                 names.append(chromosome.name)
             else:
-                names.appen(str(i))
+                names.append(str(i))
             i += 1
 
             
@@ -910,12 +910,12 @@ class Genome(Table):
             self.add_chromosome(chromosome)
             
     @classmethod
-    def from_folder(cls, folder_name, file_name=None, exclude=None):
+    def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
         chromosomes = []
         folder_name = os.path.expanduser(folder_name)
         for f in os.listdir(folder_name):
             try:
-                chromosome = Chromosome.from_fasta(folder_name + "/" + f)
+                chromosome = Chromosome.from_fasta(folder_name + "/" + f, include_sequence=include_sequence)
                 logging.info("Adding chromosome %s" % chromosome.name)
                 if exclude is None:
                     chromosomes.append(chromosome)
@@ -923,8 +923,10 @@ class Genome(Table):
                     chromosomes.append(chromosome)
             except (ValueError, IOError):
                 pass
-            
-        return cls(chromosomes=chromosomes, file_name=file_name)
+        
+        if include_sequence:
+            return cls(chromosomes=chromosomes, file_name=file_name)
+        return cls(chromosomes=chromosomes, file_name=file_name, max_seq_length=1)
         
     
     def __getitem__(self, key):
@@ -1025,4 +1027,460 @@ class Genome(Table):
             
         return nodes
             
-     
+            
+
+class HicNode(object):
+    def __init__(self, chromosome=None, start=None, end=None, ix=None):
+        self.ix = ix
+        self.chromosome = chromosome
+        self.start = start
+        self.end = end
+    
+    def __repr__(self):
+        if self.ix is None:
+            return "%s, %d-%d" % (self.chromosome, self.start, self.end)
+        else:
+            return "%d: %s, %d-%d" % (self.ix, self.chromosome, self.start, self.end)
+        
+class HicEdge(object):
+    def __init__(self, source, sink, weight=1):
+        self.source = source
+        self.sink = sink
+        self.weight = weight
+    
+    def __repr__(self):
+        
+        return "%d--%d (%.2f)" % (self.source, self.sink, self.weight)
+        
+class HicBasic(object):
+    class NodeDescription(t.IsDescription):
+        ix = t.Int32Col(pos=0)  # @UndefinedVariable
+        chromosome = t.StringCol(50,pos=1)  # @UndefinedVariable
+        start = t.Int64Col(pos=2) # @UndefinedVariable
+        end = t.Int64Col(pos=3) # @UndefinedVariable
+        mask = t.Int16Col(pos=4)  # @UndefinedVariable
+        
+    class EdgeDescription(t.IsDescription):
+        source = t.Int32Col(pos=0)  # @UndefinedVariable
+        sink = t.Int32Col(pos=1)  # @UndefinedVariable
+        weight = t.Float64Col(pos=2)  # @UndefinedVariable
+        mask = t.Int16Col(pos=3)  # @UndefinedVariable
+    
+    class MetaDescription(t.IsDescription):
+        date = t.Time32Col(pos=0)  # @UndefinedVariable
+        content = t.StringCol(255, pos=1)  # @UndefinedVariable
+        
+    class MaskDescription(t.IsDescription):
+        ix = t.Int16Col(pos=0)  # @UndefinedVariable
+        name = t.StringCol(50, pos=1)  # @UndefinedVariable
+        description = t.StringCol(255, pos=2)  # @UndefinedVariable
+    
+    
+    
+    def __init__(self, data=None, file_name=None,
+                       table_name_nodes='nodes',
+                       table_name_edges='edges',
+                       table_name_meta='meta',
+                       table_name_mask='mask'):
+        
+        
+        if file_name is not None:
+            file_name = os.path.expanduser(file_name)
+        
+        # parse potential unnamed argument
+        if data is not None:
+            # data is file name
+            if type(data) is str:
+                data = os.path.expanduser(data)
+                
+                if (not os.path.isfile(data) or not is_hic_xml_file(data)) and file_name is None:
+                    file_name = data
+                    data = None
+        
+        # open file or keep in memory
+        if file_name is None:
+            file_name = random_name()
+            self.file = create_or_open_pytables_file(file_name, inMemory=True)
+        else:
+            self.file = create_or_open_pytables_file(file_name, inMemory=False)
+
+        
+        # check if this is an existing Hi-C file
+        if table_name_nodes in self.file.root:
+            self._nodes = self.file.get_node('/' + table_name_nodes)
+        else:
+            self._nodes = self.file.create_table("/", table_name_nodes, HicBasic.NodeDescription)
+        
+        if table_name_edges in self.file.root:
+            self._edges = self.file.get_node('/' + table_name_edges)
+        else:
+            self._edges = self.file.create_table("/", table_name_edges, HicBasic.EdgeDescription)
+        
+        if table_name_meta in self.file.root:
+            self._meta = self.file.get_node('/' + table_name_meta)
+        else:
+            self._meta = self.file.create_table("/", table_name_meta, HicBasic.MetaDescription)
+            
+        if table_name_mask in self.file.root:
+            self._mask = self.file.get_node('/' + table_name_mask)
+        else:
+            self._mask = self.file.create_table("/", table_name_mask, HicBasic.MaskDescription)
+        
+        self._edges.flush()
+        self._nodes.flush()
+        self._mask.flush()
+        self._meta.flush()
+        
+
+        
+        # add data
+        if data is not None:
+            if type(data) is str:
+                if is_hic_xml_file(data):
+                    xml = HicXmlFile(data)
+                    for node in xml.nodes():
+                        self.add_node(node, flush=False)
+                    self.flush()
+                    
+                    for edge in xml.edges():
+                        self.add_edge(edge, flush=False)
+                    self.flush()
+                else:
+                    raise ValueError("File is not in Hi-C XML format")
+                    
+            # data is existing HicBasic object
+            elif isinstance(data, HicBasic):
+                #TODO copy data from existing Hi-C object
+                pass
+            
+            else:
+                raise ValueError("Input data type not recognized")
+        
+        
+        # index node table
+        try:
+            self._nodes.cols.start.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._nodes.cols.end.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        # index edge table
+        try:
+            self._edges.cols.source.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._edges.cols.sink.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+    
+    
+    
+    def __del__(self):
+        self.close()
+        
+    def close(self):
+        self.file.close()
+        
+    @classmethod
+    def from_hiclib(cls, hl, file_name=None):
+        hic = cls(file_name=file_name)
+        
+        # nodes
+        chrms = {hl.genome.chrmStartsBinCont[i] : hl.genome.chrmLabels[i] for i in range(0,len(hl.genome.chrmLabels))}
+        chromosome = ''
+        for i in range(0,len(hl.genome.posBinCont)):
+            start = hl.genome.posBinCont[i]+1
+            if i in chrms:
+                chromosome = chrms[i]
+            
+            if i < len(hl.genome.posBinCont)-1:
+                end = hl.genome.posBinCont[i+1]
+            else:
+                ix = hl.genome.label2idx[chromosome]
+                end = hl.genome.chrmLens[ix]
+            
+            hic.add_node([chromosome, start, end], flush=False)
+        hic.flush(flush_edges=False)
+        
+        # edges
+        for chr1, chr2 in hl.data:
+            data = hl.data[(chr1, chr2)].getData()
+            chr1StartBin = hl.genome.chrmStartsBinCont[chr1]
+            chr2StartBin = hl.genome.chrmStartsBinCont[chr2]
+            
+            for i in range(0,data.shape[0]):
+                iNode = i+chr1StartBin
+                for j in range(i,data.shape[1]):
+                    jNode = j+chr2StartBin
+                    
+                    if data[i,j] != 0:
+                        hic.add_edge([iNode, jNode, data[i,j]], flush=False)
+            hic.flush(flush_nodes=False)
+        
+        return hic
+        
+    
+    def add_node(self, node, flush=True):
+        row = self._nodes.row
+        if isinstance(node, HicNode):
+            if node.ix is not None:
+                row['ix'] = node.ix
+            else:
+                row['ix'] = len(self._nodes)
+            row['chromosome'] = node.chromosome
+            row['start'] = node.start
+            row['end'] = node.end
+        elif type(node) is dict:
+            if 'ix' in node:
+                row['ix'] = node['ix']
+            else:
+                row['ix'] = len(self._nodes)
+            row['chromosome'] = node['chromosome']
+            row['start'] = node['start']
+            row['end'] = node['end']
+        else:
+            try:
+                offset = 0
+                if len(node) == 4:
+                    row['ix'] = node[0]
+                    offset += 1
+                row['chromosome'] = node[offset]
+                row['start'] = node[offset + 1]
+                row['end'] = node[offset + 2]
+            except TypeError:
+                raise ValueError("Node parameter has to be HicNode, dict, or list")
+
+        row.append()
+        if flush:
+            self.flush()
+    
+    def add_nodes(self, nodes):
+        for node in nodes:
+            self.add_node(node, flush=False)
+        self.flush(flush_edges=False)
+            
+    def add_edge(self, edge, check_nodes_exist=True, flush=True):
+        source = None
+        sink = None
+        weight = None
+        
+        if isinstance(edge, HicEdge):
+            source = edge.source
+            sink = edge.sink
+            weight = edge.weight
+        elif type(edge) is dict:
+            source = edge['source']
+            sink = edge['sink']
+            if 'weight' in edge:
+                weight = edge['weight']
+        else:
+            try:
+                source = edge[0]
+                sink = edge[1]
+                if len(edge) > 2:
+                    weight = edge[2]
+            except TypeError:
+                raise ValueError("Edge parameter has to be HicEdge, dict, or list")
+        
+        if weight is None:
+            weight = 1.
+        if source > sink:
+            tmp = source
+            source = sink
+            sink = tmp
+        
+        if check_nodes_exist:
+            if source >= len(self._nodes) or sink >= len(self._nodes):
+                raise ValueError("Node index exceeds number of nodes in object")
+        
+        row = self._edges.row
+        row['source'] = source
+        row['sink'] = sink
+        row['weight'] = weight
+        
+        row.append()
+        if flush:
+            self.flush()
+            
+    def add_edges(self, edges):
+        for edge in edges:
+            self.add_edge(edge, flush=False)
+        self.flush(flush_nodes=False)
+            
+    def flush(self, flush_nodes=True, flush_edges=True, flush_meta=True, flush_mask=True):
+        if flush_nodes:
+            self._nodes.flush()
+            # re-indexing not necessary when 'autoindex' is True on table
+            if not self._nodes.autoindex:
+                # reindex node table
+                self._nodes.cols.start.flush_rows_to_index()
+                self._nodes.cols.end.flush_rows_to_index()
+        if flush_edges:
+            self._edges.flush()
+            if not self._edges.autoindex:
+                # reindex edge table
+                self._edges.cols.source.flush_rows_to_index()
+                self._edges.cols.sink.flush_rows_to_index()
+        
+        if flush_mask:
+            self._mask.flush()
+        if flush_meta:
+            self._meta.flush()
+    
+    def autoindex(self, index=None):
+        if index is not None:
+            self._nodes.autoindex = bool(index)
+            self._edges.autoindex = bool(index)
+            return index
+        return self._nodes.autoindex
+            
+        
+    def save(self, file_name, table_name_nodes='nodes', table_name_edges='edges',
+                              table_name_meta='meta', table_name_mask='mask'):
+        self.file.copy_file(file_name)
+        self.file.close()
+        self.file = create_or_open_pytables_file(file_name)
+        self._nodes = self.file.get_node('/' + table_name_nodes)
+        self._edges = self.file.get_node('/' + table_name_edges)
+        self._meta = self.file.get_node('/' + table_name_meta)
+        self._mask = self.file.get_node('/' + table_name_mask)
+    
+    
+    def get_node(self, ix):
+        row = self._nodes[ix]
+        return HicNode(ix=row["ix"], chromosome=row["chromosome"], start=row["start"], end=row["end"])
+    
+    def nodes(self):
+        hic = self
+        class NodeIter:
+            def __init__(self):
+                self.current = -1
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                self.current += 1
+                if self.current >= len(self):
+                    raise StopIteration
+                return hic.get_node(self.current)
+            
+            def __len__(self):
+                return len(hic._nodes)
+            
+        return NodeIter()
+    
+    
+    def get_edge(self, ix):
+        row = self._edges[ix]
+        return HicEdge(source=row["source"], sink=row["sink"], weight=row["weight"])
+    
+    def edges(self):
+        hic = self
+        class EdgeIter:
+            def __init__(self):
+                self.current = -1
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                self.current += 1
+                if self.current >= len(self):
+                    raise StopIteration
+                return hic.get_edge(self.current)
+            
+            def __len__(self):
+                return len(hic._edges)
+            
+        return EdgeIter()
+    
+    
+        
+        
+class HicXmlFile(object):
+    def __init__(self, file_name):
+        self.file_name = file_name
+    
+    
+    def nodes(self):
+        file_name = self.file_name
+        
+        class XmlNodeIter:
+            def __init__(self, file_name):
+                self.iter = et.iterparse(file_name)
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                event, elem = self.iter.next()  # @UnusedVariable
+                while elem.tag != "node":
+                    elem.clear()
+                    event, elem = self.iter.next()  # @UnusedVariable
+            
+                a = elem.attrib
+                ix = None
+                if 'ix' in a:
+                    ix = int(a['ix'])
+                    
+                chromosome = None
+                if 'chromosome' in a:
+                    chromosome = a['chromosome']
+                
+                if 'start' not in a:
+                    raise ValueError("start must be a node attribute")
+                start = int(a['start'])
+                
+                if 'end' not in a:
+                    raise ValueError("end must be a node attribute")
+                end = int(a['end'])
+                
+                elem.clear()
+                return HicNode(ix=ix, chromosome=chromosome, start=start, end=end)
+            
+        return XmlNodeIter(file_name)
+    
+    
+    def edges(self):
+        file_name = self.file_name
+        
+        class XmlEdgeIter:
+            def __init__(self, file_name):
+                self.iter = et.iterparse(file_name)
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                event, elem = self.iter.next()  # @UnusedVariable
+                while elem.tag != "edge":
+                    elem.clear()
+                    event, elem = self.iter.next()  # @UnusedVariable
+            
+                a = elem.attrib
+                    
+                weight = 1.
+                if 'weight' in a:
+                    weight = float(a['weight'])
+                
+                if 'source' not in a:
+                    raise ValueError("source must be an edge attribute")
+                source = int(a['source'])
+                
+                if 'sink' not in a:
+                    raise ValueError("sink must be an edge attribute")
+                sink = int(a['sink'])
+                
+                elem.clear()
+                return HicEdge(source=source, sink=sink, weight=weight)
+            
+        return XmlEdgeIter(file_name)
+        
