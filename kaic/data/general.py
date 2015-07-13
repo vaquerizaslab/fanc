@@ -570,6 +570,30 @@ class Table(object):
         self.file = create_or_open_pytables_file(file_name)
         self._table = self.file.get_node('/' + table_name)
         
+    def export(self, file_name, sep="\t", include_colnames=True, include_rownames=True):
+        rn = self.rownames
+        cn = self.colnames
+        with open(file_name,'w') as o:
+            if include_colnames:
+                for j in range(0,len(cn)):
+                    o.write(cn[j])
+                    if j < len(cn)-1:
+                        o.write(sep)
+                    else:
+                        o.write("\n")
+            
+            for i in range(0,len(self)):
+                row = self[i]
+                if include_rownames:
+                    o.write(rn[i] + sep)
+                for j in range(0,len(row)):
+                    o.write(row[j])
+                    if j < len(row)-1:
+                        o.write(sep)
+                    else:
+                        o.write("\n")
+                
+        
     def close(self):
         self.file.close()
     
@@ -592,22 +616,6 @@ class Table(object):
                 i += 1
 
             self._table.flush()
-        
-
-    def _id2ix(self, key):
-        try:
-            ix = self._table.colnames.index(key)
-        except ValueError:
-            raise KeyError("%s is not a valid column name" % key)
-
-        return ix
-
-    def _ix2id(self, ix):
-        try:
-            key = self._table.colnames[ix]
-        except IndexError:
-            raise KeyError("%d is not a column index (max %d)" % (ix, len(self._table.colnames)))
-        return key
 
     def _append_row_list(self, l, flush=True, rowname=None):
         row = self._table.row
@@ -699,16 +707,13 @@ class Table(object):
             raise ValueError("Data type unsupported")
 
 
-#     def name(self, name=None):
-#         if name is not None:
-#             self._table.attrs.name = name
-#         return self._table.attrs.name
 
     def __len__(self):
         return len(self._table)
 
     def dim(self):
         return (len(self), len(self._table.colnames)-1)
+    
 
     def __repr__(self, *args, **kwargs):
         # find out maximum column width
