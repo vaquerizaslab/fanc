@@ -308,7 +308,6 @@ class TestTable:
     def test_save_and_load(self, tmpdir):
         current_dir = os.path.dirname(os.path.realpath(__file__))
         h5_file_name = str(tmpdir) + "/test.h5"
-        print h5_file_name
         table1 = Table(current_dir + "/test_general/tsv.test.txt", file_name=h5_file_name)
         table1.close()
         
@@ -319,7 +318,34 @@ class TestTable:
         assert np.array_equal(table2.rownames, ['0','1'])
         assert table2[0] == ('a','1','1.')
         assert table2[1] == ('b','2','2.')
+    
+    def test_read_and_write_tsv(self, tmpdir):
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        table1 = Table(current_dir + "/test_general/tsv.test2.txt")
         
+        # defaults
+        default_file_name = str(tmpdir) + "/default_test.txt"
+        table1.export(default_file_name)
+        table2 = Table(default_file_name)
+        assert table2.dim()[0] == 2
+        assert table2.dim()[1] == 3
+        assert np.array_equal(table2.colnames, ['A','B','C'])
+        assert np.array_equal(table2.rownames, ['a','b'])
+        assert table2[0] == ('a','1','1.')
+        assert table2[1] == ('b','2','2.')
+        
+        # no rownames
+        no_rownames_file_name = str(tmpdir) + "/nr_test.txt"
+        table1.export(no_rownames_file_name, include_rownames=False)
+        table3 = Table(no_rownames_file_name)
+        assert table3.dim()[0] == 2
+        assert table3.dim()[1] == 3
+        assert np.array_equal(table3.colnames, ['A','B','C'])
+        assert np.array_equal(table3.rownames, ['0','1'])
+        assert table3[0] == ('a','1','1.')
+        assert table3[1] == ('b','2','2.')
+        
+
     
     def test_row_selection(self):
         
@@ -536,4 +562,26 @@ class TestTable:
         assert tuple(y[0]) == (2., 'Hello')
         assert tuple(y[1]) == (4., 'this')
         
+    
+    def test_where(self):
+        # simple query
+        x = self.table.where("A < 3")
+        assert tuple(x[0]) == (1,2.,'Hello')
+        assert tuple(x[1]) == (2,3.,"World")
+        
+        # complex query
+        x = self.table.where("(A < 4) & (B <= 3.0)")
+        assert tuple(x[0]) == (1,2.,'Hello')
+        assert tuple(x[1]) == (2,3.,"World")
+        assert len(x) == 2
+        
+        # complex query
+        x = self.table.where('(A < 4) & (B <= 3.0) & (C == "Hello")')
+        assert tuple(x) == (1,2.,'Hello')
+        
+    
+    def test_attributes(self):
+        assert np.array_equal(self.table.A,(1,2,3,4,5))
+        assert np.array_equal(self.table.B,(2.,3.,4.,5.,6.))
+        assert np.array_equal(self.table.C,('Hello','World','this','is','me'))
         
