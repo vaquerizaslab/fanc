@@ -136,6 +136,9 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_firs
         l2sAtDistance.append(l)
     
     
+    stats = []
+    for k in range(0,len(hics)):
+        stats.apend({'both_zero': 0, 'first_zero': 0, 'second_zero': 0})
     
     for chr1, chr2 in hic1.data:
         if chr1 != chr2:
@@ -146,7 +149,7 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_firs
         
         data1 = hic1.data[(chr1, chr2)].getData()
         
-        stats = {'both_zero': 0, 'first_zero': 0, 'second_zero': 0}
+        
         for k in range(0,len(hics)):
             hic = hics[k]
             data2 = hic.data[(chr1, chr2)].getData()
@@ -155,17 +158,17 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_firs
                 for j in range(i,data1.shape[1]):
                     d = j-i
                     if data1[i,j] == 0 and data2[i,j] == 0:
-                        stats['both_zero'] += 1
+                        stats[k]['both_zero'] += 1
                         if not include_first_zeros or not include_second_zeros:
                             continue
                     
                     if data1[i,j] == 0:
-                        stats['first_zero'] += 1
+                        stats[k]['first_zero'] += 1
                         if not include_first_zeros:
                             continue
                     
                     if data2[i,j] == 0:
-                        stats['second_zero'] += 1
+                        stats[k]['second_zero'] += 1
                         if not include_second_zeros:
                             continue
                     
@@ -173,11 +176,12 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_firs
                         l1AtDistance[d].append(data1[i,j])
                     l2sAtDistance[k][d].append(data2[i,j])
     
+    for k in range(0,len(hics)):
         # print statistics
-        logging.info("Some statistics:")
-        logging.info("\tBoth pixels zero: %d" % stats['both_zero'])
-        logging.info("\tFirst pixel zero: %d" % stats['first_zero'])
-        logging.info("\tSecond pixel zero: %d" % stats['second_zero'])
+        logging.info("Statistics for data set %d:" % k)
+        logging.info("\tBoth pixels zero: %d" % stats[k]['both_zero'])
+        logging.info("\tFirst pixel zero: %d" % stats[k]['first_zero'])
+        logging.info("\tSecond pixel zero: %d" % stats[k]['second_zero'])
     
     windowSize = 0
     if window is not None:
