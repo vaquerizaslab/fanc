@@ -14,6 +14,9 @@ from scipy.stats.stats import pearsonr
 from kaic.plotting.plot_genomic_data import open_graphics_file, close_graphics_file
 from collections import Counter
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 def pairwise_data_frame(hic1, hic2, genome, resolution, include_zeros=False, chromosome1=None, chromosome2=None):
     #genome = loadGenomeObject(genome)
     hic1 = load_mirny_binned_hic(hic1, genome, resolution)
@@ -110,7 +113,7 @@ def correlation_data_frame(hic1, hic2, genome, resolution, include_zeros=False, 
 
 
 
-def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None, names=None):
+def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_first_zeros=False, include_second_zeros=True, chromosome=None, reverse=False, window=None, names=None):
     #genome = loadGenomeObject(genome)
     hic1 = load_mirny_binned_hic(hic1, genome, resolution)
     hics = []
@@ -132,7 +135,8 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zero
             l.append([])
         l2sAtDistance.append(l)
     
-
+    
+    stats = {'both_zero': 0, 'first_zero': 0, 'second_zero': 0}
     for chr1, chr2 in hic1.data:
         if chr1 != chr2:
             continue
@@ -149,12 +153,30 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zero
             for i in range(0,data1.shape[0]):
                 for j in range(i,data1.shape[1]):
                     d = j-i
-                    if not include_zeros and data1[i,j] == 0:
-                        continue
+                    if data1[i,j] == 0 and data2[i,j] == 0:
+                        stats['both_zero'] += 1
+                        if not include_first_zeros or not include_second_zeros:
+                            continue
+                    
+                    if data1[i,j] == 0:
+                        stats['first_zero'] += 1
+                        if not include_first_zeros:
+                            continue
+                    
+                    if data2[i,j] == 0:
+                        stats['second_zero'] += 1
+                        if not include_second_zeros:
+                            continue
                     
                     if k == 0:
                         l1AtDistance[d].append(data1[i,j])
                     l2sAtDistance[k][d].append(data2[i,j])
+    
+    # print statistics
+    logging.info("Some statistics:")
+    logging.info("\tBoth pixels zero: %d" % stats['both_zero'])
+    logging.info("\tFirst pixel zero: %d" % stats['first_zero'])
+    logging.info("\tSecond pixel zero: %d" % stats['second_zero'])
     
     windowSize = 0
     if window is not None:
@@ -238,8 +260,8 @@ def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=Fa
     
 
 
-def plot_distance_correlation(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None, names=None, output=None, width=9,height=9):
-    df = distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros, chromosome, reverse, window, names)
+def plot_distance_correlation(hic1, hic2, genome, resolution, include_first_zeros, include_second_zeros=False, chromosome=None, reverse=False, window=None, names=None, output=None, width=9,height=9):
+    df = distance_correlation_data_frame(hic1, hic2, genome, resolution, include_first_zeros, include_second_zeros, chromosome, reverse, window, names)
     
     p2r.activate()
     stats = importr("stats", robject_translations = {'format.perc': 'format_perc2'})

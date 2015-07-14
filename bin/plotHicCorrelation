@@ -63,6 +63,21 @@ if __name__ == '__main__':
         help='''Window size in base-pairs for distance correlation'''
     )
     
+    parser.add_argument(
+        '-z1', '--zero_first', dest='zero_first',
+        action='store_true',
+        help='''Include zeros of first data set in correlation'''
+    )
+    parser.set_defaults(zero_first=False)
+    
+    parser.add_argument(
+        '-z2', '--zero_second', dest='zero_second',
+        action='store_true',
+        help='''Include zeros of second data set in correlation'''
+    )
+    parser.set_defaults(zero_second=False)
+    
+    
    
     args = parser.parse_args()
     
@@ -74,7 +89,9 @@ if __name__ == '__main__':
                 names.append(short)
         else:
             names = [os.path.splitext(os.path.basename(args.hic2))[0]]
-        plot_distance_correlation(args.hic1, args.hic2, args.genome, args.resolution, reverse=args.reverse, window=args.window, output=args.output, names=names)
+        plot_distance_correlation(args.hic1, args.hic2, args.genome, args.resolution,
+                                  reverse=args.reverse, window=args.window, output=args.output,
+                                  names=names, include_first_zeros=args.zero_first, include_second_zeros=args.zero_second)
     else:
         plot_chromosome_correlation(args.hic1, args.hic2, args.genome, args.resolution, output=args.output)
         
