@@ -71,6 +71,7 @@ if __name__ == '__main__':
             names = []
             for name in args.hic2:
                 short = os.path.splitext(os.path.basename(name))[0]
+                names.append(short)
         else:
             names = [os.path.splitext(os.path.basename(args.hic2))[0]]
         plot_distance_correlation(args.hic1, args.hic2, args.genome, args.resolution, reverse=args.reverse, window=args.window, output=args.output, names=names)
