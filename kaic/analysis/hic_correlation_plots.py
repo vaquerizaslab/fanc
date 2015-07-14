@@ -138,7 +138,7 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_firs
     
     stats = []
     for k in range(0,len(hics)):
-        stats.apend({'both_zero': 0, 'first_zero': 0, 'second_zero': 0})
+        stats.append({'both_zero': 0, 'first_zero': 0, 'second_zero': 0})
     
     for chr1, chr2 in hic1.data:
         if chr1 != chr2:
