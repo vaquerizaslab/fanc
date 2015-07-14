@@ -136,7 +136,7 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_firs
         l2sAtDistance.append(l)
     
     
-    stats = {'both_zero': 0, 'first_zero': 0, 'second_zero': 0}
+    
     for chr1, chr2 in hic1.data:
         if chr1 != chr2:
             continue
@@ -146,6 +146,7 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_firs
         
         data1 = hic1.data[(chr1, chr2)].getData()
         
+        stats = {'both_zero': 0, 'first_zero': 0, 'second_zero': 0}
         for k in range(0,len(hics)):
             hic = hics[k]
             data2 = hic.data[(chr1, chr2)].getData()
@@ -172,11 +173,11 @@ def distance_correlation_data_frame(hic1, hic2, genome, resolution, include_firs
                         l1AtDistance[d].append(data1[i,j])
                     l2sAtDistance[k][d].append(data2[i,j])
     
-    # print statistics
-    logging.info("Some statistics:")
-    logging.info("\tBoth pixels zero: %d" % stats['both_zero'])
-    logging.info("\tFirst pixel zero: %d" % stats['first_zero'])
-    logging.info("\tSecond pixel zero: %d" % stats['second_zero'])
+        # print statistics
+        logging.info("Some statistics:")
+        logging.info("\tBoth pixels zero: %d" % stats['both_zero'])
+        logging.info("\tFirst pixel zero: %d" % stats['first_zero'])
+        logging.info("\tSecond pixel zero: %d" % stats['second_zero'])
     
     windowSize = 0
     if window is not None:
