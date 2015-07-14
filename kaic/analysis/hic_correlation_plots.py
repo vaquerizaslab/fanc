@@ -240,7 +240,6 @@ def plot_chromosome_correlation(hic1, hic2, genome, resolution, include_zeros=Fa
 
 def plot_distance_correlation(hic1, hic2, genome, resolution, include_zeros=False, chromosome=None, reverse=False, window=None, names=None, output=None, width=9,height=9):
     df = distance_correlation_data_frame(hic1, hic2, genome, resolution, include_zeros, chromosome, reverse, window, names)
-    print df
     
     p2r.activate()
     stats = importr("stats", robject_translations = {'format.perc': 'format_perc2'})
