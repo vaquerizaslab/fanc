@@ -12,6 +12,6 @@ Provides
 import logging
 logging.basicConfig(level=logging.INFO)
 
-from .data.genomic import HicBasic, HicNode, HicEdge, Genome, Chromosome
-from .data.general import Table 
+from kaic.data.genomic import HicBasic, HicNode, HicEdge, Genome, Chromosome
+from kaic.data.general import Table 
 
