@@ -1068,7 +1068,9 @@ class HicBasic(object):
     
     class MetaDescription(t.IsDescription):
         date = t.Time32Col(pos=0)  # @UndefinedVariable
-        content = t.StringCol(255, pos=1)  # @UndefinedVariable
+        category = t.StringCol(50,pos=1)
+        name = t.StringCol(255,pos=2)
+        value = t.StringCol(255, pos=3)  # @UndefinedVariable
         
     class MaskDescription(t.IsDescription):
         ix = t.Int16Col(pos=0)  # @UndefinedVariable
