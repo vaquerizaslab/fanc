@@ -15,6 +15,12 @@ import numpy as np
 import warnings
 import os.path
 
+import logging
+from tables.exceptions import NoSuchNodeError
+logging.basicConfig(level=logging.INFO)
+
+
+
 _typemap = {
     str: t.StringCol, # @UndefinedVariable
     np.string_: t.StringCol, # @UndefinedVariable
@@ -960,3 +966,94 @@ class Table(object):
 
         return _structured_array_to_table_type(a, rownames=rn, colnames=cn)
 
+
+
+
+
+class Maskable(object):
+    class MaskDescription(t.IsDescription):
+        ix = t.Int16Col(pos=0)
+        name = t.StringCol(50,pos=1)
+        description = t.StringCol(255,pos=2)
+    
+    
+    def __init__(self, data=None, table_name="mask"):
+        super(Maskable, self).__init__()
+        
+        if not hasattr(self, 'file') or self.file is None:
+
+            if data is None or not type(data) == str:
+                self.file = create_or_open_pytables_file(random_name(), inMemory=True)
+            else:
+                self.file = create_or_open_pytables_file(data, inMemory=False)
+        
+        else:
+            if not type(self.file) == t.file.File:
+                raise ValueError("Object has file attribute, but it is not a pytables File object")
+        
+        
+        if hasattr(self, '_mask') and type(self._mask) == t.table.Table:
+            logging.info("Found existing _mask attribute")
+            return
+        
+        if hasattr(self, '_mask'):
+            raise ValueError("Object already has a _mask attribute, but it is not from a Maskable object")
+        
+        try:
+            self._mask = self.file.get_node('/' + table_name)
+        except NoSuchNodeError:
+            self._mask = self.file.create_table("/", table_name, Maskable.MaskDescription)
+            row = self._mask.row
+            row['ix'] = 2
+            row['name'] = 'default'
+            row['description'] = 'Default mask'
+            row.append()
+            self._mask.flush()
+        
+    def add_mask_description(self, name, description):
+        ix = 2
+        if len(self._mask) > 0:
+            ix = self._mask[-1][0]*2
+        row = self._mask.row
+        row['ix'] = ix
+        row['name'] = name
+        row['description'] = description
+        
+        return ix
+    
+class MetaContainer(object):
+    class MetaDescription(t.IsDescription):
+        date = t.Time32Col(pos=0)
+        category = t.StringCol(50,pos=1)
+        name = t.StringCol(255,pos=2)
+        value = t.StringCol(255, pos=3)
+        
+    def __init__(self, data=None, table_name="meta"):
+        super(MetaContainer, self).__init__()
+        
+        if not hasattr(self, 'file') or self.file is None:
+
+            if data is None or not type(data) == str:
+                self.file = create_or_open_pytables_file(random_name(), inMemory=True)
+            else:
+                self.file = create_or_open_pytables_file(data, inMemory=False)
+        
+        else:
+            if not type(self.file) == t.file.File:
+                raise ValueError("Object has file attribute, but it is not a pytables File object")
+        
+        
+        if hasattr(self, '_meta') and type(self._meta) == t.table.Table:
+            logging.info("Found existing _meta attribute")
+            return
+        
+        if hasattr(self, '_meta'):
+            raise ValueError("Object already has a _meta attribute, but it is not from a MetaContainer object")
+        
+        try:
+            self._meta = self.file.get_node('/' + table_name)
+        except NoSuchNodeError:
+            self._meta = self.file.create_table("/", table_name, MetaContainer.MetaDescription)
+            self._meta.flush()
+            
+    
