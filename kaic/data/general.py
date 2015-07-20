@@ -968,7 +968,11 @@ class Table(object):
 
 
 
-
+class Mask(object):
+    def __init__(self, ix, name, description=''):
+        self.ix = ix
+        self.name = name
+        self.description = description
 
 class Maskable(object):
     class MaskDescription(t.IsDescription):
@@ -1004,22 +1008,54 @@ class Maskable(object):
         except NoSuchNodeError:
             self._mask = self.file.create_table("/", table_name, Maskable.MaskDescription)
             row = self._mask.row
-            row['ix'] = 2
+            row['ix'] = 1
             row['name'] = 'default'
             row['description'] = 'Default mask'
             row.append()
             self._mask.flush()
         
     def add_mask_description(self, name, description):
-        ix = 2
+        ix = 1
         if len(self._mask) > 0:
             ix = self._mask[-1][0]*2
         row = self._mask.row
         row['ix'] = ix
         row['name'] = name
         row['description'] = description
+        row.append()
+        self._mask.flush()
         
-        return ix
+        return int(ix)
+    
+    def get_mask(self, key):
+        if type(key) == int:
+            condition = "ix == %d" % key
+            res = [x.fetch_all_fields() for x in self._mask.where(condition)]
+        else:
+            res = [x.fetch_all_fields() for x in self._mask.where("name == %s" % str(key))]
+
+        if len(res) == 1:
+            return Mask(res[0][0], res[0][1], res[0][2])
+        return None
+    
+    def get_masks(self, key):
+        key_copy = key
+
+        last = int(self._mask[-1][0])
+
+        masks = []
+        while last > 1:
+            if key_copy - last >= 0:
+                mask = self.get_mask(last)
+                if mask is not None:
+                    masks.append(mask)
+                key_copy -= last
+            last = last/2
+        if key_copy > 0:
+            masks.append(self.get_mask(0))
+        
+        return masks
+    
     
 class MetaContainer(object):
     class MetaDescription(t.IsDescription):

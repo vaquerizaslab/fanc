@@ -12,7 +12,7 @@ import pickle
 import tempfile
 import os
 import logging
-from __builtin__ import True
+from tables.exceptions import NoSuchNodeError
 
 
 class ReadPair(object):
@@ -31,84 +31,103 @@ class ReadPairs(Maskable, MetaContainer):
                                     'cigar': 50}):
         
         
-        
+        # Only one file argument and that is an h5dict file name
         if sambam_file1 is not None and sambam_file2 is None and file_name is None:
             file_name = sambam_file1
-            self.file = create_or_open_pytables_file(file_name, inMemory=False)
-            self._reads = self.file.get_node('/' + table_name)
-            self._header1 = pickle.loads(self._reads._v_attrs.header1)
-            self._header2 = pickle.loads(self._reads._v_attrs.header2)
-            self._ref1 = pickle.loads(self._reads._v_attrs.ref1)
-            self._ref2 = pickle.loads(self._reads._v_attrs.ref2)
-            
-            self._queued_filters = []
-            return
+            sambam_file1 = None
         
-        if sambam_file1 is not None and sambam_file2 is not None:
-            if auto_determine_field_sizes:
-                logging.info("Determining field sizes")
-                lengths1 = ReadPairs.determine_field_sizes(sambam_file1)
-                lengths2 = ReadPairs.determine_field_sizes(sambam_file2)
-                
-                field_sizes['qname'] = max(lengths1["qname"],lengths2["qname"])
-                field_sizes['sequence'] = max(lengths1["sequence"],lengths2["sequence"])
-                field_sizes['cigar'] = max(lengths1["cigar"],lengths2["cigar"])
-                field_sizes['tags'] = max(lengths1["tags"],lengths2["tags"])
-        
-        
-        if file_name is None:
-            file_name = random_name()
-            self.file = create_or_open_pytables_file(file_name, inMemory=True)
+        # create or retrieve h5dict file
+        if not hasattr(self, 'file') or self.file is None:
+            if file_name is None:
+                file_name = random_name()
+                self.file = create_or_open_pytables_file(file_name, inMemory=True)
+            else:
+                self.file = create_or_open_pytables_file(file_name, inMemory=False)
         else:
-            self.file = create_or_open_pytables_file(file_name, inMemory=False)
-        
+            if not type(self.file) == t.file.File:
+                raise ValueError("Object has file attribute, but it is not a pytables File object")
+            
+        # generate tables from inherited classes
         Maskable.__init__(self)
         MetaContainer.__init__(self)
             
+        
+        # try to retrieve existing table
+        try:
+            self._reads = self.file.get_node('/' + table_name)
+            try:
+                self._header1 = self._reads._v_attrs.header1
+                self._header2 = self._reads._v_attrs.header2
+            except AttributeError:
+                self._header1 = None
+                self._header2 = None
             
-        reads_defininition = {
-            'qname': t.StringCol(field_sizes['qname'],pos=0),
-            'flag1': t.Int16Col(pos=1),
-            'ref1': t.Int32Col(pos=2),
-            'pos1': t.Int64Col(pos=3),
-            'mapq1': t.Int32Col(pos=4),
-            'cigar1': t.StringCol(field_sizes['cigar'],pos=5),
-            'rnext1': t.Int32Col(pos=6),
-            'pnext1': t.Int32Col(pos=7),
-            'tlen1': t.Int32Col(pos=8),
-            'seq1': t.StringCol(field_sizes['sequence'],pos=9),
-            'qual1': t.StringCol(field_sizes['sequence'],pos=10),
-            'tags1': t.StringCol(field_sizes['tags'],pos=11),
-            'flag2': t.Int16Col(pos=12),
-            'ref2': t.Int32Col(pos=13),
-            'pos2': t.Int64Col(pos=14),
-            'mapq2': t.Int32Col(pos=15),
-            'cigar2': t.StringCol(field_sizes['cigar'],pos=16),
-            'rnext2': t.Int32Col(pos=17),
-            'pnext2': t.Int32Col(pos=18),
-            'tlen2': t.Int32Col(pos=19),
-            'seq2': t.StringCol(field_sizes['sequence'],pos=20),
-            'qual2': t.StringCol(field_sizes['sequence'],pos=21),
-            'tags2': t.StringCol(field_sizes['tags'],pos=22),
-            'mask': t.Int16Col(pos=23)
-        }
+            try:
+                self._ref1 = self._reads._v_attrs.ref1
+                self._ref2 = self._reads._v_attrs.ref2
+            except AttributeError:
+                self._ref1 = None
+                self._ref2 = None
         
-       
+        # or build table from scratch
+        except NoSuchNodeError:
+            if sambam_file1 is not None and sambam_file2 is not None:
+                if auto_determine_field_sizes:
+                    logging.info("Determining field sizes")
+                    lengths1 = ReadPairs.determine_field_sizes(sambam_file1)
+                    lengths2 = ReadPairs.determine_field_sizes(sambam_file2)
+                    
+                    field_sizes['qname'] = max(lengths1["qname"],lengths2["qname"])
+                    field_sizes['sequence'] = max(lengths1["sequence"],lengths2["sequence"])
+                    field_sizes['cigar'] = max(lengths1["cigar"],lengths2["cigar"])
+                    field_sizes['tags'] = max(lengths1["tags"],lengths2["tags"])
+                
+            reads_defininition = {
+                'qname': t.StringCol(field_sizes['qname'],pos=0),
+                'flag1': t.Int16Col(pos=1),
+                'ref1': t.Int32Col(pos=2),
+                'pos1': t.Int64Col(pos=3),
+                'mapq1': t.Int32Col(pos=4),
+                'cigar1': t.StringCol(field_sizes['cigar'],pos=5),
+                'rnext1': t.Int32Col(pos=6),
+                'pnext1': t.Int32Col(pos=7),
+                'tlen1': t.Int32Col(pos=8),
+                'seq1': t.StringCol(field_sizes['sequence'],pos=9),
+                'qual1': t.StringCol(field_sizes['sequence'],pos=10),
+                'tags1': t.StringCol(field_sizes['tags'],pos=11),
+                'flag2': t.Int16Col(pos=12),
+                'ref2': t.Int32Col(pos=13),
+                'pos2': t.Int64Col(pos=14),
+                'mapq2': t.Int32Col(pos=15),
+                'cigar2': t.StringCol(field_sizes['cigar'],pos=16),
+                'rnext2': t.Int32Col(pos=17),
+                'pnext2': t.Int32Col(pos=18),
+                'tlen2': t.Int32Col(pos=19),
+                'seq2': t.StringCol(field_sizes['sequence'],pos=20),
+                'qual2': t.StringCol(field_sizes['sequence'],pos=21),
+                'tags2': t.StringCol(field_sizes['tags'],pos=22),
+                'mask': t.Int16Col(pos=23),
+                'ix': t.Int64Col(pos=24)
+            }
+            # create table
+            logging.info("Creating tables...")
+            self._reads = self.file.create_table("/", table_name, reads_defininition)
         
-        
-            
-        # create table
-        logging.info("Creating tables...")
-        self._reads = self.file.create_table("/", table_name, reads_defininition)
+
         self._queued_filters = []
         
-        # add default mask
-        # TODO
         
         # index node table
         logging.info("Creating index...")
         try:
             self._reads.cols.qname.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        
+        logging.info("Creating index...")
+        try:
+            self._reads.cols.ix.create_index()
         except ValueError:
             # Index exists, no problem!
             pass
@@ -180,14 +199,14 @@ class ReadPairs(Maskable, MetaContainer):
             sambam2 = pysam.AlignmentFile(file_name2, 'rb')  # @UndefinedVariable
         
         # header
-        self._reads._v_attrs.header1 = pickle.dumps(sambam1.header)
+        self._reads._v_attrs.header1 = sambam1.header
         self._header1 = sambam1.header
-        self._reads._v_attrs.header2 = pickle.dumps(sambam2.header)
+        self._reads._v_attrs.header2 = sambam2.header
         self._header2 = sambam2.header
         
         # references
-        self._reads._v_attrs.ref1 = pickle.dumps(sambam1.references)
-        self._reads._v_attrs.ref2 = pickle.dumps(sambam2.references)
+        self._reads._v_attrs.ref1 = sambam1.references
+        self._reads._v_attrs.ref2 = sambam2.references
         self._ref1 = sambam1.references
         self._ref2 = sambam2.references
         
@@ -207,6 +226,7 @@ class ReadPairs(Maskable, MetaContainer):
         r2 = get_next_read(iter2)
         r1_count = 0
         r2_count = 0
+        row_counter = 0
         while r1 is not None and r2 is not None:
             c = cmp_natural(r1.qname, r2.qname)
                 
@@ -222,7 +242,8 @@ class ReadPairs(Maskable, MetaContainer):
                 r2 = get_next_read(iter2)
                 r2_count += 1
             elif c == 0:
-                self._add_read_pair(r1, r2, flush=False)
+                self._add_read_pair(r1, r2, ix=row_counter, flush=False)
+                row_counter += 1
                 last_r1_name = r1.qname
                 last_r2_name = r2.qname
                 r1 = get_next_read(iter1)
@@ -230,12 +251,14 @@ class ReadPairs(Maskable, MetaContainer):
                 r1_count += 1
                 r2_count += 1
             elif c < 0:
-                self._add_left_read(r1, flush=False)
+                self._add_left_read(r1, ix=row_counter, flush=False)
+                row_counter += 1
                 last_r1_name = r1.qname
                 r1 = get_next_read(iter1)
                 r1_count += 1
             else:
-                self._add_right_read(r2, flush=False)
+                self._add_right_read(r2, ix=row_counter, flush=False)
+                row_counter += 1
                 last_r2_name = r2.qname
                 r2 = get_next_read(iter2)
                 r2_count += 1
@@ -251,7 +274,8 @@ class ReadPairs(Maskable, MetaContainer):
                 if not ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
             else:
-                self._add_left_read(r1, flush=False)
+                self._add_left_read(r1, ix=row_counter, flush=False)
+                row_counter += 1
             last_r1_name = r1.qname
             r1 = get_next_read(iter1)
             r1_count += 1
@@ -261,7 +285,8 @@ class ReadPairs(Maskable, MetaContainer):
                 if not ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
             else:
-                self._add_right_read(r2, flush=False)
+                self._add_right_read(r2, ix=row_counter, flush=False)
+                row_counter += 1
             last_r2_name = r2.qname
             r2 = get_next_read(iter2)
             r2_count += 1
@@ -275,9 +300,10 @@ class ReadPairs(Maskable, MetaContainer):
             os.unlink(tmp2.name)
     
     
-    def _add_left_read(self, r, flush=True):
+    def _add_left_read(self, r, ix=-1, flush=True):
         row = self._reads.row
         self._add_left_read_to_row(r, row)
+        row['ix'] = ix
         row.append()
         
         if flush:
@@ -287,7 +313,10 @@ class ReadPairs(Maskable, MetaContainer):
         row['qname'] = r.qname
         row['flag1'] = r.flag
         row['ref1'] = r.reference_id
-        row['pos1'] = r.pos+1
+        if r.pos >= 0:
+            row['pos1'] = r.pos+1
+        else:
+            row['pos1'] = r.pos
         row['mapq1'] = r.mapq
         row['cigar1'] = r.cigarstring
         row['rnext1'] = r.rnext
@@ -297,9 +326,10 @@ class ReadPairs(Maskable, MetaContainer):
         row['qual1'] = r.qual
         row['tags1'] = pickle.dumps(r.tags)
     
-    def _add_right_read(self, r, flush=True):
+    def _add_right_read(self, r, ix=-1, flush=True):
         row = self._reads.row
         self._add_right_read_to_row(r, row)
+        row['ix'] = ix
         row.append()
         
         if flush:
@@ -309,7 +339,10 @@ class ReadPairs(Maskable, MetaContainer):
         row['qname'] = r.qname
         row['flag2'] = r.flag
         row['ref2'] = r.reference_id
-        row['pos2'] = r.pos+1
+        if r.pos >= 0:
+            row['pos2'] = r.pos+1
+        else:
+            row['pos2'] = r.pos
         row['mapq2'] = r.mapq
         row['cigar2'] = r.cigarstring
         row['rnext2'] = r.rnext
@@ -320,22 +353,21 @@ class ReadPairs(Maskable, MetaContainer):
         row['tags2'] = pickle.dumps(r.tags)
         
             
-    def _add_read_pair(self, r1, r2, flush=True):
+    def _add_read_pair(self, r1, r2, ix=-1, flush=True):
         row = self._reads.row
         self._add_left_read_to_row(r1, row)
         self._add_right_read_to_row(r2, row)
+        row['ix'] = ix
         row.append()
         
         if flush:
             self._reads.flush()
-            
-            
-    def __getitem__(self, key):
-        row = self._reads.__getitem__(key)
-        return row
     
     def __len__(self):
-        return len(self._reads)
+        count = 0
+        for x in self._reads.where("ix > -1"):
+            count += 1
+        return count
     
     @property
     def header1(self):
@@ -346,9 +378,13 @@ class ReadPairs(Maskable, MetaContainer):
         return self._header2
     
     def ix2ref1(self, ix):
+        if self._ref1 is None:
+            raise RuntimeError("Chromosome reference for left read not present")
         return self._ref1[ix]
     
     def ix2ref2(self, ix):
+        if self._ref2 is None:
+            raise RuntimeError("Chromosome reference for right read not present")
         return self._ref2[ix]
     
     
@@ -360,16 +396,91 @@ class ReadPairs(Maskable, MetaContainer):
         if not queue:
             quality_filter.apply(self._reads, ix)
         else:
-            self._queued_filters.append([quality_filter,ix])
+            self.queue_filter(quality_filter,ix)
+            
+    def filter_non_unique(self, strict=True, queue=False):
+        uniqueness_filter = UniquenessFilter(strict)
+        ix = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
+        
+        if not queue:
+            uniqueness_filter.apply(self._reads, ix)
+        else:
+            self.queue_filter(uniqueness_filter,ix)
+            
+    def filter_single(self, queue=False):
+        single_filter = SingleFilter()
+        ix = self.add_mask_description('single', 'Mask read pairs that are unpaired')
 
+        if not queue:
+            single_filter.apply(self._reads, ix)
+        else:
+            self.queue_filter(single_filter,ix)
+    
+    
+    def queue_filter(self, filter_definition, mask_index=1):
+        self._queued_filters.append([filter_definition, mask_index])
+            
+    
     def run_queued_filters(self):
+        row_counter = 0
+        
         for row in self._reads:
             for f, ix in self._queued_filters:
-                if not f.valid(row):
+                if f.valid(row):
+                    if row['mask'] == 0:
+                        row['ix'] = row_counter
+                        row_counter += 1
+                        row.update()
+                else:
                     row['mask'] = row['mask'] + ix
+                    row['ix'] = -1
                     row.update()
             self._reads.flush()
-
+    
+    def __iter__(self):
+        pairs = self
+        class ReadPairsIter:
+            def __init__(self):
+                self.iter = iter(pairs._reads)
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                row = self.iter.next()
+                while row['mask'] > 0:
+                    row = self.iter.next()
+                return row.fetch_all_fields()
+        return ReadPairsIter()
+                
+    
+    def __getitem__(self, key):
+        if type(key) == int and key >= 0:
+            res = [x.fetch_all_fields() for x in self._reads.where("ix == %d" % key)]
+            if len(res) == 1:
+                return res[0]
+            if len(res) == 0:
+                raise IndexError("Index %d out of bounds" % key)
+            raise RuntimeError("Duplicate pair for key %d" % key)
+        else:
+            raise KeyError('Cannot retrieve pair with key ' + str(key))
+    
+    
+    def filtered_reads(self):
+        pairs = self
+        class FilteredIter:
+            def __init__(self):
+                self.iter = iter(pairs._reads)
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                row = self.iter.next()
+                while row['mask'] == 0:
+                    row = self.iter.next()
+                return row.fetch_all_fields()
+        return FilteredIter()
 #
 # Filters
 #
@@ -377,10 +488,17 @@ class PairFilter(object):
     def valid(self, row):
         raise NotImplementedError
     
-    def apply(self, table, mask_ix=2):
+    def apply(self, table, mask_ix=1):
+        row_counter = 0
         for row in table:
-            if not self.valid(row):
+            if self.valid(row):
+                if row['mask'] == 0:
+                    row['ix'] = row_counter
+                    row_counter += 1
+                    row.update()
+            else:
                 row['mask'] = row['mask'] + mask_ix
+                row['ix'] = -1
                 row.update()
         table.flush()
 
@@ -389,10 +507,45 @@ class QualityFilter(PairFilter):
         self.cutoff = cutoff
 
     def valid(self, row):
-        if row['mapq1'] >= self.cutoff and row['mapq2'] >= self.cutoff:
-            return True
-        return False
+        left_valid = True
+        if row['pos1'] > 0 and row['mapq1'] < self.cutoff:
+            left_valid = False
+        
+        right_valid = True
+        if row['pos2'] > 0 and row['mapq2'] < self.cutoff:
+            right_valid=False
+             
+        return left_valid and right_valid
 
+class UniquenessFilter(PairFilter):
+    def __init__(self, strict=True):
+        self.strict = strict
+    
+    def valid(self, row):
+        left_valid = True
+        if row['pos1'] > 0:
+            left_tags = pickle.loads(row['tags1'])
+            for tag in left_tags:
+                if tag[0] == 'XS':
+                    if self.strict or tag[1] == 0:
+                        left_valid = False
+                    
+        right_valid = True
+        if row['pos2'] > 0:
+            right_tags = pickle.loads(row['tags2'])
+            for tag in right_tags:
+                if tag[0] == 'XS':
+                    if self.strict or tag[1] == 0:
+                        right_valid = False
+                    
+        return left_valid and right_valid
+
+
+class SingleFilter(PairFilter):
+    def valid(self, row):
+        if row['pos1'] == 0 or row['pos2'] == 0:
+            return False
+        return True
 
 
 def cmp_natural(string1, string2):

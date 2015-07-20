@@ -16,6 +16,7 @@ class TestReadPairs:
         self.dir = os.path.dirname(os.path.realpath(__file__))
         self.sam1_file = self.dir + "/test_seq/test1.sam"
         self.sam2_file = self.dir + "/test_seq/test2.sam"
+#         self.pairs = ReadPairs(self.sam1_file,self.sam2_file)
     
     def test_load_from_sam_file(self):
         pairs = ReadPairs()
@@ -136,6 +137,27 @@ class TestReadPairs:
         assert array_equal(tuple(read_pair1)[12:22],[0,0,0,0,'',0,0,0,'',''])
         
         
+    def test_iter(self):
+        pairs = ReadPairs(self.sam1_file,self.sam2_file)
+        counter = 0
+        for pair in pairs:
+            counter += 1
+        
+        assert counter == 315
+        
+        pairs.filter_non_unique()
+        after_counter = 0
+        for pair in pairs:
+            after_counter += 1
+            
+        assert after_counter < counter
+    
+    def test_select(self):
+        pairs = ReadPairs(self.sam1_file,self.sam2_file)
+        
+        assert pairs[0][0] == 'SRR038105.1'
+        pairs.filter_non_unique()
+        assert pairs[0][0] == 'SRR038105.1000'
         
         
     def test_build_from_scratch(self):
@@ -150,8 +172,66 @@ class TestReadPairs:
         
         pairs.filter_quality(30, queue=False)
         for row in pairs._reads:
-            if row['mapq1'] < 30 or row['mapq2'] < 30:
-                assert row['mask'] == 4
+            if (row['pos1'] > 0 and row['mapq1'] < 30) or (row['pos2'] > 0 and row['mapq2'] < 30):
+                assert row['mask'] == 2
             else:
                 assert row['mask'] == 0
+        
+    def test_uniqueness_filter(self):
+        pairs = ReadPairs()
+        pairs.load(self.sam1_file,self.sam2_file)
+        
+        pairs.filter_non_unique(strict=True)
+        for row in pairs._reads:
+            if row['pos1'] > 0:
+                tags = pickle.loads(row['tags1'])
+                has_xs = False
+                for tag in tags:
+                    if tag[0] == 'XS':
+                        has_xs = True
+                        break
+                if has_xs:
+                    assert row['mask'] == 2
+            elif row['pos2'] > 0:
+                tags = pickle.loads(row['tags2'])
+                has_xs = False
+                for tag in tags:
+                    if tag[0] == 'XS':
+                        has_xs = True
+                        break
+                if has_xs:
+                    assert row['mask'] == 2
+            else:
+                assert row['mask'] == 0
+                
+    def test_single_filter(self):
+        pairs = ReadPairs()
+        pairs.load(self.sam1_file,self.sam2_file)
+        
+        pairs.filter_single()
+        for row in pairs._reads:
+            if row['pos1'] == 0  or row['pos2'] == 0:
+                assert row['mask'] == 2
+            else:
+                assert row['mask'] == 0
+                
+    def test_queue_filters(self):
+        pairs = ReadPairs()
+        pairs.load(self.sam1_file,self.sam2_file)
+        
+        l = len(pairs)
+        
+        pairs.filter_single(queue=True)
+        pairs.filter_quality(30, queue=True)
+        pairs.filter_non_unique(strict=True, queue=True)
+        
+        assert len(pairs) == l
+        
+        pairs.run_queued_filters()
+        
+        assert len(pairs) < l
+        
+        
+
+        
         
