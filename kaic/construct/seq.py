@@ -15,11 +15,6 @@ import logging
 from tables.exceptions import NoSuchNodeError
 
 
-class ReadPair(object):
-    def __init__(self, read1, read2):
-        self.left = read1
-        self.right = read2
-        
 
 class ReadPairs(Maskable, MetaContainer):
     
