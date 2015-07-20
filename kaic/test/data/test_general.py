@@ -1,7 +1,10 @@
 
+import tables as t
 import numpy as np
+import pytest
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
-    TableArray
+    TableArray, _convert_to_tables_type, _structured_array_to_table_type,\
+    _file_to_data
 from __builtin__ import classmethod
 import os
 
@@ -49,8 +52,82 @@ class TestSupport:
         l, n, t = _to_list_and_names(x)
         assert l[0] == [1]
         assert n == ['0']
-
-
+        
+    def test_typemap(self):
+        assert _convert_to_tables_type(str) == t.StringCol(255)
+        assert _convert_to_tables_type(int) == t.Int32Col()
+        assert _convert_to_tables_type(float) == t.Float32Col()
+        assert _convert_to_tables_type(bool) == t.BoolCol()
+        assert _convert_to_tables_type(np.string_) == t.StringCol(255)
+        assert _convert_to_tables_type(np.int32) == t.Int32Col()
+        assert _convert_to_tables_type(np.float32) == t.Float32Col()
+        assert _convert_to_tables_type(np.bool_) == t.BoolCol()
+        
+        assert _convert_to_tables_type(t.BoolCol()) == t.BoolCol()
+        with pytest.raises(ValueError):
+            _convert_to_tables_type(Table)
+    
+    def test_table_conversion(self):
+        x = np.zeros((5,),dtype=('i4,f4,a10'))
+        x[:] = [(1,2.,'Hello'),(2,3.,"World"),(3,4.,'this'),(4,5.,"is"),(5,6.,'me')]
+        a = _structured_array_to_table_type(x, rownames=['a','b','c','d','e'], colnames=['A','B','C'])
+        assert type(a) == TableArray
+        
+        x = np.zeros((1,),dtype=('i4,f4,a10'))
+        x[:] = [(1,2.,'Hello')]
+        a = _structured_array_to_table_type(x, rownames=['a'], colnames=['A','B','C'])
+        assert type(a) == TableRow
+        
+        x = np.zeros((5,),dtype=[('a','i4')])
+        x[:] = [(1,),(2,),(3,),(4,),(5,)]
+        a = _structured_array_to_table_type(x, rownames=['a','b','c','d','e'], colnames=['A'])
+        assert type(a) == TableCol
+        
+    def test_file_read(self):
+        this_dir = os.path.dirname(os.path.realpath(__file__))
+        tsv1_file = this_dir + "/test_general/tsv.test.txt"
+        tsv2_file = this_dir + "/test_general/tsv.test2.txt"
+        
+        data, colnames, rownames = _file_to_data(tsv1_file)
+        assert np.array_equal(data[0], ['A','B','C'])
+        assert np.array_equal(data[1], ['a','1','1.'])
+        assert np.array_equal(data[2], ['b','2','2.'])
+        assert np.array_equal(colnames, [])
+        assert np.array_equal(rownames, [])
+        
+        data, colnames, rownames = _file_to_data(tsv1_file, has_header=True)
+        assert np.array_equal(data[0], ['a','1','1.'])
+        assert np.array_equal(data[1], ['b','2','2.'])
+        assert np.array_equal(colnames, ['A','B','C'])
+        assert np.array_equal(rownames, [])
+        
+        data, colnames, rownames = _file_to_data(tsv1_file, has_header=True, types=[str,int,float])
+        assert np.array_equal(data[0], ['a',1,1.])
+        assert np.array_equal(data[1], ['b',2,2.])
+        assert np.array_equal(colnames, ['A','B','C'])
+        assert np.array_equal(rownames, [])
+        
+        # auto-detect header
+        data, colnames, rownames = _file_to_data(tsv2_file)
+        assert np.array_equal(data[0], ['a','1','1.'])
+        assert np.array_equal(data[1], ['b','2','2.'])
+        assert np.array_equal(colnames, ['A','B','C'])
+        assert np.array_equal(rownames, ['a','b'])
+        
+        data, colnames, rownames = _file_to_data(tsv2_file, has_header=True)
+        assert np.array_equal(data[0], ['a','1','1.'])
+        assert np.array_equal(data[1], ['b','2','2.'])
+        assert np.array_equal(colnames, ['A','B','C'])
+        assert np.array_equal(rownames, ['a','b'])
+        
+        data, colnames, rownames = _file_to_data(tsv2_file, has_header=True, types=[str,int,float])
+        assert np.array_equal(data[0], ['a',1,1.])
+        assert np.array_equal(data[1], ['b',2,2.])
+        assert np.array_equal(colnames, ['A','B','C'])
+        assert np.array_equal(rownames, ['a','b'])
+        
+        
+    
 class TestTableRow:
     
     @classmethod
@@ -92,6 +169,11 @@ class TestTableRow:
         x = self.row[0:1]
         assert x == (1,)
         assert np.array_equal(x.colnames, ['A'])
+        
+    def test_get_attr(self):
+        assert self.row.A == 1
+        assert self.row.B == 2.
+        assert self.row.C == 'Hello'
         
         
 class TestTableCol:
@@ -264,7 +346,7 @@ class TestTable:
         x[:] = [(1,2.,'Hello'),(2,3.,"World"),(3,4.,'this'),(4,5.,"is"),(5,6.,'me')]
         
         
-        self.table = Table(x, row_names=['a','b','c','d','e'], col_names=['A','B','C'])
+        self.table = Table(x, rownames=['a','b','c','d','e'], colnames=['A','B','C'])
 
     
     def test_intialize(self):
@@ -299,13 +381,29 @@ class TestTable:
         # from record array
         x = np.zeros((5,),dtype=('i4,f4,a10'))
         x[:] = [(1,2.,'Hello'),(2,3.,"World"),(3,4.,'this'),(4,5.,"is"),(5,6.,'me')]
-        table4 = Table(x, row_names=['a','b','c','d','e'], col_names=['A','B','C'])
+        table4 = Table(x, rownames=['a','b','c','d','e'], colnames=['A','B','C'])
         assert table4.dim()[0] == 5
         assert table4.dim()[1] == 3
         assert np.array_equal(table4.colnames, ['A','B','C'])
         assert np.array_equal(table4.rownames, ['a','b','c','d','e'])
     
     def test_save_and_load(self, tmpdir):
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        h5_file_name = str(tmpdir) + "/test.h5"
+        table2 = Table(current_dir + "/test_general/tsv.test.txt")
+        
+        table2.save_as(h5_file_name)
+        
+        assert table2.dim()[0] == 2
+        assert table2.dim()[1] == 3
+        assert np.array_equal(table2.colnames, ['A','B','C'])
+        assert np.array_equal(table2.rownames, ['0','1'])
+        assert table2[0] == ('a','1','1.')
+        assert table2[1] == ('b','2','2.')
+        
+        assert os.path.exists(h5_file_name)
+        
+    def test_create_and_load(self, tmpdir):
         current_dir = os.path.dirname(os.path.realpath(__file__))
         h5_file_name = str(tmpdir) + "/test.h5"
         table1 = Table(current_dir + "/test_general/tsv.test.txt", file_name=h5_file_name)
@@ -334,6 +432,12 @@ class TestTable:
         assert table2[0] == ('a','1','1.')
         assert table2[1] == ('b','2','2.')
         
+        table3 = Table(default_file_name)
+        assert np.array_equal(table3.colnames, ['A','B','C'])
+        assert np.array_equal(table3.rownames, ['a','b'])
+        assert table3[0] == ('a','1','1.')
+        assert table3[1] == ('b','2','2.')
+        
         # no rownames
         no_rownames_file_name = str(tmpdir) + "/nr_test.txt"
         table1.export(no_rownames_file_name, include_rownames=False)
@@ -345,7 +449,54 @@ class TestTable:
         assert table3[0] == ('a','1','1.')
         assert table3[1] == ('b','2','2.')
         
-
+    def test_append_row_list(self):
+        # default rowname
+        self.table._append_row_list([6,7.,'bla'])
+        assert self.table[5] == (6,7.0,'bla')
+        assert self.table.rownames[5] == '5'
+        
+        self.table._append_row_list(['f',6,7.,'bla'])
+        assert self.table[6] == (6,7.0,'bla')
+        assert self.table.rownames[6] == 'f'
+        
+        self.table._append_row_list([6,7.,'bla'], rowname='g')
+        assert self.table[7] == (6,7.0,'bla')
+        assert self.table.rownames[7] == 'g'
+        
+    def test_append_row_dict(self):
+        self.table._append_row_dict({'A': 6, 'B': 7., 'C': 'bla'})
+        assert self.table[5] == (6,7.0,'bla')
+        assert self.table.rownames[5] == '5'
+        
+        self.table._append_row_dict({'A': 6, 'B': 7., 'C': 'bla', '_rowname': 'f'})
+        assert self.table[6] == (6,7.0,'bla')
+        assert self.table.rownames[6] == 'f'
+        
+    def test_append(self):
+        # append a row by list:
+        self.table.append([6,7.,'bla'], rownames='f')
+        assert self.table[5] == (6,7.0,'bla')
+        assert self.table.rownames[5] == 'f'
+        
+        # append a row by dict
+        self.table._append_row_dict({'A': 6, 'B': 7., 'C': 'bla'})
+        assert self.table[6] == (6,7.0,'bla')
+        assert self.table.rownames[6] == '6'
+        
+        # append multiple rows by list
+        self.table.append([[6,7.,'foo'],[7,8.,'bar']], rownames=['g','h'])
+        assert self.table[7] == (6,7.0,'foo')
+        assert self.table.rownames[7] == 'g'
+        assert self.table[8] == (7,8.0,'bar')
+        assert self.table.rownames[8] == 'h'
+        
+        # append multiple dicts by list
+        self.table.append([{'A': 6, 'B': 7., 'C': 'foo'},{'A': 7, 'B': 8., 'C': 'bar'}])
+        assert self.table[9] == (6,7.0,'foo')
+        assert self.table.rownames[9] == '9'
+        assert self.table[10] == (7,8.0,'bar')
+        assert self.table.rownames[10] == '10'
+        
     
     def test_row_selection(self):
         

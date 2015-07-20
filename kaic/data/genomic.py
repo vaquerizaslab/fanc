@@ -114,7 +114,7 @@ class BedImproved(Table):
             
             bed = cls()
             
-            super(BedImproved, bed).__init__(col_names=header, col_types=col_types, data=data, name=name)
+            super(BedImproved, bed).__init__(colnames=header, col_types=col_types, data=data, name=name)
             
             return bed
         
@@ -904,7 +904,7 @@ class Genome(Table):
         columns = ["name", "length", "sequence"]
         column_types = [t.StringCol(50, pos=0), t.Int32Col(pos=1), t.StringCol(max_size, pos=2)]  # @UndefinedVariable
                 
-        Table.__init__(self, file_name=file_name, col_names=columns, col_types=column_types)
+        Table.__init__(self, file_name=file_name, colnames=columns, col_types=column_types)
         
         for chromosome in chromosomes:
             self.add_chromosome(chromosome)
