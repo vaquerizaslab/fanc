@@ -155,6 +155,9 @@ class TestReadPairs:
     def test_select(self):
         pairs = ReadPairs(self.sam1_file,self.sam2_file)
         
+        for pair in pairs:
+            print pair[24]
+        
         assert pairs[0][0] == 'SRR038105.1'
         pairs.filter_non_unique()
         assert pairs[0][0] == 'SRR038105.1000'
