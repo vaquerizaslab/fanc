@@ -14,4 +14,4 @@ logging.basicConfig(level=logging.INFO)
 
 from kaic.data.genomic import HicBasic, HicNode, HicEdge, Genome, Chromosome
 from kaic.data.general import Table 
-
+from kaic.construct.seq import ReadPairs
