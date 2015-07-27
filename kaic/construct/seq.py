@@ -98,7 +98,7 @@ class ReadPairs(Maskable, MetaContainer):
                 'qual2': t.StringCol(field_sizes['sequence'],pos=21),
                 'tags2': t.StringCol(field_sizes['tags'],pos=22),
                 'mask': t.Int16Col(pos=23),
-                'mask_ix': t.Int64Col(pos=24)
+                'mask_ix': t.Int32Col(pos=24)
             }
             # create table
             logging.info("Creating tables...")
@@ -110,15 +110,6 @@ class ReadPairs(Maskable, MetaContainer):
         
         # make reads table maskable
         self._reads = MaskedTable(self._reads)
-        
-        
-        # index node table
-        logging.info("Creating index...")
-        try:
-            self._reads.cols.qname.create_index()
-        except ValueError:
-            # Index exists, no problem!
-            pass
 
         # map reads
         if sambam_file1 is not None and sambam_file2 is not None:
@@ -206,6 +197,9 @@ class ReadPairs(Maskable, MetaContainer):
             except StopIteration:
                 return None
         
+        # turn off auto-indexing (minimal speed gain)
+        self._reads.autoindex = False
+        
         i = 0
         last_r1_name = ''
         last_r2_name = ''
@@ -248,7 +242,7 @@ class ReadPairs(Maskable, MetaContainer):
             
             if i % 100000 == 0:
                 logging.info("%d reads processed" % i)
-                self._reads.flush()
+                self._reads.flush(update_index=False)
         
         
         # add remaining unpaired reads
@@ -275,6 +269,7 @@ class ReadPairs(Maskable, MetaContainer):
         logging.info('Counts: R1 %d R2 %d' % (r1_count,r2_count))
         
         self._reads.flush()
+        self._reads.autoindex = True
         
         if not is_sorted:
             os.unlink(tmp1.name)

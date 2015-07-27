@@ -1504,12 +1504,20 @@ class MaskedTable(t.table.Table):
         self._check()
         self._queued_filters = []
     
-    def flush(self):
+    def flush(self, update_index=True):
+        logging.info("Flushing")
+        
         # commit any previous changes
         super(MaskedTable, self).flush()
-        self._update_ix()
-        # commit index changes
-        super(MaskedTable, self).flush()
+        
+        if update_index:
+            self.autoindex = False
+            self._update_ix()
+            self.flush_rows_to_index()
+            self.autoindex = True
+            
+            # commit index changes
+            super(MaskedTable, self).flush()
     
     def __iter__(self):
         this = self
@@ -1605,7 +1613,8 @@ class MaskedTable(t.table.Table):
         logging.info("Updating mask indices")
         if not self._supports_ix():
             raise RuntimeError("Table does not support mask index update. Must provide 'mask_ix' column.")
-            
+        
+        
         ix = 0
         masked_ix = -1
         for row in self.all():
@@ -1629,12 +1638,36 @@ class MaskedTable(t.table.Table):
         to match only unmasked rows.
         """
         
+        #logging.info("Filtering (%s)..." % str(mask_filter.name))
+        
+        self.autoindex = False
+        
+        total = 0
+        ix = 0
+        mask_ix = -1
         for row in self.all():
+            total += 1
+            
             if not mask_filter.valid(row):
                 row['mask'] = row['mask'] + 2**mask_filter.mask_ix
-                row.update()
+            
+            # update index
+            if row['mask'] > 0:
+                row['mask_ix'] = mask_ix
+                mask_ix -= 1
+            else:
+                row['mask_ix'] = ix
+                ix += 1
+            row.update()
+            
+#             if total % 100000 == 0:
+#                 logging.info("f %d" % total)
+#                 self.flush(update_index=False)
         
-        self.flush()
+        logging.info("Done filtering")
+        self.flush(update_index=False)
+        self.flush_rows_to_index()
+        self.autoindex = True
 
     def queue_filter(self, filter_definition):
         """
@@ -1653,13 +1686,28 @@ class MaskedTable(t.table.Table):
         queue_filter function.
         """
         
+        self.autoindex = False
+        
+        ix = 0
+        mask_ix = -1
         for row in self.all():
             for f in self._queued_filters:
                 if not f.valid(row):
                     row['mask'] = row['mask'] + 2**f.mask_ix
-                    row.update()
                     
-        self.flush()
+            # update index
+            if row['mask'] > 0:
+                row['mask_ix'] = mask_ix
+                mask_ix -= 1
+            else:
+                row['mask_ix'] = ix
+                ix += 1
+            row.update()
+        
+        logging.info("Done filtering")
+        self.flush(update_index=False)
+        self.flush_rows_to_index()
+        self.autoindex = True
         self._queued_filters = []
     
     def all(self):

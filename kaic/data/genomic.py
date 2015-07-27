@@ -1322,14 +1322,12 @@ class HicBasic(object):
             # re-indexing not necessary when 'autoindex' is True on table
             if not self._nodes.autoindex:
                 # reindex node table
-                self._nodes.cols.start.flush_rows_to_index()
-                self._nodes.cols.end.flush_rows_to_index()
+                self._nodes.flush_rows_to_index()
         if flush_edges:
             self._edges.flush()
             if not self._edges.autoindex:
                 # reindex edge table
-                self._edges.cols.source.flush_rows_to_index()
-                self._edges.cols.sink.flush_rows_to_index()
+                self._edges.flush_rows_to_index()
         
         if flush_mask:
             self._mask.flush()
