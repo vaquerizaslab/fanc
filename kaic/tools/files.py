@@ -39,7 +39,9 @@ def random_name(length=6):
     return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))  # @UndefinedVariable
         
 
-def create_or_open_pytables_file(file_name, inMemory=False, mode='a'):
+def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
+    if file_name is None:
+        file_name = random_name()
     
     mem = 0 if inMemory else 1
     
