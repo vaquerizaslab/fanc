@@ -4,9 +4,10 @@ import numpy as np
 import pytest
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
     TableArray, _convert_to_tables_type, _structured_array_to_table_type,\
-    _file_to_data
+    _file_to_data, Mask, Maskable, MaskedTable, MaskFilter
 from __builtin__ import classmethod
 import os
+from kaic.tools.files import create_or_open_pytables_file
 
 class TestSupport:
     
@@ -735,4 +736,202 @@ class TestTable:
         assert np.array_equal(self.table.A,(1,2,3,4,5))
         assert np.array_equal(self.table.B,(2.,3.,4.,5.,6.))
         assert np.array_equal(self.table.C,('Hello','World','this','is','me'))
+
+
+class TestMask:
+    
+    def test_instantiate(self):
+        mask = Mask(0,'test','test description')
+        assert mask.ix == 0
+        assert mask.name == 'test'
+        assert mask.description == 'test description'
+        
+        mask = Mask(0,'test')
+        assert mask.ix == 0
+        assert mask.name == 'test'
+        assert mask.description == ''
+
+class TestMaskable:
+    
+    def test_instantiate(self, tmpdir):
+        # no args
+        maskable1 = Maskable()
+        assert isinstance(maskable1._mask, t.table.Table)
+        
+        # string args
+        maskable2 = Maskable(str(tmpdir) + "/test1.h5")
+        assert isinstance(maskable2._mask, t.table.Table)
+        
+        # file args
+        h5_file = create_or_open_pytables_file(str(tmpdir) + "/test2.h5", inMemory=False)
+        maskable3 = Maskable(h5_file)
+        assert isinstance(maskable3._mask, t.table.Table)
+        
+        # table args
+        h5_file2 = create_or_open_pytables_file(str(tmpdir) + "/test3.h5", inMemory=False)
+        table = h5_file2.create_table("/", 'mask', Maskable.MaskDescription)
+        maskable4 = Maskable(table)
+        assert isinstance(maskable4._mask, t.table.Table)
+        
+        # inherited
+        class MaskableContainerTest1(Maskable):
+            def __init__(self):
+                Maskable.__init__(self)
+        
+        mc1 = MaskableContainerTest1()
+        assert isinstance(mc1._mask, t.table.Table)
+        
+        class MaskableContainerTest2(Maskable):
+            def __init__(self, h5_file):
+                self.file = h5_file
+                Maskable.__init__(self)
+        
+        h5_file3 = create_or_open_pytables_file(str(tmpdir) + "/test4.h5", inMemory=False)
+        mc2 = MaskableContainerTest2(h5_file3)
+        assert isinstance(mc2._mask, t.table.Table)
+    
+    def test_get_default_masks(self):
+        maskable = Maskable()
+        default = maskable.get_mask(0)
+        assert default.ix == 0
+        assert default.name == 'default'
+        assert default.description == 'Default mask'
+        
+        default = maskable.get_mask('default')
+        assert default.ix == 0
+        assert default.name == 'default'
+        assert default.description == 'Default mask'
+    
+    def test_add_description(self):
+        maskable = Maskable()
+        
+        mask = maskable.add_mask_description('test', 'description')
+        maskret = maskable.get_mask(1)
+        assert maskret.ix == 1
+        assert maskret.name == 'test'
+        assert maskret.description == 'description'
+        
+        assert maskret.ix == mask.ix
+        assert maskret.name == mask.name
+        assert maskret.description == mask.description
+        
+    def test_get_masks_by_ix(self):
+        
+        maskable = Maskable()
+        
+        maskable.add_mask_description('one', '1')
+        maskable.add_mask_description('two', '2')
+        maskable.add_mask_description('three', '3')
+        maskable.add_mask_description('four', '4')
+        
+        ix = 31
+        masks = maskable.get_masks(ix)
+        assert masks[0].name == 'default'
+        assert masks[1].name == 'one'
+        assert masks[2].name == 'two'
+        assert masks[3].name == 'three'
+        assert masks[4].name == 'four'
+        
+        ix = 29
+        masks = maskable.get_masks(ix)
+        assert masks[0].name == 'default'
+        assert masks[1].name == 'two'
+        assert masks[2].name == 'three'
+        assert masks[3].name == 'four'
+        
+        ix = 16
+        masks = maskable.get_masks(ix)
+        assert masks[0].name == 'four'
+        
+        ix = -1
+        masks = maskable.get_masks(ix)
+        assert len(masks) == 0
+        
+class TestMaskTable:
+    class TestFilter(MaskFilter):
+        def __init__(self, cutoff=25):
+            super(TestMaskTable.TestFilter, self).__init__()
+            self.cutoff = cutoff
+            
+        def valid(self, test):
+            if test['b'] < self.cutoff:
+                return False
+            return True
+            
+    @classmethod
+    def setup_method(self, method):
+        f = create_or_open_pytables_file(inMemory=True)
+        test_description = {
+            'a': t.StringCol(50,pos=0),
+            'b': t.Int32Col(pos=1),
+            'c': t.Float32Col(pos=2),
+            'mask': t.Int16Col(pos=3),
+            'mask_ix': t.Int32Col(pos=4)
+        }
+        self.table = MaskedTable(f.create_table("/", "test", test_description))
+        
+        row = self.table.row
+        for i in range(0,50):
+            row['a'] = "test_%d" % i 
+            row['b'] = 0 + i
+            row['c'] = 0.0 + i
+            row.append()
+        
+        self.table.flush()
+        
+        self.filtered_table = MaskedTable(f.create_table("/", "test_filter", test_description))
+        
+        row = self.filtered_table.row
+        for i in range(0,50):
+            row['a'] = "test_%d" % i 
+            row['b'] = 0 + i
+            row['c'] = 0.0 + i
+            row.append()
+        
+        self.filtered_table.flush()
+        
+        self.filtered_table.filter(TestMaskTable.TestFilter())
+        
+        
+    def test_initialize(self):
+        assert len(self.table) == 50
+        for i in range(0,50):
+            assert self.table[i][4] == i
+    
+    def test_len(self):
+        assert len(self.filtered_table) == 25
+    
+    def test_select(self):
+        # single positive index        
+        assert self.filtered_table[0][1] == 25
+        # single negative index
+        assert self.filtered_table[-1][1] == 49
+        # slice
+        x = self.filtered_table[1:3]
+        assert np.array_equal(tuple(x[0]), ('test_26',26,26.0,0,1))
+        assert np.array_equal(tuple(x[1]), ('test_27',27,27.0,0,2))
+    
+    
+    def test_filter(self):
+        self.table.filter(TestMaskTable.TestFilter())
+        
+        i = 0
+        masked_i = -1
+        for row in self.table.all():
+            if row['mask'] > 0:
+                assert row['mask_ix'] == masked_i
+                assert row['mask'] == 1
+                masked_i -= 1
+            else:
+                assert row['mask_ix'] == i
+                i += 1
+            
+    def test_masked(self):
+        assert self.filtered_table.masked_rows()[0][1] == 0
+        assert self.filtered_table.masked_rows()[-1][1] == 24
+        
+        masked_ix = -1
+        for row in self.filtered_table.masked_rows():
+            row['mask_ix'] = masked_ix
+            masked_ix -= 1
         

@@ -15,10 +15,12 @@ import string # @UnusedImport
 import numpy as np
 import warnings
 import os.path
-
+import time
+import pickle
 import logging
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 
 
@@ -940,7 +942,6 @@ class Table(object):
             
         # data is a list?
         try:
-            
             self._append_row_list(data, flush=True, rowname=rowname)
             return
         except TypeError:
@@ -1248,25 +1249,25 @@ class Maskable(object):
     especially useful in pytables tables, as they are
     not designed for frequent deletions and may 
     suffer from performance problems as a consequence.
+    The process of hiding data is referred to as 
+    'masking'.
     
-    This class extends the functionality of classes
-    that work on the basis of a pytables table. It
-    allows the masking of rows and keeps track of the
-    'reasons' for masking. It provides table iterators
-    and len() functions that ignore masked rows, and 
-    therefore give the illusion of deleted rows.
-    Masked rows, however, can be inspected separately
-    at any point.
+    This class creates a pytables Table that contains
+    meta-information about masks, i.e. mask IDs, mask
+    names, and mask descriptions. Since it is backed
+    by pytables, Mask descriptions will be saved to 
+    the corresponding hdf5 file automatically. This 
+    class additionally provides tools to create and 
+    retrieve Mask descriptions.
     
-    The minimum requirement for a table to be masked
-    is the inclusion of a 'mask' column. For full
-    iterator and len() functionality, the table also
-    needs to include a 'mask_ix' column. Checks for
-    this are performed when specifying the table to
-    be masked.
+    Note that this class only provides meta-
+    information for Masks. Masking can technically 
+    performed without Maskable, but then the reasons
+    for masking will not be saved.
     
-    Masking is best achieved using filters (for 
-    details see Filter class).
+    The actual masking is performed using a MaskFilter
+    on a MaskedTable object using the 
+    MaskedTable.filter(MaskFilter) function. 
     """
     
     class MaskDescription(t.IsDescription):
@@ -1275,9 +1276,9 @@ class Maskable(object):
         description = t.StringCol(255,pos=2)
     
     
-    def __init__(self, data=None, table=None, hdf5_file=None, table_name="mask"):
+    def __init__(self, data=None, table_name="mask"):
         """
-        Enable masking functionality in pytables-backed object.
+        Enable recording of masking in pytables-backed object.
         
         This constructor is built with considerable flexibility
         in the ways it can be called. The 'data' parameter
@@ -1285,229 +1286,99 @@ class Maskable(object):
         calling the constructor with just one argument.
         
         Args:
-                data (...):     multi-purpose container, simplifies one-argument
-                                constructor calls. Can stand in for the other
-                                arguments, if they are not specified.
-                                Possible types are:
-                                str: replaces hdf5_file
-                                pytables File: replaces hdf5_file
-                                pytables Table: replaces table
-            table (pytables Table object):
-                                the table to be masked. Can also be directly
-                                set using set_mask_table function. Table must 
-                                contain 'mask' column and should contain 
-                                'mask_ix' column for full functionality. If 
-                                not specified, it is searched in self._mask_table
-            hdf5_file (str):    either location of an existing hdf5 dictionary
-                                file or path where an hdf5 dictionary file 
-                                should be created. In the former case, file
-                                is opened as pytables File in append mode.
-            hdf5_file (pytables File):
-                                pytables File object that is used to create
-                                necessary tables
+            data (...):         multi-purpose container, simplifies one-argument
+                                constructor calls. Can stand in for a pytables 
+                                Table or File, or a path.
+                (None):         An existing mask description table is expected in 
+                                self._mask. If none is found, the constructor will 
+                                look for a pytables File in self.file and attempt 
+                                to create the mask description table in there.
+                (str):          An exisiting pytable File at this location will be
+                                opened in append mode or one will be created.
+                (tables.file.File):
+                                A mask description table will be created in this
+                                pytables File.
+                (tables.table.Table):
+                                This pytables Table will be used as mask 
+                                description table (if it has the necessary fields
+                                ix, name, description).
             table_name (str):   name of the mask table that is created in
                                 pytables file, does not usually need to be 
                                 modified
-        
-        Examples:
-            
-            Specifying arguments directly:
-            
-            >>> Maskable(hdf5_file=pytables_file_object, table=pytables_table_object)
-                'hdf5_file' is a tables.file.File object that has been created 
-                with the tables.open_file method. 'table' is a tables.table.Table
-                object, created for example with the tables.file.File.create_table
-                method.
-                If there is no '_mask' attribute in self, a mask table will be 
-                created in its position, using the hdf5_file object. This table will 
-                contain the ID, name, and description of the generated masks, and 
-                contains a 'default' mask from the start with ID 1.
-            >>> Maskable(table=pytables_table_object)
-                Since no hdf5_file was specified, the constructor will look for a
-                pytables File in self.file. An exception is raised if none can be
-                found.
-            >>> Maskable(hdf5_file="path/to/file", table=pytables_table_object)
-                If hdf5_file is a path, and self.file is not an attribute, the file
-                at this path will either be created or appended.
-            >>> Maskable()
-                Only defaults are used, i.e. the pytables File is expected in 
-                self.file and the pytables is expected in self._mask_table. If the
-                latter is not present, Table to be masked has to be set 
-                manually using set_mask_table.
-                
-            Using a single constructor argument:
-            
-            >>> Maskable(pytables_table_object)
-                the table specified as argument will be masked, a mask meta-table
-                will be generated in self.file
-            >>> Maskable(pytables_file_object)
-                a mask meta-table will be generated in the specified object, if
-                self._mask_table is not present, a table to be masked has to be 
-                set manually using set_mask_table.
         """
         
         super(Maskable, self).__init__()
         
-        # set some standard attributes
-        self._mask_has_ix = False
-        self._mask_queued_filters = []
-        
+
         # check what we have in data
-        if type(data) == t.table.Table and table is None:
-            table = data
-            data = None
-        elif type(data) == str and hdf5_file is None:
-            hdf5_file = data
-            data = None
+        mask_file = None
+        
+        # data is None
+        if data is None:
+            # use default _mask attribute
+            if hasattr(self, '_mask'):
+                self._set_mask_table(self._mask)
+            # use file attribute
+            elif hasattr(self, 'file') and isinstance(self.file, t.file.File):
+                mask_file = self.file
+            # do it all in memory
+            else:
+                mask_file = create_or_open_pytables_file(random_name(), inMemory=True)
+        # data is Table: use as mask table
+        elif type(data) == t.table.Table:
+            self._set_mask_table(data)
+        # data is pytables File: set file attribute
+        elif isinstance(data, t.file.File):
+            mask_file = data
+        # data is string: create file at location
+        elif type(data) == str:
+            mask_file = create_or_open_pytables_file(data, inMemory=False)
                 
-        
-        
-        # check if mask overview table already exists
-        if hasattr(self, '_mask'):
-            if type(self._mask) == t.table.Table:
-                if (not 'ix' in self._mask.colnames or
-                    not 'name' in self._mask.colnames or
-                    not 'description' in self._mask.colnames):
-                    raise ValueError("Object already has a mask table, \
-                                      but it does not have all the necessary \
-                                      columns (ix, name, description)")
-                logging.info("Found existing _mask attribute")
-            else:
-                raise ValueError("Object already has a _mask attribute, but it is not from a Maskable object")
-        else:
-            # load from file or in memory
-            if hdf5_file is None or type(hdf5_file) == str:
-                if not hasattr(self, 'file') or self.file is None:
-                    if hdf5_file is None:
-                        mask_file = create_or_open_pytables_file(random_name(), inMemory=True)
-                    else:
-                        mask_file = create_or_open_pytables_file(hdf5_file, inMemory=False)
-                else:
-                    if not type(self.file) == t.file.File:
-                        raise ValueError("Object has file attribute, but it is not a pytables File object")
-                    mask_file = self.file
-            else:
-                if isinstance(hdf5_file,t.file.File):
-                    mask_file = hdf5_file
-                else:
-                    raise ValueError("hdf5_file is neither a string nor existing pytables file")
-            
+        if (not hasattr(self, '_mask') or self._mask is None) and mask_file is not None:
             try:
                 self._mask = mask_file.get_node('/' + table_name)
             except NoSuchNodeError:
                 self._mask = mask_file.create_table("/", table_name, Maskable.MaskDescription)
                 row = self._mask.row
-                row['ix'] = 1
+                #row['ix'] = 0
+                #row['name'] = 'unmasked'
+                #row['description'] = 'Not masked'
+                #row.append()
+                row['ix'] = 0
                 row['name'] = 'default'
                 row['description'] = 'Default mask'
                 row.append()
                 self._mask.flush()
+
         
-        # check if table to be masked already exists
-        if hasattr(self, '_mask_table') and isinstance(self._mask_table,t.table.Table):
-            logging.info("Found existing _mask_table attribute")
+    def _set_mask_table(self, table):
+        if type(table) == t.table.Table:
+            if (not 'ix' in table.colnames or
+                not 'name' in table.colnames or
+                not 'description' in table.colnames):
+                raise ValueError("Object already has a mask table, \
+                                  but it does not have all the necessary \
+                                  columns (ix, name, description)")
+            self._mask = table
         else:
-            if hasattr(self, '_mask_table'):
-                raise ValueError("Object already has a _mask_table attribute, but it is not from a Maskable object")
-            self.set_mask_table(table)
-            
-        
-        
-    def set_mask_table(self, table):
-        """
-        Set the table that gets maskable.
-        
-        Args:
-            table (pytables table object): 
-                the table to be masked. Can also be directly
-                set using set_mask_table function. Table must 
-                contain 'mask' column and should contain 
-                'mask_ix' column for full functionality.
-        """
-        
-        if table is None:
-            self._mask_table = table
-            return
-        # check if table is pytables table
-        if not isinstance(table,t.table.Table):
-            raise ValueError("Table must be pytable Table object")
-        # check if table has necessary columns
-        if not 'mask' in table.colnames:
-            raise ValueError("Table must have 'mask' field")
-        if not 'mask_ix' in table.colnames:
-            logging.warn("Won't be able to access masked table by index")
-        else:
-            self._mask_has_ix = True
-            
-        self._mask_table = table
-        
-        # create index on mask column
-        if self._mask_has_ix:
-            logging.info("Creating index...")
-            try:
-                self._reads.cols.mask_ix.create_index()
-            except ValueError:
-                # Index exists, no problem!
-                pass
+            raise ValueError("Table is not a MaskDescription table")
     
-    def get_mask_table_len(self):
-        """
-        Return the 'perceived' length of the masked table.
-        
-        If the table has masked rows, these will not be counted.
-        """
-        
-        if self._mask_has_ix:
-            count = sum(1 for _ in iter(self._mask_table.where("mask_ix > -1")))
-            return count
-        if self._mask_table is not None:
-            return len(self._mask_table)
-        return 0
     
-    def update_mask_table_ix(self):
-        """
-        Update the row indexes of the masked table.
-        
-        Should be run after masking. Will assign auto-
-        incrementing integers (from 0) to the 'mask_ix'
-        field of each row in the table if it is not 
-        masked, -1 otherwise.
-        """
-        
-        logging.info("Updating mask indices")
-        if not self._mask_has_ix:
-            raise RuntimeError("Table does not support mask index update. Must provide 'mask_ix' column.")
-            
-        ix = 0
-        for row in self._mask_table:
-            if row['mask'] > 0:
-                row['mask_ix'] = -1
-            else:
-                row['mask_ix'] = ix
-                ix += 1
-            row.update()
-        self._mask_table.flush()
         
     def add_mask_description(self, name, description):
         """
         Add a mask description to the _mask table and return its ID.
         
-        IDs are powers of 2, so a single int field in the tble can hold
-        multiple masks by simply adding up the IDs. Similar principle to
-        UNIX chmod (although that uses base 8)
-        
+
         Args:
             name (str):        name of the mask
             description (str): description of the mask
             
         Returns:
-            int:    id of the mask (power of 2, i.e.
-                    1, 2, 4, 8, 16, ...)
+            int:    id of the mask
         """
         
-        ix = 1
-        if len(self._mask) > 0:
-            ix = int(self._mask[-1][0])*2
+        ix = len(self._mask)
         row = self._mask.row
         row['ix'] = ix
         row['name'] = name
@@ -1515,7 +1386,7 @@ class Maskable(object):
         row.append()
         self._mask.flush()
         
-        return int(ix)
+        return Mask(ix,name,description)
     
     def get_mask(self, key):
         """
@@ -1530,10 +1401,9 @@ class Maskable(object):
         """
         
         if type(key) == int:
-            condition = "ix == %d" % key
-            res = [x.fetch_all_fields() for x in self._mask.where(condition)]
+            res = [x.fetch_all_fields() for x in self._mask.where("ix == %d" % key)]
         else:
-            res = [x.fetch_all_fields() for x in self._mask.where("name == %s" % str(key))]
+            res = [x.fetch_all_fields() for x in self._mask.where("name == '%s'" % str(key))]
 
         if len(res) == 1:
             return Mask(res[0][0], res[0][1], res[0][2])
@@ -1542,59 +1412,110 @@ class Maskable(object):
     def get_masks(self, ix):
         """
         Extract mask IDs encoded in parameter and return masks.
+        
+        IDs are powers of 2, so a single int field in the table can hold
+        multiple masks by simply adding up the IDs. Similar principle to
+        UNIX chmod (although that uses base 8)
+        
+        Args:
+            ix (int):    integer that is a power of 2 (1, 2, 4, 8, ...)
+            
+        Returns:
+            list (Mask): list of Masks extracted from ix
         """
         
         key_copy = ix
 
-        last = int(self._mask[-1][0])
-
+        last_ix = int(self._mask[-1][0])
+        
         masks = []
-        while last > 1:
-            if key_copy - last >= 0:
-                mask = self.get_mask(last)
+        while last_ix > 0:
+            if key_copy - 2**last_ix >= 0:
+                mask = self.get_mask(last_ix)
                 if mask is not None:
+                    print mask.ix
                     masks.append(mask)
-                key_copy -= last
-            last = last/2
+                key_copy -= 2**last_ix
+            last_ix -= 1
         if key_copy > 0:
             masks.append(self.get_mask(0))
         
-        return masks
+        return list(reversed(masks))
     
-    def queue_filter(self, filter_definition, mask_index=1):
-        self._mask_queued_filters.append([filter_definition, mask_index])
+    
         
-    def run_queued_filters(self):
-        for row in self._reads:
-            for f, ix in self._mask_queued_filters:
-                if not f.valid(row):
-                    row['mask'] = row['mask'] + ix
-                    row.update()
-                    
-        self.update_mask_table_ix()
-        self._mask_queued_filters = []
-        
-    def filtered_rows(self):
-        this = self
-        class FilteredIter:
-            def __init__(self):
-                self.iter = iter(this._mask_table)
-                
-            def __iter__(self):
-                return self
+class MaskedTable(t.table.Table):
+    """
+    Wrapper that adds masking functionality to a pytables table. 
+    
             
-            def next(self):
-                row = self.iter.next()
-                while row['mask'] == 0:
-                    row = self.iter.next()
-                return row.fetch_all_fields()
-        return FilteredIter()
+    MaskedTable is simply a wrapper around a
+    pytables Table with certain columns. It
+    adds masking functionality to table rows.
+        
+    It can be desirable to hide a subset of data in 
+    a table rather than deleting it outright. This is 
+    especially useful in pytables tables, as they are
+    not designed for frequent deletions and may 
+    suffer from performance problems as a consequence.
     
-    def _mask_table_iter(self):
+    This class extends the functionality of classes
+    that work on the basis of a pytables table. It
+    allows the masking of rows and provides table iterators
+    and len() functions that ignore masked rows, and 
+    therefore give the illusion of deleted rows.
+    Masked rows, however, can be inspected separately
+    at any point.
+    
+    The minimum requirement for a table to be masked
+    is the inclusion of a 'mask' column. For full
+    iterator and len() functionality, the table also
+    needs to include a 'mask_ix' column. Checks for
+    this are performed when specifying the table to
+    be masked.
+    """
+    
+    def __init__(self, table):
+        """
+        Wrap a pytables Table to provide masking functionality.
+        
+        Args:
+            table (tables.table.Table):
+                pytables Table with at least a 'mask' column.
+                'mask_ix' column required for full indexing
+                functionality.
+        """
+        
+        # to expose original table methods that have not been overridden
+        self.__class__ = type(table.__class__.__name__,
+                              (self.__class__, table.__class__),
+                              {})
+        self.__dict__ = table.__dict__
+        
+        # create index on mask column
+        if self._supports_ix():
+            logging.info("Creating index...")
+            try:
+                self.cols.mask_ix.create_index()
+            except ValueError:
+                # Index exists, no problem!
+                pass
+        
+        self._check()
+        self._queued_filters = []
+    
+    def flush(self):
+        # commit any previous changes
+        super(MaskedTable, self).flush()
+        self._update_ix()
+        # commit index changes
+        super(MaskedTable, self).flush()
+    
+    def __iter__(self):
         this = self
         class UnmaskedIter:
             def __init__(self):
-                self.iter = iter(this._mask_table)
+                self.iter = this.all()
                 
             def __iter__(self):
                 return self
@@ -1606,76 +1527,384 @@ class Maskable(object):
                 return row.fetch_all_fields()
         return UnmaskedIter()
     
-    def _mask_table_selector(self, key):
-        if type(key) == int and key >= 0:
-            if self._mask_has_ix:
-                res = [x.fetch_all_fields() for x in self._mask_table.where("mask_ix == %d" % key)]
-                if len(res) == 1:
-                    return res[0]
-                if len(res) == 0:
-                    raise IndexError("Index %d out of bounds" % key)
-                raise RuntimeError("Duplicate row for key %d" % key)
+    def __getitem__(self, key):
+        if type(key) == int:
+            if key >= 0:
+                if self._supports_ix():
+                    res = [x.fetch_all_fields() for x in self.where("mask_ix == %d" % key)]
+                    if len(res) == 1:
+                        return res[0]
+                    if len(res) == 0:
+                        raise IndexError("Index %d out of bounds" % key)
+                    raise RuntimeError("Duplicate row for key %d" % key)
+                else:
+                    return self.__getitem__(key)
             else:
-                return self._mask_table[key]
+                l = len(self)
+                return self[l+key]
+        elif type(key) == slice:
+            res = []
+            # set sensible defaults
+            start = key.start
+            if start is None:
+                start = 0
+            stop = key.stop
+            if stop is None:
+                stop = len(self)-1
+            step = key.step
+            if step is None:
+                step = 1
+                
+            print "%d-%d, %d" % (start, stop, step)
+            for i in range(start,stop,step):
+                print i
+                res.append(self[i])
+            return res
         else:
             raise KeyError('Cannot retrieve row with key ' + str(key))
+    
+    def __len__(self):
+        """
+        Return the 'perceived' length of the masked table.
+        
+        If the table has masked rows, these will not be counted.
+        """
+        
+        if self._supports_ix():
+            count = sum(1 for _ in iter(self.where("mask_ix > -1")))
+            return count
+        return len(self)
+    
+    def _check(self):
+        """
+        Check this table for maskability.
+        """
+        
+        logging.info("Checking table")
+        
+        # check if table has necessary columns
+        if not 'mask' in self.colnames:
+            raise ValueError("Table must have 'mask' field")
+        if not 'mask_ix' in self.colnames:
+            logging.warn("Won't be able to access masked table by index (add 'mask_ix' field!)")
+
+    
+    def _supports_ix(self):
+        return 'mask_ix' in self.colnames
+    
+    def _update_ix(self):
+        """
+        Update the row indexes of the masked table.
+        
+        Should be run after masking. Will assign auto-
+        incrementing integers (from 0) to the 'mask_ix'
+        field of each row in the table if it is not 
+        masked, -1 otherwise.
+        """
+        
+        logging.info("Updating mask indices")
+        if not self._supports_ix():
+            raise RuntimeError("Table does not support mask index update. Must provide 'mask_ix' column.")
+            
+        ix = 0
+        masked_ix = -1
+        for row in self.all():
+            if row['mask'] > 0:
+                row['mask_ix'] = masked_ix
+                masked_ix -= 1
+            else:
+                row['mask_ix'] = ix
+                ix += 1
+            row.update()
+        #self.flush()
+    
+    
+    def filter(self, mask_filter):
+        """
+        Run a MaskFilter on this table.
+        
+        This functions calls the MaskFilter.valid function on
+        every row and masks them if the function returns False.
+        After running the filter, the table index is updated
+        to match only unmasked rows.
+        """
+        
+        for row in self.all():
+            if not mask_filter.valid(row):
+                row['mask'] = row['mask'] + 2**mask_filter.mask_ix
+                row.update()
+        
+        self.flush()
+
+    def queue_filter(self, filter_definition):
+        """
+        Add a MaskFilter to filter queue.
+        
+        Queued filters can be run at a later time using
+        the run_queued_filters function.
+        """
+        self._queued_filters.append(filter_definition)
+        
+    def run_queued_filters(self):
+        """
+        Run queued MaskFilters.
+        
+        MaskFilters can be queued using the
+        queue_filter function.
+        """
+        
+        for row in self.all():
+            for f in self._queued_filters:
+                if not f.valid(row):
+                    row['mask'] = row['mask'] + 2**f.mask_ix
+                    row.update()
+                    
+        self.flush()
+        self._queued_filters = []
+    
+    def all(self):
+        """
+        Return an iterator over all rows, including masked ones.
+        """
+        
+        return super(MaskedTable, self).__iter__()
+        
+    def masked_rows(self):
+        """
+        Return an iterator over masked rows.
+        """
+        
+        this = self
+        class FilteredIter:
+            def __init__(self):
+                self.iter = this.all()
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                row = self.iter.next()
+                while row['mask'] == 0:
+                    row = self.iter.next()
+                return row.fetch_all_fields()
+            
+            def __getitem__(self, key):
+                if type(key) == int:
+                    if key >= 0:
+                        if this._supports_ix():
+                            key = -1*key - 1
+                            res = [x.fetch_all_fields() for x in this.where("mask_ix == %d" % key)]
+                            if len(res) == 1:
+                                return res[0]
+                            if len(res) == 0:
+                                raise IndexError("Index %d out of bounds" % key)
+                            raise RuntimeError("Duplicate row for key %d" % key)
+                        else:
+                            return this.__getitem__(key)
+                    else:
+                        l = len(this)
+                        return self[l+key]
+                else:
+                    raise KeyError('Cannot retrieve row with key ' + str(key))
+        return FilteredIter()
 
 class MaskFilter(object):
+    """
+    Abstract class that defines a filter for MaskedTable.
+    """
 
     __metaclass__ = ABCMeta
     
-    def __init__(self, maskable):
-        self.maskable = maskable
+    def __init__(self, mask = None, mask_ix=0, mask_name='default', mask_description="Default mask."):
+        """
+        Create a MaskFilter.
+        
+        Sets values for mask index, name, and description
+        to be used by MaskedTable.filter function.
+        
+        Args:
+            mask (Mask, int):    if Mask, the attributes mask_ix,
+                                 mask_name, and mask_description
+                                 will be copied here.
+                                 if int, mask_name and mask_description
+                                 will be set to defaults, while
+                                 mask_ix will be set to this value.
+            mask_ix (int):       Index of the mask to be applied.
+                                 Defaults to 0
+            mask_name (str):     Name of the mask to be applied.
+                                 Defaults to 'default'
+            mask_description (str):
+                                 Description of the mask to be applied.
+                                 Defaults to 'Default mask'
+        """
+        
+        if mask is not None:
+            if isinstance(mask, Mask):
+                self.mask_ix = mask.ix
+                self.maks_name = mask.name
+                self.mask_description = mask.description
+            else:
+                self.mask_ix = mask
+                self.maks_name = mask_name
+                self.mask_description = mask_description
+        else:
+            self.mask_ix = mask_ix
+            self.maks_name = mask_name
+            self.mask_description = mask_description
+            
+        if not type(self.mask_ix) == int:
+            raise ValueError("mask_ix must be an integer!")
     
     @abstractmethod
     def valid(self, row):
+        """
+        Test if a row is valid according to this filter.
+        
+        Args:
+            row (tables.tableextension.Row):
+                A pytables Table Row
+        
+        Returns:
+            bool: True if row is valid, False otherwise
+        """
         pass
-    
-    def apply(self, mask = 1):
-        if isinstance(mask, Mask):
-            mask = mask.ix
         
-        for row in self.maskable._mask_table:
-            if not self.valid(row):
-                row['mask'] = row['mask'] + mask
-                row.update()
+
+class Meta(object):
+    def __init__(self, name, value, date=None, category='', description=''):
+        self.name = name
+        self.value = value
+        if date is None:
+            self.date = datetime.now()
+        elif isinstance(date,datetime):
+            self.date = date
+        else:
+            self.date = datetime.fromtimestamp(date)
         
-        self.maskable.update_mask_table_ix()
+        self.category = category
+        self.description = description
         
-    
+    def __repr__(self):
+        return "%s %s: %s" % (str(self.date), self.name, str(self.value))
+
+
 class MetaContainer(object):
+    """
+    Class that provides recording of meta-information.
+    """
+    
     class MetaDescription(t.IsDescription):
-        date = t.Time32Col(pos=0)
+        date = t.Float32Col(pos=0)
         category = t.StringCol(50,pos=1)
-        name = t.StringCol(255,pos=2)
-        value = t.StringCol(255, pos=3)
+        description = t.StringCol(255,pos=2)
+        name = t.StringCol(255,pos=3)
+        value = t.StringCol(255,pos=4)
         
     def __init__(self, data=None, table_name="meta"):
+        """
+        Enable recording of meta-information in pytables-backed object.
+        
+        This constructor is built with considerable flexibility
+        in the ways it can be called. The 'data' parameter
+        serves here as a multi-purpose container that simplifies
+        calling the constructor with just one argument.
+        
+        Args:
+            data (...):         multi-purpose container, simplifies one-argument
+                                constructor calls. Can stand in for a pytables 
+                                Table or File, or a path.
+                (None):         An existing meta description table is expected in 
+                                self._meta. If none is found, the constructor will 
+                                look for a pytables File in self.file and attempt 
+                                to create the meta description table in there.
+                (str):          An exisiting pytable File at this location will be
+                                opened in append mode or one will be created.
+                (tables.file.File):
+                                A meta description table will be created in this
+                                pytables File.
+                (tables.table.Table):
+                                This pytables Table will be used as meta 
+                                description table (if it has the necessary fields
+                                date, category, description, name, and value).
+            table_name (str):   name of the meta table that is created in
+                                pytables file, does not usually need to be 
+                                modified
+        """
         super(MetaContainer, self).__init__()
         
-        if not hasattr(self, 'file') or self.file is None:
-
-            if data is None or not type(data) == str:
-                self.file = create_or_open_pytables_file(random_name(), inMemory=True)
+        meta_file = None
+        
+        # data is None
+        if data is None:
+            # use default _mask attribute
+            if hasattr(self, '_meta'):
+                self._set_meta_table(self._mask)
+            # use file attribute
+            elif hasattr(self, 'file') and isinstance(self.file, t.file.File):
+                meta_file = self.file
+            # do it all in memory
             else:
-                self.file = create_or_open_pytables_file(data, inMemory=False)
+                meta_file = create_or_open_pytables_file(random_name(), inMemory=True)
+        # data is Table: use as mask table
+        elif type(data) == t.table.Table:
+            self._set_meta_table(data)
+        # data is pytables File: set file attribute
+        elif isinstance(data, t.file.File):
+            meta_file = data
+        # data is string: create file at location
+        elif type(data) == str:
+            meta_file = create_or_open_pytables_file(data, inMemory=False)
+                
+        if (not hasattr(self, '_meta') or self._meta is None) and meta_file is not None:
+            try:
+                self._meta = meta_file.get_node('/' + table_name)
+            except NoSuchNodeError:
+                self._meta = meta_file.create_table("/", table_name, MetaContainer.MetaDescription)
+                self._meta.flush()
         
+    def _set_meta_table(self, table):
+        if type(table) == t.table.Table:
+            if (not 'date' in table.colnames or
+                not 'category' in table.colnames or
+                not 'name' in table.colnames or
+                not 'value' in table.colnames or
+                not 'description' in table.colnames):
+                raise ValueError("Object already has a meta table, \
+                                  but it does not have all the necessary \
+                                  columns (date, category, name, value, description)")
+            self._meta = table
         else:
-            if not type(self.file) == t.file.File:
-                raise ValueError("Object has file attribute, but it is not a pytables File object")
+            raise ValueError("Table is not a MetaContainer table")
         
+    def meta_info(self, name, value, category='', description=''):
+        row = self._meta.row
         
-        if hasattr(self, '_meta') and type(self._meta) == t.table.Table:
-            logging.info("Found existing _meta attribute")
-            return
+        row['date'] = time.time()
+        row['name'] = name
+        row['category'] = category
+        row['description'] = description
+        row['value'] = pickle.dumps(value)
         
-        if hasattr(self, '_meta'):
-            raise ValueError("Object already has a _meta attribute, but it is not from a MetaContainer object")
+        row.append()
+        self._meta.flush()
+    
+    def get_meta_info(self, key):
+        if type(key) == int:
+            row = self._meta[key]
+            return Meta(name=row[3], value=pickle.loads(row[4]), date=row[0], category=row[1], description=row[2])
         
-        try:
-            self._meta = self.file.get_node('/' + table_name)
-        except NoSuchNodeError:
-            self._meta = self.file.create_table("/", table_name, MetaContainer.MetaDescription)
-            self._meta.flush()
-            
+    def history(self, n=20):
+        """
+        Return a list of recent meta_info.
+        """
+        
+        n = min(len(self._meta), n)
+        history = []
+        i = 1
+        while n-i >= 0:
+            history.append(self.get_meta_info(-1*i))
+            i += 1
+        
+        return history
+    
     

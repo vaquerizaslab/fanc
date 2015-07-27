@@ -7,7 +7,7 @@ Created on Jul 13, 2015
 import tables as t
 import pysam
 from kaic.tools.files import create_or_open_pytables_file, random_name
-from kaic.data.general import Maskable, MetaContainer, MaskFilter
+from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable
 import pickle
 import tempfile
 import os
@@ -105,8 +105,12 @@ class ReadPairs(Maskable, MetaContainer):
             self._reads = self.file.create_table("/", table_name, reads_defininition)
         
         # generate tables from inherited classes
-        Maskable.__init__(self, self._reads)
-        MetaContainer.__init__(self)
+        Maskable.__init__(self, self.file)
+        MetaContainer.__init__(self, self.file)
+        
+        # make reads table maskable
+        self._reads = MaskedTable(self._reads)
+        
         
         # index node table
         logging.info("Creating index...")
@@ -271,7 +275,6 @@ class ReadPairs(Maskable, MetaContainer):
         logging.info('Counts: R1 %d R2 %d' % (r1_count,r2_count))
         
         self._reads.flush()
-        self.update_mask_table_ix()
         
         if not is_sorted:
             os.unlink(tmp1.name)
@@ -285,7 +288,6 @@ class ReadPairs(Maskable, MetaContainer):
         
         if flush:
             self._reads.flush()
-            self.update_mask_table_ix()
             
     def _add_left_read_to_row(self, r, row):
         row['qname'] = r.qname
@@ -311,7 +313,6 @@ class ReadPairs(Maskable, MetaContainer):
         
         if flush:
             self._reads.flush()
-            self.update_mask_table_ix()
             
     def _add_right_read_to_row(self, r, row):
         row['qname'] = r.qname
@@ -339,10 +340,9 @@ class ReadPairs(Maskable, MetaContainer):
         
         if flush:
             self._reads.flush()
-            self.update_mask_table_ix()
     
     def __len__(self):
-        return self.get_mask_table_len()
+        return len(self._reads)
     
     @property
     def header1(self):
@@ -365,42 +365,46 @@ class ReadPairs(Maskable, MetaContainer):
     
 
     def filter_quality(self, cutoff=30, queue=False):
-        quality_filter = QualityFilter(self, cutoff)
-        ix = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
+        mask = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
+        quality_filter = QualityFilter(cutoff, mask)
         
         if not queue:
-            quality_filter.apply(ix)
+            self._reads.filter(quality_filter)
         else:
-            self.queue_filter(quality_filter,ix)
+            self._reads.queue_filter(quality_filter)
             
     def filter_non_unique(self, strict=True, queue=False):
-        uniqueness_filter = UniquenessFilter(self, strict)
-        ix = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
+        mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
+        uniqueness_filter = UniquenessFilter(strict, mask)
         
         if not queue:
-            uniqueness_filter.apply(ix)
+            self._reads.filter(uniqueness_filter)
         else:
-            self.queue_filter(uniqueness_filter,ix)
+            self._reads.queue_filter(uniqueness_filter)
             
     def filter_single(self, queue=False):
-        single_filter = SingleFilter(self)
-        ix = self.add_mask_description('single', 'Mask read pairs that are unpaired')
-
+        mask = self.add_mask_description('single', 'Mask read pairs that are unpaired')
+        print "MASK: %d" % mask.ix
+        single_filter = SingleFilter(mask)
+        
         if not queue:
-            single_filter.apply(ix)
+            self._reads.filter(single_filter)
         else:
-            self.queue_filter(single_filter,ix)
+            self._reads.queue_filter(single_filter)
+    
+    def run_queued_filters(self):
+        self._reads.run_queued_filters()
     
     def __iter__(self):
-        return self._mask_table_iter()
+        return iter(self._reads)
                 
     
     def __getitem__(self, key):
-        return self._mask_table_selector(key)
+        return self._reads.__getitem__(key)
     
     
     def filtered_reads(self):
-        return self.filtered_rows()
+        return self._reads.masked_rows()
     
     
     
@@ -411,8 +415,8 @@ class ReadPairs(Maskable, MetaContainer):
 
 
 class QualityFilter(MaskFilter):
-    def __init__(self, maskable, cutoff=30):
-        super(QualityFilter, self).__init__(maskable)
+    def __init__(self, cutoff=30, mask=None):
+        super(QualityFilter, self).__init__(mask)
         self.cutoff = cutoff
 
     def valid(self, row):
@@ -427,9 +431,9 @@ class QualityFilter(MaskFilter):
         return left_valid and right_valid
 
 class UniquenessFilter(MaskFilter):
-    def __init__(self, maskable, strict=True):
+    def __init__(self, strict=True, mask=None):
         self.strict = strict
-        super(UniquenessFilter, self).__init__(maskable)
+        super(UniquenessFilter, self).__init__(mask)
     
     def valid(self, row):
         left_valid = True
@@ -452,8 +456,8 @@ class UniquenessFilter(MaskFilter):
 
 
 class SingleFilter(MaskFilter):
-    def __init__(self, maskable):
-        super(SingleFilter, self).__init__(maskable)
+    def __init__(self, mask=None):
+        super(SingleFilter, self).__init__(mask)
     
     def valid(self, row):
         if row['pos1'] == 0 or row['pos2'] == 0:

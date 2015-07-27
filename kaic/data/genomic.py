@@ -976,7 +976,7 @@ class Genome(Table):
             if l == 0:
                 l = len(s)
         
-        self.append([n,l,s], rownames=n)
+        self.append([n,l,s], rownames=[n])
         
     
     
