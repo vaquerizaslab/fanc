@@ -42,18 +42,19 @@ def random_name(length=6):
 def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
     if file_name is None:
         file_name = random_name()
-    
-    mem = 0 if inMemory else 1
-    
+        
     # check if is existing
     if os.path.isfile(file_name):
         try:
-            f = t.open_file(file_name, "r", driver="H5FD_CORE",driver_core_backing_store=mem)
+            f = t.open_file(file_name, "r")
             f.close()
         except t.HDF5ExtError:
             raise ImportError("File exists and is not an HDF5 dict")
-        
-    return t.open_file(file_name, mode, driver="H5FD_CORE",driver_core_backing_store=mem)
+    
+    if inMemory:
+        return t.open_file(file_name, mode, driver="H5FD_CORE",driver_core_backing_store=0)
+    else:
+        return t.open_file(file_name, mode)
 
 
 def is_bed_file(file_name):
