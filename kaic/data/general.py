@@ -7,6 +7,7 @@ files. Other features include indexing and querying.
 '''
 
 import tables as t
+_filter = t.Filters(complib="lzo", complevel=1, shuffle=True)
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file,\
     random_name
 from __builtin__ import isinstance
@@ -15,6 +16,7 @@ import string # @UnusedImport
 import numpy as np
 import warnings
 import os.path
+import types
 import time
 import pickle
 import logging
@@ -1442,9 +1444,255 @@ class Maskable(object):
         
         return list(reversed(masks))
     
+def to_masked_table(table, maskable=None):
+    if not isinstance(table, t.Table):
+        raise ValueError("table must be pytables Table!")
     
+    logging.info("Checking table")    
+    # check if table has necessary columns
+    if not 'mask' in table.colnames:
+        raise ValueError("Table must have 'mask' field")
+    if not 'mask_ix' in table.colnames:
+        raise ValueError("Won't be able to access masked table by index (add 'mask_ix' field!)")
+    
+    # create index
+    if not table.cols.mask_ix.is_indexed:
+        logging.info("Creating index...")
+        table.cols.mask_ix.create_index()
+        table.flush()
+    
+    table._queued_filters = []
+    
+    # new index update method
+    def _update_ix(self):
+        """
+        Update the row indexes of the masked table.
         
-class MaskedTable(t.table.Table):
+        Should be run after masking. Will assign auto-
+        incrementing integers (from 0) to the 'mask_ix'
+        field of each row in the table if it is not 
+        masked, -1 otherwise.
+        """
+        
+        logging.info("Updating mask indices")
+        
+        ix = 0
+        masked_ix = -1
+        for row in self:
+            if row['mask'] > 0:
+                row['mask_ix'] = masked_ix
+                masked_ix -= 1
+            else:
+                row['mask_ix'] = ix
+                ix += 1
+            row.update()
+    
+    table._update_ix = types.MethodType(_update_ix, table)
+    
+    # monkey-patch flush method
+    def new_flush(self, update_index=True, _original_flush=table.flush):
+        """
+        Flush buffered data to table AND potentially update mask index.
+        """
+        
+        logging.info("Flushing")
+        
+        # commit any previous changes
+        _original_flush()
+        
+        if update_index:
+            self._update_ix()
+            if not self.autoindex:
+                self.flush_rows_to_index()
+            
+            # commit index changes
+            _original_flush()
+    
+    flush_functype = type(table.flush)
+    table.flush = flush_functype(new_flush, table, t.Table)
+    
+    # monkey-patch built-in methods
+    def masked_iter(self):
+        this = self
+        class UnmaskedIter:
+            def __init__(self):
+                self.iter = this.__iter__()
+                  
+            def __iter__(self):
+                return self
+              
+            def next(self):
+                row = self.iter.next()
+                while row['mask'] > 0:
+                    row = self.iter.next()
+                return row.fetch_all_fields()
+        return UnmaskedIter()
+    
+    table.masked_iter = types.MethodType(masked_iter, table)
+      
+    def masked_getitem(self, key):
+        if type(key) == int:
+            if key >= 0:
+                res = [x.fetch_all_fields() for x in self.where("mask_ix == %d" % key)]
+                if len(res) == 1:
+                    return res[0]
+                if len(res) == 0:
+                    raise IndexError("Index %d out of bounds" % key)
+                raise RuntimeError("Duplicate row for key %d" % key)
+            else:
+                l = self.masked_len()
+                return self.masked_getitem(l+key)
+        elif type(key) == slice:
+            print key.start
+            print key.stop
+            res = []
+            # set sensible defaults
+            start = key.start
+            if start is None:
+                start = 0
+            stop = key.stop
+            if stop is None:
+                stop = self.masked_len()
+            step = key.step
+            if step is None:
+                step = 1
+                  
+            for i in range(start,stop,step):
+                res.append(self.masked_getitem(i))
+            return res
+        else:
+            raise KeyError('Cannot retrieve row with key ' + str(key))
+        
+    table.masked_getitem = types.MethodType(masked_getitem, table)
+      
+    def masked_len(self):
+        """
+        Return the 'perceived' length of the masked table.
+          
+        If the table has masked rows, these will not be counted.
+        """
+        logging.info("Calculating perceived length")
+        return sum(1 for _ in iter(self.where("mask_ix >= 0")))
+    
+    table.masked_len = types.MethodType(masked_len, table)
+    
+    
+    # add more useful methods
+    def new_filter(self, mask_filter):
+        """
+        Run a MaskFilter on this table.
+        
+        This functions calls the MaskFilter.valid function on
+        every row and masks them if the function returns False.
+        After running the filter, the table index is updated
+        to match only unmasked rows.
+        """
+
+        total = 0
+        ix = 0
+        mask_ix = -1
+        for row in self:
+            total += 1
+            
+            if not mask_filter.valid(row):
+                row['mask'] = row['mask'] + 2**mask_filter.mask_ix
+            
+            # update index
+            if row['mask'] > 0:
+                row['mask_ix'] = mask_ix
+                mask_ix -= 1
+            else:
+                row['mask_ix'] = ix
+                ix += 1
+            row.update()
+        
+        logging.info("Done filtering")
+        self.flush(update_index=False)
+        
+    table.filter = types.MethodType(new_filter, table)
+
+    def queue_filter(self, filter_definition):
+        """
+        Add a MaskFilter to filter queue.
+        
+        Queued filters can be run at a later time using
+        the run_queued_filters function.
+        """
+        self._queued_filters.append(filter_definition)
+        
+    table.queue_filter = types.MethodType(queue_filter, table)
+        
+    def run_queued_filters(self):
+        """
+        Run queued MaskFilters.
+        
+        MaskFilters can be queued using the
+        queue_filter function.
+        """
+                
+        ix = 0
+        mask_ix = -1
+        for row in self:
+            for f in self._queued_filters:
+                if not f.valid(row):
+                    row['mask'] = row['mask'] + 2**f.mask_ix
+                    
+            # update index
+            if row['mask'] > 0:
+                row['mask_ix'] = mask_ix
+                mask_ix -= 1
+            else:
+                row['mask_ix'] = ix
+                ix += 1
+            row.update()
+        
+        logging.info("Done filtering")
+        self.flush(update_index=False)
+    
+    table.run_queued_filters = types.MethodType(run_queued_filters, table)
+    
+    def masked_rows(self):
+        """
+        Return an iterator over masked rows.
+        """
+        
+        this = self
+        class FilteredIter:
+            def __init__(self):
+                self.iter = this.__iter__()
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                row = self.iter.next()
+                while row['mask'] == 0:
+                    row = self.iter.next()
+                return row.fetch_all_fields()
+            
+            def __getitem__(self, key):
+                if type(key) == int:
+                    if key >= 0:
+                        key = -1*key - 1
+                        res = [x.fetch_all_fields() for x in this.where("mask_ix == %d" % key)]
+                        if len(res) == 1:
+                            return res[0]
+                        if len(res) == 0:
+                            raise IndexError("Index %d out of bounds" % key)
+                        raise RuntimeError("Duplicate row for key %d" % key)
+                    else:
+                        l = this.masked_len()
+                        return self[l+key]
+                else:
+                    raise KeyError('Cannot retrieve row with key ' + str(key))
+        return FilteredIter()
+    
+    table.masked_rows = types.MethodType(masked_rows, table)
+    
+    table.flush()
+    logging.info("Done preparing table")
+    
+class MaskedTable(t.Table):
     """
     Wrapper that adds masking functionality to a pytables table. 
     
@@ -1475,32 +1723,29 @@ class MaskedTable(t.table.Table):
     be masked.
     """
     
-    def __init__(self, table):
+    def __init__(self, parentNode, table_name='mask', description=None, title='',
+                 filters=_filter, expectedrows=512000, _log=False):
         """
-        Wrap a pytables Table to provide masking functionality.
+        Pytables Table extension to provide masking functionality.
         
         Args:
-            table (tables.table.Table):
+            table (tables.Table):
                 pytables Table with at least a 'mask' column.
                 'mask_ix' column required for full indexing
                 functionality.
         """
         
-        # to expose original table methods that have not been overridden
-        self.__class__ = type(table.__class__.__name__,
-                              (self.__class__, table.__class__),
-                              {})
-        self.__dict__ = table.__dict__
+        self._c_classId = self.__class__.__name__
         
-        # create index on mask column
-        if self._supports_ix():
-            logging.info("Creating index...")
-            try:
-                self.cols.mask_ix.create_index()
-            except ValueError:
-                # Index exists, no problem!
-                pass
+        t.Table.__init__(self, parentNode, table_name,
+                        description=description, title=title,
+                        filters=filters,
+                        expectedrows=expectedrows,
+                        _log=False)
+
         
+        
+        #self._enable_index()
         self._check()
         self._queued_filters = []
     
@@ -1523,18 +1768,18 @@ class MaskedTable(t.table.Table):
         this = self
         class UnmaskedIter:
             def __init__(self):
-                self.iter = this.all()
-                
+                self.iter = iter(this.all())
+                  
             def __iter__(self):
                 return self
-            
+              
             def next(self):
                 row = self.iter.next()
                 while row['mask'] > 0:
                     row = self.iter.next()
                 return row.fetch_all_fields()
         return UnmaskedIter()
-    
+      
     def __getitem__(self, key):
         if type(key) == int:
             if key >= 0:
@@ -1562,7 +1807,7 @@ class MaskedTable(t.table.Table):
             step = key.step
             if step is None:
                 step = 1
-                
+                  
             print "%d-%d, %d" % (start, stop, step)
             for i in range(start,stop,step):
                 print i
@@ -1570,19 +1815,19 @@ class MaskedTable(t.table.Table):
             return res
         else:
             raise KeyError('Cannot retrieve row with key ' + str(key))
-    
+      
     def __len__(self):
         """
         Return the 'perceived' length of the masked table.
-        
+          
         If the table has masked rows, these will not be counted.
         """
-        
+          
         if self._supports_ix():
             count = sum(1 for _ in iter(self.where("mask_ix > -1")))
             return count
         return len(self)
-    
+     
     def _check(self):
         """
         Check this table for maskability.
@@ -1626,6 +1871,14 @@ class MaskedTable(t.table.Table):
                 ix += 1
             row.update()
         #self.flush()
+        
+    def _enable_index(self):
+        # create index on mask column
+        if self._supports_ix():
+            if not self.cols.mask_ix.is_indexed:
+                logging.info("Creating index...")
+                self.cols.mask_ix.create_index(optlevel=2)
+                self.flush(update_index=False)
     
     
     def filter(self, mask_filter):
@@ -1714,8 +1967,8 @@ class MaskedTable(t.table.Table):
         """
         Return an iterator over all rows, including masked ones.
         """
-        
-        return super(MaskedTable, self).__iter__()
+         
+        return t.Table.__iter__(self)
         
     def masked_rows(self):
         """

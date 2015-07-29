@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
     TableArray, _convert_to_tables_type, _structured_array_to_table_type,\
-    _file_to_data, Mask, Maskable, MaskedTable, MaskFilter
+    _file_to_data, Mask, Maskable, MaskedTable, MaskFilter, to_masked_table
 from __builtin__ import classmethod
 import os
 from kaic.tools.files import create_or_open_pytables_file
@@ -847,10 +847,10 @@ class TestMaskable:
         masks = maskable.get_masks(ix)
         assert len(masks) == 0
         
-class TestMaskTable:
+class TestMaskedTable:
     class TestFilter(MaskFilter):
         def __init__(self, cutoff=25):
-            super(TestMaskTable.TestFilter, self).__init__()
+            super(TestMaskedTable.TestFilter, self).__init__()
             self.cutoff = cutoff
             
         def valid(self, test):
@@ -868,7 +868,8 @@ class TestMaskTable:
             'mask': t.Int16Col(pos=3),
             'mask_ix': t.Int32Col(pos=4)
         }
-        self.table = MaskedTable(f.create_table("/", "test", test_description))
+        self.table = f.create_table("/", "test", test_description)
+        to_masked_table(self.table)
         
         row = self.table.row
         for i in range(0,50):
@@ -879,7 +880,8 @@ class TestMaskTable:
         
         self.table.flush()
         
-        self.filtered_table = MaskedTable(f.create_table("/", "test_filter", test_description))
+        self.filtered_table = f.create_table("/", "test_filter", test_description)
+        to_masked_table(self.filtered_table)
         
         row = self.filtered_table.row
         for i in range(0,50):
@@ -890,7 +892,7 @@ class TestMaskTable:
         
         self.filtered_table.flush()
         
-        self.filtered_table.filter(TestMaskTable.TestFilter())
+        self.filtered_table.filter(TestMaskedTable.TestFilter())
         
         
     def test_initialize(self):
@@ -899,25 +901,25 @@ class TestMaskTable:
             assert self.table[i][4] == i
     
     def test_len(self):
-        assert len(self.filtered_table) == 25
+        assert self.filtered_table.masked_len() == 25
     
     def test_select(self):
         # single positive index        
-        assert self.filtered_table[0][1] == 25
+        assert self.filtered_table.masked_getitem(0)[1] == 25
         # single negative index
-        assert self.filtered_table[-1][1] == 49
+        assert self.filtered_table.masked_getitem(-1)[1] == 49
         # slice
-        x = self.filtered_table[1:3]
+        x = self.filtered_table.masked_getitem(slice(1,3,1))
         assert np.array_equal(tuple(x[0]), ('test_26',26,26.0,0,1))
         assert np.array_equal(tuple(x[1]), ('test_27',27,27.0,0,2))
     
     
     def test_filter(self):
-        self.table.filter(TestMaskTable.TestFilter())
+        self.table.filter(TestMaskedTable.TestFilter())
         
         i = 0
         masked_i = -1
-        for row in self.table.all():
+        for row in self.table:
             if row['mask'] > 0:
                 assert row['mask_ix'] == masked_i
                 assert row['mask'] == 1
@@ -932,6 +934,63 @@ class TestMaskTable:
         
         masked_ix = -1
         for row in self.filtered_table.masked_rows():
-            row['mask_ix'] = masked_ix
+            assert row['mask_ix'] == masked_ix
             masked_ix -= 1
+
+
+
+
+class MinTable(t.Table):
+    
+    def __init__(self):
+        
+        f = t.open_file('bla', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
+        
+        description = {
+            'c1': t.Int32Col(),
+            'mask': t.Int16Col(),
+            'mask_ix': t.Int32Col()
+        }
+        
+        super(MinTable,self).__init__(f.get_node('/'), 'test', description=description)
+        self._c_classId = self.__class__.__name__
+        
+        #self._enable_index()
+        
+        row = self.row
+        row['c1'] = 0
+        row.append()
+        self.flush()
+        
+        [x.fetch_all_fields() for x in self.where('c1 == 0')]
+        
+    def _enable_index(self):
+        self.cols.c1.create_index()
+        
+    
+def fail_index():
+    import tables as t
+    f = t.open_file('test', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
+    
+    description = {
+        'ix': t.Int32Col(),
+        'mask': t.Int16Col()
+        #'mask_ix': t.Int32Col()
+    }
+    
+    table = f.create_table("/", 'test', description)
+    table.cols.ix.create_index()
+    
+    row = table.row
+    for i in range(0, 10000000):
+        row['ix'] = i
+        row.append()
+    table.flush()
+    
+    i = 0
+    for row in table:
+        row['ix'] = i
+        i += 1
+        row.update()
+    table.flush()
         

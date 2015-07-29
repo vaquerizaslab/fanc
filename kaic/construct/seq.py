@@ -7,7 +7,8 @@ Created on Jul 13, 2015
 import tables as t
 import pysam
 from kaic.tools.files import create_or_open_pytables_file, random_name
-from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable
+from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable,\
+    to_masked_table
 import pickle
 import tempfile
 import os
@@ -42,26 +43,32 @@ class ReadPairs(Maskable, MetaContainer):
             if not type(self.file) == t.file.File:
                 raise ValueError("Object has file attribute, but it is not a pytables File object")
             
-
+        
+        
+        
         # try to retrieve existing table
         try:
-            self._reads = self.file.get_node('/' + table_name)
+            table = self.file.get_node('/' + table_name)
             try:
-                self._header1 = self._reads._v_attrs.header1
-                self._header2 = self._reads._v_attrs.header2
+                self._header1 = table._v_attrs.header1
+                self._header2 = table._v_attrs.header2
             except AttributeError:
+                logging.warn("No header attributes found in existing table")
                 self._header1 = None
                 self._header2 = None
             
             try:
-                self._ref1 = self._reads._v_attrs.ref1
-                self._ref2 = self._reads._v_attrs.ref2
+                self._ref1 = table._v_attrs.ref1
+                self._ref2 = table._v_attrs.ref2
             except AttributeError:
+                logging.warn("No ref attributes found in existing table")
                 self._ref1 = None
                 self._ref2 = None
         
         # or build table from scratch
         except NoSuchNodeError:
+            
+            expected_length = 50000000
             if sambam_file1 is not None and sambam_file2 is not None:
                 if auto_determine_field_sizes:
                     logging.info("Determining field sizes")
@@ -73,9 +80,11 @@ class ReadPairs(Maskable, MetaContainer):
                     field_sizes['cigar'] = max(lengths1["cigar"],lengths2["cigar"])
                     field_sizes['tags'] = max(lengths1["tags"],lengths2["tags"])
                 
+                expected_length = int(self._sambam_size(sambam_file1)*1.5)
+                
             reads_defininition = {
                 'qname': t.StringCol(field_sizes['qname'],pos=0),
-                'flag1': t.Int16Col(pos=1),
+                'flag1': t.Int32Col(pos=1),
                 'ref1': t.Int32Col(pos=2),
                 'pos1': t.Int64Col(pos=3),
                 'mapq1': t.Int32Col(pos=4),
@@ -86,7 +95,7 @@ class ReadPairs(Maskable, MetaContainer):
                 'seq1': t.StringCol(field_sizes['sequence'],pos=9),
                 'qual1': t.StringCol(field_sizes['sequence'],pos=10),
                 'tags1': t.StringCol(field_sizes['tags'],pos=11),
-                'flag2': t.Int16Col(pos=12),
+                'flag2': t.Int32Col(pos=12),
                 'ref2': t.Int32Col(pos=13),
                 'pos2': t.Int64Col(pos=14),
                 'mapq2': t.Int32Col(pos=15),
@@ -97,19 +106,24 @@ class ReadPairs(Maskable, MetaContainer):
                 'seq2': t.StringCol(field_sizes['sequence'],pos=20),
                 'qual2': t.StringCol(field_sizes['sequence'],pos=21),
                 'tags2': t.StringCol(field_sizes['tags'],pos=22),
-                'mask': t.Int16Col(pos=23),
+                'mask': t.Int32Col(pos=23),
                 'mask_ix': t.Int32Col(pos=24)
             }
             # create table
             logging.info("Creating tables...")
-            self._reads = self.file.create_table("/", table_name, reads_defininition)
+            table = self.file.create_table("/", table_name,
+                                           reads_defininition, expectedrows=expected_length,
+                                           filters=t.Filters(complib="blosc", complevel=2, shuffle=True))
+            #table = self.file.create_table("/", table_name, reads_defininition, expectedrows=expected_length)
         
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
         
         # make reads table maskable
-        self._reads = MaskedTable(self._reads)
+        #self._reads = MaskedTable(table)
+        to_masked_table(table)
+        self._reads = table
 
         # map reads
         if sambam_file1 is not None and sambam_file2 is not None:
@@ -145,8 +159,14 @@ class ReadPairs(Maskable, MetaContainer):
                  'tags': tags_length,
                  'cigar': cigar_length }
         
+    def _sambam_size(self, sambam):
+        if type(sambam) == str:
+            sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
         
-    
+        count = sum(1 for _ in iter(sambam))
+        sambam.close()
+        return count
+        
     
     def load(self, sambam1, sambam2, ignore_duplicates=True, is_sorted=False):
         # get file names
@@ -242,7 +262,7 @@ class ReadPairs(Maskable, MetaContainer):
             
             if i % 100000 == 0:
                 logging.info("%d reads processed" % i)
-                self._reads.flush(update_index=False)
+                #self._reads.flush(update_index=False)
         
         
         # add remaining unpaired reads
@@ -337,7 +357,7 @@ class ReadPairs(Maskable, MetaContainer):
             self._reads.flush()
     
     def __len__(self):
-        return len(self._reads)
+        return self._reads.masked_len()
     
     @property
     def header1(self):
@@ -391,11 +411,11 @@ class ReadPairs(Maskable, MetaContainer):
         self._reads.run_queued_filters()
     
     def __iter__(self):
-        return iter(self._reads)
+        return self._reads.masked_iter()
                 
     
     def __getitem__(self, key):
-        return self._reads.__getitem__(key)
+        return self._reads.masked_getitem(key)
     
     
     def filtered_reads(self):
