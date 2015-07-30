@@ -949,7 +949,8 @@ class MinTable(t.Table):
         description = {
             'c1': t.Int32Col(),
             'mask': t.Int16Col(),
-            'mask_ix': t.Int32Col()
+            'mask_ix': t.Int32Col(),
+            'string': t.StringCol(231)
         }
         
         super(MinTable,self).__init__(f.get_node('/'), 'test', description=description)
