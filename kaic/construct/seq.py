@@ -72,8 +72,8 @@ class ReadPairs(Maskable, MetaContainer):
             if sambam_file1 is not None and sambam_file2 is not None:
                 if auto_determine_field_sizes:
                     logging.info("Determining field sizes")
-                    lengths1 = ReadPairs.determine_field_sizes(sambam_file1)
-                    lengths2 = ReadPairs.determine_field_sizes(sambam_file2)
+                    lengths1 = ReadPairs.determine_field_sizes(sambam_file1, sample_size=None)
+                    lengths2 = ReadPairs.determine_field_sizes(sambam_file2, sample_size=None)
                     
                     field_sizes['qname'] = max(lengths1["qname"],lengths2["qname"])
                     field_sizes['sequence'] = max(lengths1["sequence"],lengths2["sequence"])
@@ -152,6 +152,9 @@ class ReadPairs(Maskable, MetaContainer):
             tags_length = max(tags_length,len(pickle.dumps(r.tags)))
             if sample_size is not None and i >= sample_size:
                 break
+            
+            if i % 100000 == 0:
+                logging.info(i)
         sambam.close()
         
         return { 'qname': qname_length,
