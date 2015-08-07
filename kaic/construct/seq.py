@@ -7,24 +7,20 @@ Created on Jul 13, 2015
 import tables as t
 import pysam
 from kaic.tools.files import create_or_open_pytables_file, random_name
-from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable,\
-    to_masked_table
-import pickle
+from kaic.data.general import Maskable, MetaContainer, MaskFilter, to_masked_table
 import tempfile
 import os
 import logging
 from tables.exceptions import NoSuchNodeError
+from abc import abstractmethod, ABCMeta
 
 
 
 class ReadPairs(Maskable, MetaContainer):
     
     def __init__(self, sambam_file1=None, sambam_file2=None, file_name=None,
-                       table_name = 'reads', auto_determine_field_sizes=True,
-                       field_sizes={'qname': 60,
-                                    'sequence': 200,
-                                    'tags': 250,
-                                    'cigar': 50}):
+                       group_name = 'reads', auto_determine_field_sizes=True,
+                       field_sizes={'qname': 60, 'sequence': 200}):
         
         
         # Only one file argument and that is an h5dict file name
@@ -42,28 +38,33 @@ class ReadPairs(Maskable, MetaContainer):
         else:
             if not type(self.file) == t.file.File:
                 raise ValueError("Object has file attribute, but it is not a pytables File object")
-            
-        
-        
-        
+
         # try to retrieve existing table
         try:
-            table = self.file.get_node('/' + table_name)
+            main_table = self.file.get_node('/' + group_name + '/main')
             try:
-                self._header1 = table._v_attrs.header1
-                self._header2 = table._v_attrs.header2
+                self._header1 = main_table._v_attrs.header1
+                self._header2 = main_table._v_attrs.header2
             except AttributeError:
                 logging.warn("No header attributes found in existing table")
                 self._header1 = None
                 self._header2 = None
             
             try:
-                self._ref1 = table._v_attrs.ref1
-                self._ref2 = table._v_attrs.ref2
+                self._ref1 = main_table._v_attrs.ref1
+                self._ref2 = main_table._v_attrs.ref2
             except AttributeError:
                 logging.warn("No ref attributes found in existing table")
                 self._ref1 = None
                 self._ref2 = None
+            
+            # tags
+            tags_left = self.file.get_node('/' + group_name + '/tags_left')
+            tags_right = self.file.get_node('/' + group_name + '/tags_right')
+            
+            # cigar
+            cigar_left = self.file.get_node('/' + group_name + '/cigar_left')
+            cigar_right = self.file.get_node('/' + group_name + '/cigar_right')
         
         # or build table from scratch
         except NoSuchNodeError:
@@ -72,49 +73,59 @@ class ReadPairs(Maskable, MetaContainer):
             if sambam_file1 is not None and sambam_file2 is not None:
                 if auto_determine_field_sizes:
                     logging.info("Determining field sizes")
-                    lengths1 = ReadPairs.determine_field_sizes(sambam_file1, sample_size=None)
-                    lengths2 = ReadPairs.determine_field_sizes(sambam_file2, sample_size=None)
+                    lengths1 = ReadPairs.determine_field_sizes(sambam_file1)
+                    lengths2 = ReadPairs.determine_field_sizes(sambam_file2)
                     
                     field_sizes['qname'] = max(lengths1["qname"],lengths2["qname"])
                     field_sizes['sequence'] = max(lengths1["sequence"],lengths2["sequence"])
-                    field_sizes['cigar'] = max(lengths1["cigar"],lengths2["cigar"])
-                    field_sizes['tags'] = max(lengths1["tags"],lengths2["tags"])
                 
                 expected_length = int(self._sambam_size(sambam_file1)*1.5)
                 
             reads_defininition = {
-                'qname': t.StringCol(field_sizes['qname'],pos=0),
-                'flag1': t.Int32Col(pos=1),
-                'ref1': t.Int32Col(pos=2),
-                'pos1': t.Int64Col(pos=3),
-                'mapq1': t.Int32Col(pos=4),
-                'cigar1': t.StringCol(field_sizes['cigar'],pos=5),
+                'ix': t.Int32Col(pos=0),
+                'qname': t.StringCol(field_sizes['qname'],pos=1),
+                'flag1': t.Int32Col(pos=2),
+                'ref1': t.Int32Col(pos=3),
+                'pos1': t.Int64Col(pos=4),
+                'mapq1': t.Int32Col(pos=5),
                 'rnext1': t.Int32Col(pos=6),
                 'pnext1': t.Int32Col(pos=7),
                 'tlen1': t.Int32Col(pos=8),
                 'seq1': t.StringCol(field_sizes['sequence'],pos=9),
                 'qual1': t.StringCol(field_sizes['sequence'],pos=10),
-                'tags1': t.StringCol(field_sizes['tags'],pos=11),
-                'flag2': t.Int32Col(pos=12),
-                'ref2': t.Int32Col(pos=13),
-                'pos2': t.Int64Col(pos=14),
-                'mapq2': t.Int32Col(pos=15),
-                'cigar2': t.StringCol(field_sizes['cigar'],pos=16),
-                'rnext2': t.Int32Col(pos=17),
-                'pnext2': t.Int32Col(pos=18),
-                'tlen2': t.Int32Col(pos=19),
-                'seq2': t.StringCol(field_sizes['sequence'],pos=20),
-                'qual2': t.StringCol(field_sizes['sequence'],pos=21),
-                'tags2': t.StringCol(field_sizes['tags'],pos=22),
-                'mask': t.Int32Col(pos=23),
-                'mask_ix': t.Int32Col(pos=24)
+                'flag2': t.Int32Col(pos=11),
+                'ref2': t.Int32Col(pos=12),
+                'pos2': t.Int64Col(pos=13),
+                'mapq2': t.Int32Col(pos=14),
+                'rnext2': t.Int32Col(pos=15),
+                'pnext2': t.Int32Col(pos=16),
+                'tlen2': t.Int32Col(pos=17),
+                'seq2': t.StringCol(field_sizes['sequence'],pos=18),
+                'qual2': t.StringCol(field_sizes['sequence'],pos=19),
+                'mask': t.Int32Col(pos=20),
+                'mask_ix': t.Int32Col(pos=21)
+                
             }
-            # create table
-            logging.info("Creating tables...")
-            table = self.file.create_table("/", table_name,
-                                           reads_defininition, expectedrows=expected_length,
-                                           filters=t.Filters(complib="blosc", complevel=2, shuffle=True))
-            #table = self.file.create_table("/", table_name, reads_defininition, expectedrows=expected_length)
+            # create data structures
+            logging.info("Creating data structures...")
+            
+            # create reads group
+            group = self.file.create_group("/", group_name, 'Read pairs group',
+                                           filters=t.Filters(complib="blosc",
+                                                             complevel=2, shuffle=True)
+                                           )
+            # create main table
+            main_table = self.file.create_table(group, 'main', reads_defininition,
+                                                expectedrows=expected_length)
+            # create tags vlarrays
+            tags_left = self.file.create_vlarray(group, 'tags_left', t.ObjectAtom())
+            tags_right = self.file.create_vlarray(group, 'tags_right', t.ObjectAtom())
+            
+            # create cigar vlarrays
+            cigar_left = self.file.create_vlarray(group, 'cigar_left', t.VLStringAtom())
+            cigar_right = self.file.create_vlarray(group, 'cigar_right', t.VLStringAtom())
+            
+            
         
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
@@ -122,8 +133,17 @@ class ReadPairs(Maskable, MetaContainer):
         
         # make reads table maskable
         #self._reads = MaskedTable(table)
-        to_masked_table(table)
-        self._reads = table
+        to_masked_table(main_table)
+        self._reads = main_table
+        
+        self._tags_left = tags_left
+        self._tags_right = tags_right
+        
+        self._cigar_left = cigar_left
+        self._cigar_right = cigar_right
+        
+        # row counter
+        self._row_counter = 0
 
         # map reads
         if sambam_file1 is not None and sambam_file2 is not None:
@@ -142,14 +162,12 @@ class ReadPairs(Maskable, MetaContainer):
         qname_length = 0
         seq_length = 0
         cigar_length = 0
-        tags_length = 0
         i = 0
         for r in sambam:
             i += 1
             qname_length = max(qname_length,len(r.qname))
             seq_length = max(seq_length,len(r.seq))
             cigar_length = max(cigar_length,len(r.cigarstring))
-            tags_length = max(tags_length,len(pickle.dumps(r.tags)))
             if sample_size is not None and i >= sample_size:
                 break
             
@@ -159,7 +177,6 @@ class ReadPairs(Maskable, MetaContainer):
         
         return { 'qname': qname_length,
                  'sequence': seq_length,
-                 'tags': tags_length,
                  'cigar': cigar_length }
         
     def _sambam_size(self, sambam):
@@ -219,9 +236,6 @@ class ReadPairs(Maskable, MetaContainer):
                 return r
             except StopIteration:
                 return None
-        
-        # turn off auto-indexing (minimal speed gain)
-        self._reads.autoindex = False
         
         i = 0
         last_r1_name = ''
@@ -292,7 +306,10 @@ class ReadPairs(Maskable, MetaContainer):
         logging.info('Counts: R1 %d R2 %d' % (r1_count,r2_count))
         
         self._reads.flush()
-        self._reads.autoindex = True
+        self._tags_left.flush()
+        self._tags_right.flush()
+        self._cigar_left.flush()
+        self._cigar_right.flush()
         
         if not is_sorted:
             os.unlink(tmp1.name)
@@ -304,9 +321,23 @@ class ReadPairs(Maskable, MetaContainer):
         self._add_left_read_to_row(r, row)
         row.append()
         
+        self._tags_left.append(r.tags)
+        self._tags_right.append({})
+        
+        self._cigar_left.append(r.cigarstring)
+        self._cigar_right.append('')
+        
+        self._row_counter += 1
+        
         if flush:
             self._reads.flush()
-            
+            self._tags_left.flush()
+            self._tags_right.flush()
+            self._cigar_left.flush()
+            self._cigar_right.flush()
+    
+
+    
     def _add_left_read_to_row(self, r, row):
         row['qname'] = r.qname
         row['flag1'] = r.flag
@@ -316,21 +347,34 @@ class ReadPairs(Maskable, MetaContainer):
         else:
             row['pos1'] = r.pos
         row['mapq1'] = r.mapq
-        row['cigar1'] = r.cigarstring
         row['rnext1'] = r.rnext
         row['pnext1'] =  r.pnext
         row['tlen1'] = r.tlen
         row['seq1'] = r.seq
         row['qual1'] = r.qual
-        row['tags1'] = pickle.dumps(r.tags)
+        row['ix'] = self._row_counter
+        #row['tags1'] = pickle.dumps(r.tags)
     
     def _add_right_read(self, r, flush=True):
         row = self._reads.row
         self._add_right_read_to_row(r, row)
         row.append()
         
+        self._tags_left.append({})
+        self._tags_right.append(r.tags)
+        
+        self._cigar_left.append('')
+        self._cigar_right.append(r.cigarstring)
+        
+        self._row_counter += 1
+        
         if flush:
             self._reads.flush()
+            self._tags_left.flush()
+            self._tags_right.flush()
+            self._cigar_left.flush()
+            self._cigar_right.flush()
+
             
     def _add_right_read_to_row(self, r, row):
         row['qname'] = r.qname
@@ -341,13 +385,13 @@ class ReadPairs(Maskable, MetaContainer):
         else:
             row['pos2'] = r.pos
         row['mapq2'] = r.mapq
-        row['cigar2'] = r.cigarstring
         row['rnext2'] = r.rnext
         row['pnext2'] =  r.pnext
         row['tlen2'] = r.tlen
         row['seq2'] = r.seq
         row['qual2'] = r.qual
-        row['tags2'] = pickle.dumps(r.tags)
+        row['ix'] = self._row_counter
+        #row['tags2'] = pickle.dumps(r.tags)
         
             
     def _add_read_pair(self, r1, r2, flush=True):
@@ -356,8 +400,20 @@ class ReadPairs(Maskable, MetaContainer):
         self._add_right_read_to_row(r2, row)
         row.append()
         
+        self._tags_left.append(r1.tags)
+        self._tags_right.append(r2.tags)
+        
+        self._cigar_left.append(r1.cigarstring)
+        self._cigar_right.append(r2.cigarstring)
+        
+        self._row_counter += 1
+        
         if flush:
             self._reads.flush()
+            self._tags_left.flush()
+            self._tags_right.flush()
+            self._cigar_left.flush()
+            self._cigar_right.flush()
     
     def __len__(self):
         return self._reads.masked_len()
@@ -385,6 +441,7 @@ class ReadPairs(Maskable, MetaContainer):
     def filter_quality(self, cutoff=30, queue=False):
         mask = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
         quality_filter = QualityFilter(cutoff, mask)
+        quality_filter.set_read_pairs_object(self)
         
         if not queue:
             self._reads.filter(quality_filter)
@@ -394,6 +451,7 @@ class ReadPairs(Maskable, MetaContainer):
     def filter_non_unique(self, strict=True, queue=False):
         mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
         uniqueness_filter = UniquenessFilter(strict, mask)
+        uniqueness_filter.set_read_pairs_object(self)
         
         if not queue:
             self._reads.filter(uniqueness_filter)
@@ -404,6 +462,7 @@ class ReadPairs(Maskable, MetaContainer):
         mask = self.add_mask_description('single', 'Mask read pairs that are unpaired')
         print "MASK: %d" % mask.ix
         single_filter = SingleFilter(mask)
+        single_filter.set_read_pairs_object(self)
         
         if not queue:
             self._reads.filter(single_filter)
@@ -414,57 +473,282 @@ class ReadPairs(Maskable, MetaContainer):
         self._reads.run_queued_filters()
     
     def __iter__(self):
-        return self._reads.masked_iter()
+        this = self
+        class ReadPairsIter:
+            def __init__(self):
+                self.iter = this._reads.masked_iter()
+                  
+            def __iter__(self):
+                return self
+              
+            def next(self):
+                row = self.iter.next()
+                left_read = None
+                if row['pos1'] > 0:
+                    left_read = ReadFromRow(row, this, is_left=True)
+        
+                right_read = None
+                if row['pos2'] > 0:
+                    right_read = ReadFromRow(row, this, is_left=False)
                 
+                return ReadPair(left_read=left_read, right_read=right_read)
+        return ReadPairsIter()
+    
+    def _tuple_to_read_pair(self, t):
+        main_info = t
+        tags_left = self._tags_left[main_info[0]]
+        tags_right = self._tags_right[main_info[0]]
+        cigar_left = self._cigar_left[main_info[0]]
+        cigar_right = self._cigar_right[main_info[0]]
+        
+        left_read = None
+        if main_info[4] > 0:
+            left_read = Read(qname=main_info[1], flag=main_info[2], ref=self.ix2ref1(main_info[3]),
+                            pos=main_info[4], mapq=main_info[5], cigar=cigar_left, rnext=main_info[6],
+                            pnext=main_info[7], tlen=main_info[8], seq=main_info[9], qual=main_info[10],
+                            tags=tags_left)
+        right_read = None
+        if main_info[14] > 0:
+            right_read = Read(qname=main_info[1], flag=main_info[11], ref=self.ix2ref2(main_info[12]),
+                            pos=main_info[13], mapq=main_info[14], cigar=cigar_right, rnext=main_info[15],
+                            pnext=main_info[16], tlen=main_info[17], seq=main_info[18], qual=main_info[19],
+                            tags=tags_right)
+        return ReadPair(left_read, right_read)
     
     def __getitem__(self, key):
-        return self._reads.masked_getitem(key)
+        main_info = self._reads.masked_getitem(key)
+        return self._tuple_to_read_pair(main_info)
     
+    def where(self, query):
+        results = [x.fetch_all_fields() for x in self._reads.where(query)]
+        pairs = []
+        for result in results:
+            pairs.append(self._tuple_to_read_pair(result))
+        return pairs
     
     def filtered_reads(self):
-        return self._reads.masked_rows()
+        this = self
+        class MaskedReadPairsIter:
+            def __init__(self):
+                self.iter = this._reads.masked_rows()
+                  
+            def __iter__(self):
+                return self
+              
+            def next(self):
+                row = self.iter.next()
+                left_read = None
+                if row['pos1'] > 0:
+                    left_read = ReadFromRow(row, this, is_left=True)
+        
+                right_read = None
+                if row['pos2'] > 0:
+                    right_read = ReadFromRow(row, this, is_left=False)
+                
+                masks = this.get_masks(row['mask'])
+                
+                return MaskedReadPair(left_read=left_read, right_read=right_read, masks=masks)
+        return MaskedReadPairsIter()
+
+
+
+class Read(object):
+    def __init__(self, qname="", flag=0, ref="",
+                 pos=0, mapq=0, cigar="", rnext=0,
+                 pnext=0, tlen=0, seq="", qual="",
+                 tags={}):
+        self.qname = qname
+        self.flag = flag
+        self.ref = ref
+        self.pos = pos
+        self.mapq = mapq
+        self.cigar = cigar
+        self.rnext = rnext
+        self.pnext = pnext
+        self.tlen = tlen
+        self.seq = seq
+        self.qual = qual
+        self.tags = tags
+
+    def __getitem__(self, key):
+        try:
+            value = self.__getattribute__(key)
+            return value
+        except:
+            raise KeyError("Read does not have %s attribute" % str(key))
+        
+    def __repr__(self):
+        return "%s, ref: %s, pos: %d" % (self.qname, self.ref, self.pos)
+        
+class ReadFromRow(Read):
+    def __init__(self, row, read_pairs_object, is_left=True):
+        self.row = row
+        self.read_pairs = read_pairs_object
+        self.is_left = is_left
+        
+        if is_left:
+            self.side = 1
+        else:
+            self.side = 2
     
+    @property
+    def qname(self): return self.row['qname']
     
+    @property
+    def flag(self): return self.row['flag' + str(self.side)]
     
+    @property
+    def ref(self):
+        if self.is_left:
+            return self.read_pairs.ix2ref1(self.row['ref' + str(self.side)])
+        return self.read_pairs.ix2ref2(self.row['ref' + str(self.side)])
+    
+    @property
+    def pos(self): return self.row['pos' + str(self.side)]
+    
+    @property
+    def mapq(self): return self.row['mapq' + str(self.side)]
+    
+    @property
+    def rnext(self): return self.row['rnext' + str(self.side)]
+    
+    @property
+    def pnext(self): return self.row['pnext' + str(self.side)]
+    
+    @property
+    def tlen(self): return self.row['tlen' + str(self.side)]
+    
+    @property
+    def seq(self): return self.row['seq' + str(self.side)]
+    
+    @property
+    def qual(self): return self.row['qual' + str(self.side)]
+    
+    @property
+    def cigar(self):
+        ix = self.row['ix']
+        if self.is_left:
+            return self.read_pairs._cigar_left[ix]
+        return self.read_pairs._cigar_right[ix]
+    
+    @property
+    def tags(self):
+        ix = self.row['ix']
+        if self.is_left:
+            return self.read_pairs._tags_left[ix]
+        return self.read_pairs._tags_right[ix]
+    
+        
+
+class ReadPair(object):
+    def __init__(self, left_read=None, right_read=None):
+        self.left_read = left_read
+        self.right_read = right_read
+    
+    def has_left_read(self):
+        return self.left_read is not None
+    
+    def has_right_read(self):
+        return self.right_read is not None
+    
+    @property
+    def qname(self):
+        if self.has_left_read():
+            return self.left_read.qname
+        
+        if self.has_right_read():
+            return self.right_read.qname
+        
+        return None
+    
+    def __repr__(self):
+        left_repr = "None"
+        if self.has_left_read():
+            left_repr = "%s-%d" % (self.left_read.ref, self.left_read.pos)
+        right_repr = "None"
+        if self.has_right_read():
+            right_repr = "%s-%d" % (self.right_read.ref, self.right_read.pos)
+        return "%s: (%s)-(%s)" % (self.qname, left_repr, right_repr)
+    
+class MaskedReadPair(ReadPair):
+    def __init__(self, left_read, right_read, masks=None):
+        super(MaskedReadPair, self).__init__(left_read,right_read)
+        self.masks = masks
+        
+    def __repr__(self):
+        representation = super(MaskedReadPair, self).__repr__()
+        if self.masks is not None:
+            mask_names = []
+            for mask in self.masks:
+                mask_names.append(mask.name)
+            return "%s (%s)" % (representation,", ".join(mask_names))
+        return representation
+
 
 #
 # Filters
 #
+class ReadPairFilter(MaskFilter):
+    __metaclass__ = ABCMeta
+    
+    def __init__(self, mask=None):
+        super(ReadPairFilter, self).__init__(mask)
+    
+    @abstractmethod
+    def valid_pair(self, read_pair):
+        pass
+    
+    def set_read_pairs_object(self, read_pairs_object):
+        self._read_pairs = read_pairs_object
+    
+    def valid(self, row):
+        
+        left_read = None
+        if row['pos1'] > 0:
+            left_read = ReadFromRow(row, self._read_pairs, is_left=True)
 
+        
+        right_read = None
+        if row['pos2'] > 0:
+            right_read = ReadFromRow(row, self._read_pairs, is_left=False)
+        
+        pair = ReadPair(left_read=left_read, right_read=right_read)
+        
+        return self.valid_pair(pair)
+        
 
-class QualityFilter(MaskFilter):
+class QualityFilter(ReadPairFilter):
     def __init__(self, cutoff=30, mask=None):
         super(QualityFilter, self).__init__(mask)
         self.cutoff = cutoff
 
-    def valid(self, row):
+    def valid_pair(self, pair):
         left_valid = True
-        if row['pos1'] > 0 and row['mapq1'] < self.cutoff:
+        if pair.has_left_read() and pair.left_read.mapq < self.cutoff:
             left_valid = False
         
         right_valid = True
-        if row['pos2'] > 0 and row['mapq2'] < self.cutoff:
+        if pair.has_right_read() and pair.right_read.mapq < self.cutoff:
             right_valid=False
              
         return left_valid and right_valid
 
-class UniquenessFilter(MaskFilter):
+class UniquenessFilter(ReadPairFilter):
     def __init__(self, strict=True, mask=None):
         self.strict = strict
         super(UniquenessFilter, self).__init__(mask)
     
-    def valid(self, row):
+    def valid_pair(self, pair):
         left_valid = True
-        if row['pos1'] > 0:
-            left_tags = pickle.loads(row['tags1'])
-            for tag in left_tags:
+        if pair.has_left_read():
+            for tag in pair.left_read.tags:
                 if tag[0] == 'XS':
                     if self.strict or tag[1] == 0:
                         left_valid = False
                     
         right_valid = True
-        if row['pos2'] > 0:
-            right_tags = pickle.loads(row['tags2'])
+        if pair.has_right_read() > 0:
+            right_tags = pair.right_read.tags
             for tag in right_tags:
                 if tag[0] == 'XS':
                     if self.strict or tag[1] == 0:
@@ -473,12 +757,12 @@ class UniquenessFilter(MaskFilter):
         return left_valid and right_valid
 
 
-class SingleFilter(MaskFilter):
+class SingleFilter(ReadPairFilter):
     def __init__(self, mask=None):
         super(SingleFilter, self).__init__(mask)
     
-    def valid(self, row):
-        if row['pos1'] == 0 or row['pos2'] == 0:
+    def valid_pair(self, pair):
+        if not pair.has_left_read() or not pair.has_right_read():
             return False
         return True
 

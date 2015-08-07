@@ -632,7 +632,9 @@ class Table(object):
             self.file = create_or_open_pytables_file(file_name, inMemory=True)
         else:
             self.file = create_or_open_pytables_file(file_name, inMemory=False)
-
+            
+        # set a few sensible defaults
+        self._rowname_field = '_rowname'
 
         # create or retrieve table
         if not table_name in self.file.root:
@@ -683,6 +685,10 @@ class Table(object):
 
         # clean up
         self._table.flush()
+        
+        # data is file
+        if type(data) is str:
+            data = _file_to_data(data, types=col_types)
 
         # add any potential data
         if data is not None:
@@ -864,7 +870,6 @@ class Table(object):
             for name in d:
                 row[name] = d[name]
         except (TypeError,KeyError,AttributeError,IndexError, ValueError), e:
-            print e
             raise TypeError("d is not a dictionary")
 
         row.append()
@@ -878,35 +883,35 @@ class Table(object):
         Append data to the table.
         
         Args:
-        data (...):      Data can have several formats:
-                            (a) list of lists (or with list-like indexing)
-                                each entry in the list represents one row
-                                with fields in the same order as Table
-                                columns.
-                                Rows may include row name as first field.
-                            (b) list of dicts
-                                each entry in the list is a dict, keys in
-                                the dict are column names. To import row
-                                names, add '_rowname' entry
-                            (c) TSV file
-                                A tab-separated value (TSV) file without
-                                header line. May include row names in 
-                                first field
-                            (d) list
-                                A single list representing a row in the
-                                Table
-                            (e) dict
-                                A single dict with keys corresponding to
-                                table column names. To import row
-                                names, add '_rowname' entry
+        data (...): Data can have several formats:
+            (a) list of lists (or with list-like indexing)
+                each entry in the list represents one row
+                with fields in the same order as Table
+                columns.
+                Rows may include row name as first field.
+            (b) list of dicts
+                each entry in the list is a dict, keys in
+                the dict are column names. To import row
+                names, add '_rowname' entry
+            (c) TSV file
+                A tab-separated value (TSV) file without
+                header line. May include row names in 
+                first field
+            (d) list
+                A single list representing a row in the
+                Table
+            (e) dict
+                A single dict with keys corresponding to
+                table column names. To import row
+                names, add '_rowname' entry
         rownames (list): optional list of rownames, overwritten by
-                         any rownames that may be in the data
+            any rownames that may be in the data
         """
         
         # data is file
         if type(data) is str:
             data = _file_to_data(data)
-            
+        
         original_length = len(self)
         # data is a list of lists?
         try:
@@ -1435,7 +1440,6 @@ class Maskable(object):
             if key_copy - 2**last_ix >= 0:
                 mask = self.get_mask(last_ix)
                 if mask is not None:
-                    print mask.ix
                     masks.append(mask)
                 key_copy -= 2**last_ix
             last_ix -= 1
@@ -1445,6 +1449,10 @@ class Maskable(object):
         return list(reversed(masks))
     
 def to_masked_table(table, maskable=None):
+    """
+    Monkey-patch existing pytables Table to a maskable Table.
+    """
+    
     if not isinstance(table, t.Table):
         raise ValueError("table must be pytables Table!")
     

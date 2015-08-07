@@ -857,7 +857,7 @@ class Chromosome(object):
             raise ValueError("File %s does not appear to be a FASTA file" % file_name)
         
         if include_sequence:
-            return cls(name if name else fasta.id, length=len(fasta), sequence=fasta.seq.tostring())
+            return cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
         else:
             return cls(name if name else fasta.id, length=len(fasta))
             
@@ -885,18 +885,19 @@ class Genome(Table):
         max_size = 1
         names = []
         i = 0
-        for chromosome in chromosomes:
-            if chromosome.name is not None: 
-                if chromosome.name in names:
-                    raise ValueError("Duplicate chromosome name %s" % chromosome.name)
-                names.append(chromosome.name)
-            else:
-                names.append(str(i))
-            i += 1
+        if chromosomes is not None:
+            for chromosome in chromosomes:
+                if chromosome.name is not None: 
+                    if chromosome.name in names:
+                        raise ValueError("Duplicate chromosome name %s" % chromosome.name)
+                    names.append(chromosome.name)
+                else:
+                    names.append(str(i))
+                i += 1
 
             
             if chromosome.sequence is not None:
-                max_size = max(max_size, len(chromosome.sequence))
+                max_size = max(max_size, len(chromosome.sequence)+1)
         
         if max_size == 1:
             max_size = max_seq_length
@@ -905,9 +906,9 @@ class Genome(Table):
         column_types = [t.StringCol(50, pos=0), t.Int32Col(pos=1), t.StringCol(max_size, pos=2)]  # @UndefinedVariable
                 
         Table.__init__(self, file_name=file_name, colnames=columns, col_types=column_types)
-        
-        for chromosome in chromosomes:
-            self.add_chromosome(chromosome)
+        if chromosomes is not None:
+            for chromosome in chromosomes:
+                self.add_chromosome(chromosome)
             
     @classmethod
     def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
@@ -982,10 +983,9 @@ class Genome(Table):
     
     
     
-    def get_node_list(self, split):
+    def get_regions(self, split):
         nodes = []
         for chromosome in self:
-            print chromosome
             if type(split) is str:
                 res = chromosome.get_restriction_sites(split)
                 for i in range(0,len(res)):

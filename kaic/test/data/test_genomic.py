@@ -49,7 +49,7 @@ class TestGenome:
             i+=1
             
     def test_node_list(self):
-        nl = self.genome.get_node_list('HindIII')
+        nl = self.genome.get_regions('HindIII')
         
         assert len(nl) == 6
         for i in range(0,len(nl)):
@@ -65,7 +65,7 @@ class TestGenome:
             i += 1
             
             
-        nl = self.genome.get_node_list(4000)
+        nl = self.genome.get_regions(4000)
         
         assert len(nl) == 5
         for i in range(0,len(nl)):

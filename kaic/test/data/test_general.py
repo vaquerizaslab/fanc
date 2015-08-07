@@ -848,9 +848,9 @@ class TestMaskable:
         assert len(masks) == 0
         
 class TestMaskedTable:
-    class TestFilter(MaskFilter):
+    class ExampleFilter(MaskFilter):
         def __init__(self, cutoff=25):
-            super(TestMaskedTable.TestFilter, self).__init__()
+            super(TestMaskedTable.ExampleFilter, self).__init__()
             self.cutoff = cutoff
             
         def valid(self, test):
@@ -892,7 +892,7 @@ class TestMaskedTable:
         
         self.filtered_table.flush()
         
-        self.filtered_table.filter(TestMaskedTable.TestFilter())
+        self.filtered_table.filter(TestMaskedTable.ExampleFilter())
         
         
     def test_initialize(self):
@@ -915,7 +915,7 @@ class TestMaskedTable:
     
     
     def test_filter(self):
-        self.table.filter(TestMaskedTable.TestFilter())
+        self.table.filter(TestMaskedTable.ExampleFilter())
         
         i = 0
         masked_i = -1
