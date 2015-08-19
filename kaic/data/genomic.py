@@ -972,7 +972,7 @@ class Genome(Table):
 
     
     def get_regions(self, split):
-        nodes = []
+        regions = []
         for chromosome in self:
             split_locations = []
             if isinstance(split,str):
@@ -985,29 +985,29 @@ class Genome(Table):
                     split_locations.append(i)
             
             for i in range(0,len(split_locations)):
-                node = {}
-                node['chromosome'] = chromosome.name
+                region = {}
+                region['chromosome'] = chromosome.name
                 
                 if i == 0:
-                    node['start'] = 1
+                    region['start'] = 1
                 else:
-                    node['start'] = split_locations[i-1]+1
+                    region['start'] = split_locations[i-1]+1
                 
-                node['end'] = split_locations[i]
-                nodes.append(node)
+                region['end'] = split_locations[i]
+                regions.append(region)
                 
             # add last node
-            node = {}
-            node['chromosome'] = chromosome.name
+            region = {}
+            region['chromosome'] = chromosome.name
             if len(split_locations) > 0:
-                node['start'] = split_locations[len(split_locations)-1]
+                region['start'] = split_locations[len(split_locations)-1]
             else:
-                node['start'] = 1
-            node['end'] = chromosome.length
-            nodes.append(node)
+                region['start'] = 1
+            region['end'] = chromosome.length
+            regions.append(region)
                 
            
-        return nodes
+        return regions
             
             
 
