@@ -42,6 +42,7 @@ def random_name(length=6):
 def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
     if file_name is None:
         file_name = random_name()
+        inMemory = True
         
     # check if is existing
     if os.path.isfile(file_name):
