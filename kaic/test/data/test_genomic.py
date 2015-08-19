@@ -5,7 +5,8 @@ Created on Jun 29, 2015
 '''
 
 import numpy as np
-from kaic.data.genomic import Chromosome, Genome, HicBasic, HicNode, HicEdge
+from kaic.data.genomic import Chromosome, Genome, HicBasic, HicNode, HicEdge,\
+    GenomicRegion, GenomicRegions
 import os.path
 import random
 
@@ -49,19 +50,19 @@ class TestGenome:
             i+=1
             
     def test_node_list(self):
-        nl = self.genome.get_regions('HindIII')
+        regions = self.genome.get_regions('HindIII')
         
-        assert len(nl) == 6
-        for i in range(0,len(nl)):
-            node = nl[i]
+        assert len(regions) == 6
+        for i in range(0,len(regions)):
+            region = regions[i]
             if i == 0:
-                assert node['chromosome'] == 'chr1'
-                assert node['start'] == 1
-                assert node['end'] == 12
+                assert region['chromosome'] == 'chr1'
+                assert region['start'] == 1
+                assert region['end'] == 12
             if i == 5:
-                assert node['chromosome'] == 'chr2'
-                assert node['start'] == 24
-                assert node['end'] == 5000
+                assert region['chromosome'] == 'chr2'
+                assert region['start'] == 24
+                assert region['end'] == 5000
             i += 1
             
             
@@ -82,6 +83,28 @@ class TestGenome:
                 assert node['end'] == 5000
             i += 1
             
+class TestGenomicRegions:
+    @classmethod
+    def setup_method(self, method):
+        chromosomes = [
+            {'name': 'chr1', 'end': 10000},
+            {'name': 'chr2', 'end': 15000},
+            {'name': 'chr3', 'end': 7000}
+        ]
+        
+        regions = []
+        for chromosome in chromosomes:
+            for start in range(1,chromosome["end"]-1000, 1000):
+                regions.append(GenomicRegion(start,start+999,chromosome=chromosome["name"]))
+        self.regions = GenomicRegions(regions)
+    
+    def test_get_item(self):
+        region = self.regions[0]
+        assert isinstance(region, GenomicRegion)
+        assert region.chromosome == 'chr1'
+        assert region.start == 1
+        assert region.end == 1000
+        
 class TestHicBasic:
     
     @classmethod

@@ -14,11 +14,10 @@ from kaic.tools.files import is_bedpe_file
 import string
 import random
 from Bio import SeqIO, Restriction, Seq  # @UnusedImport
-from kaic.data.general import Table, TableRow, TableArray
+from kaic.data.general import Table, TableRow, TableArray, TableObject
 import os.path
 
 import logging
-from tables import NoSuchNodeError
 logging.basicConfig(level=logging.INFO)
 from xml.etree import ElementTree as et
 
@@ -890,7 +889,7 @@ class Genome(Table):
         
         try:
             self._sequences = self.file.get_node('/genome_sequences')
-        except NoSuchNodeError:
+        except t.NoSuchNodeError:
             self._sequences = self.file.create_vlarray("/", 'genome_sequences', t.VLStringAtom())
         
         if chromosomes is not None:
@@ -924,6 +923,7 @@ class Genome(Table):
             l = []
             for row in res:
                 l.append(Chromosome(name=row["name"], length=row["length"], sequence=self._sequences[row["ix"]]))
+            return l
         return res
     
     def __iter__(self):
@@ -971,8 +971,8 @@ class Genome(Table):
         self._sequences.flush()
 
     
-    def get_regions(self, split):
-        regions = []
+    def get_regions(self, split, file_name=None):
+        regions = GenomicRegions(file_name=file_name)
         for chromosome in self:
             split_locations = []
             if isinstance(split,str):
@@ -985,31 +985,77 @@ class Genome(Table):
                     split_locations.append(i)
             
             for i in range(0,len(split_locations)):
-                region = {}
-                region['chromosome'] = chromosome.name
-                
                 if i == 0:
-                    region['start'] = 1
+                    region = GenomicRegion(start=1, end=split_locations[i], chromosome=chromosome.name)
                 else:
-                    region['start'] = split_locations[i-1]+1
+                    region = GenomicRegion(start=split_locations[i-1]+1, end=split_locations[i], chromosome=chromosome.name)
                 
-                region['end'] = split_locations[i]
-                regions.append(region)
+                regions.add_region(region, flush=False)
                 
             # add last node
-            region = {}
-            region['chromosome'] = chromosome.name
             if len(split_locations) > 0:
-                region['start'] = split_locations[len(split_locations)-1]
+                region = GenomicRegion(start=split_locations[len(split_locations)-1], end=chromosome.length, chromosome=chromosome.name)
             else:
-                region['start'] = 1
-            region['end'] = chromosome.length
-            regions.append(region)
+                region = GenomicRegion(start=1, end=chromosome.length, chromosome=chromosome.name)
+            regions.add_region(region, flush=False)
+            regions._flush()
                 
-           
         return regions
-            
-            
+
+class GenomicRegion(TableObject):
+    def __init__(self, start, end, strand='+', chromosome=None):
+        self.start = start
+        self.end = end
+        self.strand = strand
+        self.chromosome = chromosome
+    
+    @classmethod
+    def from_row(cls, row):
+        return cls(start=row["start"], end=row["end"],
+                   strand=row["strand"], chromosome=row["chromosome"])
+        
+        
+class GenomicRegions(Table):
+    def __init__(self, file_name=None, regions=None):
+        if not isinstance(file_name, str) and not isinstance(file_name, t.file.File):
+            regions = file_name
+            file_name = None
+        self.file = create_or_open_pytables_file(file_name)
+        
+        # create table
+        columns = ["chromosome", "start", "end", "strand"]
+        column_types = [t.StringCol(50, pos=0), t.Int64Col(pos=1),
+                        t.Int64Col(pos=2), t.StringCol(1,pos=3)]
+        Table.__init__(self, colnames=columns, col_types=column_types, return_type=GenomicRegion)
+        
+        # load data if provided
+        if regions is not None:
+            for region in regions:
+                self.add_region(region, flush=False)
+        self._flush()
+                
+    def add_region(self, region, flush=True):
+        
+        # try access by attribute first
+        try:
+            chromosome = region.chromosome
+            start = region.start
+            end = region.end
+            strand = region.strand
+        # if that fails try access by item
+        except AttributeError:
+            chromosome = region['chromosome']
+            start = region['start']
+            end = region['end']
+            strand = region['strand']
+        
+        self._append_row_dict({
+            'chromosome': chromosome,
+            'start': start,
+            'end': end,
+            'strand': strand
+        }, flush=flush)
+        
 
 class HicNode(object):
     def __init__(self, chromosome=None, start=None, end=None, ix=None):
