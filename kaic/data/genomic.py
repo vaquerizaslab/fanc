@@ -14,10 +14,11 @@ from kaic.tools.files import is_bedpe_file
 import string
 import random
 from Bio import SeqIO, Restriction, Seq  # @UnusedImport
-from kaic.data.general import Table, TableRow
+from kaic.data.general import Table, TableRow, TableArray
 import os.path
 
 import logging
+from tables import NoSuchNodeError
 logging.basicConfig(level=logging.INFO)
 from xml.etree import ElementTree as et
 
@@ -880,32 +881,18 @@ class Chromosome(object):
     
         
 class Genome(Table):
-    def __init__(self, file_name=None, chromosomes=None, max_seq_length=500000000):        
-        # checks
-        max_size = 1
-        names = []
-        i = 0
-        if chromosomes is not None:
-            for chromosome in chromosomes:
-                if chromosome.name is not None: 
-                    if chromosome.name in names:
-                        raise ValueError("Duplicate chromosome name %s" % chromosome.name)
-                    names.append(chromosome.name)
-                else:
-                    names.append(str(i))
-                i += 1
-
+    def __init__(self, file_name=None, chromosomes=None):        
+        self.file = create_or_open_pytables_file(file_name)
             
-            if chromosome.sequence is not None:
-                max_size = max(max_size, len(chromosome.sequence)+1)
+        columns = ["ix", "name", "length"]
+        column_types = [t.Int32Col(pos=0), t.StringCol(50, pos=1), t.Int32Col(pos=2)]  # @UndefinedVariable
+        Table.__init__(self, colnames=columns, col_types=column_types)
         
-        if max_size == 1:
-            max_size = max_seq_length
-            
-        columns = ["name", "length", "sequence"]
-        column_types = [t.StringCol(50, pos=0), t.Int32Col(pos=1), t.StringCol(max_size, pos=2)]  # @UndefinedVariable
-                
-        Table.__init__(self, file_name=file_name, colnames=columns, col_types=column_types)
+        try:
+            self._sequences = self.file.get_node('/genome_sequences')
+        except NoSuchNodeError:
+            self._sequences = self.file.create_vlarray("/", 'genome_sequences', t.VLStringAtom())
+        
         if chromosomes is not None:
             for chromosome in chromosomes:
                 self.add_chromosome(chromosome)
@@ -925,20 +912,22 @@ class Genome(Table):
             except (ValueError, IOError):
                 pass
         
-        if include_sequence:
-            return cls(chromosomes=chromosomes, file_name=file_name)
-        return cls(chromosomes=chromosomes, file_name=file_name, max_seq_length=1)
+        return cls(chromosomes=chromosomes, file_name=file_name)
         
     
     def __getitem__(self, key):
         res = Table.__getitem__(self, key)
         
         if isinstance(res, TableRow):
-            return Chromosome(name=res.name, length=res.length, sequence=res.sequence)
+            return Chromosome(name=res.name, length=res.length, sequence=self._sequences[res.ix])
+        elif isinstance(res, TableArray):
+            l = []
+            for row in res:
+                l.append(Chromosome(name=row["name"], length=row["length"], sequence=self._sequences[row["ix"]]))
         return res
     
     def __iter__(self):
-        table = self
+        this = self
         class Iter:
             def __init__(self):
                 self.current = 0
@@ -948,10 +937,10 @@ class Genome(Table):
                 return self
             
             def next(self):
-                if self.current >= len(table):
+                if self.current >= len(this):
                     raise StopIteration
                 self.current += 1
-                return table[self.current-1]        
+                return this[self.current-1]
         return Iter()
     
     def __del__(self):
@@ -977,54 +966,47 @@ class Genome(Table):
             if l == 0:
                 l = len(s)
         
-        self.append([n,l,s], rownames=[n])
-        
-    
-    
-    
+        self.append([i,n,l], rownames=[n])
+        self._sequences.append(s)
+        self._sequences.flush()
+
     
     def get_regions(self, split):
         nodes = []
         for chromosome in self:
-            if type(split) is str:
-                res = chromosome.get_restriction_sites(split)
-                for i in range(0,len(res)):
-                    node = {}
-                    node['chromosome'] = chromosome.name
-                    
-                    if i == 0:
-                        node['start'] = 1
-                    else:
-                        node['start'] = res[i-1]+1
-                    
-                    node['end'] = res[i]
-                    nodes.append(node)
-                
-                # add last node
-                node = {}
-                node['chromosome'] = chromosome.name
-                node['start'] = res[len(res)-1]
-                node['end'] = chromosome.length
-                nodes.append(node)
-            
-            elif type(split) is int:
-                last = 0
-                for i in range(0, len(chromosome), split):
-                    node = {}
-                    node['chromosome'] = chromosome.name
-                    node['start'] = i + 1
-                    node['end'] = i + split
-                    nodes.append(node)
-                    last = i + split
-                node = {}
-                node['chromosome'] = chromosome.name
-                node['start'] = last + 1
-                node['end'] = chromosome.length
-                if node['start'] < node['end']:
-                    nodes.append(node)
+            split_locations = []
+            if isinstance(split,str):
+                split_locations = chromosome.get_restriction_sites(split)
+            elif isinstance(split,int):
+                for i in range(split,len(chromosome)-1, split):
+                    split_locations.append(i)
             else:
-                raise ValueError("split must be integer (bin size) or string (Restriction enzyme name)")
+                for i in split:
+                    split_locations.append(i)
             
+            for i in range(0,len(split_locations)):
+                node = {}
+                node['chromosome'] = chromosome.name
+                
+                if i == 0:
+                    node['start'] = 1
+                else:
+                    node['start'] = split_locations[i-1]+1
+                
+                node['end'] = split_locations[i]
+                nodes.append(node)
+                
+            # add last node
+            node = {}
+            node['chromosome'] = chromosome.name
+            if len(split_locations) > 0:
+                node['start'] = split_locations[len(split_locations)-1]
+            else:
+                node['start'] = 1
+            node['end'] = chromosome.length
+            nodes.append(node)
+                
+           
         return nodes
             
             

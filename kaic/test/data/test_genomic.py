@@ -67,6 +67,8 @@ class TestGenome:
             
         nl = self.genome.get_regions(4000)
         
+        print nl
+        
         assert len(nl) == 5
         for i in range(0,len(nl)):
             node = nl[i]

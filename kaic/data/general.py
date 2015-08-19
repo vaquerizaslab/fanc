@@ -627,11 +627,17 @@ class Table(object):
                     col_types = ty
 
         # open file or keep in memory
-        if file_name == None:
-            file_name = random_name()
-            self.file = create_or_open_pytables_file(file_name, inMemory=True)
+        if hasattr(self, 'file'):
+            if not isinstance(self.file, t.file.File):
+                raise ValueError("'file' attribute already exists, but is no pytables File")
         else:
-            self.file = create_or_open_pytables_file(file_name, inMemory=False)
+            if file_name == None:
+                file_name = random_name()
+                self.file = create_or_open_pytables_file(file_name, inMemory=True)
+            elif type(file_name) == str:
+                self.file = create_or_open_pytables_file(file_name, inMemory=False)
+            else:
+                self.file = file_name
             
         # set a few sensible defaults
         self._rowname_field = '_rowname'
@@ -869,7 +875,7 @@ class Table(object):
                     d[self._rowname_field] = len(self)
             for name in d:
                 row[name] = d[name]
-        except (TypeError,KeyError,AttributeError,IndexError, ValueError), e:
+        except (TypeError,KeyError,AttributeError,IndexError, ValueError):
             raise TypeError("d is not a dictionary")
 
         row.append()
