@@ -64,7 +64,7 @@ def _convert_to_tables_type(col_type, pos=None):
         return _typemap[col_type](pos=pos)
     raise ValueError("Unknown column type " + str(col_type))
 
-def _structured_array_to_table_type(a, rownames=None, colnames=None):
+def _structured_array_to_table_type(a, rownames=None, colnames=None, return_type=None):
     """
     Convert a record/structured numpy array to TableRow, TableCol, or TableArray.
     
@@ -84,7 +84,10 @@ def _structured_array_to_table_type(a, rownames=None, colnames=None):
     if len(a) == 1:
         if len(a[0]) == 1:
             return a[0][0]
-        return TableRow(a[0], rowname=rownames[0], colnames=colnames)
+        if return_type is None:
+            return TableRow(a[0], rowname=rownames[0], colnames=colnames)
+        else:
+            return return_type.from_row(a[0])
 
     # is column
     if len(a) > 1 and len(a[0]) == 1:
@@ -94,7 +97,14 @@ def _structured_array_to_table_type(a, rownames=None, colnames=None):
         return TableCol(np.array(l), colname=colnames[0], rownames=rownames)
 
     # is matrix or nothing
-    return TableArray(a, colnames=colnames, rownames=rownames)
+    if return_type is None:
+        return TableArray(a, colnames=colnames, rownames=rownames)
+    else:
+        l = []
+        for row in a:
+            l.append(return_type.from_row(row))
+        return l
+    
 
 
 def _to_list_and_names(a):
@@ -541,7 +551,20 @@ class TableArray(np.ndarray):
             return (len(self), len(super(TableArray, self).__getitem__(0)))
         return (len(self),0)
 
-
+class TableObject(object):
+    __metaclass__ = ABCMeta
+    
+    @classmethod
+    @abstractmethod
+    def from_row(cls, row):
+        pass
+    
+    def __getitem__(self, key):
+        try:
+            return self.__getattribute__(key)
+        except AttributeError:
+            raise IndexError("No item " + str(key) + " in object")
+    
 class Table(object):
     """
     Table class for saving ad accessing tabular data.
@@ -557,7 +580,7 @@ class Table(object):
                        ncols=0, nrows=0,
                        colnames=None, rownames=None,
                        col_types=None, default_type=str,
-                       table_name='table'):
+                       table_name='table', return_type=None):
         """
         Create a Table object.
         
@@ -625,7 +648,13 @@ class Table(object):
                     colnames = c
                 if col_types is None:
                     col_types = ty
-
+        
+        # check return type
+        if return_type is not None and not issubclass(return_type, TableObject):
+            raise ValueError("return_type must inherit TableObject")
+        else:
+            self._row_type = return_type
+        
         # open file or keep in memory
         if hasattr(self, 'file'):
             if not isinstance(self.file, t.file.File):
@@ -708,7 +737,9 @@ class Table(object):
             data = np.zeros((nrows,), dtype=dtypes)
             self.append(data)
         self.set_rownames(rownames)
-
+        
+    def _flush(self):
+        self._table.flush()
 
     def save_as(self, file_name, table_name='table'):
         """
@@ -1019,7 +1050,7 @@ class Table(object):
     def __del__(self):
         self.file.close()
 
-    def _get_rows(self, key):
+    def _get_rows(self, key, use_row_type=True):
 
         rn = []
         cn = []
@@ -1093,7 +1124,9 @@ class Table(object):
 
         a = np.zeros((len(l),), dtype=dtypes)
         a[:] = l
-
+        
+        if use_row_type:
+            return _structured_array_to_table_type(a, rownames=rn, colnames=cn, return_type=self._row_type)
         return _structured_array_to_table_type(a, rownames=rn, colnames=cn)
 
 
@@ -1157,7 +1190,7 @@ class Table(object):
                 if type(key[1]) is slice and key[1].start is None and key[1].step is None and key[1].stop is None:
                     return self._get_rows(key[0])
 
-                t = self._get_rows(key[0])
+                t = self._get_rows(key[0], use_row_type=False)
 
                 return t._get_cols(key[1])
 
@@ -1165,11 +1198,24 @@ class Table(object):
                 raise KeyError("Unrecognized key " + str(key))
 
         return self._get_rows(key)
+    
+    def _get_item_as_table_object(self, key, cls):
+        res = self._get_rows(key)
+        
+        print type(res)
+        
+        if isinstance(res, TableRow):
+            return cls.from_row(res)
+        elif isinstance(res, TableArray):
+            l = []
+            for row in res:
+                l.append(cls.from_row(row))
+        return res
 
     def __getattr__(self, name):
         if name in self.colnames:
             return self._get_cols(name)
-        raise AttributeError
+        return self.__getattribute__(name)
 
 
     def __iter__(self):
@@ -1239,7 +1285,7 @@ class Table(object):
         a = np.zeros((len(l),), dtype=dtypes)
         a[:] = l
 
-        return _structured_array_to_table_type(a, rownames=rn, colnames=cn)
+        return _structured_array_to_table_type(a, rownames=rn, colnames=cn, return_type=self._row_type)
 
 
 
