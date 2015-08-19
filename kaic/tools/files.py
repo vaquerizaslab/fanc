@@ -43,7 +43,11 @@ def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
     if file_name is None:
         file_name = random_name()
         inMemory = True
-        
+    
+    # check if already is pytables File
+    if isinstance(file_name, t.file.File):
+        return file_name
+    
     # check if is existing
     if os.path.isfile(file_name):
         try:
