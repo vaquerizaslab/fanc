@@ -7,10 +7,11 @@ files. Other features include indexing and querying.
 '''
 
 import tables as t
+import kaic.fixes.pytables_nrowsinbuf_inheritance_fix  # @UnusedImport
+
 _filter = t.Filters(complib="lzo", complevel=1, shuffle=True)
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file,\
     random_name
-from __builtin__ import isinstance
 import random # @UnusedImport
 import string # @UnusedImport
 import numpy as np
@@ -1783,8 +1784,12 @@ class MaskedTable(t.Table):
     be masked.
     """
     
-    def __init__(self, parentNode, table_name='mask', description=None, title='',
-                 filters=_filter, expectedrows=512000, _log=False):
+    _c_classid = 'MASKEDTABLE'
+    
+    def __init__(self, parentnode, name, description=None,
+                 title="", filters=None, expectedrows=None,
+                 chunkshape=None, byteorder=None, _log=True,
+                 mask_field='_mask', mask_index_field='_mask_ix'):
         """
         Pytables Table extension to provide masking functionality.
         
@@ -1795,32 +1800,59 @@ class MaskedTable(t.Table):
                 functionality.
         """
         
-        self._c_classId = self.__class__.__name__
+        # set instance variables
+        self._queued_filters = []
+        self._mask_field = mask_field
+        self._mask_index_field = mask_index_field
         
-        t.Table.__init__(self, parentNode, table_name,
-                        description=description, title=title,
+        # try converting description to dict
+        try:
+            description = description.columns
+        except AttributeError:
+            pass
+        
+        # fill in fields required for masking
+        if isinstance(description, dict):
+            masked_description = description.copy()
+        else:
+            raise ValueError("Unrecognised description type (%s)" % str(type(description)))
+        
+        # check that reserved keys are not used
+        if masked_description.has_key(mask_field):
+            raise ValueError("%s field is reserved in MaskedTable!" % mask_field)
+        if masked_description.has_key(mask_index_field):
+            raise ValueError("%s field is reserved in MaskedTable!" % mask_index_field)
+        
+        # add mask fields to description
+        masked_description[mask_field] = t.Int32Col()
+        masked_description[mask_index_field] = t.Int64Col()
+                
+        t.Table.__init__(self, parentnode, name,
+                        description=masked_description, title=title,
                         filters=filters,
                         expectedrows=expectedrows,
                         _log=False)
+        
+        mask_ix_col = getattr(self.cols, self._mask_index_field)
+        if not mask_ix_col.is_indexed:
+            mask_ix_col.create_index()
 
-        
-        
-        #self._enable_index()
-        self._check()
-        self._queued_filters = []
-    
     def flush(self, update_index=True):
-        logging.info("Flushing")
+        """
+        Flush buffered rows.
+        
+        Also updates the mask index, if requested.
+        """
         
         # commit any previous changes
         super(MaskedTable, self).flush()
         
         if update_index:
-            self.autoindex = False
             self._update_ix()
-            self.flush_rows_to_index()
-            self.autoindex = True
-            
+            # force flush of index if
+            # autoindex is disabled
+            if not self.autoindex:
+                self.flush_rows_to_index()
             # commit index changes
             super(MaskedTable, self).flush()
     
@@ -1828,14 +1860,14 @@ class MaskedTable(t.Table):
         this = self
         class UnmaskedIter:
             def __init__(self):
-                self.iter = iter(this.all())
+                self.iter = this.all()
                   
             def __iter__(self):
                 return self
               
             def next(self):
                 row = self.iter.next()
-                while row['mask'] > 0:
+                while row[this._mask_field] > 0:
                     row = self.iter.next()
                 return row.fetch_all_fields()
         return UnmaskedIter()
@@ -1843,15 +1875,12 @@ class MaskedTable(t.Table):
     def __getitem__(self, key):
         if type(key) == int:
             if key >= 0:
-                if self._supports_ix():
-                    res = [x.fetch_all_fields() for x in self.where("mask_ix == %d" % key)]
-                    if len(res) == 1:
-                        return res[0]
-                    if len(res) == 0:
-                        raise IndexError("Index %d out of bounds" % key)
-                    raise RuntimeError("Duplicate row for key %d" % key)
-                else:
-                    return self.__getitem__(key)
+                res = [x.fetch_all_fields() for x in self.where("%s == %d" % (self._mask_index_field,key))]
+                if len(res) == 1:
+                    return res[0]
+                if len(res) == 0:
+                    raise IndexError("Index %d out of bounds" % key)
+                raise RuntimeError("Duplicate row for key %d" % key)
             else:
                 l = len(self)
                 return self[l+key]
@@ -1863,14 +1892,12 @@ class MaskedTable(t.Table):
                 start = 0
             stop = key.stop
             if stop is None:
-                stop = len(self)-1
+                stop = len(self)
             step = key.step
             if step is None:
                 step = 1
                   
-            print "%d-%d, %d" % (start, stop, step)
             for i in range(start,stop,step):
-                print i
                 res.append(self[i])
             return res
         else:
@@ -1883,63 +1910,31 @@ class MaskedTable(t.Table):
         If the table has masked rows, these will not be counted.
         """
           
-        if self._supports_ix():
-            count = sum(1 for _ in iter(self.where("mask_ix > -1")))
-            return count
-        return len(self)
-     
-    def _check(self):
-        """
-        Check this table for maskability.
-        """
-        
-        logging.info("Checking table")
-        
-        # check if table has necessary columns
-        if not 'mask' in self.colnames:
-            raise ValueError("Table must have 'mask' field")
-        if not 'mask_ix' in self.colnames:
-            logging.warn("Won't be able to access masked table by index (add 'mask_ix' field!)")
-
+        return sum(1 for _ in iter(self.where("%s >= 0" % self._mask_index_field)))
     
-    def _supports_ix(self):
-        return 'mask_ix' in self.colnames
-    
+    # new index update method
     def _update_ix(self):
         """
-        Update the row indexes of the masked table.
+        Update the row indexes of the Table.
         
         Should be run after masking. Will assign auto-
-        incrementing integers (from 0) to the 'mask_ix'
+        incrementing integers (from 0) to the mask index
         field of each row in the table if it is not 
         masked, -1 otherwise.
         """
         
         logging.info("Updating mask indices")
-        if not self._supports_ix():
-            raise RuntimeError("Table does not support mask index update. Must provide 'mask_ix' column.")
-        
         
         ix = 0
         masked_ix = -1
         for row in self.all():
-            if row['mask'] > 0:
-                row['mask_ix'] = masked_ix
+            if row[self._mask_field] > 0:
+                row[self._mask_index_field] = masked_ix
                 masked_ix -= 1
             else:
-                row['mask_ix'] = ix
+                row[self._mask_index_field] = ix
                 ix += 1
             row.update()
-        #self.flush()
-        
-    def _enable_index(self):
-        # create index on mask column
-        if self._supports_ix():
-            if not self.cols.mask_ix.is_indexed:
-                logging.info("Creating index...")
-                self.cols.mask_ix.create_index(optlevel=2)
-                self.flush(update_index=False)
-    
     
     def filter(self, mask_filter):
         """
@@ -1950,11 +1945,7 @@ class MaskedTable(t.Table):
         After running the filter, the table index is updated
         to match only unmasked rows.
         """
-        
-        #logging.info("Filtering (%s)..." % str(mask_filter.name))
-        
-        self.autoindex = False
-        
+
         total = 0
         ix = 0
         mask_ix = -1
@@ -1962,25 +1953,18 @@ class MaskedTable(t.Table):
             total += 1
             
             if not mask_filter.valid(row):
-                row['mask'] = row['mask'] + 2**mask_filter.mask_ix
+                row[self._mask_field] = row[self._mask_field] + 2**mask_filter.mask_ix
             
             # update index
-            if row['mask'] > 0:
-                row['mask_ix'] = mask_ix
+            if row[self._mask_field] > 0:
+                row[self._mask_index_field] = mask_ix
                 mask_ix -= 1
             else:
-                row['mask_ix'] = ix
+                row[self._mask_index_field] = ix
                 ix += 1
             row.update()
-            
-#             if total % 100000 == 0:
-#                 logging.info("f %d" % total)
-#                 self.flush(update_index=False)
         
-        logging.info("Done filtering")
         self.flush(update_index=False)
-        self.flush_rows_to_index()
-        self.autoindex = True
 
     def queue_filter(self, filter_definition):
         """
@@ -1998,37 +1982,31 @@ class MaskedTable(t.Table):
         MaskFilters can be queued using the
         queue_filter function.
         """
-        
-        self.autoindex = False
-        
+                
         ix = 0
         mask_ix = -1
         for row in self.all():
             for f in self._queued_filters:
                 if not f.valid(row):
-                    row['mask'] = row['mask'] + 2**f.mask_ix
+                    row[self._mask_field] = row[self._mask_field] + 2**f.mask_ix
                     
             # update index
-            if row['mask'] > 0:
-                row['mask_ix'] = mask_ix
+            if row[self._mask_field] > 0:
+                row[self._mask_index_field] = mask_ix
                 mask_ix -= 1
             else:
-                row['mask_ix'] = ix
+                row[self._mask_index_field] = ix
                 ix += 1
             row.update()
         
-        logging.info("Done filtering")
         self.flush(update_index=False)
-        self.flush_rows_to_index()
-        self.autoindex = True
-        self._queued_filters = []
     
     def all(self):
         """
         Return an iterator over all rows, including masked ones.
         """
          
-        return t.Table.__iter__(self)
+        return super(MaskedTable, self).__iter__()
         
     def masked_rows(self):
         """
@@ -2045,29 +2023,32 @@ class MaskedTable(t.Table):
             
             def next(self):
                 row = self.iter.next()
-                while row['mask'] == 0:
+                while row[this._mask_field] == 0:
                     row = self.iter.next()
                 return row.fetch_all_fields()
             
             def __getitem__(self, key):
                 if type(key) == int:
                     if key >= 0:
-                        if this._supports_ix():
-                            key = -1*key - 1
-                            res = [x.fetch_all_fields() for x in this.where("mask_ix == %d" % key)]
-                            if len(res) == 1:
-                                return res[0]
-                            if len(res) == 0:
-                                raise IndexError("Index %d out of bounds" % key)
-                            raise RuntimeError("Duplicate row for key %d" % key)
-                        else:
-                            return this.__getitem__(key)
+                        key = -1*key - 1
+                        res = [x.fetch_all_fields() for x in super(MaskedTable,this).where("%s == %d" % (this._mask_index_field,key))]
+                        if len(res) == 1:
+                            return res[0]
+                        if len(res) == 0:
+                            raise IndexError("Index %d out of bounds" % key)
+                        raise RuntimeError("Duplicate row for key %d" % key)
                     else:
                         l = len(this)
                         return self[l+key]
                 else:
                     raise KeyError('Cannot retrieve row with key ' + str(key))
         return FilteredIter()
+    
+    def where(self, condition, condvars=None,
+              start=None, stop=None, step=None):
+        condition = "(" + condition + ") & (%s >= 0)" % self._mask_index_field
+        return super(MaskedTable, self).where(condition, condvars=None,
+                                              start=None, stop=None, step=None)
 
 class MaskFilter(object):
     """

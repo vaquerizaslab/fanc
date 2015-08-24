@@ -1,5 +1,6 @@
 
 import tables as t
+from tables.registry import class_name_dict, class_id_dict
 import numpy as np
 import pytest
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
@@ -864,6 +865,92 @@ class TestMaskedTable:
         test_description = {
             'a': t.StringCol(50,pos=0),
             'b': t.Int32Col(pos=1),
+            'c': t.Float32Col(pos=2)
+        }
+        self.table = MaskedTable(f.get_node("/"), "test", test_description)
+        
+        row = self.table.row
+        for i in range(0,50):
+            row['a'] = "test_%d" % i 
+            row['b'] = 0 + i
+            row['c'] = 0.0 + i
+            row.append()
+        
+        self.table.flush()
+        
+        self.filtered_table = MaskedTable(f.get_node("/"), "test_filter", test_description)
+        
+        row = self.filtered_table.row
+        for i in range(0,50):
+            row['a'] = "test_%d" % i 
+            row['b'] = 0 + i
+            row['c'] = 0.0 + i
+            row.append()
+        
+        self.filtered_table.flush()
+        self.filtered_table.filter(TestMaskedTable.ExampleFilter())
+        
+        
+    def test_initialize(self):
+        assert len(self.table) == 50
+        for i in range(0,50):
+            assert self.table[i][4] == i
+    
+    def test_len(self):
+        assert len(self.filtered_table) == 25
+    
+    def test_select(self):
+        # single positive index        
+        assert self.filtered_table[0][1] == 25
+        # single negative index
+        assert self.filtered_table[-1][1] == 49
+        # slice
+        x = self.filtered_table[1:3]
+        assert np.array_equal(tuple(x[0]), ('test_26',26,26.0,0,1))
+        assert np.array_equal(tuple(x[1]), ('test_27',27,27.0,0,2))
+    
+    
+    def test_filter(self):
+        self.table.filter(TestMaskedTable.ExampleFilter())
+        
+        i = 0
+        masked_i = -1
+        for row in self.table:
+            if row[self.table._mask_field] > 0:
+                assert row[self.table._mask_index_field] == masked_i
+                assert row[self.table._mask_field] == 1
+                masked_i -= 1
+            else:
+                assert row[self.table._mask_index_field] == i
+                i += 1
+            
+    def test_masked(self):
+        assert self.filtered_table.masked_rows()[0][1] == 0
+        assert self.filtered_table.masked_rows()[-1][1] == 24
+        
+        masked_ix = -1
+        for row in self.filtered_table.masked_rows():
+            assert row[self.table._mask_index_field] == masked_ix
+            masked_ix -= 1
+            
+
+class TestMonkeyMaskedTable:
+    class ExampleFilter(MaskFilter):
+        def __init__(self, cutoff=25):
+            super(TestMaskedTable.ExampleFilter, self).__init__()
+            self.cutoff = cutoff
+            
+        def valid(self, test):
+            if test['b'] < self.cutoff:
+                return False
+            return True
+            
+    @classmethod
+    def setup_method(self, method):
+        f = create_or_open_pytables_file(inMemory=True)
+        test_description = {
+            'a': t.StringCol(50,pos=0),
+            'b': t.Int32Col(pos=1),
             'c': t.Float32Col(pos=2),
             'mask': t.Int16Col(pos=3),
             'mask_ix': t.Int32Col(pos=4)
@@ -938,60 +1025,74 @@ class TestMaskedTable:
             masked_ix -= 1
 
 
+class RegisteredTable(t.Table):
+    # Class identifier. Enough for registration,
+    # which is taken care of by MetaNode 
+    _c_classid = 'REGISTEREDTABLE'
+    
+    def __init__(self, parentnode, name,
+                 description=None, title="", filters=None,
+                 expectedrows=None, chunkshape=None,
+                 byteorder=None, _log=True):
 
+        
+        # normal Table init
+        t.Table.__init__(self, parentnode, name, description,
+                         title, filters, expectedrows, chunkshape,
+                         byteorder, _log)
 
-class MinTable(t.Table):
+class TestPytablesInheritance:
+    class MinTable(t.Table):
+
+        def __init__(self):
     
-    def __init__(self):
-        
-        f = t.open_file('bla', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
-        
-        description = {
-            'c1': t.Int32Col(),
-            'mask': t.Int16Col(),
-            'mask_ix': t.Int32Col(),
-            'string': t.StringCol(231)
-        }
-        
-        super(MinTable,self).__init__(f.get_node('/'), 'test', description=description)
-        self._c_classId = self.__class__.__name__
-        
-        #self._enable_index()
-        
-        row = self.row
-        row['c1'] = 0
-        row.append()
-        self.flush()
-        
-        [x.fetch_all_fields() for x in self.where('c1 == 0')]
-        
-    def _enable_index(self):
-        self.cols.c1.create_index()
-        
+            f = t.open_file('bla', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
     
-def fail_index():
-    import tables as t
-    f = t.open_file('test', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
+            description = {
+                'c1': t.Int32Col(),
+                'c2': t.Int16Col()
+            }
     
-    description = {
-        'ix': t.Int32Col(),
-        'mask': t.Int16Col()
-        #'mask_ix': t.Int32Col()
-    }
+            t.Table.__init__(self, f.get_node('/'), 'test',
+                             description=description)
     
-    table = f.create_table("/", 'test', description)
-    table.cols.ix.create_index()
+            self._enable_index()
     
-    row = table.row
-    for i in range(0, 10000000):
-        row['ix'] = i
-        row.append()
-    table.flush()
+            row = self.row
+            row['c1'] = 0
+            row.append()
+            self.flush()
     
-    i = 0
-    for row in table:
-        row['ix'] = i
-        i += 1
-        row.update()
-    table.flush()
+        def _enable_index(self):
+            self.cols.c1.create_index()
+            
+    
+    
+    def test_table_wrapper_with_index(self):
+        m = TestPytablesInheritance.MinTable()
+        # next line fails in unpatched code
+        [x.fetch_all_fields() for x in m.where('c1 == 0')]
+
+    def test_no_wrapper_with_index(self):
+        f = t.open_file('bla2', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
+        table = t.Table(f.get_node('/'),'test',{ 'c1': t.Int32Col(), 'c2': t.Int16Col() },title='test')
+        table.row['c1'] = 0
+        table.row.append()
+        table.flush()
+        table.cols.c1.create_index()
+        [x.fetch_all_fields() for x in table.where('c1 == 0')]
         
+    def test_registered_table(self, tmpdir):
+        h5_file = create_or_open_pytables_file(str(tmpdir) + "/test.h5", inMemory=False)
+        table = RegisteredTable(h5_file.get_node('/'), 'test', { 'c1': t.Int32Col(), 'c2': t.Int16Col() }, 'test')
+        print class_id_dict
+        table.row['c1'] = 0
+        table.row.append()
+        table.flush()
+        table.close()
+        h5_file.close()
+
+        h5_file_ret = create_or_open_pytables_file(str(tmpdir) + "/test.h5", inMemory=False)
+        table = h5_file_ret.get_node('/','test')
+        assert type(table) == RegisteredTable
+        #assert 0
