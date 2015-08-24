@@ -7,7 +7,7 @@ Created on Jul 13, 2015
 import tables as t
 import pysam
 from kaic.tools.files import create_or_open_pytables_file, random_name
-from kaic.data.general import Maskable, MetaContainer, MaskFilter, to_masked_table
+from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable
 import tempfile
 import os
 import logging
@@ -101,9 +101,7 @@ class ReadPairs(Maskable, MetaContainer):
                 'pnext2': t.Int32Col(pos=16),
                 'tlen2': t.Int32Col(pos=17),
                 'seq2': t.StringCol(field_sizes['sequence'],pos=18),
-                'qual2': t.StringCol(field_sizes['sequence'],pos=19),
-                'mask': t.Int32Col(pos=20),
-                'mask_ix': t.Int32Col(pos=21)
+                'qual2': t.StringCol(field_sizes['sequence'],pos=19)
                 
             }
             # create data structures
@@ -115,7 +113,7 @@ class ReadPairs(Maskable, MetaContainer):
                                                              complevel=2, shuffle=True)
                                            )
             # create main table
-            main_table = self.file.create_table(group, 'main', reads_defininition,
+            main_table = MaskedTable(group, 'main', reads_defininition,
                                                 expectedrows=expected_length)
             # create tags vlarrays
             tags_left = self.file.create_vlarray(group, 'tags_left', t.ObjectAtom())
@@ -132,8 +130,6 @@ class ReadPairs(Maskable, MetaContainer):
         MetaContainer.__init__(self, self.file)
         
         # make reads table maskable
-        #self._reads = MaskedTable(table)
-        to_masked_table(main_table)
         self._reads = main_table
         
         self._tags_left = tags_left
@@ -353,7 +349,6 @@ class ReadPairs(Maskable, MetaContainer):
         row['seq1'] = r.seq
         row['qual1'] = r.qual
         row['ix'] = self._row_counter
-        #row['tags1'] = pickle.dumps(r.tags)
     
     def _add_right_read(self, r, flush=True):
         row = self._reads.row
@@ -374,7 +369,6 @@ class ReadPairs(Maskable, MetaContainer):
             self._tags_right.flush()
             self._cigar_left.flush()
             self._cigar_right.flush()
-
             
     def _add_right_read_to_row(self, r, row):
         row['qname'] = r.qname
@@ -390,9 +384,7 @@ class ReadPairs(Maskable, MetaContainer):
         row['tlen2'] = r.tlen
         row['seq2'] = r.seq
         row['qual2'] = r.qual
-        row['ix'] = self._row_counter
-        #row['tags2'] = pickle.dumps(r.tags)
-        
+        row['ix'] = self._row_counter        
             
     def _add_read_pair(self, r1, r2, flush=True):
         row = self._reads.row
@@ -416,7 +408,7 @@ class ReadPairs(Maskable, MetaContainer):
             self._cigar_right.flush()
     
     def __len__(self):
-        return self._reads.masked_len()
+        return len(self._reads)
     
     @property
     def header1(self):
@@ -435,8 +427,6 @@ class ReadPairs(Maskable, MetaContainer):
         if self._ref2 is None:
             raise RuntimeError("Chromosome reference for right read not present")
         return self._ref2[ix]
-    
-    
 
     def filter_quality(self, cutoff=30, queue=False):
         mask = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
@@ -476,7 +466,7 @@ class ReadPairs(Maskable, MetaContainer):
         this = self
         class ReadPairsIter:
             def __init__(self):
-                self.iter = this._reads.masked_iter()
+                self.iter = iter(this._reads)
                   
             def __iter__(self):
                 return self
@@ -516,7 +506,7 @@ class ReadPairs(Maskable, MetaContainer):
         return ReadPair(left_read, right_read)
     
     def __getitem__(self, key):
-        main_info = self._reads.masked_getitem(key)
+        main_info = self._reads[key]
         return self._tuple_to_read_pair(main_info)
     
     def where(self, query):
@@ -765,6 +755,16 @@ class SingleFilter(ReadPairFilter):
         if not pair.has_left_read() or not pair.has_right_read():
             return False
         return True
+
+
+
+
+
+class FragmentPairs(object):
+    def __init__(self):
+        pass
+
+
 
 
 def cmp_natural(string1, string2):

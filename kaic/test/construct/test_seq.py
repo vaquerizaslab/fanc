@@ -81,14 +81,14 @@ class TestReadPairs:
     def test_iter(self):
         pairs = ReadPairs(self.sam1_file,self.sam2_file)
         counter = 0
-        for pair in pairs:
+        for _ in pairs:
             counter += 1
         
         assert counter == 315
         
         pairs.filter_non_unique()
         after_counter = 0
-        for pair in pairs:
+        for _ in pairs:
             after_counter += 1
             
         assert after_counter < counter
@@ -114,9 +114,9 @@ class TestReadPairs:
         pairs.filter_quality(30, queue=False)
         for row in pairs._reads:
             if (row['pos1'] > 0 and row['mapq1'] < 30) or (row['pos2'] > 0 and row['mapq2'] < 30):
-                assert row['mask'] == 2
+                assert row[pairs._reads._mask_field] == 2
             else:
-                assert row['mask'] == 0
+                assert row[pairs._reads._mask_field] == 0
         
     def test_uniqueness_filter(self):
         pairs = ReadPairs()
@@ -132,7 +132,7 @@ class TestReadPairs:
                         has_xs = True
                         break
                 if has_xs:
-                    assert row['mask'] == 2
+                    assert row[pairs._reads._mask_field] == 2
             elif row['pos2'] > 0:
                 tags = pairs._tags_right[row['ix']]
                 has_xs = False
@@ -141,9 +141,9 @@ class TestReadPairs:
                         has_xs = True
                         break
                 if has_xs:
-                    assert row['mask'] == 2
+                    assert row[pairs._reads._mask_field] == 2
             else:
-                assert row['mask'] == 0
+                assert row[pairs._reads._mask_field] == 0
                 
     def test_single_filter(self):
         pairs = ReadPairs()
@@ -152,9 +152,9 @@ class TestReadPairs:
         pairs.filter_single()
         for row in pairs._reads:
             if row['pos1'] == 0  or row['pos2'] == 0:
-                assert row['mask'] == 2
+                assert row[pairs._reads._mask_field] == 2
             else:
-                assert row['mask'] == 0
+                assert row[pairs._reads._mask_field] == 0
                 
     def test_queue_filters(self):
         pairs = ReadPairs()
