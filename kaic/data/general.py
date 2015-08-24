@@ -1805,27 +1805,30 @@ class MaskedTable(t.Table):
         self._mask_field = mask_field
         self._mask_index_field = mask_index_field
         
-        # try converting description to dict
-        try:
-            description = description.columns
-        except AttributeError:
-            pass
-        
-        # fill in fields required for masking
-        if isinstance(description, dict):
-            masked_description = description.copy()
+        if description is not None:
+            # try converting description to dict
+            try:
+                description = description.columns
+            except AttributeError:
+                pass
+            
+            # fill in fields required for masking
+            if isinstance(description, dict):
+                masked_description = description.copy()
+            else:
+                raise ValueError("Unrecognised description type (%s)" % str(type(description)))
+            
+            # check that reserved keys are not used
+            if masked_description.has_key(mask_field):
+                raise ValueError("%s field is reserved in MaskedTable!" % mask_field)
+            if masked_description.has_key(mask_index_field):
+                raise ValueError("%s field is reserved in MaskedTable!" % mask_index_field)
+            
+            # add mask fields to description
+            masked_description[mask_field] = t.Int32Col()
+            masked_description[mask_index_field] = t.Int64Col()
         else:
-            raise ValueError("Unrecognised description type (%s)" % str(type(description)))
-        
-        # check that reserved keys are not used
-        if masked_description.has_key(mask_field):
-            raise ValueError("%s field is reserved in MaskedTable!" % mask_field)
-        if masked_description.has_key(mask_index_field):
-            raise ValueError("%s field is reserved in MaskedTable!" % mask_index_field)
-        
-        # add mask fields to description
-        masked_description[mask_field] = t.Int32Col()
-        masked_description[mask_index_field] = t.Int64Col()
+            masked_description = None
                 
         t.Table.__init__(self, parentnode, name,
                         description=masked_description, title=title,
@@ -1843,7 +1846,9 @@ class MaskedTable(t.Table):
         
         Also updates the mask index, if requested.
         """
-        
+        self._flush(update_index)
+    
+    def _flush(self, update_index=True):
         # commit any previous changes
         super(MaskedTable, self).flush()
         
@@ -1857,10 +1862,13 @@ class MaskedTable(t.Table):
             super(MaskedTable, self).flush()
     
     def __iter__(self):
+        return self._iter_visible()
+    
+    def _iter_visible(self):
         this = self
         class UnmaskedIter:
             def __init__(self):
-                self.iter = this.all()
+                self.iter = this._iter_visible_and_masked()
                   
             def __iter__(self):
                 return self
@@ -1873,6 +1881,9 @@ class MaskedTable(t.Table):
         return UnmaskedIter()
       
     def __getitem__(self, key):
+        return self._get_visible_item(key)
+    
+    def _get_visible_item(self, key):
         if type(key) == int:
             if key >= 0:
                 res = [x.fetch_all_fields() for x in self.where("%s == %d" % (self._mask_index_field,key))]
@@ -1882,8 +1893,8 @@ class MaskedTable(t.Table):
                     raise IndexError("Index %d out of bounds" % key)
                 raise RuntimeError("Duplicate row for key %d" % key)
             else:
-                l = len(self)
-                return self[l+key]
+                l = self._visible_len()
+                return self._get_visible_item(l+key)
         elif type(key) == slice:
             res = []
             # set sensible defaults
@@ -1898,11 +1909,11 @@ class MaskedTable(t.Table):
                 step = 1
                   
             for i in range(start,stop,step):
-                res.append(self[i])
+                res.append(self._get_visible_item(i))
             return res
         else:
             raise KeyError('Cannot retrieve row with key ' + str(key))
-      
+    
     def __len__(self):
         """
         Return the 'perceived' length of the masked table.
@@ -1910,6 +1921,9 @@ class MaskedTable(t.Table):
         If the table has masked rows, these will not be counted.
         """
           
+        return self._visible_len()
+    
+    def _visible_len(self):
         return sum(1 for _ in iter(self.where("%s >= 0" % self._mask_index_field)))
     
     # new index update method
@@ -1927,7 +1941,7 @@ class MaskedTable(t.Table):
         
         ix = 0
         masked_ix = -1
-        for row in self.all():
+        for row in self._iter_visible_and_masked():
             if row[self._mask_field] > 0:
                 row[self._mask_index_field] = masked_ix
                 masked_ix -= 1
@@ -1949,7 +1963,7 @@ class MaskedTable(t.Table):
         total = 0
         ix = 0
         mask_ix = -1
-        for row in self.all():
+        for row in self._iter_visible_and_masked():
             total += 1
             
             if not mask_filter.valid(row):
@@ -1985,7 +1999,7 @@ class MaskedTable(t.Table):
                 
         ix = 0
         mask_ix = -1
-        for row in self.all():
+        for row in self._iter_visible_and_masked():
             for f in self._queued_filters:
                 if not f.valid(row):
                     row[self._mask_field] = row[self._mask_field] + 2**f.mask_ix
@@ -2006,6 +2020,9 @@ class MaskedTable(t.Table):
         Return an iterator over all rows, including masked ones.
         """
          
+        return self._iter_visible_and_masked()
+    
+    def _iter_visible_and_masked(self):
         return super(MaskedTable, self).__iter__()
         
     def masked_rows(self):
@@ -2016,7 +2033,7 @@ class MaskedTable(t.Table):
         this = self
         class FilteredIter:
             def __init__(self):
-                self.iter = this.all()
+                self.iter = this._iter_visible_and_masked()
                 
             def __iter__(self):
                 return self
@@ -2038,7 +2055,7 @@ class MaskedTable(t.Table):
                             raise IndexError("Index %d out of bounds" % key)
                         raise RuntimeError("Duplicate row for key %d" % key)
                     else:
-                        l = len(this)
+                        l = this._visible_len()
                         return self[l+key]
                 else:
                     raise KeyError('Cannot retrieve row with key ' + str(key))
