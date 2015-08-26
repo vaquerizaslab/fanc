@@ -1861,14 +1861,11 @@ class MaskedTable(t.Table):
             # commit index changes
             super(MaskedTable, self).flush()
     
-    def __iter__(self):
-        return self._iter_visible()
-    
-    def _iter_visible(self):
+    def iterrows(self, start=None, stop=None, step=None):
         this = self
         class UnmaskedIter:
             def __init__(self):
-                self.iter = this._iter_visible_and_masked()
+                self.iter = t.Table.iterrows(this, start, stop, step)
                   
             def __iter__(self):
                 return self
@@ -2032,7 +2029,7 @@ class MaskedTable(t.Table):
         return self._iter_visible_and_masked()
     
     def _iter_visible_and_masked(self):
-        return super(MaskedTable, self).__iter__()
+        return t.Table.iterrows(self)
         
     def masked_rows(self):
         """
