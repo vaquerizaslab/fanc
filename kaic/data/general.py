@@ -1884,18 +1884,7 @@ class MaskedTable(t.Table):
         return self._get_visible_item(key)
     
     def _get_visible_item(self, key):
-        if type(key) == int:
-            if key >= 0:
-                res = [x.fetch_all_fields() for x in self.where("%s == %d" % (self._mask_index_field,key))]
-                if len(res) == 1:
-                    return res[0]
-                if len(res) == 0:
-                    raise IndexError("Index %d out of bounds" % key)
-                raise RuntimeError("Duplicate row for key %d" % key)
-            else:
-                l = self._visible_len()
-                return self._get_visible_item(l+key)
-        elif type(key) == slice:
+        if type(key) == slice:
             res = []
             # set sensible defaults
             start = key.start
@@ -1912,7 +1901,27 @@ class MaskedTable(t.Table):
                 res.append(self._get_visible_item(i))
             return res
         else:
-            raise KeyError('Cannot retrieve row with key ' + str(key))
+            try:
+                # this could be a numpy int
+                try:
+                    key = key.item()
+                except AttributeError:
+                    pass
+                
+                key = int(key)
+                
+                if key >= 0:
+                    res = [x.fetch_all_fields() for x in self.where("%s == %d" % (self._mask_index_field,key))]
+                    if len(res) == 1:
+                        return res[0]
+                    if len(res) == 0:
+                        raise IndexError("Index %d out of bounds" % key)
+                    raise RuntimeError("Duplicate row for key %d" % key)
+                else:
+                    l = self._visible_len()
+                    return self._get_visible_item(l+key)
+            except ValueError as e:
+                raise KeyError('Cannot retrieve row with key %s (%s)' % (str(key), str(e)))
     
     def __len__(self):
         """
