@@ -1323,7 +1323,7 @@ class HicBasic(Maskable, MetaContainer):
                     
                     if data[i,j] != 0:
                         hic.add_edge([iNode, jNode, data[i,j]], flush=False)
-            hic.flush(flush_nodes=False)
+        hic.flush(flush_nodes=False)
         
         return hic
         
