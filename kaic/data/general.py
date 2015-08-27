@@ -1863,7 +1863,7 @@ class MaskedTable(t.Table):
     
     def iterrows(self, start=None, stop=None, step=None):
         this = self
-        class UnmaskedIter:
+        class VisibleIter:
             def __init__(self):
                 self.iter = t.Table.iterrows(this, start, stop, step)
                   
@@ -1875,7 +1875,7 @@ class MaskedTable(t.Table):
                 while row[this._mask_field] > 0:
                     row = self.iter.next()
                 return row.fetch_all_fields()
-        return UnmaskedIter()
+        return VisibleIter()
       
     def __getitem__(self, key):
         return self._get_visible_item(key)
