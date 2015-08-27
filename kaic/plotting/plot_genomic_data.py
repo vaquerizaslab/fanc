@@ -192,7 +192,7 @@ class BedDistribution(object):
 
 
 
-class HiCPlot(object):
+class HiCPlotOld(object):
     def __init__(self, hic, resolution, chrom=None, start=None, end=None,
                  zrange=[5,68], max_y=20, colors=["white","blue"]):
         self.data = hic
@@ -211,6 +211,44 @@ class HiCPlot(object):
         graphics = importr('graphics')
         
         df = self.data.as_data_frame(self.resolution, self.chrom, self.start, self.end)
+        
+        if output:
+            open_graphics_file(output)
+        
+        if df.shape[0] > 0:
+            dfr = p2r.py2ri(df)
+            dfr.colnames = dfr.rownames # to correct for leading "X" in colnames
+            sushi.plotHic(dfr,self.chrom,self.start,self.end,
+                          palette=grd.colorRampPalette(self.colors),
+                          zrange=self.zrange, max_y=self.max_y)
+        else:
+            #empty plot
+            graphics.plot(0,type='n',axes=False,ann=False)
+            
+        if showCoordinates:
+            sushi.labelgenome(self.chrom,chromstart=self.start,chromend=self.end,n=4,scale="Mb")
+        
+        if output:
+            close_graphics_file()
+            
+class HiCPlot(object):
+    def __init__(self, hic, chrom=None, start=None, end=None,
+                 zrange=[5,68], max_y=20, colors=["white","blue"]):
+        self.data = hic
+        self.chrom = chrom
+        self.start = start
+        self.end = end
+        self.zrange = np.array(zrange)
+        self.max_y = max_y
+        self.colors=np.array(colors)
+    
+    def show(self, output=None, showCoordinates=True):
+        p2r.activate()
+        sushi = importr('Sushi')
+        grd = importr('grDevices')
+        graphics = importr('graphics')
+        
+        df = self.hic.as_data_frame('%s:%d-%d' % (self.chrom, self.start, self.end))
         
         if output:
             open_graphics_file(output)
