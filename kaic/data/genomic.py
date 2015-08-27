@@ -7,14 +7,14 @@ Created on May 20, 2015
 import tables as t
 import pandas as p
 import numpy as np
-from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
-    random_name
+from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file
 from kaic.tools.files import is_bed_file
 from kaic.tools.files import is_bedpe_file
 import string
 import random
 from Bio import SeqIO, Restriction, Seq  # @UnusedImport
-from kaic.data.general import Table, TableRow, TableArray, TableObject
+from kaic.data.general import Table, TableRow, TableArray, TableObject,\
+    MetaContainer, Maskable, MaskedTable
 import os.path
 
 import logging
@@ -39,7 +39,7 @@ class GenomicFeature(object):
                 
         elif type(data) is list:
             self.data = {}
-            for i in range(0,len(data)):
+            for i in xrange(0,len(data)):
                 self.data[names[i]] = data[i]
                 self.id2ix[names[i]] = i
                 self.ix2id[i] = names[i]
@@ -96,7 +96,7 @@ class BedImproved(Table):
                 for i in (len(header), len(fields)):
                     header.append("feature_%d" % i)
                 
-            for i in range(0,len(header)):
+            for i in xrange(0,len(header)):
                 ptype, ttype = BedImproved.col_type(header[i],i+1)
                 col_types.append(ttype)
                 headerTypes.append(ptype)
@@ -105,7 +105,7 @@ class BedImproved(Table):
             data = []
             while line != '':
                 d = {}
-                for i in range(0,len(fields)):
+                for i in xrange(0,len(fields)):
                     d[header[i]] = headerTypes[i](fields[i])
                 data.append(d)
                     
@@ -243,7 +243,7 @@ class Bed(object):
             header = []
             headerTypes = []
             if has_header:
-                for i in range(0,len(fields)):
+                for i in xrange(0,len(fields)):
                     #if fields[i] in desc:
                     #    raise ValueError("Duplicate column name! " + fields[i])
                     if fields[i] == 'name' or fields[i] == 'blockSizes' or fields[i] == 'blockStarts':
@@ -274,7 +274,7 @@ class Bed(object):
                 fields = line.rstrip().split("\t")
             else:
                 
-                for i in range(0,len(fields)):
+                for i in xrange(0,len(fields)):
                     if i == 0:
                         header.append('chrom')
                         headerTypes.append(str)
@@ -348,7 +348,7 @@ class Bed(object):
             while line != '':
                 
                 if len(fields) == len(headerTypes):
-                    for i in range(0,len(fields)):
+                    for i in xrange(0,len(fields)):
                         value = headerTypes[i](fields[i])
                         entry[header[i]] = value
                     entry.append()
@@ -496,7 +496,7 @@ class Bedpe(object):
             header = []
             headerTypes = []
             if has_header:
-                for i in range(0,len(fields)):
+                for i in xrange(0,len(fields)):
                     #if fields[i] in desc:
                     #    raise ValueError("Duplicate column name! " + fields[i])
                     if fields[i] == 'name':
@@ -523,7 +523,7 @@ class Bedpe(object):
                 fields = line.rstrip().split("\t")
             else:
                 
-                for i in range(0,len(fields)):
+                for i in xrange(0,len(fields)):
                     if i == 0:
                         header.append('chrom1')
                         headerTypes.append(str)
@@ -608,7 +608,7 @@ class Bedpe(object):
             while line != '':
                 
                 if len(fields) == len(headerTypes):
-                    for i in range(0,len(fields)):
+                    for i in xrange(0,len(fields)):
                         value = headerTypes[i](fields[i])
                         entry[header[i]] = value
                     entry.append()
@@ -798,7 +798,7 @@ class Hic(Bedpe):
         
         n_bins = M.shape[0]
         dis = np.zeros(n_bins,dtype='float64')
-        for i in range(0,n_bins):
+        for i in xrange(0,n_bins):
             max_window_size = min(bin_window_size, n_bins-i, i)
             start = i-max_window_size
             end = i+max_window_size
@@ -978,13 +978,13 @@ class Genome(Table):
             if isinstance(split,str):
                 split_locations = chromosome.get_restriction_sites(split)
             elif isinstance(split,int):
-                for i in range(split,len(chromosome)-1, split):
+                for i in xrange(split,len(chromosome)-1, split):
                     split_locations.append(i)
             else:
                 for i in split:
                     split_locations.append(i)
             
-            for i in range(0,len(split_locations)):
+            for i in xrange(0,len(split_locations)):
                 if i == 0:
                     region = GenomicRegion(start=1, end=split_locations[i], chromosome=chromosome.name)
                 else:
@@ -1003,7 +1003,7 @@ class Genome(Table):
         return regions
 
 class GenomicRegion(TableObject):
-    def __init__(self, start, end, strand='+', chromosome=None):
+    def __init__(self, start, end, chromosome=None, strand=None):
         self.start = start
         self.end = end
         self.strand = strand
@@ -1011,11 +1011,83 @@ class GenomicRegion(TableObject):
     
     @classmethod
     def from_row(cls, row):
+        strand = row['strand']
+        if strand == 0:
+            strand = None
         return cls(start=row["start"], end=row["end"],
-                   strand=row["strand"], chromosome=row["chromosome"])
+                   strand=strand, chromosome=row["chromosome"])
+    
+    @classmethod
+    def from_string(cls, region_string):
+        chromosome= None
+        start = None
+        end = None
+        strand = None
         
+        # strip whitespace
+        no_space_region_string = "".join(region_string.split())
+        fields = no_space_region_string.split(':')
+        
+        if len(fields) > 3:
+            raise ValueError("Genomic range string must be of the form <chromosome>[:<start>-<end>:[<strand>]]")
+        
+        # there is chromosome information
+        if len(fields) > 0:
+            chromosome = fields[0]
+        
+        # there is range information
+        if len(fields) > 1 and fields[1] != '':
+            start_end_bp = fields[1].split('-')
+            if len(start_end_bp) > 0:
+                try:
+                    start = int(start_end_bp[0])
+                except ValueError:
+                    raise ValueError("Start of genomic range must be integer")
+            
+            if len(start_end_bp) > 1:
+                try:
+                    end = int(start_end_bp[1])
+                except ValueError:
+                    raise ValueError("End of genomic range must be integer") 
+        
+        # there is strand information
+        if len(fields) > 2:
+            if fields[2] == '+' or fields[2] == '+1' or fields[2] == '1':
+                strand = 1
+            elif fields[2] == '-' or fields[2] == '-1':
+                strand = -1
+            else:
+                raise ValueError("Strand only can be one of '+', '-', '+1', '-1', and '1'")
+        return cls(start=start, end=end, chromosome=chromosome, strand=strand)
+    
+    def to_string(self):
+        region_string = ''
+        if self.chromosome is not None:
+            region_string += '%s' % self.chromosome
+            
+            if self.start is not None:
+                region_string += ':%d' % self.start
+                
+                if self.end is not None:
+                    region_string += '-%d' % self.end
+                
+                if self.strand is not None:
+                    if self.strand == 1:
+                        region_string += ':+'
+                    else:
+                        region_string += ':-'
+        return region_string
+    
+    def __repr__(self):
+        return self.to_string()
         
 class GenomicRegions(Table):
+    class GenomicRegionDescription(t.IsDescription):
+        chromosome = t.StringCol(50, pos=0)
+        start = t.Int64Col(pos=1)
+        end = t.Int64Col(pos=2)
+        strand = t.Int8Col(pos=3)
+        
     def __init__(self, file_name=None, regions=None):
         if not isinstance(file_name, str) and not isinstance(file_name, t.file.File):
             regions = file_name
@@ -1025,7 +1097,7 @@ class GenomicRegions(Table):
         # create table
         columns = ["chromosome", "start", "end", "strand"]
         column_types = [t.StringCol(50, pos=0), t.Int64Col(pos=1),
-                        t.Int64Col(pos=2), t.StringCol(1,pos=3)]
+                        t.Int64Col(pos=2), t.Int8Col(pos=3)]
         Table.__init__(self, colnames=columns, col_types=column_types, return_type=GenomicRegion)
         
         # load data if provided
@@ -1049,73 +1121,70 @@ class GenomicRegions(Table):
             end = region['end']
             strand = region['strand']
         
+        if strand is None:
+            strand = 0
+        
         self._append_row_dict({
             'chromosome': chromosome,
             'start': start,
             'end': end,
             'strand': strand
         }, flush=flush)
-        
+    
 
-class HicNode(object):
+class HicNode(GenomicRegion, TableObject):
     def __init__(self, chromosome=None, start=None, end=None, ix=None):
         self.ix = ix
-        self.chromosome = chromosome
-        self.start = start
-        self.end = end
+        super(HicNode, self).__init__(chromosome=chromosome, start=start, end=end)
     
     def __repr__(self):
         if self.ix is None:
             return "%s, %d-%d" % (self.chromosome, self.start, self.end)
         else:
             return "%d: %s, %d-%d" % (self.ix, self.chromosome, self.start, self.end)
+    
+    @classmethod
+    def from_string(cls, region_string):
+        node = super(HicNode, cls).from_string(region_string)
+        node.ix = None
+        return node
+    
+    @classmethod
+    def from_row(cls, row):
+        return cls(chromosome=row['chromosome'], start=row['start'], end=row['end'], ix=row['ix'])
+    
         
-class HicEdge(object):
+class HicEdge(TableObject):
     def __init__(self, source, sink, weight=1):
         self.source = source
         self.sink = sink
         self.weight = weight
     
     def __repr__(self):
-        
         return "%d--%d (%.2f)" % (self.source, self.sink, self.weight)
-        
-class HicBasic(object):
-    class NodeDescription(t.IsDescription):
-        ix = t.Int32Col(pos=0)  # @UndefinedVariable
-        chromosome = t.StringCol(50,pos=1)  # @UndefinedVariable
-        start = t.Int64Col(pos=2) # @UndefinedVariable
-        end = t.Int64Col(pos=3) # @UndefinedVariable
-        mask = t.Int16Col(pos=4)  # @UndefinedVariable
-        
-    class EdgeDescription(t.IsDescription):
-        source = t.Int32Col(pos=0)  # @UndefinedVariable
-        sink = t.Int32Col(pos=1)  # @UndefinedVariable
-        weight = t.Float64Col(pos=2)  # @UndefinedVariable
-        mask = t.Int16Col(pos=3)  # @UndefinedVariable
     
-    class MetaDescription(t.IsDescription):
-        date = t.Time32Col(pos=0)  # @UndefinedVariable
-        category = t.StringCol(50,pos=1)
-        name = t.StringCol(255,pos=2)
-        value = t.StringCol(255, pos=3)  # @UndefinedVariable
+    @classmethod
+    def from_row(cls, row):
+        return cls(source=row['source'], sink=row['sink'], weight=row['weight'])
         
-    class MaskDescription(t.IsDescription):
-        ix = t.Int16Col(pos=0)  # @UndefinedVariable
-        name = t.StringCol(50, pos=1)  # @UndefinedVariable
-        description = t.StringCol(255, pos=2)  # @UndefinedVariable
-    
-    
+class HicBasic(Maskable, MetaContainer):
+    class HicNodeDescription(t.IsDescription):
+        ix = t.Int32Col(pos=0)  
+        chromosome = t.StringCol(50,pos=1)  
+        start = t.Int64Col(pos=2) 
+        end = t.Int64Col(pos=3) 
+        
+    class HicEdgeDescription(t.IsDescription):
+        source = t.Int32Col(pos=0)  
+        sink = t.Int32Col(pos=1)  
+        weight = t.Float64Col(pos=2)  
     
     def __init__(self, data=None, file_name=None,
                        table_name_nodes='nodes',
-                       table_name_edges='edges',
-                       table_name_meta='meta',
-                       table_name_mask='mask'):
+                       table_name_edges='edges'):
         
-        
-        if file_name is not None:
-            file_name = os.path.expanduser(file_name)
+        # private variables
+        self._max_node_ix = -1
         
         # parse potential unnamed argument
         if data is not None:
@@ -1127,41 +1196,61 @@ class HicBasic(object):
                     file_name = data
                     data = None
         
+        if file_name is not None:
+            file_name = os.path.expanduser(file_name)
+        
         # open file or keep in memory
         if file_name is None:
-            file_name = random_name()
-            self.file = create_or_open_pytables_file(file_name, inMemory=True)
+            self.file = create_or_open_pytables_file()
         else:
             self.file = create_or_open_pytables_file(file_name, inMemory=False)
-
         
         # check if this is an existing Hi-C file
         if table_name_nodes in self.file.root:
-            self._nodes = self.file.get_node('/' + table_name_nodes)
+            self._nodes = self.file.get_node('/', table_name_nodes)
+            self._max_node_ix = max(row['ix'] for row in self._nodes.iterrows())
         else:
-            self._nodes = self.file.create_table("/", table_name_nodes, HicBasic.NodeDescription)
+            self._nodes = MaskedTable(self.file.root, table_name_nodes, HicBasic.HicNodeDescription)
         
         if table_name_edges in self.file.root:
-            self._edges = self.file.get_node('/' + table_name_edges)
+            self._edges = self.file.get_node('/', table_name_edges)
         else:
-            self._edges = self.file.create_table("/", table_name_edges, HicBasic.EdgeDescription)
-        
-        if table_name_meta in self.file.root:
-            self._meta = self.file.get_node('/' + table_name_meta)
-        else:
-            self._meta = self.file.create_table("/", table_name_meta, HicBasic.MetaDescription)
-            
-        if table_name_mask in self.file.root:
-            self._mask = self.file.get_node('/' + table_name_mask)
-        else:
-            self._mask = self.file.create_table("/", table_name_mask, HicBasic.MaskDescription)
+            self._edges = MaskedTable(self.file.root, table_name_edges, HicBasic.HicEdgeDescription)
         
         self._edges.flush()
         self._nodes.flush()
-        self._mask.flush()
-        self._meta.flush()
         
-
+        # generate tables from inherited classes
+        Maskable.__init__(self, self.file)
+        MetaContainer.__init__(self, self.file)
+        
+        # index node table
+        try:
+            self._nodes.cols.ix.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._nodes.cols.start.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._nodes.cols.end.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        # index edge table
+        try:
+            self._edges.cols.source.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._edges.cols.sink.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
         
         # add data
         if data is not None:
@@ -1180,35 +1269,17 @@ class HicBasic(object):
                     
             # data is existing HicBasic object
             elif isinstance(data, HicBasic):
-                #TODO copy data from existing Hi-C object
-                pass
-            
+                for node in data.nodes():
+                    self.add_node(node, flush=False)
+                self.flush()
+                for edge in data.edges():
+                    self.add_edge(edge,flush=False)
+                self.flush()
             else:
                 raise ValueError("Input data type not recognized")
         
         
-        # index node table
-        try:
-            self._nodes.cols.start.create_index()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        try:
-            self._nodes.cols.end.create_index()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        # index edge table
-        try:
-            self._edges.cols.source.create_index()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        try:
-            self._edges.cols.sink.create_index()
-        except ValueError:
-            # Index exists, no problem!
-            pass
+        
     
     
     
@@ -1223,9 +1294,9 @@ class HicBasic(object):
         hic = cls(file_name=file_name)
         
         # nodes
-        chrms = {hl.genome.chrmStartsBinCont[i] : hl.genome.chrmLabels[i] for i in range(0,len(hl.genome.chrmLabels))}
+        chrms = {hl.genome.chrmStartsBinCont[i] : hl.genome.chrmLabels[i] for i in xrange(0,len(hl.genome.chrmLabels))}
         chromosome = ''
-        for i in range(0,len(hl.genome.posBinCont)):
+        for i in xrange(0,len(hl.genome.posBinCont)):
             start = hl.genome.posBinCont[i]+1
             if i in chrms:
                 chromosome = chrms[i]
@@ -1245,9 +1316,9 @@ class HicBasic(object):
             chr1StartBin = hl.genome.chrmStartsBinCont[chr1]
             chr2StartBin = hl.genome.chrmStartsBinCont[chr2]
             
-            for i in range(0,data.shape[0]):
+            for i in xrange(0,data.shape[0]):
                 iNode = i+chr1StartBin
-                for j in range(i,data.shape[1]):
+                for j in xrange(i,data.shape[1]):
                     jNode = j+chr2StartBin
                     
                     if data[i,j] != 0:
@@ -1258,36 +1329,46 @@ class HicBasic(object):
         
     
     def add_node(self, node, flush=True):
-        row = self._nodes.row
-        if isinstance(node, HicNode):
-            if node.ix is not None:
-                row['ix'] = node.ix
-            else:
-                row['ix'] = len(self._nodes)
-            row['chromosome'] = node.chromosome
-            row['start'] = node.start
-            row['end'] = node.end
+        ix = -1
+        
+        if isinstance(node, GenomicRegion):
+            if hasattr(node, 'ix') and node.ix is not None:
+                ix = node.ix
+            chromosome = node.chromosome
+            start = node.start
+            end = node.end
         elif type(node) is dict:
             if 'ix' in node:
-                row['ix'] = node['ix']
-            else:
-                row['ix'] = len(self._nodes)
-            row['chromosome'] = node['chromosome']
-            row['start'] = node['start']
-            row['end'] = node['end']
+                ix = node['ix']
+            chromosome = node['chromosome']
+            start = node['start']
+            end = node['end']
         else:
             try:
                 offset = 0
                 if len(node) == 4:
-                    row['ix'] = node[0]
+                    ix = node[0]
                     offset += 1
-                row['chromosome'] = node[offset]
-                row['start'] = node[offset + 1]
-                row['end'] = node[offset + 2]
+                chromosome = node[offset]
+                start = node[offset + 1]
+                end = node[offset + 2]
             except TypeError:
                 raise ValueError("Node parameter has to be HicNode, dict, or list")
-
+        
+        if ix == -1:
+            ix = self._max_node_ix + 1
+        
+        # actually append
+        row = self._nodes.row
+        row['ix'] = ix
+        row['chromosome'] = chromosome
+        row['start'] = start
+        row['end'] = end
         row.append()
+        
+        if ix > self._max_node_ix:
+            self._max_node_ix = ix
+            
         if flush:
             self.flush()
     
@@ -1297,8 +1378,6 @@ class HicBasic(object):
         self.flush(flush_edges=False)
             
     def add_edge(self, edge, check_nodes_exist=True, flush=True):
-        source = None
-        sink = None
         weight = None
         
         if isinstance(edge, HicEdge):
@@ -1330,12 +1409,13 @@ class HicBasic(object):
             if source >= len(self._nodes) or sink >= len(self._nodes):
                 raise ValueError("Node index exceeds number of nodes in object")
         
-        row = self._edges.row
-        row['source'] = source
-        row['sink'] = sink
-        row['weight'] = weight
+        if weight != 0:
+            row = self._edges.row
+            row['source'] = source
+            row['sink'] = sink
+            row['weight'] = weight
+            row.append()
         
-        row.append()
         if flush:
             self.flush()
             
@@ -1344,7 +1424,7 @@ class HicBasic(object):
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
             
-    def flush(self, flush_nodes=True, flush_edges=True, flush_meta=True, flush_mask=True):
+    def flush(self, flush_nodes=True, flush_edges=True):
         if flush_nodes:
             self._nodes.flush()
             # re-indexing not necessary when 'autoindex' is True on table
@@ -1356,11 +1436,299 @@ class HicBasic(object):
             if not self._edges.autoindex:
                 # reindex edge table
                 self._edges.flush_rows_to_index()
+                
+    
+    
+    def __getitem__(self, key):
+        """
+        Get a chunk of the Hi-C matrix.
         
-        if flush_mask:
-            self._mask.flush()
-        if flush_meta:
-            self._meta.flush()
+        Possible key types are:
+            Region types
+                HicNode: Only the ix of this node will be used for
+                    identification
+                GenomicRegion: self-explanatory
+                str: key is assumed to describe a genomic region
+                    of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                    e.g.: 'chr1:1000-54232:+'
+            Node types
+                int: node index
+                slice: node range
+            List types
+                list: This key type allows for a combination of all
+                    of the above key types - the corresponding matrix
+                    will be concatenated
+            
+        If the key is a 2-tuple, each entry will be treated as the 
+        row and column key, respectively,
+        e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
+        map of the relevant regions between chromosomes 1 and 4.
+            
+        """
+        
+        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+        
+        m = self._get_matrix(nodes_ix_row, nodes_ix_col)
+        
+        # select the correct output format
+        # empty result: matrix
+        if m.shape[0] == 0 and m.shape[1] == 0:
+            return m
+        # both selectors are lists: matrix
+        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            return m
+        # row selector is list: vector
+        if isinstance(nodes_ix_row, list):
+            return m[:,0]
+        # column selector is list: vector
+        if isinstance(nodes_ix_col, list):
+            return m[0,:]
+        # both must be indexes
+        return m[0,0]
+    
+    def _get_nodes_from_key(self, key, as_index=False):
+        nodes_ix_col = None
+        if isinstance(key, tuple):
+            nodes_ix_row = self._getitem_nodes(key[0], as_index=as_index)
+            nodes_ix_col = self._getitem_nodes(key[1], as_index=as_index)
+        else:
+            nodes_ix_row = self._getitem_nodes(key, as_index=as_index)
+            nodes_ix_col = []
+            for row in self._nodes:
+                if as_index:
+                    nodes_ix_col.append(row['ix'])
+                else:
+                    nodes_ix_col.append(HicNode.from_row(row))
+        
+        return nodes_ix_row, nodes_ix_col
+    
+    def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None):
+        # calculate number of rows
+        if nodes_ix_row is None:
+            n_rows = len(self._nodes)
+        else:
+            if not isinstance(nodes_ix_row, list):
+                nodes_ix_row = [nodes_ix_row]
+            n_rows = len(nodes_ix_row)
+        
+        # calculate number of columns
+        if nodes_ix_col is None:
+            n_cols = len(self._nodes)
+        else:
+            if not isinstance(nodes_ix_col, list):
+                nodes_ix_col = [nodes_ix_col]
+            n_cols = len(nodes_ix_col)
+
+        # create empty matrix
+        m = np.zeros((n_rows, n_cols))
+        
+        # fill matrix with weights
+        for i in xrange(0, n_rows):
+            for j in xrange(0, n_cols):
+                # get row value
+                try:
+                    source = nodes_ix_row[i]
+                except TypeError:
+                    source = self._nodes[i]['ix']
+                # get column value
+                try:
+                    sink = nodes_ix_col[j]
+                except TypeError:
+                    sink = self._nodes[j]['ix']
+                                 
+                if source > sink:
+                    tmp = source
+                    source = sink
+                    sink = tmp
+                                    
+                for edge_row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
+                    weight = edge_row['weight']
+                    m[i,j] += weight
+                        
+        return m
+    
+    def _getitem_nodes(self, key, as_index=False):
+        # chr1:1234:56789
+        if isinstance(key, str):
+            key = GenomicRegion.from_string(key)
+        
+        # HicNode('chr1', 1234, 56789, ix=0)
+        if isinstance(key, HicNode):
+            if as_index:
+                return key.ix
+            else:
+                return key
+        
+        # GenomicRegion('chr1', 1234, 56789) 
+        if isinstance(key, GenomicRegion):
+            chromosome = key.chromosome
+            start = key.start
+            end = key.end
+            
+            # check defaults
+            if chromosome is None:
+                raise ValueError("Genomic region must provide chromosome name")
+            if start is None:
+                start = 0
+            if end is None:
+                end = max(row['end'] for row in self._nodes.where("(chromosome == '%s')" % chromosome))
+            
+            condition = "(chromosome == '%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
+            if as_index:
+                region_nodes = [row['ix'] for row in self._nodes.where(condition)]
+            else:
+                region_nodes = [HicNode.from_row(row) for row in self._nodes.where(condition)]
+            
+            return region_nodes
+        
+        # 1:453
+        if isinstance(key, slice):
+            if as_index:
+                return [row['ix'] for row in self._nodes.iterrows(key.start, key.stop, key.step)]
+            else:
+                return [HicNode.from_row(row) for row in self._nodes.iterrows(key.start, key.stop, key.step)]
+        
+        # 432
+        if isinstance(key, int):
+            row = self._nodes[key]
+            if as_index:
+                return row['ix']
+            else:
+                return HicNode.from_row(row)
+        
+        # [item1, item2, item3]
+        all_nodes_ix = []
+        for item in key:
+            nodes_ix = self._getitem_nodes(item, as_index=as_index)
+            if isinstance(nodes_ix, list):
+                all_nodes_ix += nodes_ix
+            else:
+                all_nodes_ix.append(nodes_ix)
+        return all_nodes_ix
+    
+    def as_data_frame(self, key):
+        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+        m = self._get_matrix(nodes_ix_row, nodes_ix_col)
+        labels_row = []
+        for node in nodes_row:
+            labels_row.append(node.start)
+        labels_col = []
+        for node in nodes_col:
+            labels_col.append(node.start)
+        df = p.DataFrame(m, index=labels_row, columns=labels_col)
+        
+        return df
+    
+    def __setitem__(self, key, item):
+        """
+        Set a chunk of the Hi-C matrix.
+        
+        Possible key types are:
+            Region types
+                HicNode: Only the ix of this node will be used for
+                    identification
+                GenomicRegion: self-explanatory
+                str: key is assumed to describe a genomic region
+                    of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                    e.g.: 'chr1:1000-54232:+'
+            Node types
+                int: node index
+                slice: node range
+            List types
+                list: This key type allows for a combination of all
+                    of the above key types - the corresponding matrix
+                    will be concatenated
+            
+        If the key is a 2-tuple, each entry will be treated as the 
+        row and column key, respectively,
+        e.g.: 'chr1:0-1000, chr4:2300-3000' will set the Hi-C
+        map of the relevant regions between chromosomes 1 and 4.
+            
+        """
+        
+        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+                
+        # select the correct output format
+        # both selectors are lists: matrix
+        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            n_rows = len(nodes_ix_row)
+            n_cols = len(nodes_ix_col)
+            # check that we have a matrix with the correct dimensions
+            if (not isinstance(item, np.ndarray) or 
+                not np.array_equal(item.shape, [n_rows,n_cols])):
+                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows,n_cols))
+            
+            for i in xrange(0, n_rows):
+                for j in xrange(0,n_cols):
+                    source = nodes_ix_row[i]
+                    sink = nodes_ix_col[j]
+                    weight = item[i,j]
+                    self._update_edge_weight(source, sink, weight, flush=False)
+
+        # row selector is list: vector
+        elif isinstance(nodes_ix_row, list):
+            n_rows = len(nodes_ix_row)
+            if (not isinstance(item, np.ndarray) or 
+                not np.array_equal(item.shape, [n_rows])):
+                raise ValueError("Item is not a numpy vector of length %d!" % (n_rows))
+            
+            for i, sink in enumerate(nodes_ix_row):
+                source = nodes_ix_col
+                weight = item[i]
+                self._update_edge_weight(source, sink, weight, flush=False)
+        
+        # column selector is list: vector
+        elif isinstance(nodes_ix_col, list):
+            n_cols = len(nodes_ix_col)
+            if (not isinstance(item, np.ndarray) or 
+                not np.array_equal(item.shape, [n_cols])):
+                raise ValueError("Item is not a numpy vector of length %d!" % (n_cols))
+            
+            for i, source in enumerate(nodes_ix_col):
+                sink = nodes_ix_row
+                weight = item[i]
+                self._update_edge_weight(source, sink, weight, flush=False)
+
+        # both must be indexes
+        else:
+            weight = item
+            self._update_edge_weight(nodes_ix_row, nodes_ix_col, weight, flush=False)
+        
+        self._edges.flush()
+        self._remove_zero_edges()
+        
+        #return m[0,0]
+    
+    def _update_edge_weight(self, source, sink, weight, flush=True):
+        if source > sink:
+            tmp = source
+            source = sink
+            sink = tmp
+        
+        value_set = False
+        for row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
+            row['weight'] = weight
+            row.update()
+            value_set = True
+            if flush:
+                self._edges.flush()
+        if not value_set:
+            self.add_edge(HicEdge(source=source,sink=sink,weight=weight), flush=flush)
+    
+    def _remove_zero_edges(self, flush=True):
+        zero_edge_ix = []
+        ix = 0
+        for row in self._edges.iterrows():
+            if row['weight'] == 0:
+                zero_edge_ix.append(ix)
+            ix += 1
+        
+        for ix in reversed(zero_edge_ix):
+            self._edges.remove_row(ix)        
+        
+        if flush:
+            self._edges.flush()
     
     def autoindex(self, index=None):
         if index is not None:
@@ -1381,24 +1749,27 @@ class HicBasic(object):
         self._mask = self.file.get_node('/' + table_name_mask)
     
     
-    def get_node(self, ix):
-        row = self._nodes[ix]
-        return HicNode(ix=row["ix"], chromosome=row["chromosome"], start=row["start"], end=row["end"])
+    def get_node(self, key):
+        found_nodes = self.get_nodes(key)
+        if isinstance(found_nodes, list): 
+            raise IndexError("More than one node found matching %s" % str(key))
+        return None
+        
+    
+    def get_nodes(self, key):
+        return self._getitem_nodes(key)
     
     def nodes(self):
         hic = self
         class NodeIter:
             def __init__(self):
-                self.current = -1
+                self.iter = iter(hic._nodes)
                 
             def __iter__(self):
                 return self
             
             def next(self):
-                self.current += 1
-                if self.current >= len(self):
-                    raise StopIteration
-                return hic.get_node(self.current)
+                return HicNode.from_row(self.iter.next())
             
             def __len__(self):
                 return len(hic._nodes)
@@ -1408,26 +1779,22 @@ class HicBasic(object):
     
     def get_edge(self, ix):
         row = self._edges[ix]
-        return HicEdge(source=row["source"], sink=row["sink"], weight=row["weight"])
+        return HicEdge.from_row(row)
     
     def edges(self):
         hic = self
         class EdgeIter:
             def __init__(self):
-                self.current = -1
+                self.iter = iter(hic._edges)
                 
             def __iter__(self):
                 return self
             
             def next(self):
-                self.current += 1
-                if self.current >= len(self):
-                    raise StopIteration
-                return hic.get_edge(self.current)
+                return HicEdge.from_row(self.iter.next())
             
             def __len__(self):
                 return len(hic._edges)
-            
         return EdgeIter()
     
     

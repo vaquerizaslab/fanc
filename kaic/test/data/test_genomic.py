@@ -9,6 +9,7 @@ from kaic.data.genomic import Chromosome, Genome, HicBasic, HicNode, HicEdge,\
     GenomicRegion, GenomicRegions
 import os.path
 import random
+import pytest
 
 class TestChromosome:
     
@@ -104,30 +105,77 @@ class TestGenomicRegions:
         assert region.chromosome == 'chr1'
         assert region.start == 1
         assert region.end == 1000
+        assert region.strand == None
+        
+    def test_from_string(self):
+        region1 = GenomicRegion.from_string('chr1')
+        assert region1.chromosome == 'chr1'
+        assert region1.start is None
+        assert region1.end is None
+        assert region1.strand == None
+        
+        region2 = GenomicRegion.from_string('chr1:0')
+        assert region2.chromosome == 'chr1'
+        assert region2.start == 0
+        assert region2.end is None
+        assert region2.strand == None
+        
+        region3 = GenomicRegion.from_string('chr1:0-4956')
+        assert region3.chromosome == 'chr1'
+        assert region3.start == 0
+        assert region3.end == 4956
+        assert region3.strand == None
+        
+        region4 = GenomicRegion.from_string('chr1:0-4956:-')
+        assert region4.chromosome == 'chr1'
+        assert region4.start == 0
+        assert region4.end == 4956
+        assert region4.strand == -1
+        
+        region5 = GenomicRegion.from_string('chr1:0-4956:+1')
+        assert region5.chromosome == 'chr1'
+        assert region5.start == 0
+        assert region5.end == 4956
+        assert region5.strand == 1
+        
+        with pytest.raises(ValueError):
+            # invalid start
+            GenomicRegion.from_string('chr1:x-4956:-')
+        with pytest.raises(ValueError):
+            # too many fields
+            GenomicRegion.from_string('chr1:0:4956:-')
+        with pytest.raises(ValueError):
+            # invalid strand
+            GenomicRegion.from_string('chr1:0-4956:0')
+    
         
 class TestHicBasic:
     
     @classmethod
     def setup_method(self, method):
-        self.hic = HicBasic()
+        hic = HicBasic()
         
         # add some nodes (120 to be exact)
         nodes = []
-        for i in range(1,50000,1000):
+        for i in range(1,5000,1000):
             nodes.append(HicNode(chromosome="chr1",start=i,end=i+1000-1))
-        for i in range(1,30000,1000):
+        for i in range(1,3000,1000):
             nodes.append(HicNode(chromosome="chr2",start=i,end=i+1000-1))
-        for i in range(1,20000,500):
+        for i in range(1,2000,500):
             nodes.append(HicNode(chromosome="chr3",start=i,end=i+1000-1))
-        self.hic.add_nodes(nodes)
+        hic.add_nodes(nodes)
         
-        # add some edges randomly
+        # add some edges with increasing weight for testing
         edges = []
-        for i in range(0,1000):
-            ix1 = random.randint(0,len(nodes)-1)
-            ix2 = random.randint(0,len(nodes)-1)
-            edges.append(HicEdge(source=ix1,sink=ix2,weight=random.random()))
-        self.hic.add_edges(edges)
+        weight = 1
+        for i in range(0,len(nodes)):
+            for j in range(i,len(nodes)):
+                edges.append(HicEdge(source=i,sink=j,weight=weight))
+                weight += 1
+
+        hic.add_edges(edges)
+        
+        self.hic = hic
     
     def test_initialize_xml(self):
         current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -153,6 +201,11 @@ class TestHicBasic:
         # from XML
         hic1 = HicBasic(current_dir + "/test_genomic/hic.example.xml", file_name=dest_file)
         hic1.close()
+        
+#         from subprocess import check_output
+#         print check_output(["h5dump", dest_file])
+#         print class_id_dict
+        
         hic2 = HicBasic(dest_file)
         nodes2 = hic2.nodes()
         edges2 = hic2.edges()
@@ -165,13 +218,257 @@ class TestHicBasic:
     
     def test_nodes(self):
         nodes = self.hic.nodes()
-        assert len(nodes) == 120
+        assert len(nodes) == 12
     
     def test_edges(self):
         edges = self.hic.edges()
-        assert len(edges) == 1000
+        assert len(edges) == 78
+    
+    def test_get_node_x_by_region(self):
+        region1 = GenomicRegion.from_string('chr1')
+        nodes1 = self.hic._getitem_nodes(region1)
+        assert len(nodes1) == 5
+        
+        region2 = GenomicRegion.from_string('chr2')
+        nodes2 = self.hic._getitem_nodes(region2)
+        assert len(nodes2) == 3
+        
+        region3 = GenomicRegion.from_string('chr3')
+        nodes3 = self.hic._getitem_nodes(region3)
+        assert len(nodes3) == 4
+        
+        region4 = GenomicRegion.from_string('chr1:3452-6000')
+        nodes4 = self.hic._getitem_nodes(region4)
+        assert len(nodes4) == 2
+        
+        region5 = GenomicRegion.from_string('chr1:1-51000')
+        nodes5 = self.hic._getitem_nodes(region5)
+        assert len(nodes5) == 5
+        
+    def test_getitem_nodes(self):
+        # all
+        node_ix1 = self.hic._getitem_nodes(slice(None,None,None), as_index=True)
+        assert np.array_equal(node_ix1, [0,1,2,3,4,5,6,7,8,9,10,11])
+        
+        # smaller slice
+        node_ix2 = self.hic._getitem_nodes(slice(4,10,1), as_index=True)
+        assert np.array_equal(node_ix2, [4,5,6,7,8,9])
+        
+        # single ix
+        node_ix3 = self.hic._getitem_nodes(1, as_index=True)
+        assert node_ix3 == 1
+        
+        # single chromosome
+        node_ix4 = self.hic._getitem_nodes('chr1', as_index=True)
+        assert np.array_equal(node_ix4, [0,1,2,3,4])
+        
+        # HicNode
+        node_ix5 = self.hic._getitem_nodes(HicNode(ix=1), as_index=True)
+        assert node_ix5 == 1
+        
+        # list of items
+        node_ix6 = self.hic._getitem_nodes(['chr1','chr3'], as_index=True)
+        assert np.array_equal(node_ix6, [0,1,2,3,4,8,9,10,11])
+        
+        # nested list of items
+        node_ix7 = self.hic._getitem_nodes(['chr1',['chr2','chr3']], as_index=True)
+        assert np.array_equal(node_ix7, [0,1,2,3,4,5,6,7,8,9,10,11])
+        
+        # item repetition
+        node_ix8 = self.hic._getitem_nodes(['chr3','chr3'], as_index=True)
+        assert np.array_equal(node_ix8, [8,9,10,11,8,9,10,11])
+
+    def test_get_matrix(self):
+        # whole matrix
+        m = self.hic[:,:]
+        # spot checks
+        assert np.array_equal(m.shape, [12,12])
+        assert m[0,0] == 1
+        assert m[11,11] == 78
+        assert m[11,0] == 12
+        assert m[1,10] == 22
+        # symmetry check
+        for i in range(0,12):
+            for j in range(i,12):
+                assert m[i,j] == m[j,i]
+                
+        # only upper half
+        m = self.hic[:6,:]
+        # spot checks
+        assert np.array_equal(m.shape, [6,12])
+        assert m[0,0] == 1
+        assert m[5,11] == 57
+        assert m[5,0] == 6
+        assert m[1,10] == 22
+        
+        # only lower half
+        m = self.hic[6:,:]
+        # spot checks
+        assert np.array_equal(m.shape, [6,12])
+        assert m[0,0] == 7
+        assert m[5,11] == 78
+        assert m[5,0] == 12
+        assert m[1,10] == 67
+        
+        # only left half
+        m = self.hic[:,:6]
+        # spot checks
+        assert np.array_equal(m.shape, [12,6])
+        assert m[0,0] == 1
+        assert m[11,5] == 57
+        assert m[11,0] == 12
+        assert m[1,4] == 16
+        
+        # only right half
+        m = self.hic[:,6:]
+        # spot checks
+        assert np.array_equal(m.shape, [12,6])
+        assert m[0,0] == 7
+        assert m[11,5] == 78
+        assert m[11,0] == 63
+        assert m[1,4] == 22
+        
+        # top-left chunk
+        m = self.hic[:6,:6]
+        # spot checks
+        assert np.array_equal(m.shape, [6,6])
+        assert m[0,0] == 1
+        assert m[5,5] == 51
+        assert m[5,0] == 6 
+        assert m[1,4] == 16
+        
+        # bottom_right chunk
+        m = self.hic[6:,6:]
+        # spot checks
+        assert np.array_equal(m.shape, [6,6])
+        assert m[0,0] == 58
+        assert m[5,5] == 78
+        assert m[5,0] == 63
+        assert m[1,4] == 67
+        
+        # central chunk
+        m = self.hic[3:9,3:9]
+        # spot checks
+        assert np.array_equal(m.shape, [6,6])
+        assert m[0,0] == 34
+        assert m[5,5] == 69
+        assert m[5,0] == 39
+        assert m[1,4] == 46
+        
+        # disjunct pieces
+        m = self.hic[[1,9],[4,6]]
+        # spot checks
+        assert np.array_equal(m.shape, [2,2])
+        assert m[0,0] == 16
+        assert m[1,1] == 61
+        assert m[1,0] == 48
+        assert m[0,1] == 18
+        
+        # single row
+        m = self.hic[1,0:3]
+        assert np.array_equal(m, [2,13,14])
+        
+        # single row but only one value
+        m = self.hic[1,1:2]
+        assert np.array_equal(m, [13])
+        
+        # single col
+        m = self.hic[0:3,1]
+        assert np.array_equal(m, [2,13,14])
+        
+        # single col but only one value
+        m = self.hic[1:2,1]
+        assert np.array_equal(m, [13])
+        
+        # single value
+        m = self.hic[1,1]
+        assert m == 13
+        
+        # empty array
+        m = self.hic[1:1,2:2]
+        assert np.array_equal(m.shape, [0,0])
+    
+    def test_set_matrix(self):
+        
+        hic = HicBasic(self.hic)
+        
+        # whole matrix
+        old = hic[:,:]
+        # set diagonal to zero
+        for i in range(0,old.shape[0]):
+            old[i,i] = 0
+        hic[:,:] = old
+        m = hic[:,:]
+        assert np.array_equal(m.shape, old.shape)
+        for i in range(0,m.shape[0]):
+            for j in range(0, m.shape[1]):
+                if i == j:
+                    assert m[i,j] == 0
+                else:
+                    assert m[i,j] == old[i,j]
+        
+        # central matrix
+        hic = HicBasic(self.hic)
+        old = hic[2:8,2:10]
+        # set border elements to zero
+        # set checkerboard pattern
+        for i in range(0,old.shape[0]):
+            for j in range(0,old.shape[1]):
+                if i == 0 or j == 0:
+                    old[i,j] = 0
+                elif i % 2 == 0 and j % 2 == 1:
+                    old[i,j] = 0
+                elif i % 2 == 1 and j % 2 == 0:
+                    old[i,j] = 0
+        hic[2:8,2:10] = old
+        m = hic[2:8,2:10]
+        
+        assert np.array_equal(m.shape, old.shape)
+        for i in range(0,m.shape[0]):
+            for j in range(0, m.shape[1]):
+                if i == 0 or j == 0:
+                    assert m[i,j] == 0
+                elif i % 2 == 0 and j % 2 == 1:
+                    assert m[i,j] == 0
+                elif i % 2 == 1 and j % 2 == 0:
+                    assert m[i,j] == 0
+                else:
+                    assert m[i,j] == old[i,j]
+        
+        hic = HicBasic(self.hic)
+        # row
+        old = hic[1,2:10]
+        for i in range(0,8,2):
+            old[i] = 0
+        hic[1,2:10] = old
+        
+        assert np.array_equal(hic[1,:], [2,13,0,15,0,17,0,19,0,21,22,23])
+        assert np.array_equal(hic[:,1], [2,13,0,15,0,17,0,19,0,21,22,23])
+        
+        hic = HicBasic(self.hic)
+        # col
+        old = hic[2:10,1]
+        for i in range(0,8,2):
+            old[i] = 0
+        hic[2:10,1] = old
+        
+        assert np.array_equal(hic[1,:], [2,13,0,15,0,17,0,19,0,21,22,23])
+        assert np.array_equal(hic[:,1], [2,13,0,15,0,17,0,19,0,21,22,23])
+        
+        # individual
+        hic = HicBasic(self.hic)
+        hic[2,1] = 0
+        assert hic[2,1] == 0
+        assert hic[1,2] == 0
+    
+    def test_as_data_frame(self):
+        df = self.hic.as_data_frame(('chr1','chr1'))
+        assert np.array_equal(df.shape, [5,5])
+        assert np.array_equal(df.index, [1,1001,2001,3001,4001])
+        assert np.array_equal(df.columns, [1,1001,2001,3001,4001])
         
     def test_from_mirny(self):
+        # TODO
         pass
         
         
