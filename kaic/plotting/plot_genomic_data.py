@@ -327,7 +327,7 @@ class GenePlot(object):
         graphics = importr('graphics')
         
         df = self.data.as_data_frame(self.chrom,self.start,self.end)
-        types = np.array('exon' * len(df))
+        types = np.array(['exon'] * len(df))
         
         if output:
             open_graphics_file(output)
