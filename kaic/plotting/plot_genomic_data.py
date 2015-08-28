@@ -256,6 +256,7 @@ class HiCPlot(object):
         if df.shape[0] > 0:
             dfr = p2r.py2ri(df)
             dfr.colnames = dfr.rownames # to correct for leading "X" in colnames
+            print dfr
             sushi.plotHic(dfr,self.chrom,self.start,self.end,
                           palette=grd.colorRampPalette(self.colors),
                           zrange=self.zrange, max_y=self.max_y)
