@@ -1211,12 +1211,14 @@ class HicBasic(Maskable, MetaContainer):
             self._nodes = self.file.get_node('/', table_name_nodes)
             self._max_node_ix = max(row['ix'] for row in self._nodes.iterrows())
         else:
-            self._nodes = MaskedTable(self.file.root, table_name_nodes, HicBasic.HicNodeDescription)
+            self._nodes = MaskedTable(self.file.root, table_name_nodes,
+                                      HicBasic.HicNodeDescription, expectedrows=10000)
         
         if table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', table_name_edges)
         else:
-            self._edges = MaskedTable(self.file.root, table_name_edges, HicBasic.HicEdgeDescription)
+            self._edges = MaskedTable(self.file.root, table_name_edges,
+                                      HicBasic.HicEdgeDescription, expectedrows=500000)
         
         self._edges.flush()
         self._nodes.flush()
