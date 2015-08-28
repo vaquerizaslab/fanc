@@ -234,7 +234,7 @@ class HiCPlotOld(object):
 class HiCPlot(object):
     def __init__(self, hic, chrom=None, start=None, end=None,
                  zrange=[5,68], max_y=20, colors=["white","blue"]):
-        self.data = hic
+        self.hic = hic
         self.chrom = chrom
         self.start = start
         self.end = end
