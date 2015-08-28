@@ -1541,9 +1541,6 @@ class HicBasic(Maskable, MetaContainer):
                 condition = condition % (row_range[0], row_range[1], col_range[0], col_range[1],
                                          col_range[0], col_range[1], row_range[0], row_range[1])
                 
-                #condition1 = condition % (row_range[0], row_range[1], col_range[0], col_range[1])
-                #condition2 = condition % (col_range[0], col_range[1], row_range[0], row_range[1])
-                #for condition in [condition1, condition2]:
                 for edge_row in self._edges.where(condition):
                     source = edge_row['source']
                     sink = edge_row['sink']
@@ -1559,31 +1556,7 @@ class HicBasic(Maskable, MetaContainer):
                 
                 col_offset += n_cols_sub
             row_offset += n_rows_sub
-            
-        
-        # fill matrix with weights
-#         for i in xrange(0, n_rows):
-#             for j in xrange(0, n_cols):
-#                 # get row value
-#                 try:
-#                     source = nodes_ix_row[i]
-#                 except TypeError:
-#                     source = self._nodes[i]['ix']
-#                 # get column value
-#                 try:
-#                     sink = nodes_ix_col[j]
-#                 except TypeError:
-#                     sink = self._nodes[j]['ix']
-#                                  
-#                 if source > sink:
-#                     tmp = source
-#                     source = sink
-#                     sink = tmp
-#                                     
-#                 for edge_row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
-#                     weight = edge_row['weight']
-#                     m[i,j] += weight
-                        
+
         return m
     
     def _getitem_nodes(self, key, as_index=False):
