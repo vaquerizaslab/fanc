@@ -257,13 +257,10 @@ class HiCPlot(object):
         if df.shape[0] > 0:
             dfr = p2r.py2ri(df)
             dfr.colnames = dfr.rownames # to correct for leading "X" in colnames
-            print dfr
             sushi.plotHic(dfr,self.chrom,self.start,self.end,
                           palette=grd.colorRampPalette(self.colors),
                           zrange=self.zrange, max_y=self.max_y)
-            print "plotted sushi"
         else:
-            print "no plot generated"
             #empty plot
             graphics.plot(0,type='n',axes=False,ann=False)
             
@@ -311,7 +308,7 @@ class BedPlot(object):
 class GenePlot(object):
     def __init__(self, bed, chrom=None, start=None, end=None,
                  maxrows=70,plotgenetype="box", labeltext=True,
-                 showCoordinates=True):
+                 showCoordinates=True, colors=["red","green"]):
         self.data = bed
         self.chrom = chrom
         self.start = start
@@ -320,11 +317,13 @@ class GenePlot(object):
         self.plotgenetype = plotgenetype
         self.labeltext = labeltext
         self.showCoordinates = showCoordinates
+        self.colors=np.array(colors)
         
     def show(self, output=None):
         p2r.activate()
         sushi = importr('Sushi')
         graphics = importr('graphics')
+        grd = importr('grDevices')
         
         df = self.data.as_data_frame(self.chrom,self.start,self.end)
         types = np.array(['exon'] * len(df))
@@ -336,7 +335,9 @@ class GenePlot(object):
             dfr = p2r.py2ri(df)
             sushi.plotGenes(dfr,self.chrom,self.start,self.end,
                             maxrows=self.maxrows, plotgenetype=self.plotgenetype,
-                            labeltext=self.labeltext, types=types)
+                            labeltext=self.labeltext, types=types,
+                            colorbycol=grd.colorRampPalette(self.colors),
+                            colorbyrange=np.array(0,1.0))
         else:
             #empty plot
             graphics.plot(0,type='n',axes=False,ann=False)
