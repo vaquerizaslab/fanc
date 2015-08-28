@@ -1537,21 +1537,25 @@ class HicBasic(Maskable, MetaContainer):
                 n_cols_sub = col_range[1] - col_range[0] + 1
                 
                 condition = "((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
-                condition1 = condition % (row_range[0], row_range[1], col_range[0], col_range[1])
-                condition2 = condition % (col_range[0], col_range[1], row_range[0], row_range[1])
-                for condition in [condition1, condition2]:
-                    for edge_row in self._edges.where(condition):
-                        source = edge_row['source']
-                        sink = edge_row['sink']
-                        weight = edge_row['weight']
-                        ir = source - row_range[0]
-                        jr = sink - col_range[0]
-                        if (0 <= ir < n_rows_sub) and (0 <= jr < n_cols_sub): 
-                            m[ir + row_offset,jr + col_offset] = weight
-                        ic = sink - row_range[0]
-                        jc = source - col_range[0]
-                        if (0 <= ic < n_rows_sub) and (0 <= jc < n_cols_sub): 
-                            m[ic + row_offset,jc + col_offset] = weight
+                condition += "| ((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
+                condition = condition % (row_range[0], row_range[1], col_range[0], col_range[1],
+                                         col_range[0], col_range[1], row_range[0], row_range[1])
+                
+                #condition1 = condition % (row_range[0], row_range[1], col_range[0], col_range[1])
+                #condition2 = condition % (col_range[0], col_range[1], row_range[0], row_range[1])
+                #for condition in [condition1, condition2]:
+                for edge_row in self._edges.where(condition):
+                    source = edge_row['source']
+                    sink = edge_row['sink']
+                    weight = edge_row['weight']
+                    ir = source - row_range[0]
+                    jr = sink - col_range[0]
+                    if (0 <= ir < n_rows_sub) and (0 <= jr < n_cols_sub): 
+                        m[ir + row_offset,jr + col_offset] = weight
+                    ic = sink - row_range[0]
+                    jc = source - col_range[0]
+                    if (0 <= ic < n_rows_sub) and (0 <= jc < n_cols_sub): 
+                        m[ic + row_offset,jc + col_offset] = weight
                 
                 col_offset += n_cols_sub
             row_offset += n_rows_sub
