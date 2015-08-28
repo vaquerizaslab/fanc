@@ -44,7 +44,10 @@ if __name__ == '__main__':
                 header = line.split('\t')
                 file_name = "_".join(previous_line.split())
                 o = open(out_folder + '/' + file_name + '.bed', 'w')
-                out_header = 'chrom\tstart\tend\tscore\tstrand\tname'
+                if previous_line.lower().startswith('gene'):
+                    out_header = 'chrom\tstart\tend\tscore\tstrand\tgene'
+                else:
+                    out_header = 'chrom\tstart\tend\tscore\tstrand\tname'
                 ignore = set([0,1,2,3])
                 for idx, field in enumerate(header):
                     if idx not in ignore and field.lower() != 'name':

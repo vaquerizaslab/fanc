@@ -308,6 +308,44 @@ class BedPlot(object):
         if output:
             close_graphics_file()
 
+class GenePlot(object):
+    def __init__(self, bed, chrom=None, start=None, end=None,
+                 maxrows=5,plotgenetype="box", labeltext=True,
+                 showCoordinates=True):
+        self.data = bed
+        self.chrom = chrom
+        self.start = start
+        self.end = end
+        self.maxrows = maxrows
+        self.plotgenetype = plotgenetype
+        self.labeltext = labeltext
+        self.showCoordinates = showCoordinates
+        
+    def show(self, output=None):
+        p2r.activate()
+        sushi = importr('Sushi')
+        graphics = importr('graphics')
+        
+        df = self.data.as_data_frame(self.chrom,self.start,self.end)
+        
+        if output:
+            open_graphics_file(output)
+        
+        if df.shape[0] > 0:
+            dfr = p2r.py2ri(df)
+            sushi.plotGenes(dfr,self.chrom,self.start,self.end,
+                            maxrows=self.maxrows, plotgenetype=self.plotgenetype,
+                            labeltext=self.labeltext)
+        else:
+            #empty plot
+            graphics.plot(0,type='n',axes=False,ann=False)
+            
+            
+        if self.showCoordinates:
+            sushi.labelgenome(self.chrom,chromstart=self.start,chromend=self.end,n=4,scale="Mb")
+        
+        if output:
+            close_graphics_file()
 
 class BedpePlot(object):
     def __init__(self, bedpe, chrom=None, start=None, end=None,
