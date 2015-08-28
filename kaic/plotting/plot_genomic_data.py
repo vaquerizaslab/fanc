@@ -259,7 +259,9 @@ class HiCPlot(object):
             sushi.plotHic(dfr,self.chrom,self.start,self.end,
                           palette=grd.colorRampPalette(self.colors),
                           zrange=self.zrange, max_y=self.max_y)
+            print "plotted sushi"
         else:
+            print "no plot generated"
             #empty plot
             graphics.plot(0,type='n',axes=False,ann=False)
             
