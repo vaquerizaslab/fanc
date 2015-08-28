@@ -342,7 +342,9 @@ class Bed(object):
             
             # Copy the columns of source table to destination
             for col in self.table.description._v_colobjects:
-                getattr(table2.cols, col)[:] = getattr(self.table.cols, col)[:]
+                if (len(getattr(self.table.cols, col)[:]) > 0 and
+                    len(getattr(table2.cols, col)[:]) > 0):
+                    getattr(table2.cols, col)[:] = getattr(self.table.cols, col)[:]
             
             # fill with new data
             entry = table2.row
