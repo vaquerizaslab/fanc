@@ -248,7 +248,8 @@ class HiCPlot(object):
         grd = importr('grDevices')
         graphics = importr('graphics')
         
-        df = self.hic.as_data_frame('%s:%d-%d' % (self.chrom, self.start, self.end))
+        df = self.hic.as_data_frame(('%s:%d-%d' % (self.chrom, self.start, self.end),
+                                     '%s:%d-%d' % (self.chrom, self.start, self.end)))
         
         if output:
             open_graphics_file(output)
