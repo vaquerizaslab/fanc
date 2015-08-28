@@ -1530,12 +1530,10 @@ class HicBasic(Maskable, MetaContainer):
         # fill matrix with weights
         row_offset = 0
         for row_range in row_ranges:
-            print row_range
             n_rows_sub = row_range[1] - row_range[0] + 1
             col_offset = 0
             col_ranges = ranges(nodes_ix_col)
             for col_range in col_ranges:
-                print col_range
                 n_cols_sub = col_range[1] - col_range[0] + 1
                 
                 condition = "((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
@@ -1546,15 +1544,12 @@ class HicBasic(Maskable, MetaContainer):
                         source = edge_row['source']
                         sink = edge_row['sink']
                         weight = edge_row['weight']
-                        print "%d-%d,%f" % (source, sink, weight)
                         ir = source - row_range[0]
                         jr = sink - col_range[0]
-                        print "row ixs: %d,%d" % (ir,jr)
                         if (0 <= ir < n_rows_sub) and (0 <= jr < n_cols_sub): 
                             m[ir + row_offset,jr + col_offset] = weight
                         ic = sink - row_range[0]
                         jc = source - col_range[0]
-                        print "col ixs: %d,%d" % (ic,jc)
                         if (0 <= ic < n_rows_sub) and (0 <= jc < n_cols_sub): 
                             m[ic + row_offset,jc + col_offset] = weight
                 
