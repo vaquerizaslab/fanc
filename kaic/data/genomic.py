@@ -145,7 +145,7 @@ class BedImproved(Table):
         
         
         # get field names
-        desc = self._table.description._v_colObjects.copy()
+        desc = self._table.description._v_colobjects.copy()
         labels = ['chrom', 'start', 'end']
         if 'name' in desc:
             labels.append('name')
@@ -240,7 +240,7 @@ class Bed(object):
             line = f.readline()
             fields = line.rstrip().split("\t")
             
-            desc = self.table.description._v_colObjects.copy()
+            desc = self.table.description._v_colobjects.copy()
             header = []
             headerTypes = []
             if has_header:
@@ -341,7 +341,7 @@ class Bed(object):
             table2.flush()
             
             # Copy the columns of source table to destination
-            for col in self.table.description._v_colObjects:
+            for col in self.table.description._v_colobjects:
                 getattr(table2.cols, col)[:] = getattr(self.table.cols, col)[:]
              
             # fill with new data
