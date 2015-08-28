@@ -18,6 +18,7 @@ from kaic.data.general import Table, TableRow, TableArray, TableObject,\
 import os.path
 
 import logging
+from kaic.tools.general import ranges
 logging.basicConfig(level=logging.INFO)
 from xml.etree import ElementTree as et
 
@@ -1522,28 +1523,67 @@ class HicBasic(Maskable, MetaContainer):
         # create empty matrix
         m = np.zeros((n_rows, n_cols))
         
+        # get row range generator
+        row_ranges = ranges(nodes_ix_row)
+        
+        
         # fill matrix with weights
-        for i in xrange(0, n_rows):
-            for j in xrange(0, n_cols):
-                # get row value
-                try:
-                    source = nodes_ix_row[i]
-                except TypeError:
-                    source = self._nodes[i]['ix']
-                # get column value
-                try:
-                    sink = nodes_ix_col[j]
-                except TypeError:
-                    sink = self._nodes[j]['ix']
-                                 
-                if source > sink:
-                    tmp = source
-                    source = sink
-                    sink = tmp
-                                    
-                for edge_row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
-                    weight = edge_row['weight']
-                    m[i,j] += weight
+        row_offset = 0
+        for row_range in row_ranges:
+            print row_range
+            n_rows_sub = row_range[1] - row_range[0] + 1
+            col_offset = 0
+            col_ranges = ranges(nodes_ix_col)
+            for col_range in col_ranges:
+                print col_range
+                n_cols_sub = col_range[1] - col_range[0] + 1
+                
+                condition = "((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
+                condition1 = condition % (row_range[0], row_range[1], col_range[0], col_range[1])
+                condition2 = condition % (col_range[0], col_range[1], row_range[0], row_range[1])
+                for condition in [condition1, condition2]:
+                    for edge_row in self._edges.where(condition):
+                        source = edge_row['source']
+                        sink = edge_row['sink']
+                        weight = edge_row['weight']
+                        print "%d-%d,%f" % (source, sink, weight)
+                        ir = source - row_range[0]
+                        jr = sink - col_range[0]
+                        print "row ixs: %d,%d" % (ir,jr)
+                        if (0 <= ir < n_rows_sub) and (0 <= jr < n_cols_sub): 
+                            m[ir + row_offset,jr + col_offset] = weight
+                        ic = sink - row_range[0]
+                        jc = source - col_range[0]
+                        print "col ixs: %d,%d" % (ic,jc)
+                        if (0 <= ic < n_rows_sub) and (0 <= jc < n_cols_sub): 
+                            m[ic + row_offset,jc + col_offset] = weight
+                
+                col_offset += n_cols_sub
+            row_offset += n_rows_sub
+            
+        
+        # fill matrix with weights
+#         for i in xrange(0, n_rows):
+#             for j in xrange(0, n_cols):
+#                 # get row value
+#                 try:
+#                     source = nodes_ix_row[i]
+#                 except TypeError:
+#                     source = self._nodes[i]['ix']
+#                 # get column value
+#                 try:
+#                     sink = nodes_ix_col[j]
+#                 except TypeError:
+#                     sink = self._nodes[j]['ix']
+#                                  
+#                 if source > sink:
+#                     tmp = source
+#                     source = sink
+#                     sink = tmp
+#                                     
+#                 for edge_row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
+#                     weight = edge_row['weight']
+#                     m[i,j] += weight
                         
         return m
     
