@@ -394,7 +394,7 @@ class Bed(object):
         
         
         # get field names
-        desc = self.table.description._v_colObjects.copy()
+        desc = self.table.description._v_colobjects.copy()
         labels = ['chrom', 'start', 'end']
         if 'name' in desc:
             labels.append('name')
