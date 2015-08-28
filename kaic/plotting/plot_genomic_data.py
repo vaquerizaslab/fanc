@@ -337,7 +337,7 @@ class GenePlot(object):
                             maxrows=self.maxrows, plotgenetype=self.plotgenetype,
                             labeltext=self.labeltext, types=types,
                             colorbycol=grd.colorRampPalette(self.colors),
-                            colorbyrange=np.array(0,1.0))
+                            colorbyrange=np.array([0,1.0]))
         else:
             #empty plot
             graphics.plot(0,type='n',axes=False,ann=False)
