@@ -310,7 +310,7 @@ class BedPlot(object):
 
 class GenePlot(object):
     def __init__(self, bed, chrom=None, start=None, end=None,
-                 maxrows=5,plotgenetype="box", labeltext=True,
+                 maxrows=70,plotgenetype="box", labeltext=True,
                  showCoordinates=True):
         self.data = bed
         self.chrom = chrom
@@ -327,6 +327,7 @@ class GenePlot(object):
         graphics = importr('graphics')
         
         df = self.data.as_data_frame(self.chrom,self.start,self.end)
+        types = np.array('exon' * len(df))
         
         if output:
             open_graphics_file(output)
@@ -335,7 +336,7 @@ class GenePlot(object):
             dfr = p2r.py2ri(df)
             sushi.plotGenes(dfr,self.chrom,self.start,self.end,
                             maxrows=self.maxrows, plotgenetype=self.plotgenetype,
-                            labeltext=self.labeltext)
+                            labeltext=self.labeltext, types=types)
         else:
             #empty plot
             graphics.plot(0,type='n',axes=False,ann=False)
