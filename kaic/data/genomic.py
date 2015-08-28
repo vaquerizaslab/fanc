@@ -1226,7 +1226,7 @@ class HicBasic(Maskable, MetaContainer):
         
         # index node table
         try:
-            self._nodes.cols.ix.create_index()
+            self._nodes.cols.ix.create_csindex()
         except ValueError:
             # Index exists, no problem!
             pass
@@ -1242,12 +1242,12 @@ class HicBasic(Maskable, MetaContainer):
             pass
         # index edge table
         try:
-            self._edges.cols.source.create_index()
+            self._edges.cols.source.create_csindex()
         except ValueError:
             # Index exists, no problem!
             pass
         try:
-            self._edges.cols.sink.create_index()
+            self._edges.cols.sink.create_csindex()
         except ValueError:
             # Index exists, no problem!
             pass
