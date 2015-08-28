@@ -329,7 +329,7 @@ class Bed(object):
                         headerTypes.append(str)
                         desc['feature_' + str(i)] = t.StringCol(255) # @UndefinedVariable
             
-            table2 = self.file.create_able(self.file.root, 'table2', desc, "bed", t.Filters(1))
+            table2 = self.file.create_table(self.file.root, 'table2', desc, "bed", t.Filters(1))
  
             # Copy the user attributes
             self.table.attrs._f_copy(table2)
