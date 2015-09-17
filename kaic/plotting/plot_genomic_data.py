@@ -307,7 +307,7 @@ class BedPlot(object):
 
 class GenePlot(object):
     def __init__(self, bed, chrom=None, start=None, end=None,
-                 maxrows=70,plotgenetype="box", labeltext=True,
+                 maxrows=50,plotgenetype="box", labeltext=True,
                  showCoordinates=True, colors=["red","green"]):
         self.data = bed
         self.chrom = chrom
@@ -325,19 +325,17 @@ class GenePlot(object):
         graphics = importr('graphics')
         grd = importr('grDevices')
         
-        df = self.data.as_data_frame(self.chrom,self.start,self.end)
-        types = np.array(['exon'] * len(df))
-        
+        df = self.data.as_data_frame(self.chrom,self.start,self.end,as_gene=True)
+        types = np.array(["exon"] * len(df))
+
         if output:
             open_graphics_file(output)
         
         if df.shape[0] > 0:
             dfr = p2r.py2ri(df)
-            sushi.plotGenes(dfr,self.chrom,self.start,self.end,
+            sushi.plotGenes(dfr,self.chrom,self.start,self.end,height=0.4, types=types,
                             maxrows=self.maxrows, plotgenetype=self.plotgenetype,
-                            labeltext=self.labeltext, types=types,
-                            colorbycol=grd.colorRampPalette(self.colors),
-                            colorbyrange=np.array([0,1.0]))
+                            labeltext=self.labeltext)
         else:
             #empty plot
             graphics.plot(0,type='n',axes=False,ann=False)
