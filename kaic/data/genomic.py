@@ -350,11 +350,11 @@ class Bed(object):
             entry = table2.row
             while line != '':
                 
-                if len(fields) == len(headerTypes):
-                    for i in xrange(0,len(fields)):
-                        value = headerTypes[i](fields[i])
-                        entry[header[i]] = value
-                    entry.append()
+                #if len(fields) == len(headerTypes):
+                for i in xrange(0,len(fields)):
+                    value = headerTypes[i](fields[i])
+                    entry[header[i]] = value
+                entry.append()
                 
                 line = f.readline()
                 fields = line.rstrip().split("\t")
@@ -369,7 +369,7 @@ class Bed(object):
     
     
     
-    def as_data_frame(self, chrom=None, start=None, end=None):
+    def as_data_frame(self, chrom=None, start=None, end=None, as_gene=False):
         query = """"""
         if chrom:
             if query != '':
@@ -396,12 +396,14 @@ class Bed(object):
         # get field names
         desc = self.table.description._v_colobjects.copy()
         labels = ['chrom', 'start', 'end']
-        if 'name' in desc:
-            labels.append('name')
+        if 'gene' in desc:
+            labels.append('gene')
         if 'score' in desc:
             labels.append('score')
         if 'strand' in desc:
             labels.append('strand')
+        if 'type' in desc:
+            labels.append('type')
         if 'thickStart' in desc:
             labels.append('thickStart')
         if 'thickEnd' in desc:
