@@ -6,16 +6,306 @@ Created on Jul 13, 2015
 
 import tables as t
 import pysam
-from kaic.tools.files import create_or_open_pytables_file, random_name
-from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable
+from kaic.tools.files import create_or_open_pytables_file, random_name,\
+    is_sambam_file
+from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable,\
+    FileBased, TableObject
 import tempfile
 import os
 import logging
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
+from kaic.data.genomic import HicNodesTable
+from bisect import bisect_right
+from kaic.tools.general import bit_flags_from_int
 
-
-
+        
+class Reads(FileBased, Maskable, MetaContainer):
+    def __init__(self, sambam_file=None, file_name=None, group_name='reads',
+                 field_sizes={'qname': 60, 'sequence': 200}):
+        if (sambam_file is not None
+            and file_name is None
+            and not is_sambam_file(sambam_file)):
+            file_name = sambam_file
+            sambam_file = None
+        
+        FileBased.__init__(self, file_name)
+        Maskable.__init__(self, self.file)
+        MetaContainer.__init__(self, self.file)
+        
+        # try to retrieve existing table
+        try:
+            main_table = self.file.get_node('/' + group_name + '/main')
+            try:
+                self._header = main_table._v_attrs.header
+            except AttributeError:
+                logging.warn("No header attributes found in existing table")
+                self._header = None
+            
+            try:
+                self._ref = main_table._v_attrs.ref
+            except AttributeError:
+                logging.warn("No ref attributes found in existing table")
+                self._ref = None
+            
+            # tags
+            tags = self.file.get_node('/' + group_name + '/tags')
+            
+            # cigar
+            cigar = self.file.get_node('/' + group_name + '/cigar')
+            
+            
+            
+        # or build table from scratch
+        except NoSuchNodeError:
+            
+            expected_length = 50000000
+            if sambam_file is not None:
+                logging.info("Determining field sizes")
+                field_sizes = Reads.determine_field_sizes(sambam_file)
+                expected_length = int(self._sambam_size(sambam_file)*1.5)
+                
+            reads_defininition = {
+                'ix': t.Int32Col(pos=0),
+                'qname': t.StringCol(field_sizes['qname'],pos=1),
+                'flag': t.Int32Col(pos=2),
+                'ref': t.Int32Col(pos=3),
+                'pos': t.Int64Col(pos=4),
+                'mapq': t.Int32Col(pos=5),
+                'rnext': t.Int32Col(pos=6),
+                'pnext': t.Int32Col(pos=7),
+                'tlen': t.Int32Col(pos=8),
+                'seq': t.StringCol(field_sizes['sequence'],pos=9),
+                'qual': t.StringCol(field_sizes['sequence'],pos=10)
+            }
+        
+            # create data structures
+            logging.info("Creating data structures...")
+            
+            # create reads group
+            group = self.file.create_group("/", group_name, 'Read pairs group',
+                                           filters=t.Filters(complib="blosc",
+                                                             complevel=2, shuffle=True))
+            # create main table
+            main_table = MaskedTable(group, 'main', reads_defininition,
+                                     expectedrows=expected_length)
+            # create tags vlarrays
+            tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom())
+            
+            # create cigar vlarrays
+            cigar = self.file.create_vlarray(group, 'cigar', t.VLStringAtom())    
+            
+        
+        self._reads = main_table
+        self._tags = tags
+        self._cigar = cigar
+        
+        
+        
+        # load reads
+        if sambam_file and is_sambam_file(sambam_file):
+            logging.info("Loading reads...")
+            self.load(sambam_file, ignore_duplicates=True)
+        logging.info("Done.")
+    
+    def _sambam_size(self, sambam):
+        if type(sambam) == str:
+            sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
+        
+        count = sum(1 for _ in iter(sambam))
+        sambam.close()
+        return count
+    
+    def _get_row_counter(self):
+        try:
+            return self._reads._v_attrs.row_counter
+        except AttributeError:
+            self._reads._v_attrs.row_counter = 0
+            return 0
+    
+    def _set_row_counter(self, value):
+        self._reads._v_attrs.row_counter = value
+        
+    
+    def load(self, sambam, ignore_duplicates=True, is_sorted=False):
+        # get file names
+        try:
+            file_name = sambam.filename
+        except AttributeError:
+            file_name = sambam
+        
+        # sort files if required
+        if not is_sorted:
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".bam")
+            tmp_file.close()
+            pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
+            sambam = pysam.AlignmentFile(tmp_file.name, 'rb')
+        else:
+            sambam = pysam.AlignmentFile(file_name, 'rb')
+        
+        # header
+        self._reads._v_attrs.header = sambam.header
+        self._header = sambam.header
+        
+        # references
+        self._reads._v_attrs.ref = sambam.references
+        self._ref = sambam.references
+        
+        last_name = ""
+        for read in sambam:
+            if ignore_duplicates and read.qname == last_name:
+                continue
+            self.add_read(read, flush=False)
+            last_name = read.qname
+        self.flush()
+        
+        
+    
+    def add_read(self, read, flush=True):
+        reads_row = self._reads.row
+        # add main read info
+        reads_row['qname'] = read.qname
+        reads_row['flag'] = read.flag
+        reads_row['ref'] = read.reference_id
+        if read.pos >= 0:
+            reads_row['pos'] = read.pos+1
+        else:
+            reads_row['pos'] = read.pos
+        reads_row['mapq'] = read.mapq
+        reads_row['rnext'] = read.rnext
+        reads_row['pnext'] =  read.pnext
+        reads_row['tlen'] = read.tlen
+        reads_row['seq'] = read.seq
+        reads_row['qual'] = read.qual
+        reads_row['ix'] = self._get_row_counter()
+        reads_row.append()
+        
+        # add string info
+        self._tags.append(read.tags)
+        self._cigar.append(read.cigarstring)
+        self._set_row_counter(self._get_row_counter()+1)
+        
+        if flush:
+            self.flush()
+    
+    def flush(self):
+        self._reads.flush()
+        self._tags.flush()
+        self._cigar.flush()
+    
+    @staticmethod
+    def determine_field_sizes(sambam, sample_size=10000):
+        if type(sambam) == str:
+            sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
+            
+        qname_length = 0
+        seq_length = 0
+        i = 0
+        for r in sambam:
+            i += 1
+            qname_length = max(qname_length,len(r.qname))
+            seq_length = max(seq_length,len(r.seq))
+            if sample_size is not None and i >= sample_size:
+                break
+            
+            if i % 100000 == 0:
+                logging.info(i)
+        sambam.close()
+        
+        return { 'qname': qname_length,
+                 'sequence': seq_length }
+    
+    @property
+    def header(self):
+        return self._header
+    
+    def _ix2ref(self, ix):
+        if self._ref is None:
+            raise RuntimeError("Chromosome reference for left read not present")
+        return self._ref[ix]
+    
+    def _row2read(self, row):
+        ix = row['ix']
+        tags = self._tags[ix]
+        cigar = self._cigar[ix]
+        ref = self._ix2ref(row['ref'])
+        
+        return Read(qname=row['qname'], flag=row['flag'], ref=ref,
+                 pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
+                 pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
+                 tags=tags)
+        
+    def __iter__(self):
+        this = self
+        class ReadsIter:
+            def __init__(self):
+                self.iter = iter(this._reads)
+                  
+            def __iter__(self):
+                return self
+              
+            def next(self):
+                row = self.iter.next()
+                return this._row2read(row)
+        return ReadsIter()
+    
+    def __getitem__(self, key):
+        return self._row2read(self._reads[key])
+    
+    def __len__(self):
+        return len(self._reads)
+    
+    def where(self, query):
+        reads = []
+        for row in self._reads.where(query):
+            reads.append(self._row2read(row))
+        return reads
+    
+    def filter_quality(self, cutoff=30, queue=False):
+        mask = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
+        quality_filter = QualityFilter(cutoff, mask)
+        quality_filter.set_reads_object(self)
+        
+        if not queue:
+            self._reads.filter(quality_filter)
+        else:
+            self._reads.queue_filter(quality_filter)
+            
+    def filter_non_unique(self, strict=True, queue=False):
+        mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
+        uniqueness_filter = UniquenessFilter(strict, mask)
+        uniqueness_filter.set_reads_object(self)
+        
+        if not queue:
+            self._reads.filter(uniqueness_filter)
+        else:
+            self._reads.queue_filter(uniqueness_filter)
+    
+    def run_queued_filters(self):
+        self._reads.run_queued_filters()
+    
+    def filtered_reads(self):
+        this = self
+        class MaskedReadsIter:
+            def __init__(self):
+                self.iter = this._reads.masked_rows()
+                  
+            def __iter__(self):
+                return self
+              
+            def next(self):
+                row = self.iter.next()
+                read = self._row2read(row)
+                
+                masks = this.get_masks(row[this._mask_field])
+                
+                return MaskedRead(qname=read.qname, flag=read.flag, ref=read.ref,
+                                  pos=read.pos, mapq=read.mapq, cigar=read.cigar, rnext=read.rnext,
+                                  pnext=read.pnext, tlen=read.tlen, seq=read.seq, qual=read.qual,
+                                  tags=read.tags, masks=masks)
+        return MaskedReadsIter()
+        
+        
 class ReadPairs(Maskable, MetaContainer):
     
     def __init__(self, sambam_file1=None, sambam_file2=None, file_name=None,
@@ -147,7 +437,8 @@ class ReadPairs(Maskable, MetaContainer):
             self.load(sambam_file1, sambam_file2, ignore_duplicates=True)
         logging.info("Done.")
         
-        
+    
+    
             
     
     @staticmethod
@@ -430,7 +721,7 @@ class ReadPairs(Maskable, MetaContainer):
 
     def filter_quality(self, cutoff=30, queue=False):
         mask = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
-        quality_filter = QualityFilter(cutoff, mask)
+        quality_filter = QualityPairFilter(cutoff, mask)
         quality_filter.set_read_pairs_object(self)
         
         if not queue:
@@ -440,7 +731,7 @@ class ReadPairs(Maskable, MetaContainer):
             
     def filter_non_unique(self, strict=True, queue=False):
         mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
-        uniqueness_filter = UniquenessFilter(strict, mask)
+        uniqueness_filter = UniquenessPairFilter(strict, mask)
         uniqueness_filter.set_read_pairs_object(self)
         
         if not queue:
@@ -451,7 +742,7 @@ class ReadPairs(Maskable, MetaContainer):
     def filter_single(self, queue=False):
         mask = self.add_mask_description('single', 'Mask read pairs that are unpaired')
         print "MASK: %d" % mask.ix
-        single_filter = SingleFilter(mask)
+        single_filter = SinglePairFilter(mask)
         single_filter.set_read_pairs_object(self)
         
         if not queue:
@@ -560,6 +851,13 @@ class Read(object):
         self.qual = qual
         self.tags = tags
 
+    @property
+    def strand(self):
+        bit_flags = bit_flags_from_int(self.flag)
+        if 16 in bit_flags:
+            return -1
+        return 1
+    
     def __getitem__(self, key):
         try:
             value = self.__getattribute__(key)
@@ -569,6 +867,26 @@ class Read(object):
         
     def __repr__(self):
         return "%s, ref: %s, pos: %d" % (self.qname, self.ref, self.pos)
+    
+class MaskedRead(Read):
+    def __init__(self, qname="", flag=0, ref="",
+                 pos=0, mapq=0, cigar="", rnext=0,
+                 pnext=0, tlen=0, seq="", qual="",
+                 tags={}, masks=None):
+        super(MaskedRead, self).__init__(qname=qname, flag=flag, ref=ref,
+                                         pos=pos, mapq=mapq, cigar=cigar, rnext=rnext,
+                                         pnext=pnext, tlen=tlen, seq=seq, qual=qual,
+                                         tags=tags)
+        self.masks = masks
+    
+    def __repr__(self):
+        representation = super(MaskedRead, self).__repr__()
+        if self.masks is not None:
+            mask_names = []
+            for mask in self.masks:
+                mask_names.append(mask.name)
+            return "%s (%s)" % (representation,", ".join(mask_names))
+        return representation
         
 class ReadFromRow(Read):
     def __init__(self, row, read_pairs_object, is_left=True):
@@ -676,8 +994,51 @@ class MaskedReadPair(ReadPair):
 
 
 #
-# Filters
+# Filters Reads
 #
+class ReadFilter(MaskFilter):
+    __metaclass__ = ABCMeta
+    
+    def __init__(self, mask=None):
+        super(ReadFilter, self).__init__(mask)
+    
+    @abstractmethod
+    def valid_read(self, read):
+        pass
+    
+    def set_reads_object(self, reads_object):
+        self._reads = reads_object
+    
+    def valid(self, row):
+        read = self._reads._row2read(row)
+        return self.valid_read(read)
+        
+
+class QualityFilter(ReadFilter):
+    def __init__(self, cutoff=30, mask=None):
+        super(QualityFilter, self).__init__(mask)
+        self.cutoff = cutoff
+
+    def valid_read(self, read):
+        return read.mapq > self.cutoff
+
+class UniquenessFilter(ReadFilter):
+    def __init__(self, strict=True, mask=None):
+        self.strict = strict
+        super(UniquenessFilter, self).__init__(mask)
+    
+    def valid_read(self, read):
+
+        for tag in read.tags:
+            if tag[0] == 'XS':
+                if self.strict or tag[1] == 0:
+                    return False
+        return True
+
+
+
+
+
 class ReadPairFilter(MaskFilter):
     __metaclass__ = ABCMeta
     
@@ -707,9 +1068,9 @@ class ReadPairFilter(MaskFilter):
         return self.valid_pair(pair)
         
 
-class QualityFilter(ReadPairFilter):
+class QualityPairFilter(ReadPairFilter):
     def __init__(self, cutoff=30, mask=None):
-        super(QualityFilter, self).__init__(mask)
+        super(QualityPairFilter, self).__init__(mask)
         self.cutoff = cutoff
 
     def valid_pair(self, pair):
@@ -723,10 +1084,10 @@ class QualityFilter(ReadPairFilter):
              
         return left_valid and right_valid
 
-class UniquenessFilter(ReadPairFilter):
+class UniquenessPairFilter(ReadPairFilter):
     def __init__(self, strict=True, mask=None):
         self.strict = strict
-        super(UniquenessFilter, self).__init__(mask)
+        super(UniquenessPairFilter, self).__init__(mask)
     
     def valid_pair(self, pair):
         left_valid = True
@@ -747,9 +1108,9 @@ class UniquenessFilter(ReadPairFilter):
         return left_valid and right_valid
 
 
-class SingleFilter(ReadPairFilter):
+class SinglePairFilter(ReadPairFilter):
     def __init__(self, mask=None):
-        super(SingleFilter, self).__init__(mask)
+        super(SinglePairFilter, self).__init__(mask)
     
     def valid_pair(self, pair):
         if not pair.has_left_read() or not pair.has_right_read():
@@ -760,11 +1121,164 @@ class SingleFilter(ReadPairFilter):
 
 
 
-class FragmentPairs(object):
-    def __init__(self):
+class FragmentReadPairs(Maskable, MetaContainer, HicNodesTable, FileBased):
+    class FragmentReadPairDescription(t.IsDescription):
+        ix = t.Int32Col(pos=0)
+        fragment_left = t.Int32Col(pos=1, dflt=-1)
+        position_left = t.Int64Col(pos=2)
+        strand_left = t.Int8Col(pos=3)
+        fragment_right = t.Int32Col(pos=4, dflt=-1)
+        position_right = t.Int64Col(pos=5)
+        strand_right = t.Int8Col(pos=6)
+        
+    def __init__(self, data=None, file_name=None,
+                 table_name_nodes='nodes',
+                 table_name_fragments='fragments'):
+        
+        # parse potential unnamed argument
+        if data is not None:
+            # data is file name
+            if type(data) is str:
+                data = os.path.expanduser(data)
+                
+                if not os.path.isfile(data) and file_name is None:
+                    file_name = data
+                    data = None
+        
+        if file_name is not None:
+            file_name = os.path.expanduser(file_name)
+            
+        FileBased.__init__(self, file_name)
+        HicNodesTable.__init__(self, file_name=file_name, table_name_nodes=table_name_nodes)
+        
+        # generate tables from inherited classes
+        Maskable.__init__(self, self.file)
+        MetaContainer.__init__(self, self.file)
+        
+        # generate fragment pairs table
+        if table_name_fragments in self.file.root:
+            self._fragment_pairs = self.file.get_node('/', table_name_fragments)
+        else:
+            self._fragment_pairs = MaskedTable(self.file.root, table_name_fragments,
+                                               FragmentReadPairs.FragmentReadPairDescription,
+                                               expectedrows=10000)
+        
+    def add_read_pair(self, read_pair, flush=True):
+        raise NotImplementedError("Not currently implemented, simply use add_read_pairs")
+    
+    def add_read_pairs(self, read_pairs):
+        try:
+            last_ix = self._fragment_pairs[-1]['ix']
+        except:
+            last_ix = -1
+            
+        # generate index for fragments
+        fragment_ixs = {}
+        fragment_ends = {}
+        for node in self.nodes():
+            if not fragment_ends.has_key(node.chromosome):
+                fragment_ends[node.chromosome] = []
+                fragment_ixs[node.chromosome] = []
+            fragment_ixs[node.chromosome].append(node.ix)
+            fragment_ends[node.chromosome].append(node.end)
+        
+        # binary search for corresponding fragments
+        for read_pair in read_pairs:
+            if read_pair.left_read is not None:
+                position_left = read_pair.left_read.pos
+                ix_left = bisect_right(fragment_ends[read_pair.left_read.ref], position_left)
+                fragment_ix_left = fragment_ixs[read_pair.left_read.ref][ix_left]
+            
+            if read_pair.right_read is not None:
+                position_right = read_pair.right_read.pos
+                ix_right = bisect_right(fragment_ends[read_pair.right_read.ref], position_right)
+                fragment_ix_right = fragment_ixs[read_pair.right_read.ref][ix_right]
+            
+            ix = last_ix + 1
+            strand_left = read_pair.left_read.strand
+            strand_right = read_pair.right_read.strand
+            
+            row = self._fragment_pairs.row
+            row['ix'] = ix
+            if read_pair.left_read is not None:
+                row['fragment_left'] = fragment_ix_left
+                row['position_left'] = position_left
+                row['strand_left'] = strand_left
+            if read_pair.right_read is not None:
+                row['fragment_right'] = fragment_ix_right
+                row['position_right'] = position_right
+                row['strand_right'] = strand_right
+            row.append()
+            
+            last_ix += 1
+        
+        self._fragment_pairs.flush()
+    
+    
+    def __iter__(self):
+        this = self
+        class FragmentReadPairIter:
+            def __init__(self):
+                self.iter = iter(this._fragment_pairs)
+                 
+            def __iter__(self):
+                return self
+             
+            def next(self):
+                return FragmentReadPair.from_row(self.iter.next())
+             
+            def __len__(self):
+                return len(this._fragment_pairs)
+             
+        return FragmentReadPairIter()
+
+
+class FragmentRead(object):
+    def __init__(self, fragment_ix=None, position=None, strand=0):
+        self.fragment_ix = fragment_ix
+        self.position = position
+        self.strand = strand
+
+        
+class FragmentReadPair(TableObject):
+    def __init__(self, left_fr=None, right_fr=None):
+        self.left_fr = left_fr
+        self.right_fr = right_fr
+        
+    @classmethod
+    def from_row(cls, row):
+        left_fr = FragmentRead(fragment_ix=row['fragment_left'],
+                               position=row['position_left'],
+                               strand=row['strand_left'])
+        right_fr = FragmentRead(fragment_ix=row['fragment_right'],
+                                position=row['position_right'],
+                                strand=row['strand_right'])
+        return cls(left_fr=left_fr, right_fr=right_fr)
+    
+class FragmentReadPairFilter(MaskFilter):
+    __metaclass__ = ABCMeta
+    
+    def __init__(self, mask=None):
+        super(FragmentReadPairFilter, self).__init__(mask)
+    
+    @abstractmethod
+    def valid_pair(self, fr_pair):
         pass
+    
+    def valid(self, row):
+        
+        left_fr = None
+        if row['pos1'] > 0:
+            left_read = ReadFromRow(row, self._read_pairs, is_left=True)
 
-
+        
+        right_read = None
+        if row['pos2'] > 0:
+            right_read = ReadFromRow(row, self._read_pairs, is_left=False)
+        
+        pair = ReadPair(left_read=left_read, right_read=right_read)
+        
+        return self.valid_pair(pair)
 
 
 def cmp_natural(string1, string2):
