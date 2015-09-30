@@ -10,6 +10,7 @@ from xml.etree.ElementTree import iterparse, ParseError
 import string
 import random
 import h5py
+import pysam
 
 def without_extension(file_name):
     os.path.splitext(file_name)[0]
@@ -128,4 +129,10 @@ def is_hdf5_file(file_name):
         return False
     return True
     
-    
+def is_sambam_file(file_name):
+    try:
+        sb = pysam.AlignmentFile(file_name)
+        sb.close()
+    except (ValueError, IOError):
+        return False
+    return True
