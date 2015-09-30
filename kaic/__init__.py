@@ -41,3 +41,19 @@ def sample_hic():
         hic.add_edges(edges)
         
         return hic
+
+
+def sample_hic_big():
+        hic = HicBasic()
+        
+        # add some nodes (120 to be exact)
+        nodes = []
+        for i in range(1,50000,1000):
+            nodes.append(HicNode(chromosome="chr1",start=i,end=i+1000-1))
+        for i in range(1,30000,1000):
+            nodes.append(HicNode(chromosome="chr2",start=i,end=i+1000-1))
+        for i in range(1,20000,500):
+            nodes.append(HicNode(chromosome="chr3",start=i,end=i+1000-1))
+        hic.add_nodes(nodes)
+        
+        return hic
