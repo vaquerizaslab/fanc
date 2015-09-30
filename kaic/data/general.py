@@ -247,6 +247,27 @@ def _file_to_data(file_name, sep="\t", has_header=None, types=None):
 
     return data, header, rownames
 
+
+class FileBased(object):
+    def __init__(self, file_name=None):
+        # open file or keep in memory
+        if hasattr(self, 'file'):
+            if not isinstance(self.file, t.file.File):
+                raise ValueError("'file' attribute already exists, but is no pytables File")
+        else:
+            if file_name == None:
+                self.file = create_or_open_pytables_file()
+            elif type(file_name) == str:
+                self.file = create_or_open_pytables_file(file_name, inMemory=False)
+            elif isinstance(file_name, t.file.File):
+                self.file = file_name
+            else:
+                raise ValueError("file_name is not a recognisable type")
+    
+    def close(self):
+        self.file.close()
+
+
 class TableRow(tuple):
     """
     In-memory row of a Table.
@@ -1916,7 +1937,9 @@ class MaskedTable(t.Table):
                     raise RuntimeError("Duplicate row for key %d" % key)
                 else:
                     l = self._visible_len()
-                    return self._get_visible_item(l+key)
+                    if l+key >= 0:
+                        return self._get_visible_item(l+key)
+                    raise KeyError('Cannot retrieve row with key %s' % str(key))
             except ValueError as e:
                 raise KeyError('Cannot retrieve row with key %s (%s)' % (str(key), str(e)))
     
@@ -2195,7 +2218,7 @@ class MetaContainer(object):
                                 pytables file, does not usually need to be 
                                 modified
         """
-        super(MetaContainer, self).__init__()
+        #super(MetaContainer, self).__init__()
         
         meta_file = None
         
