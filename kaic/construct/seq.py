@@ -9,15 +9,15 @@ import pysam
 from kaic.tools.files import create_or_open_pytables_file, random_name,\
     is_sambam_file
 from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable,\
-    FileBased, TableObject
+    FileBased
 import tempfile
 import os
 import logging
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
-from kaic.data.genomic import HicNodesTable
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
+from kaic.data.genomic import RegionsTable, GenomicRegion
 
         
 class Reads(FileBased, Maskable, MetaContainer):
@@ -182,7 +182,10 @@ class Reads(FileBased, Maskable, MetaContainer):
         
         # add string info
         self._tags.append(read.tags)
-        self._cigar.append(read.cigarstring)
+        if read.cigarstring is not None:
+            self._cigar.append(read.cigarstring)
+        else:
+            self._cigar.append('')
         self._set_row_counter(self._get_row_counter()+1)
         
         if flush:
@@ -741,7 +744,6 @@ class ReadPairs(Maskable, MetaContainer):
             
     def filter_single(self, queue=False):
         mask = self.add_mask_description('single', 'Mask read pairs that are unpaired')
-        print "MASK: %d" % mask.ix
         single_filter = SinglePairFilter(mask)
         single_filter.set_read_pairs_object(self)
         
@@ -1121,18 +1123,24 @@ class SinglePairFilter(ReadPairFilter):
 
 
 
-class FragmentReadPairs(Maskable, MetaContainer, HicNodesTable, FileBased):
-    class FragmentReadPairDescription(t.IsDescription):
+class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
+    class FragmentMappedReadDescription(t.IsDescription):
         ix = t.Int32Col(pos=0)
-        fragment_left = t.Int32Col(pos=1, dflt=-1)
-        position_left = t.Int64Col(pos=2)
-        strand_left = t.Int8Col(pos=3)
-        fragment_right = t.Int32Col(pos=4, dflt=-1)
-        position_right = t.Int64Col(pos=5)
-        strand_right = t.Int8Col(pos=6)
+        fragment = t.Int32Col(pos=1, dflt=-1)
+        position = t.Int64Col(pos=2)
+        strand = t.Int8Col(pos=3)
+    
+    class FragmentsMappedReadPairDescription(t.IsDescription):
+        ix = t.Int32Col(pos=0)
+        left_read = t.Int32Col(pos=1)
+        right_read = t.Int32Col(pos=2)
+    
+    class FragmentsMappedReadSingleDescription(t.IsDescription):
+        ix = t.Int32Col(pos=0)
+        read = t.Int32Col(pos=1)
         
     def __init__(self, data=None, file_name=None,
-                 table_name_nodes='nodes',
+                 group_name = 'fragment_map',
                  table_name_fragments='fragments'):
         
         # parse potential unnamed argument
@@ -1149,111 +1157,249 @@ class FragmentReadPairs(Maskable, MetaContainer, HicNodesTable, FileBased):
             file_name = os.path.expanduser(file_name)
             
         FileBased.__init__(self, file_name)
-        HicNodesTable.__init__(self, file_name=file_name, table_name_nodes=table_name_nodes)
+        RegionsTable.__init__(self, file_name=file_name, table_name_regions=table_name_fragments)
         
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
         
-        # generate fragment pairs table
-        if table_name_fragments in self.file.root:
-            self._fragment_pairs = self.file.get_node('/', table_name_fragments)
-        else:
-            self._fragment_pairs = MaskedTable(self.file.root, table_name_fragments,
-                                               FragmentReadPairs.FragmentReadPairDescription,
-                                               expectedrows=10000)
         
-    def add_read_pair(self, read_pair, flush=True):
-        raise NotImplementedError("Not currently implemented, simply use add_read_pairs")
-    
-    def add_read_pairs(self, read_pairs):
+        # try to retrieve existing table
         try:
-            last_ix = self._fragment_pairs[-1]['ix']
-        except:
-            last_ix = -1
+            self._reads = self.file.get_node('/' + group_name + '/mapped_reads')
+            self._pairs = self.file.get_node('/' + group_name + '/mapped_read_pairs')
+            self._read_count = len(self._reads)
+            self._pair_count = len(self._pairs)
+            self._single_count = len(self._single)
+        # or build table from scratch
+        except NoSuchNodeError:
+            # create group
+            group = self.file.create_group("/", group_name, 'Mapped read pairs group',
+                                           filters=t.Filters(complib="blosc",
+                                                             complevel=2, shuffle=True))
+            # create main tables
+            self._reads = t.Table(group, 'mapped_reads',
+                                    FragmentMappedReadPairs.FragmentMappedReadDescription,
+                                    expectedrows=10000000)
             
+            self._pairs = MaskedTable(group, 'mapped_read_pairs',
+                                    FragmentMappedReadPairs.FragmentsMappedReadPairDescription,
+                                    expectedrows=5000000)
+            
+            self._single = MaskedTable(group, 'mapped_read_single',
+                                    FragmentMappedReadPairs.FragmentsMappedReadSingleDescription,
+                                    expectedrows=1000000)
+            self._read_count = 0
+            self._pair_count = 0
+            self._single_count = 0
+    
+    
+    def load(self, reads1, reads2, regions=None, ignore_duplicates=True):
+        if regions is not None:
+            self.add_regions(regions)
+        
         # generate index for fragments
         fragment_ixs = {}
         fragment_ends = {}
-        for node in self.nodes():
-            if not fragment_ends.has_key(node.chromosome):
-                fragment_ends[node.chromosome] = []
-                fragment_ixs[node.chromosome] = []
-            fragment_ixs[node.chromosome].append(node.ix)
-            fragment_ends[node.chromosome].append(node.end)
+        for region in self.regions():
+            if not fragment_ends.has_key(region.chromosome):
+                fragment_ends[region.chromosome] = []
+                fragment_ixs[region.chromosome] = []
+            fragment_ixs[region.chromosome].append(region.ix)
+            fragment_ends[region.chromosome].append(region.end)
         
-        # binary search for corresponding fragments
-        for read_pair in read_pairs:
-            if read_pair.left_read is not None:
-                position_left = read_pair.left_read.pos
-                ix_left = bisect_right(fragment_ends[read_pair.left_read.ref], position_left)
-                fragment_ix_left = fragment_ixs[read_pair.left_read.ref][ix_left]
-            
-            if read_pair.right_read is not None:
-                position_right = read_pair.right_read.pos
-                ix_right = bisect_right(fragment_ends[read_pair.right_read.ref], position_right)
-                fragment_ix_right = fragment_ixs[read_pair.right_read.ref][ix_right]
-            
-            ix = last_ix + 1
-            strand_left = read_pair.left_read.strand
-            strand_right = read_pair.right_read.strand
-            
-            row = self._fragment_pairs.row
-            row['ix'] = ix
-            if read_pair.left_read is not None:
-                row['fragment_left'] = fragment_ix_left
-                row['position_left'] = position_left
-                row['strand_left'] = strand_left
-            if read_pair.right_read is not None:
-                row['fragment_right'] = fragment_ix_right
-                row['position_right'] = position_right
-                row['strand_right'] = strand_right
-            row.append()
-            
-            last_ix += 1
+        iter1 = iter(reads1)
+        iter2 = iter(reads2)
+        def get_next_read(iterator):
+            try:
+                r = iterator.next()
+                return r
+            except StopIteration:
+                return None
         
-        self._fragment_pairs.flush()
+        # add and map reads
+        i = 0
+        last_r1_name = ''
+        last_r2_name = ''
+        r1 = get_next_read(iter1)
+        r2 = get_next_read(iter2)
+        r1_count = 0
+        r2_count = 0
+        while r1 is not None and r2 is not None:
+            c = cmp_natural(r1.qname, r2.qname)
+                
+            i += 1
+            if r1.qname == last_r1_name:
+                if not ignore_duplicates:
+                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
+                r1 = get_next_read(iter1)
+                r1_count += 1
+            elif r2.qname == last_r2_name:
+                if not ignore_duplicates:
+                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
+                r2 = get_next_read(iter2)
+                r2_count += 1
+            elif c == 0:
+                self._add_read_pair(r1, r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
+                last_r1_name = r1.qname
+                last_r2_name = r2.qname
+                r1 = get_next_read(iter1)
+                r2 = get_next_read(iter2)
+                r1_count += 1
+                r2_count += 1
+            elif c < 0:
+                self._add_read_single(r1, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
+                last_r1_name = r1.qname
+                r1 = get_next_read(iter1)
+                r1_count += 1
+            else:
+                self._add_read_single(r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
+                last_r2_name = r2.qname
+                r2 = get_next_read(iter2)
+                r2_count += 1
+            
+            if i % 100000 == 0:
+                logging.info("%d reads processed" % i)        
+        
+        # add remaining unpaired reads
+        while r1 is not None:
+            if r1.qname == last_r1_name:
+                if not ignore_duplicates:
+                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
+            else:
+                self._add_read_single(r1, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
+            last_r1_name = r1.qname
+            r1 = get_next_read(iter1)
+            r1_count += 1
+        
+        while r2 is not None:
+            if r2.qname == last_r2_name:
+                if not ignore_duplicates:
+                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
+            else:
+                self._add_read_single(r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
+            last_r2_name = r2.qname
+            r2 = get_next_read(iter2)
+            r2_count += 1
+            
+        logging.info('Counts: R1 %d R2 %d' % (r1_count,r2_count))
+        
+        self._reads.flush()
+        self._pairs.flush()
+        self._single.flush()
+        
+        
+    def _add_read_pair(self, read1, read2, flush=True, _fragment_ends=None, _fragment_ixs=None):
+        ix1 = self._add_read(read1, flush=flush, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
+        ix2 = self._add_read(read2, flush=flush, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
+        
+        row = self._pairs.row
+        row['ix'] = self._pair_count
+        row['left_read'] = ix1
+        row['right_read'] = ix2
+        row.append()
+        
+        if flush:
+            self._pairs.flush()
+        self._pair_count += 1
     
+    def _add_read_single(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
+        ix = self._add_read(read, _fragment_ends=None, _fragment_ixs=None)
+        
+        row = self._single.row
+        row['ix'] = self._single_count
+        row['read'] = ix
+        row.append()
+        
+        if flush:
+            self._single.flush()
+        self._single_count += 1
+        
+    def _add_read(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
+        ix = self._read_count
+        # binary search for fragment
+        position = read.pos
+        if _fragment_ends is not None and _fragment_ixs is not None:
+            pos_ix = bisect_right(_fragment_ends[read.ref], position)
+            fragment_ix = _fragment_ixs[read.ref][pos_ix]
+        else:
+            for row in self._regions.where("(start <= %d) & (end >= %d) & (chromosome == '%s')" % (read.pos, read.pos, read.ref)):
+                fragment_ix = row['ix']
+        
+        
+        
+        row = self._reads.row
+        row['ix'] = ix
+        row['fragment'] = fragment_ix
+        row['position'] = position
+        if hasattr(read, 'strand'):
+            row['strand'] = read.strand
+        else:
+            bit_flags = bit_flags_from_int(read.flag)
+            if 16 in bit_flags:
+                row['strand'] = -1
+            else:
+                row['strand'] = 1
+        row.append()
+        
+        self._read_count += 1
+        
+        if flush:
+            self._reads.flush()
+            
+        return ix
+    
+    def _pair_from_row(self, row):
+        ix1 = row['left_read']
+        ix2 = row['right_read']
+        
+        read1_row = self._reads[ix1]
+        fragment1_row = self._regions[read1_row['fragment']]
+        fragment1 = GenomicRegion(fragment1_row['start'],fragment1_row['end'], fragment1_row['chromosome'])
+        read1 = FragmentRead(fragment1, position = read1_row['position'], strand = read1_row['strand'])
+        
+        read2_row = self._reads[ix2]
+        fragment2_row = self._regions[read2_row['fragment']]
+        fragment2 = GenomicRegion(fragment2_row['start'],fragment2_row['end'], fragment2_row['chromosome'])
+        read2 = FragmentRead(fragment2, position = read2_row['position'], strand = read2_row['strand'])
+        
+        return [read1, read2]
+        
     
     def __iter__(self):
         this = self
-        class FragmentReadPairIter:
+        class FragmentMappedReadPairIter:
             def __init__(self):
-                self.iter = iter(this._fragment_pairs)
+                self.iter = iter(this._pairs)
                  
             def __iter__(self):
                 return self
              
             def next(self):
-                return FragmentReadPair.from_row(self.iter.next())
+                return self._pair_from_row(self.iter.next())
              
             def __len__(self):
-                return len(this._fragment_pairs)
+                return len(this._pairs)
              
-        return FragmentReadPairIter()
-
+        return FragmentMappedReadPairIter()
+    
+    def __getitem__(self, key):
+        row = self._pairs[key]
+        return self._pair_from_row(row)
 
 class FragmentRead(object):
-    def __init__(self, fragment_ix=None, position=None, strand=0):
-        self.fragment_ix = fragment_ix
+    def __init__(self, fragment=None, position=None, strand=0):
+        self.fragment = fragment
         self.position = position
         self.strand = strand
+    
+    def __repr__(self):
+        return "%s: %d-(%d[%d])-%d" % (self.fragment.chromosome,
+                                   self.fragment.start,
+                                   self.position,
+                                   self.strand,
+                                   self.fragment.end)
 
-        
-class FragmentReadPair(TableObject):
-    def __init__(self, left_fr=None, right_fr=None):
-        self.left_fr = left_fr
-        self.right_fr = right_fr
-        
-    @classmethod
-    def from_row(cls, row):
-        left_fr = FragmentRead(fragment_ix=row['fragment_left'],
-                               position=row['position_left'],
-                               strand=row['strand_left'])
-        right_fr = FragmentRead(fragment_ix=row['fragment_right'],
-                                position=row['position_right'],
-                                strand=row['strand_right'])
-        return cls(left_fr=left_fr, right_fr=right_fr)
     
 class FragmentReadPairFilter(MaskFilter):
     __metaclass__ = ABCMeta

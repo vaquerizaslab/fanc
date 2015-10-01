@@ -7,7 +7,8 @@ Created on Jul 15, 2015
 import os.path
 import pickle
 from numpy import array_equal
-from kaic.construct.seq import Reads, ReadPairs
+from kaic.construct.seq import Reads, ReadPairs, FragmentMappedReadPairs
+from kaic.data.genomic import Genome
 
 class TestReads:
     
@@ -133,7 +134,31 @@ class TestReads:
         reads.run_queued_filters()
         
         assert len(reads) < l
+
+
+class TestFragmentMappedReads:
+    @classmethod
+    def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
+        sam2_file = self.dir + "/test_seq/lambda_reads2.sam"
+        reads1 = Reads(sam1_file)
+        reads2 = Reads(sam2_file)
+        genome = Genome.from_folder(self.dir + "/test_seq/lambda_genome/")
+        
+        self.pairs = FragmentMappedReadPairs()
+        self.pairs.load(reads1, reads2, regions=genome.get_regions(1000))
     
+    def test_select(self):
+        pair = self.pairs[1]
+        assert isinstance(pair, list)
+        
+        print pair
+        print pair[0]
+        print pair[1]
+        assert 0
+
+
 class TestReadPairs:
     
     @classmethod
