@@ -53,7 +53,7 @@ if __name__ == '__main__':
     genome = Genome(chromosomes=[chromosome])
     nodes = genome.get_regions(args.resolution)
     node_dict = {}
-    for ix, node in nodes:
+    for ix, node in enumerate(nodes):
         node_dict[node.start-1] = ix
     
     # build Hi-C data set
@@ -80,6 +80,7 @@ if __name__ == '__main__':
             ix2 = node_dict[int(start2)]
             norm_score = float(score)/norm_dict[int(start1)]/norm_dict[int(start2)]
             
-            hic.add_edge([ix1,ix2,norm_score])
+            hic.add_edge([ix1,ix2,norm_score], flush=False)
+        hic.flush()
             
     hic.close()
