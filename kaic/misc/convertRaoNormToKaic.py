@@ -54,6 +54,7 @@ if __name__ == '__main__':
     nodes = genome.get_regions(args.resolution)
     node_dict = {}
     for ix, node in enumerate(nodes):
+        print node.start-1
         node_dict[node.start-1] = ix
         
     print node_dict
