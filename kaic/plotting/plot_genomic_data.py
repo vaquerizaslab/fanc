@@ -273,12 +273,10 @@ class HiCPlot(object):
             close_graphics_file()
 
 class HicMatrixPlot(object):
-    def __init__(self, hic, chrom=None, start=None, end=None,
+    def __init__(self, hic, key=None,
                  zrange=[5,40], colormap=None):
         self.hic = hic
-        self.chrom = chrom
-        self.start = start
-        self.end = end
+        self.key = key
         self.zrange = zrange
         self.colormap = colormap
         if self.colormap is None:
@@ -300,8 +298,7 @@ class HicMatrixPlot(object):
             self.colormap = matplotlib.colors.LinearSegmentedColormap("Sexton colormap", cdict, 256)
     
     def show(self, output=None):
-        hm = self.hic['%s:%d-%d' % (self.chrom, self.start, self.end),
-                      '%s:%d-%d' % (self.chrom, self.start, self.end)]
+        hm = self.hic[self.key,self.key]
         
         _, ax = plt.subplots()
         myPlot = ax.imshow(hm, interpolation='none',aspect=1,vmin=self.zrange[0],vmax=self.zrange[1])
