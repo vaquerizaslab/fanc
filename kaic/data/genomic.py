@@ -999,7 +999,7 @@ class Genome(Table):
                 
             # add last node
             if len(split_locations) > 0:
-                region = GenomicRegion(start=split_locations[len(split_locations)-1], end=chromosome.length, chromosome=chromosome.name)
+                region = GenomicRegion(start=split_locations[len(split_locations)-1]+1, end=chromosome.length, chromosome=chromosome.name)
             else:
                 region = GenomicRegion(start=1, end=chromosome.length, chromosome=chromosome.name)
             regions.add_region(region, flush=False)
@@ -1008,11 +1008,12 @@ class Genome(Table):
         return regions
 
 class GenomicRegion(TableObject):
-    def __init__(self, start, end, chromosome=None, strand=None):
+    def __init__(self, start, end, chromosome=None, strand=None, ix=None):
         self.start = start
         self.end = end
         self.strand = strand
         self.chromosome = chromosome
+        self.ix = ix
     
     @classmethod
     def from_row(cls, row):
@@ -1137,10 +1138,111 @@ class GenomicRegions(Table):
         }, flush=flush)
     
 
+class RegionsTable(FileBased):
+    class RegionDescription(t.IsDescription):
+        ix = t.Int32Col(pos=0)
+        chromosome = t.StringCol(50,pos=1)
+        start = t.Int64Col(pos=2)
+        end = t.Int64Col(pos=3)
+    
+    def __init__(self, data=None, file_name=None,
+                       table_name_regions='regions'):
+        
+        # parse potential unnamed argument
+        if data is not None:
+            # data is file name
+            if type(data) is str:                
+                if not os.path.isfile(data) and file_name is None:
+                    file_name = data
+                    data = None
+        
+        if file_name is not None:
+            file_name = os.path.expanduser(file_name)
+        
+        FileBased.__init__(self, file_name)
+        
+        # check if this is an existing Hi-C file
+        if table_name_regions in self.file.root:
+            self._regions = self.file.get_node('/', table_name_regions)
+            self._max_region_ix = max(row['ix'] for row in self._regions.iterrows())
+        else:
+            self._regions = t.Table(self.file.root, table_name_regions,
+                                    RegionsTable.RegionDescription, expectedrows=10000)
+            self._max_region_ix = -1
+        
+        if data is not None:
+            self.add_regions(data)
+        
+    def add_region(self, region, flush=True):
+        ix = -1
+        
+        if isinstance(region, GenomicRegion):
+            if hasattr(region, 'ix') and region.ix is not None:
+                ix = region.ix
+            chromosome = region.chromosome
+            start = region.start
+            end = region.end
+        elif type(region) is dict:
+            if 'ix' in region:
+                ix = region['ix']
+            chromosome = region['chromosome']
+            start = region['start']
+            end = region['end']
+        else:
+            try:
+                offset = 0
+                if len(region) == 4:
+                    ix = region[0]
+                    offset += 1
+                chromosome = region[offset]
+                start = region[offset + 1]
+                end = region[offset + 2]
+            except TypeError:
+                raise ValueError("Node parameter has to be HicNode, dict, or list")
+        
+        if ix == -1:
+            ix = self._max_region_ix + 1
+        
+        # actually append
+        row = self._regions.row
+        row['ix'] = ix
+        row['chromosome'] = chromosome
+        row['start'] = start
+        row['end'] = end
+        row.append()
+        
+        if ix > self._max_region_ix:
+            self._max_region_ix = ix
+            
+        if flush:
+            self._regions.flush()
+    
+    def add_regions(self, regions):
+        for region in regions:
+            self.add_region(region, flush=False)
+        self._regions.flush()
+        
+    def regions(self):
+        this = self
+        class RegionIter:
+            def __init__(self):
+                self.iter = iter(this._regions)
+                
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                return HicNode.from_row(self.iter.next())
+            
+            def __len__(self):
+                return len(this._regions)
+            
+        return RegionIter()
+
 class HicNode(GenomicRegion, TableObject):
     def __init__(self, chromosome=None, start=None, end=None, ix=None):
         self.ix = ix
-        super(HicNode, self).__init__(chromosome=chromosome, start=start, end=end)
+        super(HicNode, self).__init__(chromosome=chromosome, start=start, end=end, ix=ix)
     
     def __repr__(self):
         if self.ix is None:
@@ -1173,109 +1275,7 @@ class HicEdge(TableObject):
         return cls(source=row['source'], sink=row['sink'], weight=row['weight'])
 
 
-class HicNodesTable(FileBased):
-    class HicNodeDescription(t.IsDescription):
-        ix = t.Int32Col(pos=0)
-        chromosome = t.StringCol(50,pos=1)
-        start = t.Int64Col(pos=2)
-        end = t.Int64Col(pos=3)
-    
-    def __init__(self, data=None, file_name=None,
-                       table_name_nodes='nodes'):
-        
-        # parse potential unnamed argument
-        if data is not None:
-            # data is file name
-            if type(data) is str:                
-                if not os.path.isfile(data) and file_name is None:
-                    file_name = data
-                    data = None
-        
-        if file_name is not None:
-            file_name = os.path.expanduser(file_name)
-        
-        FileBased.__init__(self, file_name)
-        
-        # check if this is an existing Hi-C file
-        if table_name_nodes in self.file.root:
-            self._nodes = self.file.get_node('/', table_name_nodes)
-            self._max_node_ix = max(row['ix'] for row in self._nodes.iterrows())
-        else:
-            self._nodes = MaskedTable(self.file.root, table_name_nodes,
-                                      HicBasic.HicNodeDescription, expectedrows=10000)
-            self._max_node_ix = -1
-        
-        if data is not None:
-            self.add_nodes(data)
-        
-    def add_node(self, node, flush=True):
-        ix = -1
-        
-        if isinstance(node, GenomicRegion):
-            if hasattr(node, 'ix') and node.ix is not None:
-                ix = node.ix
-            chromosome = node.chromosome
-            start = node.start
-            end = node.end
-        elif type(node) is dict:
-            if 'ix' in node:
-                ix = node['ix']
-            chromosome = node['chromosome']
-            start = node['start']
-            end = node['end']
-        else:
-            try:
-                offset = 0
-                if len(node) == 4:
-                    ix = node[0]
-                    offset += 1
-                chromosome = node[offset]
-                start = node[offset + 1]
-                end = node[offset + 2]
-            except TypeError:
-                raise ValueError("Node parameter has to be HicNode, dict, or list")
-        
-        if ix == -1:
-            ix = self._max_node_ix + 1
-        
-        # actually append
-        row = self._nodes.row
-        row['ix'] = ix
-        row['chromosome'] = chromosome
-        row['start'] = start
-        row['end'] = end
-        row.append()
-        
-        if ix > self._max_node_ix:
-            self._max_node_ix = ix
-            
-        if flush:
-            self._nodes.flush()
-    
-    def add_nodes(self, nodes):
-        for node in nodes:
-            self.add_node(node, flush=False)
-        self._nodes.flush()
-        
-    def nodes(self):
-        hic = self
-        class NodeIter:
-            def __init__(self):
-                self.iter = iter(hic._nodes)
-                
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                return HicNode.from_row(self.iter.next())
-            
-            def __len__(self):
-                return len(hic._nodes)
-            
-        return NodeIter()
-    
-
-class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
+class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
 
     class HicEdgeDescription(t.IsDescription):
         source = t.Int32Col(pos=0)  
@@ -1303,7 +1303,7 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
             file_name = os.path.expanduser(file_name)
         
         FileBased.__init__(self, file_name)
-        HicNodesTable.__init__(self, file_name=file_name, table_name_nodes=table_name_nodes)
+        RegionsTable.__init__(self, file_name=file_name, table_name_regions=table_name_nodes)
 
         if table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', table_name_edges)
@@ -1319,17 +1319,17 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
         
         # index node table
         try:
-            self._nodes.cols.ix.create_csindex()
+            self._regions.cols.ix.create_csindex()
         except ValueError:
             # Index exists, no problem!
             pass
         try:
-            self._nodes.cols.start.create_csindex()
+            self._regions.cols.start.create_csindex()
         except ValueError:
             # Index exists, no problem!
             pass
         try:
-            self._nodes.cols.end.create_csindex()
+            self._regions.cols.end.create_csindex()
         except ValueError:
             # Index exists, no problem!
             pass
@@ -1371,9 +1371,6 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
             else:
                 raise ValueError("Input data type not recognized")
         
-        
-        
-    
     
     
     def __del__(self):
@@ -1417,6 +1414,9 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
         
         return hic
             
+    def add_node(self, node, flush=True):
+        return self.add_region(node, flush)        
+    
     def add_edge(self, edge, check_nodes_exist=True, flush=True):
         weight = None
         
@@ -1446,7 +1446,7 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
             sink = tmp
         
         if check_nodes_exist:
-            if source >= len(self._nodes) or sink >= len(self._nodes):
+            if source >= len(self._regions) or sink >= len(self._regions):
                 raise ValueError("Node index exceeds number of nodes in object")
         
         if weight != 0:
@@ -1458,7 +1458,10 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
         
         if flush:
             self.flush()
-            
+    
+    def add_nodes(self, nodes):
+        self.add_regions(nodes)
+    
     def add_edges(self, edges):
         for edge in edges:
             self.add_edge(edge, flush=False)
@@ -1467,11 +1470,11 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
             
     def flush(self, flush_nodes=True, flush_edges=True):
         if flush_nodes:
-            self._nodes.flush()
+            self._regions.flush()
             # re-indexing not necessary when 'autoindex' is True on table
-            if not self._nodes.autoindex:
+            if not self._regions.autoindex:
                 # reindex node table
-                self._nodes.flush_rows_to_index()
+                self._regions.flush_rows_to_index()
         if flush_edges:
             self._edges.flush()
             if not self._edges.autoindex:
@@ -1535,7 +1538,7 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
         else:
             nodes_ix_row = self._getitem_nodes(key, as_index=as_index)
             nodes_ix_col = []
-            for row in self._nodes:
+            for row in self._regions:
                 if as_index:
                     nodes_ix_col.append(row['ix'])
                 else:
@@ -1546,7 +1549,7 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
     def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None):
         # calculate number of rows
         if nodes_ix_row is None:
-            n_rows = len(self._nodes)
+            n_rows = len(self._regions)
         else:
             if not isinstance(nodes_ix_row, list):
                 nodes_ix_row = [nodes_ix_row]
@@ -1554,7 +1557,7 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
         
         # calculate number of columns
         if nodes_ix_col is None:
-            n_cols = len(self._nodes)
+            n_cols = len(self._regions)
         else:
             if not isinstance(nodes_ix_col, list):
                 nodes_ix_col = [nodes_ix_col]
@@ -1623,26 +1626,26 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
             if start is None:
                 start = 0
             if end is None:
-                end = max(row['end'] for row in self._nodes.where("(chromosome == '%s')" % chromosome))
+                end = max(row['end'] for row in self._regions.where("(chromosome == '%s')" % chromosome))
             
             condition = "(chromosome == '%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
             if as_index:
-                region_nodes = [row['ix'] for row in self._nodes.where(condition)]
+                region_nodes = [row['ix'] for row in self._regions.where(condition)]
             else:
-                region_nodes = [HicNode.from_row(row) for row in self._nodes.where(condition)]
+                region_nodes = [HicNode.from_row(row) for row in self._regions.where(condition)]
             
             return region_nodes
         
         # 1:453
         if isinstance(key, slice):
             if as_index:
-                return [row['ix'] for row in self._nodes.iterrows(key.start, key.stop, key.step)]
+                return [row['ix'] for row in self._regions.iterrows(key.start, key.stop, key.step)]
             else:
-                return [HicNode.from_row(row) for row in self._nodes.iterrows(key.start, key.stop, key.step)]
+                return [HicNode.from_row(row) for row in self._regions.iterrows(key.start, key.stop, key.step)]
         
         # 432
         if isinstance(key, int):
-            row = self._nodes[key]
+            row = self._regions[key]
             if as_index:
                 return row['ix']
             else:
@@ -1784,10 +1787,10 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
     
     def autoindex(self, index=None):
         if index is not None:
-            self._nodes.autoindex = bool(index)
+            self._regions.autoindex = bool(index)
             self._edges.autoindex = bool(index)
             return index
-        return self._nodes.autoindex
+        return self._regions.autoindex
             
         
     def save(self, file_name, table_name_nodes='nodes', table_name_edges='edges',
@@ -1795,7 +1798,7 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
         self.file.copy_file(file_name)
         self.file.close()
         self.file = create_or_open_pytables_file(file_name)
-        self._nodes = self.file.get_node('/' + table_name_nodes)
+        self._regions = self.file.get_node('/' + table_name_nodes)
         self._edges = self.file.get_node('/' + table_name_edges)
         self._meta = self.file.get_node('/' + table_name_meta)
         self._mask = self.file.get_node('/' + table_name_mask)
@@ -1814,6 +1817,9 @@ class HicBasic(Maskable, MetaContainer, HicNodesTable, FileBased):
     def get_edge(self, ix):
         row = self._edges[ix]
         return HicEdge.from_row(row)
+    
+    def nodes(self):
+        return self.regions()
     
     def edges(self):
         hic = self
