@@ -55,6 +55,8 @@ if __name__ == '__main__':
     node_dict = {}
     for ix, node in enumerate(nodes):
         node_dict[node.start-1] = ix
+        
+    print node_dict
     
     # build Hi-C data set
     hic = HicBasic(file_name=out_file)
