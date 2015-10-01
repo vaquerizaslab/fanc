@@ -90,7 +90,7 @@ class StandardIteratorObject(BasicTable):
 
 
 class ConversionIteratorObject(BasicTable):
-    def __init__(self):`
+    def __init__(self):
         super(ConversionIteratorObject, self).__init__()
         
     def __iter__(self):
