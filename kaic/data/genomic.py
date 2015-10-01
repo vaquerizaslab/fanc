@@ -1405,7 +1405,10 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             
             for i in xrange(0,data.shape[0]):
                 iNode = i+chr1StartBin
-                for j in xrange(i,data.shape[1]):
+                start = i
+                if chr1 != chr2:
+                    start = 0
+                for j in xrange(start,data.shape[1]):
                     jNode = j+chr2StartBin
                     
                     if data[i,j] != 0:
@@ -1590,12 +1593,27 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
                     weight = edge_row['weight']
                     ir = source - row_range[0]
                     jr = sink - col_range[0]
-                    if (0 <= ir < n_rows_sub) and (0 <= jr < n_cols_sub): 
+                    
+                    if (row_range[0] <= source <= row_range[1]
+                        and col_range[0] <= sink <= col_range[1]):
+                        ir = source - row_range[0]
+                        jr = sink - col_range[0]
                         m[ir + row_offset,jr + col_offset] = weight
+                        #m[jr + col_offset,ir + row_offset] = weight
+                    if (row_range[0] <= sink <= row_range[1]
+                        and col_range[0] <= source <= col_range[1]):
+                        ir = sink - row_range[0]
+                        jr = source - col_range[0]
+                        m[ir + row_offset,jr + col_offset] = weight
+                    
+                    #if (0 <= ir < n_rows_sub) and (0 <= jr < n_cols_sub): 
+                        #m[ir + row_offset,jr + col_offset] = weight
+                    #if (0 <= ij < n_rows_sub) and (0 <= jr < n_cols_sub): 
+                        #m[ir + row_offset,jr + col_offset] = weight
                     ic = sink - row_range[0]
                     jc = source - col_range[0]
-                    if (0 <= ic < n_rows_sub) and (0 <= jc < n_cols_sub): 
-                        m[ic + row_offset,jc + col_offset] = weight
+                    #if (0 <= ic < n_rows_sub) and (0 <= jc < n_cols_sub): 
+                        #m[ic + row_offset,jc + col_offset] = weight
                 
                 col_offset += n_cols_sub
             row_offset += n_rows_sub
