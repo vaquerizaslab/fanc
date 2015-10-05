@@ -141,6 +141,8 @@ class Reads(FileBased, Maskable, MetaContainer):
             logging.info("Sorting...")
             tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".bam")
             tmp_file.close()
+            logging.debug(file_name)
+            logging.debug(os.path.splitext(tmp_file.name)[0])
             pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
             logging.info("Done. Reading sorted BAM file...")
             sambam = pysam.AlignmentFile(tmp_file.name, 'rb')
