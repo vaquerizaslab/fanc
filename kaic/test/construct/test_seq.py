@@ -7,8 +7,10 @@ Created on Jul 15, 2015
 import os.path
 import pickle
 from numpy import array_equal
-from kaic.construct.seq import Reads, ReadPairs, FragmentMappedReadPairs
-from kaic.data.genomic import Genome
+from kaic.construct.seq import Reads, ReadPairs, FragmentMappedReadPairs,\
+    FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
+    ReDistanceFilter
+from kaic.data.genomic import Genome, GenomicRegion
 
 class TestReads:
     
@@ -17,6 +19,7 @@ class TestReads:
         self.dir = os.path.dirname(os.path.realpath(__file__))
         self.sam1_file = self.dir + "/test_seq/test1.sam"
         self.sam2_file = self.dir + "/test_seq/test2.sam"
+        self.lambda_sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
         
     def test_load(self):
         def compare(read, values):
@@ -120,6 +123,16 @@ class TestReads:
                     assert row[reads._reads._mask_field] == 2
             else:
                 assert row[reads._reads._mask_field] == 0
+    
+    def test_unmapped_filter(self):
+        reads = Reads(self.lambda_sam1_file)
+        
+        l = len(reads)
+        
+        unmapped_filter = UnmappedFilter(reads.add_mask_description("unmapped", "Filter unmapped reads"))
+        reads.filter(unmapped_filter)
+        
+        assert len(reads) < l
                 
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)
@@ -142,23 +155,117 @@ class TestFragmentMappedReads:
         self.dir = os.path.dirname(os.path.realpath(__file__))
         sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
         sam2_file = self.dir + "/test_seq/lambda_reads2.sam"
-        reads1 = Reads(sam1_file)
-        reads2 = Reads(sam2_file)
-        genome = Genome.from_folder(self.dir + "/test_seq/lambda_genome/")
+        self.reads1 = Reads(sam1_file)
+        self.reads2 = Reads(sam2_file)
+        self.reads1.filter_unmapped()
+        self.reads2.filter_unmapped()
+        self.genome = Genome.from_folder(self.dir + "/test_seq/lambda_genome/")
         
         self.pairs = FragmentMappedReadPairs()
-        self.pairs.load(reads1, reads2, regions=genome.get_regions(1000))
+        self.pairs.load(self.reads1, self.reads2, regions=self.genome.get_regions(1000))
+        
     
     def test_select(self):
+        pair = self.pairs[0]
+        assert isinstance(pair, list)
+        assert pair[0].position == 18401
+        assert pair[1].position == 18430
+        assert pair[0].strand == 1
+        assert pair[1].strand == -1
+        assert isinstance(pair[0].fragment, GenomicRegion)
+        assert isinstance(pair[1].fragment, GenomicRegion)
+        assert pair[0].fragment.start == 18001
+        assert pair[0].fragment.end == 19000
+        assert pair[0].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert pair[1].fragment.start == 18001
+        assert pair[1].fragment.end == 19000
+        assert pair[1].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        
         pair = self.pairs[1]
         assert isinstance(pair, list)
+        assert pair[0].position == 40075
+        assert pair[1].position == 40211
+        assert pair[0].strand == 1
+        assert pair[1].strand == -1
+        assert isinstance(pair[0].fragment, GenomicRegion)
+        assert isinstance(pair[1].fragment, GenomicRegion)
+        assert pair[0].fragment.start == 40001
+        assert pair[0].fragment.end == 41000
+        assert pair[0].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert pair[1].fragment.start == 40001
+        assert pair[1].fragment.end == 41000
+        assert pair[1].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
         
-        print pair
-        print pair[0]
-        print pair[1]
-        assert 0
-
-
+        pair = self.pairs[-1]
+        assert isinstance(pair, list)
+        assert pair[0].position == 5067
+        assert pair[1].position == 5200
+        assert pair[0].strand == 1
+        assert pair[1].strand == -1
+        assert isinstance(pair[0].fragment, GenomicRegion)
+        assert isinstance(pair[1].fragment, GenomicRegion)
+        assert pair[0].fragment.start == 5001
+        assert pair[0].fragment.end == 6000
+        assert pair[0].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert pair[1].fragment.start == 5001
+        assert pair[1].fragment.end == 6000
+        assert pair[1].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+    
+    def test_iter(self):
+        for pair in self.pairs:
+            assert isinstance(pair, list)
+            assert isinstance(pair[0], FragmentRead)
+            assert isinstance(pair[1], FragmentRead)
+            assert isinstance(pair[0].fragment, GenomicRegion)
+            assert isinstance(pair[1].fragment, GenomicRegion)
+            assert pair[0].position > 0 or pair[0].position == -1
+            assert pair[1].position > 0 or pair[1].position == -1
+            assert pair[0].strand == -1 or pair[0].strand == 1
+            assert pair[1].strand == -1 or pair[1].strand == 1
+            
+            assert 0 < pair[0].fragment.start <= pair[0].fragment.end
+            assert 0 < pair[1].fragment.start <= pair[1].fragment.end
+            if pair[0].position > 0:
+                assert pair[0].fragment.start <= pair[0].position <= pair[0].fragment.end
+            if pair[1].position > 0:
+                assert pair[1].fragment.start <= pair[1].position <= pair[1].fragment.end
+            
+    def test_len(self):
+        assert len(self.pairs) == 44
+            
+    def test_single(self):
+        assert len(self.pairs._single) == 6
+        
+    def test_filter_inward(self):
+        mask = self.pairs.add_mask_description('inwards', 'Mask read pairs that inward facing and closer than 100bp')
+        in_filter = InwardPairsFilter(minimum_distance=100, mask=mask)
+        
+        assert len(self.pairs) == 44
+        self.pairs.filter(in_filter)
+        
+#         print "Valid pairs:"
+#         for pair in self.pairs:
+#             print pair[0]
+#             print pair[1]
+        assert len(self.pairs) == 18
+        
+    def test_filter_outward(self):
+        mask = self.pairs.add_mask_description('outwards', 'Mask read pairs that outward facing and closer than 100bp')
+        out_filter = OutwardPairsFilter(minimum_distance=100, mask=mask)
+        
+        assert len(self.pairs) == 44
+        self.pairs.filter(out_filter)
+        assert len(self.pairs) == 28
+        
+    def test_filter_redist(self):
+        mask = self.pairs.add_mask_description('re-dist', 'Mask read pairs where one half maps more than 100bp away from both RE sites')
+        re_filter = ReDistanceFilter(maximum_distance=300, mask=mask)
+        
+        assert len(self.pairs) == 44
+        self.pairs.filter(re_filter)
+        assert len(self.pairs) == 13
+        
+        
 class TestReadPairs:
     
     @classmethod
