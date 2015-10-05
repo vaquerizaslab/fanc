@@ -8,7 +8,6 @@ import numpy as np
 from kaic.data.genomic import Chromosome, Genome, HicBasic, HicNode, HicEdge,\
     GenomicRegion, GenomicRegions
 import os.path
-import random
 import pytest
 
 class TestChromosome:
@@ -62,7 +61,7 @@ class TestGenome:
                 assert region['end'] == 12
             if i == 5:
                 assert region['chromosome'] == 'chr2'
-                assert region['start'] == 24
+                assert region['start'] == 25
                 assert region['end'] == 5000
             i += 1
             
