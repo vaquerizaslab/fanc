@@ -2058,8 +2058,7 @@ class MaskedTable(t.Table):
                 if (i/l) > last_percent:
                     logging.info("%d%..." % last_percent * 100)
                     last_percent = last_percent + 0.05
-            if i % 10000 == 0:
-                print i
+            print i
         self.flush(update_index=False)
     
     def all(self):
