@@ -102,14 +102,10 @@ class Reads(FileBased, Maskable, MetaContainer):
         self._reads = main_table
         self._tags = tags
         self._cigar = cigar
-        
-        
-        
+
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
-            logging.info("Loading reads...")
             self.load(sambam_file, ignore_duplicates=True)
-        logging.info("Done.")
     
     def _sambam_size(self, sambam):
         if type(sambam) == str:
@@ -133,6 +129,7 @@ class Reads(FileBased, Maskable, MetaContainer):
         self.file.close()    
     
     def load(self, sambam, ignore_duplicates=True, is_sorted=False):
+        logging.info("Loading SAM/BAM file")
         # get file names
         try:
             file_name = sambam.filename
@@ -141,10 +138,12 @@ class Reads(FileBased, Maskable, MetaContainer):
         
         # sort files if required
         if not is_sorted:
+            logging.info("Sorting...")
             tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".bam")
             tmp_file.close()
             pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
             sambam = pysam.AlignmentFile(tmp_file.name, 'rb')
+            logging.info("Done...")
         else:
             sambam = pysam.AlignmentFile(file_name, 'rb')
         
@@ -156,14 +155,18 @@ class Reads(FileBased, Maskable, MetaContainer):
         self._reads._v_attrs.ref = sambam.references
         self._ref = sambam.references
         
+        logging.info("Reading in mapped reads...")
         last_name = ""
-        for read in sambam:
+        for i, read in enumerate(sambam):
+            if i % 10000 == 0:
+                logging.info("%d" % i)
             if ignore_duplicates and read.qname == last_name:
                 continue
             self.add_read(read, flush=False)
             last_name = read.qname
         self.flush()
         
+        logging.info("Done.")
         
     
     def add_read(self, read, flush=True):
