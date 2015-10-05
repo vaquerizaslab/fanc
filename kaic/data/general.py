@@ -1956,7 +1956,7 @@ class MaskedTable(t.Table):
         return sum(1 for _ in iter(self.where("%s >= 0" % self._mask_index_field)))
     
     def _original_len(self):
-        return Table.__len__(self)
+        return sum(1 for _ in self.iterrows())
     
     # new index update method
     def _update_ix(self):
