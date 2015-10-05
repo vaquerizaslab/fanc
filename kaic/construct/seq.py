@@ -128,7 +128,9 @@ class Reads(FileBased, Maskable, MetaContainer):
     
     def _set_row_counter(self, value):
         self._reads._v_attrs.row_counter = value
-        
+    
+    def close(self):
+        self.file.close()    
     
     def load(self, sambam, ignore_duplicates=True, is_sorted=False):
         # get file names
@@ -1457,7 +1459,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 outwards = 0
                 inwards = 0
                 same = 0
-                
+        
         # plot
         if output != None:
             plt.ioff()
