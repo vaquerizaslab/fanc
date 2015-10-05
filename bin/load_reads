@@ -22,5 +22,5 @@ if __name__ == '__main__':
     input_path = os.path.expanduser(args.input)
     output_path = os.path.expanduser(args.output)
     
-    reads = Reads(data=input_path, file_name=output_path)
+    reads = Reads(sambam_file=input_path, file_name=output_path)
     reads.close()
