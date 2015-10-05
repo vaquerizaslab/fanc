@@ -1216,11 +1216,21 @@ class RegionsTable(FileBased):
             
         if flush:
             self._regions.flush()
+        
+        return ix
     
     def add_regions(self, regions):
         for region in regions:
             self.add_region(region, flush=False)
         self._regions.flush()
+    
+    def _get_region_ix(self, region):
+        condition = "(start == %d) & (end == %d) & (chromosome == '%s')"
+        condition = condition % (region.start, region.end, region.chromosome)
+        for res in self._regions.where(condition):
+            return res["ix"]
+        return None
+            
         
     def regions(self):
         this = self
@@ -1465,11 +1475,35 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
     def add_nodes(self, nodes):
         self.add_regions(nodes)
     
+    
     def add_edges(self, edges):
         for edge in edges:
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
+    
+    def merge(self, hic):
+        ix_conversion = {}
         
+        # merge genomic regions
+        for region in hic.regions():
+            print region.ix
+            ix = self._get_region_ix(region)
+            if ix is None:
+                ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
+            ix_conversion[region.ix] = ix
+        self._regions.flush()
+                
+        # merge edges
+        for edge in hic.edges():
+            source = ix_conversion[edge.source]
+            sink = ix_conversion[edge.sink]
+            if source > sink:
+                tmp = source
+                source = sink
+                sink = tmp
+            self._update_edge_weight(source, sink, edge.weight, add=True, flush=False)
+        self._edges.flush()
+
             
     def flush(self, flush_nodes=True, flush_edges=True):
         if flush_nodes:
@@ -1764,7 +1798,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         
         #return m[0,0]
     
-    def _update_edge_weight(self, source, sink, weight, flush=True):
+    def _update_edge_weight(self, source, sink, weight, add=False, flush=True):
         if source > sink:
             tmp = source
             source = sink
@@ -1772,7 +1806,10 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         
         value_set = False
         for row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
-            row['weight'] = weight
+            original = 0
+            if add:
+                original = row['weight']
+            row['weight'] = weight + original
             row.update()
             value_set = True
             if flush:

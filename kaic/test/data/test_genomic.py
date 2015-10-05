@@ -469,6 +469,54 @@ class TestHicBasic:
     def test_from_mirny(self):
         # TODO
         pass
+    
+    def test_merge(self):
+        hic = HicBasic()
         
+        # add some nodes (120 to be exact)
+        nodes = []
+        for i in range(1,5000,1000):
+            nodes.append(HicNode(chromosome="chr1",start=i,end=i+1000-1))
+        for i in range(1,3000,1000):
+            nodes.append(HicNode(chromosome="chr2",start=i,end=i+1000-1))
+        for i in range(1,2000,400):
+            nodes.append(HicNode(chromosome="chr4",start=i,end=i+100-1))
+        hic.add_nodes(nodes)
         
+        # add some edges with increasing weight for testing
+        edges = []
+        weight = 1
+        for i in range(0,len(nodes)):
+            for j in range(i,len(nodes)):
+                edges.append(HicEdge(source=i,sink=j,weight=weight))
+                weight += 1
+
+        hic.add_edges(edges)
         
+        left = self.hic[:,:]
+        right = hic[:,:]
+        
+        # check length
+        original_length = len(self.hic.nodes())
+        self.hic.merge(hic)
+        assert len(self.hic.nodes()) == original_length + 5
+            
+        merged = self.hic[:,:]
+        double = [0,1,2,3,4,5,6,7]
+        for i in double:
+            for j in double:
+                assert merged[i,j] == left[i,j] + right[i,j]
+        
+        three = [8,9,10,11]
+        for i in double:
+            for j in three:
+                assert merged[i,j] == left[i,j]
+        
+        four = [12,13,14,15,16]
+        for i in three:
+            for j in four:
+                assert merged[i,j] == 0
+        
+        for i in double:
+            for j in four:
+                assert merged[i,j] == right[i,j-4]
