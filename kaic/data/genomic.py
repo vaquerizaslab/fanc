@@ -1605,15 +1605,6 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
                         ir = sink - row_range[0]
                         jr = source - col_range[0]
                         m[ir + row_offset,jr + col_offset] = weight
-                    
-                    #if (0 <= ir < n_rows_sub) and (0 <= jr < n_cols_sub): 
-                        #m[ir + row_offset,jr + col_offset] = weight
-                    #if (0 <= ij < n_rows_sub) and (0 <= jr < n_cols_sub): 
-                        #m[ir + row_offset,jr + col_offset] = weight
-                    ic = sink - row_range[0]
-                    jc = source - col_range[0]
-                    #if (0 <= ic < n_rows_sub) and (0 <= jc < n_cols_sub): 
-                        #m[ic + row_offset,jc + col_offset] = weight
                 
                 col_offset += n_cols_sub
             row_offset += n_rows_sub
