@@ -18,6 +18,9 @@ from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion
+import matplotlib
+matplotlib.use('pdf')
+from matplotlib import pyplot as plt
 
         
 class Reads(FileBased, Maskable, MetaContainer):
@@ -264,25 +267,27 @@ class Reads(FileBased, Maskable, MetaContainer):
             reads.append(self._row2read(row))
         return reads
     
+    def filter(self, read_filter, queue=False):
+        read_filter.set_reads_object(self)
+        if not queue:
+            self._reads.filter(read_filter)
+        else:
+            self._reads.queue_filter(read_filter)
+    
     def filter_quality(self, cutoff=30, queue=False):
         mask = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
         quality_filter = QualityFilter(cutoff, mask)
-        quality_filter.set_reads_object(self)
-        
-        if not queue:
-            self._reads.filter(quality_filter)
-        else:
-            self._reads.queue_filter(quality_filter)
+        self.filter(quality_filter, queue)
+    
+    def filter_unmapped(self, queue=False):
+        mask = self.add_mask_description('unmapped', 'Mask read pairs that are unmapped')
+        unmapped_filter = UnmappedFilter(mask)
+        self.filter(unmapped_filter, queue)
             
     def filter_non_unique(self, strict=True, queue=False):
         mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
         uniqueness_filter = UniquenessFilter(strict, mask)
-        uniqueness_filter.set_reads_object(self)
-        
-        if not queue:
-            self._reads.filter(uniqueness_filter)
-        else:
-            self._reads.queue_filter(uniqueness_filter)
+        self.filter(uniqueness_filter, queue)
     
     def run_queued_filters(self):
         self._reads.run_queued_filters()
@@ -856,7 +861,7 @@ class Read(object):
     @property
     def strand(self):
         bit_flags = bit_flags_from_int(self.flag)
-        if 16 in bit_flags:
+        if 4 in bit_flags:
             return -1
         return 1
     
@@ -1037,7 +1042,14 @@ class UniquenessFilter(ReadFilter):
                     return False
         return True
 
+class UnmappedFilter(ReadFilter):
+    def __init__(self, mask=None):
+        super(UnmappedFilter, self).__init__(mask)
 
+    def valid_read(self, read):
+        if 2 in bit_flags_from_int(read.flag):
+            return False
+        return True
 
 
 
@@ -1295,8 +1307,12 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         
         row = self._pairs.row
         row['ix'] = self._pair_count
-        row['left_read'] = ix1
-        row['right_read'] = ix2
+        if ix1 <= ix2:
+            row['left_read'] = ix1
+            row['right_read'] = ix2
+        else:
+            row['left_read'] = ix2
+            row['right_read'] = ix1
         row.append()
         
         if flush:
@@ -1332,11 +1348,11 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         row['ix'] = ix
         row['fragment'] = fragment_ix
         row['position'] = position
-        if hasattr(read, 'strand'):
+        if hasattr(read, 'strand') and read.strand is not None:
             row['strand'] = read.strand
         else:
             bit_flags = bit_flags_from_int(read.flag)
-            if 16 in bit_flags:
+            if 4 in bit_flags:
                 row['strand'] = -1
             else:
                 row['strand'] = 1
@@ -1364,7 +1380,115 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         read2 = FragmentRead(fragment2, position = read2_row['position'], strand = read2_row['strand'])
         
         return [read1, read2]
+    
+    
+    def plot_error_structure(self, output=None, data_points=1000):
+        gaps = []
+        types = []
+        type_same = 0
+        type_inward = 1
+        type_outward = 2
+        for pair in self:
+            left = pair[0]
+            right = pair[1]
+            
+            # same chromosome?
+            if not left.fragment.chromosome == right.fragment.chromosome:
+                continue
+            
+            # same fragment?
+            if left.fragment.start == right.fragment.start:
+                continue
+    
+            # switch if necessary
+            if right.fragment.start < left.fragment.start:
+                tmp = right
+                right = left
+                left = tmp
+            
+            # gap size
+            gap_size = right.fragment.start - left.fragment.end
+            gaps.append(gap_size)
+            
+            # inward facing?
+            if left.strand == 1 and right.strand == -1:
+                types.append(type_inward)
+            # outward facing
+            elif left.strand == -1 and right.strand == 1:
+                types.append(type_outward)
+            else:
+                types.append(type_same)
+            
+        # sort data
+        points = zip(gaps,types)
+        sortedPoints = sorted(points)
+        gaps = [point[0] for point in sortedPoints]
+        types = [point[1] for point in sortedPoints]
+                
+        # calculate ratios
+        x = []
+        inwardRatios = []
+        outwardRatios = []
+        counter = 0
+        sameCounter = 0
+        mids = 0
+        outwards = 0
+        inwards = 0
+        same = 0
+        for i in range(0,len(gaps)):
+            mids += gaps[i]
+            if types[i] ==0:
+                same += 1
+                sameCounter += 1
+            elif types[i] == 1:
+                inwards += 1
+            else:
+                outwards += 1
+            counter += 1
+            
+            if sameCounter > data_points:
+                x.append(mids/counter)
+                inwardRatios.append(inwards/same)
+                outwardRatios.append(outwards/same)
+                
+                sameCounter = 0
+                counter = 0
+                mids = 0
+                outwards = 0
+                inwards = 0
+                same = 0
+                
+        # plot
+        if output != None:
+            plt.ioff()
         
+        fig = plt.figure()
+        fig.suptitle("Error structure by distance")
+        plt.plot(x,inwardRatios, 'b', label="inward/same strand")
+        plt.plot(x,outwardRatios, 'r', label="outward/same strand")
+        plt.xscale('log')
+        plt.axhline(y=0.5,color='black',ls='dashed')
+        plt.ylim(0,3)
+        plt.xlabel('gap size between fragments')
+        plt.ylabel('ratio of number of reads')
+        plt.legend(loc='upper right')
+
+        if output == None:
+            plt.show()
+        else:
+            fig.savefig(output)
+            plt.close(fig)
+            plt.ion()
+    
+    def filter(self, pair_filter, queue=False):
+        pair_filter.set_pairs_object(self)
+        if not queue:
+            self._pairs.filter(pair_filter)
+        else:
+            self._pairs.queue_filter(pair_filter)
+    
+    def run_queued_filters(self):
+        self._pairs.run_queued_filters()
     
     def __iter__(self):
         this = self
@@ -1376,7 +1500,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 return self
              
             def next(self):
-                return self._pair_from_row(self.iter.next())
+                return this._pair_from_row(self.iter.next())
              
             def __len__(self):
                 return len(this._pairs)
@@ -1386,6 +1510,11 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     def __getitem__(self, key):
         row = self._pairs[key]
         return self._pair_from_row(row)
+    
+    def __len__(self):
+        return len(self._pairs)
+    
+
 
 class FragmentRead(object):
     def __init__(self, fragment=None, position=None, strand=0):
@@ -1401,30 +1530,101 @@ class FragmentRead(object):
                                    self.fragment.end)
 
     
-class FragmentReadPairFilter(MaskFilter):
+class FragmentMappedReadPairFilter(MaskFilter):
     __metaclass__ = ABCMeta
     
     def __init__(self, mask=None):
-        super(FragmentReadPairFilter, self).__init__(mask)
+        super(FragmentMappedReadPairFilter, self).__init__(mask)
+    
+    def set_pairs_object(self, pairs):
+        self.pairs = pairs
     
     @abstractmethod
     def valid_pair(self, fr_pair):
         pass
     
     def valid(self, row):
-        
-        left_fr = None
-        if row['pos1'] > 0:
-            left_read = ReadFromRow(row, self._read_pairs, is_left=True)
-
-        
-        right_read = None
-        if row['pos2'] > 0:
-            right_read = ReadFromRow(row, self._read_pairs, is_left=False)
-        
-        pair = ReadPair(left_read=left_read, right_read=right_read)
-        
+        pair = self.pairs._pair_from_row(row)
         return self.valid_pair(pair)
+
+
+class InwardPairsFilter(FragmentMappedReadPairFilter):
+    def __init__(self, minimum_distance=10000, mask=None):
+        super(InwardPairsFilter, self).__init__(mask=mask)
+        self.minimum_distance = minimum_distance
+    
+    def valid_pair(self, pair):
+        left = pair[0]
+        right = pair[1]
+        
+        # same chromosome?
+        if not left.fragment.chromosome == right.fragment.chromosome:
+            return True
+
+        # switch if necessary
+        if right.fragment.start < left.fragment.start:
+            tmp = right
+            right = left
+            left = tmp
+        
+        # inward facing?
+        if not (left.strand == 1 and right.strand == -1):
+            return True
+        
+        # same fragment?
+        if left.fragment.start == right.fragment.start:
+            return False
+        
+        # distance smaller than cutoff?
+        distance = right.fragment.start - left.fragment.end
+        if distance > self.minimum_distance:
+            return True
+        return False
+    
+class OutwardPairsFilter(FragmentMappedReadPairFilter):
+    def __init__(self, minimum_distance=10000, mask=None):
+        super(OutwardPairsFilter, self).__init__(mask=mask)
+        self.minimum_distance = minimum_distance
+    
+    def valid_pair(self, pair):
+        left = pair[0]
+        right = pair[1]
+        
+        # same chromosome?
+        if not left.fragment.chromosome == right.fragment.chromosome:
+            return True
+
+        # switch if necessary
+        if right.fragment.start < left.fragment.start:
+            tmp = right
+            right = left
+            left = tmp
+        
+        # outward facing?
+        if not (left.strand == -1 and right.strand == 1):
+            return True
+        
+        # same fragment?
+        if left.fragment.start == right.fragment.start:
+            return False
+        
+        # distance smaller than cutoff?
+        distance = right.fragment.start - left.fragment.end
+        if distance > self.minimum_distance:
+            return True
+        return False
+    
+class ReDistanceFilter(FragmentMappedReadPairFilter):
+    def __init__(self, maximum_distance=500, mask=None):
+        super(ReDistanceFilter, self).__init__(mask=mask)
+        self.maximum_distance = maximum_distance
+    
+    def valid_pair(self, pair):
+        for read in pair:
+            if (read.position - read.fragment.start > self.maximum_distance
+                and read.fragment.end - read.position > self.maximum_distance):
+                return False
+        return True
 
 
 def cmp_natural(string1, string2):
