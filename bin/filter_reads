@@ -66,7 +66,7 @@ if __name__ == '__main__':
         reads.filter_quality(args.quality, queue=True)
     
     logging.info("Running filters...")
-    reads.run_queued_filters()
+    reads.run_queued_filters(log_progress=True)
     logging.info("Done.")
     
     reads.close()

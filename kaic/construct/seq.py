@@ -283,10 +283,10 @@ class Reads(FileBased, Maskable, MetaContainer):
             reads.append(self._row2read(row))
         return reads
     
-    def filter(self, read_filter, queue=False):
+    def filter(self, read_filter, queue=False, log_progress=False):
         read_filter.set_reads_object(self)
         if not queue:
-            self._reads.filter(read_filter)
+            self._reads.filter(read_filter, _logging=log_progress)
         else:
             self._reads.queue_filter(read_filter)
     
@@ -305,8 +305,8 @@ class Reads(FileBased, Maskable, MetaContainer):
         uniqueness_filter = UniquenessFilter(strict, mask)
         self.filter(uniqueness_filter, queue)
     
-    def run_queued_filters(self):
-        self._reads.run_queued_filters()
+    def run_queued_filters(self, log_progress=False):
+        self._reads.run_queued_filters(_logging=log_progress)
     
     def filtered_reads(self):
         this = self

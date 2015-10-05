@@ -1955,6 +1955,9 @@ class MaskedTable(t.Table):
     def _visible_len(self):
         return sum(1 for _ in iter(self.where("%s >= 0" % self._mask_index_field)))
     
+    def _original_len(self):
+        return Table.__len__(self)
+    
     # new index update method
     def _update_ix(self):
         """
@@ -1979,7 +1982,7 @@ class MaskedTable(t.Table):
                 ix += 1
             row.update()
     
-    def filter(self, mask_filter):
+    def filter(self, mask_filter, _logging=False):
         """
         Run a MaskFilter on this table.
         
@@ -1992,7 +1995,9 @@ class MaskedTable(t.Table):
         total = 0
         ix = 0
         mask_ix = -1
-        for row in self._iter_visible_and_masked():
+        last_percent = 0.00
+        l = self._original_len()
+        for i, row in enumerate(self._iter_visible_and_masked()):
             total += 1
             
             if not mask_filter.valid(row):
@@ -2006,7 +2011,12 @@ class MaskedTable(t.Table):
                 row[self._mask_index_field] = ix
                 ix += 1
             row.update()
-        
+            
+            if _logging:
+                if (i/l) > last_percent:
+                    logging.info("%d%..." % last_percent * 100)
+                    last_percent = last_percent + 0.05
+                    
         self.flush(update_index=False)
 
     def queue_filter(self, filter_definition):
@@ -2018,7 +2028,7 @@ class MaskedTable(t.Table):
         """
         self._queued_filters.append(filter_definition)
         
-    def run_queued_filters(self):
+    def run_queued_filters(self, _logging=False):
         """
         Run queued MaskFilters.
         
@@ -2028,7 +2038,9 @@ class MaskedTable(t.Table):
                 
         ix = 0
         mask_ix = -1
-        for row in self._iter_visible_and_masked():
+        last_percent = 0.00
+        l = self._original_len()
+        for i, row in enumerate(self._iter_visible_and_masked()):
             for f in self._queued_filters:
                 if not f.valid(row):
                     row[self._mask_field] = row[self._mask_field] + 2**f.mask_ix
@@ -2041,7 +2053,11 @@ class MaskedTable(t.Table):
                 row[self._mask_index_field] = ix
                 ix += 1
             row.update()
-        
+            
+            if _logging:
+                if (i/l) > last_percent:
+                    logging.info("%d%..." % last_percent * 100)
+                    last_percent = last_percent + 0.05
         self.flush(update_index=False)
     
     def all(self):
