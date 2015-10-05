@@ -93,10 +93,12 @@ class Reads(FileBased, Maskable, MetaContainer):
             main_table = MaskedTable(group, 'main', reads_defininition,
                                      expectedrows=expected_length)
             # create tags vlarrays
-            tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom())
+            tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom(),
+                                            expectedrows=expected_length)
             
             # create cigar vlarrays
-            cigar = self.file.create_vlarray(group, 'cigar', t.VLStringAtom())    
+            cigar = self.file.create_vlarray(group, 'cigar', t.VLStringAtom(),
+                                             expectedrows=expected_length)    
             
         
         self._reads = main_table
@@ -141,8 +143,8 @@ class Reads(FileBased, Maskable, MetaContainer):
             logging.info("Sorting...")
             tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".bam")
             tmp_file.close()
-            logging.debug(file_name)
-            logging.debug(os.path.splitext(tmp_file.name)[0])
+            logging.info(file_name)
+            logging.info(os.path.splitext(tmp_file.name)[0])
             pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
             logging.info("Done. Reading sorted BAM file...")
             sambam = pysam.AlignmentFile(tmp_file.name, 'rb')
