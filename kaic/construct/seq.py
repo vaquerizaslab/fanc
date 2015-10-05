@@ -21,6 +21,7 @@ from kaic.data.genomic import RegionsTable, GenomicRegion
 import matplotlib
 matplotlib.use('pdf')
 from matplotlib import pyplot as plt
+import subprocess
 
         
 class Reads(FileBased, Maskable, MetaContainer):
@@ -145,7 +146,12 @@ class Reads(FileBased, Maskable, MetaContainer):
             tmp_file.close()
             logging.info(file_name)
             logging.info(os.path.splitext(tmp_file.name)[0])
-            pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
+            #pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
+            try:
+                subprocess.call(["samtools", "sort", "-n", file_name,
+                                 os.path.splitext(tmp_file.name)[0]])
+            except:
+                pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
             logging.info("Done. Reading sorted BAM file...")
             sambam = pysam.AlignmentFile(tmp_file.name, 'rb')
             logging.info("Done...")
