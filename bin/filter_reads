@@ -46,7 +46,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     input_path = os.path.expanduser(args.input)
-    output_path = os.path.expanduser(args.output)
+    #output_path = os.path.expanduser(args.output)
     
     reads = Reads(file_name=input_path)
     
