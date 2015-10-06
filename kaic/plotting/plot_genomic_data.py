@@ -7,7 +7,6 @@ Created on May 20, 2015
 from rpy2.robjects import pandas2ri as p2r
 from rpy2.robjects.packages import importr
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 
 def open_graphics_file(file_name, width=None, height=None):
@@ -276,26 +275,31 @@ class HicMatrixPlot(object):
     def __init__(self, hic, key=None,
                  zrange=[5,40], colormap=None):
         self.hic = hic
-        self.key = key
+        if key is not None:
+            self.key = key
+        else:
+            self.key = slice(None,None,None)
         self.zrange = zrange
         self.colormap = colormap
+        
         if self.colormap is None:
-            cdict = {'red': ((0.0, 1.0, 1.0),
-                    (0.28, 0.18, 0.18),
-                    (0.72, 0.78, 0.78),
-                    (1.0, 1.0, 1.0)),
-            'green': ((0.0, 1.0, 1.0),
-                    (0.36, 0.05, 0.05),
-                    (0.49, 0.12, 0.12),
-                    (1.0, 1.0, 1.0)),
-            'blue': ((0.0, 1.0, 1.0),
-                    (0.26, 0.62, 0.62),
-                    (0.37, 0.5, 0.5),
-                    (0.77, 0.2, 0.2),
-                    (0.92, 0.64, 0.64),
-                    (1.0, 1.0, 1.0))
-            }
-            self.colormap = matplotlib.colors.LinearSegmentedColormap("Sexton colormap", cdict, 256)
+#             cdict = {'red': ((0.0, 1.0, 1.0),
+#                     (0.28, 0.18, 0.18),
+#                     (0.72, 0.78, 0.78),
+#                     (1.0, 1.0, 1.0)),
+#             'green': ((0.0, 1.0, 1.0),
+#                     (0.36, 0.05, 0.05),
+#                     (0.49, 0.12, 0.12),
+#                     (1.0, 1.0, 1.0)),
+#             'blue': ((0.0, 1.0, 1.0),
+#                     (0.26, 0.62, 0.62),
+#                     (0.37, 0.5, 0.5),
+#                     (0.77, 0.2, 0.2),
+#                     (0.92, 0.64, 0.64),
+#                     (1.0, 1.0, 1.0))
+#             }
+#             self.colormap = matplotlib.colors.LinearSegmentedColormap("Sexton colormap", cdict, 256)
+            self.colormap = 'afmhot_r'
     
     def show(self, output=None):
         hm = self.hic[self.key,self.key]
@@ -304,7 +308,10 @@ class HicMatrixPlot(object):
         myPlot = ax.imshow(hm, interpolation='none',aspect=1,vmin=self.zrange[0],vmax=self.zrange[1])
         myPlot.set_cmap(self.colormap)
         
-        plt.show()
+        if output:
+            plt.savefig(output)
+        else:
+            plt.show()
 
 class BedPlot(object):
     def __init__(self, bed, chrom=None, start=None, end=None,

@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+
+import logging
+from kaic.plotting.plot_genomic_data import HicMatrixPlot
+from kaic.data.genomic import HicBasic
+logging.basicConfig(level=logging.DEBUG)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        'input',
+        help='''Input Hi-C file'''
+    )
+    
+    parser.add_argument(
+        '-r', '--region', dest='region',
+        help='''Region selector string (e.g. "chr1:20456-330123")'''
+    )
+    
+    parser.add_argument(
+        '-l', '--lower', dest='lower',
+        type=float,
+        default=1.0,
+        help='''Lower bound on Hi-C contact counts (for color scale, default: 1.0)'''
+    )
+    
+    parser.add_argument(
+        '-u', '--upper', dest='upper',
+        type=float,
+        default=40.0,
+        help='''Upper bound on Hi-C contact counts (for color scale, default: 40.0)'''
+    )
+    
+    parser.add_argument(
+        '-o', '--output', dest='output',
+        help='''Output file'''
+    )
+    
+    args = parser.parse_args()
+    
+    input_path = os.path.expanduser(args.input)
+    
+    hic = HicBasic(input_path)
+    plt = HicMatrixPlot(hic, key=args.region, zrange=[args.lower, args.upper])
+
+    output_path = os.path.expanduser(args.output)
+    plt.show(output=output_path)
+    
+    hic.close()
+    
