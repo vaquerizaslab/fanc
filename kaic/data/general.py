@@ -9,7 +9,7 @@ files. Other features include indexing and querying.
 import tables as t
 import kaic.fixes.pytables_nrowsinbuf_inheritance_fix  # @UnusedImport
 
-_filter = t.Filters(complib="lzo", complevel=1, shuffle=True)
+_filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file,\
     random_name
 import random # @UnusedImport
