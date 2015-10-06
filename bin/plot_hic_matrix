@@ -45,6 +45,9 @@ if __name__ == '__main__':
     input_path = os.path.expanduser(args.input)
     
     hic = HicBasic(input_path)
+    
+    if args.region:
+        print args.region
     plt = HicMatrixPlot(hic, key=args.region, zrange=[args.lower, args.upper])
     
     output_path = None

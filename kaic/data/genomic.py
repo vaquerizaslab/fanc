@@ -1164,7 +1164,10 @@ class RegionsTable(FileBased):
         # check if this is an existing Hi-C file
         if table_name_regions in self.file.root:
             self._regions = self.file.get_node('/', table_name_regions)
-            self._max_region_ix = max(row['ix'] for row in self._regions.iterrows())
+            if len(self._regions) > 0:
+                self._max_region_ix = max(row['ix'] for row in self._regions.iterrows())
+            else:
+                self._max_region_ix = -1
         else:
             self._regions = t.Table(self.file.root, table_name_regions,
                                     RegionsTable.RegionDescription, expectedrows=10000)
