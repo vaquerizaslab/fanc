@@ -1,6 +1,6 @@
 
 import tables as t
-from tables.registry import class_name_dict, class_id_dict
+from tables.registry import class_id_dict
 import numpy as np
 import pytest
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
@@ -876,7 +876,7 @@ class TestMaskedTable:
             row['c'] = 0.0 + i
             row.append()
         
-        self.table.flush()
+        self.table.flush(update_index=True)
         
         self.filtered_table = MaskedTable(f.get_node("/"), "test_filter", test_description)
         
@@ -887,7 +887,7 @@ class TestMaskedTable:
             row['c'] = 0.0 + i
             row.append()
         
-        self.filtered_table.flush()
+        self.filtered_table.flush(update_index=True)
         self.filtered_table.filter(TestMaskedTable.ExampleFilter())
         
         
