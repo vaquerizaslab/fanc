@@ -1861,7 +1861,7 @@ class MaskedTable(t.Table):
         if not mask_ix_col.is_indexed:
             mask_ix_col.create_index()
 
-    def flush(self, update_index=True):
+    def flush(self, update_index=False):
         """
         Flush buffered rows.
         
@@ -1869,7 +1869,7 @@ class MaskedTable(t.Table):
         """
         self._flush(update_index)
     
-    def _flush(self, update_index=True):
+    def _flush(self, update_index=False):
         # commit any previous changes
         super(MaskedTable, self).flush()
         

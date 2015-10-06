@@ -1381,7 +1381,8 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             else:
                 raise ValueError("Input data type not recognized")
         
-    
+    def close(self):
+        self.file.close()
     
     def __del__(self):
         self.close()
@@ -1491,7 +1492,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             if ix is None:
                 ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
             ix_conversion[region.ix] = ix
-        self._regions.flush()
+        self.flush()
                 
         # merge edges
         for edge in hic.edges():
@@ -1502,7 +1503,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
                 source = sink
                 sink = tmp
             self._update_edge_weight(source, sink, edge.weight, add=True, flush=False)
-        self._edges.flush()
+        self.flush()
 
             
     def flush(self, flush_nodes=True, flush_edges=True):
@@ -1513,7 +1514,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
                 # reindex node table
                 self._regions.flush_rows_to_index()
         if flush_edges:
-            self._edges.flush()
+            self._edges.flush(update_index=True)
             if not self._edges.autoindex:
                 # reindex edge table
                 self._edges.flush_rows_to_index()
@@ -1793,7 +1794,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             weight = item
             self._update_edge_weight(nodes_ix_row, nodes_ix_col, weight, flush=False)
         
-        self._edges.flush()
+        self.flush()
         self._remove_zero_edges()
         
         #return m[0,0]
@@ -1813,7 +1814,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             row.update()
             value_set = True
             if flush:
-                self._edges.flush()
+                self.flush()
         if not value_set:
             self.add_edge(HicEdge(source=source,sink=sink,weight=weight), flush=flush)
     
@@ -1829,7 +1830,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             self._edges.remove_row(ix)        
         
         if flush:
-            self._edges.flush()
+            self.flush()
     
     def autoindex(self, index=None):
         if index is not None:

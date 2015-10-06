@@ -18,8 +18,6 @@ from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion
-import matplotlib
-matplotlib.use('pdf')
 from matplotlib import pyplot as plt
 import subprocess
 
@@ -211,7 +209,7 @@ class Reads(FileBased, Maskable, MetaContainer):
             self.flush()
     
     def flush(self):
-        self._reads.flush()
+        self._reads.flush(update_index=True)
         self._tags.flush()
         self._cigar.flush()
     
@@ -616,7 +614,7 @@ class ReadPairs(Maskable, MetaContainer):
             
         logging.info('Counts: R1 %d R2 %d' % (r1_count,r2_count))
         
-        self._reads.flush()
+        self._reads.flush(update_index=True)
         self._tags_left.flush()
         self._tags_right.flush()
         self._cigar_left.flush()
@@ -641,7 +639,7 @@ class ReadPairs(Maskable, MetaContainer):
         self._row_counter += 1
         
         if flush:
-            self._reads.flush()
+            self._reads.flush(update_index=True)
             self._tags_left.flush()
             self._tags_right.flush()
             self._cigar_left.flush()
@@ -679,7 +677,7 @@ class ReadPairs(Maskable, MetaContainer):
         self._row_counter += 1
         
         if flush:
-            self._reads.flush()
+            self._reads.flush(update_index=True)
             self._tags_left.flush()
             self._tags_right.flush()
             self._cigar_left.flush()
@@ -716,7 +714,7 @@ class ReadPairs(Maskable, MetaContainer):
         self._row_counter += 1
         
         if flush:
-            self._reads.flush()
+            self._reads.flush(update_index=True)
             self._tags_left.flush()
             self._tags_right.flush()
             self._cigar_left.flush()
@@ -1313,8 +1311,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         logging.info('Counts: R1 %d R2 %d' % (r1_count,r2_count))
         
         self._reads.flush()
-        self._pairs.flush()
-        self._single.flush()
+        self._pairs.flush(update_index=True)
+        self._single.flush(update_index=True)
         
         
     def _add_read_pair(self, read1, read2, flush=True, _fragment_ends=None, _fragment_ixs=None):
@@ -1332,7 +1330,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         row.append()
         
         if flush:
-            self._pairs.flush()
+            self._pairs.flush(update_index=True)
         self._pair_count += 1
     
     def _add_read_single(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
@@ -1344,7 +1342,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         row.append()
         
         if flush:
-            self._single.flush()
+            self._single.flush(update_index=True)
         self._single_count += 1
         
     def _add_read(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
