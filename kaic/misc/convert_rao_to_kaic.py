@@ -4,6 +4,9 @@ import argparse
 import os.path
 from kaic.data.genomic import Chromosome, Genome, HicBasic
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
     
@@ -60,25 +63,31 @@ if __name__ == '__main__':
     resolution_string = resolution_dict[args.resolution]
     
     # build genome
+    logging.info("Building genome")
     genome = Genome()
     chromosome_names = []
     for chromosome_file in args.chromosome_fasta:
+        logging.info("Processing %s" % chromosome_file)
         chromosome_file = os.path.expanduser(chromosome_file)
         
         chromosome = Chromosome.from_fasta(chromosome_file)
         genome.add_chromosome(chromosome)
         chromosome_names.append(chromosome.name)
+        logging.info("Found %s" % chromosome.name)
     
     # get nodes and build reference dictionary
+    logging.info("Obtaining genomic regions by resolution")
     nodes = genome.get_regions(args.resolution)
     node_dict = {}
     for ix, node in enumerate(nodes):
         if not node_dict.has_key(node.chromosome):
             node_dict[node.chromosome] = {}
         node_dict[node.chromosome][node.start-1] = ix
-        
+    
     # build Hi-C data set
+    logging.info("Building Hi-C data set")
     hic = HicBasic(file_name=output_path)
+    logging.info("Adding nodes")
     hic.add_nodes(nodes)
     
     # intra-chromosomal data
@@ -86,8 +95,11 @@ if __name__ == '__main__':
     if inter_path:
         data_sets.append(inter_path)
     
+    logging.info("Adding edges")
     for path in data_sets:
+        logging.info("Processing %s" % path)
         for chromosome_name in chromosome_names:
+            logging.info("Chromosome %s" % chromosome_name)
             norm_file = "%s/%s/MAPQGE30/%s_%s.KRnorm" % (path,chromosome_name,chromosome_name,resolution_string)
             rawo_file = "%s/%s/MAPQGE30/%s_%s.RAWobserved" % (path,chromosome_name,chromosome_name,resolution_string)
             
@@ -106,8 +118,8 @@ if __name__ == '__main__':
             with open(rawo_file, 'r') as raw:
                 for line in raw:
                     start1, start2, score = line.rstrip().split("\t")
-                    ix1 = node_dict[int(start1)]
-                    ix2 = node_dict[int(start2)]
+                    ix1 = node_dict[chromosome_name][int(start1)]
+                    ix2 = node_dict[chromosome_name][int(start2)]
                     norm_score = float(score)/norm_dict[int(start1)]/norm_dict[int(start2)]
                     
                     hic.add_edge([ix1,ix2,norm_score], flush=False)
