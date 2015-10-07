@@ -5,6 +5,9 @@ import os.path
 from kaic.data.genomic import genome_from_string
 from kaic.construct.seq import Reads, FragmentMappedReadPairs 
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 '''
 Created on May 20, 2015
 
@@ -46,12 +49,19 @@ if __name__ == '__main__':
     genome_path = os.path.expanduser(args.genome)
     output_path = os.path.expanduser(args.output)
     
+    logging.info("Loading left side of reads...")
     reads1 = Reads(reads1_path)
+    logging.info("Loading right side of reads...")
     reads2 = Reads(reads2_path)
+    logging.info("Building genome...")
     genome = genome_from_string(genome_path)
+    logging.info("Getting fragments...")
     nodes = genome.get_regions(args.restriction_enzyme)
     
+    logging.info("Building pairs...")
     pairs = FragmentMappedReadPairs(file_name=output_path)
+    logging.info("Mapping reads...")
     pairs.load(reads1, reads2, nodes)
     
+    logging.info("Done.")
     pairs.close()
