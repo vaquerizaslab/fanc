@@ -647,7 +647,9 @@ class Table(object):
             table_name (str): name to be used internally for storing
                               pytables table
         """
-
+        
+        print colnames
+        
         # parse potential unnamed argument
         if data is not None:
             if type(data) is str:
