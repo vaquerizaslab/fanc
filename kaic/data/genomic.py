@@ -120,7 +120,7 @@ class BedImproved(Table):
             
             bed = cls()
             
-            super(BedImproved, bed).__init__(colnames=header, col_types=col_types, data=data, name=name)
+            super(BedImproved, bed).__init__(colnames=header, col_types=col_types, data=data)
             
             return bed
         
