@@ -1324,45 +1324,54 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         ix1 = self._add_read(read1, flush=flush, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
         ix2 = self._add_read(read2, flush=flush, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
         
-        row = self._pairs.row
-        row['ix'] = self._pair_count
-        if ix1 <= ix2:
-            row['left_read'] = ix1
-            row['right_read'] = ix2
-        else:
-            row['left_read'] = ix2
-            row['right_read'] = ix1
-        row.append()
-        
-        if flush:
-            self._pairs.flush(update_index=True)
-        self._pair_count += 1
+        # both must be integer if successfully mapped
+        if ix1 is not None and ix2 is not None:
+            row = self._pairs.row
+            row['ix'] = self._pair_count
+            if ix1 <= ix2:
+                row['left_read'] = ix1
+                row['right_read'] = ix2
+            else:
+                row['left_read'] = ix2
+                row['right_read'] = ix1
+            row.append()
+            
+            if flush:
+                self._pairs.flush(update_index=True)
+            self._pair_count += 1
     
     def _add_read_single(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
         ix = self._add_read(read, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
         
-        row = self._single.row
-        row['ix'] = self._single_count
-        row['read'] = ix
-        row.append()
-        
-        if flush:
-            self._single.flush(update_index=True)
-        self._single_count += 1
+        if ix is not None:
+            row = self._single.row
+            row['ix'] = self._single_count
+            row['read'] = ix
+            row.append()
+            
+            if flush:
+                self._single.flush(update_index=True)
+            self._single_count += 1
         
     def _add_read(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
         ix = self._read_count
         
         # binary search for fragment
+        fragment_ix = None
         position = read.pos
         if _fragment_ends is not None and _fragment_ixs is not None:
-            pos_ix = bisect_right(_fragment_ends[read.ref], position)
-            fragment_ix = _fragment_ixs[read.ref][pos_ix]
+            try:
+                pos_ix = bisect_right(_fragment_ends[read.ref], position)
+                fragment_ix = _fragment_ixs[read.ref][pos_ix]
+            except KeyError:
+                # potentially keep a record of unmatched chromosome names
+                pass
         else:
             for row in self._regions.where("(start <= %d) & (end >= %d) & (chromosome == '%s')" % (read.pos, read.pos, read.ref)):
                 fragment_ix = row['ix']
         
-        
+        if fragment_ix is None:
+            return None
         
         row = self._reads.row
         row['ix'] = ix
