@@ -1224,7 +1224,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     
     def load(self, reads1, reads2, regions=None, ignore_duplicates=True):
         if regions is not None:
+            logging.info("Adding regions...")
             self.add_regions(regions)
+            logging.info("Done.")
         
         # generate index for fragments
         fragment_ixs = {}
@@ -1349,12 +1351,15 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         
     def _add_read(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
         ix = self._read_count
+        
         # binary search for fragment
         position = read.pos
         if _fragment_ends is not None and _fragment_ixs is not None:
+            print 'using index'
             pos_ix = bisect_right(_fragment_ends[read.ref], position)
             fragment_ix = _fragment_ixs[read.ref][pos_ix]
         else:
+            print 'using where'
             for row in self._regions.where("(start <= %d) & (end >= %d) & (chromosome == '%s')" % (read.pos, read.pos, read.ref)):
                 fragment_ix = row['ix']
         
