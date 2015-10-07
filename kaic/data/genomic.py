@@ -124,7 +124,9 @@ class BedImproved(Table):
             
             bed = cls()
             
-            super(BedImproved, bed).__init__(colnames=header, col_types=col_types, data=data)
+            super(BedImproved, bed).__init__(colnames=header, col_types=col_types)
+            
+            bed.append(data)
             
             return bed
         
