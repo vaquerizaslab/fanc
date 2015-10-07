@@ -70,7 +70,7 @@ class BedImproved(Table):
         }
         if name in col_type:
             return col_type[name]
-        return (-1, str, t.StringCol(255)) # @UndefinedVariable
+        return (str, t.StringCol(255)) # @UndefinedVariable
     
     @classmethod
     def from_bed_file(cls, file_name, has_header=True, sep="\t", name=None):
@@ -107,8 +107,12 @@ class BedImproved(Table):
             data = []
             while line != '':
                 d = {}
-                for i in xrange(0,len(fields)):
-                    d[header[i]] = headerTypes[i](fields[i])
+                for i, field in enumerate(fields):
+                    # ignore dot by default
+                    if field == '.':
+                        d[header[i]] = headerTypes[i]()
+                    else:
+                        d[header[i]] = headerTypes[i](field)
                 data.append(d)
                     
                 line = f.readline()
