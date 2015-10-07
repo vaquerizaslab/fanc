@@ -1987,7 +1987,7 @@ def genome_from_string(genome_string):
         chromosome_files = genome_string.split(',')
         chromosomes = []
         for chromosome_file in chromosome_files:
-            chromosome = Chromosome.from_fasta(chromosome_file)
+            chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
             chromosomes.append(chromosome)
         genome = Genome(chromosomes=chromosomes)
     
