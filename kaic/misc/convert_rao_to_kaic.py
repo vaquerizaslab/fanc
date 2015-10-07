@@ -84,6 +84,8 @@ if __name__ == '__main__':
             node_dict[node.chromosome] = {}
         node_dict[node.chromosome][node.start-1] = ix
     
+    print node_dict['chr1']
+    
     # build Hi-C data set
     logging.info("Building Hi-C data set")
     hic = HicBasic(file_name=output_path)
