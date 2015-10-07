@@ -103,11 +103,7 @@ class BedImproved(Table):
                 ptype, ttype = BedImproved.col_type(name,i+1)
                 col_types.append(ttype)
                 header_types.append(ptype)
-            
-            print header
-            print col_types
-            print header_types
-            
+
             data = []
             while line != '':
                 d = {}

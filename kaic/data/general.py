@@ -647,9 +647,7 @@ class Table(object):
             table_name (str): name to be used internally for storing
                               pytables table
         """
-        
-        print colnames
-        
+                
         # parse potential unnamed argument
         if data is not None:
             if type(data) is str:
@@ -733,14 +731,9 @@ class Table(object):
             columns_dict = {}
             columns_dict[self._rowname_field] = t.StringCol(50,pos=0) # @UndefinedVariable
             
-            print colnames
             for i, colname in enumerate(colnames):
-                print i
-                print colname
                 columns_dict[colname] = _convert_to_tables_type(col_types[i], pos=i+1)
-            
-            print columns_dict
-            
+                        
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 self._table = self.file.create_table("/", table_name, columns_dict)
