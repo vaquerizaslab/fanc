@@ -7,7 +7,8 @@ Created on May 20, 2015
 import tables as t
 import pandas as p
 import numpy as np
-from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file
+from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
+    is_fasta_file, is_hdf5_file
 from kaic.tools.files import is_bed_file
 from kaic.tools.files import is_bedpe_file
 import string
@@ -1969,3 +1970,26 @@ class HicXmlFile(object):
             
         return XmlEdgeIter(file_name)
         
+
+def genome_from_string(genome_string):
+    genome = None
+    # case 1: FASTA file = Chromosome
+    if is_fasta_file(genome_string):
+        chromosome = Chromosome.from_fasta(genome_string)
+        genome = Genome(chromosomes=[chromosome])
+    # case 2: Folder with FASTA files
+    elif os.path.isdir(genome_string):
+        genome = Genome.from_folder(genome_string)
+    elif is_hdf5_file(genome_string):
+        genome = Genome(genome_string)
+    # case 4: List of FASTA files
+    else:
+        chromosome_files = genome_string.split(',')
+        chromosomes = []
+        for chromosome_file in chromosome_files:
+            chromosome = Chromosome.from_fasta(chromosome_file)
+            chromosomes.append(chromosome)
+        genome = Genome(chromosomes=chromosomes)
+    
+    return genome
+    
