@@ -733,7 +733,9 @@ class Table(object):
 
             for i in range(0,len(colnames)):
                 columns_dict[colnames[i]] = _convert_to_tables_type(col_types[i], pos=i+1)
-
+            
+            print columns_dict
+            
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 self._table = self.file.create_table("/", table_name, columns_dict)
