@@ -1194,6 +1194,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         try:
             self._reads = self.file.get_node('/' + group_name + '/mapped_reads')
             self._pairs = self.file.get_node('/' + group_name + '/mapped_read_pairs')
+            self._single = self.file.get_node('/' + group_name + '/mapped_read_single')
             self._read_count = len(self._reads)
             self._pair_count = len(self._pairs)
             self._single_count = len(self._single)
