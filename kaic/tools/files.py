@@ -11,6 +11,7 @@ import string
 import random
 import h5py
 import pysam
+from Bio import SeqIO
 
 def without_extension(file_name):
     os.path.splitext(file_name)[0]
@@ -64,7 +65,8 @@ def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
 
 
 def is_bed_file(file_name):
-    if not file_name:
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
         return False
     
     def is_bed_line(line):
@@ -86,7 +88,8 @@ def is_bed_file(file_name):
             return True
         
 def is_bedpe_file(file_name):
-    if not file_name:
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
         return False
     
     def is_bedpe_line(line):
@@ -111,6 +114,10 @@ def is_bedpe_file(file_name):
         
         
 def is_hic_xml_file(file_name):
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
+        return False
+    
     try:
         for event, elem in iterparse(file_name):  # @UnusedVariable
             if elem.tag == 'hic':
@@ -122,6 +129,10 @@ def is_hic_xml_file(file_name):
     return False
 
 def is_hdf5_file(file_name):
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
+        return False
+    
     try:
         f = h5py.File(file_name,'r')
         f.close()
@@ -130,9 +141,31 @@ def is_hdf5_file(file_name):
     return True
     
 def is_sambam_file(file_name):
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
+        return False
+    
     try:
         sb = pysam.AlignmentFile(file_name)
         sb.close()
     except (ValueError, IOError):
         return False
     return True
+
+def is_fasta_file(file_name):
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
+        return False
+        
+    is_fasta = True
+    with open(file_name, 'r') as f:
+        fastas = SeqIO.parse(f,'fasta')
+        
+        try:
+            fastas.next()
+        except StopIteration:
+            is_fasta = False
+        
+    return is_fasta 
+        
+        
