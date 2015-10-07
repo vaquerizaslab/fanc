@@ -118,6 +118,8 @@ class BedImproved(Table):
                 line = f.readline()
                 fields = line.rstrip().split(sep)
             
+            print data
+            
             bed = cls()
             
             super(BedImproved, bed).__init__(colnames=header, col_types=col_types, data=data)
