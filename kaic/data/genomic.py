@@ -50,7 +50,8 @@ class GenomicFeature(object):
 
 class BedImproved(Table):
     
-    
+    def __init__(self, colnames, col_types):
+        super(BedImproved, self).__init__(colnames=colnames, col_types=col_types)
     
     @staticmethod
     def col_type(name,pos=None):
@@ -122,11 +123,7 @@ class BedImproved(Table):
                 fields = line.rstrip().split(sep)
             
             
-            bed = cls()
-            print header
-            print 'HERE'
-            super(BedImproved, bed).__init__(colnames=header, col_types=col_types)
-            print 'END'
+            bed = cls(header, col_types)
             bed.append(data)
             
         return bed
