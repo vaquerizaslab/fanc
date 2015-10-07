@@ -118,7 +118,6 @@ class BedImproved(Table):
                 line = f.readline()
                 fields = line.rstrip().split(sep)
             
-            print data
             
             bed = cls()
             

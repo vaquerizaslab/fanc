@@ -749,6 +749,7 @@ class Table(object):
 
         # add any potential data
         if data is not None:
+            logging.info("Adding data")
             self.append(data)
         elif nrows > 0:
             dt = self._table[0:0].dtype
@@ -997,7 +998,8 @@ class Table(object):
                 i += 1
             self._table.flush()
             return
-        except TypeError:
+        except TypeError, e:
+            logging.error(str(e))
             pass
         
         
