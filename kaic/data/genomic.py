@@ -88,7 +88,7 @@ class BedImproved(Table):
             fields = line.rstrip().split(sep)
             header = []
             col_types = []
-            headerTypes = []
+            header_types = []
             if has_header:
                 header = fields[:]
                 line = f.readline()
@@ -98,11 +98,14 @@ class BedImproved(Table):
                 for i in (len(header), len(fields)):
                     header.append("feature_%d" % i)
                 
-            for i in xrange(0,len(header)):
-                ptype, ttype = BedImproved.col_type(header[i],i+1)
+            for i, name in enumerate(header):
+                ptype, ttype = BedImproved.col_type(name,i+1)
                 col_types.append(ttype)
-                headerTypes.append(ptype)
-                
+                header_types.append(ptype)
+            
+            print header
+            print col_types
+            print header_types
             
             data = []
             while line != '':
@@ -110,9 +113,9 @@ class BedImproved(Table):
                 for i, field in enumerate(fields):
                     # ignore dot by default
                     if field == '.':
-                        d[header[i]] = headerTypes[i]()
+                        d[header[i]] = header_types[i]()
                     else:
-                        d[header[i]] = headerTypes[i](field)
+                        d[header[i]] = header_types[i](field)
                 data.append(d)
                     
                 line = f.readline()
