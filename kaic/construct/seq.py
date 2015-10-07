@@ -1219,6 +1219,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self._pair_count = 0
             self._single_count = 0
     
+    def close(self):
+        self.file.close()
     
     def load(self, reads1, reads2, regions=None, ignore_duplicates=True):
         if regions is not None:
