@@ -123,12 +123,13 @@ class BedImproved(Table):
             
             
             bed = cls()
-            
+            print header
+            print 'HERE'
             super(BedImproved, bed).__init__(colnames=header, col_types=col_types)
-            
+            print 'END'
             bed.append(data)
             
-            return bed
+        return bed
         
     
     def as_data_frame(self, chrom=None, start=None, end=None):
