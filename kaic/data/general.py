@@ -730,9 +730,12 @@ class Table(object):
 
             columns_dict = {}
             columns_dict[self._rowname_field] = t.StringCol(50,pos=0) # @UndefinedVariable
-
-            for i in range(0,len(colnames)):
-                columns_dict[colnames[i]] = _convert_to_tables_type(col_types[i], pos=i+1)
+            
+            print colnames
+            for i, colname in enumerate(colnames):
+                print i
+                print colname
+                columns_dict[colname] = _convert_to_tables_type(col_types[i], pos=i+1)
             
             print columns_dict
             
