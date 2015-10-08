@@ -1518,6 +1518,21 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     
     def run_queued_filters(self):
         self._pairs.run_queued_filters()
+        
+    def filter_inward(self, minimum_distance, queue=False):
+        mask = self.add_mask_description('inward', 'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
+        inward_filter = InwardPairsFilter(mask, minimum_distance=minimum_distance)
+        self.filter(inward_filter, queue)
+    
+    def filter_outward(self, minimum_distance, queue=False):
+        mask = self.add_mask_description('outward', 'Mask read pairs that are outward facing and <%dbp apart' % minimum_distance)
+        outward_filter = OutwardPairsFilter(mask, minimum_distance=minimum_distance)
+        self.filter(outward_filter, queue)
+    
+    def filter_re_dist(self, maximum_distance, queue=False):
+        mask = self.add_mask_description('re-dist', 'Mask read pairs where a read is >%dbp away from nearest RE site' % maximum_distance)
+        re_filter = ReDistanceFilter(mask, maximum_distance=maximum_distance)
+        self.filter(re_filter, queue)
     
     def __iter__(self):
         this = self
