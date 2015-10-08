@@ -1417,7 +1417,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         type_same = 0
         type_inward = 1
         type_outward = 2
-        for pair in self:
+        l = len(self)
+        for i, pair in enumerate(self):
             left = pair[0]
             right = pair[1]
             
@@ -1447,6 +1448,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 types.append(type_outward)
             else:
                 types.append(type_same)
+            
+            if i % 10000 == 0:
+                logging.info("%d/%d" % (i,l))
             
         # sort data
         points = zip(gaps,types)
