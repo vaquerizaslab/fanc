@@ -39,7 +39,6 @@ if __name__ == '__main__':
     parser.add_argument(
         '-q', '--quality', dest='quality',
         type=int,
-        default=0,
         help='''Cutoff for the minimum mapping quality of a read'''
     )
     
@@ -61,7 +60,7 @@ if __name__ == '__main__':
         logging.info("Soft multi-map filter enabled")
         reads.filter_non_unique(strict=False, queue=True)
     
-    if args.quality > 0:
+    if args.quality:
         logging.info("Quality filter enabled (%d)" % args.quality)
         reads.filter_quality(args.quality, queue=True)
     
