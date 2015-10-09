@@ -43,7 +43,6 @@ class Reads(FileBased, Maskable, MetaContainer):
             except AttributeError:
                 logging.warn("No header attributes found in existing table")
                 self._header = None
-            
             try:
                 self._ref = main_table._v_attrs.ref
             except AttributeError:
@@ -1451,7 +1450,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             
             if i % 10000 == 0:
                 logging.info("%d/%d" % (i,l))
-            
+        
+        print gaps
+        print types
+        
         # sort data
         points = zip(gaps,types)
         sortedPoints = sorted(points)
@@ -1468,12 +1470,12 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         outwards = 0
         inwards = 0
         same = 0
-        for i in range(0,len(gaps)):
+        for i in xrange(0,len(gaps)):
             mids += gaps[i]
-            if types[i] ==0:
+            if types[i] == type_same:
                 same += 1
                 sameCounter += 1
-            elif types[i] == 1:
+            elif types[i] == type_inward:
                 inwards += 1
             else:
                 outwards += 1
