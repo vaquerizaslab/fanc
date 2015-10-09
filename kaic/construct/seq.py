@@ -1419,9 +1419,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         return FragmentReadPair(left_read=read1, right_read=read2)
     
     
-    def plot_error_structure(self, output=None, data_points=1000):
+    def plot_error_structure(self, output=None,data_points=1000,
+                             skip_self_ligations=True):
         
-        pair_count = 0
         same_count = 0
         inward_count = 0
         outward_count = 0
@@ -1431,9 +1431,33 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         type_inward = 1
         type_outward = 2
         l = len(self)
+        last_percent = -1
         for i, pair in enumerate(self):
+            if i % int(l/20) == 0:
+                percent = int(i/int(l/20))
+                if percent != last_percent:
+                    print "%d%% done" % (percent*5)
+                    last_percent = percent
+                    
             left = pair[0]
             right = pair[1]
+            
+            if pair.is_same_fragment() and skip_self_ligations:
+                continue
+            
+            if pair.is_same_chromosome():
+                gap_size = pair.get_gap_size()
+                if gap_size > 0:
+                    gaps.append(gap_size)
+                    if pair.is_outward_pair():
+                        types.append(type_outward)
+                        outward_count += 1
+                    elif pair.is_inward_pair():
+                        types.append(type_inward)
+                        inward_count += 1
+                    else:
+                        types.append(0)
+                        same_count += 1
             
             # same chromosome?
             if not left.fragment.chromosome == right.fragment.chromosome:
@@ -1448,29 +1472,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 tmp = right
                 right = left
                 left = tmp
-            
-            pair_count += 1
-            
-            # gap size
-            gap_size = right.fragment.start - left.fragment.end
-            gaps.append(gap_size)
-            
-            # inward facing?
-            if left.strand == 1 and right.strand == -1:
-                types.append(type_inward)
-                inward_count += 1
-            # outward facing
-            elif left.strand == -1 and right.strand == 1:
-                types.append(type_outward)
-                outward_count += 1
-            else:
-                types.append(type_same)
-                same_count +=1
-            
-            if i % 10000 == 0:
-                logging.info("%d/%d" % (i,l))
         
-        logging.info("Pairs: %d" % pair_count)
+        logging.info("Pairs: %d" % l)
         logging.info("Same: %d" % same_count)
         logging.info("Inward: %d" % inward_count)
         logging.info("Outward: %d" % outward_count)
