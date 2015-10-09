@@ -1411,6 +1411,11 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     
     
     def plot_error_structure(self, output=None, data_points=1000):
+        
+        pair_count = 0
+        same_count = 0
+        inward_count = 0
+        outward_count = 0
         gaps = []
         types = []
         type_same = 0
@@ -1435,6 +1440,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 right = left
                 left = tmp
             
+            pair_count += 1
+            
             # gap size
             gap_size = right.fragment.start - left.fragment.end
             gaps.append(gap_size)
@@ -1442,17 +1449,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             # inward facing?
             if left.strand == 1 and right.strand == -1:
                 types.append(type_inward)
+                inward_count += 1
             # outward facing
             elif left.strand == -1 and right.strand == 1:
                 types.append(type_outward)
+                outward_count += 1
             else:
                 types.append(type_same)
+                same_count +=1
             
             if i % 10000 == 0:
                 logging.info("%d/%d" % (i,l))
         
-        print gaps
-        print types
+        logging.info("Pairs: %d" % pair_count)
+        logging.info("Same: %d" % same_count)
+        logging.info("Inward: %d" % inward_count)
+        logging.info("Outward: %d" % outward_count)
         
         # sort data
         points = zip(gaps,types)

@@ -9,7 +9,7 @@ from bisect import bisect_right
 from matplotlib import pyplot as plt
 from warnings import warn
 from kaic.genome.genomeTools import loadGenomeObject
-
+import logging
 
 def removeUnwantedLigations(inputSam1, inputSam2, genome,
                             outputSam1=None, outputSam2=None,
@@ -570,6 +570,10 @@ class ReadPairs(object):
                 while line2 != '' and line2.startswith("@"):
                     line2 = s2.readline()
                 
+                
+                same_count = 0
+                inward_count = 0
+                outward_count = 0
                 last1 = None
                 last2 = None
                 read1 = getNextRead(line1)
@@ -615,17 +619,24 @@ class ReadPairs(object):
                                 if pair.isOutwardPair():
                                     gaps.append(gapSize)
                                     types.append(2)
+                                    outward_count += 1
                                 elif pair.isInwardPair():
                                     gaps.append(gapSize)
                                     types.append(1)
+                                    inward_count += 1
                                 else:
                                     gaps.append(gapSize)
                                     types.append(0)
+                                    same_count += 1
                         
                         line1, read1, last1 = advanceByOne(s1, read1)
                         line2, read2, last2 = advanceByOne(s2, read2)
                         lineCount += 1
         
+        logging.info("Pairs: %d" % lineCount)
+        logging.info("Same: %d" % same_count)
+        logging.info("Inward: %d" % inward_count)
+        logging.info("Outward: %d" % outward_count)
         
         # sort data
         points = zip(gaps,types)
