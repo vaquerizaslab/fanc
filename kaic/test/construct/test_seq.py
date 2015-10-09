@@ -5,8 +5,6 @@ Created on Jul 15, 2015
 '''
 
 import os.path
-import pickle
-from numpy import array_equal
 from kaic.construct.seq import Reads, ReadPairs, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair
@@ -35,19 +33,20 @@ class TestReads:
             assert read.seq == values[9]
             assert read.qual == values[10]
             assert len(read.tags) == values[11]
+            assert read.strand == values[12]
         
         reads = Reads()
         reads.load(self.sam1_file, is_sorted=False)
         
-        compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,'15M',-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9])
+        compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,'15M',-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9,1])
         
         # SRR038105.1000167    0    chrXIV    703158    42    15M    *    0    0    TACGGTATTGGTCGG    FFFFCFFFFFFFFCF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
         res = reads.where("qname == 'SRR038105.1000167'")
-        compare(res[0], ['SRR038105.1000167',0,'chrXIV',703158,42,'15M',-1,-1,0,'TACGGTATTGGTCGG','FFFFCFFFFFFFFCF',8])        
+        compare(res[0], ['SRR038105.1000167',0,'chrXIV',703158,42,'15M',-1,-1,0,'TACGGTATTGGTCGG','FFFFCFFFFFFFFCF',8,1])        
         
         # SRR038105.1000320    0    chrXVI    577162    35    15M    *    0    0    TTGATAAAATAGTCC    <<@FF<FFFFAFAFA    AS:i:0    XS:i:-5    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
         res = reads.where("qname == 'SRR038105.1000320'")
-        compare(res[0], ['SRR038105.1000320',0,'chrXVI',577162,35,'15M',-1,-1,0,'TTGATAAAATAGTCC','<<@FF<FFFFAFAFA',9])
+        compare(res[0], ['SRR038105.1000320',0,'chrXVI',577162,35,'15M',-1,-1,0,'TTGATAAAATAGTCC','<<@FF<FFFFAFAFA',9,1])
 
         # check unpaired right
         # SRR038105.1000002    16    chrIV    203242    42    16M    *    0    0    ACCCATTATTTCTCGA    IIIIIFIICIFIIIII    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
@@ -57,7 +56,7 @@ class TestReads:
         # check unpaired left
         # SRR038105.1000011    16    chrIV    526796    42    16M    *    0    0    GGTGAATTAGAAGATA    FFFFFFFFFFFFFFFF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
         res = reads.where("qname == 'SRR038105.1000011'")
-        compare(res[0], ['SRR038105.1000011',16,'chrIV',526796,42,'16M',-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8])
+        compare(res[0], ['SRR038105.1000011',16,'chrIV',526796,42,'16M',-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8,-1])
         
     def test_ix(self):
         pairs = Reads(self.sam1_file)
@@ -65,6 +64,14 @@ class TestReads:
         for pair in pairs._reads:
             assert pair['ix'] == i
             i += 1
+    
+    def test_strand(self):
+        reads = Reads(self.sam1_file)
+        for read in reads:
+            if read.flag == 16:
+                assert read.strand == -1
+            if read.flag == 4:
+                assert read.strand == 1
     
     def test_iter(self):
         pairs = Reads(self.sam1_file)
