@@ -1439,9 +1439,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     print "%d%% done" % (percent*5)
                     last_percent = percent
                     
-            left = pair[0]
-            right = pair[1]
-            
             if pair.is_same_fragment() and skip_self_ligations:
                 continue
             
@@ -1458,20 +1455,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     else:
                         types.append(0)
                         same_count += 1
-            
-            # same chromosome?
-            if not left.fragment.chromosome == right.fragment.chromosome:
-                continue
-            
-            # same fragment?
-            if left.fragment.start == right.fragment.start:
-                continue
-    
-            # switch if necessary
-            if right.fragment.start < left.fragment.start:
-                tmp = right
-                right = left
-                left = tmp
         
         logging.info("Pairs: %d" % l)
         logging.info("Same: %d" % same_count)
