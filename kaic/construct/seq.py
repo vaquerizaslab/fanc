@@ -1493,6 +1493,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         
         # plot
         if output != None:
+            old_backend = plt.get_backend()
+            plt.switch_backend('pdf')
             plt.ioff()
         
         fig = plt.figure()
@@ -1512,6 +1514,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             fig.savefig(output)
             plt.close(fig)
             plt.ion()
+            plt.switch_backend(old_backend)
     
     def filter(self, pair_filter, queue=False):
         pair_filter.set_pairs_object(self)
