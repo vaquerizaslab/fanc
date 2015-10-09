@@ -1220,6 +1220,12 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self._read_count = 0
             self._pair_count = 0
             self._single_count = 0
+        
+        try:
+            self._pairs.cols.left_fragment.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
     
     def close(self):
         self.file.close()
