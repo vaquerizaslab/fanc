@@ -934,8 +934,7 @@ class Table(object):
                     d[self._rowname_field] = len(self)
             for name in d:
                 row[name] = d[name]
-        except (TypeError,KeyError,AttributeError,IndexError, ValueError), e:
-            logging.error(str(e))
+        except (TypeError,KeyError,AttributeError,IndexError, ValueError):
             raise TypeError("d is not a dictionary")
 
         row.append()
