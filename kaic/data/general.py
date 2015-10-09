@@ -129,10 +129,12 @@ def _to_list_and_names(a):
 
     # structured/record array
     try:
+        a.dtype.fields.keys()
         try:
             colnames = a.colnames
         except AttributeError:
-            colnames = a.dtype.names
+            colnames = list(a.dtype.names)
+        
         for i in range(0,len(a)):
             row = []
             for j in range(0,len(a[i])):
