@@ -9,7 +9,7 @@ import pickle
 from numpy import array_equal
 from kaic.construct.seq import Reads, ReadPairs, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
-    ReDistanceFilter
+    ReDistanceFilter, FragmentReadPair
 from kaic.data.genomic import Genome, GenomicRegion
 
 class TestReads:
@@ -167,68 +167,68 @@ class TestFragmentMappedReads:
     
     def test_select(self):
         pair = self.pairs[0]
-        assert isinstance(pair, list)
-        assert pair[0].position == 18401
-        assert pair[1].position == 18430
-        assert pair[0].strand == 1
-        assert pair[1].strand == -1
-        assert isinstance(pair[0].fragment, GenomicRegion)
-        assert isinstance(pair[1].fragment, GenomicRegion)
-        assert pair[0].fragment.start == 18001
-        assert pair[0].fragment.end == 19000
-        assert pair[0].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair[1].fragment.start == 18001
-        assert pair[1].fragment.end == 19000
-        assert pair[1].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert isinstance(pair, FragmentReadPair)
+        assert pair.left.position == 18401
+        assert pair.right.position == 18430
+        assert pair.left.strand == 1
+        assert pair.right.strand == -1
+        assert isinstance(pair.left.fragment, GenomicRegion)
+        assert isinstance(pair.right.fragment, GenomicRegion)
+        assert pair.left.fragment.start == 18001
+        assert pair.left.fragment.end == 19000
+        assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert pair.right.fragment.start == 18001
+        assert pair.right.fragment.end == 19000
+        assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
         
         pair = self.pairs[1]
-        assert isinstance(pair, list)
-        assert pair[0].position == 40075
-        assert pair[1].position == 40211
-        assert pair[0].strand == 1
-        assert pair[1].strand == -1
-        assert isinstance(pair[0].fragment, GenomicRegion)
-        assert isinstance(pair[1].fragment, GenomicRegion)
-        assert pair[0].fragment.start == 40001
-        assert pair[0].fragment.end == 41000
-        assert pair[0].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair[1].fragment.start == 40001
-        assert pair[1].fragment.end == 41000
-        assert pair[1].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert isinstance(pair, FragmentReadPair)
+        assert pair.left.position == 40075
+        assert pair.right.position == 40211
+        assert pair.left.strand == 1
+        assert pair.right.strand == -1
+        assert isinstance(pair.left.fragment, GenomicRegion)
+        assert isinstance(pair.right.fragment, GenomicRegion)
+        assert pair.left.fragment.start == 40001
+        assert pair.left.fragment.end == 41000
+        assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert pair.right.fragment.start == 40001
+        assert pair.right.fragment.end == 41000
+        assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
         
         pair = self.pairs[-1]
-        assert isinstance(pair, list)
-        assert pair[0].position == 5067
-        assert pair[1].position == 5200
-        assert pair[0].strand == 1
-        assert pair[1].strand == -1
-        assert isinstance(pair[0].fragment, GenomicRegion)
-        assert isinstance(pair[1].fragment, GenomicRegion)
-        assert pair[0].fragment.start == 5001
-        assert pair[0].fragment.end == 6000
-        assert pair[0].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair[1].fragment.start == 5001
-        assert pair[1].fragment.end == 6000
-        assert pair[1].fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert isinstance(pair, FragmentReadPair)
+        assert pair.left.position == 5067
+        assert pair.right.position == 5200
+        assert pair.left.strand == 1
+        assert pair.right.strand == -1
+        assert isinstance(pair.left.fragment, GenomicRegion)
+        assert isinstance(pair.right.fragment, GenomicRegion)
+        assert pair.left.fragment.start == 5001
+        assert pair.left.fragment.end == 6000
+        assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert pair.right.fragment.start == 5001
+        assert pair.right.fragment.end == 6000
+        assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
     
     def test_iter(self):
         for pair in self.pairs:
-            assert isinstance(pair, list)
-            assert isinstance(pair[0], FragmentRead)
-            assert isinstance(pair[1], FragmentRead)
-            assert isinstance(pair[0].fragment, GenomicRegion)
-            assert isinstance(pair[1].fragment, GenomicRegion)
-            assert pair[0].position > 0 or pair[0].position == -1
-            assert pair[1].position > 0 or pair[1].position == -1
-            assert pair[0].strand == -1 or pair[0].strand == 1
-            assert pair[1].strand == -1 or pair[1].strand == 1
+            assert isinstance(pair, FragmentReadPair)
+            assert isinstance(pair.left, FragmentRead)
+            assert isinstance(pair.right, FragmentRead)
+            assert isinstance(pair.left.fragment, GenomicRegion)
+            assert isinstance(pair.right.fragment, GenomicRegion)
+            assert pair.left.position > 0 or pair.left.position == -1
+            assert pair.right.position > 0 or pair.right.position == -1
+            assert pair.left.strand == -1 or pair.left.strand == 1
+            assert pair.right.strand == -1 or pair.right.strand == 1
             
-            assert 0 < pair[0].fragment.start <= pair[0].fragment.end
-            assert 0 < pair[1].fragment.start <= pair[1].fragment.end
-            if pair[0].position > 0:
-                assert pair[0].fragment.start <= pair[0].position <= pair[0].fragment.end
-            if pair[1].position > 0:
-                assert pair[1].fragment.start <= pair[1].position <= pair[1].fragment.end
+            assert 0 < pair.left.fragment.start <= pair.left.fragment.end
+            assert 0 < pair.right.fragment.start <= pair.right.fragment.end
+            if pair.left.position > 0:
+                assert pair.left.fragment.start <= pair.left.position <= pair.left.fragment.end
+            if pair.right.position > 0:
+                assert pair.right.fragment.start <= pair.right.position <= pair.right.fragment.end
             
     def test_len(self):
         assert len(self.pairs) == 44
