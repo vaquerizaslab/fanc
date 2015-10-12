@@ -1521,10 +1521,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 outwards = 0
                 inwards = 0
                 same = 0
-        
-        logging.info("Inward ratios: %s" % str(inwardRatios))
-        logging.info("Outward ratios: %s" % str(outwardRatios))
-        
+                
         # plot
         if output != None:
             old_backend = plt.get_backend()
