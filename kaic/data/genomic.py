@@ -9,8 +9,7 @@ import pandas as p
 import numpy as np
 from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
     is_fasta_file, is_hdf5_file
-from kaic.tools.files import is_bed_file
-from kaic.tools.files import is_bedpe_file
+from kaic.tools.files import is_bed_file, is_bedpe_file
 import string
 import random
 from Bio import SeqIO, Restriction, Seq  # @UnusedImport
@@ -1399,7 +1398,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         # add regions
         if len(self._regions) != 0:
             raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
-        self.add_regions(pairs.get_regions())
+        self.add_regions(pairs.regions())
         
         def _flush_buffer(edge_buffer):
             for buffer_left_fragment_ix in edge_buffer:
@@ -1411,7 +1410,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         buffer_size = 0
         last_left_fragment_ix = -1
         edge_buffer = {}
-        mask_field_ix = pairs._pairs.colnames.index(pairs._mask_field)
+        mask_field_ix = pairs._pairs.colnames.index(pairs._pairs._mask_field)
         left_fragment_field_ix = pairs._pairs.colnames.index('left_fragment')
         right_fragment_field_ix = pairs._pairs.colnames.index('right_fragment')
         # this loop is traversing a completely sorted index
@@ -1440,7 +1439,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             # if it is not masked, add it to buffer
             if not left_fragment_ix in edge_buffer:
                 edge_buffer[left_fragment_ix] = {}
-            if not pair_list[right_fragment_ix] in edge_buffer[left_fragment_ix]:
+            if not right_fragment_ix in edge_buffer[left_fragment_ix]:
                 edge_buffer[left_fragment_ix][right_fragment_ix] = 0
                 buffer_size += 1
             

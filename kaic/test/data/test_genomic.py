@@ -9,6 +9,7 @@ from kaic.data.genomic import Chromosome, Genome, HicBasic, HicNode, HicEdge,\
     GenomicRegion, GenomicRegions
 import os.path
 import pytest
+from kaic.construct.seq import Reads, FragmentMappedReadPairs
 
 class TestChromosome:
     
@@ -152,6 +153,8 @@ class TestHicBasic:
     
     @classmethod
     def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        
         hic = HicBasic()
         
         # add some nodes (120 to be exact)
@@ -520,3 +523,28 @@ class TestHicBasic:
         for i in double:
             for j in four:
                 assert merged[i,j] == right[i,j-4]
+
+    def test_from_pairs(self):
+        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = FragmentMappedReadPairs()
+        pairs.load(reads1,reads2,genome.get_regions('HindIII'))
+        
+        pl = len(pairs)
+        
+        hic = HicBasic()
+        hic._from_read_fragment_pairs(pairs, _max_buffer_size=1000)
+        
+        assert len(hic._regions) == len(pairs._regions)
+        
+        reads = 0
+        for edge in hic.edges():
+            reads += edge.weight
+        
+        assert reads == pl
+        
+        
+        
+        
