@@ -16,7 +16,7 @@ class TestSupport:
         # structured array
         x = np.zeros((5,),dtype=('i4,f4,a10'))
         x[:] = [(1,2.,'Hello'),(2,3.,"World"),(3,4.,'this'),(4,5.,"is"),(5,6.,'me')]
-        l, n, t = _to_list_and_names(x)
+        l, n, _ = _to_list_and_names(x)
         assert l[0] == [1,2.,'Hello']
         assert l[4] == [5,6.,'me']
         assert n == ['f0','f1','f2']
@@ -25,33 +25,33 @@ class TestSupport:
         
         # 2D array
         x = np.zeros((5,3))
-        l, n, t = _to_list_and_names(x)
+        l, n, _ = _to_list_and_names(x)
         assert l[0] == [0.,0.,0.]
         assert l[4] == [0.,0.,0.]
         assert n == ['0','1','2']
         
         # 2D list
         x = [(1,2.,'Hello'),(2,3.,"World"),(3,4.,'this'),(4,5.,"is"),(5,6.,'me')]
-        l, n, t = _to_list_and_names(x)
+        l, n, _ = _to_list_and_names(x)
         assert l[0] == [1,2.,'Hello']
         assert l[4] == [5,6.,'me']
         assert n == ['0','1','2']
         
         # 1D array
         x = np.array([1,2,3])
-        l, n, t = _to_list_and_names(x)
+        l, n, _ = _to_list_and_names(x)
         assert l[0] == [1,2,3]
         assert n == ['0','1','2']
         
         # 1D list
         x = [1,2,3]
-        l, n, t = _to_list_and_names(x)
+        l, n, _ = _to_list_and_names(x)
         assert l[0] == [1,2,3]
         assert n == ['0','1','2']
         
         # scalar
         x = 1
-        l, n, t = _to_list_and_names(x)
+        l, n, _ = _to_list_and_names(x)
         assert l[0] == [1]
         assert n == ['0']
         
