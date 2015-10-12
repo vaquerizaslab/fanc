@@ -1181,7 +1181,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     file_name = data
                     data = None
         
-        if file_name is not None:
+        if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
             
         FileBased.__init__(self, file_name)
