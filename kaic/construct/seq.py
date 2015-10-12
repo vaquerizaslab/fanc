@@ -1230,21 +1230,24 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     def close(self):
         self.file.close()
     
-    def load(self, reads1, reads2, regions=None, ignore_duplicates=True):
+    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True):
         if regions is not None:
             logging.info("Adding regions...")
             self.add_regions(regions)
             logging.info("Done.")
         
         # generate index for fragments
-        fragment_ixs = {}
-        fragment_ends = {}
-        for region in self.regions():
-            if not fragment_ends.has_key(region.chromosome):
-                fragment_ends[region.chromosome] = []
-                fragment_ixs[region.chromosome] = []
-            fragment_ixs[region.chromosome].append(region.ix)
-            fragment_ends[region.chromosome].append(region.end)
+        fragment_ixs = None
+        fragment_ends = None
+        if _in_memory_index:
+            fragment_ixs = {}
+            fragment_ends = {}
+            for region in self.regions():
+                if not fragment_ends.has_key(region.chromosome):
+                    fragment_ends[region.chromosome] = []
+                    fragment_ixs[region.chromosome] = []
+                fragment_ixs[region.chromosome].append(region.ix)
+                fragment_ends[region.chromosome].append(region.end)
         
         iter1 = iter(reads1)
         iter2 = iter(reads2)
