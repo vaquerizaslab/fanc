@@ -1003,8 +1003,7 @@ class Table(object):
                 i += 1
             self._table.flush()
             return
-        except TypeError, e:
-            logging.error(str(e))
+        except TypeError:
             pass
         
         
@@ -1950,6 +1949,9 @@ class MaskedTable(t.Table):
             except ValueError as e:
                 raise KeyError('Cannot retrieve row with key %s (%s)' % (str(key), str(e)))
     
+    def _original_getitem(self, key):
+        return t.Table.__getitem__(self, key)
+    
     def __len__(self):
         """
         Return the 'perceived' length of the masked table.
@@ -1963,7 +1965,7 @@ class MaskedTable(t.Table):
         return sum(1 for _ in iter(self.where("%s >= 0" % self._mask_index_field)))
     
     def _original_len(self):
-        return sum(1 for _ in self.iterrows())
+        return t.Table.__len__(self)
     
     # new index update method
     def _update_ix(self):
