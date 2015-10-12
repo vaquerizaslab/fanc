@@ -1161,7 +1161,7 @@ class RegionsTable(FileBased):
                     file_name = data
                     data = None
         
-        if file_name is not None:
+        if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
         
         FileBased.__init__(self, file_name)
@@ -1394,7 +1394,63 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
     
     def __del__(self):
         self.close()
+    
+    def _from_read_fragment_pairs(self, pairs, _max_buffer_size=250000):
+        # add regions
+        if len(self._regions) != 0:
+            raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
+        self.add_regions(pairs.get_regions())
         
+        def _flush_buffer(edge_buffer):
+            for buffer_left_fragment_ix in edge_buffer:
+                for buffer_right_fragment_ix in edge_buffer[buffer_left_fragment_ix]:
+                    weight = edge_buffer[buffer_left_fragment_ix][buffer_right_fragment_ix]
+                    self.add_edge([buffer_left_fragment_ix, buffer_right_fragment_ix, weight], flush=False)
+        
+        # add edges
+        buffer_size = 0
+        last_left_fragment_ix = -1
+        edge_buffer = {}
+        mask_field_ix = pairs._pairs.colnames.index(pairs._mask_field)
+        left_fragment_field_ix = pairs._pairs.colnames.index('left_fragment')
+        right_fragment_field_ix = pairs._pairs.colnames.index('right_fragment')
+        # this loop is traversing a completely sorted index
+        # (sorted by left_fragment)
+        for i in xrange(0,pairs._pairs._original_len()):
+            # get index of pair with next-lowest left_fragment field
+            current_ix = pairs._pairs.cols.left_fragment.index[i]
+            # get actual pair (as list, no row access here)
+            pair_list = pairs._pairs._original_getitem(int(current_ix))
+            # check if the pair is masked
+            if pair_list[mask_field_ix] > 0:
+                continue
+            
+            left_fragment_ix = pair_list[left_fragment_field_ix]
+            right_fragment_ix = pair_list[right_fragment_field_ix]
+            
+            # do we need to flush the buffer?
+            if (left_fragment_ix > last_left_fragment_ix
+                and buffer_size > _max_buffer_size):
+                # flush buffer
+                _flush_buffer(edge_buffer)
+                # clear buffer variables
+                edge_buffer = {}
+                buffer_size = 0
+            
+            # if it is not masked, add it to buffer
+            if not left_fragment_ix in edge_buffer:
+                edge_buffer[left_fragment_ix] = {}
+            if not pair_list[right_fragment_ix] in edge_buffer[left_fragment_ix]:
+                edge_buffer[left_fragment_ix][right_fragment_ix] = 0
+                buffer_size += 1
+            
+            edge_buffer[left_fragment_ix][right_fragment_ix] += 1
+            
+            last_left_fragment_ix = left_fragment_ix
+        
+        _flush_buffer(edge_buffer)
+        self.flush()
+    
     @classmethod
     def from_hiclib(cls, hl, file_name=None):
         hic = cls(file_name=file_name)
@@ -1495,7 +1551,6 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         
         # merge genomic regions
         for region in hic.regions():
-            print region.ix
             ix = self._get_region_ix(region)
             if ix is None:
                 ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
