@@ -1334,7 +1334,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         fragment_ix2 = self._find_fragment_ix(read2.ref, read2.pos, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
         
         # both must be integer if successfully mapped
-        if ix1 is not None and ix2 is not None:
+        if fragment_ix1 is not None and fragment_ix2 is not None:
             row = self._pairs.row
             row['ix'] = self._pair_count
             if fragment_ix1 <= fragment_ix2:
