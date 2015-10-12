@@ -1486,7 +1486,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         
         # best guess for number of data points
         if data_points is None:
-            data_points = l * 0.0025
+            data_points = max(100, int(l * 0.0025))
+        logging.info("Number of data points averaged per point in plot: %d" % data_points)
         
         # calculate ratios
         x = []
