@@ -1229,9 +1229,7 @@ class Table(object):
     
     def _get_item_as_table_object(self, key, cls):
         res = self._get_rows(key)
-        
-        print type(res)
-        
+                
         if isinstance(res, TableRow):
             return cls.from_row(res)
         elif isinstance(res, TableArray):
@@ -1631,8 +1629,6 @@ def to_masked_table(table, maskable=None):
                 l = self.masked_len()
                 return self.masked_getitem(l+key)
         elif type(key) == slice:
-            print key.start
-            print key.stop
             res = []
             # set sensible defaults
             start = key.start
@@ -2067,7 +2063,6 @@ class MaskedTable(t.Table):
                 if (i/l) > last_percent:
                     logging.info("%d%..." % last_percent * 100)
                     last_percent = last_percent + 0.05
-            print i
         self.flush(update_index=False)
     
     def all(self):
