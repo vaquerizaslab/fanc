@@ -1689,31 +1689,11 @@ class InwardPairsFilter(FragmentMappedReadPairFilter):
         super(InwardPairsFilter, self).__init__(mask=mask)
         self.minimum_distance = minimum_distance
     
-    def valid_pair(self, pair):
-        left = pair.left
-        right = pair.right
-        
-        # same chromosome?
-        if not left.fragment.chromosome == right.fragment.chromosome:
-            return True
-
-        # switch if necessary
-        if right.fragment.start < left.fragment.start:
-            tmp = right
-            right = left
-            left = tmp
-        
-        # inward facing?
-        if not (left.strand == 1 and right.strand == -1):
+    def valid_pair(self, pair):        
+        if not pair.is_inward_pair():
             return True
         
-        # same fragment?
-        if left.fragment.start == right.fragment.start:
-            return False
-        
-        # distance smaller than cutoff?
-        distance = right.fragment.start - left.fragment.end
-        if distance > self.minimum_distance:
+        if pair.get_gap_size() > self.minimum_distance:
             return True
         return False
     
@@ -1722,31 +1702,11 @@ class OutwardPairsFilter(FragmentMappedReadPairFilter):
         super(OutwardPairsFilter, self).__init__(mask=mask)
         self.minimum_distance = minimum_distance
     
-    def valid_pair(self, pair):
-        left = pair.left
-        right = pair.right
-        
-        # same chromosome?
-        if not left.fragment.chromosome == right.fragment.chromosome:
-            return True
-
-        # switch if necessary
-        if right.fragment.start < left.fragment.start:
-            tmp = right
-            right = left
-            left = tmp
-        
-        # outward facing?
-        if not (left.strand == -1 and right.strand == 1):
+    def valid_pair(self, pair):        
+        if not pair.is_outward_pair():
             return True
         
-        # same fragment?
-        if left.fragment.start == right.fragment.start:
-            return False
-        
-        # distance smaller than cutoff?
-        distance = right.fragment.start - left.fragment.end
-        if distance > self.minimum_distance:
+        if pair.get_gap_size() > self.minimum_distance:
             return True
         return False
     
