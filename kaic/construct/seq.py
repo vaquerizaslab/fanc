@@ -1185,7 +1185,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             file_name = os.path.expanduser(file_name)
             
         FileBased.__init__(self, file_name)
-        RegionsTable.__init__(self, file_name=file_name, table_name_regions=table_name_fragments)
+        RegionsTable.__init__(self, file_name=self.file, table_name_regions=table_name_fragments)
         
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
