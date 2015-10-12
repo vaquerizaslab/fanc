@@ -1477,13 +1477,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         gaps = [point[0] for point in sortedPoints]
         types = [point[1] for point in sortedPoints]
         
-        logging.info("Gaps sum: %d" % sum(gaps))
-        logging.info("Types sum: %d" % sum(types))
-        logging.info("Gaps len: %d" % len(gaps))
-        logging.info("Types len: %d" % len(types))
-        logging.info("Gaps mean: %.2f" % (sum(gaps)/len(gaps)))
-        logging.info("Types mean: %.2f" % (sum(types)/len(types)))
-        
         # best guess for number of data points
         if data_points is None:
             data_points = max(100, int(l * 0.0025))
