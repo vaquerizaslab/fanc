@@ -4,6 +4,7 @@ Created on Jul 13, 2015
 @author: kkruse1
 '''
 
+from __future__ import division
 import tables as t
 import pysam
 from kaic.tools.files import create_or_open_pytables_file, random_name,\
