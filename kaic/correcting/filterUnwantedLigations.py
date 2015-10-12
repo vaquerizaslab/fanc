@@ -643,7 +643,14 @@ class ReadPairs(object):
         sortedPoints = sorted(points)
         gaps = [point[0] for point in sortedPoints]
         types = [point[1] for point in sortedPoints]
-                
+        
+        logging.info("Gaps sum: %d" % sum(gaps))
+        logging.info("Types sum: %d" % sum(types))
+        logging.info("Gaps len: %d" % len(gaps))
+        logging.info("Types len: %d" % len(types))
+        logging.info("Gaps mean: %d" % sum(gaps)/len(gaps))
+        logging.info("Types mean: %d" % sum(types)/len(types))
+        
         x = []
         inwardRatios = []
         outwardRatios = []
@@ -676,7 +683,8 @@ class ReadPairs(object):
                 inwards = 0
                 same = 0
                 
-            
+        logging.info("Inward ratios: %s" % str(inwardRatios))
+        logging.info("Outward ratios: %s" % str(outwardRatios))
                 
         if output != None:
             plt.ioff()
