@@ -1177,7 +1177,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             if type(data) is str:
                 data = os.path.expanduser(data)
                 
-                if not os.path.isfile(data) and file_name is None:
+                if file_name is None:
                     file_name = data
                     data = None
         

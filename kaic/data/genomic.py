@@ -1157,7 +1157,7 @@ class RegionsTable(FileBased):
         if data is not None:
             # data is file name
             if type(data) is str:                
-                if not os.path.isfile(data) and file_name is None:
+                if file_name is None:
                     file_name = data
                     data = None
         
