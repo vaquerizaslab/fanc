@@ -1480,8 +1480,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         logging.info("Types sum: %d" % sum(types))
         logging.info("Gaps len: %d" % len(gaps))
         logging.info("Types len: %d" % len(types))
-        logging.info("Gaps mean: %d" % sum(gaps)/len(gaps))
-        logging.info("Types mean: %d" % sum(types)/len(types))
+        logging.info("Gaps mean: %.2f" % (sum(gaps)/len(gaps)))
+        logging.info("Types mean: %.2f" % (sum(types)/len(types)))
         
         # calculate ratios
         x = []
