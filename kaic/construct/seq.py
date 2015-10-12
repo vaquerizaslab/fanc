@@ -1357,7 +1357,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     def _add_read_single(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
         ix = self._add_read(read, flush=flush)
         fragment_ix = self._find_fragment_ix(read.ref, read.pos, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
-        if ix is not None:
+        if fragment_ix is not None:
             row = self._single.row
             row['ix'] = self._single_count
             row['fragment'] = fragment_ix
