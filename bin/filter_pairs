@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+from kaic.construct.seq import FragmentMappedReadPairs
+
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        'input',
+        help='''Input FragmentMappedPairs file'''
+    )
+    
+    parser.add_argument(
+        '-i', '--inward', dest='inward',
+        type=int,
+        help='''Minimum distance for inward-facing read pairs'''
+    )
+    
+    parser.add_argument(
+        '-o', '--outward', dest='outward',
+        type=int,
+        help='''Minimum distance for outward-facing read pairs'''
+    )
+    
+    parser.add_argument(
+        '-r', '--re-distance', dest='redist',
+        type=int,
+        help='''Maximum distance for a read to the nearest restriction site'''
+    )
+    
+    args = parser.parse_args()
+    
+    input_path = os.path.expanduser(args.input)
+    #output_path = os.path.expanduser(args.output)
+    
+    pairs = FragmentMappedReadPairs(file_name=input_path)
+    
+    if args.inward:
+        logging.info("Filtering inward-facing reads at %dbp" % args.inward)
+        pairs.filter_inward(minimum_distance=args.inward, queue=True)
+        
+    if args.outward:
+        logging.info("Filtering outward-facing reads at %dbp" % args.outward)
+        pairs.filter_outward(minimum_distance=args.outward, queue=True)
+    
+    if args.redist:
+        logging.info("Filtering reads with RE distance >%dbp" % args.redist)
+        pairs.filter_re_dist(args.redist, queue=True)
+    
+    logging.info("Running filters...")
+    pairs.run_queued_filters()
+    logging.info("Done.")
+    
+    pairs.close()
