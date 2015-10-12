@@ -24,7 +24,6 @@ if __name__ == '__main__':
     parser.add_argument(
         '-p', '--points', dest='points',
         type=int,
-        default=1000,
         help='''Data points that make up one increment of the x axis. More=smoother=less detail.'''
     )
     

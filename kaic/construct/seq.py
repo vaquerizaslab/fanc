@@ -1429,7 +1429,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         return FragmentReadPair(left_read=read1, right_read=read2)
     
     
-    def plot_error_structure(self, output=None,data_points=1000,
+    def plot_error_structure(self, output=None,data_points=None,
                              skip_self_ligations=True):
         
         same_count = 0
@@ -1483,6 +1483,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         logging.info("Types len: %d" % len(types))
         logging.info("Gaps mean: %.2f" % (sum(gaps)/len(gaps)))
         logging.info("Types mean: %.2f" % (sum(types)/len(types)))
+        
+        # best guess for number of data points
+        if data_points is None:
+            data_points = l * 0.0025
         
         # calculate ratios
         x = []
