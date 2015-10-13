@@ -540,7 +540,11 @@ class TestHicBasic:
         assert len(hic._regions) == len(pairs._regions)
         
         reads = 0
+        edge_dict = {}
         for edge in hic.edges():
+            edge_string = "%d-%d" % (edge.source, edge.sink) 
+            assert edge_string not in edge_dict
+            edge_dict[edge_string] = 1
             reads += edge.weight
         
         assert reads == pl
