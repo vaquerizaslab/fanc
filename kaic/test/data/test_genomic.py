@@ -6,10 +6,11 @@ Created on Jun 29, 2015
 
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, HicBasic, HicNode, HicEdge,\
-    GenomicRegion, GenomicRegions
+    GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
+import logging
 
 class TestChromosome:
     
@@ -549,6 +550,184 @@ class TestHicBasic:
         
         assert reads == pl
         
+    def test_overlap_map(self):
+        # ----|----|----|----|---|-----|-| new
+        # -------|-------|-------|-------| old
+        old_regions = []
+        old_regions.append(HicNode(chromosome='chr1', start=1, end=8))
+        old_regions.append(HicNode(chromosome='chr1', start=9, end=16))
+        old_regions.append(HicNode(chromosome='chr1', start=17, end=24))
+        old_regions.append(HicNode(chromosome='chr1', start=25, end=32))
         
+        new_regions = []
+        new_regions.append(HicNode(chromosome='chr1', start=1, end=5))
+        new_regions.append(HicNode(chromosome='chr1', start=6, end=10))
+        new_regions.append(HicNode(chromosome='chr1', start=11, end=15))
+        new_regions.append(HicNode(chromosome='chr1', start=16, end=20))
+        new_regions.append(HicNode(chromosome='chr1', start=21, end=24))
+        new_regions.append(HicNode(chromosome='chr1', start=25, end=30))
+        new_regions.append(HicNode(chromosome='chr1', start=31, end=32))
+        
+        overlap_map = _get_overlap_map(old_regions, new_regions)
+        assert len(overlap_map[0]) == 2
+        assert np.array_equal(overlap_map[0][0], [0,1.0])
+        assert np.array_equal(overlap_map[0][1], [1,0.6])
+        assert len(overlap_map[1]) == 3
+        assert np.array_equal(overlap_map[1][0], [1,0.4])
+        assert np.array_equal(overlap_map[1][1], [2,1.0])
+        assert np.array_equal(overlap_map[1][2], [3,0.2])
+        assert len(overlap_map[2]) == 2
+        assert np.array_equal(overlap_map[2][0], [3,0.8])
+        assert np.array_equal(overlap_map[2][1], [4,1.0])
+        assert len(overlap_map[3]) == 2
+        assert np.array_equal(overlap_map[3][0], [5,1.0])
+        assert np.array_equal(overlap_map[3][1], [6,1.0])
+        
+        # ----|----|-| new
+        # --|--|--|--| old
+        old_regions = []
+        old_regions.append(HicNode(chromosome='chr1', start=1, end=3))
+        old_regions.append(HicNode(chromosome='chr1', start=4, end=6))
+        old_regions.append(HicNode(chromosome='chr1', start=7, end=9))
+        old_regions.append(HicNode(chromosome='chr1', start=10, end=12))
+        
+        new_regions = []
+        new_regions.append(HicNode(chromosome='chr1', start=1, end=5))
+        new_regions.append(HicNode(chromosome='chr1', start=6, end=10))
+        new_regions.append(HicNode(chromosome='chr1', start=11, end=12))
+        
+        overlap_map = _get_overlap_map(old_regions, new_regions)
+        assert len(overlap_map[0]) == 1
+        assert np.array_equal(overlap_map[0][0], [0,0.6])
+        assert len(overlap_map[1]) == 2
+        assert np.array_equal(overlap_map[1][0], [0,0.4])
+        assert np.array_equal(overlap_map[1][1], [1,0.2])
+        assert len(overlap_map[2]) == 1
+        assert np.array_equal(overlap_map[2][0], [1,0.6])
+        assert len(overlap_map[3]) == 2
+        assert np.array_equal(overlap_map[3][0], [1,0.2])
+        assert np.array_equal(overlap_map[3][1], [2,1.0])
+        
+    def test_edge_splitting_rao(self):
+        #     1         2         3         4
+        # ---------|---------|---------|---------| old
+        # ----|----|----|----|---------|---|--|--| new
+        #  1    2    3    4       5      6  7  8
+        overlap_map = {}
+        overlap_map[1] = [[1,1.0], [2,1.0]]
+        overlap_map[2] = [[3,1.0], [4,1.0]]
+        overlap_map[3] = [[5,1.0]]
+        overlap_map[4] = [[6,1.0],[7,1.0],[8,1.0]]
+        
+        original_edge = [1,2,12.0]
+        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+        assert len(new_edges) == 4
+        weight_sum = 0
+        for new_edge in new_edges:
+            weight_sum += new_edge[2]
+        assert weight_sum == original_edge[2]
+        
+        original_edge = [1,1,12.0]
+        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+        assert len(new_edges) == 3
+        weight_sum = 0
+        for new_edge in new_edges:
+            weight_sum += new_edge[2]
+        assert weight_sum == original_edge[2]
+        
+        original_edge = [1,3,9.0]
+        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+        assert len(new_edges) == 2
+        weight_sum = 0
+        for new_edge in new_edges:
+            weight_sum += new_edge[2]
+        assert weight_sum == original_edge[2]
+        
+        original_edge = [3,3,9.0]
+        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+        assert len(new_edges) == 1
+        assert new_edges[0][2] == original_edge[2]
+        
+        original_edge = [1,4,9.0]
+        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+        assert len(new_edges) == 4
+        weight_sum = 0
+        for new_edge in new_edges:
+            weight_sum += new_edge[2]
+        assert weight_sum == original_edge[2]
+        
+    def test_from_hic(self):
+        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = FragmentMappedReadPairs()
+        pairs.load(reads1,reads2,genome.get_regions('HindIII'))
+                
+        hic = HicBasic()
+        hic._from_read_fragment_pairs(pairs, _max_buffer_size=1000)
+        original_reads = 0
+        for edge in hic.edges():
+            original_reads += edge.weight
+        
+        
+        def assert_binning(hic, bin_size, buffer_size):
+            binned = HicBasic()
+            assert len(binned.nodes()) == 0
+            binned.add_regions(genome.get_regions(bin_size))
+            binned._from_hic(hic, _edge_buffer_size=buffer_size)
+            
+            new_reads = 0
+            for edge in binned.edges():
+                new_reads += edge.weight
+            
+            # search for duplicated edges
+            edge_dict = {}
+            for edge in binned.edges():
+                assert (edge.source, edge.sink) not in edge_dict
+                
+            # make sure that the total number
+            # of reads stays the same
+            assert original_reads == new_reads
+            print len(binned.regions())
+        
+        bin_sizes = [500,1000,5000,10000,20000]
+        buffer_sizes = [10,100,500,1000,10000,50000]
+        for bin_size in bin_sizes:
+            for buffer_size in buffer_sizes:
+                assert_binning(hic, bin_size, buffer_size)
+        
+    def test_from_hic_sample(self):
+        hic = HicBasic()
+        hic.add_region(GenomicRegion(chromosome='chr1',start=1,end=100))
+        hic.add_region(GenomicRegion(chromosome='chr1',start=101,end=200))
+        hic.add_edge([0,0,12])
+        hic.add_edge([0,1,36])
+        hic.add_edge([1,1,24])
+        
+        binned = HicBasic()
+        binned.add_region(GenomicRegion(chromosome='chr1', start=1, end=50))
+        binned.add_region(GenomicRegion(chromosome='chr1', start=51, end=100))
+        binned.add_region(GenomicRegion(chromosome='chr1', start=101, end=150))
+        binned.add_region(GenomicRegion(chromosome='chr1', start=151, end=200))
+        
+        binned._from_hic(hic, _edge_buffer_size=1000)
+        
+        original_reads = 0
+        for edge in hic.edges():
+            original_reads += edge.weight
+        
+        new_reads = 0
+        for edge in binned.edges():
+            new_reads += edge.weight
+        
+        # search for duplicated edges
+        edge_dict = {}
+        for edge in binned.edges():
+            assert (edge.source, edge.sink) not in edge_dict
+        
+        # make sure that the total number
+        # of reads stays the same
+        assert original_reads == new_reads
         
         

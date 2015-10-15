@@ -4,6 +4,7 @@ Created on May 20, 2015
 @author: kkruse1
 '''
 
+from __future__ import division
 import tables as t
 import pandas as p
 import numpy as np
@@ -18,12 +19,52 @@ from kaic.data.general import Table, TableRow, TableArray, TableObject,\
 import os.path
 
 import logging
-from kaic.tools.general import ranges
+from kaic.tools.general import ranges, distribute_integer
 logging.basicConfig(level=logging.INFO)
 from xml.etree import ElementTree as et
 
 
-
+def _edge_overlap_split_rao(original_edge, overlap_map):
+    original_source = original_edge[0]
+    original_sink = original_edge[1]
+    original_weight = original_edge[2]
+    
+    #logging.info("IN: %s" % original_edge)
+    
+    new_source_nodes = overlap_map[original_source]
+    new_sink_nodes = overlap_map[original_sink]
+    
+    if len(new_source_nodes) == 0:
+        return []
+    elif len(new_source_nodes) == 1:
+        new_source_nodes = [new_source_nodes[0][0]]
+    else:
+        new_source_nodes = [new_source_nodes[0][0], new_source_nodes[-1][0]]
+    
+    if len(new_sink_nodes) == 0:
+        return []
+    elif len(new_sink_nodes) == 1:
+        new_sink_nodes = [new_sink_nodes[0][0]]
+    else:
+        new_sink_nodes = [new_sink_nodes[0][0], new_sink_nodes[-1][0]]
+    
+    edges = {}
+    for new_source in new_source_nodes:
+        for new_sink in new_sink_nodes:
+            if new_source <= new_sink:
+                edges[(new_source, new_sink)] = 0
+            else:
+                edges[(new_sink, new_source)] = 0
+    
+    weights = distribute_integer(original_weight, len(edges))
+    #logging.info("%s" % str(weights))
+    edges_list = []
+    for i, key_pair in enumerate(edges):
+        edges_list.append([key_pair[0], key_pair[1], weights[i]])
+    
+    #logging.info("OUT: %s" % edges_list)
+    
+    return edges_list
 
 class GenomicFeature(object):
     def __init__(self, data, names):
@@ -1401,13 +1442,10 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         self.add_regions(pairs.regions())
         
         def _flush_buffer(edge_buffer):
-            for buffer_left_fragment_ix in edge_buffer:
-                for buffer_right_fragment_ix in edge_buffer[buffer_left_fragment_ix]:
-                    weight = edge_buffer[buffer_left_fragment_ix][buffer_right_fragment_ix]
-                    self.add_edge([buffer_left_fragment_ix, buffer_right_fragment_ix, weight], flush=False)
+            for key_pair in edge_buffer:
+                self.add_edge([key_pair[0], key_pair[1], edge_buffer[key_pair]], flush=False)
         
         # add edges
-        buffer_size = 0
         last_left_fragment_ix = -1
         edge_buffer = {}
         mask_field_ix = pairs._pairs.colnames.index(pairs._pairs._mask_field)
@@ -1426,29 +1464,104 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             
             left_fragment_ix = pair_list[left_fragment_field_ix]
             right_fragment_ix = pair_list[right_fragment_field_ix]
+            key_pair = (left_fragment_ix, right_fragment_ix)
             
             # do we need to flush the buffer?
             if (left_fragment_ix > last_left_fragment_ix
-                and buffer_size > _max_buffer_size):
+                and len(edge_buffer) > _max_buffer_size):
                 # flush buffer
                 _flush_buffer(edge_buffer)
-                # clear buffer variables
+                # clear buffer
                 edge_buffer = {}
-                buffer_size = 0
             
             # if it is not masked, add it to buffer
-            if not left_fragment_ix in edge_buffer:
-                edge_buffer[left_fragment_ix] = {}
-            if not right_fragment_ix in edge_buffer[left_fragment_ix]:
-                edge_buffer[left_fragment_ix][right_fragment_ix] = 0
-                buffer_size += 1
-            
-            edge_buffer[left_fragment_ix][right_fragment_ix] += 1
+            if not key_pair in edge_buffer:
+                edge_buffer[key_pair] = 0
+            edge_buffer[key_pair] += 1
             
             last_left_fragment_ix = left_fragment_ix
         
         _flush_buffer(edge_buffer)
         self.flush()
+        
+    def _from_hic(self, hic, _edge_buffer_size=250000, _edges_by_overlap_method=_edge_overlap_split_rao):
+        # if we do not have any nodes in this Hi-C object...
+        if len(self.regions()) == 0:
+            logging.info("Copying Hi-C")
+            # ...simply import everything
+            for region in hic.regions():
+                self.add_region(region, flush=False)
+            for edge in hic.edges():
+                self.add_edge(edge, check_nodes_exist=False, flush=False)
+            self.flush()
+        # if already have nodes in this HiC object...
+        else:
+            logging.info("Binning Hi-C contacts")
+            # create region "overlap map"
+            overlap_map = _get_overlap_map(hic.regions(), self.regions())
+            
+            # find old region index from which it is
+            # safe to flush new region index
+            safe_region_flush = {}
+            last_region_ixs = []
+            max_new_region_ix = -1
+            for i in xrange(0,len(hic.regions())):
+                new_region_ixs = []
+                for pair in overlap_map[i]:
+                    new_region_ixs.append(pair[0])
+                
+                for last_region_ix in last_region_ixs:
+                    if last_region_ix not in new_region_ixs:
+                        safe_region_flush[last_region_ix] = i
+                        if last_region_ix > max_new_region_ix:
+                            max_new_region_ix = last_region_ix
+                last_region_ixs = new_region_ixs
+            # find max and add to safe_index
+            n_old_nodes = len(hic.regions())
+            for i in xrange(max_new_region_ix+1, len(self.regions())):
+                safe_region_flush[i] = n_old_nodes
+                        
+            # we use an edge buffer in case all edges do not fit in memory
+            edge_buffer = {}
+            last_old_source = 0
+            source_field_ix = hic._edges.colnames.index('source')
+            sink_field_ix = hic._edges.colnames.index('sink')
+            weight_field_ix = hic._edges.colnames.index('weight')
+            mask_field = hic._edges.colnames.index(hic._edges._mask_field)
+            for i in xrange(0,hic._edges._original_len()):
+                current_ix = hic._edges.cols.source.index[i]
+                current_edge = hic._edges._original_getitem(int(current_ix))
+                
+                # check if edge is masked
+                if current_edge[mask_field] > 0:
+                    continue
+                
+                old_source = current_edge[source_field_ix]
+                old_sink = current_edge[sink_field_ix]
+                old_weight = current_edge[weight_field_ix]
+                new_edges = _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map)
+                
+                for new_edge in new_edges:
+                    key_pair = (new_edge[0], new_edge[1])
+                    if not key_pair in edge_buffer:
+                        edge_buffer[key_pair] = 0
+                    edge_buffer[key_pair] += new_edge[2]
+                
+                if (old_source != last_old_source
+                    and len(edge_buffer) > _edge_buffer_size):
+                    tmp_buffer = {}
+                    for key_pair in edge_buffer:
+                        if old_source >= safe_region_flush[key_pair[0]]:
+                            self.add_edge([key_pair[0], key_pair[1], edge_buffer[key_pair]], flush=False)
+                        else:
+                            tmp_buffer[key_pair] = edge_buffer[key_pair]
+                    edge_buffer = tmp_buffer
+                last_old_source = old_source
+            
+            # final flush()
+            for key_pair in edge_buffer:
+                self.add_edge([key_pair[0], key_pair[1], edge_buffer[key_pair]], flush=False)
+            self.flush()
     
     @classmethod
     def from_hiclib(cls, hl, file_name=None):
@@ -2144,4 +2257,52 @@ def genome_from_string(genome_string):
         genome = Genome(chromosomes=chromosomes)
     
     return genome
+
+def _get_overlap_map(old_regions, new_regions):
+    # 1. organize regions in self by chromosome
+    new_region_map = {}
+    for i, new_region in enumerate(new_regions):
+        if not new_region.chromosome in new_region_map:
+            new_region_map[new_region.chromosome] = []
+        new_region_map[new_region.chromosome].append([new_region.start,new_region.end,i])
+        
+    # 2. iterate over regions in hic to find overlap
+    def _get_overlap(new_region, old_region):
+        new_region_length = new_region[1] - new_region[0] + 1
+        overlap = min(old_region[1], new_region[1]) - max(old_region[0],new_region[0]) + 1
+        return max(0,overlap/new_region_length)
+        
+    old_to_new = {}
+    current_chromosome = ''
+    current_ix = 0
+    for i, old_region in enumerate(old_regions):
+        old_to_new[i] = []
+        if current_chromosome != old_region.chromosome:
+            current_ix = 0
+            current_chromosome = old_region.chromosome
+        
+        found_overlap = True
+        while found_overlap:
+            found_overlap = False
+            if current_ix < len(new_region_map[current_chromosome]):
+                new_region = new_region_map[current_chromosome][current_ix]
+                overlap = _get_overlap(new_region, [old_region.start,old_region.end,i])
+                if overlap > 0:
+                    old_to_new[i].append([new_region[2], overlap])
+                    current_ix += 1
+                    found_overlap = True
+                elif old_region.start > new_region[1]:
+                    current_ix += 1
+                    found_overlap = True
+            
+        current_ix -= 1
+    
+    return old_to_new
+
+
+    
+    
+    
+    
+    
     

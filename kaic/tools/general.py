@@ -5,6 +5,7 @@ Created on Aug 28, 2015
 '''
 
 import itertools
+import random
 
 def ranges(i):
     for _, b in itertools.groupby(enumerate(i), lambda (x, y): y - x):
@@ -32,3 +33,16 @@ def bit_flags_from_int(number, base=2):
         exponent -= 1
     
     return set(bits)
+
+def distribute_integer(value, divisor, _shuffle=True):
+    a = [int(value/divisor)] * divisor
+    remaining = value - sum(a)
+    i = 0
+    while remaining:
+        a[i] += 1
+        i += 1
+        remaining -= 1
+    if _shuffle:
+        random.shuffle(a)
+    return a
+    
