@@ -1408,7 +1408,7 @@ class Maskable(object):
                 mask_file = self.file
             # do it all in memory
             else:
-                mask_file = create_or_open_pytables_file(random_name(), inMemory=True)
+                mask_file = create_or_open_pytables_file()
         # data is Table: use as mask table
         elif type(data) == t.table.Table:
             self._set_mask_table(data)
