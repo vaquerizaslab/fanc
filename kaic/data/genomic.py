@@ -2162,6 +2162,10 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
                 return len(hic._edges)
         return EdgeIter()
     
+    def bias_vector(self, vector=None):
+        if vector is not None:
+            self._edges._v_attrs.bias_vector = vector
+        return self._edges._v_attrs.bias_vector
     
         
         
@@ -2243,7 +2247,7 @@ class HicXmlFile(object):
                 return HicEdge(source=source, sink=sink, weight=weight)
             
         return XmlEdgeIter(file_name)
-        
+   
 
 def genome_from_string(genome_string):
     genome = None

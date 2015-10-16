@@ -6,14 +6,18 @@ from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
 
 def correct(hic, only_intra_chromosomal=False):
     if only_intra_chromosomal:
+        bias_vectors = []
         for chromosome in hic.chromosomes():
             m = hic[chromosome, chromosome]
-            m_corrected = correct_matrix(m)
+            m_corrected, bias_vector_chromosome = correct_matrix(m)
             hic[chromosome, chromosome] = m_corrected
+            bias_vectors.append(bias_vector_chromosome)
+        hic.bias_vector(np.append(bias_vectors))
     else:
         m = hic[:, :]
-        m_corrected = correct_matrix(m)
+        m_corrected, bias_vector = correct_matrix(m)
         hic[:, :] = m_corrected
+        hic.bias_vector(bias_vector)
 
 
 def correct_matrix(m, max_attempts=50):
@@ -50,7 +54,7 @@ def correct_matrix(m, max_attempts=50):
         m_nonzero = restore_sparse_rows(m_nonzero, idx)
         x = restore_sparse_rows(x, idx)
 
-    return m_nonzero
+    return m_nonzero, x
 
 
 def get_bias_vector(A, x0=None, tol=1e-06, delta=0.1, Delta=3, fl=0, high_precision=False, outer_limit=300):
