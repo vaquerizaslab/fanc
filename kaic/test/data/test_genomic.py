@@ -154,7 +154,6 @@ class TestGenomicRegions:
         
 class TestHicBasic:
     
-    @classmethod
     def setup_method(self, method):
         self.dir = os.path.dirname(os.path.realpath(__file__))
         
@@ -181,6 +180,12 @@ class TestHicBasic:
         hic.add_edges(edges)
         
         self.hic = hic
+        
+        self.hic_cerevisiae = HicBasic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.hic")
+    
+    def teardown_method(self, method):
+        self.hic_cerevisiae.close()
+        self.hic.close()
     
     def test_initialize_xml(self):
         current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -658,25 +663,18 @@ class TestHicBasic:
         assert weight_sum == original_edge[2]
         
     def test_from_hic(self):
-        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
-        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
-        pairs = FragmentMappedReadPairs()
-        pairs.load(reads1,reads2,genome.get_regions('HindIII'))
-                
-        hic = HicBasic()
-        hic._from_read_fragment_pairs(pairs, _max_buffer_size=1000)
+
         original_reads = 0
-        for edge in hic.edges():
+        for edge in self.hic_cerevisiae.edges():
             original_reads += edge.weight
-        
         
         def assert_binning(hic, bin_size, buffer_size):
             binned = HicBasic()
             assert len(binned.nodes()) == 0
             binned.add_regions(genome.get_regions(bin_size))
-            binned._from_hic(hic, _edge_buffer_size=buffer_size)
+            binned._from_hic(self.hic_cerevisiae, _edge_buffer_size=buffer_size)
             
             new_reads = 0
             for edge in binned.edges():
@@ -696,7 +694,7 @@ class TestHicBasic:
         buffer_sizes = [10,100,500,1000,10000,50000]
         for bin_size in bin_sizes:
             for buffer_size in buffer_sizes:
-                assert_binning(hic, bin_size, buffer_size)
+                assert_binning(self.hic_cerevisiae, bin_size, buffer_size)
         
     def test_from_hic_sample(self):
         hic = HicBasic()
@@ -732,15 +730,12 @@ class TestHicBasic:
         assert original_reads == new_reads
         
     def test_knight_matrix_balancing(self):
-        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
-        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
-        pairs = FragmentMappedReadPairs()
-        pairs.load(reads1,reads2,genome.get_regions(10000))
-                
+        
         hic = HicBasic()
-        hic._from_read_fragment_pairs(pairs, _max_buffer_size=10000)
+        hic.add_regions(genome.get_regions(10000))
+        hic._from_hic(self.hic_cerevisiae)
         
         m = hic[:,:]
         assert is_symmetric(m)
@@ -752,28 +747,25 @@ class TestHicBasic:
         
         for n in sum(m_corr):
             assert abs(1.0-n) < 1e-5 or n == 0
+        
             
     def test_ice_matrix_balancing(self):
-        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
-        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
-        pairs = FragmentMappedReadPairs()
-        pairs.load(reads1,reads2,genome.get_regions(10000))
-                
+        
         hic = HicBasic()
-        hic._from_read_fragment_pairs(pairs, _max_buffer_size=10000)
+        hic.add_regions(genome.get_regions(10000))
+        hic._from_hic(self.hic_cerevisiae)
         
         m = hic[:,:]
         assert is_symmetric(m)
         
         ice.correct(hic)
         m_corr = hic[:,:]
-        print sum(m_corr)
         assert is_symmetric(m_corr)
         
-        for n in sum(m_corr):
-            assert abs(1.0-n) < 1e-5 or n == 0
-        assert 0
-        
+        sum_m_corr = sum(m_corr)
+        for n in sum_m_corr:
+            assert (sum_m_corr[0]-5 < n < sum_m_corr[0]+5) or n == 0
+
         
