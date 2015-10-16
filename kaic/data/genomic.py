@@ -1297,6 +1297,15 @@ class RegionsTable(FileBased):
             
         return RegionIter()
 
+    def chromosomes(self):
+        chromosomes_set = set()
+        chromosomes = []
+        for region in self.regions():
+            if region.chromosome not in chromosomes_set:
+                chromosomes_set.add(region.chromosome)
+                chromosomes.append(region.chromosome)
+        return chromosomes
+
 class HicNode(GenomicRegion, TableObject):
     def __init__(self, chromosome=None, start=None, end=None, ix=None):
         self.ix = ix
