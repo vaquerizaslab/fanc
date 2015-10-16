@@ -10,7 +10,9 @@ from kaic.data.genomic import Chromosome, Genome, HicBasic, HicNode, HicEdge,\
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
-import logging
+from kaic.tools.matrix import is_symmetric
+import kaic.correcting.knight_matrix_balancing as knight
+import kaic.correcting.ice_matrix_balancing as ice
 
 class TestChromosome:
     
@@ -217,7 +219,6 @@ class TestHicBasic:
         
         # dedicated save function
         # ...
-    
     
     def test_nodes(self):
         nodes = self.hic.nodes()
@@ -729,5 +730,50 @@ class TestHicBasic:
         # make sure that the total number
         # of reads stays the same
         assert original_reads == new_reads
+        
+    def test_knight_matrix_balancing(self):
+        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = FragmentMappedReadPairs()
+        pairs.load(reads1,reads2,genome.get_regions(10000))
+                
+        hic = HicBasic()
+        hic._from_read_fragment_pairs(pairs, _max_buffer_size=10000)
+        
+        m = hic[:,:]
+        assert is_symmetric(m)
+        
+        knight.correct(hic)
+        m_corr = hic[:,:]
+        print sum(m_corr)
+        assert is_symmetric(m_corr)
+        
+        for n in sum(m_corr):
+            assert abs(1.0-n) < 1e-5 or n == 0
+            
+    def test_ice_matrix_balancing(self):
+        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = FragmentMappedReadPairs()
+        pairs.load(reads1,reads2,genome.get_regions(10000))
+                
+        hic = HicBasic()
+        hic._from_read_fragment_pairs(pairs, _max_buffer_size=10000)
+        
+        m = hic[:,:]
+        assert is_symmetric(m)
+        
+        ice.correct(hic)
+        m_corr = hic[:,:]
+        print sum(m_corr)
+        assert is_symmetric(m_corr)
+        
+        for n in sum(m_corr):
+            assert abs(1.0-n) < 1e-5 or n == 0
+        assert 0
         
         

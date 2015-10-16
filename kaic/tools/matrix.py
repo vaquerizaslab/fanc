@@ -41,30 +41,30 @@ def writeMatrixToFile(M,file_name,delim="\t",row_names=None,col_names=None):
 
     print "Done writing to file."
 
-def removeSparseRows(M,cutoff=None):
-    s = np.sum(M,0)
+
+def remove_sparse_rows(m, cutoff=None):
+    s = np.sum(m, 0)
     
-    if cutoff == None:
+    if cutoff is None:
         cutoff = min(s)
     
     idxs = np.where(s <= cutoff)[0]
-    A = np.delete(M,idxs,0)
-    A = np.delete(A,idxs,1)
+    m_removed = np.delete(m, idxs, 0)
+    m_removed = np.delete(m_removed, idxs, 1)
     
-    return A, idxs
+    return m_removed, idxs
     
     
-def restoreSparseRows(M,idxs,rows=None):
+def restore_sparse_rows(m, idxs, rows=None):
     idxsn = idxs.copy()
-    for i in range(0,len(idxs)):
+    for i in range(0, len(idxs)):
         idxsn[i] = idxs[i]-i
-    
-    
-    A = np.insert(M,idxsn,0,axis=0)
-    if len(M.shape) > 1:
-        A = np.insert(A,idxsn,0,axis=1)
 
-    return A
+    a = np.insert(m, idxsn, 0, axis=0)
+    if len(m.shape) > 1:
+        a = np.insert(a, idxsn, 0, axis=1)
+
+    return a
 
 def compare(A,M):
     return sum(abs(M-A),0)
