@@ -12,9 +12,9 @@ Provides
 import logging
 logging.basicConfig(level=logging.INFO)
 
-from kaic.data.genomic import HicBasic, HicNode, HicEdge, Genome, Chromosome, Bed
+from kaic.data.genomic import HicBasic, HicNode, HicEdge, Genome, Chromosome, BedImproved
 from kaic.data.general import Table 
-from kaic.construct.seq import ReadPairs
+from kaic.construct.seq import Reads, FragmentMappedReadPairs
 #from kaic.plotting.plot_genomic_data import HiCPlot, BedPlot, GenomicDataPlot, GenePlot
 
 def sample_hic():
