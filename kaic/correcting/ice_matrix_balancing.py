@@ -7,23 +7,24 @@ def correct(hic, tolerance=1e-2, max_iterations=500):
     marginal_error = tolerance + 1
     current_iteration = 0
     logging.info("Starting iterations")
-    while (marginal_error > tolerance
-           and current_iteration <= max_iterations):
-        m = get_marginals(hic, normalize_to_mean_one=True)
+    while (marginal_error > tolerance and
+           current_iteration <= max_iterations):
+        m = get_marginals(hic)
         bias_vector *= m
         marginal_error = _marginal_error(m)
         for row in hic._edges._iter_visible_and_masked():
             source = row['source']
             sink = row['sink']
             weight = row['weight']
-            row['weight'] = weight/m[source]/m[sink]
+            row['weight'] = weight/np.sqrt(m[source])/np.sqrt(m[sink])
             row.update()
         hic.flush()
         current_iteration += 1
         logging.info("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
     hic.bias_vector(bias_vector)
 
-def get_marginals(hic, normalize_to_mean_one=False):
+
+def get_marginals(hic):
     # prepare marginals dict
     marginals = np.zeros(len(hic.regions()), float)
     
@@ -31,19 +32,11 @@ def get_marginals(hic, normalize_to_mean_one=False):
         marginals[edge.source] += edge.weight
         if edge.source != edge.sink:
             marginals[edge.sink] += edge.weight
-        
-    if normalize_to_mean_one:
-        divisor = marginals[marginals > 0].mean()
-        marginals /= divisor
-        marginals[marginals == 0] = 1
-        marginals -= 1
-        marginals *= .6
-        marginals += 1
-    
+
     return marginals
 
 
-def _marginal_error(marginals):
+def _marginal_error(marginals, percentile=99.9):
     marginals = marginals[marginals != 0]
-    error = np.max(np.abs(marginals - marginals.mean()))
+    error = np.percentile(np.abs(marginals - marginals.mean()), percentile)
     return error / marginals.mean()
