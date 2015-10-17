@@ -1196,7 +1196,7 @@ class RegionsTable(FileBased):
         # parse potential unnamed argument
         if data is not None:
             # data is file name
-            if type(data) is str:                
+            if type(data) is str or isinstance(data, t.file.File):                
                 if file_name is None:
                     file_name = data
                     data = None
