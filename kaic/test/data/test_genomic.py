@@ -767,5 +767,3 @@ class TestHicBasic:
         sum_m_corr = sum(m_corr)
         for n in sum_m_corr:
             assert (sum_m_corr[0]-5 < n < sum_m_corr[0]+5) or n == 0
-
-        

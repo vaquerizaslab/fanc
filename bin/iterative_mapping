@@ -2,7 +2,7 @@
 
 import argparse;
 import os;
-from kaic.mapping.iterativeMapping import iterative_mapping
+from kaic.mapping.iterative_mapping import iterative_mapping
 
 def splitList(thisList):
     return thisList.split(",");

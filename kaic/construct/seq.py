@@ -328,7 +328,7 @@ class Reads(FileBased, Maskable, MetaContainer):
         return MaskedReadsIter()
         
         
-class ReadPairs(Maskable, MetaContainer):
+class ReadPairs(Maskable, MetaContainer, FileBased):
     
     def __init__(self, sambam_file1=None, sambam_file2=None, file_name=None,
                        group_name = 'reads', auto_determine_field_sizes=True,
