@@ -2180,7 +2180,7 @@ class MaskFilter(object):
         
 
 class Meta(object):
-    def __init__(self, name, value, date=None, category='', description=''):
+    def __init__(self, date=None, message='', name='', value=None, level=0, category=''):
         self.name = name
         self.value = value
         if date is None:
@@ -2191,25 +2191,28 @@ class Meta(object):
             self.date = datetime.fromtimestamp(date)
         
         self.category = category
-        self.description = description
+        self.message = message
+        self.level = level
         
     def __repr__(self):
-        return "%s %s: %s" % (str(self.date), self.name, str(self.value))
+        return "%s %s: %s" % (str(self.date), self.name, self.message)
 
 
 class MetaContainer(object):
     """
     Class that provides recording of meta-information.
     """
-    
+
     class MetaDescription(t.IsDescription):
         date = t.Float32Col(pos=0)
-        category = t.StringCol(50,pos=1)
-        description = t.StringCol(255,pos=2)
-        name = t.StringCol(255,pos=3)
-        value = t.StringCol(255,pos=4)
-        
-    def __init__(self, data=None, table_name="meta"):
+        level = t.Int16Col(pos=1)
+        name = t.StringCol(50,pos=2)
+        category = t.StringCol(50,pos=3)
+        message = t.StringCol(255,pos=4)
+        value = t.Int32Col(pos=5)
+    
+    def __init__(self, data=None, file_name=None,
+                 group_name='meta', logger_name="meta"):
         """
         Enable recording of meta-information in pytables-backed object.
         
@@ -2239,70 +2242,96 @@ class MetaContainer(object):
                                 pytables file, does not usually need to be 
                                 modified
         """
-        #super(MetaContainer, self).__init__()
         
-        meta_file = None
+        # parse potential unnamed argument
+        if data is not None:
+            # data is file name
+            if type(data) is str or isinstance(data, t.file.File):                
+                if file_name is None:
+                    file_name = data
+                    data = None
         
-        # data is None
-        if data is None:
-            # use default _mask attribute
-            if hasattr(self, '_meta'):
-                self._set_meta_table(self._mask)
-            # use file attribute
-            elif hasattr(self, 'file') and isinstance(self.file, t.file.File):
-                meta_file = self.file
-            # do it all in memory
-            else:
-                meta_file = create_or_open_pytables_file(random_name(), inMemory=True)
-        # data is Table: use as mask table
-        elif type(data) == t.table.Table:
-            self._set_meta_table(data)
-        # data is pytables File: set file attribute
-        elif isinstance(data, t.file.File):
-            meta_file = data
-        # data is string: create file at location
-        elif type(data) == str:
-            meta_file = create_or_open_pytables_file(data, inMemory=False)
-                
-        if (not hasattr(self, '_meta') or self._meta is None) and meta_file is not None:
-            try:
-                self._meta = meta_file.get_node('/' + table_name)
-            except NoSuchNodeError:
-                self._meta = meta_file.create_table("/", table_name, MetaContainer.MetaDescription)
-                self._meta.flush()
+        if file_name is not None and isinstance(file_name, str):
+            file_name = os.path.expanduser(file_name)
         
-    def _set_meta_table(self, table):
-        if type(table) == t.table.Table:
-            if (not 'date' in table.colnames or
-                not 'category' in table.colnames or
-                not 'name' in table.colnames or
-                not 'value' in table.colnames or
-                not 'description' in table.colnames):
-                raise ValueError("Object already has a meta table, \
-                                  but it does not have all the necessary \
-                                  columns (date, category, name, value, description)")
-            self._meta = table
-        else:
-            raise ValueError("Table is not a MetaContainer table")
+        FileBased.__init__(self, file_name)
         
-    def meta_info(self, name, value, category='', description=''):
+        try:
+            self._meta = self.file.get_node("/" + group_name + "/main")
+            self._meta_values = self.file.get_node("/" + group_name + "/values")
+        except NoSuchNodeError:
+            # create reads group
+            group = self.file.create_group("/", group_name, 'Meta info group',
+                                           filters=t.Filters(complib="blosc",
+                                                             complevel=2, shuffle=True))
+            self._meta = self.file.create_table(group, "main",
+                                                MetaContainer.MetaDescription)
+            self._meta_values = self.file.create_vlarray(group, "values", t.ObjectAtom(),
+                                                         expectedrows=100)
+        
+        self._meta_logger = logging.getLogger(logger_name)
+        self._meta_level_debug = 0
+        self._meta_level_info = 1
+        self._meta_level_warn = 2
+        self._meta_level_error = 3
+    
+    def log_info(self, message, save=True):
+        if save:
+            self.add_meta(message, level=self._meta_level_info)
+        self._meta_logger.info(message)
+    
+    def log_debug(self, message, save=True):
+        if save:
+            self.add_meta(message, level=self._meta_level_debug)
+        self._meta_logger.debug(message)
+    
+    def log_warn(self, message, save=True):
+        if save:
+            self.add_meta(message, level=self._meta_level_warn)
+        self._meta_logger.warn(message)
+    
+    def log_error(self, message, save=True):
+        if save:
+            self.add_meta(message, level=self._meta_level_error)
+        self._meta_logger.error(message)
+    
+    def add_meta(self, message='', name='', value=None, level=0, category=''):
         row = self._meta.row
         
         row['date'] = time.time()
         row['name'] = name
         row['category'] = category
-        row['description'] = description
-        row['value'] = pickle.dumps(value)
-        
+        row['message'] = message
+        row['level'] = level
+        if value is not None:
+            value_ix = len(self._meta_values)
+            row['value'] = value_ix
+            self._meta_values.row.append(value)
+            self._meta_values.flush()
         row.append()
         self._meta.flush()
     
-    def get_meta_info(self, key):
-        if type(key) == int:
+    def get_meta(self, key):
+        if isinstance(key, int):
             row = self._meta[key]
-            return Meta(name=row[3], value=pickle.loads(row[4]), date=row[0], category=row[1], description=row[2])
+            value_ix = row["value"]
+            value = self._meta_values[value_ix]
+            return Meta(date = row["date"], message=row["message"],
+                        name=row["name"], value=value, level=row["level"],
+                        category=row["category"])
+        if isinstance(key, str):
+            metas = []
+            for row in self._meta.where("name == '%s'" % key):
+                row = self._meta[key]
+                value_ix = row["value"]
+                value = self._meta_values[value_ix]
+                meta = Meta(date = row["date"], message=row["message"],
+                            name=row["name"], value=value, level=row["level"],
+                            category=row["category"])
+                metas.append(meta)
+            return metas
         
-    def history(self, n=20):
+    def meta_history(self, n=20):
         """
         Return a list of recent meta_info.
         """
@@ -2311,9 +2340,8 @@ class MetaContainer(object):
         history = []
         i = 1
         while n-i >= 0:
-            history.append(self.get_meta_info(-1*i))
+            history.append(self.get_meta(-1*i))
             i += 1
         
         return history
-    
     
