@@ -1479,15 +1479,53 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         return FragmentMappedReadPairIter()
     
     def __getitem__(self, key):
-        row = self._pairs[key]
-        return self._pair_from_row(row)
+        """
+        Get read pairs directly using int or slice as key.
+        """
+        if isinstance(key, int):
+            row = self._pairs[key]
+            return self._pair_from_row(row)
+        elif isinstance(key, slice):
+            pairs = []
+            for row in self._pairs[key]:
+                pairs.append(self._pair_from_row(row))
+            return pairs
     
     def __len__(self):
+        """
+        Get the number of read pairs in this object.
+        """
         return len(self._pairs)
 
 
 class FragmentRead(object):
+    """
+    Class representing a fragment-mapped read.
+
+    .. attribute: fragment
+
+        A :class:`~kaic.data.genomic.GenomicRegion` delineated by
+        restriction sites.
+
+    .. attribute: position
+
+        The position of this read in base-pairs (1-based) from the
+        start of the chromosome it maps to.
+
+    .. attribute: strand
+
+        The strand this read maps to (-1 or +1).
+    """
     def __init__(self, fragment=None, position=None, strand=0):
+        """
+        Initialize this :class:`~FragmentRead` object.
+
+        :param fragment: A :class:`~kaic.data.genomic.GenomicRegion` delineated by
+                         restriction sites.
+        :param position: The position of this read in base-pairs (1-based) from the
+                         start of the chromosome it maps to.
+        :param strand: The strand this read maps to (-1 or +1).
+        """
         self.fragment = fragment
         self.position = position
         self.strand = strand
@@ -1501,14 +1539,32 @@ class FragmentRead(object):
 
 
 class FragmentReadPair(object):
+    """
+    Container for two paired :class:`~FragmentRead` objects.
+    """
     def __init__(self, left_read, right_read):
         self.left = left_read
         self.right = right_read
     
     def is_same_chromosome(self):
+        """
+        Check if both reads are mapped to the same chromosome.
+
+        :return: True is reads map to the same chromosome, False
+                 otherwise
+        """
         return self.left.fragment.chromosome == self.right.fragment.chromosome
     
     def is_inward_pair(self):
+        """
+        Check if reads form an "inward-facing" pair.
+
+        A pair is considered inward-facing if the left read maps
+        to the plus the right read to the minus strand and both
+        reads map to the same chromosome.
+
+        :return: True is reads are inward-facing, False otherwise
+        """
         if not self.is_same_chromosome():
             return False
         
@@ -1517,6 +1573,15 @@ class FragmentReadPair(object):
         return False
     
     def is_outward_pair(self):
+        """
+        Check if reads form an "outward-facing" pair.
+
+        A pair is considered outward-facing if the left read maps
+        to the minus the right read to the plus strand and both
+        reads map to the same chromosome.
+
+        :return: True is reads are outward-facing, False otherwise
+        """
         if not self.is_same_chromosome():
             return False
         
@@ -1525,6 +1590,12 @@ class FragmentReadPair(object):
         return False
     
     def is_same_pair(self):
+        """
+        Check if reads face in the same direction.
+
+        :return: True if reads map to the same fragment,
+                 False otherwise.
+        """
         if not self.is_same_chromosome():
             return False
         
@@ -1533,9 +1604,25 @@ class FragmentReadPair(object):
         return False
     
     def is_same_fragment(self):
+        """
+        Check if reads map to the same fragment.
+
+        :return: True if reads map to the same fragment,
+                 False otherwise.
+        """
+        if not self.is_same_chromosome():
+            return False
+
         return self.left.fragment.start == self.right.fragment.start
     
     def get_gap_size(self):
+        """
+        Get the gap size between the fragments these reads map to.
+
+        :return: 0 if reads map to the same fragment or neighboring
+                 fragments, the distance between fragments if they
+                 are on the same chromosome, None otherwise
+        """
         if not self.is_same_chromosome():
             return None
         
@@ -1563,6 +1650,24 @@ class FragmentReadPair(object):
 
     
 class FragmentMappedReadPairFilter(MaskFilter):
+    """
+    Abstract class that provides filtering functionality for the
+    :class:`~FragmentReadPair` object.
+
+    Extends MaskFilter and overrides valid(self, read) to make
+    :class:`~FragmentReadPair` filtering more "natural".
+
+    To create custom filters for the :class:`~FragmentMappedReadPairs`
+    object, extend this
+    class and override the :func:`~FragmentMappedReadPairFilter.valid_pair` method.
+    valid_pair should return False for a specific :class:`~FragmentReadPair` object
+    if the object is supposed to be filtered/masked and True
+    otherwise. See :class:`~InwardPairsFilter` for an example.
+
+    Pass a custom filter to the filter method in :class:`~FragmentMappedReadPairs`
+    to apply it.
+    """
+
     __metaclass__ = ABCMeta
     
     def __init__(self, mask=None):
@@ -1577,16 +1682,34 @@ class FragmentMappedReadPairFilter(MaskFilter):
         pass
     
     def valid(self, row):
+        """
+        Map validity check of rows to pairs.
+        """
         pair = self.pairs._pair_from_row(row)
         return self.valid_pair(pair)
 
 
 class InwardPairsFilter(FragmentMappedReadPairFilter):
+    """
+    Filter inward-facing read pairs at a distance less
+    than a specified cutoff.
+    """
     def __init__(self, minimum_distance=10000, mask=None):
+        """
+        Initialize filter with filter settings.
+
+        :param minimum_distance: Minimum distance below which
+                                 reads are invalidated
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
         super(InwardPairsFilter, self).__init__(mask=mask)
         self.minimum_distance = minimum_distance
     
-    def valid_pair(self, pair):        
+    def valid_pair(self, pair):
+        """
+        Check if a pair is inward-facing and <minimum_distance apart.
+        """
         if not pair.is_inward_pair():
             return True
         
@@ -1596,7 +1719,19 @@ class InwardPairsFilter(FragmentMappedReadPairFilter):
 
 
 class OutwardPairsFilter(FragmentMappedReadPairFilter):
+    """
+    Filter outward-facing read pairs at a distance less
+    than a specified cutoff.
+    """
     def __init__(self, minimum_distance=10000, mask=None):
+        """
+        Initialize filter with filter settings.
+
+        :param minimum_distance: Minimum distance below which
+                                 outward-facing reads are invalidated
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
         super(OutwardPairsFilter, self).__init__(mask=mask)
         self.minimum_distance = minimum_distance
     
@@ -1610,11 +1745,19 @@ class OutwardPairsFilter(FragmentMappedReadPairFilter):
 
 
 class ReDistanceFilter(FragmentMappedReadPairFilter):
+    """
+    Filters read pairs where one or both reads are more than
+    maximum_distance away from the nearest restriction site.
+    """
+
     def __init__(self, maximum_distance=500, mask=None):
         super(ReDistanceFilter, self).__init__(mask=mask)
         self.maximum_distance = maximum_distance
     
     def valid_pair(self, pair):
+        """
+        Check if any read is >maximum_distance away from RE site.
+        """
         for read in [pair.left, pair.right]:
             if (read.position - read.fragment.start > self.maximum_distance
                 and read.fragment.end - read.position > self.maximum_distance):
@@ -1623,7 +1766,9 @@ class ReDistanceFilter(FragmentMappedReadPairFilter):
 
 
 def cmp_natural(string1, string2):
-    
+    """
+    Compare two strings the same way that samtools does.
+    """
     def is_digit(char):
         try:
             int(char)
