@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 kaic documentation
-================================
+==================
 
 Contents:
 
@@ -12,6 +12,8 @@ Contents:
    :maxdepth: 2
 
    intro
+   seq
+   genomic
 
 Indices and tables
 ==================

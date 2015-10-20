@@ -1,31 +1,24 @@
-'''
+"""
 Provide basic convenience data types.
 
 Most classes are based on pytables and hdf5 dictionaries,
 allowing on-disk storage and therefore processing of large
 files. Other features include indexing and querying.
-'''
+"""
 
 import tables as t
-import kaic.fixes.pytables_nrowsinbuf_inheritance_fix  # @UnusedImport
-
-_filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
-from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file,\
-    random_name
-import random # @UnusedImport
-import string # @UnusedImport
+import kaic.fixes.pytables_nrowsinbuf_inheritance_fix
+from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file, random_name
 import numpy as np
 import warnings
 import os.path
-import types
 import time
-import pickle
 import logging
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 logging.basicConfig(level=logging.INFO)
-
+_filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
 
 
 def _convert_to_tables_type(col_type, pos=None):
@@ -64,6 +57,7 @@ def _convert_to_tables_type(col_type, pos=None):
             return _typemap[col_type](255,pos=pos)
         return _typemap[col_type](pos=pos)
     raise ValueError("Unknown column type " + str(col_type))
+
 
 def _structured_array_to_table_type(a, rownames=None, colnames=None, return_type=None):
     """
@@ -106,7 +100,6 @@ def _structured_array_to_table_type(a, rownames=None, colnames=None, return_type
             l.append(return_type.from_row(row))
         return l
     
-
 
 def _to_list_and_names(a):
     """
@@ -232,7 +225,7 @@ def _file_to_data(file_name, sep="\t", has_header=None, types=None):
                     previous = previous[1:]
     
                 if types is not None:
-                    for i in range(0,len(previous)):
+                    for i in range(0, len(previous)):
                         previous[i] = types[i](previous[i])
     
                 data.append(previous)
@@ -246,7 +239,7 @@ def _file_to_data(file_name, sep="\t", has_header=None, types=None):
             previous = previous[1:]
 
         if types is not None:
-            for i in range(0,len(previous)):
+            for i in range(0, len(previous)):
                 previous[i] = types[i](previous[i])
         data.append(previous)
 
@@ -260,7 +253,7 @@ class FileBased(object):
             if not isinstance(self.file, t.file.File):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
         else:
-            if file_name == None:
+            if file_name is None:
                 self.file = create_or_open_pytables_file()
             elif type(file_name) == str:
                 self.file = create_or_open_pytables_file(file_name, inMemory=False)
@@ -282,18 +275,15 @@ class TableRow(tuple):
     functionality is there.
     """
     
-    def __new__(cls, t, rowname=None, colnames=None):
-        obj = super(TableRow, cls).__new__(cls, tuple(t))
+    def __new__(cls, t_tuple, rowname=None, colnames=None):
+        obj = super(TableRow, cls).__new__(cls, tuple(t_tuple))
         obj.rowname = rowname
         obj.colnames = colnames
-        obj._colnames_dict = {colnames[i]:i for i in range(0,len(colnames))}
+        obj._colnames_dict = {colnames[i]:i for i in range(0, len(colnames))}
         return obj
 
-    def __init__(self, t, rowname='0', colnames=None):
-        pass
-
     # BUG FIX in python
-    def __getslice__(self, start, stop) :
+    def __getslice__(self, start, stop):
         return self.__getitem__(slice(start, stop))
 
     def _get_cols(self, key):
@@ -360,7 +350,7 @@ class TableCol(np.ndarray):
         self.rownames = getattr(obj, 'rownames', None)
 
     # BUG FIX in python
-    def __getslice__(self, start, stop) :
+    def __getslice__(self, start, stop):
         return self.__getitem__(slice(start, stop))
 
     def __getitem__(self, key):
@@ -396,6 +386,7 @@ class TableCol(np.ndarray):
             return self.__getitem__(name)
         raise AttributeError
 
+
 class TableArray(np.ndarray):
     """
     Simplified Table version without pytables backing.
@@ -405,7 +396,6 @@ class TableArray(np.ndarray):
     querying, or saving to file.
     """
     
-    
     def __new__(cls, array, colnames=None, rownames=None):
         obj = array.view(cls)
         # may set additional attributes (row names, etc)
@@ -413,10 +403,10 @@ class TableArray(np.ndarray):
         # obj.foo = foo
         obj.colnames=colnames
         if colnames is not None:
-            obj._colnames_dict = {colnames[i]:i for i in range(0,len(colnames))}
+            obj._colnames_dict = {colnames[i]:i for i in range(0, len(colnames))}
         obj.rownames=rownames
         if rownames is not None:
-            obj._rownames_dict = {rownames[i]:i for i in range(0,len(rownames))}
+            obj._rownames_dict = {rownames[i]:i for i in range(0, len(rownames))}
 
         return obj
 
@@ -451,9 +441,8 @@ class TableArray(np.ndarray):
             return self._get_cols(name)
         raise AttributeError
 
-    def __getslice__(self, start, stop) :
+    def __getslice__(self, start, stop):
         return self.__getitem__(slice(start, stop))
-
 
     def _get_rows(self, key):
         rn = []
@@ -486,7 +475,6 @@ class TableArray(np.ndarray):
         except TypeError:
             pass
 
-
         # regular index or slice
         rows = super(TableArray, self).__getitem__(key)
 
@@ -511,7 +499,6 @@ class TableArray(np.ndarray):
 
         rn = self.rownames[key]
         return _structured_array_to_table_type(a, colnames=self.colnames, rownames=rn)
-
 
     def _get_cols(self, key):
         cn = []
@@ -540,34 +527,29 @@ class TableArray(np.ndarray):
                 cn.append(name)
 
                 try:
-                    dtypes.append((name,dtype[key[i]]))
+                    dtypes.append((name, dtype[key[i]]))
                 except KeyError:
                     dtypes = dtype
 
-
             a = np.zeros((len(self),), dtype=dtypes)
-            a[:] = [tuple([super(TableArray, self).__getitem__(i)[k] for k in key]) for i in range(0,len(self))]
+            a[:] = [tuple([super(TableArray, self).__getitem__(i)[k] for k in key]) for i in range(0, len(self))]
 
             return _structured_array_to_table_type(a, colnames=cn, rownames=self.rownames)
 
         except TypeError:
             pass
 
-
         try:
             dtypes = dtype[key]
         except KeyError:
-            dtypes=dtype
+            dtypes = dtype
 
-
-        b = [(super(TableArray, self).__getitem__(i)[key],) for i in range(0,len(self))]
+        b = [(super(TableArray, self).__getitem__(i)[key],) for i in range(0, len(self))]
         name = self.colnames[key]
         mydt = np.dtype([(name,str(dtypes))])
         a = np.array(b,dtype=mydt)
 
         return _structured_array_to_table_type(a, colnames=name, rownames=self.rownames)
-
-
 
     def dim(self):
         """
@@ -575,8 +557,9 @@ class TableArray(np.ndarray):
         """
         
         if len(self) > 0:
-            return (len(self), len(super(TableArray, self).__getitem__(0)))
-        return (len(self),0)
+            return len(self), len(super(TableArray, self).__getitem__(0))
+        return len(self), 0
+
 
 class TableObject(object):
     __metaclass__ = ABCMeta
@@ -591,7 +574,8 @@ class TableObject(object):
             return self.__getattribute__(key)
         except AttributeError:
             raise IndexError("No item " + str(key) + " in object")
-    
+
+
 class Table(object):
     """
     Table class for saving ad accessing tabular data.
@@ -687,7 +671,7 @@ class Table(object):
             if not isinstance(self.file, t.file.File):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
         else:
-            if file_name == None:
+            if file_name is None:
                 file_name = random_name()
                 self.file = create_or_open_pytables_file(file_name, inMemory=True)
             elif type(file_name) == str:
@@ -719,7 +703,7 @@ class Table(object):
             for i in range(len(col_types), ncols):
                 col_types.append(default_type)
 
-            #rows
+            # rows
             if rownames is not None:
                 nrows = max(nrows, len(rownames))
             else:
@@ -733,8 +717,8 @@ class Table(object):
 
             self._table_name = table_name
 
-            columns_dict = {}
-            columns_dict[self._rowname_field] = t.StringCol(50,pos=0) # @UndefinedVariable
+            columns_dict = dict()
+            columns_dict[self._rowname_field] = t.StringCol(50, pos=0)
             
             for i, colname in enumerate(colnames):
                 columns_dict[colname] = _convert_to_tables_type(col_types[i], pos=i+1)
@@ -826,8 +810,7 @@ class Table(object):
                         o.write(sep)
                     else:
                         o.write("\n")
-                
-        
+
     def close(self):
         """
         Close the underlying hdf5 dictionary file.
@@ -934,14 +917,13 @@ class Table(object):
                     d[self._rowname_field] = len(self)
             for name in d:
                 row[name] = d[name]
-        except (TypeError,KeyError,AttributeError,IndexError, ValueError):
+        except (TypeError, KeyError, AttributeError, IndexError, ValueError):
             raise TypeError("d is not a dictionary")
 
         row.append()
 
         if flush:
             self._table.flush()
-
 
     def append(self, data, rownames=None):
         """
@@ -1006,7 +988,6 @@ class Table(object):
         except TypeError:
             pass
         
-        
         try:
             rowname = rownames[0]
         except TypeError:
@@ -1026,8 +1007,6 @@ class Table(object):
         except TypeError:
             raise ValueError("Data type unsupported")
 
-
-
     def __len__(self):
         return len(self._table)
 
@@ -1035,8 +1014,7 @@ class Table(object):
         """
         Return the number of rows and columns as a tuple
         """
-        return (len(self), len(self._table.colnames)-1)
-    
+        return len(self), len(self._table.colnames)-1
 
     def __repr__(self, *args, **kwargs):
         # find out maximum column width
@@ -1056,7 +1034,6 @@ class Table(object):
             r += s.rjust(max_col_width[j]) + " "
         r += "\n"
 
-
         for i in range(0,min(show,len(self))):
             for j in range(0,len(max_col_width)):
                 s = str(self._table[i][j])
@@ -1071,7 +1048,6 @@ class Table(object):
             for j in range(1,len(self._table.colnames)):
                 r += '...'.rjust(max_col_width[j]) + ' '
             r += '\n%d rows' % len(self)
-
 
         return r
 
@@ -1092,7 +1068,6 @@ class Table(object):
             cn.append(name)
             dt = str(table_dtypes[name])
             dtypes.append((name,dt))
-
 
         l = []
         # "rowname" or [] or ["rowname1", "rowname2", ...] or [1, 3, ...]
@@ -1128,8 +1103,6 @@ class Table(object):
                         rn.append(row[0])
                         l.append(tuple(row)[1:])
 
-
-
         # regular index or slice
         else:
             rows = self._table[key]
@@ -1156,8 +1129,6 @@ class Table(object):
         if use_row_type:
             return _structured_array_to_table_type(a, rownames=rn, colnames=cn, return_type=self._row_type)
         return _structured_array_to_table_type(a, rownames=rn, colnames=cn)
-
-
 
     def _get_cols(self, key):
         cn = []
@@ -1197,7 +1168,6 @@ class Table(object):
                 dt = self._table[0:0].dtype[k]
                 dtypes.append((k,dt))
 
-
             cn = keys
             a = np.zeros((len(self),), dtype=dtypes)
             a[:] = [tuple([x[k] for k in keys]) for x in self._table.iterrows()]
@@ -1207,7 +1177,6 @@ class Table(object):
             raise IndexError("Cannot retrieve column with value " + str(key))
 
         return _structured_array_to_table_type(a, rownames=rn, colnames=cn)
-
 
     def __getitem__(self, key):
 
@@ -1243,7 +1212,6 @@ class Table(object):
             return self._get_cols(name)
         return self.__getattribute__(name)
 
-
     def __iter__(self):
         low = 0
         high = len(self)-1
@@ -1264,13 +1232,11 @@ class Table(object):
 
         return Iter(low,high)
 
-
     def as_array(self):
         """
         Return table as numpy record array.
         """
         return self[:]
-
 
     def where(self, query):
         """
@@ -1314,7 +1280,6 @@ class Table(object):
         return _structured_array_to_table_type(a, rownames=rn, colnames=cn, return_type=self._row_type)
 
 
-
 class Mask(object):
     """
     Class providing Mask details.
@@ -1324,6 +1289,7 @@ class Mask(object):
         self.ix = ix
         self.name = name
         self.description = description
+
 
 class Maskable(object):
     """
@@ -1357,10 +1323,9 @@ class Maskable(object):
     
     class MaskDescription(t.IsDescription):
         ix = t.Int16Col(pos=0)
-        name = t.StringCol(50,pos=1)
-        description = t.StringCol(255,pos=2)
-    
-    
+        name = t.StringCol(50, pos=1)
+        description = t.StringCol(255, pos=2)
+
     def __init__(self, data=None, table_name="mask"):
         """
         Enable recording of masking in pytables-backed object.
@@ -1393,7 +1358,6 @@ class Maskable(object):
         """
         
         super(Maskable, self).__init__()
-        
 
         # check what we have in data
         mask_file = None
@@ -1425,16 +1389,11 @@ class Maskable(object):
             except NoSuchNodeError:
                 self._mask = mask_file.create_table("/", table_name, Maskable.MaskDescription)
                 row = self._mask.row
-                #row['ix'] = 0
-                #row['name'] = 'unmasked'
-                #row['description'] = 'Not masked'
-                #row.append()
                 row['ix'] = 0
                 row['name'] = 'default'
                 row['description'] = 'Default mask'
                 row.append()
                 self._mask.flush()
-
         
     def _set_mask_table(self, table):
         if type(table) == t.table.Table:
@@ -1447,9 +1406,7 @@ class Maskable(object):
             self._mask = table
         else:
             raise ValueError("Table is not a MaskDescription table")
-    
-    
-        
+
     def add_mask_description(self, name, description):
         """
         Add a mask description to the _mask table and return its ID.
@@ -1471,7 +1428,7 @@ class Maskable(object):
         row.append()
         self._mask.flush()
         
-        return Mask(ix,name,description)
+        return Mask(ix, name, description)
     
     def get_mask(self, key):
         """
@@ -1525,256 +1482,7 @@ class Maskable(object):
             masks.append(self.get_mask(0))
         
         return list(reversed(masks))
-    
-def to_masked_table(table, maskable=None):
-    """
-    Monkey-patch existing pytables Table to a maskable Table.
-    """
-    
-    if not isinstance(table, t.Table):
-        raise ValueError("table must be pytables Table!")
-    
-    logging.info("Checking table")    
-    # check if table has necessary columns
-    if not 'mask' in table.colnames:
-        raise ValueError("Table must have 'mask' field")
-    if not 'mask_ix' in table.colnames:
-        raise ValueError("Won't be able to access masked table by index (add 'mask_ix' field!)")
-    
-    # create index
-    if not table.cols.mask_ix.is_indexed:
-        logging.info("Creating index...")
-        table.cols.mask_ix.create_index()
-        table.flush()
-    
-    table._queued_filters = []
-    
-    # new index update method
-    def _update_ix(self):
-        """
-        Update the row indexes of the masked table.
-        
-        Should be run after masking. Will assign auto-
-        incrementing integers (from 0) to the 'mask_ix'
-        field of each row in the table if it is not 
-        masked, -1 otherwise.
-        """
-        
-        logging.info("Updating mask indices")
-        
-        ix = 0
-        masked_ix = -1
-        for row in self:
-            if row['mask'] > 0:
-                row['mask_ix'] = masked_ix
-                masked_ix -= 1
-            else:
-                row['mask_ix'] = ix
-                ix += 1
-            row.update()
-    
-    table._update_ix = types.MethodType(_update_ix, table)
-    
-    # monkey-patch flush method
-    def new_flush(self, update_index=True, _original_flush=table.flush):
-        """
-        Flush buffered data to table AND potentially update mask index.
-        """
-        
-        logging.info("Flushing")
-        
-        # commit any previous changes
-        _original_flush()
-        
-        if update_index:
-            self._update_ix()
-            if not self.autoindex:
-                self.flush_rows_to_index()
-            
-            # commit index changes
-            _original_flush()
-    
-    flush_functype = type(table.flush)
-    table.flush = flush_functype(new_flush, table, t.Table)
-    
-    # monkey-patch built-in methods
-    def masked_iter(self):
-        this = self
-        class UnmaskedIter:
-            def __init__(self):
-                self.iter = this.__iter__()
-                  
-            def __iter__(self):
-                return self
-              
-            def next(self):
-                row = self.iter.next()
-                while row['mask'] > 0:
-                    row = self.iter.next()
-                return row.fetch_all_fields()
-        return UnmaskedIter()
-    
-    table.masked_iter = types.MethodType(masked_iter, table)
-      
-    def masked_getitem(self, key):
-        if type(key) == int:
-            if key >= 0:
-                res = [x.fetch_all_fields() for x in self.where("mask_ix == %d" % key)]
-                if len(res) == 1:
-                    return res[0]
-                if len(res) == 0:
-                    raise IndexError("Index %d out of bounds" % key)
-                raise RuntimeError("Duplicate row for key %d" % key)
-            else:
-                l = self.masked_len()
-                return self.masked_getitem(l+key)
-        elif type(key) == slice:
-            res = []
-            # set sensible defaults
-            start = key.start
-            if start is None:
-                start = 0
-            stop = key.stop
-            if stop is None:
-                stop = self.masked_len()
-            step = key.step
-            if step is None:
-                step = 1
-                  
-            for i in range(start,stop,step):
-                res.append(self.masked_getitem(i))
-            return res
-        else:
-            raise KeyError('Cannot retrieve row with key ' + str(key))
-        
-    table.masked_getitem = types.MethodType(masked_getitem, table)
-      
-    def masked_len(self):
-        """
-        Return the 'perceived' length of the masked table.
-          
-        If the table has masked rows, these will not be counted.
-        """
-        logging.info("Calculating perceived length")
-        return sum(1 for _ in iter(self.where("mask_ix >= 0")))
-    
-    table.masked_len = types.MethodType(masked_len, table)
-    
-    
-    # add more useful methods
-    def new_filter(self, mask_filter):
-        """
-        Run a MaskFilter on this table.
-        
-        This functions calls the MaskFilter.valid function on
-        every row and masks them if the function returns False.
-        After running the filter, the table index is updated
-        to match only unmasked rows.
-        """
 
-        total = 0
-        ix = 0
-        mask_ix = -1
-        for row in self:
-            total += 1
-            
-            if not mask_filter.valid(row):
-                row['mask'] = row['mask'] + 2**mask_filter.mask_ix
-            
-            # update index
-            if row['mask'] > 0:
-                row['mask_ix'] = mask_ix
-                mask_ix -= 1
-            else:
-                row['mask_ix'] = ix
-                ix += 1
-            row.update()
-        
-        logging.info("Done filtering")
-        self.flush(update_index=False)
-        
-    table.filter = types.MethodType(new_filter, table)
-
-    def queue_filter(self, filter_definition):
-        """
-        Add a MaskFilter to filter queue.
-        
-        Queued filters can be run at a later time using
-        the run_queued_filters function.
-        """
-        self._queued_filters.append(filter_definition)
-        
-    table.queue_filter = types.MethodType(queue_filter, table)
-        
-    def run_queued_filters(self):
-        """
-        Run queued MaskFilters.
-        
-        MaskFilters can be queued using the
-        queue_filter function.
-        """
-                
-        ix = 0
-        mask_ix = -1
-        for row in self:
-            for f in self._queued_filters:
-                if not f.valid(row):
-                    row['mask'] = row['mask'] + 2**f.mask_ix
-                    
-            # update index
-            if row['mask'] > 0:
-                row['mask_ix'] = mask_ix
-                mask_ix -= 1
-            else:
-                row['mask_ix'] = ix
-                ix += 1
-            row.update()
-        
-        logging.info("Done filtering")
-        self.flush(update_index=False)
-    
-    table.run_queued_filters = types.MethodType(run_queued_filters, table)
-    
-    def masked_rows(self):
-        """
-        Return an iterator over masked rows.
-        """
-        
-        this = self
-        class FilteredIter:
-            def __init__(self):
-                self.iter = this.__iter__()
-                
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                row = self.iter.next()
-                while row['mask'] == 0:
-                    row = self.iter.next()
-                return row.fetch_all_fields()
-            
-            def __getitem__(self, key):
-                if type(key) == int:
-                    if key >= 0:
-                        key = -1*key - 1
-                        res = [x.fetch_all_fields() for x in this.where("mask_ix == %d" % key)]
-                        if len(res) == 1:
-                            return res[0]
-                        if len(res) == 0:
-                            raise IndexError("Index %d out of bounds" % key)
-                        raise RuntimeError("Duplicate row for key %d" % key)
-                    else:
-                        l = this.masked_len()
-                        return self[l+key]
-                else:
-                    raise KeyError('Cannot retrieve row with key ' + str(key))
-        return FilteredIter()
-    
-    table.masked_rows = types.MethodType(masked_rows, table)
-    
-    table.flush()
-    logging.info("Done preparing table")
     
 class MaskedTable(t.Table):
     """
@@ -1811,7 +1519,7 @@ class MaskedTable(t.Table):
     
     def __init__(self, parentnode, name, description=None,
                  title="", filters=None, expectedrows=None,
-                 chunkshape=None, byteorder=None, _log=True,
+                 chunkshape=None, byteorder=None, _log=False,
                  mask_field='_mask', mask_index_field='_mask_ix'):
         """
         Pytables Table extension to provide masking functionality.
@@ -1854,10 +1562,12 @@ class MaskedTable(t.Table):
             masked_description = None
                 
         t.Table.__init__(self, parentnode, name,
-                        description=masked_description, title=title,
-                        filters=filters,
-                        expectedrows=expectedrows,
-                        _log=False)
+                         description=masked_description, title=title,
+                         filters=filters,
+                         expectedrows=expectedrows,
+                         _log=_log,
+                         chunkshape=chunkshape,
+                         byteorder=byteorder)
         
         mask_ix_col = getattr(self.cols, self._mask_index_field)
         if not mask_ix_col.is_indexed:
@@ -1886,6 +1596,7 @@ class MaskedTable(t.Table):
     
     def iterrows(self, start=None, stop=None, step=None):
         this = self
+
         class VisibleIter:
             def __init__(self):
                 self.iter = t.Table.iterrows(this, start, stop, step)
@@ -2006,7 +1717,7 @@ class MaskedTable(t.Table):
             total += 1
             
             if not mask_filter.valid(row):
-                row[self._mask_field] = row[self._mask_field] + 2**mask_filter.mask_ix
+                row[self._mask_field] += 2**mask_filter.mask_ix
             
             # update index
             if row[self._mask_field] > 0:
@@ -2020,7 +1731,7 @@ class MaskedTable(t.Table):
             if _logging:
                 if (i/l) > last_percent:
                     logging.info("%d%..." % last_percent * 100)
-                    last_percent = last_percent + 0.05
+                    last_percent += + 0.05
                     
         self.flush(update_index=False)
 
@@ -2048,7 +1759,7 @@ class MaskedTable(t.Table):
         for i, row in enumerate(self._iter_visible_and_masked()):
             for f in self._queued_filters:
                 if not f.valid(row):
-                    row[self._mask_field] = row[self._mask_field] + 2**f.mask_ix
+                    row[self._mask_field] += 2**f.mask_ix
                     
             # update index
             if row[self._mask_field] > 0:
@@ -2062,7 +1773,7 @@ class MaskedTable(t.Table):
             if _logging:
                 if (i/l) > last_percent:
                     logging.info("%d%..." % last_percent * 100)
-                    last_percent = last_percent + 0.05
+                    last_percent += 0.05
         self.flush(update_index=False)
     
     def all(self):
@@ -2079,8 +1790,8 @@ class MaskedTable(t.Table):
         """
         Return an iterator over masked rows.
         """
-        
         this = self
+
         class FilteredIter:
             def __init__(self):
                 self.iter = this._iter_visible_and_masked()
@@ -2116,6 +1827,7 @@ class MaskedTable(t.Table):
         condition = "(" + condition + ") & (%s >= 0)" % self._mask_index_field
         return super(MaskedTable, self).where(condition, condvars=None,
                                               start=None, stop=None, step=None)
+
 
 class MaskFilter(object):
     """
@@ -2198,7 +1910,7 @@ class Meta(object):
         return "%s %s: %s" % (str(self.date), self.name, self.message)
 
 
-class MetaContainer(object):
+class MetaContainer(FileBased):
     """
     Class that provides recording of meta-information.
     """
@@ -2206,10 +1918,10 @@ class MetaContainer(object):
     class MetaDescription(t.IsDescription):
         date = t.Float32Col(pos=0)
         level = t.Int16Col(pos=1)
-        name = t.StringCol(50,pos=2)
-        category = t.StringCol(50,pos=3)
-        message = t.StringCol(255,pos=4)
-        value = t.Int32Col(pos=5)
+        name = t.StringCol(50, pos=2)
+        category = t.StringCol(50, pos=3)
+        message = t.StringCol(255, pos=4)
+        value = t.Int32Col(pos=5, dflt=-1)
     
     def __init__(self, data=None, file_name=None,
                  group_name='meta', logger_name="meta"):
@@ -2306,26 +2018,29 @@ class MetaContainer(object):
         if value is not None:
             value_ix = len(self._meta_values)
             row['value'] = value_ix
-            self._meta_values.row.append(value)
+            self._meta_values.append(value)
             self._meta_values.flush()
         row.append()
         self._meta.flush()
     
     def get_meta(self, key):
+
         if isinstance(key, int):
             row = self._meta[key]
             value_ix = row["value"]
-            value = self._meta_values[value_ix]
-            return Meta(date = row["date"], message=row["message"],
+            if value_ix >= 0:
+                value = self._meta_values[value_ix]
+            else:
+                value = None
+            return Meta(date=row["date"], message=row["message"],
                         name=row["name"], value=value, level=row["level"],
                         category=row["category"])
         if isinstance(key, str):
             metas = []
             for row in self._meta.where("name == '%s'" % key):
-                row = self._meta[key]
                 value_ix = row["value"]
                 value = self._meta_values[value_ix]
-                meta = Meta(date = row["date"], message=row["message"],
+                meta = Meta(date=row["date"], message=row["message"],
                             name=row["name"], value=value, level=row["level"],
                             category=row["category"])
                 metas.append(meta)
@@ -2336,12 +2051,10 @@ class MetaContainer(object):
         Return a list of recent meta_info.
         """
         
-        n = min(len(self._meta), n)
+        n = min(len(self._meta)-1, n)
         history = []
-        i = 1
-        while n-i >= 0:
-            history.append(self.get_meta(-1*i))
-            i += 1
+        while n > 0:
+            history.append(self.get_meta(n))
+            n -= 1
         
         return history
-    

@@ -1,11 +1,10 @@
-
 import tables as t
 from tables.registry import class_id_dict
 import numpy as np
 import pytest
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
     TableArray, _convert_to_tables_type, _structured_array_to_table_type,\
-    _file_to_data, Mask, Maskable, MaskedTable, MaskFilter, to_masked_table
+    _file_to_data, Mask, Maskable, MaskedTable, MaskFilter, MetaContainer
 from __builtin__ import classmethod
 import os
 from kaic.tools.files import create_or_open_pytables_file
@@ -932,97 +931,23 @@ class TestMaskedTable:
         for row in self.filtered_table.masked_rows():
             assert row[self.table._mask_index_field] == masked_ix
             masked_ix -= 1
-            
 
-class TestMonkeyMaskedTable:
-    class ExampleFilter(MaskFilter):
-        def __init__(self, cutoff=25):
-            super(TestMaskedTable.ExampleFilter, self).__init__()
-            self.cutoff = cutoff
-            
-        def valid(self, test):
-            if test['b'] < self.cutoff:
-                return False
-            return True
-            
-    @classmethod
+
+class TestMeta:
     def setup_method(self, method):
-        f = create_or_open_pytables_file(inMemory=True)
-        test_description = {
-            'a': t.StringCol(50,pos=0),
-            'b': t.Int32Col(pos=1),
-            'c': t.Float32Col(pos=2),
-            'mask': t.Int16Col(pos=3),
-            'mask_ix': t.Int32Col(pos=4)
-        }
-        self.table = f.create_table("/", "test", test_description)
-        to_masked_table(self.table)
-        
-        row = self.table.row
-        for i in range(0,50):
-            row['a'] = "test_%d" % i 
-            row['b'] = 0 + i
-            row['c'] = 0.0 + i
-            row.append()
-        
-        self.table.flush()
-        
-        self.filtered_table = f.create_table("/", "test_filter", test_description)
-        to_masked_table(self.filtered_table)
-        
-        row = self.filtered_table.row
-        for i in range(0,50):
-            row['a'] = "test_%d" % i 
-            row['b'] = 0 + i
-            row['c'] = 0.0 + i
-            row.append()
-        
-        self.filtered_table.flush()
-        
-        self.filtered_table.filter(TestMaskedTable.ExampleFilter())
-        
-        
-    def test_initialize(self):
-        assert len(self.table) == 50
-        for i in range(0,50):
-            assert self.table[i][4] == i
-    
-    def test_len(self):
-        assert self.filtered_table.masked_len() == 25
-    
-    def test_select(self):
-        # single positive index        
-        assert self.filtered_table.masked_getitem(0)[1] == 25
-        # single negative index
-        assert self.filtered_table.masked_getitem(-1)[1] == 49
-        # slice
-        x = self.filtered_table.masked_getitem(slice(1,3,1))
-        assert np.array_equal(tuple(x[0]), ('test_26',26,26.0,0,1))
-        assert np.array_equal(tuple(x[1]), ('test_27',27,27.0,0,2))
-    
-    
-    def test_filter(self):
-        self.table.filter(TestMaskedTable.ExampleFilter())
-        
-        i = 0
-        masked_i = -1
-        for row in self.table:
-            if row['mask'] > 0:
-                assert row['mask_ix'] == masked_i
-                assert row['mask'] == 1
-                masked_i -= 1
-            else:
-                assert row['mask_ix'] == i
-                i += 1
-            
-    def test_masked(self):
-        assert self.filtered_table.masked_rows()[0][1] == 0
-        assert self.filtered_table.masked_rows()[-1][1] == 24
-        
-        masked_ix = -1
-        for row in self.filtered_table.masked_rows():
-            assert row['mask_ix'] == masked_ix
-            masked_ix -= 1
+        self.meta = MetaContainer()
+
+    def test_add_and_get(self):
+        self.meta.add_meta("test", "test_name", 34, 0, "testing")
+        meta_info = self.meta.get_meta(0)
+
+    def test_history(self):
+        self.meta.log_info("test1")
+        self.meta.log_warn("test2")
+        self.meta.log_error("test3")
+        self.meta.log_debug("test4")
+
+        history = self.meta.meta_history()
 
 
 class RegisteredTable(t.Table):
@@ -1040,6 +965,7 @@ class RegisteredTable(t.Table):
         t.Table.__init__(self, parentnode, name, description,
                          title, filters, expectedrows, chunkshape,
                          byteorder, _log)
+
 
 class TestPytablesInheritance:
     class MinTable(t.Table):
