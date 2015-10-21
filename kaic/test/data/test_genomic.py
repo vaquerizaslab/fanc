@@ -5,7 +5,7 @@ Created on Jun 29, 2015
 '''
 
 import numpy as np
-from kaic.data.genomic import Chromosome, Genome, HicBasic, HicNode, HicEdge,\
+from kaic.data.genomic import Chromosome, Genome, Hic, HicNode, HicEdge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao
 import os.path
 import pytest
@@ -157,7 +157,7 @@ class TestHicBasic:
     def setup_method(self, method):
         self.dir = os.path.dirname(os.path.realpath(__file__))
         
-        hic = HicBasic()
+        hic = Hic()
         
         # add some nodes (120 to be exact)
         nodes = []
@@ -181,7 +181,7 @@ class TestHicBasic:
         
         self.hic = hic
         
-        self.hic_cerevisiae = HicBasic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.hic")
+        self.hic_cerevisiae = Hic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.hic")
     
     def teardown_method(self, method):
         self.hic_cerevisiae.close()
@@ -191,14 +191,14 @@ class TestHicBasic:
         current_dir = os.path.dirname(os.path.realpath(__file__))
         
         # from XML
-        hic1 = HicBasic(current_dir + "/test_genomic/hic.example.xml")
+        hic1 = Hic(current_dir + "/test_genomic/hic.example.xml")
         nodes1 = hic1.nodes()
         edges1 = hic1.edges()
         assert len(nodes1) == 2
         assert len(edges1) == 1
     
     def test_initialize_empty(self):
-        hic = HicBasic()
+        hic = Hic()
         nodes = hic.nodes()
         edges = hic.edges()
         assert len(nodes) == 0
@@ -209,14 +209,14 @@ class TestHicBasic:
         dest_file = str(tmpdir) + "/hic.h5" 
         
         # from XML
-        hic1 = HicBasic(current_dir + "/test_genomic/hic.example.xml", file_name=dest_file)
+        hic1 = Hic(current_dir + "/test_genomic/hic.example.xml", file_name=dest_file)
         hic1.close()
         
 #         from subprocess import check_output
 #         print check_output(["h5dump", dest_file])
 #         print class_id_dict
         
-        hic2 = HicBasic(dest_file)
+        hic2 = Hic(dest_file)
         nodes2 = hic2.nodes()
         edges2 = hic2.edges()
         assert len(nodes2) == 2
@@ -399,7 +399,7 @@ class TestHicBasic:
     
     def test_set_matrix(self):
         
-        hic = HicBasic(self.hic)
+        hic = Hic(self.hic)
         
         # whole matrix
         old = hic[:,:]
@@ -417,7 +417,7 @@ class TestHicBasic:
                     assert m[i,j] == old[i,j]
         
         # central matrix
-        hic = HicBasic(self.hic)
+        hic = Hic(self.hic)
         old = hic[2:8,2:10]
         # set border elements to zero
         # set checkerboard pattern
@@ -444,7 +444,7 @@ class TestHicBasic:
                 else:
                     assert m[i,j] == old[i,j]
         
-        hic = HicBasic(self.hic)
+        hic = Hic(self.hic)
         # row
         old = hic[1,2:10]
         for i in range(0,8,2):
@@ -454,7 +454,7 @@ class TestHicBasic:
         assert np.array_equal(hic[1,:], [2,13,0,15,0,17,0,19,0,21,22,23])
         assert np.array_equal(hic[:,1], [2,13,0,15,0,17,0,19,0,21,22,23])
         
-        hic = HicBasic(self.hic)
+        hic = Hic(self.hic)
         # col
         old = hic[2:10,1]
         for i in range(0,8,2):
@@ -465,7 +465,7 @@ class TestHicBasic:
         assert np.array_equal(hic[:,1], [2,13,0,15,0,17,0,19,0,21,22,23])
         
         # individual
-        hic = HicBasic(self.hic)
+        hic = Hic(self.hic)
         hic[2,1] = 0
         assert hic[2,1] == 0
         assert hic[1,2] == 0
@@ -481,7 +481,7 @@ class TestHicBasic:
         pass
     
     def test_merge(self):
-        hic = HicBasic()
+        hic = Hic()
         
         # add some nodes (120 to be exact)
         nodes = []
@@ -541,8 +541,8 @@ class TestHicBasic:
         
         pl = len(pairs)
         
-        hic = HicBasic()
-        hic._from_read_fragment_pairs(pairs, _max_buffer_size=1000)
+        hic = Hic()
+        hic.load_read_fragment_pairs(pairs, _max_buffer_size=1000)
         
         assert len(hic._regions) == len(pairs._regions)
         
@@ -671,10 +671,10 @@ class TestHicBasic:
             original_reads += edge.weight
         
         def assert_binning(hic, bin_size, buffer_size):
-            binned = HicBasic()
+            binned = Hic()
             assert len(binned.nodes()) == 0
             binned.add_regions(genome.get_regions(bin_size))
-            binned._from_hic(self.hic_cerevisiae, _edge_buffer_size=buffer_size)
+            binned.load_from_hic(self.hic_cerevisiae, _edge_buffer_size=buffer_size)
             
             new_reads = 0
             for edge in binned.edges():
@@ -697,20 +697,20 @@ class TestHicBasic:
                 assert_binning(self.hic_cerevisiae, bin_size, buffer_size)
         
     def test_from_hic_sample(self):
-        hic = HicBasic()
+        hic = Hic()
         hic.add_region(GenomicRegion(chromosome='chr1',start=1,end=100))
         hic.add_region(GenomicRegion(chromosome='chr1',start=101,end=200))
         hic.add_edge([0,0,12])
         hic.add_edge([0,1,36])
         hic.add_edge([1,1,24])
         
-        binned = HicBasic()
+        binned = Hic()
         binned.add_region(GenomicRegion(chromosome='chr1', start=1, end=50))
         binned.add_region(GenomicRegion(chromosome='chr1', start=51, end=100))
         binned.add_region(GenomicRegion(chromosome='chr1', start=101, end=150))
         binned.add_region(GenomicRegion(chromosome='chr1', start=151, end=200))
         
-        binned._from_hic(hic, _edge_buffer_size=1000)
+        binned.load_from_hic(hic, _edge_buffer_size=1000)
         
         original_reads = 0
         for edge in hic.edges():
@@ -728,14 +728,41 @@ class TestHicBasic:
         # make sure that the total number
         # of reads stays the same
         assert original_reads == new_reads
+
+    def test_builtin_bin(self):
+        hic = Hic()
+        hic.add_region(GenomicRegion(chromosome='chr1',start=1,end=100))
+        hic.add_region(GenomicRegion(chromosome='chr1',start=101,end=200))
+        hic.add_edge([0,0,12])
+        hic.add_edge([0,1,36])
+        hic.add_edge([1,1,24])
+
+        binned = hic.bin(50)
+
+        original_reads = 0
+        for edge in hic.edges():
+            original_reads += edge.weight
+
+        new_reads = 0
+        for edge in binned.edges():
+            new_reads += edge.weight
+
+        # search for duplicated edges
+        edge_dict = {}
+        for edge in binned.edges():
+            assert (edge.source, edge.sink) not in edge_dict
+
+        # make sure that the total number
+        # of reads stays the same
+        assert original_reads == new_reads
         
     def test_knight_matrix_balancing(self):
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
         
-        hic = HicBasic()
+        hic = Hic()
         hic.add_regions(genome.get_regions(10000))
-        hic._from_hic(self.hic_cerevisiae)
+        hic.load_from_hic(self.hic_cerevisiae)
         
         m = hic[:,:]
         assert is_symmetric(m)
@@ -753,9 +780,9 @@ class TestHicBasic:
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
         
-        hic = HicBasic()
+        hic = Hic()
         hic.add_regions(genome.get_regions(10000))
-        hic._from_hic(self.hic_cerevisiae)
+        hic.load_from_hic(self.hic_cerevisiae)
         
         m = hic[:,:]
         assert is_symmetric(m)

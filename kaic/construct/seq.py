@@ -307,7 +307,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             sambam = pysam.AlignmentFile(file_name, 'rb')
         
         # header
-        self._reads._v_attrs.header = sambam.header
+        #self._reads._v_attrs.header = sambam.header
         self._header = sambam.header
         
         # references
@@ -348,7 +348,6 @@ class Reads(Maskable, MetaContainer, FileBased):
         reads_row['flag'] = read.flag
         reads_row['ref'] = read.reference_id
         if read.pos >= 0:
-            print type(read)
             if isinstance(read, pysam.AlignedRead) or isinstance(read, pysam.AlignedSegment):
                 reads_row['pos'] = read.pos+1
             else:
@@ -957,7 +956,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             file_name = os.path.expanduser(file_name)
                 
         # FileBased.__init__(self, file_name)
-        RegionsTable.__init__(self, file_name=file_name, table_name_regions=table_name_fragments)
+        RegionsTable.__init__(self, file_name=file_name, _table_name_regions=table_name_fragments)
         
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
@@ -1502,17 +1501,17 @@ class FragmentRead(object):
     """
     Class representing a fragment-mapped read.
 
-    .. attribute: fragment
+    .. attribute:: fragment
 
         A :class:`~kaic.data.genomic.GenomicRegion` delineated by
         restriction sites.
 
-    .. attribute: position
+    .. attribute:: position
 
         The position of this read in base-pairs (1-based) from the
         start of the chromosome it maps to.
 
-    .. attribute: strand
+    .. attribute:: strand
 
         The strand this read maps to (-1 or +1).
     """

@@ -1,3 +1,63 @@
+"""
+Module for working with genomic data.
+
+This module provides classes and functions to work with objects in the context
+of the genome.
+
+:class:`~Chromosome`, :class:`~Genome`, and :class:`~GenomicRegion` simplify
+working with reference sequence data by providing easy access and many convenience
+functions.
+
+Examples:
+
+.. code:: python
+
+    # assemble custom genome
+    chr1 = Chromosome.from_fasta("/path/to/chr1_fasta_file")
+    chr2 = Chromosome.from_fasta("/path/to/chr2_fasta_file")
+    genome = Genome(chromosomes=[chr1,chr2])
+
+    # extract genomic regions binned every 10000bp
+    regions = genome.get_regions(10000)
+
+.. code:: python
+
+    # assemble genome from folder with FASTA files
+    genome = Genome.from_folder("/path/to/fasta_folder/")
+
+:class:`~Hic` is the central class for working with Hi-C data. It provides
+matrix-like selectors and convenient access to specific genomic regions. In the
+kaic pipeline, a Hic object is assembled at the fragment level from
+:class:`~kaic.construct.seq.FragmentMappedReadPairs`. From there, it can be
+binned to equi-distant genomic regions.
+
+.. code:: python
+
+    # use previously existing FragmentMappedReadPairs object 'pairs'
+    hic = Hic(file_name="/path/to/save_file")
+    hic.load_read_fragment_pairs(pairs)
+
+    # bin Hi-C object
+    binned = hic.bin(10000)
+
+    # ... further processing
+
+
+Alternatively, a Hic object can be assembled from scratch using genomic
+regions and edges (contacts) between them.
+
+Example:
+
+.. code:: python
+
+    hic = Hic()
+    genome = Genome.from_folder("/path/to/fasta_folder")
+    hic.add_regions(genome.get_regions(10000))
+
+    hic.add_edges(list_of_edges)
+
+"""
+
 from __future__ import division
 import tables as t
 import pandas as p
@@ -14,10 +74,15 @@ import os.path
 import logging
 from kaic.tools.general import ranges, distribute_integer
 from xml.etree import ElementTree as et
+#from kaic.construct.seq import FragmentMappedReadPairs
 logging.basicConfig(level=logging.INFO)
 
 
 def _edge_overlap_split_rao(original_edge, overlap_map):
+    """
+    Resolve the distribution of contacts when binning using
+    Rao et al. 2014 approach.
+    """
     original_source = original_edge[0]
     original_sink = original_edge[1]
     original_weight = original_edge[2]
@@ -55,44 +120,60 @@ def _edge_overlap_split_rao(original_edge, overlap_map):
     return edges_list
 
 
-class BedImproved(Table):
-    
+class Bed(Table):
+    """
+    Data type representing a BED file.
+
+    This class is an extension of :class:`~kaic.data.general.Table`, and
+    can be used to load and represent BED-formatted data.
+    """
+
     def __init__(self, data=None, colnames=None, col_types=None):
-        super(BedImproved, self).__init__(data=data, colnames=colnames, col_types=col_types)
+        """
+        Initialize Bed object (as Table).
+        """
+        super(Bed, self).__init__(data=data, colnames=colnames, col_types=col_types)
     
     @staticmethod
-    def col_type(name,pos=None):
+    def col_type(name, pos=None):
+        """
+        Determine the column type (PyTables) by its name.
+
+        :param name: The name of the column
+        :return: PyTables column type
+        """
         col_type = {
-            'chrom': (str, t.StringCol(16,pos=pos)), # @UndefinedVariable
-            'start': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'end': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'name': (str, t.StringCol(255,pos=pos)), # @UndefinedVariable
-            'score': (float, t.Float32Col(pos=pos)), # @UndefinedVariable
-            'strand': (str, t.StringCol(2,pos=pos)), # @UndefinedVariable
-            'thickStart': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'thickEnd': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'itemRgb': (str, t.StringCol(12,pos=pos)), # @UndefinedVariable
-            'blockCount': (int, t.Int64Col(pos=pos)), # @UndefinedVariable
-            'blockSizes': (str, t.StringCol(255,pos=pos)), # @UndefinedVariable
-            'blockStarts': (str, t.StringCol(255,pos=pos)) # @UndefinedVariable
+            'chrom': (str, t.StringCol(16, pos=pos)),
+            'start': (int, t.Int64Col(pos=pos)),
+            'end': (int, t.Int64Col(pos=pos)),
+            'name': (str, t.StringCol(255, pos=pos)),
+            'score': (float, t.Float32Col(pos=pos)),
+            'strand': (str, t.StringCol(2, pos=pos)),
+            'thickStart': (int, t.Int64Col(pos=pos)),
+            'thickEnd': (int, t.Int64Col(pos=pos)),
+            'itemRgb': (str, t.StringCol(12, pos=pos)),
+            'blockCount': (int, t.Int64Col(pos=pos)),
+            'blockSizes': (str, t.StringCol(255, pos=pos)),
+            'blockStarts': (str, t.StringCol(255, pos=pos))
         }
         if name in col_type:
             return col_type[name]
-        return (str, t.StringCol(255)) # @UndefinedVariable
+        return str, t.StringCol(255)
     
     @classmethod
-    def from_bed_file(cls, file_name, has_header=True, sep="\t", name=None):
+    def from_bed_file(cls, file_name, has_header=True, sep="\t"):
         if not is_bed_file:
             raise ImportError("File does not appear to be a BED file")
         
-        all_fields = ['chrom','start','end','name','score','strand','thickStart','thickEnd','itemRgb','blockCount','blockSizes','blockStarts']
+        all_fields = ['chrom', 'start', 'end', 'name', 'score', 'strand',
+                      'thickStart', 'thickEnd', 'itemRgb', 'blockCount',
+                      'blockSizes', 'blockStarts']
         
         with open(file_name, 'r') as f:
             
             # process first line, update table
             line = f.readline()
             fields = line.rstrip().split(sep)
-            header = []
             col_types = []
             header_types = []
             if has_header:
@@ -105,7 +186,7 @@ class BedImproved(Table):
                     header.append("feature_%d" % i)
                 
             for i, name in enumerate(header):
-                ptype, ttype = BedImproved.col_type(name,i+1)
+                ptype, ttype = Bed.col_type(name, i+1)
                 col_types.append(ttype)
                 header_types.append(ptype)
 
@@ -141,7 +222,7 @@ class BedImproved(Table):
             if type(start) is list:
                 query += "(start >= %d) & (start <= %d)" % (start[0], start[1])
             else: 
-                query += "(start >= %d)" % (start)
+                query += "(start >= %d)" % start
         
         if end:
             if query != '':
@@ -149,7 +230,7 @@ class BedImproved(Table):
             if type(end) is list:
                 query += "(end >= %d) & (end <= %d)" % (end[0], end[1])
             else:
-                query += "(end <= %d)" % (end)
+                query += "(end <= %d)" % end
 
         # get field names
         desc = self._table.description._v_colobjects.copy()
@@ -189,7 +270,6 @@ class Bedpe(object):
     """
     Bedpe object for genomic features
     """
-
 
     def __init__(self, file_name=None, name=None):
         
@@ -416,8 +496,7 @@ class Bedpe(object):
             if label not in labels:
                 labels.append(label)
         
-        print labels
-        
+
         print "Running query"
         if query != '':
             contacts = [[x[y] for y in labels] for x in self.table.where(query)]
@@ -429,7 +508,29 @@ class Bedpe(object):
 
 
 class Chromosome(object):
+    """
+    Chromosome data type.
+
+    .. attribute:: name
+
+        Name of the chromosome
+
+    .. attribute:: length
+
+        Length of the chromosome in base-pairs
+
+    .. attribute:: sequence
+
+        Base-pair sequence of DNA in the chromosome
+    """
     def __init__(self, name=None, length=None, sequence=None):
+        """
+        Initialize chromosome
+
+        :param name: Name of the chromosome
+        :param length: Length of the chromosome in base-pairs
+        :param sequence: Base-pair sequence of DNA in the chromosome
+        """
         self.name = name
         self.length = length
         self.sequence = sequence
@@ -442,11 +543,17 @@ class Chromosome(object):
         return "Name: %s\nLength: %d\nSequence: %s" % (self.name if self.name else '',
                                                        self.length if self.length else -1,
                                                        self.sequence[:20] + "..." if self.sequence else '')
-        
+
     def __len__(self):
+        """
+        Get length of the chromosome.
+        """
         return self.length
     
     def __getitem__(self, key):
+        """
+        Get object attributes by name
+        """
         if key == 'name':
             return self.name
         if key == 'length':
@@ -456,10 +563,25 @@ class Chromosome(object):
     
     @classmethod
     def from_fasta(cls, file_name, name=None, include_sequence=True):
+        """
+        Create a :class:`~Chromosome` from a FASTA file.
+
+        This class method will load a FASTA file and convert it into
+        a :class:`~Chromosome` object. If the FASTA file contains multiple
+        sequences, only the first one will be read.
+
+        :param file_name: Path to the FASTA file
+        :param name: Chromosome name. If None (default), will be read
+                     from the FASTA file header
+        :param include_sequence: If True (default), stores the chromosome
+                                 sequence in memory. Else, the sequence
+                                 attribute will be set to None.
+        :return: :class:`~Chromosome`
+        """
         if type(file_name) is file:
-            fastas = SeqIO.parse(file_name,'fasta')
+            fastas = SeqIO.parse(file_name, 'fasta')
         else:
-            fastas = SeqIO.parse(open(file_name,'r'),'fasta')
+            fastas = SeqIO.parse(open(file_name, 'r'), 'fasta')
             
         try:
             fasta = fastas.next()
@@ -472,6 +594,15 @@ class Chromosome(object):
             return cls(name if name else fasta.id, length=len(fasta))
         
     def get_restriction_sites(self, restriction_enzyme):
+        """
+        Find the restriction sites of a provided enzyme in this chromosome.
+
+        Internally uses biopython to find RE sites.
+
+        :param restriction_enzyme: The name of the restriction enzyme
+                                   (e.g. HindIII)
+        :return: List of RE sites in base-pairs (1-based)
+        """
         logging.info("Calculating RE sites")
         try:
             re = eval('Restriction.%s' % restriction_enzyme)
@@ -484,7 +615,25 @@ class Chromosome(object):
 
 
 class Genome(Table):
-    def __init__(self, file_name=None, chromosomes=None):        
+    """
+    Class representing a collection of chromosomes.
+
+    Extends the :class:`~kaic.data.general.Table` class and provides
+    all the expected functionality. Provides some convenience batch
+    methods that call :class:`~Chromosome` methods for every
+    chromosome in this object.
+
+    This object can be saved to file.
+    """
+    def __init__(self, file_name=None, chromosomes=None):
+        """
+        Build :class:`~Genome` from a list of chromosomes or load
+        previously saved object.
+
+        :param file_name: Path of the file to load or to save to.
+        :param chromosomes: List of chromosomes to load into this
+                            object.
+        """
         self.file = create_or_open_pytables_file(file_name)
             
         columns = ["ix", "name", "length"]
@@ -502,6 +651,17 @@ class Genome(Table):
             
     @classmethod
     def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
+        """
+        Load every FASTA file from a folder as a chromosome.
+
+        :param folder_name: Path to the folder to load
+        :param file_name: File to save Genome object to
+        :param exclude: List or set of chromosome names that
+                        should NOT be loaded
+        :param include_sequence: If True, will save the
+                                 chromosome sequences in the
+                                 Genome object
+        """
         chromosomes = []
         folder_name = os.path.expanduser(folder_name)
         for f in os.listdir(folder_name):
@@ -518,6 +678,13 @@ class Genome(Table):
         return cls(chromosomes=chromosomes, file_name=file_name)
 
     def __getitem__(self, key):
+        """
+        Get Genome table subsets.
+
+        If the result is one or more rows, they will be converted to
+        :class:`~Chromosome` objects, if the result is a column, it
+        will be returned without conversion.
+        """
         res = Table.__getitem__(self, key)
         
         if isinstance(res, TableRow):
@@ -530,7 +697,11 @@ class Genome(Table):
         return res
     
     def __iter__(self):
+        """
+        Get iterator over :class:`~Chromosome` objects.
+        """
         this = self
+
         class Iter:
             def __init__(self):
                 self.current = 0
@@ -551,6 +722,14 @@ class Genome(Table):
         super(Genome, self).__del__()
 
     def add_chromosome(self, chromosome):
+        """
+        Add a :class:`~Chromosome` to this object.
+
+        Will choose suitable defaults for missing attributes.
+
+        :param chromosome: :class:`~Chromosome` object or similar
+                           object (e.g. dict) with the same fields
+        """
         i = len(self)-1
         
         n = str(i)
@@ -573,13 +752,31 @@ class Genome(Table):
         self._sequences.flush()
 
     def get_regions(self, split, file_name=None):
+        """
+        Extract genomic regions from genome.
+
+        Provides two options:
+
+        - Splits chromosomes at restriction sites if the split
+          parameter is the name of a restriction enzyme.
+
+        - Splits chromosomes at equi-distant points if split
+          is an integer
+
+        :param split: Name of a restriction enzyme or positive
+                      integer
+        :param file_name: Name of a file if the result of this
+                          method should be saved to file
+        :return: :class:`~GenomicRegions`
+        """
+
         regions = GenomicRegions(file_name=file_name)
         for chromosome in self:
             split_locations = []
-            if isinstance(split,str):
+            if isinstance(split, str):
                 split_locations = chromosome.get_restriction_sites(split)
-            elif isinstance(split,int):
-                for i in xrange(split,len(chromosome)-1, split):
+            elif isinstance(split, int):
+                for i in xrange(split, len(chromosome)-1, split):
                     split_locations.append(i)
             else:
                 for i in split:
@@ -589,13 +786,15 @@ class Genome(Table):
                 if i == 0:
                     region = GenomicRegion(start=1, end=split_locations[i], chromosome=chromosome.name)
                 else:
-                    region = GenomicRegion(start=split_locations[i-1]+1, end=split_locations[i], chromosome=chromosome.name)
+                    region = GenomicRegion(start=split_locations[i-1]+1,
+                                           end=split_locations[i], chromosome=chromosome.name)
                 
                 regions.add_region(region, flush=False)
                 
             # add last node
             if len(split_locations) > 0:
-                region = GenomicRegion(start=split_locations[len(split_locations)-1]+1, end=chromosome.length, chromosome=chromosome.name)
+                region = GenomicRegion(start=split_locations[len(split_locations)-1]+1,
+                                       end=chromosome.length, chromosome=chromosome.name)
             else:
                 region = GenomicRegion(start=1, end=chromosome.length, chromosome=chromosome.name)
             regions.add_region(region, flush=False)
@@ -605,7 +804,43 @@ class Genome(Table):
 
 
 class GenomicRegion(TableObject):
+    """
+    Class representing a genomic region.
+
+    .. attribute:: chromosome
+
+        Name of the chromosome this region is located on
+
+    .. attribute:: start
+
+        Start position of the region in base pairs
+
+    .. attribute:: end
+
+        End position of the region in base pairs
+
+    .. attribute:: strand
+
+        Strand this region is on (+1, -1)
+
+    .. attribute:: ix
+
+        Index of the region in the context of all genomic
+        regions.
+
+    """
+
     def __init__(self, start, end, chromosome=None, strand=None, ix=None):
+        """
+        Initialize this object.
+
+        :param start: Start position of the region in base pairs
+        :param end: End position of the region in base pairs
+        :param chromosome: Name of the chromosome this region is located on
+        :param strand: Strand this region is on (+1, -1)
+        :param ix: Index of the region in the context of all genomic
+                   regions.
+        """
         self.start = start
         self.end = end
         self.strand = strand
@@ -614,6 +849,9 @@ class GenomicRegion(TableObject):
     
     @classmethod
     def from_row(cls, row):
+        """
+        Create a :class:`~GenomicRegion` from a PyTables row.
+        """
         strand = row['strand']
         if strand == 0:
             strand = None
@@ -622,7 +860,22 @@ class GenomicRegion(TableObject):
     
     @classmethod
     def from_string(cls, region_string):
-        chromosome= None
+        """
+        Convert a string into a :class:`~GenomicRegion`.
+
+        This is a very useful convenience function to quickly
+        define a :class:`~GenomicRegion` object from a descriptor
+        string.
+
+        :param region_string: A string of the form
+                              <chromosome>[:<start>-<end>[:<strand>]]
+                              (with square brackets indicating optional
+                              parts of the string). If any optional
+                              part of the string is omitted, intuitive
+                              defaults will be chosen.
+        :return: :class:`~GenomicRegion`
+        """
+        chromosome = None
         start = None
         end = None
         strand = None
@@ -686,13 +939,23 @@ class GenomicRegion(TableObject):
 
 
 class GenomicRegions(Table):
+    """
+    A collection of :class:`~GenomicRegion` objects.
+    """
     class GenomicRegionDescription(t.IsDescription):
+        """
+        Description for PyTables Table representing a :class:`~GenomicRegion`.
+        """
         chromosome = t.StringCol(50, pos=0)
         start = t.Int64Col(pos=1)
         end = t.Int64Col(pos=2)
         strand = t.Int8Col(pos=3)
         
     def __init__(self, file_name=None, regions=None):
+        """
+        :param file_name: Path to a file this object will be saved to.
+        :param regions: A list of :class:`~GenomicRegion` objects.
+        """
         if not isinstance(file_name, str) and not isinstance(file_name, t.file.File):
             regions = file_name
             file_name = None
@@ -711,7 +974,14 @@ class GenomicRegions(Table):
         self._flush()
                 
     def add_region(self, region, flush=True):
-        
+        """
+        Add a :class:`~GenomicRegion` to this object.
+
+        :param region: A :class:`~GenomicRegion` object or any object
+                       with the same attributes (at least chromosome,
+                       start, end, strand)
+        """
+
         # try access by attribute first
         try:
             chromosome = region.chromosome
@@ -737,14 +1007,38 @@ class GenomicRegions(Table):
     
 
 class RegionsTable(FileBased):
+    """
+    PyTables Table wrapper for storing genomic regions.
+
+    This class is inherited by objects working with lists of genomic
+    regions, such as equi-distant bins along chromosomes in a genome
+    (:class:`~Hic`) or restriction fragments of genomic DNA
+    (:class:`~kaic.construct.seq.FragmentMappedReadPairs`)
+    """
+
     class RegionDescription(t.IsDescription):
+        """
+        Description of a genomic region for PyTables Table
+        """
         ix = t.Int32Col(pos=0)
-        chromosome = t.StringCol(50,pos=1)
+        chromosome = t.StringCol(50, pos=1)
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
     
     def __init__(self, data=None, file_name=None,
-                 table_name_regions='regions'):
+                 _table_name_regions='regions'):
+        """
+        Initialize region table.
+
+        :param data: List of regions to load in object. Can also
+                     be used to load saved regions from file by
+                     providing a path to an HDF5 file and setting
+                     the file_name parameter to None.
+        :param file_name: Path to a save file.
+        :param _table_name_regions: (Internal) name of the HDF5
+                                    node that stores data for this
+                                    object
+        """
         
         # parse potential unnamed argument
         if data is not None:
@@ -760,14 +1054,14 @@ class RegionsTable(FileBased):
         FileBased.__init__(self, file_name)
         
         # check if this is an existing Hi-C file
-        if table_name_regions in self.file.root:
-            self._regions = self.file.get_node('/', table_name_regions)
+        if _table_name_regions in self.file.root:
+            self._regions = self.file.get_node('/', _table_name_regions)
             if len(self._regions) > 0:
                 self._max_region_ix = max(row['ix'] for row in self._regions.iterrows())
             else:
                 self._max_region_ix = -1
         else:
-            self._regions = t.Table(self.file.root, table_name_regions,
+            self._regions = t.Table(self.file.root, _table_name_regions,
                                     RegionsTable.RegionDescription, expectedrows=10000)
             self._max_region_ix = -1
         
@@ -775,6 +1069,21 @@ class RegionsTable(FileBased):
             self.add_regions(data)
         
     def add_region(self, region, flush=True):
+        """
+        Add a genomic region to this object.
+
+        This method offers some flexibility in the types of objects
+        that can be loaded. See below for details.
+
+        :param region: Can be a :class:`~GenomicRegion`, a dict with
+                       at least the fields 'chromosome', 'start', and
+                       'end', optionally 'ix', or a list of length 3
+                       (chromosome, start, end) or 4 (ix, chromosome,
+                       start, end).
+        :param flush: If True, data will be written to file and made
+                      available immediately. For bulk inserts use
+                      :func:`~RegionsTable.add_regions`.
+        """
         ix = -1
         
         if isinstance(region, GenomicRegion):
@@ -821,18 +1130,42 @@ class RegionsTable(FileBased):
         return ix
     
     def add_regions(self, regions):
+        """
+        Bulk insert multiple genomic regions.
+
+        :param regions: List (or any iterator) with objects that
+                        describe a genomic region. See
+                        :class:`~RegionsTable.add_region` for options.
+        """
         for region in regions:
             self.add_region(region, flush=False)
         self._regions.flush()
     
     def _get_region_ix(self, region):
+        """
+        Get index from other region properties (chromosome, start, end)
+        """
         condition = "(start == %d) & (end == %d) & (chromosome == '%s')"
         condition = condition % (region.start, region.end, region.chromosome)
         for res in self._regions.where(condition):
             return res["ix"]
         return None
-        
+
+    @staticmethod
+    def _row_to_region(row):
+        return GenomicRegion(start=row['start'], end=row['end'],
+                             chromosome=row['chromosome'], ix=row['ix'])
+
     def regions(self):
+        """
+        Iterate over genomic regions in this object.
+
+        Will return a :class:`~HicNode` object in every iteration.
+        Can also be used to get the number of regions by calling
+        len() on the object returned by this method.
+
+        :return: RegionIter
+        """
         this = self
 
         class RegionIter:
@@ -843,7 +1176,7 @@ class RegionsTable(FileBased):
                 return self
             
             def next(self):
-                return HicNode.from_row(self.iter.next())
+                return RegionsTable._row_to_region(self.iter.next())
             
             def __len__(self):
                 return len(this._regions)
@@ -851,6 +1184,11 @@ class RegionsTable(FileBased):
         return RegionIter()
 
     def chromosomes(self):
+        """
+        Get a list of chromosome names.
+
+        :return:
+        """
         chromosomes_set = set()
         chromosomes = []
         for region in self.regions():
@@ -861,6 +1199,34 @@ class RegionsTable(FileBased):
 
 
 class HicNode(GenomicRegion, TableObject):
+    """
+    Class representing a node in a :class:`~Hic` object.
+
+    Backed by a :class:`~GenomicRegion`, this class additionally
+    provides methods to access the node index in the context of
+    the :class:`~Hic` object.
+
+    .. attribute:: chromosome
+
+        Name of the chromosome this region is located on
+
+    .. attribute:: start
+
+        Start position of the region in base pairs
+
+    .. attribute:: end
+
+        End position of the region in base pairs
+
+    .. attribute:: strand
+
+        Strand this region is on (+1, -1)
+
+    .. attribute:: ix
+
+        Index of the region in the context of all genomic
+        regions.
+    """
     def __init__(self, chromosome=None, start=None, end=None, ix=None):
         self.ix = ix
         super(HicNode, self).__init__(chromosome=chromosome, start=start, end=end, ix=ix)
@@ -870,20 +1236,32 @@ class HicNode(GenomicRegion, TableObject):
             return "%s, %d-%d" % (self.chromosome, self.start, self.end)
         else:
             return "%d: %s, %d-%d" % (self.ix, self.chromosome, self.start, self.end)
-    
-    @classmethod
-    def from_string(cls, region_string):
-        node = super(HicNode, cls).from_string(region_string)
-        node.ix = None
-        return node
-    
-    @classmethod
-    def from_row(cls, row):
-        return cls(chromosome=row['chromosome'], start=row['start'], end=row['end'], ix=row['ix'])
-    
+
         
 class HicEdge(TableObject):
+    """
+    A contact / an Edge between two genomic regions.
+
+    .. attribute:: source
+
+        The index of the "source" genomic region. By convention,
+        source <= sink.
+
+    .. attribute:: sink
+
+        The index of the "sink" genomic region.
+
+    .. attribute:: weight
+
+        The weight or contact strength of the edge. Can, for
+        example, be the number of reads mapping to a contact.
+    """
     def __init__(self, source, sink, weight=1):
+        """
+        :param source: The index of the "source" genomic region.
+        :param sink: The index of the "sink" genomic region.
+        :param weight: The weight or contact strength of the edge.
+        """
         self.source = source
         self.sink = sink
         self.weight = weight
@@ -896,7 +1274,51 @@ class HicEdge(TableObject):
         return cls(source=row['source'], sink=row['sink'], weight=row['weight'])
 
 
-class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
+class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
+    """
+    Class for working with Hi-C data.
+
+    Generally, a Hi-C object has two components:
+
+    - Nodes or regions: (Non-overlapping) genomic regions
+      obtained by splitting the genome into distinct pieces.
+      See also :class:`~GenomicRegion` and :class:`~RegionsTable`
+
+    - Edges or contacts: Pairs of genomic regions with optionally
+      associated weight or contact strength. See also
+      :class:`~HicEdge`
+
+    This is a memory-efficient implementation of a Hi-C data
+    container. Internally, this is achieved by saving entries
+    of the Hi-C matrix in sparse notation, i.e. in a list of
+    non-zero contacts.
+
+    Its bracket-notation access behaves like a numpy
+    array and handles data retrieval and assignment in matrix-
+    fashion, e.g. hic[1:3] would return rows 1 and 2 of
+    the Hi-C matrix (0-based index). However, the bracket
+    notation can also handle :class:`~GenomicRegion` descriptior
+    strings, i.e. hic['chr1','chr5'] will extract the inter-
+    chromosomal matrix between chromosomes 1 and 5 only.
+
+    Examples:
+
+    .. code:: python
+
+        hic = Hic(file_name="/path/to/save/file")
+
+        # load genomic regions
+        genome = Genome.from_folder("/path/to/fasta/folder")
+        regions = genome.get_regions("HindIII")
+        hic.add_regions(regions)
+
+        # load edges
+        edges = []
+        edges.append(HicEdge(source=10, sink=23, weight=3)
+        edges.append(HicEdge(source=8, sink=9, weight=57)
+        # ...
+        hic.add_edges(edges)
+    """
 
     class HicEdgeDescription(t.IsDescription):
         source = t.Int32Col(pos=0)  
@@ -904,8 +1326,21 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         weight = t.Float64Col(pos=2)  
     
     def __init__(self, data=None, file_name=None,
-                 table_name_nodes='nodes',
-                 table_name_edges='edges'):
+                 _table_name_nodes='nodes',
+                 _table_name_edges='edges'):
+
+        """
+        Initialize a :class:`~Hic` object.
+
+        :param data: Can be the path to an XML file denoting a Hic object,
+                     another Hic object, a :class:`~FragmentMappedReadPairs`
+                     object, or a path to a save file. In the latter case,
+                     this parameter may replace file_name, but only if
+                     file_name is None.
+        :param file_name: Path to a save file
+        :param _table_name_nodes: (Internal) name of the HDF5 node for regions
+        :param _table_name_edges: (Internal) name of the HDF5 node for edges
+        """
         
         # private variables
         self._max_node_ix = -1
@@ -924,13 +1359,13 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             file_name = os.path.expanduser(file_name)
         
         FileBased.__init__(self, file_name)
-        RegionsTable.__init__(self, file_name=file_name, table_name_regions=table_name_nodes)
+        RegionsTable.__init__(self, file_name=file_name, _table_name_regions=_table_name_nodes)
 
-        if table_name_edges in self.file.root:
-            self._edges = self.file.get_node('/', table_name_edges)
+        if _table_name_edges in self.file.root:
+            self._edges = self.file.get_node('/', _table_name_edges)
         else:
-            self._edges = MaskedTable(self.file.root, table_name_edges,
-                                      HicBasic.HicEdgeDescription, expectedrows=500000)
+            self._edges = MaskedTable(self.file.root, _table_name_edges,
+                                      Hic.HicEdgeDescription, expectedrows=500000)
         
         self._edges.flush()
         
@@ -981,24 +1416,30 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
                 else:
                     raise ValueError("File is not in Hi-C XML format")
                     
-            # data is existing HicBasic object
-            elif isinstance(data, HicBasic):
-                for node in data.nodes():
-                    self.add_node(node, flush=False)
-                self.flush()
-                for edge in data.edges():
-                    self.add_edge(edge,flush=False)
-                self.flush()
+            # data is existing Hic object
+            elif isinstance(data, Hic):
+                self.load_from_hic(data)
             else:
-                raise ValueError("Input data type not recognized")
-        
-    def close(self):
-        self.file.close()
+                try:
+                    self.load_read_fragment_pairs(data)
+                except AttributeError:
+                    raise ValueError("Input data type not recognized")
     
     def __del__(self):
         self.close()
     
-    def _from_read_fragment_pairs(self, pairs, _max_buffer_size=250000):
+    def load_read_fragment_pairs(self, pairs, _max_buffer_size=250000):
+        """
+        Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
+
+        This method automatically sums up reads mapping to the same
+        fragment pairs and creates exactly one edge per fragment pair.
+
+        :param pairs: A :class:`~kaic.construct.seq.FragmentMappedReadPairs`
+                      object.
+        :param _max_buffer_size: Number of edges kept in buffer before
+                                 writing to Table.
+        """
         # add regions
         if len(self._regions) != 0:
             raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
@@ -1047,7 +1488,20 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         _flush_buffer(edge_buffer)
         self.flush()
         
-    def _from_hic(self, hic, _edge_buffer_size=250000, _edges_by_overlap_method=_edge_overlap_split_rao):
+    def load_from_hic(self, hic, _edge_buffer_size=250000,
+                      _edges_by_overlap_method=_edge_overlap_split_rao):
+        """
+        Load data from another :class:`~Hic` object.
+
+        :param hic: Another :class:`~Hic` object
+        :param _edge_buffer_size: Number of edges in memory before writing
+                                  to file
+        :param _edges_by_overlap_method: A function that maps reads from
+                                         one genomic region to others using
+                                         a supplied overlap map. By default
+                                         it uses the Rao et al. (2014) method.
+                                         See :func:`~_edge_overlap_split_rao`
+        """
         # if we do not have any nodes in this Hi-C object...
         if len(self.regions()) == 0:
             logging.info("Copying Hi-C")
@@ -1125,9 +1579,42 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             for key_pair in edge_buffer:
                 self.add_edge([key_pair[0], key_pair[1], edge_buffer[key_pair]], flush=False)
             self.flush()
-    
+
+    def bin(self, bin_size):
+        """
+        Map edges in this object to equi-distant bins.
+
+        :param bin_size: Bin size in base pairs
+        :return: :class:`~Hic` object
+        """
+        # find chromosome lengths
+        chromosomes = self.chromosomes()
+        chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
+        for region in self.regions():
+            if chromosome_sizes[region.chromosome] < region.end:
+                chromosome_sizes[region.chromosome] = region.end
+
+        chromosome_list = []
+        for chromosome in chromosomes:
+            chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
+
+        genome = Genome(chromosomes=chromosome_list)
+        hic = Hic()
+        hic.add_regions(genome.get_regions(bin_size))
+
+        hic.load_from_hic(self)
+
+        return hic
+
     @classmethod
     def from_hiclib(cls, hl, file_name=None):
+        """
+        Create :class:`~Hic` object from hiclib object.
+
+        :param hl: hiclib object
+        :param file_name: Path to save file
+        :return: :class:`~Hic`
+        """
         hic = cls(file_name=file_name)
         
         # nodes
@@ -1168,9 +1655,27 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         return hic
             
     def add_node(self, node, flush=True):
+        """
+        Add a :class:`~HicNode` or :class:`~GenomicRegion`.
+
+        :param node: :class:`~HicNode` or :class:`~GenomicRegion`,
+                     see :func:`~RegionsTable.add_region` for details
+        :param flush: Write data to file immediately after import.
+        """
         return self.add_region(node, flush)        
     
     def add_edge(self, edge, check_nodes_exist=True, flush=True):
+        """
+        Add an edge to this object.
+
+        :param edge: :class:`~HicEdge`, dict with at least the
+                     attributes source and sink, optionally weight,
+                     or a list of length 2 (source, sink) or 3
+                     (source, sink, weight).
+        :param check_nodes_exist: Make sure that there are nodes
+                                  that match source and sink indexes
+        :param flush: Write data to file immediately after import
+        """
         weight = None
         
         if isinstance(edge, HicEdge):
@@ -1199,7 +1704,8 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             sink = tmp
         
         if check_nodes_exist:
-            if source >= len(self._regions) or sink >= len(self._regions):
+            n_regions = len(self._regions)
+            if source >= n_regions or sink >= n_regions:
                 raise ValueError("Node index exceeds number of nodes in object")
         
         if weight != 0:
@@ -1213,14 +1719,34 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             self.flush()
     
     def add_nodes(self, nodes):
+        """
+        Bulk-add nodes from a list.
+
+        :param nodes: List (or iterator) of nodes. See
+                      :func:`~Hic.add_node` for details.
+        """
         self.add_regions(nodes)
     
     def add_edges(self, edges):
+        """
+        Bulk-add edges from a list.
+
+        :param edges: List (or iterator) of edges. See
+                      :func:`~Hic.add_edge` for details
+        """
         for edge in edges:
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
     
     def merge(self, hic):
+        """
+        Merge this object with another :class:`~Hic` object.
+
+        First merges genomic regions, then merges edges.
+        MUST be binned identically to work.
+
+        :param hic: :class:`~Hic` object
+        """
         ix_conversion = {}
         
         # merge genomic regions
@@ -1243,6 +1769,12 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         self.flush()
 
     def flush(self, flush_nodes=True, flush_edges=True):
+        """
+        Write data to file and flush buffers.
+
+        :param flush_nodes: Flush nodes tables
+        :param flush_edges: Flush edges table
+        """
         if flush_nodes:
             self._regions.flush()
             # re-indexing not necessary when 'autoindex' is True on table
@@ -1260,26 +1792,32 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         Get a chunk of the Hi-C matrix.
         
         Possible key types are:
-            Region types
-                HicNode: Only the ix of this node will be used for
-                    identification
-                GenomicRegion: self-explanatory
-                str: key is assumed to describe a genomic region
-                    of the form: <chromosome>[:<start>-<end>:[<strand>]],
-                    e.g.: 'chr1:1000-54232:+'
-            Node types
-                int: node index
-                slice: node range
-            List types
-                list: This key type allows for a combination of all
-                    of the above key types - the corresponding matrix
-                    will be concatenated
+
+        Region types
+
+        - HicNode: Only the ix of this node will be used for
+          identification
+        - GenomicRegion: self-explanatory
+        - str: key is assumed to describe a genomic region
+          of the form: <chromosome>[:<start>-<end>:[<strand>]],
+          e.g.: 'chr1:1000-54232:+'
+
+        Node types
+
+        - int: node index
+        - slice: node range
+
+        List types
+
+        - list: This key type allows for a combination of all
+          of the above key types - the corresponding matrix
+          will be concatenated
+
             
         If the key is a 2-tuple, each entry will be treated as the 
         row and column key, respectively,
         e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
         map of the relevant regions between chromosomes 1 and 4.
-            
         """
         
         nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
@@ -1313,7 +1851,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
                 if as_index:
                     nodes_ix_col.append(row['ix'])
                 else:
-                    nodes_ix_col.append(HicNode.from_row(row))
+                    nodes_ix_col.append(RegionsTable._row_to_region(row))
         
         return nodes_ix_row, nodes_ix_col
     
@@ -1407,7 +1945,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             if as_index:
                 region_nodes = [row['ix'] for row in self._regions.where(condition)]
             else:
-                region_nodes = [HicNode.from_row(row) for row in self._regions.where(condition)]
+                region_nodes = [RegionsTable._row_to_region(row) for row in self._regions.where(condition)]
             
             return region_nodes
         
@@ -1416,7 +1954,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             if as_index:
                 return [row['ix'] for row in self._regions.iterrows(key.start, key.stop, key.step)]
             else:
-                return [HicNode.from_row(row) for row in self._regions.iterrows(key.start, key.stop, key.step)]
+                return [RegionsTable._row_to_region(row) for row in self._regions.iterrows(key.start, key.stop, key.step)]
         
         # 432
         if isinstance(key, int):
@@ -1424,7 +1962,7 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             if as_index:
                 return row['ix']
             else:
-                return HicNode.from_row(row)
+                return RegionsTable._row_to_region(row)
         
         # [item1, item2, item3]
         all_nodes_ix = []
@@ -1437,6 +1975,15 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         return all_nodes_ix
     
     def as_data_frame(self, key):
+        """
+        Get a pandas data frame by key.
+
+        For key types see :func:`~Hic.__getitem__`.
+
+        :param key: For key types see :func:`~Hic.__getitem__`.
+        :return: Pandas data frame, row and column labels are
+                 corresponding node start positions
+        """
         nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
         nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
         m = self._get_matrix(nodes_ix_row, nodes_ix_col)
@@ -1455,21 +2002,27 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
         Set a chunk of the Hi-C matrix.
         
         Possible key types are:
-            Region types
-                HicNode: Only the ix of this node will be used for
-                    identification
-                GenomicRegion: self-explanatory
-                str: key is assumed to describe a genomic region
-                    of the form: <chromosome>[:<start>-<end>:[<strand>]],
-                    e.g.: 'chr1:1000-54232:+'
-            Node types
-                int: node index
-                slice: node range
-            List types
-                list: This key type allows for a combination of all
-                    of the above key types - the corresponding matrix
-                    will be concatenated
-            
+
+        Region types
+
+        - HicNode: Only the ix of this node will be used for
+          identification
+        - GenomicRegion: self-explanatory
+        - str: key is assumed to describe a genomic region
+          of the form: <chromosome>[:<start>-<end>:[<strand>]],
+          e.g.: 'chr1:1000-54232:+'
+
+        Node types
+
+        - int: node index
+        - slice: node range
+
+        List types
+
+        - list: This key type allows for a combination of all
+          of the above key types - the corresponding matrix
+          will be concatenated
+
         If the key is a 2-tuple, each entry will be treated as the 
         row and column key, respectively,
         e.g.: 'chr1:0-1000, chr4:2300-3000' will set the Hi-C
@@ -1657,6 +2210,9 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
             self.flush()
     
     def autoindex(self, index=None):
+        """
+        Switch on/off autoindexing.
+        """
         if index is not None:
             self._regions.autoindex = bool(index)
             self._edges.autoindex = bool(index)
@@ -1665,6 +2221,16 @@ class HicBasic(Maskable, MetaContainer, RegionsTable, FileBased):
 
     def save(self, file_name, table_name_nodes='nodes', table_name_edges='edges',
              table_name_meta='meta', table_name_meta_values='meta', table_name_mask='mask'):
+        """
+
+        :param file_name:
+        :param table_name_nodes:
+        :param table_name_edges:
+        :param table_name_meta:
+        :param table_name_meta_values:
+        :param table_name_mask:
+        :return:
+        """
         self.file.copy_file(file_name)
         self.file.close()
         self.file = create_or_open_pytables_file(file_name)
