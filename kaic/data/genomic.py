@@ -782,7 +782,7 @@ class Genome(Table):
                 for i in split:
                     split_locations.append(i)
             
-            for i in xrange(0,len(split_locations)):
+            for i in xrange(0, len(split_locations)):
                 if i == 0:
                     region = GenomicRegion(start=1, end=split_locations[i], chromosome=chromosome.name)
                 else:
@@ -1916,7 +1916,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         return m
     
     def _getitem_nodes(self, key, as_index=False):
-        # chr1:1234:56789
+        # 'chr1:1234:56789'
         if isinstance(key, str):
             key = GenomicRegion.from_string(key)
         
@@ -2219,44 +2219,68 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             return index
         return self._regions.autoindex
 
-    def save(self, file_name, table_name_nodes='nodes', table_name_edges='edges',
-             table_name_meta='meta', table_name_meta_values='meta', table_name_mask='mask'):
+    def save(self, file_name, _table_name_nodes='nodes', _table_name_edges='edges',
+             _table_name_meta='meta', _table_name_meta_values='meta', _table_name_mask='mask'):
         """
+        Copy content of this object to a new file.
 
-        :param file_name:
-        :param table_name_nodes:
-        :param table_name_edges:
-        :param table_name_meta:
-        :param table_name_meta_values:
-        :param table_name_mask:
-        :return:
+        :param file_name: Path to new save file
         """
         self.file.copy_file(file_name)
         self.file.close()
         self.file = create_or_open_pytables_file(file_name)
-        self._regions = self.file.get_node('/' + table_name_nodes)
-        self._edges = self.file.get_node('/' + table_name_edges)
-        self._meta = self.file.get_node('/' + table_name_meta)
-        self._meta_values = self.file.get_node('/' + table_name_meta_values)
-        self._mask = self.file.get_node('/' + table_name_mask)
+        self._regions = self.file.get_node('/' + _table_name_nodes)
+        self._edges = self.file.get_node('/' + _table_name_edges)
+        self._meta = self.file.get_node('/' + _table_name_meta)
+        self._meta_values = self.file.get_node('/' + _table_name_meta_values)
+        self._mask = self.file.get_node('/' + _table_name_mask)
 
     def get_node(self, key):
+        """
+        Get a single node by key.
+
+        :param key: For possible key types see :func:`~Hic.__getitem__`
+        :return: A :class:`~HicNode` matching key
+        """
         found_nodes = self.get_nodes(key)
         if isinstance(found_nodes, list): 
             raise IndexError("More than one node found matching %s" % str(key))
         return None
     
     def get_nodes(self, key):
+        """
+        Get multiple nodes by key.
+
+        :param key: For possible key types see :func:`~Hic.__getitem__`
+        :return: A list of :class:`~HicNode` objects matching key
+        """
         return self._getitem_nodes(key)
 
     def get_edge(self, ix):
+        """
+        Get an edge from this object's edge list.
+
+        :param ix: integer
+        :return:
+        """
         row = self._edges[ix]
         return HicEdge.from_row(row)
     
     def nodes(self):
+        """
+        Iterator over this object's nodes/regions.
+
+        See :func:`~RegionsTable.regions` for details.
+        :return: Iterator over :class:`~GenomicRegions`
+        """
         return self.regions()
     
     def edges(self):
+        """
+        Iterate over :class:`~HicEdge` objects.
+
+        :return: Iterator over :class:`~HicEdge`
+        """
         hic = self
 
         class EdgeIter:
@@ -2358,6 +2382,14 @@ class HicXmlFile(object):
    
 
 def genome_from_string(genome_string):
+    """
+    Convenience function to load a :class:`~Genome` from a string.
+
+    :param genome_string: Path to FASTA file, path to folder with
+                          FASTA files, comma-separated list of
+                          paths to FASTA files, path to HDF5 file
+    :return: A :class:`~Genome` object
+    """
     genome = None
     # case 1: FASTA file = Chromosome
     if is_fasta_file(genome_string):
@@ -2366,6 +2398,7 @@ def genome_from_string(genome_string):
     # case 2: Folder with FASTA files
     elif os.path.isdir(genome_string):
         genome = Genome.from_folder(genome_string)
+    # case 3: path to HDF5 file
     elif is_hdf5_file(genome_string):
         genome = Genome(genome_string)
     # case 4: List of FASTA files
