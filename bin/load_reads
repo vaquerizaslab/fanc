@@ -1,0 +1,26 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+from kaic.construct.seq import Reads
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        'input',
+        help='''Input SAM file'''
+    )
+    
+    parser.add_argument(
+        'output',
+        help='''Output file'''
+    )
+    
+    args = parser.parse_args()
+    
+    input_path = os.path.expanduser(args.input)
+    output_path = os.path.expanduser(args.output)
+    
+    reads = Reads(sambam_file=input_path, file_name=output_path)
+    reads.close()

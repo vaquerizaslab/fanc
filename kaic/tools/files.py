@@ -10,6 +10,8 @@ from xml.etree.ElementTree import iterparse, ParseError
 import string
 import random
 import h5py
+import pysam
+from Bio import SeqIO
 
 def without_extension(file_name):
     os.path.splitext(file_name)[0]
@@ -39,23 +41,32 @@ def random_name(length=6):
     return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))  # @UndefinedVariable
         
 
-def create_or_open_pytables_file(file_name, inMemory=False, mode='a'):
+def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
+    if file_name is None:
+        file_name = random_name()
+        inMemory = True
     
-    mem = 0 if inMemory else 1
+    # check if already is pytables File
+    if isinstance(file_name, t.file.File):
+        return file_name
     
     # check if is existing
     if os.path.isfile(file_name):
         try:
-            f = t.open_file(file_name, "r", driver="H5FD_CORE",driver_core_backing_store=mem)
+            f = t.open_file(file_name, "r")
             f.close()
         except t.HDF5ExtError:
             raise ImportError("File exists and is not an HDF5 dict")
-        
-    return t.open_file(file_name, mode, driver="H5FD_CORE",driver_core_backing_store=mem)
+    
+    if inMemory:
+        return t.open_file(file_name, mode, driver="H5FD_CORE",driver_core_backing_store=0)
+    else:
+        return t.open_file(file_name, mode)
 
 
 def is_bed_file(file_name):
-    if not file_name:
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
         return False
     
     def is_bed_line(line):
@@ -77,7 +88,8 @@ def is_bed_file(file_name):
             return True
         
 def is_bedpe_file(file_name):
-    if not file_name:
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
         return False
     
     def is_bedpe_line(line):
@@ -102,6 +114,10 @@ def is_bedpe_file(file_name):
         
         
 def is_hic_xml_file(file_name):
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
+        return False
+    
     try:
         for event, elem in iterparse(file_name):  # @UnusedVariable
             if elem.tag == 'hic':
@@ -113,6 +129,10 @@ def is_hic_xml_file(file_name):
     return False
 
 def is_hdf5_file(file_name):
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
+        return False
+    
     try:
         f = h5py.File(file_name,'r')
         f.close()
@@ -120,4 +140,32 @@ def is_hdf5_file(file_name):
         return False
     return True
     
+def is_sambam_file(file_name):
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
+        return False
     
+    try:
+        sb = pysam.AlignmentFile(file_name)
+        sb.close()
+    except (ValueError, IOError):
+        return False
+    return True
+
+def is_fasta_file(file_name):
+    file_name = os.path.expanduser(file_name)
+    if not os.path.isfile(file_name):
+        return False
+        
+    is_fasta = True
+    with open(file_name, 'r') as f:
+        fastas = SeqIO.parse(f,'fasta')
+        
+        try:
+            fastas.next()
+        except StopIteration:
+            is_fasta = False
+        
+    return is_fasta 
+        
+        

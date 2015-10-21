@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+from kaic.construct.seq import Reads
+
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        'input',
+        help='''Input Reads file'''
+    )
+    
+    parser.add_argument(
+        '-m', '--mapped', dest='mapped',
+        action='store_true',
+        help='''Filter unmapped reads'''
+    )
+    parser.set_defaults(mapped=False)
+    
+    parser.add_argument(
+        '-u', '--unique', dest='unique',
+        action='store_true',
+        help='''Filter reads that map multiple times (with a lower score)'''
+    )
+    parser.set_defaults(unique=False)
+    
+    parser.add_argument(
+        '-us', '--unique-strict', dest='unique_strict',
+        action='store_true',
+        help='''Strictly filter reads that map multiple times (XS tag)'''
+    )
+    parser.set_defaults(unique=False)
+    
+    parser.add_argument(
+        '-q', '--quality', dest='quality',
+        type=int,
+        help='''Cutoff for the minimum mapping quality of a read'''
+    )
+    
+    args = parser.parse_args()
+    
+    input_path = os.path.expanduser(args.input)
+    #output_path = os.path.expanduser(args.output)
+    
+    reads = Reads(file_name=input_path)
+    
+    if args.mapped:
+        logging.info("Unmapped filter enabled")
+        reads.filter_unmapped(queue=True)
+    
+    if args.unique_strict:
+        logging.info("Strict multi-map filter enabled")
+        reads.filter_non_unique(strict=True, queue=True)
+    elif args.unique:
+        logging.info("Soft multi-map filter enabled")
+        reads.filter_non_unique(strict=False, queue=True)
+    
+    if args.quality:
+        logging.info("Quality filter enabled (%d)" % args.quality)
+        reads.filter_quality(args.quality, queue=True)
+    
+    logging.info("Running filters...")
+    reads.run_queued_filters(log_progress=True)
+    logging.info("Done.")
+    
+    reads.close()
