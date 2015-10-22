@@ -3,7 +3,7 @@
 import argparse
 from kaic.tools.files import copy_or_expand
 from kaic.construct.seq import Reads
-
+import kaic.plotting.plot_statistics as ps
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -47,6 +47,11 @@ if __name__ == '__main__':
         type=int,
         help='''Cutoff for the minimum mapping quality of a read'''
     )
+
+    parser.add_argument(
+        '-s', '--stats', dest='stats',
+        help='''Path for saving stats pdf'''
+    )
     args = parser.parse_args()
 
     # copy file if required
@@ -72,5 +77,8 @@ if __name__ == '__main__':
     logging.info("Running filters...")
     reads.run_queued_filters(log_progress=True)
     logging.info("Done.")
+
+    if args.stats:
+        ps.plot_mask_statistics(reads, reads._reads, output=args.stats)
     
     reads.close()

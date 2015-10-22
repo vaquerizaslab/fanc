@@ -3,7 +3,7 @@
 import argparse
 from kaic.tools.files import copy_or_expand
 from kaic.construct.seq import FragmentMappedReadPairs
-
+import kaic.plotting.plot_statistics as ps
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -38,6 +38,11 @@ if __name__ == '__main__':
         type=int,
         help='''Maximum distance for a read to the nearest restriction site'''
     )
+
+    parser.add_argument(
+        '-s', '--stats', dest='stats',
+        help='''Path for saving stats pdf'''
+    )
     
     args = parser.parse_args()
     
@@ -60,5 +65,8 @@ if __name__ == '__main__':
     logging.info("Running filters...")
     pairs.run_queued_filters(logging=True)
     logging.info("Done.")
+
+    if args.stats:
+        ps.plot_mask_statistics(pairs, pairs._pairs, output=args.stats)
     
     pairs.close()
