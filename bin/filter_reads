@@ -55,7 +55,7 @@ if __name__ == '__main__':
     input_path = os.path.expanduser(args.input)
     if args.output:
         output_path = os.path.expanduser(args.output)
-        shutil.copyfile(input_path, output_path)
+        shutil.copy(input_path, output_path)
         if os.path.isdir(output_path):
             input_path = "%s/%s" % (output_path, os.path.basename(input_path))
         else:
