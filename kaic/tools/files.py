@@ -12,9 +12,12 @@ import random
 import h5py
 import pysam
 from Bio import SeqIO
+import shutil
+
 
 def without_extension(file_name):
     os.path.splitext(file_name)[0]
+
 
 def get_extension(file_name):
     os.path.splitext(file_name)[1][1:]
@@ -32,13 +35,15 @@ def make_dir(dir_name, fail_if_exists=False, make_subdirs=True):
         if not fail_if_exists and not os.path.isdir(dir_name):
             raise
 
+
 def get_number_of_lines(file_name):
     with open(file_name,'r') as f:
         n = sum(1 for line in f)  # @UnusedVariable
     return n
 
+
 def random_name(length=6):
-    return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))  # @UndefinedVariable
+    return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))
         
 
 def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
@@ -59,7 +64,7 @@ def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
             raise ImportError("File exists and is not an HDF5 dict")
     
     if inMemory:
-        return t.open_file(file_name, mode, driver="H5FD_CORE",driver_core_backing_store=0)
+        return t.open_file(file_name, mode, driver="H5FD_CORE", driver_core_backing_store=0)
     else:
         return t.open_file(file_name, mode)
 
@@ -86,7 +91,8 @@ def is_bed_file(file_name):
             return is_bed_line(f.readline())
         else:
             return True
-        
+
+
 def is_bedpe_file(file_name):
     file_name = os.path.expanduser(file_name)
     if not os.path.isfile(file_name):
@@ -128,6 +134,7 @@ def is_hic_xml_file(file_name):
     
     return False
 
+
 def is_hdf5_file(file_name):
     file_name = os.path.expanduser(file_name)
     if not os.path.isfile(file_name):
@@ -139,7 +146,8 @@ def is_hdf5_file(file_name):
     except IOError:
         return False
     return True
-    
+
+
 def is_sambam_file(file_name):
     file_name = os.path.expanduser(file_name)
     if not os.path.isfile(file_name):
@@ -151,6 +159,7 @@ def is_sambam_file(file_name):
     except (ValueError, IOError):
         return False
     return True
+
 
 def is_fasta_file(file_name):
     file_name = os.path.expanduser(file_name)
@@ -168,4 +177,15 @@ def is_fasta_file(file_name):
         
     return is_fasta 
         
-        
+
+def copy_or_expand(input_file, output_file=None):
+    # copy file if required
+    input_path = os.path.expanduser(input_file)
+    if output_file:
+        output_path = os.path.expanduser(output_file)
+        shutil.copy(input_path, output_path)
+        if os.path.isdir(output_path):
+            input_path = "%s/%s" % (output_path, os.path.basename(input_path))
+        else:
+            input_path = output_path
+    return input_path

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-import os.path
-import shutil
+from kaic.tools.files import copy_or_expand
 from kaic.construct.seq import Reads
 
 import logging
@@ -52,15 +51,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # copy file if required
-    input_path = os.path.expanduser(args.input)
-    if args.output:
-        output_path = os.path.expanduser(args.output)
-        shutil.copy(input_path, output_path)
-        if os.path.isdir(output_path):
-            input_path = "%s/%s" % (output_path, os.path.basename(input_path))
-        else:
-            input_path = output_path
-        logging.info("Copied file to %s" % input_path)
+    input_path = copy_or_expand(args.input, args.output)
     
     reads = Reads(file_name=input_path)
     
