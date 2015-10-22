@@ -2,6 +2,7 @@
 
 import argparse
 import os.path
+import shutil
 from kaic.construct.seq import Reads
 
 import logging
@@ -13,6 +14,12 @@ if __name__ == '__main__':
     parser.add_argument(
         'input',
         help='''Input Reads file'''
+    )
+
+    parser.add_argument(
+        'output',
+        nargs="*",
+        help='''Output Reads file'''
     )
     
     parser.add_argument(
@@ -43,9 +50,17 @@ if __name__ == '__main__':
     )
     
     args = parser.parse_args()
-    
+
+    # copy file if required
     input_path = os.path.expanduser(args.input)
-    #output_path = os.path.expanduser(args.output)
+    if args.output:
+        output_path = os.path.expanduser(args.output)
+        shutil.copyfile(input_path, output_path)
+        if os.path.isdir(output_path):
+            input_path = "%s/%s" % (output_path, os.path.basename(input_path))
+        else:
+            input_path = output_path
+        logging.info("Copied file to %s" % input_path)
     
     reads = Reads(file_name=input_path)
     
