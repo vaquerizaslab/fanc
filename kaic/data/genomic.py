@@ -2243,10 +2243,13 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         :return: A :class:`~HicNode` matching key
         """
         found_nodes = self.get_nodes(key)
-        if isinstance(found_nodes, list): 
-            raise IndexError("More than one node found matching %s" % str(key))
-        return None
-    
+        if isinstance(found_nodes, list):
+            if len(found_nodes) > 1:
+                raise IndexError("More than one node found matching %s" % str(key))
+            if len(found_nodes) == 1:
+                return found_nodes[0]
+        return found_nodes
+
     def get_nodes(self, key):
         """
         Get multiple nodes by key.
