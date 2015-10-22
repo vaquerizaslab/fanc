@@ -1290,6 +1290,8 @@ class Mask(object):
         self.name = name
         self.description = description
 
+    def __repr__(self):
+        return "%d. %s: %s" % (self.ix, self.name, self.description)
 
 class Maskable(object):
     """
@@ -1429,7 +1431,27 @@ class Maskable(object):
         self._mask.flush()
         
         return Mask(ix, name, description)
-    
+
+    def masks(self):
+        this = self
+
+        class MaskIter:
+            def __init__(self):
+                self.iter = iter(this._mask)
+
+            def __iter__(self):
+                return self
+
+            def next(self):
+                row = self.iter.next()
+                return Maskable._row_to_mask(row)
+
+        return MaskIter()
+
+    @staticmethod
+    def _row_to_mask(row):
+        return Mask(name=row['name'], ix=row['ix'], description=row['description'])
+
     def get_mask(self, key):
         """
         Search _mask table for key and return Mask.
@@ -1443,13 +1465,12 @@ class Maskable(object):
         """
         
         if type(key) == int:
-            res = [x.fetch_all_fields() for x in self._mask.where("ix == %d" % key)]
+            for row in self._mask.where("ix == %d" % key):
+                return Maskable._row_to_mask(row)
         else:
-            res = [x.fetch_all_fields() for x in self._mask.where("name == '%s'" % str(key))]
-
-        if len(res) == 1:
-            return Mask(res[0][0], res[0][1], res[0][2])
-        return None
+            for row in self._mask.where("name == '%s'" % str(key)):
+                return Maskable._row_to_mask(row)
+        return KeyError("Unrecognised key type")
     
     def get_masks(self, ix):
         """
@@ -1483,7 +1504,24 @@ class Maskable(object):
         
         return list(reversed(masks))
 
-    
+    def mask_statistics(self, table, include_unmasked=True):
+        masks = {mask.name: 0 for mask in self.masks()}
+        if include_unmasked:
+            masks['unmasked'] = 0
+        for row in table.all():
+            mask_bit = row[table._mask_field]
+            row_masks = self.get_masks(mask_bit)
+
+            found_masks = False
+            for mask in row_masks:
+                found_masks = True
+                masks[mask.name] += 1
+
+            if not found_masks:
+                masks['unmasked'] += 1
+        return masks
+
+
 class MaskedTable(t.Table):
     """
     Wrapper that adds masking functionality to a pytables table. 
