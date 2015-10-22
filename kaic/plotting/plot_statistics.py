@@ -1,7 +1,7 @@
 import seaborn as sns
 
 
-def plot_mask_statistics(maskable, masked_table, output=None):
+def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
     # get statistics
     stats = maskable.mask_statistics(masked_table)
 
@@ -13,8 +13,9 @@ def plot_mask_statistics(maskable, masked_table, output=None):
 
     for item in stats.iteritems():
         if not item[0] == 'unmasked':
-            labels.append(item[0])
-            values.append(item[1])
+            if not ignore_zero or item[1] > 0:
+                labels.append(item[0])
+                values.append(item[1])
 
     barplot = sns.barplot(x=labels, y=values, palette="muted")
     sns.despine()
