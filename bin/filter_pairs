@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-import os.path
+from kaic.tools.files import copy_or_expand
 from kaic.construct.seq import FragmentMappedReadPairs
 
 import logging
@@ -13,6 +13,12 @@ if __name__ == '__main__':
     parser.add_argument(
         'input',
         help='''Input FragmentMappedPairs file'''
+    )
+
+    parser.add_argument(
+        'output',
+        nargs="?",
+        help='''Output FragmentMappedPairs file. If not provided will filter input file in place.'''
     )
     
     parser.add_argument(
@@ -35,9 +41,8 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    input_path = os.path.expanduser(args.input)
-    #output_path = os.path.expanduser(args.output)
-    
+    input_path = copy_or_expand(args.input, args.output)
+
     pairs = FragmentMappedReadPairs(file_name=input_path)
     
     if args.inward:
@@ -53,7 +58,7 @@ if __name__ == '__main__':
         pairs.filter_re_dist(args.redist, queue=True)
     
     logging.info("Running filters...")
-    pairs.run_queued_filters()
+    pairs.run_queued_filters(logging=True)
     logging.info("Done.")
     
     pairs.close()
