@@ -18,7 +18,7 @@ if __name__ == '__main__':
     parser.add_argument(
         'output',
         nargs="?",
-        help='''Output Reads file'''
+        help='''Output Reads file. If not provided will filter existing file directly.'''
     )
     
     parser.add_argument(
@@ -47,7 +47,6 @@ if __name__ == '__main__':
         type=int,
         help='''Cutoff for the minimum mapping quality of a read'''
     )
-    
     args = parser.parse_args()
 
     # copy file if required
