@@ -6,6 +6,7 @@ allowing on-disk storage and therefore processing of large
 files. Other features include indexing and querying.
 """
 
+from __future__ import division
 import tables as t
 import kaic.fixes.pytables_nrowsinbuf_inheritance_fix
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file, random_name
@@ -1766,10 +1767,9 @@ class MaskedTable(t.Table):
                 ix += 1
             row.update()
             
-            if _logging:
-                if (i/l) > last_percent:
-                    logging.info("%d%..." % last_percent * 100)
-                    last_percent += + 0.05
+            if _logging and (i/l) > last_percent:
+                logging.info("%d%..." % int(last_percent * 100))
+                last_percent += 0.05
                     
         self.flush(update_index=False)
 
@@ -1808,10 +1808,9 @@ class MaskedTable(t.Table):
                 ix += 1
             row.update()
             
-            if _logging:
-                if (i/l) > last_percent:
-                    logging.info("%d%..." % last_percent * 100)
-                    last_percent += 0.05
+            if _logging and (i/l) > last_percent:
+                logging.info("%d%..." % int(last_percent * 100))
+                last_percent += 0.05
         self.flush(update_index=False)
     
     def all(self):
