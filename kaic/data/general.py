@@ -1768,7 +1768,7 @@ class MaskedTable(t.Table):
             row.update()
             
             if _logging and (i/l) > last_percent:
-                logging.info("%d%..." % int(last_percent * 100))
+                logging.info("%d%%..." % int(last_percent * 100))
                 last_percent += 0.05
                     
         self.flush(update_index=False)
@@ -1809,7 +1809,7 @@ class MaskedTable(t.Table):
             row.update()
             
             if _logging and (i/l) > last_percent:
-                logging.info("%d%..." % int(last_percent * 100))
+                logging.info("%d%%..." % int(last_percent * 100))
                 last_percent += 0.05
         self.flush(update_index=False)
     
