@@ -37,8 +37,8 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '-c', '--colormap', dest='colormap',
-        default='afmhot_r',
-        help='''Matplotlib colormap (default: afmhot_r)'''
+        default='viridis',
+        help='''Matplotlib colormap (default: viridis)'''
     )
     
     parser.add_argument(
