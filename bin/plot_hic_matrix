@@ -4,8 +4,8 @@ import argparse
 import os.path
 
 import logging
-from kaic.plotting.plot_genomic_data import HicMatrixPlot
-from kaic.data.genomic import HicBasic
+import kaic.plotting.plot_genomic_data as pgd
+from kaic.data.genomic import Hic
 logging.basicConfig(level=logging.DEBUG)
 
 if __name__ == '__main__':
@@ -44,16 +44,13 @@ if __name__ == '__main__':
     
     input_path = os.path.expanduser(args.input)
     
-    hic = HicBasic(input_path)
-    
-    if args.region:
-        print args.region
-    plt = HicMatrixPlot(hic, key=args.region, zrange=[args.lower, args.upper])
+    hic = Hic(input_path)
     
     output_path = None
     if args.output:
         output_path = os.path.expanduser(args.output)
-    plt.show(output=output_path)
+
+    pgd.hic_matrix_plot(hic, output=output_path, key=args.region, zrange=[args.lower, args.upper])
     
     hic.close()
     
