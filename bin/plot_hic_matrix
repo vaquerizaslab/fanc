@@ -50,7 +50,8 @@ if __name__ == '__main__':
     if args.output:
         output_path = os.path.expanduser(args.output)
 
+    if args.region is None:
+        args.region = slice(None, None, None)
     pgd.hic_matrix_plot(hic, output=output_path, key=args.region, zrange=[args.lower, args.upper])
     
     hic.close()
-    
