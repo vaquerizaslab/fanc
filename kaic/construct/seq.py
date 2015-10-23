@@ -968,8 +968,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self._pairs = self.file.get_node('/' + group_name + '/mapped_read_pairs')
             self._single = self.file.get_node('/' + group_name + '/mapped_read_single')
             self._read_count = len(self._reads)
-            self._pair_count = len(self._pairs)
-            self._single_count = len(self._single)
+            self._pair_count = self._pairs._original_len()
+            self._single_count = self._single._original_len()
         # or build table from scratch
         except NoSuchNodeError:
             # create group
