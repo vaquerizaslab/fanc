@@ -67,6 +67,8 @@ if __name__ == '__main__':
     logging.info("Done.")
 
     if args.stats:
+        logging.info("Plotting filter statistics")
         ps.plot_mask_statistics(pairs, pairs._pairs, output=args.stats)
+        logging.info("Done.")
     
     pairs.close()
