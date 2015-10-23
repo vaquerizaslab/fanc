@@ -8,11 +8,11 @@ Created on Oct 1, 2015
 
 import argparse
 from kaic.tools.hic import load_mirny_binned_hic
-from kaic.data.genomic import HicBasic
+from kaic.data.genomic import Hic
 import os.path
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser();
+    parser = argparse.ArgumentParser()
     
     parser.add_argument(
         'hic',
@@ -34,10 +34,9 @@ if __name__ == '__main__':
         type=int,
         help='''Resolution of the file (e.g. 100000)'''
     )
-    
 
     args = parser.parse_args()
 
     mirny = load_mirny_binned_hic(os.path.expanduser(args.hic), os.path.expanduser(args.genome), args.resolution)
-    hic = HicBasic.from_hiclib(mirny, file_name=os.path.expanduser(args.output))
+    hic = Hic.from_hiclib(mirny, file_name=os.path.expanduser(args.output))
     hic.close()
