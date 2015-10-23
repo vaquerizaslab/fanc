@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+from kaic.data.genomic import Hic
+from kaic.construct.seq import FragmentMappedReadPairs
+
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        'pairs',
+        help='''Input FragmentMappedReadPairs file'''
+    )
+
+    parser.add_argument(
+        'hic',
+        help='''Output path for Hic file'''
+    )
+
+    args = parser.parse_args()
+
+    pairs_path = os.path.expanduser(args.pairs)
+    hic_path = os.path.expanduser(args.hic)
+
+    logging.info("Loading pairs...")
+    pairs = FragmentMappedReadPairs(pairs_path)
+    logging.info("Done.")
+
+    logging.info("Adding pairs to Hic...")
+    hic = Hic(hic_path)
+    hic.load_read_fragment_pairs(pairs)
+    logging.info("Done.")
+
+    pairs.close()
+    hic.close()
