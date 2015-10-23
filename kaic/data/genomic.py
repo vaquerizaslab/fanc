@@ -1580,7 +1580,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 self.add_edge([key_pair[0], key_pair[1], edge_buffer[key_pair]], flush=False)
             self.flush()
 
-    def bin(self, bin_size):
+    def bin(self, bin_size, file_name=None):
         """
         Map edges in this object to equi-distant bins.
 
@@ -1599,7 +1599,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = Hic()
+        hic = Hic(file_name=file_name)
         hic.add_regions(genome.get_regions(bin_size))
 
         hic.load_from_hic(self)
@@ -1742,7 +1742,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
     
-    def merge(self, hic):
+    def merge_old(self, hic):
         """
         Merge this object with another :class:`~Hic` object.
 
