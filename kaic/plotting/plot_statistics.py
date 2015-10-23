@@ -17,10 +17,19 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
                 labels.append(item[0])
                 values.append(item[1])
 
+    if output is not None:
+        old_backend = sns.plt.get_backend()
+        sns.plt.switch_backend('pdf')
+        sns.plt.ioff()
+
     barplot = sns.barplot(x=labels, y=values, palette="muted")
     sns.despine()
+
     if output is not None:
         barplot.figure.savefig(output)
+        sns.plt.close(barplot.figure)
+        sns.plt.ion()
+        sns.plt.switch_backend(old_backend)
     else:
         sns.plt.show()
 
