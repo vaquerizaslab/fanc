@@ -29,7 +29,7 @@ def hic_contact_plot_linear(hic, regions, window_size=1000000):
                                              end=end_node.end+half_window)
 
 
-def hic_matrix_plot(hic, output=None, key=slice(None, None, None), zrange=[5, 40], colormap='afmhot_r'):
+def hic_matrix_plot(hic, output=None, key=slice(None, None, None), zrange=(5, 40), colormap='afmhot_r'):
     hm = hic[key, key]
 
     heatmap = sns.heatmap(hm, vmin=zrange[0], vmax=zrange[1], cmap=colormap)

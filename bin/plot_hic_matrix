@@ -34,6 +34,12 @@ if __name__ == '__main__':
         default=40.0,
         help='''Upper bound on Hi-C contact counts (for color scale, default: 40.0)'''
     )
+
+    parser.add_argument(
+        '-c', '--colormap', dest='colormap',
+        default='viridis',
+        help='''Matplotlib colormap (default: viridis)'''
+    )
     
     parser.add_argument(
         '-o', '--output', dest='output',
@@ -52,6 +58,7 @@ if __name__ == '__main__':
 
     if args.region is None:
         args.region = slice(None, None, None)
-    pgd.hic_matrix_plot(hic, output=output_path, key=args.region, zrange=[args.lower, args.upper])
+    pgd.hic_matrix_plot(hic, output=output_path, key=args.region,
+                        zrange=[args.lower, args.upper], colormap=args.colormap)
     
     hic.close()
