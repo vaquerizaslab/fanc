@@ -1606,6 +1606,10 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return hic
 
+    def bin_size(self):
+        node = self.get_node(0)
+        return node.end - node.start + 1
+
     @classmethod
     def from_hiclib(cls, hl, file_name=None):
         """
