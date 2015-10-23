@@ -63,7 +63,7 @@ if __name__ == '__main__':
         pairs.filter_re_dist(args.redist, queue=True)
     
     logging.info("Running filters...")
-    pairs.run_queued_filters(logging=True)
+    pairs.run_queued_filters(log_progress=True)
     logging.info("Done.")
 
     if args.stats:
