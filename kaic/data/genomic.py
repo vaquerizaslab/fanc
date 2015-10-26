@@ -1428,7 +1428,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
     def __del__(self):
         self.close()
     
-    def load_read_fragment_pairs(self, pairs, _max_buffer_size=250000):
+    def load_read_fragment_pairs(self, pairs, _max_buffer_size=5000000):
         """
         Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
 
@@ -1444,49 +1444,26 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         if len(self._regions) != 0:
             raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
         self.add_regions(pairs.regions())
-        
-        def _flush_buffer(edge_buffer):
-            for key_pair in edge_buffer:
-                self.add_edge([key_pair[0], key_pair[1], edge_buffer[key_pair]], flush=False)
-        
-        # add edges
-        last_left_fragment_ix = -1
+
         edge_buffer = {}
-        mask_field_ix = pairs._pairs.colnames.index(pairs._pairs._mask_field)
-        left_fragment_field_ix = pairs._pairs.colnames.index('left_fragment')
-        right_fragment_field_ix = pairs._pairs.colnames.index('right_fragment')
-        # this loop is traversing a completely sorted index
-        # (sorted by left_fragment)
-        for i in xrange(0,pairs._pairs._original_len()):
-            # get index of pair with next-lowest left_fragment field
-            current_ix = pairs._pairs.cols.left_fragment.index[i]
-            # get actual pair (as list, no row access here)
-            pair_list = pairs._pairs._original_getitem(int(current_ix))
-            # check if the pair is masked
-            if pair_list[mask_field_ix] > 0:
-                continue
-            
-            left_fragment_ix = pair_list[left_fragment_field_ix]
-            right_fragment_ix = pair_list[right_fragment_field_ix]
-            key_pair = (left_fragment_ix, right_fragment_ix)
-            
-            # do we need to flush the buffer?
-            if (left_fragment_ix > last_left_fragment_ix
-                and len(edge_buffer) > _max_buffer_size):
-                # flush buffer
-                _flush_buffer(edge_buffer)
-                # clear buffer
+        for pair in pairs._pairs:
+            source = pair["left_fragment"]
+            sink = pair["right_fragment"]
+            if source > sink:
+                tmp = source
+                source = sink
+                sink = tmp
+            key = (source, sink)
+            if key not in edge_buffer:
+                edge_buffer[key] = 0
+            edge_buffer[key] += 1
+
+            if len(edge_buffer) > _max_buffer_size:
+                logging.info("Flushing buffer")
+                self._flush_edge_buffer(edge_buffer, replace=False)
                 edge_buffer = {}
-            
-            # if it is not masked, add it to buffer
-            if not key_pair in edge_buffer:
-                edge_buffer[key_pair] = 0
-            edge_buffer[key_pair] += 1
-            
-            last_left_fragment_ix = left_fragment_ix
-        
-        _flush_buffer(edge_buffer)
-        self.flush()
+        logging.info("Final flush")
+        self._flush_edge_buffer(edge_buffer, replace=False)
         
     def load_from_hic(self, hic, _edge_buffer_size=250000,
                       _edges_by_overlap_method=_edge_overlap_split_rao):
@@ -1522,7 +1499,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             safe_region_flush = {}
             last_region_ixs = []
             max_new_region_ix = -1
-            for i in xrange(0,len(hic.regions())):
+            for i in xrange(0, len(hic.regions())):
                 new_region_ixs = []
                 for pair in overlap_map[i]:
                     new_region_ixs.append(pair[0])
@@ -1766,46 +1743,14 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             ix_conversion[region.ix] = ix
         self._regions.flush()
 
-        self._add_or_replace_edges(hic._edges, ix_conversion=ix_conversion,
-                                   replace=False, _edge_buffer_size=_edge_buffer_size)
-
-    def _add_or_replace_edges(self, edge_list, ix_conversion=None, replace=False, _edge_buffer_size=5000000):
-
-        def _convert_ix(original_ix):
-            if ix_conversion is None:
-                return original_ix
-            return ix_conversion[original_ix]
-
-        def _flush_buffer(e_buffer):
-            # update current rows
-            for row in self._edges:
-                key = (row["source"], row["sink"])
-
-                if key in e_buffer:
-                    if replace:
-                        row["weight"] = e_buffer[key]
-                    else:
-                        row["weight"] += e_buffer[key]
-                    row.update()
-                    del e_buffer[key]
-
-            # flush remaining buffer
-            row = self._edges.row
-            for source, sink in e_buffer:
-                row["source"] = source
-                row["sink"] = sink
-                row["weight"] = e_buffer[(source, sink)]
-                row.append()
-            self._edges.flush(update_index=True)
-
         # merge edges
         self.log_info("Merging contacts...")
         edge_buffer = {}
-        l = len(edge_list)
+        l = len(hic._edges)
         last_percent = 0.0
-        for i, merge_row in enumerate(edge_list):
-            merge_source = _convert_ix(merge_row["source"])
-            merge_sink = _convert_ix(merge_row["sink"])
+        for i, merge_row in enumerate(hic._edges):
+            merge_source = ix_conversion[merge_row["source"]]
+            merge_sink = ix_conversion[merge_row["sink"]]
             merge_weight = merge_row["weight"]
 
             if merge_source > merge_sink:
@@ -1821,12 +1766,36 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
             if len(edge_buffer) > _edge_buffer_size:
                 logging.info("Flushing buffer...")
-                _flush_buffer(edge_buffer)
+                self._flush_edge_buffer(edge_buffer, replace=False)
                 edge_buffer = {}
 
         # final flush
         self.log_info("Final flush")
-        _flush_buffer(edge_buffer)
+        self._flush_edge_buffer(edge_buffer, replace=False)
+
+    def _flush_edge_buffer(self, e_buffer, replace=False):
+        # update current rows
+        for row in self._edges:
+            key = (row["source"], row["sink"])
+
+            if key in e_buffer:
+                if replace:
+                    row["weight"] = e_buffer[key]
+                else:
+                    row["weight"] += e_buffer[key]
+                row.update()
+                del e_buffer[key]
+        self._edges.flush()
+
+        # flush remaining buffer
+        row = self._edges.row
+        for source, sink in e_buffer:
+            row["source"] = source
+            row["sink"] = sink
+            row["weight"] = e_buffer[(source, sink)]
+            row.append()
+        self._edges.flush(update_index=True)
+        self._remove_zero_edges()
 
     def flush(self, flush_nodes=True, flush_edges=True):
         """
@@ -2094,10 +2063,14 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         self._set_matrix(item, nodes_ix_row, nodes_ix_col)
 
     def _set_matrix(self, item, nodes_ix_row=None, nodes_ix_col=None):
-        replacement_edges = []
+        replacement_edges = {}
 
         # create new edges with updated weights
         # select the correct format:
+        def swap(old_source, old_sink):
+            if old_source > old_sink:
+                return old_sink, old_source
+            return old_source, old_sink
 
         # both selectors are lists: matrix
         if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
@@ -2111,8 +2084,11 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 for j in xrange(0, n_cols):
                     source = nodes_ix_row[i]
                     sink = nodes_ix_col[j]
+                    source, sink = swap(source, sink)
                     weight = item[i, j]
-                    replacement_edges.append({'source': source, 'sink': sink, 'weight': weight})
+                    key = (source, sink)
+                    if key not in replacement_edges:
+                        replacement_edges[key] = weight
 
         # row selector is list: vector
         elif isinstance(nodes_ix_row, list):
@@ -2120,10 +2096,13 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows]):
                 raise ValueError("Item is not a numpy vector of length %d!" % n_rows)
             
-            for i, sink in enumerate(nodes_ix_row):
+            for i, my_sink in enumerate(nodes_ix_row):
                 source = nodes_ix_col
+                source, sink = swap(source, my_sink)
                 weight = item[i]
-                replacement_edges.append({'source': source, 'sink': sink, 'weight': weight})
+                key = (source, sink)
+                if key not in replacement_edges:
+                    replacement_edges[key] = weight
         
         # column selector is list: vector
         elif isinstance(nodes_ix_col, list):
@@ -2131,19 +2110,24 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_cols]):
                 raise ValueError("Item is not a numpy vector of length %d!" % n_cols)
             
-            for i, source in enumerate(nodes_ix_col):
+            for i, my_source in enumerate(nodes_ix_col):
                 sink = nodes_ix_row
+                source, sink = swap(my_source, sink)
                 weight = item[i]
-                replacement_edges.append({'source': source, 'sink': sink, 'weight': weight})
+                key = (source, sink)
+                if key not in replacement_edges:
+                    replacement_edges[key] = weight
 
         # both must be indexes
         else:
             weight = item
-            replacement_edges.append({'source': nodes_ix_row, 'sink': nodes_ix_col, 'weight': weight})
-            self.add_edge([nodes_ix_row, nodes_ix_col, weight], flush=False)
-        
-        self._add_or_replace_edges(replacement_edges, ix_conversion=None, replace=True)
-    
+            source, sink = swap(nodes_ix_row, nodes_ix_col)
+            key = (source, sink)
+            if key not in replacement_edges:
+                replacement_edges[key] = weight
+
+        self._flush_edge_buffer(replacement_edges, replace=True)
+
     def _set_matrix_old(self, item, nodes_ix_row=None, nodes_ix_col=None):
         # calculate number of rows
         if (nodes_ix_row is not None
