@@ -60,7 +60,6 @@ if __name__ == '__main__':
         args.region = slice(None, None, None)
     pgd.hic_matrix_plot(hic, output=output_path, key=args.region,
                         lower_percentile=args.lower, upper_percentile=args.upper,
-                        colormap=args.colormap, square=True, xticklabels=False,
-                        yticklabels=False)
+                        colormap=args.colormap)
     
     hic.close()
