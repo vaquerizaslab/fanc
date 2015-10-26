@@ -1766,13 +1766,26 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             ix_conversion[region.ix] = ix
         self._regions.flush()
 
+        self._add_or_replace_edges(hic._edges, ix_conversion=ix_conversion,
+                                   replace=False, _edge_buffer_size=_edge_buffer_size)
+
+    def _add_or_replace_edges(self, edge_list, ix_conversion=None, replace=False, _edge_buffer_size=5000000):
+
+        def _convert_ix(original_ix):
+            if ix_conversion is None:
+                return original_ix
+            return ix_conversion[original_ix]
+
         def _flush_buffer(e_buffer):
             # update current rows
             for row in self._edges:
                 key = (row["source"], row["sink"])
 
                 if key in e_buffer:
-                    row["weight"] += e_buffer[key]
+                    if replace:
+                        row["weight"] = e_buffer[key]
+                    else:
+                        row["weight"] += e_buffer[key]
                     row.update()
                     del e_buffer[key]
 
@@ -1788,11 +1801,11 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # merge edges
         self.log_info("Merging contacts...")
         edge_buffer = {}
-        l = len(hic._edges)
+        l = len(edge_list)
         last_percent = 0.0
-        for i, merge_row in enumerate(hic._edges):
-            merge_source = ix_conversion[merge_row["source"]]
-            merge_sink = ix_conversion[merge_row["sink"]]
+        for i, merge_row in enumerate(edge_list):
+            merge_source = _convert_ix(merge_row["source"])
+            merge_sink = _convert_ix(merge_row["sink"])
             merge_weight = merge_row["weight"]
 
             if merge_source > merge_sink:
@@ -2081,13 +2094,64 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         self._set_matrix(item, nodes_ix_row, nodes_ix_col)
 
     def _set_matrix(self, item, nodes_ix_row=None, nodes_ix_col=None):
+        replacement_edges = []
+
+        # create new edges with updated weights
+        # select the correct format:
+
+        # both selectors are lists: matrix
+        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            n_rows = len(nodes_ix_row)
+            n_cols = len(nodes_ix_col)
+            # check that we have a matrix with the correct dimensions
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows, n_cols]):
+                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows, n_cols))
+            
+            for i in xrange(0, n_rows):
+                for j in xrange(0, n_cols):
+                    source = nodes_ix_row[i]
+                    sink = nodes_ix_col[j]
+                    weight = item[i, j]
+                    replacement_edges.append({'source': source, 'sink': sink, 'weight': weight})
+
+        # row selector is list: vector
+        elif isinstance(nodes_ix_row, list):
+            n_rows = len(nodes_ix_row)
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows]):
+                raise ValueError("Item is not a numpy vector of length %d!" % n_rows)
+            
+            for i, sink in enumerate(nodes_ix_row):
+                source = nodes_ix_col
+                weight = item[i]
+                replacement_edges.append({'source': source, 'sink': sink, 'weight': weight})
+        
+        # column selector is list: vector
+        elif isinstance(nodes_ix_col, list):
+            n_cols = len(nodes_ix_col)
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_cols]):
+                raise ValueError("Item is not a numpy vector of length %d!" % n_cols)
+            
+            for i, source in enumerate(nodes_ix_col):
+                sink = nodes_ix_row
+                weight = item[i]
+                replacement_edges.append({'source': source, 'sink': sink, 'weight': weight})
+
+        # both must be indexes
+        else:
+            weight = item
+            replacement_edges.append({'source': nodes_ix_row, 'sink': nodes_ix_col, 'weight': weight})
+            self.add_edge([nodes_ix_row, nodes_ix_col, weight], flush=False)
+        
+        self._add_or_replace_edges(replacement_edges, ix_conversion=None, replace=True)
+    
+    def _set_matrix_old(self, item, nodes_ix_row=None, nodes_ix_col=None):
         # calculate number of rows
         if (nodes_ix_row is not None
             and not isinstance(nodes_ix_row, list)):
             range_nodes_ix_row = [nodes_ix_row]
         else:
             range_nodes_ix_row = nodes_ix_row
-            
+
         # calculate number of columns
         if (nodes_ix_col is not None
             and not isinstance(nodes_ix_col, list)):
@@ -2097,33 +2161,33 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         # get row range generator
         row_ranges = ranges(range_nodes_ix_row)
-        
+
         # set every edge that is to be replaced to 0
         row_offset = 0
         for row_range in row_ranges:
             n_rows_sub = row_range[1] - row_range[0] + 1
-            
+
             col_ranges = ranges(range_nodes_ix_col)
             col_offset = 0
             for col_range in col_ranges:
                 n_cols_sub = col_range[1] - col_range[0] + 1
-                
+
                 condition = "((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
                 condition += "| ((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
                 condition = condition % (row_range[0], row_range[1], col_range[0], col_range[1],
                                          col_range[0], col_range[1], row_range[0], row_range[1])
-                
+
                 # actually set weight to zero
                 for edge_row in self._edges.where(condition):
                     edge_row['weight'] = 0
                     edge_row.update()
-                
+
                 col_offset += n_cols_sub
             row_offset += n_rows_sub
-        
+
         self.flush()
         self._remove_zero_edges()
-                
+
         # create new edges with updated weights
         # select the correct format
         # both selectors are lists: matrix
@@ -2131,10 +2195,10 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             n_rows = len(nodes_ix_row)
             n_cols = len(nodes_ix_col)
             # check that we have a matrix with the correct dimensions
-            if (not isinstance(item, np.ndarray) or 
+            if (not isinstance(item, np.ndarray) or
                 not np.array_equal(item.shape, [n_rows,n_cols])):
                 raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows,n_cols))
-            
+
             for i in xrange(0, n_rows):
                 for j in xrange(0,n_cols):
                     source = nodes_ix_row[i]
@@ -2145,22 +2209,22 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # row selector is list: vector
         elif isinstance(nodes_ix_row, list):
             n_rows = len(nodes_ix_row)
-            if (not isinstance(item, np.ndarray) or 
+            if (not isinstance(item, np.ndarray) or
                 not np.array_equal(item.shape, [n_rows])):
                 raise ValueError("Item is not a numpy vector of length %d!" % (n_rows))
-            
+
             for i, sink in enumerate(nodes_ix_row):
                 source = nodes_ix_col
                 weight = item[i]
                 self.add_edge([source, sink, weight], flush=False)
-        
+
         # column selector is list: vector
         elif isinstance(nodes_ix_col, list):
             n_cols = len(nodes_ix_col)
-            if (not isinstance(item, np.ndarray) or 
+            if (not isinstance(item, np.ndarray) or
                 not np.array_equal(item.shape, [n_cols])):
                 raise ValueError("Item is not a numpy vector of length %d!" % (n_cols))
-            
+
             for i, source in enumerate(nodes_ix_col):
                 sink = nodes_ix_row
                 weight = item[i]
@@ -2170,58 +2234,8 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         else:
             weight = item
             self.add_edge([nodes_ix_row, nodes_ix_col, weight], flush=False)
-        
+
         self.flush()
-    
-    def _set_matrix_old(self, item, nodes_ix_row=None, nodes_ix_col=None):
-        # select the correct output format
-        # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            n_rows = len(nodes_ix_row)
-            n_cols = len(nodes_ix_col)
-            # check that we have a matrix with the correct dimensions
-            if (not isinstance(item, np.ndarray) or 
-                not np.array_equal(item.shape, [n_rows,n_cols])):
-                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows,n_cols))
-             
-            for i in xrange(0, n_rows):
-                for j in xrange(0,n_cols):
-                    source = nodes_ix_row[i]
-                    sink = nodes_ix_col[j]
-                    weight = item[i,j]
-                    self._update_edge_weight(source, sink, weight, flush=False)
- 
-        # row selector is list: vector
-        elif isinstance(nodes_ix_row, list):
-            n_rows = len(nodes_ix_row)
-            if (not isinstance(item, np.ndarray) or 
-                not np.array_equal(item.shape, [n_rows])):
-                raise ValueError("Item is not a numpy vector of length %d!" % (n_rows))
-             
-            for i, sink in enumerate(nodes_ix_row):
-                source = nodes_ix_col
-                weight = item[i]
-                self._update_edge_weight(source, sink, weight, flush=False)
-         
-        # column selector is list: vector
-        elif isinstance(nodes_ix_col, list):
-            n_cols = len(nodes_ix_col)
-            if (not isinstance(item, np.ndarray) or 
-                not np.array_equal(item.shape, [n_cols])):
-                raise ValueError("Item is not a numpy vector of length %d!" % (n_cols))
-             
-            for i, source in enumerate(nodes_ix_col):
-                sink = nodes_ix_row
-                weight = item[i]
-                self._update_edge_weight(source, sink, weight, flush=False)
- 
-        # both must be indexes
-        else:
-            weight = item
-            self._update_edge_weight(nodes_ix_row, nodes_ix_col, weight, flush=False)
-         
-        self.flush()
-        self._remove_zero_edges()
     
     def _update_edge_weight(self, source, sink, weight, add=False, flush=True):
         if source > sink:
