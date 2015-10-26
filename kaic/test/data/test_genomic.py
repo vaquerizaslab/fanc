@@ -508,7 +508,7 @@ class TestHicBasic:
         
         # check length
         original_length = len(self.hic.nodes())
-        self.hic.merge(hic)
+        self.hic.merge(hic, _edge_buffer_size=5)
         assert len(self.hic.nodes()) == original_length + 5
             
         merged = self.hic[:,:]

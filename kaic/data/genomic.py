@@ -1741,36 +1741,68 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         for edge in edges:
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
-    
-    def merge_old(self, hic):
+
+    def merge(self, hic, _edge_buffer_size=5000000):
         """
         Merge this object with another :class:`~Hic` object.
 
         First merges genomic regions, then merges edges.
-        MUST be binned identically to work.
+        It is strongly advised that the genomic regions in
+        both objects are the same, although this method will attempt to
+        "translate" regions from one object to the other if
+        this is not the case.
 
-        :param hic: :class:`~Hic` object
+        :param hic: :class:`~Hic` object to be merged into this one
         """
+
         ix_conversion = {}
-        
+
         # merge genomic regions
         for region in hic.regions():
             ix = self._get_region_ix(region)
             if ix is None:
                 ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
             ix_conversion[region.ix] = ix
-        self.flush()
-                
-        # merge edges
-        for edge in hic.edges():
-            source = ix_conversion[edge.source]
-            sink = ix_conversion[edge.sink]
-            if source > sink:
-                tmp = source
-                source = sink
-                sink = tmp
-            self._update_edge_weight(source, sink, edge.weight, add=True, flush=False)
-        self.flush()
+        self._regions.flush()
+
+        def _flush_buffer(e_buffer):
+            # update current rows
+            for row in self._edges:
+                key = (row["source"], row["sink"])
+
+                if key in e_buffer:
+                    row["weight"] += e_buffer[key]
+                    row.update()
+                    del e_buffer[key]
+
+            # flush remaining buffer
+            row = self._edges.row
+            for source, sink in e_buffer:
+                row["source"] = source
+                row["sink"] = sink
+                row["weight"] = e_buffer[(source, sink)]
+                row.append()
+            self._edges.flush(update_index=True)
+
+        edge_buffer = {}
+        for merge_row in hic._edges:
+            merge_source = ix_conversion[merge_row["source"]]
+            merge_sink = ix_conversion[merge_row["sink"]]
+            merge_weight = merge_row["weight"]
+
+            if merge_source > merge_sink:
+                tmp = merge_source
+                merge_source = merge_sink
+                merge_sink = tmp
+
+            edge_buffer[(merge_source, merge_sink)] = merge_weight
+
+            if len(edge_buffer) > _edge_buffer_size:
+                _flush_buffer(edge_buffer)
+                edge_buffer = {}
+
+        # final flush
+        _flush_buffer(edge_buffer)
 
     def flush(self, flush_nodes=True, flush_edges=True):
         """
