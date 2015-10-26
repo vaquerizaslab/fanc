@@ -400,7 +400,9 @@ class TestHicBasic:
     def test_set_matrix(self):
         
         hic = Hic(self.hic)
-        
+
+        n_edges = len(hic._edges)
+
         # whole matrix
         old = hic[:,:]
         # set diagonal to zero
@@ -415,6 +417,8 @@ class TestHicBasic:
                     assert m[i,j] == 0
                 else:
                     assert m[i,j] == old[i,j]
+
+        assert len(hic._edges) < n_edges
         
         # central matrix
         hic = Hic(self.hic)
