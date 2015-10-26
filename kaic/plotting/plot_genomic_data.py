@@ -77,15 +77,18 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
     return df
 
 
-def hic_matrix_plot(hic, output=None, key=slice(None, None, None), zrange=(5, 40), colormap='viridis'):
+def hic_matrix_plot(hic, output=None, key=slice(None, None, None),
+                    lower_percentile=25.0, upper_percentile=98.0, colormap='viridis'):
     hm = hic[key, key]
+
+    percentiles = np.percentile(hm, [lower_percentile, upper_percentile])
 
     if output is not None:
         old_backend = sns.plt.get_backend()
         sns.plt.switch_backend('pdf')
         sns.plt.ioff()
 
-    heatmap = sns.heatmap(hm, vmin=zrange[0], vmax=zrange[1], cmap=colormap)
+    heatmap = sns.heatmap(hm, vmin=percentiles[0], vmax=percentiles[1], cmap=colormap)
 
     if output is not None:
         heatmap.figure.savefig(output)
