@@ -1647,7 +1647,7 @@ class MaskedTable(t.Table):
                 row = self.iter.next()
                 while row[this._mask_field] > 0:
                     row = self.iter.next()
-                return row.fetch_all_fields()
+                return row
         return VisibleIter()
       
     def __getitem__(self, key):
