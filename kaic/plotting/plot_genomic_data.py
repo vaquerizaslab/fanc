@@ -88,7 +88,8 @@ def hic_matrix_plot(hic, output=None, key=slice(None, None, None),
         sns.plt.switch_backend('pdf')
         sns.plt.ioff()
 
-    heatmap = sns.heatmap(hm, vmin=percentiles[0], vmax=percentiles[1], cmap=colormap)
+    heatmap = sns.heatmap(hm, vmin=percentiles[0], vmax=percentiles[1], cmap=colormap,
+                          square=True, xticklabels=False, yticklabels=False)
 
     if output is not None:
         heatmap.figure.savefig(output)
