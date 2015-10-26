@@ -98,3 +98,54 @@ def hic_matrix_plot(hic, output=None, key=slice(None, None, None),
         sns.plt.switch_backend(old_backend)
     else:
         sns.plt.show()
+
+
+def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
+    chromosomes = hic1.chromosomes()
+
+    corr_matrix = np.zeros(shape=(len(chromosomes), len(chromosomes)))
+
+    for chr_i in xrange(0, len(chromosomes)):
+        chromosome1 = chromosomes[chr_i]
+        for chr_j in xrange(chr_i, len(chromosomes)):
+            chromosome2 = chromosomes[chr_j]
+
+            m1 = hic1[chromosome1, chromosome2]
+            m2 = hic2[chromosome1, chromosome2]
+
+            contacts1 = []
+            contacts2 = []
+            for i in xrange(0, m1.shape[0]):
+                for j in xrange(i, m1.shape[1]):
+                    if not include_zeros and m1[i, j] == 0 and m2[i, j] == 0:
+                        continue
+                    contacts1.append(m1[i, j])
+                    contacts2.append(m2[i, j])
+
+            corr = np.corrcoef(contacts1, contacts2)[0, 1]
+            if in_percent:
+                corr = int(round(corr*100))
+            corr_matrix[chr_i, chr_j] = corr
+            corr_matrix[chr_j, chr_i] = corr
+
+    return pandas.DataFrame(data=corr_matrix, index=chromosomes, columns=chromosomes)
+
+
+def hic_correlation_plot(hic1, hic2, output=None, include_zeros=False, colormap="viridis", size=10):
+    corr_df = _correlation_df(hic1, hic2, include_zeros=include_zeros, in_percent=True)
+
+    if output is not None:
+        old_backend = sns.plt.get_backend()
+        sns.plt.switch_backend('pdf')
+        sns.plt.ioff()
+
+    sns.plt.figure(figsize=(size, size))
+    heatmap = sns.heatmap(corr_df, vmin=5, vmax=95, cmap=colormap, square=True, annot=True, fmt=".0f")
+
+    if output is not None:
+        heatmap.figure.savefig(output)
+        sns.plt.close(heatmap.figure)
+        sns.plt.ion()
+        sns.plt.switch_backend(old_backend)
+    else:
+        sns.plt.show()
