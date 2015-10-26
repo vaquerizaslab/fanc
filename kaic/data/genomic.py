@@ -1758,6 +1758,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         ix_conversion = {}
 
         # merge genomic regions
+        self.log_info("Merging genomic regions...")
         for region in hic.regions():
             ix = self._get_region_ix(region)
             if ix is None:
@@ -1784,8 +1785,12 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 row.append()
             self._edges.flush(update_index=True)
 
+        # merge edges
+        self.log_info("Merging contacts...")
         edge_buffer = {}
-        for merge_row in hic._edges:
+        l = len(self._edges)
+        last_percent = 0.0
+        for i, merge_row in enumerate(hic._edges):
             merge_source = ix_conversion[merge_row["source"]]
             merge_sink = ix_conversion[merge_row["sink"]]
             merge_weight = merge_row["weight"]
@@ -1797,11 +1802,17 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
             edge_buffer[(merge_source, merge_sink)] = merge_weight
 
+            if i/l > last_percent:
+                logging.info("%d%%" % int(round(last_percent*100)))
+                last_percent += 0.05
+
             if len(edge_buffer) > _edge_buffer_size:
+                logging.info("Flushing buffer...")
                 _flush_buffer(edge_buffer)
                 edge_buffer = {}
 
         # final flush
+        self.log_info("Final flush")
         _flush_buffer(edge_buffer)
 
     def flush(self, flush_nodes=True, flush_edges=True):
