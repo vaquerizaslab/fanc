@@ -1788,7 +1788,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # merge edges
         self.log_info("Merging contacts...")
         edge_buffer = {}
-        l = len(self._edges)
+        l = len(hic._edges)
         last_percent = 0.0
         for i, merge_row in enumerate(hic._edges):
             merge_source = ix_conversion[merge_row["source"]]
