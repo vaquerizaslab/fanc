@@ -33,7 +33,7 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
         center_node = hic.get_node(center_region)
 
         left_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,
-                                            start=max(1, center_node.start-half_window-bin_size),
+                                            start=max(1, center_node.start-half_window),
                                             end=center_node.start)
 
         right_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,
@@ -57,11 +57,20 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
             contact_list.append([label, val, str(i), 'data'])
 
     df = pandas.DataFrame(contact_list, columns=["distance", "contacts", "region", "type"])
+
+    if output is not None:
+        old_backend = sns.plt.get_backend()
+        sns.plt.switch_backend('pdf')
+        sns.plt.ioff()
+
     tsplot = sns.tsplot(data=df, time="distance", unit="region", condition="type", value="contacts",
                         estimator=np.median, err_style="unit_traces", err_palette="Reds")
 
     if output is not None:
         tsplot.figure.savefig(output)
+        sns.plt.close(tsplot.figure)
+        sns.plt.ion()
+        sns.plt.switch_backend(old_backend)
     else:
         sns.plt.show()
 
@@ -71,9 +80,17 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
 def hic_matrix_plot(hic, output=None, key=slice(None, None, None), zrange=(5, 40), colormap='viridis'):
     hm = hic[key, key]
 
+    if output is not None:
+        old_backend = sns.plt.get_backend()
+        sns.plt.switch_backend('pdf')
+        sns.plt.ioff()
+
     heatmap = sns.heatmap(hm, vmin=zrange[0], vmax=zrange[1], cmap=colormap)
 
     if output is not None:
         heatmap.figure.savefig(output)
+        sns.plt.close(heatmap.figure)
+        sns.plt.ion()
+        sns.plt.switch_backend(old_backend)
     else:
         sns.plt.show()
