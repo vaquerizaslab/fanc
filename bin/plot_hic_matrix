@@ -15,6 +15,12 @@ if __name__ == '__main__':
         'input',
         help='''Input Hi-C file'''
     )
+
+    parser.add_argument(
+        'output',
+        nargs="?",
+        help='''Output PDF file'''
+    )
     
     parser.add_argument(
         '-r', '--region', dest='region',
@@ -39,11 +45,6 @@ if __name__ == '__main__':
         '-c', '--colormap', dest='colormap',
         default='viridis',
         help='''Matplotlib colormap (default: viridis)'''
-    )
-    
-    parser.add_argument(
-        '-o', '--output', dest='output',
-        help='''Output file'''
     )
     
     args = parser.parse_args()
