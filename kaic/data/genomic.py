@@ -1465,7 +1465,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         logging.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
         
-    def load_from_hic(self, hic, _edge_buffer_size=250000,
+    def load_from_hic(self, hic, _edge_buffer_size=5000000,
                       _edges_by_overlap_method=_edge_overlap_split_rao):
         """
         Load data from another :class:`~Hic` object.
@@ -1493,69 +1493,24 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             logging.info("Binning Hi-C contacts")
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
-            
-            # find old region index from which it is
-            # safe to flush new region index
-            safe_region_flush = {}
-            last_region_ixs = []
-            max_new_region_ix = -1
-            for i in xrange(0, len(hic.regions())):
-                new_region_ixs = []
-                for pair in overlap_map[i]:
-                    new_region_ixs.append(pair[0])
-                
-                for last_region_ix in last_region_ixs:
-                    if last_region_ix not in new_region_ixs:
-                        safe_region_flush[last_region_ix] = i
-                        if last_region_ix > max_new_region_ix:
-                            max_new_region_ix = last_region_ix
-                last_region_ixs = new_region_ixs
-            # find max and add to safe_index
-            n_old_nodes = len(hic.regions())
-            for i in xrange(max_new_region_ix+1, len(self.regions())):
-                safe_region_flush[i] = n_old_nodes
-                        
-            # we use an edge buffer in case all edges do not fit in memory
+
             edge_buffer = {}
-            last_old_source = 0
-            source_field_ix = hic._edges.colnames.index('source')
-            sink_field_ix = hic._edges.colnames.index('sink')
-            weight_field_ix = hic._edges.colnames.index('weight')
-            mask_field = hic._edges.colnames.index(hic._edges._mask_field)
-            for i in xrange(0,hic._edges._original_len()):
-                current_ix = hic._edges.cols.source.index[i]
-                current_edge = hic._edges._original_getitem(int(current_ix))
-                
-                # check if edge is masked
-                if current_edge[mask_field] > 0:
-                    continue
-                
-                old_source = current_edge[source_field_ix]
-                old_sink = current_edge[sink_field_ix]
-                old_weight = current_edge[weight_field_ix]
+            for old_edge in hic._edges:
+                old_source = old_edge['source']
+                old_sink = old_edge['sink']
+                old_weight = old_edge['weight']
                 new_edges = _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map)
-                
+
                 for new_edge in new_edges:
                     key_pair = (new_edge[0], new_edge[1])
-                    if not key_pair in edge_buffer:
+                    if key_pair not in edge_buffer:
                         edge_buffer[key_pair] = 0
                     edge_buffer[key_pair] += new_edge[2]
-                
-                if (old_source != last_old_source
-                    and len(edge_buffer) > _edge_buffer_size):
-                    tmp_buffer = {}
-                    for key_pair in edge_buffer:
-                        if old_source >= safe_region_flush[key_pair[0]]:
-                            self.add_edge([key_pair[0], key_pair[1], edge_buffer[key_pair]], flush=False)
-                        else:
-                            tmp_buffer[key_pair] = edge_buffer[key_pair]
-                    edge_buffer = tmp_buffer
-                last_old_source = old_source
-            
-            # final flush()
-            for key_pair in edge_buffer:
-                self.add_edge([key_pair[0], key_pair[1], edge_buffer[key_pair]], flush=False)
-            self.flush()
+
+                if len(edge_buffer) > _edge_buffer_size:
+                    self._flush_edge_buffer(edge_buffer)
+                    edge_buffer = {}
+            self._flush_edge_buffer(edge_buffer)
 
     def bin(self, bin_size, file_name=None):
         """
@@ -1790,11 +1745,14 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # flush remaining buffer
         row = self._edges.row
         for source, sink in e_buffer:
+            weight = e_buffer[(source, sink)]
+            if weight == 0:
+                continue
             row["source"] = source
             row["sink"] = sink
-            row["weight"] = e_buffer[(source, sink)]
+            row["weight"] = weight
             row.append()
-        self._edges.flush(update_index=True)
+        self._edges.flush()
         self._remove_zero_edges()
 
     def flush(self, flush_nodes=True, flush_edges=True):
