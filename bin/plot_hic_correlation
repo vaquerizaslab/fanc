@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+
+import logging
+import kaic.plotting.plot_genomic_data as pgd
+from kaic.data.genomic import Hic
+logging.basicConfig(level=logging.DEBUG)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        'hic1',
+        help='''First Hi-C file'''
+    )
+
+    parser.add_argument(
+        'hic2',
+        help='''Second Hi-C file'''
+    )
+
+    parser.add_argument(
+        'output',
+        nargs="?",
+        help='''Output PDF file'''
+    )
+
+    parser.add_argument(
+        '-c', '--colormap', dest='colormap',
+        default='viridis',
+        help='''Matplotlib colormap (default: viridis)'''
+    )
+
+    args = parser.parse_args()
+
+    hic1_path = os.path.expanduser(args.hic1)
+    hic2_path = os.path.expanduser(args.hic2)
+
+    hic1 = Hic(hic1_path)
+    hic2 = Hic(hic2_path)
+
+    output_path = None
+    if args.output:
+        output_path = os.path.expanduser(args.output)
+
+    pgd.hic_correlation_plot(hic1, hic2, output=output_path, colormap=args.colormap)
+
+    hic1.close()
+    hic2.close()
