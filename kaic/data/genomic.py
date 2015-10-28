@@ -672,6 +672,37 @@ class Genome(Table):
         
         return cls(chromosomes=chromosomes, file_name=file_name)
 
+    @classmethod
+    def from_string(cls, genome_string):
+        """
+        Convenience function to load a :class:`~Genome` from a string.
+
+        :param genome_string: Path to FASTA file, path to folder with
+                              FASTA files, comma-separated list of
+                              paths to FASTA files, path to HDF5 file
+        :return: A :class:`~Genome` object
+        """
+        # case 1: FASTA file = Chromosome
+        if is_fasta_file(genome_string):
+            chromosome = Chromosome.from_fasta(genome_string)
+            genome = cls(chromosomes=[chromosome])
+        # case 2: Folder with FASTA files
+        elif os.path.isdir(genome_string):
+            genome = cls.from_folder(genome_string)
+        # case 3: path to HDF5 file
+        elif is_hdf5_file(genome_string):
+            genome = Genome(genome_string)
+        # case 4: List of FASTA files
+        else:
+            chromosome_files = genome_string.split(',')
+            chromosomes = []
+            for chromosome_file in chromosome_files:
+                chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
+                chromosomes.append(chromosome)
+            genome = cls(chromosomes=chromosomes)
+
+        return genome
+
     def __getitem__(self, key):
         """
         Get Genome table subsets.

@@ -1,0 +1,648 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+import textwrap
+from kaic.tools.files import copy_or_expand
+import sys
+import kaic
+import logging
+logging.basicConfig(level=logging.INFO)
+
+
+class Kaic(object):
+
+    def __init__(self):
+        usage = '''\
+                kaic <command> [options]
+
+                Commands:
+
+                    --- Reads
+                    load_reads         Load a SAM/BAM file into a Reads object
+                    filter_reads       Filter a Reads object
+
+                    --- Pairs
+                    reads_to_pairs     Convert a Reads object into a Pairs object
+                    filter_pairs       Filter a Pairs object
+
+                    --- Hic
+                    pairs_to_hic       Convert a pairs object into a Hic object
+                    merge_hic          Merge multiple Hic objects
+                    bin_hic            Bin a Hic object into same-size regions
+                    correct_hic        Correct a Hic object for biases
+
+                    --- Plotting
+                    plot_ligation_err  Plot the ligation error of a Pairs object
+                    plot_hic_corr      Plot the correlation of two Hic objects
+                    plot_hic_matrix    Plot a Hic matrix
+
+                    --- Other
+                    hiclib_to_kaic     Convert a hiclib object to a Hic object
+
+                Run kaic <command> -h for help on a specific command.
+                '''
+        parser = argparse.ArgumentParser(
+            description="kaic processing tool for Hi-C data",
+            usage=textwrap.dedent(usage)
+        )
+
+        parser.add_argument('command', help='Subcommand to run')
+
+        # parse_args defaults to [1:] for args, but you need to
+        # exclude the rest of the args too, or validation will fail
+        args = parser.parse_args(sys.argv[1:2])
+        if not hasattr(self, args.command):
+            print 'Unrecognized command'
+            parser.print_help()
+            exit(1)
+        # use dispatch pattern to invoke method with same name
+        getattr(self, args.command)()
+
+    ##########################################################################
+    #
+    #                                  Reads
+    #
+    ##########################################################################
+
+    def load_reads(self):
+        parser = argparse.ArgumentParser(
+            description='Load a SAM/BAM file into a Reads object'
+        )
+
+        parser.add_argument(
+            'input',
+            help='''Input SAM file'''
+        )
+
+        parser.add_argument(
+            'output',
+            help='''Output file'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        input_path = os.path.expanduser(args.input)
+        output_path = os.path.expanduser(args.output)
+
+        logging.info("Starting to import file %s" % input_path)
+        reads = kaic.Reads(sambam_file=input_path, file_name=output_path)
+        reads.close()
+        logging.info("All done.")
+
+    def filter_reads(self):
+        parser = argparse.ArgumentParser(
+            description='Filter a Reads object'
+        )
+
+        parser.add_argument(
+            'input',
+            help='''Input Reads file'''
+        )
+
+        parser.add_argument(
+            'output',
+            nargs="?",
+            help='''Output Reads file. If not provided will filter existing file directly.'''
+        )
+
+        parser.add_argument(
+            '-m', '--mapped', dest='mapped',
+            action='store_true',
+            help='''Filter unmapped reads'''
+        )
+        parser.set_defaults(mapped=False)
+
+        parser.add_argument(
+            '-u', '--unique', dest='unique',
+            action='store_true',
+            help='''Filter reads that map multiple times (with a lower score)'''
+        )
+        parser.set_defaults(unique=False)
+
+        parser.add_argument(
+            '-us', '--unique-strict', dest='unique_strict',
+            action='store_true',
+            help='''Strictly filter reads that map multiple times (XS tag)'''
+        )
+        parser.set_defaults(unique_strict=False)
+
+        parser.add_argument(
+            '-q', '--quality', dest='quality',
+            type=int,
+            help='''Cutoff for the minimum mapping quality of a read'''
+        )
+
+        parser.add_argument(
+            '-s', '--stats', dest='stats',
+            help='''Path for saving stats pdf'''
+        )
+        args = parser.parse_args(sys.argv[2:])
+
+        # copy file if required
+        input_path = copy_or_expand(args.input, args.output)
+
+        reads = kaic.Reads(file_name=input_path)
+
+        if args.mapped:
+            logging.info("Unmapped filter enabled")
+            reads.filter_unmapped(queue=True)
+
+        if args.unique_strict:
+            logging.info("Strict multi-map filter enabled")
+            reads.filter_non_unique(strict=True, queue=True)
+        elif args.unique:
+            logging.info("Soft multi-map filter enabled")
+            reads.filter_non_unique(strict=False, queue=True)
+
+        if args.quality:
+            logging.info("Quality filter enabled (%d)" % args.quality)
+            reads.filter_quality(args.quality, queue=True)
+
+        logging.info("Running filters...")
+        reads.run_queued_filters(log_progress=True)
+        logging.info("Done.")
+
+        if args.stats:
+            logging.info("Plotting filter statistics")
+            import kaic.plotting as kaicplt
+            kaicplt.plot_mask_statistics(reads, reads._reads, output=args.stats)
+            logging.info("Done.")
+
+        reads.close()
+        logging.info("All done.")
+
+    def reads_to_pairs(self):
+        parser = argparse.ArgumentParser(
+            description='Convert a Reads object into a Pairs object'
+        )
+
+        parser.add_argument(
+            'reads1',
+            help='''First half of input reads'''
+        )
+
+        parser.add_argument(
+            'reads2',
+            help='''Second half of input reads'''
+        )
+
+        parser.add_argument(
+            'genome',
+            help=textwrap.dedent('''\
+                                 Can be an HDF5 Genome object, a FASTA file,
+                                 a folder with FASTA files, or a comma-separated
+                                 list of FASTA files.
+                                 ''')
+        )
+
+        parser.add_argument(
+            'restriction_enzyme',
+            help='''Restriction enzyme used in the experiment, e.g. HindIII'''
+        )
+
+        parser.add_argument(
+            'output',
+            help='''Output file for mapped pairs'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        reads1_path = os.path.expanduser(args.reads1)
+        reads2_path = os.path.expanduser(args.reads2)
+        genome_path = os.path.expanduser(args.genome)
+        output_path = os.path.expanduser(args.output)
+
+        logging.info("Loading left side of reads...")
+        reads1 = kaic.Reads(reads1_path, read_only=True)
+        logging.info("Loading right side of reads...")
+        reads2 = kaic.Reads(reads2_path, read_only=True)
+        logging.info("Building genome...")
+        genome = kaic.Genome.from_string(genome_path)
+        logging.info("Getting fragments...")
+        nodes = genome.get_regions(args.restriction_enzyme)
+
+        logging.info("Building pairs...")
+        pairs = kaic.FragmentMappedReadPairs(file_name=output_path)
+        logging.info("Mapping reads...")
+        pairs.load(reads1, reads2, nodes)
+
+        reads1.close()
+        reads2.close()
+        pairs.close()
+
+        logging.info("All done.")
+
+    def filter_pairs(self):
+        parser = argparse.ArgumentParser(
+            description='Filter a Pairs object'
+        )
+
+        parser.add_argument(
+            'input',
+            help='''Input FragmentMappedPairs file'''
+        )
+
+        parser.add_argument(
+            'output',
+            nargs="?",
+            help='''Output FragmentMappedPairs file. If not provided will filter input file in place.'''
+        )
+
+        parser.add_argument(
+            '-i', '--inward', dest='inward',
+            type=int,
+            help='''Minimum distance for inward-facing read pairs'''
+        )
+
+        parser.add_argument(
+            '-o', '--outward', dest='outward',
+            type=int,
+            help='''Minimum distance for outward-facing read pairs'''
+        )
+
+        parser.add_argument(
+            '-r', '--re-distance', dest='redist',
+            type=int,
+            help='''Maximum distance for a read to the nearest restriction site'''
+        )
+
+        parser.add_argument(
+            '-s', '--stats', dest='stats',
+            help='''Path for saving stats pdf'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        input_path = copy_or_expand(args.input, args.output)
+
+        pairs = kaic.FragmentMappedReadPairs(file_name=input_path)
+
+        if args.inward:
+            logging.info("Filtering inward-facing reads at %dbp" % args.inward)
+            pairs.filter_inward(minimum_distance=args.inward, queue=True)
+
+        if args.outward:
+            logging.info("Filtering outward-facing reads at %dbp" % args.outward)
+            pairs.filter_outward(minimum_distance=args.outward, queue=True)
+
+        if args.redist:
+            logging.info("Filtering reads with RE distance >%dbp" % args.redist)
+            pairs.filter_re_dist(args.redist, queue=True)
+
+        logging.info("Running filters...")
+        pairs.run_queued_filters(log_progress=True)
+        logging.info("Done.")
+
+        if args.stats:
+            logging.info("Plotting filter statistics")
+            import kaic.plotting as kaicplt
+            kaicplt.plot_mask_statistics(pairs, pairs._pairs, output=args.stats)
+            logging.info("Done.")
+
+        pairs.close()
+
+        logging.info("All done.")
+
+    def pairs_to_hic(self):
+        parser = argparse.ArgumentParser(
+            description='Convert a pairs object into a Hic object'
+        )
+
+        parser.add_argument(
+            'pairs',
+            help='''Input FragmentMappedReadPairs file'''
+        )
+
+        parser.add_argument(
+            'hic',
+            help='''Output path for Hic file'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        pairs_path = os.path.expanduser(args.pairs)
+        hic_path = os.path.expanduser(args.hic)
+
+        logging.info("Loading pairs...")
+        pairs = kaic.FragmentMappedReadPairs(pairs_path, read_only=True)
+        logging.info("Done.")
+
+        logging.info("Adding pairs to Hic...")
+        hic = kaic.Hic(hic_path)
+        hic.load_read_fragment_pairs(pairs)
+        logging.info("Done.")
+
+        pairs.close()
+        hic.close()
+
+    def merge_hic(self):
+        parser = argparse.ArgumentParser(
+            description='Merge multiple Hic objects'
+        )
+
+        parser.add_argument(
+            'hic',
+            nargs='+',
+            help='''Input Hic files'''
+        )
+
+        parser.add_argument(
+            'output',
+            help='''Output binned Hic object'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        logging.info("Copying %s" % args.output)
+        base_path = copy_or_expand(args.hic.pop(0), args.output)
+        merged = kaic.Hic(base_path)
+
+        for path in args.hic:
+            logging.info("Merging %s" % path)
+            input_path = os.path.expanduser(path)
+            hic = kaic.Hic(input_path)
+            merged.merge(hic)
+            hic.close()
+
+        merged.close()
+        logging.info("All done")
+
+    def bin_hic(self):
+        parser = argparse.ArgumentParser(
+            description='Bin a Hic object into same-size regions'
+        )
+
+        parser.add_argument(
+            'hic',
+            help='''Input Hic file'''
+        )
+
+        parser.add_argument(
+            'output',
+            help='''Output binned Hic object'''
+        )
+
+        parser.add_argument(
+            'bin_size',
+            type=int,
+            help='''Bin size in base pairs'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        input_path = os.path.expanduser(args.hic)
+        output_path = os.path.expanduser(args.output)
+
+        hic = kaic.Hic(file_name=input_path, read_only=True)
+
+        logging.info("Binning at %dbp" % args.bin_size)
+        binned = hic.bin(args.bin_size, file_name=output_path)
+
+        hic.close()
+        binned.close()
+
+        logging.info("All done.")
+
+    def correct_hic(self):
+        parser = argparse.ArgumentParser(
+            description='Correct a Hic object for biases'
+        )
+
+        parser.add_argument(
+            'input',
+            help='''Input Hic file'''
+        )
+
+        parser.add_argument(
+            'output',
+            nargs="?",
+            help='''Output Hic file. If not provided will filter existing file in place.'''
+        )
+
+        parser.add_argument(
+            '-i', '--ice', dest='ice',
+            action='store_true',
+            help='''Use ICE iterative correction instead of Knight matrix balancing'''
+        )
+        parser.set_defaults(ice=False)
+
+        parser.add_argument(
+            '-c', '--chromosome', dest='chromosome',
+            action='store_true',
+            help='''Correct intra-chromosomal data individually, ignore inter-chromosomal data'''
+        )
+        parser.set_defaults(chromosome=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic.correcting as corr
+
+        # copy file if required
+        input_path = copy_or_expand(args.input, args.output)
+
+        hic = kaic.Hic(file_name=input_path)
+
+        if args.ice:
+            corr.ice.correct(hic)
+        else:
+            corr.knight.correct(hic, only_intra_chromosomal=args.chromosome)
+
+        hic.close()
+
+        logging.info("All done.")
+
+    def plot_ligation_err(self):
+        parser = argparse.ArgumentParser(
+            description='Plot the ligation error of a Pairs object'
+        )
+
+        parser.add_argument(
+            'input',
+            help='''Input FragmentMappedPairs file'''
+        )
+
+        parser.add_argument(
+            'output',
+            nargs='?',
+            help='''Output pdf'''
+        )
+
+        parser.add_argument(
+            '-p', '--points', dest='points',
+            type=int,
+            help='''Data points that make up one increment of the x axis. More=smoother=less detail.'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        input_path = os.path.expanduser(args.input)
+        output_path = None
+        if args.output:
+            output_path = os.path.expanduser(args.output)
+
+        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, read_only=True)
+        pairs.plot_error_structure(output=output_path, data_points=args.points)
+        pairs.close()
+
+        logging.info("All done.")
+
+    def plot_hic_corr(self):
+        parser = argparse.ArgumentParser(
+            description='Plot the correlation of two Hic objects'
+        )
+
+        parser.add_argument(
+            'hic1',
+            help='''First Hi-C file'''
+        )
+
+        parser.add_argument(
+            'hic2',
+            help='''Second Hi-C file'''
+        )
+
+        parser.add_argument(
+            'output',
+            nargs="?",
+            help='''Output PDF file'''
+        )
+
+        parser.add_argument(
+            '-c', '--colormap', dest='colormap',
+            default='viridis',
+            help='''Matplotlib colormap (default: viridis)'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic.plotting as kaicplt
+
+        hic1_path = os.path.expanduser(args.hic1)
+        hic2_path = os.path.expanduser(args.hic2)
+
+        hic1 = kaic.Hic(hic1_path, read_only=True)
+        hic2 = kaic.Hic(hic2_path, read_only=True)
+
+        output_path = None
+        if args.output:
+            output_path = os.path.expanduser(args.output)
+
+        kaicplt.hic_correlation_plot(hic1, hic2, output=output_path, colormap=args.colormap, size=15)
+
+        hic1.close()
+        hic2.close()
+        logging.info("All done.")
+
+    def plot_hic_matrix(self):
+        parser = argparse.ArgumentParser(
+            description='Plot a Hic matrix'
+        )
+
+        parser.add_argument(
+            'input',
+            help='''Input Hi-C file'''
+        )
+
+        parser.add_argument(
+            'output',
+            nargs="?",
+            help='''Output PDF file'''
+        )
+
+        parser.add_argument(
+            '-r', '--region', dest='region',
+            help='''Region selector string (e.g. "chr1:20456-330123")'''
+        )
+
+        parser.add_argument(
+            '-l', '--lower', dest='lower',
+            type=float,
+            default=25.0,
+            help='''[0.0-100.0] Percentile, lower bound on Hi-C contact counts (for color scale, default: 25.0)'''
+        )
+
+        parser.add_argument(
+            '-u', '--upper', dest='upper',
+            type=float,
+            default=98.0,
+            help='''[0.0-100.0] Percentile, upper bound on Hi-C contact counts (for color scale, default: 98.0)'''
+        )
+
+        parser.add_argument(
+            '-la', '--lower-absolute', dest='lower_abs',
+            type=float,
+            help='''Lower bound on Hi-C contact counts. Absolute value, if provided, overrides -l.'''
+        )
+
+        parser.add_argument(
+            '-ua', '--upper-absolute', dest='upper_abs',
+            type=float,
+            help='''Upper bound on Hi-C contact counts. Absolute value, if provided, overrides -u.'''
+        )
+
+        parser.add_argument(
+            '-c', '--colormap', dest='colormap',
+            default='viridis',
+            help='''Matplotlib colormap (default: viridis)'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic.plotting as kaicplt
+
+        input_path = os.path.expanduser(args.input)
+
+        hic = kaic.Hic(input_path, read_only=True)
+
+        output_path = None
+        if args.output:
+            output_path = os.path.expanduser(args.output)
+
+        if args.region is None:
+            args.region = slice(0, None, None)
+        kaicplt.hic_matrix_plot(hic, output=output_path, key=args.region,
+                                lower_percentile=args.lower, upper_percentile=args.upper,
+                                lower=args.lower, upper=args.upper,
+                                colormap=args.colormap)
+        hic.close()
+        logging.info("All done.")
+
+    def hiclib_to_kaic(self):
+        parser = argparse.ArgumentParser(
+            description='Convert a hiclib object to a Hic object'
+        )
+
+        parser.add_argument(
+            'hic',
+            help='''Hiclib Hi-C object'''
+        )
+
+        parser.add_argument(
+            'genome',
+            help='''Hiclib genome object'''
+        )
+
+        parser.add_argument(
+            'output',
+            help='''Output file'''
+        )
+
+        parser.add_argument(
+            'resolution',
+            type=int,
+            help='''Resolution of the file (e.g. 100000)'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        from kaic.tools.hic import load_mirny_binned_hic
+        mirny = load_mirny_binned_hic(os.path.expanduser(args.hic), os.path.expanduser(args.genome), args.resolution)
+        hic = kaic.Hic.from_hiclib(mirny, file_name=os.path.expanduser(args.output))
+        hic.close()
+
+        logging.info("All done.")
+
+
+if __name__ == '__main__':
+    Kaic()
