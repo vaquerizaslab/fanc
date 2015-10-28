@@ -99,8 +99,8 @@ class TestReads:
         
     def test_build_from_scratch(self):
         
-        field_sizes = Reads.determine_field_sizes(self.sam1_file, sample_size=10000)
-        reads = Reads(field_sizes=field_sizes)
+        qname_length, seq_length = Reads.determine_field_sizes(self.sam1_file, sample_size=10000)
+        reads = Reads(qname_length=qname_length, seq_length=seq_length)
         reads.load(self.sam1_file)
         
         assert len(reads) == 271

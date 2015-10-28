@@ -114,7 +114,7 @@ class Reads(Maskable, MetaContainer, FileBased):
     """
 
     def __init__(self, sambam_file=None, file_name=None,
-                 field_sizes={'qname': 60, 'sequence': 200},
+                 qname_length=60, seq_length=200,
                  _group_name='reads'):
         """
         Create Reads object and optionally load SAM file.
@@ -134,13 +134,20 @@ class Reads(Maskable, MetaContainer, FileBased):
                           be loaded. Or the name or a non-existing file that
                           will be used to save the Reads object. If not
                           provided, all operations are performed in memory.
-        :param field_sizes: If it is for some reason not wanted to load reads
-                            during initialization (for example, when building
-                            the Reads object from scratch using the add_read
-                            method) this dictionary can be used to set the
-                            expected length of read names and sequences. If
-                            the respective strings are longer than the field
-                            sizes specified here, they will be truncated.
+        :param qname_length: If it is for some reason not wanted to load reads
+                             during initialization (for example, when building
+                             the Reads object from scratch using the add_read
+                             method) this parameter can be used to set the
+                             expected length of read names. If
+                             the respective strings are longer than the field
+                             size specified here, they will be truncated.
+        :param seq_length: If it is for some reason not wanted to load reads
+                           during initialization (for example, when building
+                           the Reads object from scratch using the add_read
+                           method) this parameter can be used to set the
+                           expected length of sequences. If
+                           the respective strings are longer than the field
+                           size specified here, they will be truncated.
         :param _group_name: (internal) Name for the HDF5 group that will house
                             the Reads object's tables.
         :return: Reads
@@ -182,12 +189,12 @@ class Reads(Maskable, MetaContainer, FileBased):
             expected_length = 50000000
             if sambam_file is not None:
                 self.log_info("Determining field sizes")
-                field_sizes = Reads.determine_field_sizes(sambam_file)
+                qname_length, seq_length = Reads.determine_field_sizes(sambam_file)
                 expected_length = int(Reads.sambam_size(sambam_file)*1.5)
                 
             reads_defininition = {
                 'ix': t.Int32Col(pos=0),
-                'qname': t.StringCol(field_sizes['qname'],pos=1),
+                'qname': t.StringCol(qname_length, pos=1),
                 'flag': t.Int32Col(pos=2),
                 'ref': t.Int32Col(pos=3),
                 'pos': t.Int64Col(pos=4),
@@ -195,8 +202,8 @@ class Reads(Maskable, MetaContainer, FileBased):
                 'rnext': t.Int32Col(pos=6),
                 'pnext': t.Int32Col(pos=7),
                 'tlen': t.Int32Col(pos=8),
-                'seq': t.StringCol(field_sizes['sequence'],pos=9),
-                'qual': t.StringCol(field_sizes['sequence'],pos=10)
+                'seq': t.StringCol(seq_length, pos=9),
+                'qual': t.StringCol(seq_length, pos=10)
             }
         
             # create data structures
@@ -391,8 +398,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                        to be loaded or a pysam AlignmentFile.
         :param sample_size: Number of lines to sample to determine field
                             sizes.
-        :return: A dict with field names as keys and their sizes (int) as
-                 as values.
+        :return: qname length, sequence length
         """
         if type(sambam) == str:
             sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
@@ -411,8 +417,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 logging.info(i)
         sambam.close()
         
-        return {'qname': qname_length,
-                'sequence': seq_length}
+        return qname_length, seq_length
     
     @property
     def header(self):
