@@ -254,10 +254,13 @@ class FileBased(object):
             if not isinstance(self.file, t.file.File):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
         else:
+            mode = 'a'
+            if read_only:
+                mode = 'r'
             if file_name is None:
                 self.file = create_or_open_pytables_file()
             elif type(file_name) == str:
-                self.file = create_or_open_pytables_file(file_name)
+                self.file = create_or_open_pytables_file(file_name, mode=mode)
             elif isinstance(file_name, t.file.File):
                 self.file = file_name
             else:

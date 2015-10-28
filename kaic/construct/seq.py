@@ -114,7 +114,7 @@ class Reads(Maskable, MetaContainer, FileBased):
     """
 
     def __init__(self, sambam_file=None, file_name=None,
-                 qname_length=60, seq_length=200,
+                 qname_length=60, seq_length=200, read_only=False,
                  _group_name='reads'):
         """
         Create Reads object and optionally load SAM file.
@@ -159,7 +159,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 file_name = sambam_file
                 sambam_file = None
         
-        FileBased.__init__(self, file_name)
+        FileBased.__init__(self, file_name, read_only=read_only)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
         
@@ -1005,6 +1005,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         fragment = t.Int32Col(pos=2, dflt=-1)
         
     def __init__(self, file_name=None,
+                 read_only=False,
                  group_name='fragment_map',
                  table_name_fragments='fragments'):
         """
@@ -1023,8 +1024,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
                 
-        # FileBased.__init__(self, file_name)
-        RegionsTable.__init__(self, file_name=file_name, _table_name_regions=table_name_fragments)
+        FileBased.__init__(self, file_name, read_only=read_only)
+        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=table_name_fragments)
         
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
