@@ -3,9 +3,8 @@
 import argparse
 import os.path
 import textwrap
-from kaic.tools.files import copy_or_expand
 import sys
-import kaic
+
 import logging
 logging.basicConfig(level=logging.INFO)
 
@@ -193,6 +192,8 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import kaic
+
         input_path = os.path.expanduser(args.input)
         output_path = os.path.expanduser(args.output)
 
@@ -249,6 +250,9 @@ class Kaic(object):
             help='''Path for saving stats pdf'''
         )
         args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.tools.files import copy_or_expand
 
         # copy file if required
         input_path = copy_or_expand(args.input, args.output)
@@ -319,6 +323,8 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import kaic
+
         reads1_path = os.path.expanduser(args.reads1)
         reads2_path = os.path.expanduser(args.reads2)
         genome_path = os.path.expanduser(args.genome)
@@ -385,6 +391,9 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import kaic
+        from kaic.tools.files import copy_or_expand
+
         input_path = copy_or_expand(args.input, args.output)
 
         pairs = kaic.FragmentMappedReadPairs(file_name=input_path)
@@ -432,6 +441,8 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import kaic
+
         pairs_path = os.path.expanduser(args.pairs)
         hic_path = os.path.expanduser(args.hic)
 
@@ -464,6 +475,9 @@ class Kaic(object):
         )
 
         args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.tools.files import copy_or_expand
 
         logging.info("Copying %s" % args.output)
         base_path = copy_or_expand(args.hic.pop(0), args.output)
@@ -501,6 +515,8 @@ class Kaic(object):
         )
 
         args = parser.parse_args(sys.argv[2:])
+
+        import kaic
 
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
@@ -547,6 +563,8 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import kaic
+        from kaic.tools.files import copy_or_expand
         import kaic.correcting as corr
 
         # copy file if required
@@ -586,6 +604,8 @@ class Kaic(object):
         )
 
         args = parser.parse_args(sys.argv[2:])
+
+        import kaic
 
         input_path = os.path.expanduser(args.input)
         output_path = None
@@ -627,6 +647,7 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import kaic
         import kaic.plotting as kaicplt
 
         hic1_path = os.path.expanduser(args.hic1)
@@ -700,6 +721,7 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import kaic
         import kaic.plotting as kaicplt
 
         input_path = os.path.expanduser(args.input)
@@ -747,6 +769,7 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import kaic
         from kaic.tools.hic import load_mirny_binned_hic
         mirny = load_mirny_binned_hic(os.path.expanduser(args.hic), os.path.expanduser(args.genome), args.resolution)
         hic = kaic.Hic.from_hiclib(mirny, file_name=os.path.expanduser(args.output))
