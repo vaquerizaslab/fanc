@@ -46,10 +46,11 @@ def random_name(length=6):
     return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))
         
 
-def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
+def create_or_open_pytables_file(file_name=None, mode='a'):
+    in_memory = False
     if file_name is None:
         file_name = random_name()
-        inMemory = True
+        in_memory = True
     
     # check if already is pytables File
     if isinstance(file_name, t.file.File):
@@ -63,7 +64,7 @@ def create_or_open_pytables_file(file_name=None, inMemory=False, mode='a'):
         except t.HDF5ExtError:
             raise ImportError("File exists and is not an HDF5 dict")
     
-    if inMemory:
+    if in_memory:
         return t.open_file(file_name, mode, driver="H5FD_CORE", driver_core_backing_store=0)
     else:
         return t.open_file(file_name, mode)

@@ -9,7 +9,7 @@ files. Other features include indexing and querying.
 from __future__ import division
 import tables as t
 import kaic.fixes.pytables_nrowsinbuf_inheritance_fix
-from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file, random_name
+from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
 import numpy as np
 import warnings
 import os.path
@@ -248,7 +248,7 @@ def _file_to_data(file_name, sep="\t", has_header=None, types=None):
 
 
 class FileBased(object):
-    def __init__(self, file_name=None):
+    def __init__(self, file_name=None, read_only=False):
         # open file or keep in memory
         if hasattr(self, 'file'):
             if not isinstance(self.file, t.file.File):
@@ -257,7 +257,7 @@ class FileBased(object):
             if file_name is None:
                 self.file = create_or_open_pytables_file()
             elif type(file_name) == str:
-                self.file = create_or_open_pytables_file(file_name, inMemory=False)
+                self.file = create_or_open_pytables_file(file_name)
             elif isinstance(file_name, t.file.File):
                 self.file = file_name
             else:
@@ -673,10 +673,9 @@ class Table(object):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
         else:
             if file_name is None:
-                file_name = random_name()
-                self.file = create_or_open_pytables_file(file_name, inMemory=True)
+                self.file = create_or_open_pytables_file()
             elif type(file_name) == str:
-                self.file = create_or_open_pytables_file(file_name, inMemory=False)
+                self.file = create_or_open_pytables_file(file_name)
             else:
                 self.file = file_name
             
@@ -1384,7 +1383,7 @@ class Maskable(object):
             mask_file = data
         # data is string: create file at location
         elif type(data) == str:
-            mask_file = create_or_open_pytables_file(data, inMemory=False)
+            mask_file = create_or_open_pytables_file(data)
                 
         if (not hasattr(self, '_mask') or self._mask is None) and mask_file is not None:
             try:

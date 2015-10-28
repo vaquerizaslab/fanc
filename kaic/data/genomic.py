@@ -283,12 +283,10 @@ class Bedpe(object):
             inMemory=True
         
         if inMemory:
-            rs = ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(6))  # @UndefinedVariable
-            h5file_name = rs
-            
-            
-        self.file = create_or_open_pytables_file(h5file_name, inMemory=inMemory)
-        
+            self.file = create_or_open_pytables_file()
+        else:
+            self.file = create_or_open_pytables_file(h5file_name)
+
         if not 'bedpe' in self.file.root:
             columns = {
                 'chrom1': t.StringCol(16), # @UndefinedVariable

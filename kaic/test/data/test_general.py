@@ -763,12 +763,12 @@ class TestMaskable:
         assert isinstance(maskable2._mask, t.table.Table)
         
         # file args
-        h5_file = create_or_open_pytables_file(str(tmpdir) + "/test2.h5", inMemory=False)
+        h5_file = create_or_open_pytables_file(str(tmpdir) + "/test2.h5")
         maskable3 = Maskable(h5_file)
         assert isinstance(maskable3._mask, t.table.Table)
         
         # table args
-        h5_file2 = create_or_open_pytables_file(str(tmpdir) + "/test3.h5", inMemory=False)
+        h5_file2 = create_or_open_pytables_file(str(tmpdir) + "/test3.h5")
         table = h5_file2.create_table("/", 'mask', Maskable.MaskDescription)
         maskable4 = Maskable(table)
         assert isinstance(maskable4._mask, t.table.Table)
@@ -786,7 +786,7 @@ class TestMaskable:
                 self.file = h5_file
                 Maskable.__init__(self)
         
-        h5_file3 = create_or_open_pytables_file(str(tmpdir) + "/test4.h5", inMemory=False)
+        h5_file3 = create_or_open_pytables_file(str(tmpdir) + "/test4.h5")
         mc2 = MaskableContainerTest2(h5_file3)
         assert isinstance(mc2._mask, t.table.Table)
     
@@ -860,7 +860,7 @@ class TestMaskedTable:
             
     @classmethod
     def setup_method(self, method):
-        f = create_or_open_pytables_file(inMemory=True)
+        f = create_or_open_pytables_file()
         test_description = {
             'a': t.StringCol(50,pos=0),
             'b': t.Int32Col(pos=1),
@@ -1009,7 +1009,7 @@ class TestPytablesInheritance:
         [x.fetch_all_fields() for x in table.where('c1 == 0')]
         
     def test_registered_table(self, tmpdir):
-        h5_file = create_or_open_pytables_file(str(tmpdir) + "/test.h5", inMemory=False)
+        h5_file = create_or_open_pytables_file(str(tmpdir) + "/test.h5")
         table = RegisteredTable(h5_file.get_node('/'), 'test', { 'c1': t.Int32Col(), 'c2': t.Int16Col() }, 'test')
         print class_id_dict
         table.row['c1'] = 0
@@ -1018,7 +1018,7 @@ class TestPytablesInheritance:
         table.close()
         h5_file.close()
 
-        h5_file_ret = create_or_open_pytables_file(str(tmpdir) + "/test.h5", inMemory=False)
+        h5_file_ret = create_or_open_pytables_file(str(tmpdir) + "/test.h5")
         table = h5_file_ret.get_node('/','test')
         assert type(table) == RegisteredTable
         #assert 0
