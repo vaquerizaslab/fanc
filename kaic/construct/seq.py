@@ -435,15 +435,16 @@ class Reads(Maskable, MetaContainer, FileBased):
         """
         Convert a row from the internal _reads pytables table to Read object.
         """
-        ix = row['ix']
-        tags = self._tags[ix]
-        cigar = self._cigar[ix]
-        ref = self._ix2ref(row['ref'])
-        
-        return Read(qname=row['qname'], flag=row['flag'], ref=ref,
-                    pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
-                    pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
-                    tags=tags, reference_id=row['ref'])
+        return LazyRead(row, self)
+        # ix = row['ix']
+        # tags = self._tags[ix]
+        # cigar = self._cigar[ix]
+        # ref = self._ix2ref(row['ref'])
+        #
+        # return Read(qname=row['qname'], flag=row['flag'], ref=ref,
+        #             pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
+        #             pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
+        #             tags=tags, reference_id=row['ref'])
         
     def __iter__(self):
         """
@@ -719,6 +720,66 @@ class MaskedRead(Read):
                 mask_names.append(mask.name)
             return "%s (%s)" % (representation, ", ".join(mask_names))
         return representation
+
+
+class LazyRead(Read):
+    def __init__(self, row, parent):
+        self.row = row
+        self.parent = parent
+
+    @property
+    def qname(self):
+        return self.row["qname"]
+
+    @property
+    def flag(self):
+        return self.row["flag"]
+
+    @property
+    def ref(self):
+        return self.parent._ix2ref(self.row['ref'])
+
+    @property
+    def pos(self):
+        return self.row["pos"]
+
+    @property
+    def mapq(self):
+        return self.row["mapq"]
+
+    @property
+    def rnext(self):
+        return self.row["rnext"]
+
+    @property
+    def pnext(self):
+        return self.row["pnext"]
+
+    @property
+    def tlen(self):
+        return self.row["tlen"]
+
+    @property
+    def seq(self):
+        return self.row["seq"]
+
+    @property
+    def qual(self):
+        return self.row["qual"]
+
+    @property
+    def cigar(self):
+        ix = self.row["ix"]
+        return self.parent._cigar[ix]
+
+    @property
+    def tags(self):
+        ix = self.row["ix"]
+        return self.parent._tags[ix]
+
+    @property
+    def reference_id(self):
+        return self.row['ref']
 
 
 #
