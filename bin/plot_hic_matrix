@@ -42,6 +42,18 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
+        '-la', '--lower-absolute', dest='lower_abs',
+        type=float,
+        help='''Lower bound on Hi-C contact counts. Absolute value, if provided, overrides -l.'''
+    )
+
+    parser.add_argument(
+        '-ua', '--upper-absolute', dest='upper_abs',
+        type=float,
+        help='''Upper bound on Hi-C contact counts. Absolute value, if provided, overrides -u.'''
+    )
+
+    parser.add_argument(
         '-c', '--colormap', dest='colormap',
         default='viridis',
         help='''Matplotlib colormap (default: viridis)'''
@@ -61,6 +73,6 @@ if __name__ == '__main__':
         args.region = slice(None, None, None)
     pgd.hic_matrix_plot(hic, output=output_path, key=args.region,
                         lower_percentile=args.lower, upper_percentile=args.upper,
+                        lower=args.lower, upper=args.upper,
                         colormap=args.colormap)
-    
     hic.close()
