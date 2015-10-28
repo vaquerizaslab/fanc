@@ -938,6 +938,34 @@ class GenomicRegion(TableObject):
         return self.to_string()
 
 
+class LazyGenomicRegion(GenomicRegion):
+    def __init__(self, row, ix=None):
+        self.row = row
+        self.static_ix = ix
+
+    @property
+    def chromosome(self):
+        return self.row["chromosome"]
+
+    @property
+    def start(self):
+        return self.row["start"]
+
+    @property
+    def end(self):
+        return self.row["end"]
+
+    @property
+    def strand(self):
+        return self.row["strand"]
+
+    @property
+    def ix(self):
+        if self.static_ix is None:
+            return self.row["ix"]
+        return self.static_ix
+
+
 class GenomicRegions(Table):
     """
     A collection of :class:`~GenomicRegion` objects.
@@ -1152,9 +1180,11 @@ class RegionsTable(FileBased):
         return None
 
     @staticmethod
-    def _row_to_region(row):
-        return GenomicRegion(start=row['start'], end=row['end'],
-                             chromosome=row['chromosome'], ix=row['ix'])
+    def _row_to_region(row, lazy=False):
+        if lazy:
+            return LazyGenomicRegion(row)
+        return GenomicRegion(chromosome=row["chromosome"], start=row["start"],
+                             end=row["end"], ix=row["ix"])
 
     def regions(self):
         """
@@ -1834,11 +1864,11 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         else:
             nodes_ix_row = self._getitem_nodes(key, as_index=as_index)
             nodes_ix_col = []
-            for row in self._regions:
+            for region in self.regions():
                 if as_index:
-                    nodes_ix_col.append(row['ix'])
+                    nodes_ix_col.append(region.ix)
                 else:
-                    nodes_ix_col.append(RegionsTable._row_to_region(row))
+                    nodes_ix_col.append(region)
         
         return nodes_ix_row, nodes_ix_col
     

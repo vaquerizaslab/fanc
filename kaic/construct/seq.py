@@ -64,7 +64,7 @@ from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
-from kaic.data.genomic import RegionsTable, GenomicRegion
+from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 from matplotlib import pyplot as plt
 import subprocess
 
@@ -431,20 +431,22 @@ class Reads(Maskable, MetaContainer, FileBased):
             raise RuntimeError("Chromosome reference for left read not present")
         return self._ref[ix]
     
-    def _row2read(self, row):
+    def _row2read(self, row, lazy=False):
         """
         Convert a row from the internal _reads pytables table to Read object.
         """
-        return LazyRead(row, self)
-        # ix = row['ix']
-        # tags = self._tags[ix]
-        # cigar = self._cigar[ix]
-        # ref = self._ix2ref(row['ref'])
-        #
-        # return Read(qname=row['qname'], flag=row['flag'], ref=ref,
-        #             pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
-        #             pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
-        #             tags=tags, reference_id=row['ref'])
+        if lazy:
+            return LazyRead(row, self)
+
+        ix = row['ix']
+        tags = self._tags[ix]
+        cigar = self._cigar[ix]
+        ref = self._ix2ref(row['ref'])
+
+        return Read(qname=row['qname'], flag=row['flag'], ref=ref,
+                    pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
+                    pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
+                    tags=tags, reference_id=row['ref'])
         
     def __iter__(self):
         """
@@ -851,7 +853,7 @@ class ReadFilter(MaskFilter):
         :param row: A pytables Table row.
         :return: The boolean value returned by valid_read.
         """
-        read = self._reads._row2read(row)
+        read = self._reads._row2read(row, lazy=True)
         return self.valid_read(read)
         
 
@@ -1301,26 +1303,31 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             
         return ix
     
-    def _pair_from_row(self, row):
+    def _pair_from_row(self, row, lazy=False):
         """
         Convert a pytables row to a FragmentReadPair
         """
+        if lazy:
+            left_read = LazyFragmentRead(row, self, side="left")
+            right_read = LazyFragmentRead(row, self, side="right")
+            return FragmentReadPair(left_read=left_read, right_read=right_read)
+
         ix1 = row['left_read']
         ix2 = row['right_read']
         fragment_ix1 = row['left_fragment']
         fragment_ix2 = row['right_fragment']
-        
+
         read1_row = self._reads[ix1]
         fragment1_row = self._regions[fragment_ix1]
         fragment1 = GenomicRegion(fragment1_row['start'], fragment1_row['end'], fragment1_row['chromosome'])
-        read1 = FragmentRead(fragment1, position=read1_row['position'], strand=read1_row['strand'])
-        
+        left_read = FragmentRead(fragment1, position=read1_row['position'], strand=read1_row['strand'])
+
         read2_row = self._reads[ix2]
         fragment2_row = self._regions[fragment_ix2]
         fragment2 = GenomicRegion(fragment2_row['start'], fragment2_row['end'], fragment2_row['chromosome'])
-        read2 = FragmentRead(fragment2, position=read2_row['position'], strand=read2_row['strand'])
-        
-        return FragmentReadPair(left_read=read1, right_read=read2)
+        right_read = FragmentRead(fragment2, position=read2_row['position'], strand=read2_row['strand'])
+
+        return FragmentReadPair(left_read=left_read, right_read=right_read)
     
     def plot_error_structure(self, output=None, data_points=None,
                              skip_self_ligations=True):
@@ -1598,6 +1605,40 @@ class FragmentRead(object):
                                        self.fragment.end)
 
 
+class LazyFragmentRead(FragmentRead):
+    def __init__(self, row, parent, side='left'):
+        self.row = row
+        self.parent = parent
+        self.side = side
+        self.read_row = None
+        self.fragment_row = None
+
+    def _update_read_row(self):
+        if self.read_row is None:
+            ix = self.row[self.side + '_read']
+            self.read_row = self.parent._reads[ix]
+
+    def _update_fragment_row(self):
+        if self.fragment_row is None:
+            ix = self.row[self.side + '_fragment']
+            self.fragment_row = self.parent._regions[ix]
+
+    @property
+    def position(self):
+        self._update_read_row()
+        return self.read_row["position"]
+
+    @property
+    def strand(self):
+        self._update_read_row()
+        return self.read_row["strand"]
+
+    @property
+    def fragment(self):
+        self._update_fragment_row()
+        return LazyGenomicRegion(self.fragment_row)
+
+
 class FragmentReadPair(object):
     """
     Container for two paired :class:`~FragmentRead` objects.
@@ -1745,7 +1786,7 @@ class FragmentMappedReadPairFilter(MaskFilter):
         """
         Map validity check of rows to pairs.
         """
-        pair = self.pairs._pair_from_row(row)
+        pair = self.pairs._pair_from_row(row, lazy=True)
         return self.valid_pair(pair)
 
 
