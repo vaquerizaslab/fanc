@@ -15,7 +15,7 @@ Created on May 20, 2015
 '''
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser();
+    parser = argparse.ArgumentParser()
     
     parser.add_argument(
         'reads1',
@@ -50,9 +50,9 @@ if __name__ == '__main__':
     output_path = os.path.expanduser(args.output)
     
     logging.info("Loading left side of reads...")
-    reads1 = Reads(reads1_path)
+    reads1 = Reads(reads1_path, read_only=True)
     logging.info("Loading right side of reads...")
-    reads2 = Reads(reads2_path)
+    reads2 = Reads(reads2_path, read_only=True)
     logging.info("Building genome...")
     genome = genome_from_string(genome_path)
     logging.info("Getting fragments...")
@@ -63,5 +63,8 @@ if __name__ == '__main__':
     logging.info("Mapping reads...")
     pairs.load(reads1, reads2, nodes)
     
-    logging.info("Done.")
+    reads1.close()
+    reads2.close()
     pairs.close()
+
+    logging.info("Done.")

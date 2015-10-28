@@ -27,7 +27,7 @@ if __name__ == '__main__':
     hic_path = os.path.expanduser(args.hic)
 
     logging.info("Loading pairs...")
-    pairs = FragmentMappedReadPairs(pairs_path)
+    pairs = FragmentMappedReadPairs(pairs_path, read_only=True)
     logging.info("Done.")
 
     logging.info("Adding pairs to Hic...")

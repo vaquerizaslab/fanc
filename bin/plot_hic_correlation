@@ -38,8 +38,8 @@ if __name__ == '__main__':
     hic1_path = os.path.expanduser(args.hic1)
     hic2_path = os.path.expanduser(args.hic2)
 
-    hic1 = Hic(hic1_path)
-    hic2 = Hic(hic2_path)
+    hic1 = Hic(hic1_path, read_only=True)
+    hic2 = Hic(hic2_path, read_only=True)
 
     output_path = None
     if args.output:

@@ -63,7 +63,7 @@ if __name__ == '__main__':
     
     input_path = os.path.expanduser(args.input)
     
-    hic = Hic(input_path)
+    hic = Hic(input_path, read_only=True)
     
     output_path = None
     if args.output:

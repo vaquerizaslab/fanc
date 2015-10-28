@@ -34,6 +34,6 @@ if __name__ == '__main__':
     if args.output:
         output_path = os.path.expanduser(args.output)
     
-    pairs = FragmentMappedReadPairs(file_name=input_path)
+    pairs = FragmentMappedReadPairs(file_name=input_path, read_only=True)
     pairs.plot_error_structure(output=output_path, data_points=args.points)
     pairs.close()

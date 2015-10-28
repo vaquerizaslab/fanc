@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     # copy file if required
     input_path = copy_or_expand(args.input, args.output)
-    
+
     reads = Reads(file_name=input_path)
     
     if args.mapped:

@@ -30,7 +30,7 @@ if __name__ == '__main__':
     input_path = os.path.expanduser(args.hic)
     output_path = os.path.expanduser(args.output)
 
-    hic = Hic(file_name=input_path)
+    hic = Hic(file_name=input_path, read_only=True)
 
     logging.info("Binning at %dbp" % args.bin_size)
     binned = hic.bin(args.bin_size, file_name=output_path)
