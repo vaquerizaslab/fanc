@@ -1,4 +1,5 @@
 import seaborn as sns
+import numpy as np
 
 
 def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
@@ -22,7 +23,7 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
         sns.plt.switch_backend('pdf')
         sns.plt.ioff()
 
-    barplot = sns.barplot(x=labels, y=values, palette="muted")
+    barplot = sns.barplot(x=np.array(labels), y=np.array(values), palette="muted")
     sns.despine()
 
     if output is not None:
