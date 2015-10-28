@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
     TableArray, _convert_to_tables_type, _structured_array_to_table_type,\
-    _file_to_data, Mask, Maskable, MaskedTable, MaskFilter, MetaContainer
+    _file_to_data, Mask, Maskable, MaskedTable, MaskFilter, MetaContainer,\
+    FileBased
 from __builtin__ import classmethod
 import os
 from kaic.tools.files import create_or_open_pytables_file
@@ -965,6 +966,18 @@ class RegisteredTable(t.Table):
         t.Table.__init__(self, parentnode, name, description,
                          title, filters, expectedrows, chunkshape,
                          byteorder, _log)
+
+
+class TestFileBased:
+    def test_read_only(self, tmpdir):
+        f = FileBased(str(tmpdir) + "/test.file")
+        f.file.create_table("/", "test1", {'a': t.Int32Col()})
+        f.close()
+
+        r = FileBased(str(tmpdir) + "/test.file", read_only=True)
+        with pytest.raises(t.FileModeError):
+            r.file.create_table("/", "test2", {'b': t.Int32Col()})
+        r.close()
 
 
 class TestPytablesInheritance:
