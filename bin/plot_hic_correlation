@@ -45,7 +45,7 @@ if __name__ == '__main__':
     if args.output:
         output_path = os.path.expanduser(args.output)
 
-    pgd.hic_correlation_plot(hic1, hic2, output=output_path, colormap=args.colormap, size=20)
+    pgd.hic_correlation_plot(hic1, hic2, output=output_path, colormap=args.colormap, size=15)
 
     hic1.close()
     hic2.close()
