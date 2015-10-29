@@ -722,7 +722,7 @@ class Kaic(object):
             args.region = slice(0, None, None)
         kaicplt.hic_matrix_plot(hic, output=output_path, key=args.region,
                                 lower_percentile=args.lower, upper_percentile=args.upper,
-                                lower=args.lower, upper=args.upper,
+                                lower=args.lower_abs, upper=args.upper_abs,
                                 colormap=args.colormap)
         hic.close()
         logging.info("All done.")
@@ -804,7 +804,7 @@ class Kaic(object):
             args.region = slice(0, None, None)
         kaicplt.hic_matrix_diff_plot(hic1, hic2, output=output_path, key=args.region,
                                      lower_percentile=args.lower, upper_percentile=args.upper,
-                                     lower=args.lower, upper=args.upper,
+                                     lower=args.lower_abs, upper=args.upper_abs,
                                      colormap=args.colormap)
         hic1.close()
         hic2.close()

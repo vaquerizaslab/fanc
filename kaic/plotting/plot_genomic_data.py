@@ -3,12 +3,6 @@ import pandas
 import numpy as np
 import kaic.data.general as general
 import kaic.data.genomic as genomic
-import kaic.plotting.colormaps as cmaps
-
-sns.plt.register_cmap(name='viridis', cmap=cmaps.viridis)
-sns.plt.register_cmap(name='plasma', cmap=cmaps.plasma)
-sns.plt.register_cmap(name='inferno', cmap=cmaps.inferno)
-sns.plt.register_cmap(name='magma', cmap=cmaps.magma)
 
 
 def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
@@ -80,12 +74,19 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
 def _matrix_plot(hm, output=None, lower_percentile=25.0, upper_percentile=98.0,
                  lower=None, upper=None, colormap='viridis'):
 
+    print "in"
+    print lower
+    print upper
     if lower is None or upper is None:
         percentiles = np.percentile(hm, [lower_percentile, upper_percentile])
+        print percentiles
         if lower is None:
             lower = percentiles[0]
         if upper is None:
             upper = percentiles[1]
+
+    print lower
+    print upper
 
     old_backend = None
     if output is not None:
@@ -105,17 +106,17 @@ def _matrix_plot(hm, output=None, lower_percentile=25.0, upper_percentile=98.0,
         sns.plt.show()
 
 
-def hic_matrix_plot(hic, output=None, key=slice(None, None, None),
+def hic_matrix_plot(hic, output=None, key=slice(0, None, None),
                     lower_percentile=25.0, upper_percentile=98.0,
                     lower=None, upper=None, colormap='viridis'):
     hm = hic[key, key]
-    
+
     _matrix_plot(hm, output=output, lower_percentile=lower_percentile,
                  upper_percentile=upper_percentile, lower=lower,
                  upper=upper, colormap=colormap)
 
 
-def hic_matrix_diff_plot(hic1, hic2, output=None, key=slice(None, None, None),
+def hic_matrix_diff_plot(hic1, hic2, output=None, key=slice(0, None, None),
                          lower_percentile=25.0, upper_percentile=98.0,
                          lower=None, upper=None, colormap='viridis'):
     hm1 = hic1[key, key]

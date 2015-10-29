@@ -9,12 +9,12 @@ Provides
 
 """
 
-import logging
-logging.basicConfig(level=logging.INFO)
-
 from kaic.data.genomic import Hic, HicNode, HicEdge, Genome, Chromosome, Bed
 from kaic.data.general import Table 
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
+import logging
+logging.basicConfig(level=logging.INFO)
+
 
 def sample_hic():
         hic = Hic()
