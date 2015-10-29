@@ -552,7 +552,7 @@ class Kaic(object):
 
         import kaic
         from kaic.tools.files import copy_or_expand
-        import kaic.correcting as corr
+
 
         # copy file if required
         input_path = copy_or_expand(args.input, args.output)
@@ -560,9 +560,11 @@ class Kaic(object):
         hic = kaic.Hic(file_name=input_path)
 
         if args.ice:
-            corr.ice.correct(hic)
+            import kaic.correcting.ice_matrix_balancing as ice
+            ice.correct(hic)
         else:
-            corr.knight.correct(hic, only_intra_chromosomal=args.chromosome)
+            import kaic.correcting.knight_matrix_balancing as knight
+            knight.correct(hic, only_intra_chromosomal=args.chromosome)
 
         hic.close()
 
