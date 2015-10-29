@@ -39,6 +39,7 @@ class Kaic(object):
                     plot_hic_corr      Plot the correlation of two Hic objects
                     plot_hic_matrix    Plot a Hic matrix
                     plot_diff          Plot the difference between two Hic matrices
+                    plot_ratio         Plot the ratio between two Hic matrices
 
                     --- Other
                     hiclib_to_kaic     Convert a hiclib object to a Hic object
