@@ -74,19 +74,12 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
 def _matrix_plot(hm, output=None, lower_percentile=25.0, upper_percentile=98.0,
                  lower=None, upper=None, colormap='viridis'):
 
-    print "in"
-    print lower
-    print upper
     if lower is None or upper is None:
         percentiles = np.percentile(hm, [lower_percentile, upper_percentile])
-        print percentiles
         if lower is None:
             lower = percentiles[0]
         if upper is None:
             upper = percentiles[1]
-
-    print lower
-    print upper
 
     old_backend = None
     if output is not None:

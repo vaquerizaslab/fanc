@@ -553,7 +553,6 @@ class Kaic(object):
         import kaic
         from kaic.tools.files import copy_or_expand
 
-
         # copy file if required
         input_path = copy_or_expand(args.input, args.output)
 
