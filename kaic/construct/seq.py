@@ -169,12 +169,12 @@ class Reads(Maskable, MetaContainer, FileBased):
             try:
                 self._header = main_table._v_attrs.header
             except AttributeError:
-                self.log_warn("No header attributes found in existing table")
+                logging.warn("No header attributes found in existing table")
                 self._header = None
             try:
                 self._ref = main_table._v_attrs.ref
             except AttributeError:
-                self.log_warn("No ref attributes found in existing table")
+                logging.warn("No ref attributes found in existing table")
                 self._ref = None
             
             # tags
