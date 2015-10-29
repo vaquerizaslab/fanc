@@ -45,6 +45,10 @@ def iterative_mapping(input_files, output_files,
             output_path = output_files[i]
             shutil.copy(sam_files.pop(0), output_path)
 
+            header_command = 'head -n 20000 -q %s %s | grep "^@[HD|SQ]" | sort | uniq > %s'
+            merge_command = 'cat %s %s | awk \'!/^@/\' | sort -k1,1 -k5,5rn | ' + \
+                            'awk -v last="" \'{ if(last != $1) print $0; last=$1}\' >> %s'
+
             # join two files and copy back to output_path
             for sam_file in sam_files:
                 tmp_file = tempfile.NamedTemporaryFile(delete=False)
@@ -52,17 +56,16 @@ def iterative_mapping(input_files, output_files,
                 tmp_path = tmp_file.name
 
                 try:
-                    subprocess.check_call('head -n 20000 -q %s %s | ' % (output_path, sam_file) +
-                                          'grep "^@[HD|SQ]" | sort | uniq > %s' % tmp_path)
+                    logging.info(header_command % (output_path, sam_file, tmp_path))
+                    subprocess.check_call(header_command % (output_path, sam_file, tmp_path))
                 except subprocess.CalledProcessError:
                     logging.error("Could not join %s into file!" % sam_file)
                     os.unlink(tmp_path)
                     continue
 
                 try:
-                    subprocess.check_call('cat %s %s | awk \'!/^@/\' | ' % (output_path, sam_file) +
-                                          'sort -k1,1 -k5,5rn | ' +
-                                          'awk -v last="" \'{ if(last != $1) print $0; last=$1}\' >> %s' % tmp_path)
+                    logging.info(merge_command % (output_path, sam_file, tmp_path))
+                    subprocess.check_call((output_path, sam_file, tmp_path))
                 except subprocess.CalledProcessError:
                     logging.error("Could not join %s into file!" % sam_file)
                     os.unlink(tmp_path)
