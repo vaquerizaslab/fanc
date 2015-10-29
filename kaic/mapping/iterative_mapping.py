@@ -56,20 +56,22 @@ def iterative_mapping(input_files, output_files,
                 # tmp_path = tmp_file.name
                 tmp_path = "%s.tmp" % output_path
 
+                logging.info("Merging headers")
                 try:
                     logging.info(header_command % (output_path, sam_file, tmp_path))
                     subprocess.check_call(header_command % (output_path, sam_file, tmp_path), shell=True)
                 except subprocess.CalledProcessError:
                     logging.error("Could not join headers of %s into file!" % sam_file)
-                    os.unlink(tmp_path)
+                    #os.unlink(tmp_path)
                     continue
 
+                logging.info("Merging reads")
                 try:
                     logging.info(merge_command % (output_path, sam_file, tmp_path))
                     subprocess.check_call((output_path, sam_file, tmp_path), shell=True)
                 except subprocess.CalledProcessError:
                     logging.error("Could not join %s into file!" % sam_file)
-                    os.unlink(tmp_path)
+                    #os.unlink(tmp_path)
                     continue
 
                 if do_clean:
