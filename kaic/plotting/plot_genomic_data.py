@@ -77,10 +77,8 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
     return df
 
 
-def hic_matrix_plot(hic, output=None, key=slice(None, None, None),
-                    lower_percentile=25.0, upper_percentile=98.0,
-                    lower=None, upper=None, colormap='viridis'):
-    hm = hic[key, key]
+def _matrix_plot(hm, output=None, lower_percentile=25.0, upper_percentile=98.0,
+                 lower=None, upper=None, colormap='viridis'):
 
     if lower is None or upper is None:
         percentiles = np.percentile(hm, [lower_percentile, upper_percentile])
@@ -89,6 +87,7 @@ def hic_matrix_plot(hic, output=None, key=slice(None, None, None),
         if upper is None:
             upper = percentiles[1]
 
+    old_backend = None
     if output is not None:
         old_backend = sns.plt.get_backend()
         sns.plt.switch_backend('pdf')
@@ -104,6 +103,28 @@ def hic_matrix_plot(hic, output=None, key=slice(None, None, None),
         sns.plt.switch_backend(old_backend)
     else:
         sns.plt.show()
+
+
+def hic_matrix_plot(hic, output=None, key=slice(None, None, None),
+                    lower_percentile=25.0, upper_percentile=98.0,
+                    lower=None, upper=None, colormap='viridis'):
+    hm = hic[key, key]
+    
+    _matrix_plot(hm, output=output, lower_percentile=lower_percentile,
+                 upper_percentile=upper_percentile, lower=lower,
+                 upper=upper, colormap=colormap)
+
+
+def hic_matrix_diff_plot(hic1, hic2, output=None, key=slice(None, None, None),
+                         lower_percentile=25.0, upper_percentile=98.0,
+                         lower=None, upper=None, colormap='viridis'):
+    hm1 = hic1[key, key]
+    hm2 = hic2[key, key]
+    hm = hm1 - hm2
+
+    _matrix_plot(hm, output=output, lower_percentile=lower_percentile,
+                 upper_percentile=upper_percentile, lower=lower,
+                 upper=upper, colormap=colormap)
 
 
 def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
