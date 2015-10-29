@@ -128,6 +128,22 @@ def hic_matrix_diff_plot(hic1, hic2, output=None, key=slice(0, None, None),
                  upper=upper, colormap=colormap)
 
 
+def hic_matrix_ratio_plot(hic1, hic2, output=None, key=slice(0, None, None),
+                          lower_percentile=25.0, upper_percentile=98.0,
+                          lower=None, upper=None, colormap='viridis',
+                          log=True):
+    hm1 = hic1[key, key]
+    hm2 = hic2[key, key]
+    if log:
+        hm = np.log2(hm1/hm2)
+    else:
+        hm = hm1/hm2
+
+    _matrix_plot(hm, output=output, lower_percentile=lower_percentile,
+                 upper_percentile=upper_percentile, lower=lower,
+                 upper=upper, colormap=colormap)
+
+
 def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
     chromosomes = hic1.chromosomes()
 
