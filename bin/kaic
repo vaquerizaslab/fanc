@@ -141,20 +141,6 @@ class Kaic(object):
         parser.set_defaults(join=True)
 
         parser.add_argument(
-            '-f', '--filter', dest='filter',
-            action='store_true',
-            help='''Filter output SAM file by mappability, mapping quality, and uniqueness'''
-        )
-        parser.set_defaults(filter=False)
-
-        parser.add_argument(
-            '-q', '--quality', dest='quality',
-            type=int,
-            default=30,
-            help='''Mapping quality to filter mapped reads'''
-        )
-
-        parser.add_argument(
             '-nc', '--no-clean', dest='clean',
             action='store_false',
             help='''Do not delete partial SAM files (*.sam.\d)'''
@@ -166,8 +152,7 @@ class Kaic(object):
         from kaic.mapping.iterative_mapping import iterative_mapping
 
         iterative_mapping(args.input, args.output, args.index, args.bowtie, args.min_length, args.step,
-                          args.threads, args.tmp, args.quality, args.join, args.filter, args.clean,
-                          args.bowtie2_options)
+                          args.threads, args.tmp, args.join, args.clean, args.bowtie2_options)
 
     ##########################################################################
     #
