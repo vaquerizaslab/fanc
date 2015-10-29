@@ -1,11 +1,7 @@
-import argparse;
-import time;
-from hiclib import mapping;
-import os;
-
-def splitList(thisList):
-    return thisList.split(",");
-
+from hiclib import mapping
+import os
+import logging
+import glob
 
 
 def iterative_mapping(input_files, output_files,
@@ -13,20 +9,18 @@ def iterative_mapping(input_files, output_files,
                       min_length=25, step_size=2, 
                       threads=4, tmp_dir="/tmp", 
                       quality=30, do_join=True,
-                      do_filter=True, do_clean=True,
-                      #bowtie_options='--very-sensitive --no-unal --score-min "C,0,-1"'):
+                      do_filter=False, do_clean=True,
                       bowtie_options='--very-sensitive --no-unal'):
     if not len(input_files) == len(output_files):
-        raise ValueError("Input and output arguments must have the same number of elements!");
+        raise ValueError("Input and output arguments must have the same number of elements!")
     if bowtie is None:
         bc = os.popen('which bowtie2')
         bowtie = bc.read().rstrip()
         
-    for i in range(0,len(input_files)):
-        print("Mapping " + input_files[i]);
-        print("Saving to %s " % (output_files[i]));
-        time.sleep(3);
-        
+    for i in range(0, len(input_files)):
+        logging.info("Mapping %s" % input_files[i])
+        logging.info("Saving to %s " % (output_files[i]))
+
         mapping.iterative_mapping(
             bowtie_path=bowtie,
             bowtie_index_path=bowtie_index,
@@ -40,12 +34,16 @@ def iterative_mapping(input_files, output_files,
             bowtie_flags=" %s " % bowtie_options
         )
         
-        print("Iterative mapping done.");
+        logging.info("Iterative mapping done.")
     
         if do_join:
-            print("Joining output files into %s" % (output_files[i]));
-            if(do_filter):
-                print("Filtering...");
+            logging.info("Joining output files into %s" % (output_files[i]))
+
+            sam_files = glob.glob("%s.*" % output_files[i])
+
+
+            if do_filter:
+                logging.info("Filtering...")
                 # merge and filter output sam files for:
                 # - mappability
                 # - mapping quality
