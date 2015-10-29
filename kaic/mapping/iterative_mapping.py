@@ -51,15 +51,16 @@ def iterative_mapping(input_files, output_files,
 
             # join two files and copy back to output_path
             for sam_file in sam_files:
-                tmp_file = tempfile.NamedTemporaryFile(delete=False)
-                tmp_file.close()
-                tmp_path = tmp_file.name
+                # tmp_file = tempfile.NamedTemporaryFile(delete=False, dir=".")
+                # tmp_file.close()
+                # tmp_path = tmp_file.name
+                tmp_path = "%s.tmp" % output_path
 
                 try:
                     logging.info(header_command % (output_path, sam_file, tmp_path))
                     subprocess.check_call(header_command % (output_path, sam_file, tmp_path), shell=True)
                 except subprocess.CalledProcessError:
-                    logging.error("Could not join %s into file!" % sam_file)
+                    logging.error("Could not join headers of %s into file!" % sam_file)
                     os.unlink(tmp_path)
                     continue
 
