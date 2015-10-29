@@ -129,7 +129,7 @@ def hic_matrix_diff_plot(hic1, hic2, output=None, key=slice(0, None, None),
 
 
 def hic_matrix_ratio_plot(hic1, hic2, output=None, key=slice(0, None, None),
-                          lower=-2, upper=2, colormap='viridis', log=True):
+                          lower=-2, upper=2, colormap='RdBu_r', log=True):
     hm1 = hic1[key, key]
     hm2 = hic2[key, key]
     if log:
