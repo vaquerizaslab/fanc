@@ -6,14 +6,13 @@
 kaic documentation
 ==================
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
 
-   intro
+   getting_started
    seq
    genomic
+   general
 
 Indices and tables
 ==================
@@ -21,4 +20,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
