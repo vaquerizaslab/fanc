@@ -71,6 +71,7 @@ class Kaic(object):
 
     def iterative_mapping(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Iteratively map a FASTQ file to a Bowtie 2 index'
         )
         bc = os.popen('which bowtie2')
@@ -164,6 +165,7 @@ class Kaic(object):
 
     def load_reads(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Load a SAM/BAM file into a Reads object'
         )
 
@@ -191,6 +193,7 @@ class Kaic(object):
 
     def filter_reads(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Filter a Reads object'
         )
 
@@ -276,6 +279,7 @@ class Kaic(object):
 
     def reads_to_pairs(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Convert a Reads object into a Pairs object'
         )
 
@@ -339,6 +343,7 @@ class Kaic(object):
 
     def filter_pairs(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Filter a Pairs object'
         )
 
@@ -413,6 +418,7 @@ class Kaic(object):
 
     def pairs_to_hic(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Convert a pairs object into a Hic object'
         )
 
@@ -447,6 +453,7 @@ class Kaic(object):
 
     def merge_hic(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Merge multiple Hic objects'
         )
 
@@ -482,6 +489,7 @@ class Kaic(object):
 
     def bin_hic(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Bin a Hic object into same-size regions'
         )
 
@@ -520,6 +528,7 @@ class Kaic(object):
 
     def correct_hic(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Correct a Hic object for biases'
         )
 
@@ -571,6 +580,7 @@ class Kaic(object):
 
     def plot_ligation_err(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Plot the ligation error of a Pairs object'
         )
 
@@ -608,6 +618,7 @@ class Kaic(object):
 
     def plot_hic_corr(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Plot the correlation of two Hic objects'
         )
 
@@ -656,6 +667,7 @@ class Kaic(object):
 
     def plot_hic_matrix(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Plot a Hic matrix'
         )
 
@@ -731,6 +743,7 @@ class Kaic(object):
 
     def plot_diff(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Plot the difference between two Hic matrices'
         )
 
@@ -814,6 +827,7 @@ class Kaic(object):
 
     def plot_ratio(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Plot the difference between two Hic matrices'
         )
 
@@ -891,6 +905,7 @@ class Kaic(object):
 
     def hiclib_to_kaic(self):
         parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
             description='Convert a hiclib object to a Hic object'
         )
 
