@@ -1,6 +1,4 @@
 before_script:
-    - "mkdir -p kaic"
-    - "cd kaic"
     - "virtualenv kaic_venv"
     - "source kaic_venv/bin/activate"
 
