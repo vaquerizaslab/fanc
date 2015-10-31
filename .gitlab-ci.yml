@@ -1,0 +1,20 @@
+before_script:
+    - "mkdir -p kaic"
+    - "cd kaic"
+    - "virtualenv kaic_venv"
+    - "source kaic_venv/bin/activate"
+
+stages:
+    - build
+    - test
+
+job_build_ubuntu:
+    stage: build
+    script:
+        - "pip install cython"
+        - "pip install --process-dependency-links --upgrade ."
+
+job_test_ubuntu:
+    stage: test
+    script:
+        - "py.test"
