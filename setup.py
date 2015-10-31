@@ -12,6 +12,7 @@ setup(
         'pandas',
         'biopython',
         'numpy',
+        'pytest',
         'tables>3.2.2'
     ],
     dependency_links=[
