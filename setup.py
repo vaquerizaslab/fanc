@@ -6,12 +6,12 @@ setup(
     description='Hi-C data analysis tools.',
     packages=find_packages(exclude=["test"]),
     install_requires=[
-        'h5py',
-        'pysam',
+        'numpy',
         'matplotlib',
         'pandas',
+        'h5py',
+        'pysam',
         'biopython',
-        'numpy',
         'pytest',
         'tables>3.2.2'
     ],

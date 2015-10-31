@@ -3,16 +3,14 @@ before_script:
     - "source kaic_venv/bin/activate"
 
 stages:
-    - build
-    - test
+    - build_and_test
 
-job_build_ubuntu:
-    stage: build
+job_build-and-test_linux:
+    stage: build_and_test
     script:
         - "pip install cython"
-        - "pip install --process-dependency-links --upgrade ."
-
-job_test_ubuntu:
-    stage: test
-    script:
+        - "pip install --process-dependency-links ."
         - "py.test"
+    tags:
+        - linux
+
