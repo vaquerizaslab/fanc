@@ -10,7 +10,7 @@ job_build-and-test_linux:
     script:
         - "pip install cython"
         - "pip install --process-dependency-links ."
-        - "py.test"
+        - "py.test kaic"
     tags:
         - linux
 
