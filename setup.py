@@ -6,12 +6,16 @@ setup(
     description='Hi-C data analysis tools.',
     packages=find_packages(exclude=["test"]),
     install_requires=[
-        #'tables>=3.2.2',
+        'h5py',
         'pysam',
         'matplotlib',
         'pandas',
         'biopython',
-        'numpy'
+        'numpy',
+        'tables>3.2.2'
+    ],
+    dependency_links=[
+        "https://github.com/PyTables/PyTables/zipball/develop#egg=tables-3.3.0"
     ],
     extras_require={
         'plotting':  ["seaborn"]
