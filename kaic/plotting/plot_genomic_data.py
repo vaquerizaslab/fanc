@@ -183,3 +183,15 @@ def hic_correlation_plot(hic1, hic2, output=None, include_zeros=False, colormap=
         sns.plt.switch_backend(old_backend)
     else:
         sns.plt.show()
+
+
+def hic_ma_plot(hic1, hic2, output=None, key=slice(0, None, None),
+                colormap='RdBu_r', log=True):
+
+    hm1 = hic1[key, key]
+    hm2 = hic2[key, key]
+    if log:
+        hm = np.log2(hm1/hm2)
+    else:
+        hm = hm1/hm2
+
