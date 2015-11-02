@@ -1,0 +1,16 @@
+before_script:
+    - "virtualenv kaic_venv"
+    - "source kaic_venv/bin/activate"
+
+stages:
+    - build_and_test
+
+job_build-and-test_linux:
+    stage: build_and_test
+    script:
+        - "pip install cython"
+        - "pip install --process-dependency-links ."
+        - "py.test kaic"
+    tags:
+        - linux
+
