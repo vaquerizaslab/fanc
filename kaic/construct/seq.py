@@ -879,9 +879,9 @@ class QualityFilter(ReadFilter):
 
     def valid_read(self, read):
         """
-        Check if a read has a mapq > cutoff.
+        Check if a read has a mapq >= cutoff.
         """
-        return read.mapq > self.cutoff
+        return read.mapq >= self.cutoff
 
 
 class UniquenessFilter(ReadFilter):
@@ -1724,7 +1724,8 @@ class FragmentReadPair(object):
     
     def get_gap_size(self):
         """
-        Get the gap size between the fragments these reads map to.
+        Get the gap size in base pairs between the fragments these
+        reads map to.
 
         :return: 0 if reads map to the same fragment or neighboring
                  fragments, the distance between fragments if they
