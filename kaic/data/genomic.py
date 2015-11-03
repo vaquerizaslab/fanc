@@ -872,7 +872,7 @@ class GenomicRegion(TableObject):
         self.strand = strand
         self.chromosome = chromosome
         self.ix = ix
-    
+
     @classmethod
     def from_row(cls, row):
         """
@@ -883,7 +883,7 @@ class GenomicRegion(TableObject):
             strand = None
         return cls(start=row["start"], end=row["end"],
                    strand=strand, chromosome=row["chromosome"])
-    
+
     @classmethod
     def from_string(cls, region_string):
         """
@@ -1863,27 +1863,43 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         row and column key, respectively,
         e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
         map of the relevant regions between chromosomes 1 and 4.
+
+        :return: :class:`HicMatrix`
         """
         
-        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+
+        nodes_ix_row = None
+        if nodes_row is not None:
+            if isinstance(nodes_row, list):
+                nodes_ix_row = [node.ix for node in nodes_row]
+            else:
+                nodes_ix_row = nodes_row.ix
+
+        nodes_ix_col = None
+        if nodes_col is not None:
+            if isinstance(nodes_col, list):
+                nodes_ix_col = [node.ix for node in nodes_col]
+            else:
+                nodes_ix_col = nodes_col.ix
         
         m = self._get_matrix(nodes_ix_row, nodes_ix_col)
-        
+
         # select the correct output format
         # empty result: matrix
         if m.shape[0] == 0 and m.shape[1] == 0:
-            return m
+            return HicMatrix(m, col_regions=[], row_regions=[])
         # both selectors are lists: matrix
         if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            return m
+            return HicMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
         # row selector is list: vector
         if isinstance(nodes_ix_row, list):
-            return m[:, 0]
+            return HicMatrix(m[:, 0], col_regions=[nodes_ix_col], row_regions=nodes_row)
         # column selector is list: vector
         if isinstance(nodes_ix_col, list):
-            return m[0, :]
+            return HicMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
         # both must be indexes
-        return m[0,0]
+        return m[0, 0]
     
     def _get_nodes_from_key(self, key, as_index=False):
         if isinstance(key, tuple):
@@ -1948,12 +1964,12 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                         and col_range[0] <= sink <= col_range[1]):
                         ir = source - row_range[0]
                         jr = sink - col_range[0]
-                        m[ir + row_offset,jr + col_offset] = weight
+                        m[ir + row_offset, jr + col_offset] = weight
                     if (row_range[0] <= sink <= row_range[1]
                         and col_range[0] <= source <= col_range[1]):
                         ir = sink - row_range[0]
                         jr = source - col_range[0]
-                        m[ir + row_offset,jr + col_offset] = weight
+                        m[ir + row_offset, jr + col_offset] = weight
                 
                 col_offset += n_cols_sub
             row_offset += n_rows_sub
@@ -2365,7 +2381,78 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         if vector is not None:
             self._edges._v_attrs.bias_vector = vector
         return self._edges._v_attrs.bias_vector
-    
+
+
+class HicMatrix(np.ndarray):
+    def __new__(cls, input_matrix, col_regions=None, row_regions=None):
+        obj = np.asarray(input_matrix).view(cls)
+        obj.col_regions = col_regions
+        obj.row_regions = row_regions
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+
+        self.row_regions = getattr(obj, 'row_regions', None)
+        self.col_regions = getattr(obj, 'col_regions', None)
+
+    def __getitem__(self, item):
+        # convert string types into region indexes
+        if isinstance(item, tuple):
+            row_key = self._convert_key(item[0], self.row_regions)
+            col_key = self._convert_key(item[1], self.col_regions)
+            item = (row_key, col_key)
+        else:
+            row_key = self._convert_key(item, self.row_regions)
+            col_key = slice(None, None, None)
+            item = row_key
+
+        # get matrix
+        res = super(HicMatrix, self).__getitem__(item)
+        if not isinstance(res, HicMatrix):
+            return res
+
+        # get regions
+        try:
+            row_regions = self.row_regions[row_key]
+        except TypeError:
+            row_regions = None
+            logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(row_key) +
+                         "Falling back on setting row regions to None")
+
+        try:
+            col_regions = self.col_regions[col_key]
+        except TypeError:
+            col_regions = None
+            logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(col_key) +
+                         "Falling back on setting col regions to None")
+
+        res.col_regions = col_regions
+        res.row_regions = row_regions
+
+        return res
+
+    def __getslice__(self, start, stop):
+        return self.__getitem__(slice(start, stop))
+
+    def _convert_key(self, key, regions):
+        if isinstance(key, str):
+            key = GenomicRegion.from_string(key)
+        if isinstance(key, GenomicRegion):
+            key_start = max(0, key.start)
+            key_end = key.end
+            start = None
+            stop = None
+            for i, region in enumerate(regions):
+                if region.chromosome == key.chromosome:
+                    if (key_end is None or region.start <= key_end) and region.end >= key_start:
+                        if start is None:
+                            start = i
+                        stop = i
+            return slice(start, stop, 1)
+        return key
+
 
 class HicXmlFile(object):
     def __init__(self, file_name):
@@ -2443,7 +2530,7 @@ class HicXmlFile(object):
                 return HicEdge(source=source, sink=sink, weight=weight)
             
         return XmlEdgeIter()
-   
+
 
 def genome_from_string(genome_string):
     """

@@ -6,7 +6,8 @@ Created on Jun 29, 2015
 
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, HicNode, HicEdge,\
-    GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao
+    GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
+    HicMatrix
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -798,3 +799,116 @@ class TestHicBasic:
         sum_m_corr = sum(m_corr)
         for n in sum_m_corr:
             assert (sum_m_corr[0]-5 < n < sum_m_corr[0]+5) or n == 0
+
+
+class TestHicMatrix:
+
+    def setup_method(self, method):
+        hic = Hic()
+
+        m = np.zeros((12, 12))
+        row_regions = []
+        col_regions = []
+        # add some nodes (120 to be exact)
+        nodes = []
+        for i in range(1, 5000, 1000):
+            node = HicNode(chromosome="chr1", start=i, end=i+1000-1)
+            nodes.append(node)
+            row_regions.append(node)
+            col_regions.append(node)
+        for i in range(1, 3000, 1000):
+            node = HicNode(chromosome="chr2", start=i, end=i+1000-1)
+            nodes.append(node)
+            row_regions.append(node)
+            col_regions.append(node)
+        for i in range(1, 2000, 500):
+            node = HicNode(chromosome="chr3", start=i, end=i+1000-1)
+            nodes.append(node)
+            row_regions.append(node)
+            col_regions.append(node)
+        hic.add_nodes(nodes)
+
+        # add some edges with increasing weight for testing
+        edges = []
+        weight = 1
+        for i in range(0, len(nodes)):
+            for j in range(i, len(nodes)):
+                edges.append(HicEdge(source=i, sink=j, weight=weight))
+                m[i, j] = weight
+                m[j, i] = weight
+                weight += 1
+
+        hic.add_edges(edges)
+
+        print row_regions
+
+        self.hic = hic
+        self.m = HicMatrix(m, row_regions=row_regions, col_regions=col_regions)
+
+    def test_create(self):
+        hm = self.hic[:, :]
+        m = self.m
+
+        assert np.array_equal(hm, m)
+
+        assert hasattr(m, 'row_regions')
+        assert hasattr(m, 'col_regions')
+
+    def test_repr(self):
+        repr(self.m)
+
+    def test_convert_key(self):
+        key = self.m._convert_key('chr1:2001-5000', self.m.row_regions)
+        assert key.start == 2
+        assert key.stop == 4
+
+        key = self.m._convert_key('chr1', self.m.row_regions)
+        assert key.start == 0
+        assert key.stop == 4
+
+        key = self.m._convert_key('chr2', self.m.row_regions)
+        assert key.start == 5
+        assert key.stop == 7
+
+    def test_select(self):
+        res_all = self.m[:, :]
+        assert np.array_equal(res_all.shape, (12, 12))
+        assert np.array_equal(res_all.row_regions, self.m.row_regions[0:12])
+        assert np.array_equal(res_all.col_regions, self.m.col_regions[0:12])
+        res_square = self.m[2:6, 2:6]
+        assert np.array_equal(res_square.shape, (4, 4))
+        assert np.array_equal(res_square.row_regions, self.m.row_regions[2:6])
+        assert np.array_equal(res_square.col_regions, self.m.col_regions[2:6])
+        res_rect = self.m[2:6, 5:7]
+        assert np.array_equal(res_rect.shape, (4, 2))
+        assert np.array_equal(res_rect.row_regions, self.m.row_regions[2:6])
+        assert np.array_equal(res_rect.col_regions, self.m.col_regions[5:7])
+        res_row = self.m[1]
+        assert np.array_equal(res_row.shape, (12,))
+        assert np.array_equal(res_row.row_regions, self.m.row_regions[1])
+        assert np.array_equal(res_row.col_regions, self.m.col_regions[:])
+        res_col = self.m[:, 1]
+        assert np.array_equal(res_col.shape, (12,))
+        assert np.array_equal(res_col.row_regions, self.m.row_regions[:])
+        assert np.array_equal(res_col.col_regions, self.m.col_regions[1])
+        res_row_sub = self.m[1, 2:6]
+        assert np.array_equal(res_row_sub.shape, (4,))
+        assert np.array_equal(res_row_sub.row_regions, self.m.row_regions[1])
+        assert np.array_equal(res_row_sub.col_regions, self.m.col_regions[2:6])
+        res_col_sub = self.m[2:6, 1]
+        assert np.array_equal(res_col_sub.shape, (4,))
+        assert np.array_equal(res_col_sub.row_regions, self.m.row_regions[2:6])
+        assert np.array_equal(res_col_sub.col_regions, self.m.col_regions[1])
+        res_single = self.m[0, 0]
+        assert isinstance(res_single, float)
+
+        hm = self.hic[:, :]
+        for i, row_region in enumerate(hm.row_regions):
+            assert row_region.start == self.m.row_regions[i].start
+            assert row_region.end == self.m.row_regions[i].end
+            assert row_region.chromosome == self.m.row_regions[i].chromosome
+
+        for i, col_region in enumerate(hm.col_regions):
+            assert col_region.start == self.m.col_regions[i].start
+            assert col_region.end == self.m.col_regions[i].end
+            assert col_region.chromosome == self.m.col_regions[i].chromosome
