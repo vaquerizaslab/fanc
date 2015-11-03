@@ -44,9 +44,10 @@ def iterative_mapping(input_files, output_files,
             sam_files = glob.glob("%s.*" % output_files[i])
             output_path = output_files[i]
             first_sam_file = sam_files.pop(0)
+
+            shutil.copy(first_sam_file, output_path)
             if do_clean:
                 os.unlink(first_sam_file)
-            shutil.copy(first_sam_file, output_path)
 
             header_command = 'head -n 20000 -q %s %s | grep "^@[HD|SQ]" | sort | uniq > %s'
             merge_command = 'cat %s %s | awk \'!/^@/\' | sort -k1,1 -k5,5rn | ' + \
