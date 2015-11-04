@@ -195,3 +195,28 @@ def hic_ma_plot(hic1, hic2, output=None, key=slice(0, None, None),
     else:
         hm = hm1/hm2
 
+    mean_contacts = []
+    fold_changes = []
+    if len(hm.shape) == 2:
+        for i in xrange(0, hm.shape[0]):
+            for j in xrange(i, hm.shape[1]):
+                mean_contact = np.mean((hm1[i, j], hm2[i, j]))
+                fold_change = hm[i, j]
+                mean_contacts.append(mean_contact)
+                fold_changes.append(fold_change)
+
+    old_backend = None
+    if output is not None:
+        old_backend = sns.plt.get_backend()
+        sns.plt.switch_backend('pdf')
+        sns.plt.ioff()
+
+    scatter = sns.plt.scatter(mean_contacts, fold_changes)
+
+    if output is not None:
+        scatter.figure.savefig(output)
+        sns.plt.close(scatter.figure)
+        sns.plt.ion()
+        sns.plt.switch_backend(old_backend)
+    else:
+        sns.plt.show()
