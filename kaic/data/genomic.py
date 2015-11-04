@@ -2449,9 +2449,28 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         return EdgeIter()
     
     def bias_vector(self, vector=None):
+        """
+        Get the bias vector of this Hic matrix.
+
+        Only works if previously corrected.
+        """
         if vector is not None:
             self._edges._v_attrs.bias_vector = vector
         return self._edges._v_attrs.bias_vector
+
+    def marginals(self):
+        """
+        Get the marginals vector of this Hic matrix.
+        """
+        # prepare marginals dict
+        marginals = np.zeros(len(self.regions()), float)
+
+        for edge in self.edges():
+            marginals[edge.source] += edge.weight
+            if edge.source != edge.sink:
+                marginals[edge.sink] += edge.weight
+
+        return marginals
 
 
 class HicMatrix(np.ndarray):
