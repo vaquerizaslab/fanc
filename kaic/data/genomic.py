@@ -262,6 +262,33 @@ class Bed(Table):
         df = p.DataFrame(contacts, columns=labels)
         return df
 
+    def _row_to_bed_element(self, row):
+        kwargs = dict()
+        for key in self.colnames:
+            if key == 'chrom' or key == 'start' or key == 'end':
+                continue
+            kwargs[key] = row[key]
+        return BedElement(row['chrom'], row['start'], row['end'], **kwargs)
+
+    def __getitem__(self, item):
+        row = super(Bed, self).__getitem__(item)
+        return self._row_to_bed_element(row)
+
+    def __iter__(self):
+        this = self
+
+        class BedIter:
+            def __init__(self):
+                self.iter = iter(this._table)
+
+            def __iter__(self):
+                return self
+
+            def next(self):
+                row = self.iter.next()
+                return this._row_to_bed_element(row)
+        return BedIter()
+
 
 class Bedpe(object):
     """
@@ -962,6 +989,13 @@ class GenomicRegion(TableObject):
     
     def __repr__(self):
         return self.to_string()
+
+
+class BedElement(GenomicRegion):
+    def __init__(self, chromosome, start, end, **kwargs):
+        super(BedElement, self).__init__(start, end, chromosome)
+        for key, value in kwargs.iteritems():
+            setattr(self, key, value)
 
 
 class LazyGenomicRegion(GenomicRegion):
