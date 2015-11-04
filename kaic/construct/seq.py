@@ -582,7 +582,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         """
         Iterate over filtered reads.
 
-        Reads are never deleting when using a filter, only masked.
+        Reads are never deleted when using a filter, only masked.
         This function iterates over all masked reads.
         """
         this = self
