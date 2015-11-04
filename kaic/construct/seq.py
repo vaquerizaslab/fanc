@@ -1334,9 +1334,113 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         right_read = FragmentRead(fragment2, position=read2_row['position'], strand=read2_row['strand'])
 
         return FragmentReadPair(left_read=left_read, right_read=right_read)
-    
-    def plot_error_structure(self, output=None, data_points=None,
-                             skip_self_ligations=True):
+
+    def get_error_structure(self, data_points=None, skip_self_ligations=True):
+
+        """
+        Compute the ligation error structure of this data set.
+
+        :param data_points: Number of data points to average per point
+                            in the plot. If None (default), this will
+                            be determined on a best-guess basis.
+        :param skip_self_ligations: If True (default), will not consider
+                                    self-ligated fragments for assessing
+                                    the error rates.
+        """
+        l = len(self)
+        type_same = 0
+        type_inward = 1
+        type_outward = 2
+
+        def _init_gaps_and_types():
+            same_count = 0
+            inward_count = 0
+            outward_count = 0
+            gaps = []
+            types = []
+            last_percent = -1
+            for i, pair in enumerate(self):
+                if i % int(l/20) == 0:
+                    percent = int(i/int(l/20))
+                    if percent != last_percent:
+                        print "%d%% done" % (percent*5)
+                        last_percent = percent
+                if pair.is_same_fragment() and skip_self_ligations:
+                    continue
+                if pair.is_same_chromosome():
+                    gap_size = pair.get_gap_size()
+                    if gap_size > 0:
+                        gaps.append(gap_size)
+                        if pair.is_outward_pair():
+                            types.append(type_outward)
+                            outward_count += 1
+                        elif pair.is_inward_pair():
+                            types.append(type_inward)
+                            inward_count += 1
+                        else:
+                            types.append(0)
+                            same_count += 1
+            logging.info("Pairs: %d" % l)
+            logging.info("Same: %d" % same_count)
+            logging.info("Inward: %d" % inward_count)
+            logging.info("Outward: %d" % outward_count)
+            return gaps, types
+
+        def _sort_data(gaps, types):
+            points = zip(gaps, types)
+            sorted_points = sorted(points)
+            gaps = [point[0] for point in sorted_points]
+            types = [point[1] for point in sorted_points]
+            return gaps, types
+
+        def _guess_datapoints(data_points):
+            if data_points is None:
+                data_points = max(100, int(l * 0.0025))
+            logging.info("Number of data points averaged per point in plot: %d" % data_points)
+            return data_points
+
+        def _calculate_ratios(gaps, types, data_points):
+            x = []
+            inward_ratios = []
+            outward_ratios = []
+            counter = 0
+            same_counter = 0
+            mids = 0
+            outwards = 0
+            inwards = 0
+            same = 0
+            for i in xrange(0, len(gaps)):
+                mids += gaps[i]
+                if types[i] == type_same:
+                    same += 1
+                    same_counter += 1
+                elif types[i] == type_inward:
+                    inwards += 1
+                else:
+                    outwards += 1
+                counter += 1
+                if same_counter > data_points:
+                    x.append(mids/counter)
+                    inward_ratios.append(inwards/same)
+                    outward_ratios.append(outwards/same)
+                    same_counter = 0
+                    counter = 0
+                    mids = 0
+                    outwards = 0
+                    inwards = 0
+                    same = 0
+            return x, inward_ratios, outward_ratios
+        
+        gaps, types = _init_gaps_and_types()
+        # sort data
+        gaps, types = _sort_data(gaps, types)
+        # best guess for number of data points
+        data_points = _guess_datapoints(data_points)
+        # calculate ratios
+        x, inward_ratios, outward_ratios = _calculate_ratios(gaps, types, data_points)
+        return x, inward_ratios, outward_ratios
+
+    def plot_error_structure(self, output=None, data_points=None, skip_self_ligations=True):
         """
         Plot the ligation error structure in this data set.
 
@@ -1348,88 +1452,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                     self-ligated fragments for assessing
                                     the error rates.
         """
-        same_count = 0
-        inward_count = 0
-        outward_count = 0
-        gaps = []
-        types = []
-        type_same = 0
-        type_inward = 1
-        type_outward = 2
-        l = len(self)
-        last_percent = -1
-        for i, pair in enumerate(self):
-            if i % int(l/20) == 0:
-                percent = int(i/int(l/20))
-                if percent != last_percent:
-                    print "%d%% done" % (percent*5)
-                    last_percent = percent
-                    
-            if pair.is_same_fragment() and skip_self_ligations:
-                continue
-            
-            if pair.is_same_chromosome():
-                gap_size = pair.get_gap_size()
-                if gap_size > 0:
-                    gaps.append(gap_size)
-                    if pair.is_outward_pair():
-                        types.append(type_outward)
-                        outward_count += 1
-                    elif pair.is_inward_pair():
-                        types.append(type_inward)
-                        inward_count += 1
-                    else:
-                        types.append(0)
-                        same_count += 1
-        
-        logging.info("Pairs: %d" % l)
-        logging.info("Same: %d" % same_count)
-        logging.info("Inward: %d" % inward_count)
-        logging.info("Outward: %d" % outward_count)
-        
-        # sort data
-        points = zip(gaps,types)
-        sorted_points = sorted(points)
-        gaps = [point[0] for point in sorted_points]
-        types = [point[1] for point in sorted_points]
-        
-        # best guess for number of data points
-        if data_points is None:
-            data_points = max(100, int(l * 0.0025))
-        logging.info("Number of data points averaged per point in plot: %d" % data_points)
-        
-        # calculate ratios
-        x = []
-        inward_ratios = []
-        outward_ratios = []
-        counter = 0
-        same_counter = 0
-        mids = 0
-        outwards = 0
-        inwards = 0
-        same = 0
-        for i in xrange(0, len(gaps)):
-            mids += gaps[i]
-            if types[i] == type_same:
-                same += 1
-                same_counter += 1
-            elif types[i] == type_inward:
-                inwards += 1
-            else:
-                outwards += 1
-            counter += 1
-            
-            if same_counter > data_points:
-                x.append(mids/counter)
-                inward_ratios.append(inwards/same)
-                outward_ratios.append(outwards/same)
-                
-                same_counter = 0
-                counter = 0
-                mids = 0
-                outwards = 0
-                inwards = 0
-                same = 0
+        x, inward_ratios, outward_ratios = self.get_error_structure(data_points, skip_self_ligations)
                 
         # plot
         if output is not None:
