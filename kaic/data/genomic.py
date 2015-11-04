@@ -970,6 +970,11 @@ class GenomicRegion(TableObject):
         return cls(start=start, end=end, chromosome=chromosome, strand=strand)
     
     def to_string(self):
+        """
+        Convert this :class:`~GenomicRegion` to its string representation.
+
+        :return: str
+        """
         region_string = ''
         if self.chromosome is not None:
             region_string += '%s' % self.chromosome
@@ -989,6 +994,38 @@ class GenomicRegion(TableObject):
     
     def __repr__(self):
         return self.to_string()
+
+    def overlaps(self, region):
+        """
+        Check if this region overlaps with the specified region.
+
+        :param region: :class:`~GenomicRegion` object or string
+        """
+        if isinstance(region, str):
+            region = GenomicRegion.from_string(region)
+
+        if region.chromosome != self.chromosome:
+            return False
+
+        if region.start <= self.end and region.end >= self.start:
+            return True
+        return False
+
+    def contains(self, region):
+        """
+        Check if the specified region is completely contained in this region.
+
+        :param region: :class:`~GenomicRegion` object or string
+        """
+        if isinstance(region, str):
+            region = GenomicRegion.from_string(region)
+
+        if region.chromosome != self.chromosome:
+            return False
+
+        if region.start >= self.start and region.end <= self.end:
+            return True
+        return False
 
 
 class BedElement(GenomicRegion):
