@@ -272,3 +272,6 @@ class TestFragmentMappedReads:
         assert len(self.pairs) == 44
         self.pairs.filter(re_filter)
         assert len(self.pairs) == 13
+
+    def test_plot_error_structure(self):
+        self.pairs.plot_error_structure('test.pdf')
