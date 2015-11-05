@@ -1,4 +1,5 @@
 from __future__ import division
+import matplotlib as mp
 import seaborn as sns
 import pandas
 import numpy as np
@@ -330,3 +331,82 @@ def hic_marginals_plot(hic, output=None):
     old_backend = _prepare_backend(output)
     scatter = sns.plt.plot(marginals)
     _plot_figure(scatter, output, old_backend)
+
+
+def hic_triangle_plot(hic, key=slice(0, None, None), output=None, colormap='viridis', max_height=None, axes=None,
+                      n_x_labels=10, vmin=1, vmax=50):
+    hm = hic[key, key]
+    print hm.shape
+    n = hm.shape[0]
+
+    # mask areas we don't want to plot
+    # lower triangle
+    mask_lower = np.tril_indices(n, k=-1)
+    hm[mask_lower] = np.nan
+    if max_height is not None:
+        # upper right corner
+        mask_upper = np.triu_indices(n, k=max_height)
+        hm[mask_upper] = np.nan
+    triangle = np.ma.masked_array(np.asarray(hm).view(np.ndarray), np.isnan(hm))
+
+    # prepare an array of tuples that will be used to rotate triangle
+    A = np.array([(y, x) for x in range(n, -1, -1) for y in range(n + 1)])
+    # rotation matrix 45 degrees
+    t = np.array([[0.707, 0.707], [-0.707, 0.707]])
+    # "rotate" A
+    A = np.dot(A, t)
+    # transform A into x and y values
+    X = A[:, 1].reshape((n + 1, n + 1))
+    Y = A[:, 0].reshape((n + 1, n + 1))
+
+    # flip triangle (because that pcolormesh works opposite than imshow)
+    flip_triangle = np.flipud(triangle)
+
+    with sns.axes_style("ticks"):
+        new_plot = False
+        if axes is None:
+            new_plot = True
+            fig = sns.plt.figure(figsize=(6, 3.5))
+            axes = fig.add_subplot(111, frame_on=True)
+
+        # normalize colors
+        cmap = mp.cm.get_cmap(colormap)
+        norm = mp.colors.BoundaryNorm(np.linspace(vmin, vmax, 50), cmap.N)
+
+        # create plot
+        caxes = sns.plt.pcolormesh(X, Y, flip_triangle, axes=axes, cmap=cmap, norm=norm)
+
+        # re-calculate and reset axis limits
+        max_x = max(A[:, 1])
+        max_y = 0
+        for i in xrange(flip_triangle.shape[0]):
+            for j in xrange(flip_triangle.shape[1]):
+                if flip_triangle[i, j] is not np.ma.masked:
+                    max_y = max(max_y, Y[i, j]+2)
+        axes.set_ylim((-1, max_y))
+        axes.set_xlim((0, max_x))
+
+        # set ticks to genomic regions
+        all_x_ticks = np.linspace(0, max_x, n+1)
+        last_label = "%s: %d" % (hm.row_regions[-1].chromosome, hm.row_regions[-1].end)
+        all_x_labels = ["%s: %d" % (region.chromosome, region.start) for region in hm.row_regions] + [last_label]
+        labels_dist = int(round(len(all_x_labels)/n_x_labels))
+        axes.set_xticks(all_x_ticks[0:len(all_x_ticks):labels_dist])
+        axes.set_xticklabels(all_x_labels[0:len(all_x_ticks):labels_dist], rotation=45, ha='right')
+
+        # remove y ticks
+        axes.set_yticks([])
+
+        # Hide the left, right and top spines
+        sns.despine(left=True)
+        # hide background patch
+        axes.patch.set_visible(False)
+
+        # Only show ticks on the left and bottom spines
+        axes.xaxis.set_ticks_position('bottom')
+
+        # make figure margins accommodate labels
+        sns.plt.tight_layout()
+        if new_plot and output is None:
+            sns.plt.show()
+
