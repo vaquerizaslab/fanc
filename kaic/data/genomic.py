@@ -1963,6 +1963,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # both selectors are lists: matrix
         if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
             return HicMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
+            #return m
         # row selector is list: vector
         if isinstance(nodes_ix_row, list):
             return HicMatrix(m[:, 0], col_regions=[nodes_ix_col], row_regions=nodes_row)
@@ -2487,41 +2488,46 @@ class HicMatrix(np.ndarray):
         self.row_regions = getattr(obj, 'row_regions', None)
         self.col_regions = getattr(obj, 'col_regions', None)
 
-    def __getitem__(self, item):
-        # convert string types into region indexes
-        if isinstance(item, tuple):
-            row_key = self._convert_key(item[0], self.row_regions)
-            col_key = self._convert_key(item[1], self.col_regions)
-            item = (row_key, col_key)
-        else:
-            row_key = self._convert_key(item, self.row_regions)
-            col_key = slice(None, None, None)
-            item = row_key
+    def __getitem__(self, index):
+        self._getitem = True
 
-        # get matrix
-        res = super(HicMatrix, self).__getitem__(item)
-        if not isinstance(res, HicMatrix):
-            return res
+        # convert string types into region indexes
+        if isinstance(index, tuple):
+            row_key = self._convert_key(index[0], self.row_regions)
+            col_key = self._convert_key(index[1], self.col_regions)
+            index = (row_key, col_key)
+        else:
+            row_key = self._convert_key(index, self.row_regions)
+            col_key = slice(0, len(self.col_regions), 1)
+            index = row_key
+
+        try:
+            out = np.ndarray.__getitem__(self, index)
+        finally:
+            self._getitem = False
+
+        if not isinstance(out, np.ndarray):
+            return out
 
         # get regions
         try:
             row_regions = self.row_regions[row_key]
         except TypeError:
             row_regions = None
-            logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(row_key) +
-                         "Falling back on setting row regions to None")
+            #logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(row_key) +
+            #             "Falling back on setting row regions to None")
 
         try:
             col_regions = self.col_regions[col_key]
         except TypeError:
             col_regions = None
-            logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(col_key) +
-                         "Falling back on setting col regions to None")
+            #logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(col_key) +
+            #             "Falling back on setting col regions to None")
 
-        res.col_regions = col_regions
-        res.row_regions = row_regions
+        out.col_regions = col_regions
+        out.row_regions = row_regions
 
-        return res
+        return out
 
     def __getslice__(self, start, stop):
         return self.__getitem__(slice(start, stop))
