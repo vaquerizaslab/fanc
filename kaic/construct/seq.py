@@ -1430,7 +1430,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     inwards = 0
                     same = 0
             return x, inward_ratios, outward_ratios
-        
+
         gaps, types = _init_gaps_and_types()
         # sort data
         gaps, types = _sort_data(gaps, types)
