@@ -8,7 +8,7 @@ import os.path
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair
-from kaic.data.genomic import Genome, GenomicRegion
+from kaic.data.genomic import Genome, GenomicRegion, Chromosome
 
 
 class TestReads:
@@ -243,7 +243,7 @@ class TestFragmentMappedReads:
             
     def test_single(self):
         assert len(self.pairs._single) == 6
-        
+
     def test_filter_inward(self):
         mask = self.pairs.add_mask_description('inwards', 'Mask read pairs that inward facing and closer than 100bp')
         in_filter = InwardPairsFilter(minimum_distance=100, mask=mask)
@@ -272,3 +272,16 @@ class TestFragmentMappedReads:
         assert len(self.pairs) == 44
         self.pairs.filter(re_filter)
         assert len(self.pairs) == 13
+
+    def test_get_error_structure(self):
+        reads1 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/../data/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = FragmentMappedReadPairs()
+        pairs.load(reads1, reads2, genome.get_regions('HindIII'))
+        x, i, o = pairs.get_error_structure(data_points=200, skip_self_ligations=False)
+        assert len(x) == len(i) == len(o) == 3
+        assert x == [494.03856041131104, 4487.5800970873788, 19399.908018867925]
+        assert i == [2.616915422885572, 0.8059701492537313, 0.6417910447761194]
+        assert o == [0.2537313432835821, 0.24378109452736318, 0.46766169154228854]
