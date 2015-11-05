@@ -1453,13 +1453,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                     the error rates.
         """
         x, inward_ratios, outward_ratios = self.get_error_structure(data_points, skip_self_ligations)
-                
+
         # plot
         if output is not None:
             old_backend = plt.get_backend()
             plt.switch_backend('pdf')
             plt.ioff()
-        
+
         fig = plt.figure()
         fig.suptitle("Error structure by distance")
         plt.plot(x, inward_ratios, 'b', label="inward/same strand")
@@ -1478,7 +1478,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             plt.close(fig)
             plt.ion()
             plt.switch_backend(old_backend)
-    
+
     def filter(self, pair_filter, queue=False, log_progress=False):
         """
         Filter read pairs in this object by using a

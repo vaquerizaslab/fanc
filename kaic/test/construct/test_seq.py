@@ -243,6 +243,10 @@ class TestFragmentMappedReads:
             
     def test_single(self):
         assert len(self.pairs._single) == 6
+
+    def test_get_error_structure(self):
+        x, i, o = self.pairs.get_error_structure()
+        print x, i, o
         
     def test_filter_inward(self):
         mask = self.pairs.add_mask_description('inwards', 'Mask read pairs that inward facing and closer than 100bp')
@@ -272,6 +276,3 @@ class TestFragmentMappedReads:
         assert len(self.pairs) == 44
         self.pairs.filter(re_filter)
         assert len(self.pairs) == 13
-
-    def test_plot_error_structure(self):
-        self.pairs.plot_error_structure('test.pdf')
