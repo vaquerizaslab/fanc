@@ -1440,45 +1440,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         x, inward_ratios, outward_ratios = _calculate_ratios(gaps, types, data_points)
         return x, inward_ratios, outward_ratios
 
-    def plot_error_structure(self, output=None, data_points=None, skip_self_ligations=True):
-        """
-        Plot the ligation error structure in this data set.
-
-        :param output: Path to pdf file to save this plot.
-        :param data_points: Number of data points to average per point
-                            in the plot. If None (default), this will
-                            be determined on a best-guess basis.
-        :param skip_self_ligations: If True (default), will not consider
-                                    self-ligated fragments for assessing
-                                    the error rates.
-        """
-        x, inward_ratios, outward_ratios = self.get_error_structure(data_points, skip_self_ligations)
-
-        # plot
-        if output is not None:
-            old_backend = plt.get_backend()
-            plt.switch_backend('pdf')
-            plt.ioff()
-
-        fig = plt.figure()
-        fig.suptitle("Error structure by distance")
-        plt.plot(x, inward_ratios, 'b', label="inward/same strand")
-        plt.plot(x, outward_ratios, 'r', label="outward/same strand")
-        plt.xscale('log')
-        plt.axhline(y=0.5, color='black', ls='dashed')
-        plt.ylim(0, 3)
-        plt.xlabel('gap size between fragments')
-        plt.ylabel('ratio of number of reads')
-        plt.legend(loc='upper right')
-
-        if output is None:
-            plt.show()
-        else:
-            fig.savefig(output)
-            plt.close(fig)
-            plt.ion()
-            plt.switch_backend(old_backend)
-
     def filter(self, pair_filter, queue=False, log_progress=False):
         """
         Filter read pairs in this object by using a
