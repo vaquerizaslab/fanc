@@ -347,7 +347,7 @@ def hic_triangle_plot(hic, key=slice(0, None, None), output=None, colormap='viri
         # upper right corner
         mask_upper = np.triu_indices(n, k=max_height)
         hm[mask_upper] = np.nan
-    triangle = np.ma.masked_array(np.asarray(hm).view(np.ndarray), np.isnan(hm))
+    triangle = np.ma.masked_array(hm, np.isnan(hm))
 
     # prepare an array of tuples that will be used to rotate triangle
     A = np.array([(y, x) for x in range(n, -1, -1) for y in range(n + 1)])
