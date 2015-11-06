@@ -68,6 +68,7 @@ from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
 import re
 from repoze.lru import lru_cache, CacheMaker
+import numpy as np
 
         
 class Reads(Maskable, MetaContainer, FileBased):
@@ -1583,8 +1584,29 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                              will be continuously reported.
         """
         self._pairs.run_queued_filters(_logging=log_progress)
-        
-    def filter_inward(self, minimum_distance, queue=False):
+
+    def _auto_dist(self, dists, ratios, threshold_ratio=0.2):
+        """
+        Function that attempts to infer sane distances for filtering inward
+        and outward read pairs
+
+        :param dists: List of distances in bp.
+        :param ratios: List of ratios
+        :param threshold: Threshold below which the 1+log2(ratio) must fall
+                          in order to infer the corresponding distance
+        """
+        print ratios
+        ratios = np.array([1+np.log2(x) for x in ratios])
+        print abs(ratios) <= threshold_ratio
+        ok_threshold_indices = np.argwhere(abs(ratios) <= threshold_ratio).flatten()
+        print dists
+        print ratios
+        print ok_threshold_indices
+        minimum_distance = dists[ok_threshold_indices[0]]
+        print minimum_distance
+        return minimum_distance
+
+    def filter_inward(self, minimum_distance=None, queue=False, threshold_ratio=0.1):
         """
         Convenience function that applies an :class:`~InwardPairsFilter`.
 
@@ -1594,6 +1616,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                       along with other queued filters using
                       run_queued_filters
         """
+        if minimum_distance is None:
+            dists, inward_ratios, _ = self.get_error_structure()
+            minimum_distance = self._auto_dist(dists, inward_ratios, threshold_ratio)
         mask = self.add_mask_description('inward',
                                          'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
         inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)

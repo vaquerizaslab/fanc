@@ -303,6 +303,15 @@ class TestFragmentMappedReads:
 #             print pair[0]
 #             print pair[1]
         assert len(self.pairs) == 18
+
+    def test_filter_inward_auto(self):
+        reads1 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/../data/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = FragmentMappedReadPairs()
+        pairs.load(reads1, reads2, genome.get_regions('HindIII'))
+        pairs.filter_inward(threshold_ratio=0.5)
         
     def test_filter_outward(self):
         mask = self.pairs.add_mask_description('outwards', 'Mask read pairs that outward facing and closer than 100bp')
