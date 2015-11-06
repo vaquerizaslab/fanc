@@ -693,8 +693,7 @@ class TestHicBasic:
             # make sure that the total number
             # of reads stays the same
             assert original_reads == new_reads
-            print len(binned.regions())
-        
+
         bin_sizes = [500,1000,5000,10000,20000]
         buffer_sizes = [10,100,500,1000,10000,50000]
         for bin_size in bin_sizes:
