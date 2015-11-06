@@ -1585,15 +1585,18 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         self._pairs.run_queued_filters(_logging=log_progress)
 
-    def _auto_dist(self, dists, ratios, threshold_ratio=0.2, window=3):
+    def _auto_dist(self, dists, ratios, threshold_ratio=0.1, threshold_std=0.1, window=3):
         """
         Function that attempts to infer sane distances for filtering inward
         and outward read pairs
 
         :param dists: List of distances in bp.
         :param ratios: List of ratios
-        :param threshold: Threshold below which the 1+log2(ratio) must fall
-                          in order to infer the corresponding distance
+        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
+                                in order to infer the corresponding distance
+        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
+                              must fall in order to infer the corresponding distance
+        :param window: Window for the rolling standard deviations
         """
         def rolling_window(a, window):
             shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
@@ -1602,17 +1605,16 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             return np.insert(r, 0, [r[0]]*(window-1), axis=0)
 
         ratios = np.array([1+np.log2(x) for x in ratios])
-        ok_threshold_indices = np.argwhere(abs(ratios) <= threshold_ratio).flatten()
         stds = np.std(rolling_window(ratios, window), -1)
-        print stds
-        print ratios
-        print ok_threshold_indices
-        print dists
-        minimum_distance = dists[ok_threshold_indices[0]]
-        print minimum_distance
-        return minimum_distance
+        ok_threshold_ratios = abs(ratios) <= threshold_ratio
+        ok_threshold_stds = stds <= threshold_std
+        ok_values = ok_threshold_ratios * ok_threshold_stds
+        ok_indices = np.argwhere(ok_values).flatten()
+        if len(ok_indices) > 0:
+            return dists[ok_indices[0]]
+        return None
 
-    def filter_inward(self, minimum_distance=None, queue=False, threshold_ratio=0.1):
+    def filter_inward(self, minimum_distance=None, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
         """
         Convenience function that applies an :class:`~InwardPairsFilter`.
 
@@ -1621,14 +1623,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
+        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
+                                in order to infer the corresponding distance
+        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
+                              must fall in order to infer the corresponding distance
+        :param window: Window for the rolling standard deviations
         """
         if minimum_distance is None:
             dists, inward_ratios, _ = self.get_error_structure()
-            minimum_distance = self._auto_dist(dists, inward_ratios, threshold_ratio)
-        mask = self.add_mask_description('inward',
-                                         'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
-        inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
-        self.filter(inward_filter, queue)
+            minimum_distance = self._auto_dist(dists, inward_ratios, threshold_ratio, threshold_std, window)
+        if minimum_distance:
+            mask = self.add_mask_description('inward',
+                                            'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
+            inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
+            self.filter(inward_filter, queue)
+        else:
+            raise Exception('Could not automatically detect a sane distance threshold for filtering inward reads')
     
     def filter_outward(self, minimum_distance, queue=False):
         """

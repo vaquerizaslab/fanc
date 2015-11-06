@@ -311,7 +311,7 @@ class TestFragmentMappedReads:
         genome = Genome(chromosomes=[chrI])
         pairs = FragmentMappedReadPairs()
         pairs.load(reads1, reads2, genome.get_regions('HindIII'))
-        pairs.filter_inward(threshold_ratio=0.5)
+        pairs.filter_inward(threshold_ratio=0.5, threshold_std=0.3)
         
     def test_filter_outward(self):
         mask = self.pairs.add_mask_description('outwards', 'Mask read pairs that outward facing and closer than 100bp')
