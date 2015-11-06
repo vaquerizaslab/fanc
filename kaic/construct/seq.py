@@ -1634,13 +1634,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             minimum_distance = self._auto_dist(dists, inward_ratios, threshold_ratio, threshold_std, window)
         if minimum_distance:
             mask = self.add_mask_description('inward',
-                                            'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
+                                             'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
             inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
             self.filter(inward_filter, queue)
         else:
             raise Exception('Could not automatically detect a sane distance threshold for filtering inward reads')
     
-    def filter_outward(self, minimum_distance, queue=False):
+    def filter_outward(self, minimum_distance, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
         """
         Convenience function that applies an :class:`~OutwardPairsFilter`.
 
@@ -1649,11 +1649,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
+        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
+                                in order to infer the corresponding distance
+        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
+                              must fall in order to infer the corresponding distance
+        :param window: Window for the rolling standard deviations
         """
-        mask = self.add_mask_description('outward',
-                                         'Mask read pairs that are outward facing and <%dbp apart' % minimum_distance)
-        outward_filter = OutwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
-        self.filter(outward_filter, queue)
+        if minimum_distance is None:
+            dists, _, outward_ratios = self.get_error_structure()
+            minimum_distance = self._auto_dist(dists, outward_ratios, threshold_ratio, threshold_std, window)
+        if minimum_distance:
+            mask = self.add_mask_description('outward',
+                                             'Mask read pairs that are outward facing and <%dbp apart' % minimum_distance)
+            outward_filter = OutwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
+            self.filter(outward_filter, queue)
+        else:
+            raise Exception('Could not automatically detect a sane distance threshold for filtering outward reads')
     
     def filter_re_dist(self, maximum_distance, queue=False):
         """
