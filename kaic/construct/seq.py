@@ -1517,21 +1517,27 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         Iterate over unfiltered fragment-mapped read pairs.
         """
+        return self.pairs(lazy=False)
+
+    def pairs(self, lazy=False):
+        """
+        Iterate over unfiltered fragment-mapped read pairs.
+        """
         this = self
 
         class FragmentMappedReadPairIter:
             def __init__(self):
                 self.iter = iter(this._pairs)
-                 
+
             def __iter__(self):
                 return self
-             
+
             def next(self):
-                return this._pair_from_row(self.iter.next())
-             
+                return this._pair_from_row(self.iter.next(), lazy=lazy)
+
             def __len__(self):
                 return len(this._pairs)
-             
+
         return FragmentMappedReadPairIter()
     
     def __getitem__(self, key):
@@ -1585,7 +1591,11 @@ class FragmentRead(object):
         self.fragment = fragment
         self.position = position
         self.strand = strand
-    
+
+    def re_distance(self):
+        return min(abs(self.position-self.fragment.start),
+                   abs(self.position-self.fragment.end))
+
     def __repr__(self):
         return "%s: %d-(%d[%d])-%d" % (self.fragment.chromosome,
                                        self.fragment.start,
