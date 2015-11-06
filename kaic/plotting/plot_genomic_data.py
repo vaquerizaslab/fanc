@@ -333,6 +333,14 @@ def hic_marginals_plot(hic, output=None):
     _plot_figure(scatter, output, old_backend)
 
 
+def hic_directionality_index_plot(hic, output=None):
+    d = hic.directionality_index()
+
+    old_backend = _prepare_backend(output)
+    scatter = sns.plt.plot(d)
+    _plot_figure(scatter, output, old_backend)
+
+
 def hic_triangle_plot(hic, key=slice(0, None, None), output=None, colormap='viridis', max_height=None, axes=None,
                       n_x_labels=10, vmin=1, vmax=50):
     hm = hic[key, key]
