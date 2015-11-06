@@ -1585,7 +1585,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         self._pairs.run_queued_filters(_logging=log_progress)
 
-    def _auto_dist(self, dists, ratios, threshold_ratio=0.2):
+    def _auto_dist(self, dists, ratios, threshold_ratio=0.2, window=3):
         """
         Function that attempts to infer sane distances for filtering inward
         and outward read pairs
@@ -1595,13 +1595,19 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param threshold: Threshold below which the 1+log2(ratio) must fall
                           in order to infer the corresponding distance
         """
-        print ratios
+        def rolling_window(a, window):
+            shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+            strides = a.strides + (a.strides[-1],)
+            r = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+            return np.insert(r, 0, [r[0]]*(window-1), axis=0)
+
         ratios = np.array([1+np.log2(x) for x in ratios])
-        print abs(ratios) <= threshold_ratio
         ok_threshold_indices = np.argwhere(abs(ratios) <= threshold_ratio).flatten()
-        print dists
+        stds = np.std(rolling_window(ratios, window), -1)
+        print stds
         print ratios
         print ok_threshold_indices
+        print dists
         minimum_distance = dists[ok_threshold_indices[0]]
         print minimum_distance
         return minimum_distance
