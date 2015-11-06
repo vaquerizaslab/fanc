@@ -2653,7 +2653,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         bin_window_size = int(window_size/bin_size)
         if window_size % bin_size > 0:
             bin_window_size += 1
-        print bin_window_size
 
         n_bins = len(self.regions())
         boundary_dist = self._get_boundary_distances()
