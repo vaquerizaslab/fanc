@@ -827,7 +827,6 @@ class TestHicBasic:
                     assert m[i,j] != 0
 
 
-
 class TestHicMatrix:
 
     def setup_method(self, method):
