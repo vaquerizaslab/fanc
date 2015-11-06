@@ -2647,9 +2647,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             A = left_sums[i]
             B = right_sums[i]
             E = (A+B)/2
-            if E == 0:
-                directionality_index[i] = 0
-            else:
+            if E != 0:
                 directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
 
         return directionality_index
