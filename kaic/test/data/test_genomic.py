@@ -862,7 +862,7 @@ class TestHicBasic:
 
         hic.add_edges(edges)
 
-        d = hic.directionality_index()
+        d = hic.directionality_index(window_size=3000)
 
         # beginning of second TAD in chr1
         assert d[6] == max(d)
