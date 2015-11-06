@@ -1,6 +1,6 @@
 import seaborn as sns
 import numpy as np
-from kaic.plotting.plot_genomic_data import _prepare_backend
+from kaic.plotting.plot_genomic_data import _prepare_backend, _plot_figure
 
 
 def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
@@ -68,3 +68,21 @@ def hic_ligation_error_structure_plot(pairs, output=None, data_points=None, skip
         sns.plt.close(fig)
         sns.plt.ion()
         sns.plt.switch_backend(old_backend)
+
+
+def pairs_re_distance_plot(pairs, output=None, limit=10000, max_distance=None):
+    distances = []
+    for i, pair in enumerate(pairs.pairs(lazy=True)):
+        d1 = pair.left.re_distance()
+        d2 = pair.right.re_distance()
+        if max_distance is None or d1 <= max_distance:
+            distances.append(d1)
+        if max_distance is None or d2 <= max_distance:
+            distances.append(d2)
+        if limit is not None and i >= limit:
+            break
+
+    old_backend = _prepare_backend(output)
+    dplot = sns.distplot(distances)
+    dplot.set_xlim(left=0)
+    _plot_figure(dplot, output, old_backend)
