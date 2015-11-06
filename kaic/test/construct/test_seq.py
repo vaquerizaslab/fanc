@@ -285,3 +285,9 @@ class TestFragmentMappedReads:
         assert x == [494.03856041131104, 4487.5800970873788, 19399.908018867925]
         assert i == [2.616915422885572, 0.8059701492537313, 0.6417910447761194]
         assert o == [0.2537313432835821, 0.24378109452736318, 0.46766169154228854]
+
+    def test_re_dist(self):
+        read1 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=200, strand=-1)
+        assert read1.re_distance() == 199
+        read2 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=990, strand=-1)
+        assert read2.re_distance() == 10
