@@ -773,7 +773,6 @@ class TestHicBasic:
         
         knight.correct(hic)
         m_corr = hic[:,:]
-        print sum(m_corr)
         assert is_symmetric(m_corr)
         
         for n in sum(m_corr):
@@ -798,6 +797,35 @@ class TestHicBasic:
         sum_m_corr = sum(m_corr)
         for n in sum_m_corr:
             assert (sum_m_corr[0]-5 < n < sum_m_corr[0]+5) or n == 0
+
+    def test_diagonal_filter(self):
+        hic = self.hic
+
+        m = hic[:]
+        for i in xrange(m.shape[0]):
+            for j in xrange(m.shape[1]):
+                if i == j:
+                    assert m[i, j] != 0
+
+        hic.filter_diagonal(distance=1)
+        m = hic[:]
+        for i in xrange(m.shape[0]):
+            for j in xrange(m.shape[1]):
+                if abs(i-j) <= 1:
+                    assert m[i, j] == 0
+
+    def test_low_coverage_filter(self):
+        hic = self.hic
+
+        hic.filter_low_coverage_regions(cutoff=201)
+        m = hic[:]
+        for i in xrange(m.shape[0]):
+            for j in xrange(m.shape[1]):
+                if i == 0 or j == 0 or i == 1 or j == 1:
+                    assert m[i,j] == 0
+                else:
+                    assert m[i,j] != 0
+
 
 
 class TestHicMatrix:
