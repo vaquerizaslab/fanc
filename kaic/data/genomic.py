@@ -67,7 +67,8 @@ from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
 from kaic.tools.files import is_bed_file, is_bedpe_file
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import Table, TableRow, TableArray, TableObject,\
-    MetaContainer, Maskable, MaskedTable, FileBased
+    MetaContainer, Maskable, MaskedTable, FileBased, MaskFilter
+from abc import abstractmethod, ABCMeta
 import os.path
 import logging
 from kaic.tools.general import ranges, distribute_integer
@@ -1365,7 +1366,12 @@ class HicNode(GenomicRegion, TableObject):
         else:
             return "%d: %s, %d-%d" % (self.ix, self.chromosome, self.start, self.end)
 
-        
+
+class LazyHicNode(LazyGenomicRegion, HicNode):
+    def __init__(self, row, ix=None):
+        LazyGenomicRegion.__init__(self, row=row, ix=ix)
+
+
 class HicEdge(TableObject):
     """
     A contact / an Edge between two genomic regions.
@@ -1386,20 +1392,80 @@ class HicEdge(TableObject):
     """
     def __init__(self, source, sink, weight=1):
         """
-        :param source: The index of the "source" genomic region.
-        :param sink: The index of the "sink" genomic region.
+        :param source: The index of the "source" genomic region
+                       or :class:`~HicNode` object.
+        :param sink: The index of the "sink" genomic region
+                     or :class:`~HicNode` object.
         :param weight: The weight or contact strength of the edge.
         """
-        self.source = source
-        self.sink = sink
+        self._source = source
+        self._sink = sink
         self.weight = weight
-    
+
+    @property
+    def source(self):
+        if isinstance(self._source, GenomicRegion):
+            return self._source.ix
+        return self._source
+
+    @property
+    def sink(self):
+        if isinstance(self._sink, GenomicRegion):
+            return self._sink.ix
+        return self._sink
+
+    @property
+    def source_node(self):
+        if isinstance(self._source, GenomicRegion):
+            return self._source
+        raise RuntimeError("Source not not provided during object initialization!")
+
+    @property
+    def sink_node(self):
+        if isinstance(self._sink, GenomicRegion):
+            return self._sink
+        raise RuntimeError("Sink not not provided during object initialization!")
+
     def __repr__(self):
         return "%d--%d (%.2f)" % (self.source, self.sink, self.weight)
     
     @classmethod
     def from_row(cls, row):
         return cls(source=row['source'], sink=row['sink'], weight=row['weight'])
+
+
+class LazyHicEdge(HicEdge):
+    def __init__(self, row, nodes_table):
+        self._row = row
+        self._nodes_table = nodes_table
+        self._source_node = None
+        self._sink_node = None
+
+    @property
+    def weight(self):
+        return self._row['weight']
+
+    @property
+    def source(self):
+        return self._row['source']
+
+    @property
+    def sink(self):
+        return self._row['sink']
+
+    @property
+    def source_node(self):
+        if self._source_node is None:
+            source_row = self._nodes_table[self.source]
+            return LazyHicNode(source_row)
+        return self._source_node
+
+    @property
+    def sink_node(self):
+        if self._sink_node is None:
+            sink_row = self._nodes_table[self.sink]
+            return LazyHicNode(sink_row)
+        return self._sink_node
 
 
 class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
@@ -2384,6 +2450,12 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         self._meta_values = self.file.get_node('/' + _table_name_meta_values)
         self._mask = self.file.get_node('/' + _table_name_mask)
 
+    def _row_to_node(self, row, lazy=False):
+        if lazy:
+            return LazyHicNode(row)
+        return HicNode(chromosome=row["chromosome"], start=row["start"],
+                       end=row["end"], ix=row["ix"])
+
     def get_node(self, key):
         """
         Get a single node by key.
@@ -2408,15 +2480,27 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         return self._getitem_nodes(key)
 
-    def get_edge(self, ix):
+    def _row_to_edge(self, row, lazy=False):
+        if not lazy:
+            source = row["source"]
+            sink = row["sink"]
+            weight = row["weight"]
+            source_node_row = self._regions[source]
+            source_node = self._row_to_node(source_node_row)
+            sink_node_row = self._regions[sink]
+            sink_node = self._row_to_node(sink_node_row)
+            return HicEdge(source_node, sink_node, weight)
+        else:
+            return LazyHicEdge(row, self._regions)
+
+    def get_edge(self, ix, lazy=False):
         """
         Get an edge from this object's edge list.
 
         :param ix: integer
         :return:
         """
-        row = self._edges[ix]
-        return HicEdge.from_row(row)
+        return self._row_to_edge(self._edges[ix], lazy=lazy)
     
     def nodes(self):
         """
@@ -2427,7 +2511,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         return self.regions()
     
-    def edges(self):
+    def edges(self, lazy=False):
         """
         Iterate over :class:`~HicEdge` objects.
 
@@ -2443,11 +2527,72 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 return self
             
             def next(self):
-                return HicEdge.from_row(self.iter.next())
-            
+                return hic._row_to_edge(self.iter.next(), lazy=lazy)
+
             def __len__(self):
                 return len(hic._edges)
         return EdgeIter()
+
+    def filter(self, edge_filter, queue=False, log_progress=False):
+        """
+        Filter edges in this object by using a
+        :class:`~HicEdgeFilter`.
+
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        edge_filter.set_hic_object(self)
+        if not queue:
+            self._edges.filter(edge_filter, _logging=log_progress)
+        else:
+            self._edges.queue_filter(edge_filter)
+
+    def run_queued_filters(self, log_progress=False):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        self._edges.run_queued_filters(_logging=log_progress)
+
+    def filter_diagonal(self, distance=0, queue=False):
+        """
+        Convenience function that applies a :class:`~DiagonalFilter`.
+
+        :param distance: Distance from the diagonal up to which matrix entries
+                         will be filtered. The default, 0, filters only the
+                         diagonal itself.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('diagonal',
+                                         'Mask the diagonal of the Hic matrix (up to distance %d)' % distance)
+        diagonal_filter = DiagonalFilter(distance=distance, mask=mask)
+        self.filter(diagonal_filter, queue)
+
+    def filter_low_coverage_regions(self, cutoff=None, queue=False):
+        """
+        Convenience function that applies a :class:`~LowCoverageFilter`.
+
+        :param cutoff: Cutoff (contact count, float) below which a region
+                       is considered to have low coverage. If not set
+                       explicitly, defaults to 5% of the mean region coverage.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('low_coverage',
+                                         'Mask low coverage regions in the Hic matrix (cutoff %.4f)' % cutoff)
+        low_coverage_filter = LowCoverageFilter(self, cutoff=cutoff, mask=mask)
+        self.filter(low_coverage_filter, queue)
     
     def bias_vector(self, vector=None):
         """
@@ -2472,6 +2617,146 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 marginals[edge.sink] += edge.weight
 
         return marginals
+
+
+class HicEdgeFilter(MaskFilter):
+    """
+    Abstract class that provides filtering functionality for the
+    edges/contacts in a :class:`~Hic` object.
+
+    Extends MaskFilter and overrides valid(self, row) to make
+    :class:`~HicEdge` filtering more "natural".
+
+    To create custom filters for the :class:`~Hic` object, extend this
+    class and override the valid_edge(self, edge) method.
+    valid_edge should return False for a specific :class:`~HicEdge` object
+    if the object is supposed to be filtered/masked and True
+    otherwise. See :class:`~DiagonalFilter` for an example.
+
+    Pass a custom filter to the :func:`~Hic.filter` method in :class:`~Hic`
+    to apply it.
+    """
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self, mask=None):
+        """
+        Initialize HicEdgeFilter.
+
+        :param mask: The Mask object that should be used to mask
+                     filtered :class:`~HicEdge` objects. If None the default
+                     Mask will be used.
+        """
+        super(HicEdgeFilter, self).__init__(mask)
+        self._hic = None
+
+    @abstractmethod
+    def valid_edge(self, edge):
+        """
+        Determine if a :class:`~HicEdge` object is valid or should
+        be filtered.
+
+        When implementing custom HicEdgeFilter this method must be
+        overridden. It should return False for :class:`~HicEdge` objects that
+        are to be fitered and True otherwise.
+
+        Internally, the :class:`~Hic` object will iterate over all HicEdge
+        instances to determine their validity on an individual
+        basis.
+
+        :param edge: A :class:`~HicEdge` object
+        :return: True if :class:`~HicEdge` is valid, False otherwise
+        """
+        pass
+
+    def set_hic_object(self, hic_object):
+        """
+        Set the :class:`~Hic` instance to be filtered by this
+        HicEdgeFilter.
+
+        Used internally by :class:`~Hic` instance.
+
+        :param hic_object: :class:`~Hic` object
+        """
+        self._hic = hic_object
+
+    def valid(self, row):
+        """
+        Map valid_edge to MaskFilter.valid(self, row).
+
+        :param row: A pytables Table row.
+        :return: The boolean value returned by valid_edge.
+        """
+        edge = self._hic._row_to_edge(row, lazy=True)
+        return self.valid_edge(edge)
+
+
+class DiagonalFilter(HicEdgeFilter):
+    """
+    Filter contacts in the diagonal of a :class:`~Hic` matrix.
+    """
+    def __init__(self, distance=0, mask=None):
+        """
+        Initialize filter with chosen parameters.
+
+        :param distance: Distance from the diagonal up to which
+                         contacts will be filtered
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered edges.
+        """
+        HicEdgeFilter.__init__(self, mask=mask)
+        self.distance = distance
+
+    def valid_edge(self, edge):
+        """
+        Check if an edge is on (or near) the diagonal of the :class:`~Hic` matrix.
+        """
+        if abs(edge.source-edge.sink) <= self.distance:
+            return False
+        return True
+
+
+class LowCoverageFilter(HicEdgeFilter):
+    """
+    Filter a :class:`~HicEdge` if it connects a region that
+    does not have a contact count larger than a specified
+    cutoff.
+
+    If the cutoff is not provided, it is automatically
+    chosen at 5% of the mean contact count of all regions.
+    """
+    def __init__(self, hic_object, cutoff=None, mask=None):
+        """
+        Initialize filter with these settings.
+
+        :param hic_object: The :class:`~Hic` object that this
+                           filter will be called on. Needed for
+                           contact count calculation.
+        :param cutoff: A cutoff in contacts (can be float) below
+                       which regions are considered "low coverage"
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered edges.
+        """
+        HicEdgeFilter.__init__(self, mask=mask)
+
+        marginals = hic_object.marginals()
+        if cutoff is None:
+            cutoff = np.mean(marginals)*0.05
+
+        self._regions_to_mask = set()
+        for i, contacts in enumerate(marginals):
+            if contacts < cutoff:
+                self._regions_to_mask.add(i)
+
+    def valid_edge(self, edge):
+        """
+        Check if an edge falls into a low-coverage region.
+        """
+        if edge.source in self._regions_to_mask:
+            return False
+        if edge.sink in self._regions_to_mask:
+            return False
+        return True
 
 
 class HicMatrix(np.ndarray):
