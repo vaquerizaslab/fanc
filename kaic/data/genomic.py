@@ -2622,7 +2622,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return marginals
 
-    def directionality(self, window_size=2000000):
+    def directionality_index(self, window_size=2000000):
         n_bins = len(self.regions())
         left_sums = np.zeros(n_bins)
         right_sums = np.zeros(n_bins)
