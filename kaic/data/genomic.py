@@ -2622,6 +2622,38 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return marginals
 
+    def directionality(self, window_size=2000000):
+        n_bins = len(self.regions())
+        left_sums = np.zeros(n_bins)
+        right_sums = np.zeros(n_bins)
+
+        bin_size = self.bin_size()
+        bin_window_size = int(window_size/bin_size)
+        if window_size % bin_size > 0:
+            bin_window_size += 1
+
+        directionality_index = np.zeros(n_bins)
+        for edge in self.edges(lazy=True):
+            source = edge.source
+            sink = edge.sink
+            weight = edge.weight
+            if source == sink:
+                continue
+            if sink - source <= bin_window_size:
+                left_sums[sink] += weight
+                right_sums[source] += weight
+
+        for i in xrange(n_bins):
+            A = left_sums[i]
+            B = right_sums[i]
+            E = (A+B)/2
+            if E == 0:
+                directionality_index[i] = 0
+            else:
+                directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
+
+        return directionality_index
+
 
 class HicEdgeFilter(MaskFilter):
     """
