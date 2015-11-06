@@ -65,7 +65,6 @@ from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
-from matplotlib import pyplot as plt
 import subprocess
 
         
