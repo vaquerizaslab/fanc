@@ -900,7 +900,7 @@ class BwaMemQualityFilter(ReadFilter):
 
     def valid_read(self, read):
         """
-        Check if a read has a mapq >= cutoff.
+        Check if a read has a high alignment score.
         """
         alignment_score = read.get_tag('AS')
         max_score = read.query_alignment_length
@@ -935,6 +935,33 @@ class UniquenessFilter(ReadFilter):
                 if self.strict or tag[1] == 0:
                     return False
         return True
+
+
+class BwaMemUniquenessFilter(ReadFilter):
+    """
+    Filters `bwa mem` generated alignements based on whether they are unique or not.
+    The presence of a non-zero XS tag does not mean a read is a multi-mapping one.
+    Instead, we make sure that the ratio XS/AS is inferior to a certain threshold.
+    """
+    def __init__(self, cutoff=0.8, mask=None):
+        """
+        :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
+                       values mean that the next best secondary alignment is of substantially
+                       lower quality than the primary one, and that the latter can be considered
+                       as unique
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        super(BwaMemUniquenessFilter, self).__init__(mask)
+        self.cutoff = cutoff
+
+    def valid_read(self, read):
+        """
+        Check if a read has a high alignment score.
+        """
+        alignment_score = read.get_tag('AS')
+        nextbest_score = read.get_tag('XS')
+        return float(nextbest_score) / alignment_score <= self.cutoff
 
 
 class UnmappedFilter(ReadFilter):
