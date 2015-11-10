@@ -30,6 +30,7 @@ class Kaic(object):
 
                     --- Hic
                     pairs_to_hic       Convert a pairs object into a Hic object
+                    filter_hic         Filter a Hic object
                     merge_hic          Merge multiple Hic objects
                     bin_hic            Bin a Hic object into same-size regions
                     correct_hic        Correct a Hic object for biases
@@ -487,6 +488,71 @@ class Kaic(object):
 
         merged.close()
         logging.info("All done")
+
+    def filter_hic(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Filter a Hic object'
+        )
+
+        parser.add_argument(
+            'input',
+            help='''Input Hic file'''
+        )
+
+        parser.add_argument(
+            'output',
+            nargs="?",
+            help='''Output Hic file. If not provided will filter input file in place.'''
+        )
+
+        parser.add_argument(
+            '-l', '--low-coverage', dest='low',
+            type=float,
+            help='''Filter bins with "low coverage" (lower than specified contact threshold)'''
+        )
+
+        parser.add_argument(
+            '-d', '--diagonal', dest='diagonal',
+            type=int,
+            help='''Filter bins along the diagonal up to this specified distance'''
+        )
+
+        parser.add_argument(
+            '-s', '--stats', dest='stats',
+            help='''Path for saving stats pdf'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.tools.files import copy_or_expand
+
+        input_path = copy_or_expand(args.input, args.output)
+
+        hic = kaic.Hic(file_name=input_path)
+
+        if args.low:
+            logging.info("Filtering low-coverage bins at %d" % args.low)
+            hic.filter_low_coverage_regions(cutoff=args.low, queue=True)
+
+        if args.outward:
+            logging.info("Filtering diagonal at distance %d" % args.diagonal)
+            hic.filter_diagonal(distance=args.diagonal, queue=True)
+
+        logging.info("Running filters...")
+        hic.run_queued_filters(log_progress=True)
+        logging.info("Done.")
+
+        if args.stats:
+            logging.info("Plotting filter statistics")
+            import kaic.plotting as kaicplt
+            kaicplt.plot_mask_statistics(hic, hic._edges, output=args.stats)
+            logging.info("Done.")
+
+        hic.close()
+
+        logging.info("All done.")
 
     def bin_hic(self):
         parser = argparse.ArgumentParser(
