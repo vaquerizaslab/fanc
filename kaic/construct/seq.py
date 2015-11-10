@@ -883,6 +883,30 @@ class QualityFilter(ReadFilter):
         return read.mapq >= self.cutoff
 
 
+class BwaMemQualityFilter(ReadFilter):
+    """
+    Filters `bwa mem` generated alignements base on the alignment score
+    (normalized by the length of the alignment).
+    """
+    def __init__(self, cutoff=0.95, mask=None):
+        """
+        :param cutoff: Ratio of the alignment score to the maximum score
+                       possible for an alignment that long
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        super(BwaMemQualityFilter, self).__init__(mask)
+        self.cutoff = cutoff
+
+    def valid_read(self, read):
+        """
+        Check if a read has a mapq >= cutoff.
+        """
+        alignment_score = read.get_tag('AS')
+        max_score = read.query_alignment_length
+        return float(alignment_score) / max_score >= self.cutoff
+
+
 class UniquenessFilter(ReadFilter):
     """
     Filter reads that do not map uniquely to the reference sequence.
