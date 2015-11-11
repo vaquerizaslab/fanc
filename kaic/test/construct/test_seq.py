@@ -175,11 +175,19 @@ class TestReads:
     def test_bwamem_quality_filter(self):
         reads = Reads(self.bwamem_sam1_file)
         assert len(reads) == 919
-        reads.filter_quality(0.90, queue=False)
+        reads.filter_quality(cutoff=0.90, queue=False)
         assert len(reads) == 809
         for read in reads:
             assert float(read.get_tag('AS')) / read.alen >= 0.90
         assert len(reads.cache_maker._cache['parse_cigar'].data) == 118
+
+    def test_bwamem_uniqueness_filter(self):
+        reads = Reads(self.bwamem_sam1_file)
+        assert len(reads) == 919
+        reads.filter_non_unique(cutoff=0.5, queue=False)
+        assert len(reads) == 673
+        for read in reads:
+            assert float(read.get_tag('XS')) / read.get_tag('AS') <= 0.50
 
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)

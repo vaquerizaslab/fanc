@@ -594,10 +594,16 @@ class Reads(Maskable, MetaContainer, FileBased):
         unmapped_filter = UnmappedFilter(mask)
         self.filter(unmapped_filter, queue)
             
-    def filter_non_unique(self, strict=True, queue=False):
+    def filter_non_unique(self, cutoff=0.5, strict=True, queue=False):
         """
         Convenience function that applies a UniquenessFilter.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
 
+        :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
+                       values mean that the next best secondary alignment is of substantially
+                       lower quality than the primary one, and that the latter can be considered
+                       as unique. Used only if the reads have been aligned with bwa-mem.
         :param strict: If True will filter if XS tag is present. If False,
                        will filter only when XS tag is not 0.
         :param queue: If True, filter will be queued and can be executed
@@ -605,7 +611,10 @@ class Reads(Maskable, MetaContainer, FileBased):
                       run_queued_filters
         """
         mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
-        uniqueness_filter = UniquenessFilter(strict, mask)
+        if self._mapper == 'bwa':
+            uniqueness_filter = BwaMemUniquenessFilter(cutoff, mask)
+        else:
+            uniqueness_filter = UniquenessFilter(strict, mask)
         self.filter(uniqueness_filter, queue)
     
     def run_queued_filters(self, log_progress=False):
@@ -1005,7 +1014,7 @@ class BwaMemUniquenessFilter(ReadFilter):
     The presence of a non-zero XS tag does not mean a read is a multi-mapping one.
     Instead, we make sure that the ratio XS/AS is inferior to a certain threshold.
     """
-    def __init__(self, cutoff=0.8, mask=None):
+    def __init__(self, cutoff=0.5, mask=None):
         """
         :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
                        values mean that the next best secondary alignment is of substantially
@@ -1023,7 +1032,9 @@ class BwaMemUniquenessFilter(ReadFilter):
         """
         alignment_score = read.get_tag('AS')
         nextbest_score = read.get_tag('XS')
-        return float(nextbest_score) / alignment_score <= self.cutoff
+        if alignment_score:
+            return float(nextbest_score) / alignment_score <= self.cutoff
+        return 0
 
 
 class UnmappedFilter(ReadFilter):
