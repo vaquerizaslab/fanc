@@ -2812,8 +2812,8 @@ class LowCoverageFilter(HicEdgeFilter):
                 self._regions_to_mask.add(i)
 
     def calculate_cutoffs(self, fraction_threshold=0.05):
-        lower = np.mean(self._marginals)*fraction_threshold
-        upper = np.mean(self._marginals)*(1-fraction_threshold)
+        lower = np.median(self._marginals)*fraction_threshold
+        upper = np.median(self._marginals)*(1-fraction_threshold)
         return lower, upper
 
     def valid_edge(self, edge):
