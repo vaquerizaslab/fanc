@@ -325,12 +325,23 @@ def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, Non
     return None
 
 
-def hic_marginals_plot(hic, output=None):
+def hic_marginals_plot(hic, output=None, lower=None, upper=None):
     marginals = hic.marginals()
 
+    if lower is None or upper is None:
+        f = genomic.LowCoverageFilter(hic)
+        lower_calc, upper_calc = f.calculate_cutoffs(0.05)
+        if lower is None:
+            lower = lower_calc
+        if upper is None:
+            upper = upper_calc
+
     old_backend = _prepare_backend(output)
-    scatter = sns.plt.plot(marginals)
-    _plot_figure(scatter, output, old_backend)
+    sns.plt.plot(marginals)
+    sns.plt.axhline(upper, color='r', linestyle=':')
+    sns.plt.axhline(lower, color='r', linestyle=':')
+    figure = sns.plt.figure()
+    _plot_figure(figure, output, old_backend)
 
 
 def hic_directionality_index_plot(hic, output=None):

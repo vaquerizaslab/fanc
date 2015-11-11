@@ -2802,14 +2802,19 @@ class LowCoverageFilter(HicEdgeFilter):
         """
         HicEdgeFilter.__init__(self, mask=mask)
 
-        marginals = hic_object.marginals()
+        self._marginals = hic_object.marginals()
         if cutoff is None:
-            cutoff = np.mean(marginals)*0.05
+            cutoff, _ = self.calculate_cutoffs(0.05)
 
         self._regions_to_mask = set()
-        for i, contacts in enumerate(marginals):
+        for i, contacts in enumerate(self._marginals):
             if contacts < cutoff:
                 self._regions_to_mask.add(i)
+
+    def calculate_cutoffs(self, fraction_threshold=0.05):
+        lower = np.mean(self._marginals)*fraction_threshold
+        upper = np.mean(self._marginals)*(1-fraction_threshold)
+        return lower, upper
 
     def valid_edge(self, edge):
         """

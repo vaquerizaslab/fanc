@@ -873,6 +873,18 @@ class Kaic(object):
             help='''Output PDF file'''
         )
 
+        parser.add_argument(
+            '-l', '--lower', dest='lower',
+            type=float,
+            help='''Plot lower coverage bound at this level'''
+        )
+
+        parser.add_argument(
+            '-u', '--upper', dest='upper',
+            type=float,
+            help='''Plot lower coverage bound at this level'''
+        )
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
@@ -886,7 +898,7 @@ class Kaic(object):
         if args.output:
             output_path = os.path.expanduser(args.output)
 
-        kaicplt.hic_marginals_plot(hic, output=output_path)
+        kaicplt.hic_marginals_plot(hic, output=output_path, lower=args.lower, upper=args.upper)
         hic.close()
         logging.info("All done.")
 
