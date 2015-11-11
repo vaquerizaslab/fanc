@@ -174,8 +174,12 @@ class TestReads:
 
     def test_bwamem_quality_filter(self):
         reads = Reads(self.bwamem_sam1_file)
+        assert len(reads) == 919
         reads.filter_quality(0.90, queue=False)
-                
+        assert len(reads) == 809
+        for read in reads:
+            assert float(read.get_tag('AS')) / read.alen >= 0.90
+
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)
         

@@ -957,10 +957,8 @@ class BwaMemQualityFilter(ReadFilter):
         """
         Check if a read has a high alignment score.
         """
-        alignment_score = read.get_tag('AS')
-        max_score = read.alen
-        if max_score:
-            return float(alignment_score) / max_score >= self.cutoff
+        if read.alen:
+            return float(read.get_tag('AS')) / read.alen >= self.cutoff
         return 0
 
 
