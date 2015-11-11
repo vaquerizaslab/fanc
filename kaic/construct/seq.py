@@ -152,7 +152,10 @@ class Reads(Maskable, MetaContainer, FileBased):
                            size specified here, they will be truncated.
         :param _group_name: (internal) Name for the HDF5 group that will house
                             the Reads object's tables.
-        :param mapper: Mapper that was used to align the reads. [None, 'bowtie2', 'bwamem']
+        :param mapper: Mapper that was used to align the reads. If None, will
+                       try to autodetect from SAM header. Current valid mapper
+                       values are ['bowtie2', 'bwa']. If other, default algorithms
+                       will be used for filters.
         :return: Reads
         """
 
@@ -235,10 +238,14 @@ class Reads(Maskable, MetaContainer, FileBased):
         if sambam_file and is_sambam_file(sambam_file):
             self.load(sambam_file, ignore_duplicates=True)
 
-        if mapper in ['bowtie2', 'bwa']:
+        if mapper:
             self._mapper = mapper
         else:
-            self._mapper = self.header['PG'][0]['ID']
+            try:
+                self._mapper = self.header['PG'][0]['ID']
+            except (KeyError, AttributeError):
+                self._mapper = None
+                logging.warn('Could not auto-detect mapping program from SAM header')
 
     @staticmethod
     def sambam_size(sambam):

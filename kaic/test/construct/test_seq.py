@@ -98,7 +98,6 @@ class TestReads:
         reads.filter_non_unique()
         assert reads[0].qname == 'SRR038105.10'
         
-        
     def test_build_from_scratch(self):
         
         qname_length, seq_length = Reads.determine_field_sizes(self.sam1_file, sample_size=10000)
