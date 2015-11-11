@@ -329,7 +329,9 @@ class Reads(Maskable, MetaContainer, FileBased):
             sambam = pysam.AlignmentFile(file_name, 'rb')
         
         # header
-        #self._reads._v_attrs.header = sambam.header
+        self._reads._v_attrs.header = {k: sambam.header[k]
+                                       for k in sambam.header
+                                       if k in ('HD', 'RG', 'PG')}
         self._header = sambam.header
         
         # references
