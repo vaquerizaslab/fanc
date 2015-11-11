@@ -40,6 +40,7 @@ class Kaic(object):
                     plot_re_dist       Plot the distance of reads to the nearest RE site
                     plot_hic_corr      Plot the correlation of two Hic objects
                     plot_hic_matrix    Plot a Hic matrix
+                    plot_hic_marginals Plot marginals in a Hic object
                     plot_diff          Plot the difference between two Hic matrices
                     plot_ratio         Plot the ratio between two Hic matrices
 
@@ -852,6 +853,40 @@ class Kaic(object):
                                 lower_percentile=args.lower, upper_percentile=args.upper,
                                 lower=args.lower_abs, upper=args.upper_abs,
                                 colormap=args.colormap)
+        hic.close()
+        logging.info("All done.")
+
+    def plot_hic_marginals(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Plot Hic matrix marginals'
+        )
+
+        parser.add_argument(
+            'input',
+            help='''Input Hi-C file'''
+        )
+
+        parser.add_argument(
+            'output',
+            nargs="?",
+            help='''Output PDF file'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        import kaic.plotting as kaicplt
+
+        input_path = os.path.expanduser(args.input)
+
+        hic = kaic.Hic(input_path, read_only=True)
+
+        output_path = None
+        if args.output:
+            output_path = os.path.expanduser(args.output)
+
+        kaicplt.hic_marginals_plot(hic, output=output_path)
         hic.close()
         logging.info("All done.")
 
