@@ -117,9 +117,16 @@ class TestReads:
 
     def test_read_alen(self):
         reads = Reads(self.sam1_file)
-        read = reads[10]
+        read = reads[0]
         read.cigar = '22S42M1D18M4I5M'
         assert read.alen == 42 + 18 + 5
+
+    def test_read_get_tag(self):
+        reads = Reads(self.sam1_file)
+        read = reads[0]
+        assert read.get_tag('AS') == 0
+        assert read.get_tag('MD') == '15'
+        assert read.get_tag('X0') == None
     
     def test_quality_filter(self):
         reads = Reads(self.sam1_file)

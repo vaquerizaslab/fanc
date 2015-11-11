@@ -689,6 +689,12 @@ class Read(object):
         valids = 'M'
         return sum([i[1] for i in self.get_cigar if i[0] in valids])
 
+    def get_tag(self, key):
+        "Returns the value of a tag. None if does not exist"
+        for tag in self.tags:
+            if tag[0] == key:
+                return tag[1]
+        return None
 
     @property
     def get_cigar(self):
