@@ -104,6 +104,11 @@ class TestReads:
         reads.load(self.sam1_file)
         
         assert len(reads) == 271
+
+    def test_parse_cigar(self):
+        reads = Reads()
+        parsed = reads.parse_cigar('22S42M1D18M4I5M')
+        assert parsed ==[('S',22), ('M',42), ('D',1), ('M',18), ('I',4), ('M',5)]
     
     def test_quality_filter(self):
         reads = Reads(self.sam1_file)

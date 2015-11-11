@@ -66,6 +66,7 @@ from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
+import re
 
         
 class Reads(Maskable, MetaContainer, FileBased):
@@ -111,6 +112,8 @@ class Reads(Maskable, MetaContainer, FileBased):
     1-based. Pysam by default maps coordinaes to a 0-based system, this will
     be overridden.
     """
+
+    CIGAR_REGEX = re.compile(r'(\d+)(\w)')
 
     def __init__(self, sambam_file=None, file_name=None,
                  qname_length=60, seq_length=200, read_only=False,
@@ -451,7 +454,18 @@ class Reads(Maskable, MetaContainer, FileBased):
                     pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
                     pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
                     tags=tags, reference_id=row['ref'])
-        
+
+    @classmethod
+    def parse_cigar(cls, cigar):
+        """
+        Parses a cigar string.
+        Returns a list of tuples of the form (<type>, count).
+        For example [('M', 50), ('S', 12)] for a read that aligns for the
+        first 50 bp.
+        """
+        matches = cls.CIGAR_REGEX.findall(cigar)
+        return [(i[1], int(i[0])) for i in matches]
+
     def __iter__(self):
         """
         Iterate over _reads table and convert each result to Read.
