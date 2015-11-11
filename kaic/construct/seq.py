@@ -687,9 +687,10 @@ class Read(object):
         """
         score = 0
         valids = 'M'
-        return sum([i[1] for i in self.get_cigar() if i[0] in valids])
+        return sum([i[1] for i in self.get_cigar if i[0] in valids])
 
 
+    @property
     def get_cigar(self):
         """
         Parses own cigar string

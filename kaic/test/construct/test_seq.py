@@ -112,8 +112,8 @@ class TestReads:
 
     def test_parse_read_cigar(self):
         reads = Reads(self.sam1_file)
-        assert reads[0].get_cigar() == [('M',15)]
-        assert reads[1].get_cigar() == [('M',20)]
+        assert reads[0].get_cigar == [('M',15)]
+        assert reads[1].get_cigar == [('M',20)]
 
     def test_read_alen(self):
         reads = Reads(self.sam1_file)
