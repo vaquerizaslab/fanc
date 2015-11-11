@@ -959,7 +959,9 @@ class BwaMemQualityFilter(ReadFilter):
         """
         alignment_score = read.get_tag('AS')
         max_score = read.alen
-        return float(alignment_score) / max_score >= self.cutoff
+        if max_score:
+            return float(alignment_score) / max_score >= self.cutoff
+        return 0
 
 
 class UniquenessFilter(ReadFilter):
