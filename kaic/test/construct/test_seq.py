@@ -114,6 +114,12 @@ class TestReads:
         reads = Reads(self.sam1_file)
         assert reads[0].get_cigar() == [('M',15)]
         assert reads[1].get_cigar() == [('M',20)]
+
+    def test_read_alen(self):
+        reads = Reads(self.sam1_file)
+        read = reads[10]
+        read.cigar = '22S42M1D18M4I5M'
+        assert read.alen == 42 + 18 + 5
     
     def test_quality_filter(self):
         reads = Reads(self.sam1_file)

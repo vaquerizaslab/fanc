@@ -679,7 +679,16 @@ class Read(object):
         if 4 in bit_flags:
             return -1
         return 1
-    
+
+    @property
+    def alen(self):
+        """
+        Returns the length of the aligned portion of the read
+        """
+        score = 0
+        valids = 'M'
+        return sum([i[1] for i in self.get_cigar() if i[0] in valids])
+
 
     def get_cigar(self):
         """
