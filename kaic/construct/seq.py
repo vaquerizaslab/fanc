@@ -680,6 +680,13 @@ class Read(object):
             return -1
         return 1
     
+
+    def get_cigar(self):
+        """
+        Parses own cigar string
+        """
+        return Reads.parse_cigar(self.cigar)
+
     def __getitem__(self, key):
         """
         Retrieve attribute with bracket notation for convenience.
