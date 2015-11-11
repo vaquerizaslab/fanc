@@ -179,7 +179,7 @@ class TestReads:
         assert len(reads) == 809
         for read in reads:
             assert float(read.get_tag('AS')) / read.alen >= 0.90
-        assert len(reads.cache_maker._cache['parse_cigar'].data) == 118
+        assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
 
     def test_bwamem_uniqueness_filter(self):
         reads = Reads(self.bwamem_sam1_file)
