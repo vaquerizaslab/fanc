@@ -19,6 +19,8 @@ class TestReads:
         self.sam1_file = self.dir + "/test_seq/test1.sam"
         self.sam2_file = self.dir + "/test_seq/test2.sam"
         self.lambda_sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
+        self.bwamem_sam1_file = self.dir + "/test_seq/test_bwa1.sam"
+        self.bwamem_sam2_file = self.dir + "/test_seq/test_bwa2.sam"
         
     def test_load(self):
         def compare(read, values):
@@ -104,6 +106,12 @@ class TestReads:
         reads.load(self.sam1_file)
         
         assert len(reads) == 271
+
+    def test_infer_mapper(self):
+        reads = Reads(self.bwamem_sam1_file)
+        assert reads._mapper == 'bwa'
+        reads = Reads(self.bwamem_sam1_file, mapper='bowtie2')
+        assert reads._mapper == 'bowtie2'
 
     def test_parse_cigar(self):
         reads = Reads()

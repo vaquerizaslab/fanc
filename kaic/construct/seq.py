@@ -117,7 +117,7 @@ class Reads(Maskable, MetaContainer, FileBased):
 
     def __init__(self, sambam_file=None, file_name=None,
                  qname_length=60, seq_length=200, read_only=False,
-                 _group_name='reads'):
+                 _group_name='reads', mapper=None):
         """
         Create Reads object and optionally load SAM file.
 
@@ -152,6 +152,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                            size specified here, they will be truncated.
         :param _group_name: (internal) Name for the HDF5 group that will house
                             the Reads object's tables.
+        :param mapper: Mapper that was used to align the reads. [None, 'bowtie2', 'bwamem']
         :return: Reads
         """
 
@@ -233,6 +234,11 @@ class Reads(Maskable, MetaContainer, FileBased):
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
             self.load(sambam_file, ignore_duplicates=True)
+
+        if mapper in ['bowtie2', 'bwa']:
+            self._mapper = mapper
+        else:
+            self._mapper = self.header['PG'][0]['ID']
 
     @staticmethod
     def sambam_size(sambam):
