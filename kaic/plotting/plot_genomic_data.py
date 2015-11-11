@@ -20,8 +20,8 @@ def _prepare_backend(output):
 
 def _plot_figure(figure, output, old_backend):
     if output is not None:
-        figure.figure.savefig(output)
-        sns.plt.close(figure.figure)
+        figure.savefig(output)
+        sns.plt.close(figure)
         sns.plt.ion()
         sns.plt.switch_backend(old_backend)
     else:
