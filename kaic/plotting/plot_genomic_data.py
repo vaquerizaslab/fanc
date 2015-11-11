@@ -337,11 +337,11 @@ def hic_marginals_plot(hic, output=None, lower=None, upper=None):
             upper = upper_calc
 
     old_backend = _prepare_backend(output)
-    sns.plt.plot(marginals)
-    sns.plt.axhline(upper, color='r', linestyle=':')
-    sns.plt.axhline(lower, color='r', linestyle=':')
-    figure = sns.plt.figure()
-    _plot_figure(figure, output, old_backend)
+    fig, ax = sns.plt.subplots()
+    ax.plot(marginals)
+    ax.axhline(upper, color='r', linestyle=':')
+    ax.axhline(lower, color='r', linestyle=':')
+    _plot_figure(fig, output, old_backend)
 
 
 def hic_directionality_index_plot(hic, output=None):
