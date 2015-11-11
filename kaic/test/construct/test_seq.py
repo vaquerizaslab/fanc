@@ -171,6 +171,10 @@ class TestReads:
         reads.filter(unmapped_filter)
         
         assert len(reads) < l
+
+    def test_bwamem_quality_filter(self):
+        reads = Reads(self.bwamem_sam1_file)
+        reads.filter_quality(0.90, queue=False)
                 
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)

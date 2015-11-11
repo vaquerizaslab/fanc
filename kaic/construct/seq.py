@@ -558,6 +558,8 @@ class Reads(Maskable, MetaContainer, FileBased):
     def filter_quality(self, cutoff=30, queue=False):
         """
         Convenience function that applies a QualityFilter.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
 
         :param cutoff: Minimum mapping quality a read must have to pass
                        the filter
@@ -566,7 +568,10 @@ class Reads(Maskable, MetaContainer, FileBased):
                       run_queued_filters
         """
         mask = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
-        quality_filter = QualityFilter(cutoff, mask)
+        if self._mapper == 'bwa':
+            quality_filter = BwaMemQualityFilter(cutoff, mask)
+        else:
+            quality_filter = QualityFilter(cutoff, mask)
         self.filter(quality_filter, queue)
     
     def filter_unmapped(self, queue=False):
@@ -938,7 +943,7 @@ class BwaMemQualityFilter(ReadFilter):
     Filters `bwa mem` generated alignements base on the alignment score
     (normalized by the length of the alignment).
     """
-    def __init__(self, cutoff=0.95, mask=None):
+    def __init__(self, cutoff=0.90, mask=None):
         """
         :param cutoff: Ratio of the alignment score to the maximum score
                        possible for an alignment that long
@@ -953,7 +958,7 @@ class BwaMemQualityFilter(ReadFilter):
         Check if a read has a high alignment score.
         """
         alignment_score = read.get_tag('AS')
-        max_score = read.query_alignment_length
+        max_score = read.alen
         return float(alignment_score) / max_score >= self.cutoff
 
 
