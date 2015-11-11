@@ -179,6 +179,7 @@ class TestReads:
         assert len(reads) == 809
         for read in reads:
             assert float(read.get_tag('AS')) / read.alen >= 0.90
+        assert len(reads.cache_maker._cache['parse_cigar'].data) == 118
 
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)

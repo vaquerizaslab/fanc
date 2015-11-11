@@ -67,6 +67,7 @@ from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
 import re
+from repoze.lru import lru_cache, CacheMaker
 
         
 class Reads(Maskable, MetaContainer, FileBased):
@@ -114,6 +115,8 @@ class Reads(Maskable, MetaContainer, FileBased):
     """
 
     CIGAR_REGEX = re.compile(r'(\d+)(\w)')
+    cache_maker = CacheMaker()
+    lru_parse_cigar = cache_maker.lrucache(maxsize=10000, name='parse_cigar')
 
     def __init__(self, sambam_file=None, file_name=None,
                  qname_length=60, seq_length=200, read_only=False,
@@ -471,12 +474,15 @@ class Reads(Maskable, MetaContainer, FileBased):
                     tags=tags, reference_id=row['ref'])
 
     @classmethod
+    @lru_parse_cigar
     def parse_cigar(cls, cigar):
         """
         Parses a cigar string.
-        Returns a list of tuples of the form (<type>, count).
-        For example [('M', 50), ('S', 12)] for a read that aligns for the
-        first 50 bp.
+
+        :cigar: CIGAR string to parse.
+        :return: A list of tuples of the form (<type>, count).
+                 For example [('M', 50), ('S', 12)] for a read
+                 that aligns for the first 50 bp.
         """
         matches = cls.CIGAR_REGEX.findall(cigar)
         return [(i[1], int(i[0])) for i in matches]
