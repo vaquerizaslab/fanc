@@ -63,12 +63,15 @@ import logging
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
-from kaic.tools.general import bit_flags_from_int
+from kaic.tools.general import bit_flags_from_int, CachedIterator
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
 import msgpack as pickle
 import numpy as np
 import hashlib
+import collections
+import itertools
+from functools import partial
 
 
 class Reads(Maskable, MetaContainer, FileBased):
@@ -193,6 +196,9 @@ class Reads(Maskable, MetaContainer, FileBased):
             'seq': 0
         }
 
+        # mapper
+        self.mapper = mapper
+
         # try to retrieve existing tables
         # Reads group
         try:
@@ -267,16 +273,7 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
-            self.load(sambam_file, ignore_duplicates=True)
-
-        if mapper:
-            self._mapper = mapper
-        else:
-            try:
-                self._mapper = self.header['PG'][0]['ID']
-            except (KeyError, AttributeError, TypeError):
-                self._mapper = None
-                logging.warn('Could not auto-detect mapping program from SAM header')
+            self.load(sambam_file, ignore_duplicates=True, mapper=mapper)
 
     @staticmethod
     def sambam_size(sambam):
@@ -300,10 +297,24 @@ class Reads(Maskable, MetaContainer, FileBased):
         """
         self.file.close()
 
+    @property
+    def mapper(self):
+        return self._mapper
+    @mapper.setter
+    def mapper(self, mapper=None):
+        if mapper:
+            self._mapper = mapper
+        else:
+            try:
+                self._mapper = self.header['PG'][0]['ID']
+            except (KeyError, AttributeError, TypeError):
+                self._mapper = None
+                logging.warn('Could not auto-detect mapping program from SAM header')
+
     def load(self, sambam, ignore_duplicates=True, is_sorted=False,
              store_qname=True, store_cigar=True,
              store_seq=True, store_tags=True,
-             store_qual=True, sample_size=None):
+             store_qual=True, sample_size=None, mapper=None):
         """
         Load mapped reads from SAM/BAM file.
 
@@ -370,6 +381,11 @@ class Reads(Maskable, MetaContainer, FileBased):
                                        if k in ('HD', 'RG', 'PG')}
         self._header = sambam.header
 
+        # Tool used to map reads
+        self.mapper = mapper
+        if self.mapper == 'bwa':
+            ignore_duplicates = False
+        
         # references
         self._reads._v_attrs.ref = sambam.references
         self._ref = sambam.references
@@ -1211,6 +1227,258 @@ class UnmappedFilter(ReadFilter):
         return True
 
 
+class PairLoader(object):
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+        self._pairs = pairs
+        self._in_memory_index = _in_memory_index
+        self.ignore_duplicates = ignore_duplicates
+
+    def load(self, reads1, reads2, regions=None):
+        self._prepare_regions(reads1, reads2, regions=regions)
+        self._load_pairs_from_reads()
+
+    def _prepare_regions(self, reads1, reads2, regions=None):
+        if regions is not None:
+            self._pairs.log_info("Adding regions...")
+            self._pairs.add_regions(regions)
+            self._pairs.log_info("Done.")
+        # generate index for fragments
+        fragment_ixs = None
+        fragment_ends = None
+        if self._in_memory_index:
+            fragment_ixs = {}
+            fragment_ends = {}
+            for region in self._pairs.regions():
+                if region.chromosome not in fragment_ends:
+                    fragment_ends[region.chromosome] = []
+                    fragment_ixs[region.chromosome] = []
+                fragment_ixs[region.chromosome].append(region.ix)
+                fragment_ends[region.chromosome].append(region.end)
+
+        if isinstance(reads1, str):
+            self._pairs.log_info("Loading reads 1")
+            reads1 = Reads(sambam_file=reads1)
+
+        if isinstance(reads2, str):
+            self._pairs.log_info("Loading reads 2")
+            reads2 = Reads(sambam_file=reads2)
+
+        self.iter1 = iter(reads1)
+        self.iter2 = iter(reads2)
+        self.fragment_ends = fragment_ends
+        self.fragment_ixs = fragment_ixs
+
+    @abstractmethod
+    def _load_pairs_from_reads(self):
+        logging.info('Counts: R1 %d R2 %d' % (self.r1_count, self.r2_count))
+        self._pairs._reads.flush()
+        self._pairs._pairs.flush(update_index=True)
+        self._pairs._single.flush(update_index=True)
+
+
+class Bowtie2PairLoader(PairLoader):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+        super(Bowtie2PairLoader, self).__init__(pairs, ignore_duplicates, _in_memory_index)
+
+    def _load_pairs_from_reads(self):
+        add_read_single = partial(self._pairs.add_read_single, flush=False,
+                                  _fragment_ends=self.fragment_ends, _fragment_ixs=self.fragment_ixs)
+        add_read_pair = partial(self._pairs.add_read_pair, flush=False,
+                                _fragment_ends=self.fragment_ends, _fragment_ixs=self.fragment_ixs)
+
+        def get_next_read(iterator):
+            try:
+                r = iterator.next()
+                return r
+            except StopIteration:
+                return None
+
+        # add and map reads
+        i = 0
+        last_r1_name = ''
+        last_r2_name = ''
+        r1 = get_next_read(self.iter1)
+        r2 = get_next_read(self.iter2)
+        r1_count = 0
+        r2_count = 0
+        while r1 is not None and r2 is not None:
+            c = cmp_natural(r1.qname, r2.qname)
+
+            i += 1
+            if r1.qname == last_r1_name:
+                if not self.ignore_duplicates:
+                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
+                r1 = get_next_read(self.iter1)
+                r1_count += 1
+            elif r2.qname == last_r2_name:
+                if not self.ignore_duplicates:
+                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
+                r2 = get_next_read(self.iter2)
+                r2_count += 1
+            elif c == 0:
+                add_read_pair(r1, r2)
+                last_r1_name = r1.qname
+                last_r2_name = r2.qname
+                r1 = get_next_read(self.iter1)
+                r2 = get_next_read(self.iter2)
+                r1_count += 1
+                r2_count += 1
+            elif c < 0:
+                add_read_single(r1)
+                last_r1_name = r1.qname
+                r1 = get_next_read(self.iter1)
+                r1_count += 1
+            else:
+                add_read_single(r2)
+                last_r2_name = r2.qname
+                r2 = get_next_read(self.iter2)
+                r2_count += 1
+
+            if i % 100000 == 0:
+                logging.info("%d reads processed" % i)
+
+        # add remaining unpaired reads
+        while r1 is not None:
+            if r1.qname == last_r1_name:
+                if not self.ignore_duplicates:
+                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
+            else:
+                add_read_single(r1)
+            last_r1_name = r1.qname
+            r1 = get_next_read(self.iter1)
+            r1_count += 1
+
+        while r2 is not None:
+            if r2.qname == last_r2_name:
+                if not self.ignore_duplicates:
+                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
+            else:
+                add_read_single(r2)
+            last_r2_name = r2.qname
+            r2 = get_next_read(self.iter2)
+            r2_count += 1
+
+        self.r1_count = r1_count
+        self.r2_count = r2_count
+
+        super(Bowtie2PairLoader, self)._load_pairs_from_reads()
+
+
+class BwaMemPairLoader(PairLoader):
+    def __init__(self, pairs, _in_memory_index=True):
+        super(BwaMemPairLoader, self).__init__(pairs, False, _in_memory_index)
+
+    def _load_pairs_from_reads(self):
+        add_read_single = partial(self._pairs.add_read_single, flush=False,
+                                  _fragment_ends=self.fragment_ends, _fragment_ixs=self.fragment_ixs)
+        add_read_pair = partial(self._pairs.add_read_pair, flush=False,
+                                _fragment_ends=self.fragment_ends, _fragment_ixs=self.fragment_ixs)
+
+        def get_all_read_alns(it):
+            alns = []
+            it = CachedIterator(it, 2)
+            alns.append(it.next())
+            if alns[0] is not None:
+                name = alns[0].qname
+                while 1:
+                    r = it.next()
+                    if r is None:
+                        break
+                    elif r.qname == name:
+                        alns.append(r)
+                    else:
+                        it.prev()
+                        break
+            return alns
+
+        def sort_alns(alns):
+            """
+            Sorts split alignments of a read according to their order on the template.
+            Thanks Clemens for the inspiration!
+            """
+            def _get_match_part(a):
+                "Find part of alignment that is covered by M (matches)"
+                cigar = a.get_cigar if a.strand == 1 else reversed(a.get_cigar)
+                m = []
+                cur_pos = 0
+                for c in cigar:
+                    if c[0] == 'M':
+                        m.extend([cur_pos, cur_pos + c[1]])
+                    if c[0] in ('MISH'):
+                        cur_pos += c[1]
+                return (min(m), max(m))
+            # Sort alignments based on their match positions
+            segments = [None] * len(alns)
+            for i, a in enumerate(alns):
+                m = _get_match_part(a)
+                segments[i] = (m[0], m[1], i)
+            sorted_segments = sorted(segments, key=lambda x: x[0])
+            return [alns[s[2]] for s in sorted_segments]
+
+        def process_bwa_alns(head=None, tail=None):
+            "Decide how to handle alignments"
+            if head and tail:
+                if not(len(head) == len(tail) == 1):
+                    head = sort_alns(head)
+                    tail = sort_alns(tail)
+                add_read_pair(head[0], tail[0])
+            else:
+                alns = head if head is not None else tail
+                if len(alns) == 1:
+                    add_read_single(alns[0])
+                elif len(alns) == 2:
+                    add_read_pair(*alns)
+                else:
+                    pass
+
+        # add and map reads
+        i = 0
+        r1 = get_all_read_alns(self.iter1)
+        r2 = get_all_read_alns(self.iter2)
+        r1_count = 0
+        r2_count = 0
+
+        while r1[0] is not None and r2[0] is not None:
+            c = cmp_natural(r1[0].qname, r2[0].qname)
+            i += 1
+            if c == 0:
+                process_bwa_alns(r1, r2)
+                r1 = get_all_read_alns(self.iter1)
+                r2 = get_all_read_alns(self.iter2)
+                r1_count += 1
+                r2_count += 1
+            elif c < 0:
+                process_bwa_alns(r1)
+                r1 = get_all_read_alns(self.iter1)
+                r1_count += 1
+            else:
+                process_bwa_alns(r2)
+                r2 = get_all_read_alns(self.iter2)
+                r2_count += 1
+
+            if i % 100000 == 0:
+                logging.info("%d reads processed" % i)
+
+        # add remaining unpaired reads
+        while r1[0] is not None:
+            process_bwa_alns(r1)
+            r1 = get_all_read_alns(self.iter1)
+            r1_count += 1
+
+        while r2[0] is not None:
+            process_bwa_alns(r2)
+            r2 = get_all_read_alns(self.iter2)
+            r2_count += 1
+
+        self.r1_count = r1_count
+        self.r2_count = r2_count
+
+        super(BwaMemPairLoader, self)._load_pairs_from_reads()
+
+
 class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     """
     Map pairs of reads to restriction fragments in a reference genome.
@@ -1390,9 +1658,11 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                                           region.start, region.end))
                 fragment_ends[region.chromosome].append(region.end)
 
-        if isinstance(reads1, str):
-            self.log_info("Loading reads 1")
-            reads1 = Reads(sambam_file=reads1)
+        # if reads1.mapper == 'bwa' and reads2.mapper == 'bwa':
+        #     loader = BwaMemPairLoader(self, _in_memory_index)
+        # else:
+        #     loader = Bowtie2PairLoader(self, ignore_duplicates, _in_memory_index)
+        # loader.load(reads1, reads2, regions=regions)
 
         if isinstance(reads2, str):
             self.log_info("Loading reads 2")

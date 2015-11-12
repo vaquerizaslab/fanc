@@ -164,18 +164,18 @@ class TestReads:
 
     def test_bwamem_quality_filter(self):
         reads = Reads(self.bwamem_sam1_file)
-        assert len(reads) == 919
+        assert len(reads) == 992
         reads.filter_quality(cutoff=0.90, queue=False)
-        assert len(reads) == 809
+        assert len(reads) == 924
         for read in reads:
             assert float(read.get_tag('AS')) / read.alen >= 0.90
         # assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
 
     def test_bwamem_uniqueness_filter(self):
         reads = Reads(self.bwamem_sam1_file)
-        assert len(reads) == 919
+        assert len(reads) == 992
         reads.filter_non_unique(cutoff=0.5, queue=False)
-        assert len(reads) == 673
+        assert len(reads) == 547
         for read in reads:
             assert float(read.get_tag('XS')) / read.get_tag('AS') <= 0.50
 
@@ -216,7 +216,6 @@ class TestFragmentMappedReads:
         self.pairs = FragmentMappedReadPairs()
         self.pairs.load(self.reads1, self.reads2, regions=self.genome.get_regions(1000))
         
-    
     def test_select(self):
         pair = self.pairs[0]
         assert isinstance(pair, FragmentReadPair)
@@ -351,3 +350,25 @@ class TestFragmentMappedReads:
         assert read1.re_distance() == 199
         read2 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=990, strand=-1)
         assert read2.re_distance() == 10
+
+
+class TestBWAFragmentMappedReads:
+    @classmethod
+    def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        sam1_file = self.dir + "/test_seq/test_bwa1.sam"
+        sam2_file = self.dir + "/test_seq/test_bwa2.sam"
+        self.reads1 = Reads()
+        self.reads2 = Reads()
+        self.reads1.load(sam1_file)
+        self.reads2.load(sam2_file)
+        self.reads1.filter_unmapped()
+        self.reads2.filter_unmapped()
+        self.genome = Genome.from_folder(self.dir + "/test_seq/dmel_genome/")
+        self.pairs = FragmentMappedReadPairs()
+        self.pairs.load(self.reads1, self.reads2, regions=self.genome.get_regions('MboI'))
+        
+    def test_loaded_bwamem_pairs(self):
+        assert self.pairs._read_count == 992
+        assert self.pairs._single_count == 684
+        assert len(self.pairs) == 154
