@@ -594,7 +594,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         unmapped_filter = UnmappedFilter(mask)
         self.filter(unmapped_filter, queue)
             
-    def filter_non_unique(self, cutoff=0.5, strict=True, queue=False):
+    def filter_non_unique(self, strict=True, cutoff=0.5, queue=False):
         """
         Convenience function that applies a UniquenessFilter.
         The actual algorithm and rationale used for filtering will depend on the
@@ -976,7 +976,7 @@ class BwaMemQualityFilter(ReadFilter):
         """
         if read.alen:
             return float(read.get_tag('AS')) / read.alen >= self.cutoff
-        return 0
+        return False
 
 
 class UniquenessFilter(ReadFilter):
@@ -1034,7 +1034,7 @@ class BwaMemUniquenessFilter(ReadFilter):
         nextbest_score = read.get_tag('XS')
         if alignment_score:
             return float(nextbest_score) / alignment_score <= self.cutoff
-        return 0
+        return False
 
 
 class UnmappedFilter(ReadFilter):
