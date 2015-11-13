@@ -552,7 +552,7 @@ class Kaic(object):
             logging.info("Filtering low-coverage bins at %d" % args.low)
             hic.filter_low_coverage_regions(cutoff=args.low, queue=True)
 
-        if args.outward:
+        if args.diagonal:
             logging.info("Filtering diagonal at distance %d" % args.diagonal)
             hic.filter_diagonal(distance=args.diagonal, queue=True)
 
