@@ -66,6 +66,8 @@ from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
+import re
+from repoze.lru import lru_cache, CacheMaker
 
         
 class Reads(Maskable, MetaContainer, FileBased):
@@ -112,9 +114,13 @@ class Reads(Maskable, MetaContainer, FileBased):
     be overridden.
     """
 
+    CIGAR_REGEX = re.compile(r'(\d+)(\w)')
+    cache_maker = CacheMaker()
+    lru_parse_cigar = cache_maker.lrucache(maxsize=10000, name='parse_cigar')
+
     def __init__(self, sambam_file=None, file_name=None,
                  qname_length=60, seq_length=200, read_only=False,
-                 _group_name='reads'):
+                 _group_name='reads', mapper=None):
         """
         Create Reads object and optionally load SAM file.
 
@@ -149,6 +155,10 @@ class Reads(Maskable, MetaContainer, FileBased):
                            size specified here, they will be truncated.
         :param _group_name: (internal) Name for the HDF5 group that will house
                             the Reads object's tables.
+        :param mapper: Mapper that was used to align the reads. If None, will
+                       try to autodetect from SAM header. Current valid mapper
+                       values are ['bowtie2', 'bwa']. If other, default algorithms
+                       will be used for filters.
         :return: Reads
         """
 
@@ -230,6 +240,15 @@ class Reads(Maskable, MetaContainer, FileBased):
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
             self.load(sambam_file, ignore_duplicates=True)
+
+        if mapper:
+            self._mapper = mapper
+        else:
+            try:
+                self._mapper = self.header['PG'][0]['ID']
+            except (KeyError, AttributeError):
+                self._mapper = None
+                logging.warn('Could not auto-detect mapping program from SAM header')
 
     @staticmethod
     def sambam_size(sambam):
@@ -313,7 +332,9 @@ class Reads(Maskable, MetaContainer, FileBased):
             sambam = pysam.AlignmentFile(file_name, 'rb')
         
         # header
-        #self._reads._v_attrs.header = sambam.header
+        self._reads._v_attrs.header = {k: sambam.header[k]
+                                       for k in sambam.header
+                                       if k in ('HD', 'RG', 'PG')}
         self._header = sambam.header
         
         # references
@@ -451,7 +472,21 @@ class Reads(Maskable, MetaContainer, FileBased):
                     pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
                     pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
                     tags=tags, reference_id=row['ref'])
-        
+
+    @classmethod
+    @lru_parse_cigar
+    def parse_cigar(cls, cigar):
+        """
+        Parses a cigar string.
+
+        :cigar: CIGAR string to parse.
+        :return: A list of tuples of the form (<type>, count).
+                 For example [('M', 50), ('S', 12)] for a read
+                 that aligns for the first 50 bp.
+        """
+        matches = cls.CIGAR_REGEX.findall(cigar)
+        return [(i[1], int(i[0])) for i in matches]
+
     def __iter__(self):
         """
         Iterate over _reads table and convert each result to Read.
@@ -531,6 +566,8 @@ class Reads(Maskable, MetaContainer, FileBased):
     def filter_quality(self, cutoff=30, queue=False):
         """
         Convenience function that applies a QualityFilter.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
 
         :param cutoff: Minimum mapping quality a read must have to pass
                        the filter
@@ -539,7 +576,10 @@ class Reads(Maskable, MetaContainer, FileBased):
                       run_queued_filters
         """
         mask = self.add_mask_description('mapq', 'Mask read pairs with a mapping quality lower than %d' % cutoff)
-        quality_filter = QualityFilter(cutoff, mask)
+        if self._mapper == 'bwa':
+            quality_filter = BwaMemQualityFilter(cutoff, mask)
+        else:
+            quality_filter = QualityFilter(cutoff, mask)
         self.filter(quality_filter, queue)
     
     def filter_unmapped(self, queue=False):
@@ -554,10 +594,16 @@ class Reads(Maskable, MetaContainer, FileBased):
         unmapped_filter = UnmappedFilter(mask)
         self.filter(unmapped_filter, queue)
             
-    def filter_non_unique(self, strict=True, queue=False):
+    def filter_non_unique(self, strict=True, cutoff=0.5, queue=False):
         """
         Convenience function that applies a UniquenessFilter.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
 
+        :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
+                       values mean that the next best secondary alignment is of substantially
+                       lower quality than the primary one, and that the latter can be considered
+                       as unique. Used only if the reads have been aligned with bwa-mem.
         :param strict: If True will filter if XS tag is present. If False,
                        will filter only when XS tag is not 0.
         :param queue: If True, filter will be queued and can be executed
@@ -565,7 +611,10 @@ class Reads(Maskable, MetaContainer, FileBased):
                       run_queued_filters
         """
         mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
-        uniqueness_filter = UniquenessFilter(strict, mask)
+        if self._mapper == 'bwa':
+            uniqueness_filter = BwaMemUniquenessFilter(cutoff, mask)
+        else:
+            uniqueness_filter = UniquenessFilter(strict, mask)
         self.filter(uniqueness_filter, queue)
     
     def run_queued_filters(self, log_progress=False):
@@ -665,7 +714,30 @@ class Read(object):
         if 4 in bit_flags:
             return -1
         return 1
-    
+
+    @property
+    def alen(self):
+        """
+        Returns the length of the aligned portion of the read
+        """
+        score = 0
+        valids = 'M'
+        return sum([i[1] for i in self.get_cigar if i[0] in valids])
+
+    def get_tag(self, key):
+        "Returns the value of a tag. None if does not exist"
+        for tag in self.tags:
+            if tag[0] == key:
+                return tag[1]
+        return None
+
+    @property
+    def get_cigar(self):
+        """
+        Parses own cigar string
+        """
+        return Reads.parse_cigar(self.cigar)
+
     def __getitem__(self, key):
         """
         Retrieve attribute with bracket notation for convenience.
@@ -883,6 +955,30 @@ class QualityFilter(ReadFilter):
         return read.mapq >= self.cutoff
 
 
+class BwaMemQualityFilter(ReadFilter):
+    """
+    Filters `bwa mem` generated alignements base on the alignment score
+    (normalized by the length of the alignment).
+    """
+    def __init__(self, cutoff=0.90, mask=None):
+        """
+        :param cutoff: Ratio of the alignment score to the maximum score
+                       possible for an alignment that long
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        super(BwaMemQualityFilter, self).__init__(mask)
+        self.cutoff = cutoff
+
+    def valid_read(self, read):
+        """
+        Check if a read has a high alignment score.
+        """
+        if read.alen:
+            return float(read.get_tag('AS')) / read.alen >= self.cutoff
+        return False
+
+
 class UniquenessFilter(ReadFilter):
     """
     Filter reads that do not map uniquely to the reference sequence.
@@ -906,11 +1002,39 @@ class UniquenessFilter(ReadFilter):
         If strict is disabled checks if a read has an XS tag and
         the value of the XS tag id different from 0.
         """
-        for tag in read.tags:
-            if tag[0] == 'XS':
-                if self.strict or tag[1] == 0:
-                    return False
+        xs_tag = read.get_tag('XS')
+        if xs_tag is not None or (not self.strict and xs_tag == 0):
+            return False
         return True
+
+
+class BwaMemUniquenessFilter(ReadFilter):
+    """
+    Filters `bwa mem` generated alignements based on whether they are unique or not.
+    The presence of a non-zero XS tag does not mean a read is a multi-mapping one.
+    Instead, we make sure that the ratio XS/AS is inferior to a certain threshold.
+    """
+    def __init__(self, cutoff=0.5, mask=None):
+        """
+        :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
+                       values mean that the next best secondary alignment is of substantially
+                       lower quality than the primary one, and that the latter can be considered
+                       as unique
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        super(BwaMemUniquenessFilter, self).__init__(mask)
+        self.cutoff = cutoff
+
+    def valid_read(self, read):
+        """
+        Check if a read has a high alignment score.
+        """
+        alignment_score = read.get_tag('AS')
+        nextbest_score = read.get_tag('XS')
+        if alignment_score:
+            return float(nextbest_score) / alignment_score <= self.cutoff
+        return False
 
 
 class UnmappedFilter(ReadFilter):

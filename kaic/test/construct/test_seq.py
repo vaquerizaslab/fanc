@@ -19,6 +19,8 @@ class TestReads:
         self.sam1_file = self.dir + "/test_seq/test1.sam"
         self.sam2_file = self.dir + "/test_seq/test2.sam"
         self.lambda_sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
+        self.bwamem_sam1_file = self.dir + "/test_seq/test_bwa1.sam"
+        self.bwamem_sam2_file = self.dir + "/test_seq/test_bwa2.sam"
         
     def test_load(self):
         def compare(read, values):
@@ -96,7 +98,6 @@ class TestReads:
         reads.filter_non_unique()
         assert reads[0].qname == 'SRR038105.10'
         
-        
     def test_build_from_scratch(self):
         
         qname_length, seq_length = Reads.determine_field_sizes(self.sam1_file, sample_size=10000)
@@ -104,6 +105,35 @@ class TestReads:
         reads.load(self.sam1_file)
         
         assert len(reads) == 271
+
+    def test_infer_mapper(self):
+        reads = Reads(self.bwamem_sam1_file)
+        assert reads._mapper == 'bwa'
+        reads = Reads(self.bwamem_sam1_file, mapper='bowtie2')
+        assert reads._mapper == 'bowtie2'
+
+    def test_parse_cigar(self):
+        reads = Reads()
+        parsed = reads.parse_cigar('22S42M1D18M4I5M')
+        assert parsed ==[('S',22), ('M',42), ('D',1), ('M',18), ('I',4), ('M',5)]
+
+    def test_parse_read_cigar(self):
+        reads = Reads(self.sam1_file)
+        assert reads[0].get_cigar == [('M',15)]
+        assert reads[1].get_cigar == [('M',20)]
+
+    def test_read_alen(self):
+        reads = Reads(self.sam1_file)
+        read = reads[0]
+        read.cigar = '22S42M1D18M4I5M'
+        assert read.alen == 42 + 18 + 5
+
+    def test_read_get_tag(self):
+        reads = Reads(self.sam1_file)
+        read = reads[0]
+        assert read.get_tag('AS') == 0
+        assert read.get_tag('MD') == '15'
+        assert read.get_tag('X0') == None
     
     def test_quality_filter(self):
         reads = Reads(self.sam1_file)
@@ -141,7 +171,24 @@ class TestReads:
         reads.filter(unmapped_filter)
         
         assert len(reads) < l
-                
+
+    def test_bwamem_quality_filter(self):
+        reads = Reads(self.bwamem_sam1_file)
+        assert len(reads) == 919
+        reads.filter_quality(cutoff=0.90, queue=False)
+        assert len(reads) == 809
+        for read in reads:
+            assert float(read.get_tag('AS')) / read.alen >= 0.90
+        assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
+
+    def test_bwamem_uniqueness_filter(self):
+        reads = Reads(self.bwamem_sam1_file)
+        assert len(reads) == 919
+        reads.filter_non_unique(cutoff=0.5, queue=False)
+        assert len(reads) == 673
+        for read in reads:
+            assert float(read.get_tag('XS')) / read.get_tag('AS') <= 0.50
+
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)
         

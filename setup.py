@@ -13,6 +13,7 @@ setup(
         'pysam',
         'biopython',
         'pytest',
+        'repoze.lru',
         'tables>3.2.2'
     ],
     dependency_links=[
