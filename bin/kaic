@@ -510,8 +510,16 @@ class Kaic(object):
         parser.add_argument(
             '-l', '--low-coverage', dest='low',
             type=float,
+            nargs='?',
             help='''Filter bins with "low coverage" (lower than specified contact threshold)'''
         )
+
+        parser.add_argument(
+            '-ld', '--low-coverage-default', dest='low_default',
+            action='store_true',
+            help='''Filter bins with "low coverage" (under 5% of median coverage for all non-zero bins)'''
+        )
+        parser.set_defaults(low_default=False)
 
         parser.add_argument(
             '-d', '--diagonal', dest='diagonal',
@@ -532,6 +540,13 @@ class Kaic(object):
         input_path = copy_or_expand(args.input, args.output)
 
         hic = kaic.Hic(file_name=input_path)
+
+        if args.low_default:
+            if args.low:
+                logging.info("Already specified an exact cutoff with -l, skipping -ld...")
+            else:
+                logging.info("Filtering low-coverage bins at 5%%")
+                hic.filter_low_coverage_regions(queue=True)
 
         if args.low:
             logging.info("Filtering low-coverage bins at %d" % args.low)
