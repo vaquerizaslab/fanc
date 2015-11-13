@@ -517,7 +517,7 @@ class Kaic(object):
         parser.add_argument(
             '-ld', '--low-coverage-default', dest='low_default',
             action='store_true',
-            help='''Filter bins with "low coverage" (under 5% of median coverage for all non-zero bins)'''
+            help='''Filter bins with "low coverage" (under 5%% of median coverage for all non-zero bins)'''
         )
         parser.set_defaults(low_default=False)
 
