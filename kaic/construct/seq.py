@@ -1468,19 +1468,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         type_inward = 1
         type_outward = 2
 
+        def _log_done(i):
+            last_percent = -1
+            if i % int(l/20) == 0:
+                percent = int(i/int(l/20))
+                if percent != last_percent:
+                    logging.info("Ligation error structure: {}%".format(percent*5))
+                    last_percent = percent
+
         def _init_gaps_and_types():
             same_count = 0
             inward_count = 0
             outward_count = 0
             gaps = []
             types = []
-            last_percent = -1
             for i, pair in enumerate(self):
-                if i % int(l/20) == 0:
-                    percent = int(i/int(l/20))
-                    if percent != last_percent:
-                        print "%d%% done" % (percent*5)
-                        last_percent = percent
+                _log_done(i)
                 if pair.is_same_fragment() and skip_self_ligations:
                     continue
                 if pair.is_same_chromosome():
@@ -1512,7 +1515,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         def _guess_datapoints(data_points):
             if data_points is None:
                 data_points = max(100, int(l * 0.0025))
-            logging.info("Number of data points averaged per point in plot: %d" % data_points)
+            logging.info("Number of data points averaged per point in plot: {}".format(data_points))
             return data_points
 
         def _calculate_ratios(gaps, types, data_points):
@@ -1525,12 +1528,12 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             outwards = 0
             inwards = 0
             same = 0
-            for i in xrange(0, len(gaps)):
-                mids += gaps[i]
-                if types[i] == type_same:
+            for typ, gap in zip(types, gaps):
+                mids += gap
+                if typ == type_same:
                     same += 1
                     same_counter += 1
-                elif types[i] == type_inward:
+                elif typ == type_inward:
                     inwards += 1
                 else:
                     outwards += 1
