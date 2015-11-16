@@ -66,10 +66,7 @@ from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
-import re
-from repoze.lru import lru_cache, CacheMaker
 
-        
 class Reads(Maskable, MetaContainer, FileBased):
     """
     Load and filter mapped reads from a SAM/BAM file.
@@ -128,10 +125,6 @@ class Reads(Maskable, MetaContainer, FileBased):
         seq = t.Int32Col(pos=10, dflt=-1)
         qual = t.Int32Col(pos=11, dflt=-1)
         tags = t.Int32Col(pos=12, dflt=-1)
-
-    CIGAR_REGEX = re.compile(r'(\d+)(\w)')
-    cache_maker = CacheMaker()
-    lru_parse_cigar = cache_maker.lrucache(maxsize=10000, name='parse_cigar')
 
     def __init__(self, sambam_file=None, file_name=None,
                  qname_length=60, seq_length=200, read_only=False,
