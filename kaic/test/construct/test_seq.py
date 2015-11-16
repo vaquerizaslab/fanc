@@ -9,6 +9,7 @@ from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
+import numpy as np
 
 
 class TestReads:
@@ -29,7 +30,7 @@ class TestReads:
             assert read.ref == values[2]
             assert read.pos == values[3]
             assert read.mapq == values[4]
-            assert read.cigar == values[5]
+            assert np.array_equal(read.cigar, values[5])
             assert read.rnext == values[6]
             assert read.pnext == values[7]
             assert read.tlen == values[8]
@@ -41,25 +42,25 @@ class TestReads:
         reads = Reads()
         reads.load(self.sam1_file, is_sorted=False)
         
-        compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,'15M',-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9,1])
+        compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,[(0,15)],-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9,1])
         
         # SRR038105.1000167    0    chrXIV    703158    42    15M    *    0    0    TACGGTATTGGTCGG    FFFFCFFFFFFFFCF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
-        res = reads.where("qname == 'SRR038105.1000167'")
-        compare(res[0], ['SRR038105.1000167',0,'chrXIV',703158,42,'15M',-1,-1,0,'TACGGTATTGGTCGG','FFFFCFFFFFFFFCF',8,1])        
+        res = reads.get_read_by_qname('SRR038105.1000167')
+        compare(res, ['SRR038105.1000167',0,'chrXIV',703158,42,[(0,15)],-1,-1,0,'TACGGTATTGGTCGG','FFFFCFFFFFFFFCF',8,1])
         
         # SRR038105.1000320    0    chrXVI    577162    35    15M    *    0    0    TTGATAAAATAGTCC    <<@FF<FFFFAFAFA    AS:i:0    XS:i:-5    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
-        res = reads.where("qname == 'SRR038105.1000320'")
-        compare(res[0], ['SRR038105.1000320',0,'chrXVI',577162,35,'15M',-1,-1,0,'TTGATAAAATAGTCC','<<@FF<FFFFAFAFA',9,1])
+        res = reads.get_read_by_qname('SRR038105.1000320')
+        compare(res, ['SRR038105.1000320',0,'chrXVI',577162,35,[(0,15)],-1,-1,0,'TTGATAAAATAGTCC','<<@FF<FFFFAFAFA',9,1])
 
         # check unpaired right
         # SRR038105.1000002    16    chrIV    203242    42    16M    *    0    0    ACCCATTATTTCTCGA    IIIIIFIICIFIIIII    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
-        res = reads.where("qname == 'SRR038105.1000002'")
-        assert len(res) == 0
+        res = reads.get_read_by_qname('SRR038105.1000002')
+        assert res is None
         
         # check unpaired left
         # SRR038105.1000011    16    chrIV    526796    42    16M    *    0    0    GGTGAATTAGAAGATA    FFFFFFFFFFFFFFFF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
-        res = reads.where("qname == 'SRR038105.1000011'")
-        compare(res[0], ['SRR038105.1000011',16,'chrIV',526796,42,'16M',-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8,-1])
+        res = reads.get_read_by_qname('SRR038105.1000011')
+        compare(res, ['SRR038105.1000011',16,'chrIV',526796,42,[(0,16)],-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8,-1])
         
     def test_ix(self):
         pairs = Reads(self.sam1_file)
@@ -99,9 +100,7 @@ class TestReads:
         assert reads[0].qname == 'SRR038105.10'
         
     def test_build_from_scratch(self):
-        
-        qname_length, seq_length = Reads.determine_field_sizes(self.sam1_file, sample_size=10000)
-        reads = Reads(qname_length=qname_length, seq_length=seq_length)
+        reads = Reads()
         reads.load(self.sam1_file)
         
         assert len(reads) == 271
@@ -112,20 +111,10 @@ class TestReads:
         reads = Reads(self.bwamem_sam1_file, mapper='bowtie2')
         assert reads._mapper == 'bowtie2'
 
-    def test_parse_cigar(self):
-        reads = Reads()
-        parsed = reads.parse_cigar('22S42M1D18M4I5M')
-        assert parsed ==[('S',22), ('M',42), ('D',1), ('M',18), ('I',4), ('M',5)]
-
-    def test_parse_read_cigar(self):
-        reads = Reads(self.sam1_file)
-        assert reads[0].get_cigar == [('M',15)]
-        assert reads[1].get_cigar == [('M',20)]
-
     def test_read_alen(self):
         reads = Reads(self.sam1_file)
         read = reads[0]
-        read.cigar = '22S42M1D18M4I5M'
+        read.cigar = [(4,22), (0,42), (2,1), (0,18), (1,4), (0,5)]
         assert read.alen == 42 + 18 + 5
 
     def test_read_get_tag(self):
@@ -179,7 +168,7 @@ class TestReads:
         assert len(reads) == 809
         for read in reads:
             assert float(read.get_tag('AS')) / read.alen >= 0.90
-        assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
+        # assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
 
     def test_bwamem_uniqueness_filter(self):
         reads = Reads(self.bwamem_sam1_file)

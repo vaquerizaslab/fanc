@@ -114,6 +114,21 @@ class Reads(Maskable, MetaContainer, FileBased):
     be overridden.
     """
 
+    class ReadsDefinition(t.IsDescription):
+        ix = t.Int32Col(pos=0)
+        qname = t.Int32Col(pos=1, dflt=-1)
+        flag = t.Int32Col(pos=2)
+        ref = t.Int32Col(pos=3)
+        pos = t.Int64Col(pos=4)
+        mapq = t.Int32Col(pos=5)
+        cigar = t.Int32Col(pos=6, dflt=-1)
+        rnext = t.Int32Col(pos=7)
+        pnext = t.Int32Col(pos=8)
+        tlen = t.Int32Col(pos=9)
+        seq = t.Int32Col(pos=10, dflt=-1)
+        qual = t.Int32Col(pos=11, dflt=-1)
+        tags = t.Int32Col(pos=12, dflt=-1)
+
     CIGAR_REGEX = re.compile(r'(\d+)(\w)')
     cache_maker = CacheMaker()
     lru_parse_cigar = cache_maker.lrucache(maxsize=10000, name='parse_cigar')
@@ -192,50 +207,76 @@ class Reads(Maskable, MetaContainer, FileBased):
             # cigar
             cigar = self.file.get_node('/' + _group_name + '/cigar')
 
+            # qname
+            qname = self.file.get_node('/' + _group_name + '/qname')
+
+            # qual
+            qual = self.file.get_node('/' + _group_name + '/qual')
+
+            # seq
+            seq = self.file.get_node('/' + _group_name + '/seq')
+
+            self._row_counter = {
+                'reads': len(main_table),
+                'tags': len(tags),
+                'cigar': len(cigar),
+                'qname': len(qname),
+                'qual': len(qual),
+                'seq': len(seq)
+            }
+
         # or build table from scratch
         except NoSuchNodeError:
             
             expected_length = 50000000
             if sambam_file is not None:
-                self.log_info("Determining field sizes")
-                qname_length, seq_length = Reads.determine_field_sizes(sambam_file)
-                expected_length = int(Reads.sambam_size(sambam_file)*1.5)
-                
-            reads_defininition = {
-                'ix': t.Int32Col(pos=0),
-                'qname': t.StringCol(qname_length, pos=1),
-                'flag': t.Int32Col(pos=2),
-                'ref': t.Int32Col(pos=3),
-                'pos': t.Int64Col(pos=4),
-                'mapq': t.Int32Col(pos=5),
-                'rnext': t.Int32Col(pos=6),
-                'pnext': t.Int32Col(pos=7),
-                'tlen': t.Int32Col(pos=8),
-                'seq': t.StringCol(seq_length, pos=9),
-                'qual': t.StringCol(seq_length, pos=10)
-            }
+                expected_length = int(Reads.sambam_size(sambam_file))
         
             # create data structures
             self.log_info("Creating data structures...")
             
             # create reads group
-            group = self.file.create_group("/", _group_name, 'Read pairs group',
+            group = self.file.create_group("/", _group_name, 'Reads group',
                                            filters=t.Filters(complib="blosc",
                                                              complevel=2, shuffle=True))
             # create main table
-            main_table = MaskedTable(group, 'main', reads_defininition,
+            main_table = MaskedTable(group, 'main', Reads.ReadsDefinition,
                                      expectedrows=expected_length)
             # create tags vlarrays
             tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom(),
                                             expectedrows=expected_length)
             
             # create cigar vlarrays
-            cigar = self.file.create_vlarray(group, 'cigar', t.VLStringAtom(),
-                                             expectedrows=expected_length)    
+            cigar = self.file.create_vlarray(group, 'cigar', t.ObjectAtom(),
+                                             expectedrows=expected_length)
+
+            # create cigar vlarrays
+            qname = self.file.create_vlarray(group, 'qname', t.VLStringAtom(),
+                                             expectedrows=expected_length)
+
+            # create cigar vlarrays
+            qual = self.file.create_vlarray(group, 'qual', t.VLStringAtom(),
+                                            expectedrows=expected_length)
+
+            # create cigar vlarrays
+            seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom(),
+                                           expectedrows=expected_length)
+
+            self._row_counter = {
+                'reads': 0,
+                'tags': 0,
+                'cigar': 0,
+                'qname': 0,
+                'qual': 0,
+                'seq': 0
+            }
 
         self._reads = main_table
         self._tags = tags
         self._cigar = cigar
+        self._qname = qname
+        self._qual = qual
+        self._seq = seq
 
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
@@ -286,6 +327,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         """
         Close the file backing this object.
         """
+        self._reads._v_attrs.row_counter = self._row_counter
         self.file.close()    
     
     def load(self, sambam, ignore_duplicates=True, is_sorted=False):
@@ -354,7 +396,10 @@ class Reads(Maskable, MetaContainer, FileBased):
         
         self.log_info("Done.")
 
-    def add_read(self, read, flush=True):
+    def add_read(self, read, flush=True,
+                 store_qname=True, store_cigar=True,
+                 store_seq=True, store_tags=True,
+                 store_qual=True):
         """
         Add a read with all its attributes to this object.
 
@@ -370,8 +415,8 @@ class Reads(Maskable, MetaContainer, FileBased):
                       directly after the import.
         """
         reads_row = self._reads.row
-        # add main read info
-        reads_row['qname'] = read.qname
+
+        # main read info
         reads_row['flag'] = read.flag
         reads_row['ref'] = read.reference_id
         if read.pos >= 0:
@@ -385,19 +430,39 @@ class Reads(Maskable, MetaContainer, FileBased):
         reads_row['rnext'] = read.rnext
         reads_row['pnext'] = read.pnext
         reads_row['tlen'] = read.tlen
-        reads_row['seq'] = read.seq
-        reads_row['qual'] = read.qual
-        reads_row['ix'] = self._get_row_counter()
+
+        # string info
+        if store_qname:
+            self._qname.append(read.qname)
+            reads_row['qname'] = self._row_counter['qname']
+            self._row_counter['qname'] += 1
+
+        cigar = read.cigar
+        if store_cigar and cigar is not None:
+            self._cigar.append(cigar)
+            reads_row['cigar'] = self._row_counter['cigar']
+            self._row_counter['cigar'] += 1
+
+        if store_seq:
+            self._seq.append(read.seq)
+            reads_row['seq'] = self._row_counter['seq']
+            self._row_counter['seq'] += 1
+
+        if store_qual:
+            self._qual.append(read.qual)
+            reads_row['qual'] = self._row_counter['qual']
+            self._row_counter['qual'] += 1
+
+        tags = read.tags
+        if store_tags and tags is not None:
+            self._tags.append(tags)
+            reads_row['tags'] = self._row_counter['tags']
+            self._row_counter['tags'] += 1
+
+        reads_row['ix'] = self._row_counter['reads']
         reads_row.append()
-        
-        # add string info
-        self._tags.append(read.tags)
-        if read.cigarstring is not None:
-            self._cigar.append(read.cigarstring)
-        else:
-            self._cigar.append('')
-        self._set_row_counter(self._get_row_counter()+1)
-        
+        self._row_counter['reads'] += 1
+
         if flush:
             self.flush()
     
@@ -408,36 +473,18 @@ class Reads(Maskable, MetaContainer, FileBased):
         self._reads.flush(update_index=True)
         self._tags.flush()
         self._cigar.flush()
-    
-    @staticmethod
-    def determine_field_sizes(sambam, sample_size=10000):
-        """
-        Determine the sizes of relevant fields in a SAM/BAM file.
+        self._seq.flush()
+        self._qual.flush()
+        self._qname.flush()
 
-        :param sambam: A string that describes the path to the SAM/BAM file
-                       to be loaded or a pysam AlignmentFile.
-        :param sample_size: Number of lines to sample to determine field
-                            sizes.
-        :return: qname length, sequence length
-        """
-        if type(sambam) == str:
-            sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
-            
-        qname_length = 0
-        seq_length = 0
-        i = 0
-        for r in sambam:
-            i += 1
-            qname_length = max(qname_length,len(r.qname))
-            seq_length = max(seq_length,len(r.seq))
-            if sample_size is not None and i >= sample_size:
-                break
-            
-            if i % 100000 == 0:
-                logging.info(i)
-        sambam.close()
-        
-        return qname_length, seq_length
+        self._row_counter = {
+            'reads': len(self._reads),
+            'tags': len(self._tags),
+            'cigar': len(self._cigar),
+            'qname': len(self._qname),
+            'qual': len(self._qual),
+            'seq': len(self._seq)
+        }
     
     @property
     def header(self):
@@ -463,47 +510,41 @@ class Reads(Maskable, MetaContainer, FileBased):
         if lazy:
             return LazyRead(row, self)
 
-        ix = row['ix']
-        tags = self._tags[ix]
-        cigar = self._cigar[ix]
+        tags = self._tags[row['tags']]
+        cigar = self._cigar[row['cigar']]
+        qname = self._qname[row['qname']]
+        qual = self._qual[row['qual']]
+        seq = self._seq[row['seq']]
         ref = self._ix2ref(row['ref'])
 
-        return Read(qname=row['qname'], flag=row['flag'], ref=ref,
+        return Read(qname=qname, flag=row['flag'], ref=ref,
                     pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
-                    pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
+                    pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
                     tags=tags, reference_id=row['ref'])
 
-    @classmethod
-    @lru_parse_cigar
-    def parse_cigar(cls, cigar):
-        """
-        Parses a cigar string.
-
-        :cigar: CIGAR string to parse.
-        :return: A list of tuples of the form (<type>, count).
-                 For example [('M', 50), ('S', 12)] for a read
-                 that aligns for the first 50 bp.
-        """
-        matches = cls.CIGAR_REGEX.findall(cigar)
-        return [(i[1], int(i[0])) for i in matches]
-
-    def __iter__(self):
+    def reads(self, lazy=False):
         """
         Iterate over _reads table and convert each result to Read.
+
+        :param lazy: Lazily load read properties (only works inside loop!)
+        :return: ReadsIter that iterates over visible reads
         """
         this = self
 
         class ReadsIter:
             def __init__(self):
                 self.iter = iter(this._reads)
-                  
+
             def __iter__(self):
                 return self
-              
+
             def next(self):
                 row = self.iter.next()
-                return this._row2read(row)
+                return this._row2read(row, lazy=lazy)
         return ReadsIter()
+
+    def __iter__(self):
+        return self.reads()
     
     def __getitem__(self, key):
         """
@@ -530,9 +571,8 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         .. code:: python
 
-            Examples:
+            Example:
 
-            result = reads.where("qname == 'ABCDEFGH'")
             result = reads.where("(mapq < 30) & (flag == 0)")
 
         :param query: A query string in pytables query format (see
@@ -543,6 +583,12 @@ class Reads(Maskable, MetaContainer, FileBased):
         for row in self._reads.where(query):
             reads.append(self._row2read(row))
         return reads
+
+    def get_read_by_qname(self, qname):
+        for read in self.reads(lazy=True):
+            if read.qname == qname:
+                return read
+        return None
     
     def filter(self, read_filter, queue=False, log_progress=False):
         """
@@ -718,25 +764,22 @@ class Read(object):
     @property
     def alen(self):
         """
-        Returns the length of the aligned portion of the read
+        Return the length of the aligned portion of the read
         """
-        score = 0
-        valids = 'M'
-        return sum([i[1] for i in self.get_cigar if i[0] in valids])
+        valids = [0]
+        return sum([i[1] for i in self.cigar if i[0] in valids])
 
     def get_tag(self, key):
-        "Returns the value of a tag. None if does not exist"
+        """
+        Return the value of a tag. None if does not exist
+
+        :param key: Key/name of alignment tag
+        :return: Value of tag of none if tag not present
+        """
         for tag in self.tags:
             if tag[0] == key:
                 return tag[1]
         return None
-
-    @property
-    def get_cigar(self):
-        """
-        Parses own cigar string
-        """
-        return Reads.parse_cigar(self.cigar)
 
     def __getitem__(self, key):
         """
@@ -847,13 +890,38 @@ class LazyRead(Read):
 
     @property
     def cigar(self):
-        ix = self.row["ix"]
-        return self.parent._cigar[ix]
+        ix = self.row["cigar"]
+        if ix >= 0:
+            return self.parent._cigar[ix]
+        return None
+
+    @property
+    def qname(self):
+        ix = self.row["qname"]
+        if ix >= 0:
+            return self.parent._qname[ix]
+        return None
+
+    @property
+    def seq(self):
+        ix = self.row["seq"]
+        if ix >= 0:
+            return self.parent._seq[ix]
+        return None
+
+    @property
+    def qual(self):
+        ix = self.row["qual"]
+        if ix >= 0:
+            return self.parent._qual[ix]
+        return None
 
     @property
     def tags(self):
-        ix = self.row["ix"]
-        return self.parent._tags[ix]
+        ix = self.row["tags"]
+        if ix >= 0:
+            return self.parent._tags[ix]
+        return None
 
     @property
     def reference_id(self):
