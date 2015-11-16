@@ -51,23 +51,32 @@ def hic_ligation_error_structure_plot(pairs, output=None, data_points=None, skip
     """
     x, inward_ratios, outward_ratios = pairs.get_error_structure(data_points, skip_self_ligations)
     old_backend = _prepare_backend(output)
-    fig = sns.plt.figure()
-    fig.suptitle("Error structure by distance")
-    sns.plt.plot(x, inward_ratios, 'b', label="inward/same strand")
-    sns.plt.plot(x, outward_ratios, 'r', label="outward/same strand")
-    sns.plt.xscale('log')
-    sns.plt.axhline(y=0.5, color='black', ls='dashed')
-    sns.plt.ylim(0, 3)
-    sns.plt.xlabel('Gap size between fragments')
-    sns.plt.ylabel('Read count ratio')
-    sns.plt.legend(loc='upper right')
-    if output is None:
-        sns.plt.show()
-    else:
-        fig.savefig(output)
-        sns.plt.close(fig)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
+    with sns.axes_style("white", {
+            "legend.frameon": True,
+            "xtick.major.size": 4,
+            "xtick.minor.size": 2,
+            "ytick.major.size": 4,
+            "ytick.minor.size": 2,
+            "axes.linewidth": 0.5
+    }):
+        fig = sns.plt.figure()
+        fig.suptitle("Error structure by distance")
+        sns.plt.plot(x, (inward_ratios), 'b', label="inward/same strand")
+        sns.plt.plot(x, (outward_ratios), 'r', label="outward/same strand")
+        sns.plt.xscale('log')
+        sns.plt.axhline(y=0.5, color='black', ls='dashed', lw=0.8)
+        sns.plt.ylim(0, 3)
+        sns.plt.xlabel('Gap size between fragments')
+        sns.plt.ylabel('Read count ratio')
+        sns.plt.legend(loc='upper right')
+        sns.despine()
+        if output is None:
+            sns.plt.show()
+        else:
+            fig.savefig(output)
+            sns.plt.close(fig)
+            sns.plt.ion()
+            sns.plt.switch_backend(old_backend)
 
 
 def pairs_re_distance_plot(pairs, output=None, limit=10000, max_distance=None):
