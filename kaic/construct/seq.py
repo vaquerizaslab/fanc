@@ -300,28 +300,11 @@ class Reads(Maskable, MetaContainer, FileBased):
         sambam.close()
         return count
     
-    def _get_row_counter(self):
-        """
-        Get current number of rows (=reads) in object.
-        """
-        try:
-            return self._reads._v_attrs.row_counter
-        except AttributeError:
-            self._reads._v_attrs.row_counter = 0
-            return 0
-    
-    def _set_row_counter(self, value):
-        """
-        Set current number of rows in object.
-        """
-        self._reads._v_attrs.row_counter = value
-    
     def close(self):
         """
         Close the file backing this object.
         """
-        self._reads._v_attrs.row_counter = self._row_counter
-        self.file.close()    
+        self.file.close()
     
     def load(self, sambam, ignore_duplicates=True, is_sorted=False):
         """
