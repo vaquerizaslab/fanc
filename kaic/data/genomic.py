@@ -1189,7 +1189,7 @@ class RegionsTable(FileBased):
                 self._max_region_ix = -1
         else:
             self._regions = t.Table(self.file.root, _table_name_regions,
-                                    RegionsTable.RegionDescription, expectedrows=10000)
+                                    RegionsTable.RegionDescription)
             self._max_region_ix = -1
         
         if data is not None:
@@ -1560,7 +1560,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             self._edges = self.file.get_node('/', _table_name_edges)
         else:
             self._edges = MaskedTable(self.file.root, _table_name_edges,
-                                      Hic.HicEdgeDescription, expectedrows=500000)
+                                      Hic.HicEdgeDescription)
         
         self._edges.flush()
         
