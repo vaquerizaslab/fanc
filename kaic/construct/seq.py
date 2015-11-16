@@ -220,11 +220,7 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         # or build table from scratch
         except NoSuchNodeError:
-            
-            expected_length = 50000000
-            if sambam_file is not None:
-                expected_length = int(Reads.sambam_size(sambam_file))
-        
+
             # create data structures
             self.log_info("Creating data structures...")
             
@@ -233,27 +229,21 @@ class Reads(Maskable, MetaContainer, FileBased):
                                            filters=t.Filters(complib="blosc",
                                                              complevel=2, shuffle=True))
             # create main table
-            main_table = MaskedTable(group, 'main', Reads.ReadsDefinition,
-                                     expectedrows=expected_length)
+            main_table = MaskedTable(group, 'main', Reads.ReadsDefinition)
             # create tags vlarrays
-            tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom(),
-                                            expectedrows=expected_length)
+            tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom())
             
             # create cigar vlarrays
-            cigar = self.file.create_vlarray(group, 'cigar', t.ObjectAtom(),
-                                             expectedrows=expected_length)
+            cigar = self.file.create_vlarray(group, 'cigar', t.ObjectAtom())
 
             # create qname vlarrays
-            qname = self.file.create_vlarray(group, 'qname', t.VLStringAtom(),
-                                             expectedrows=expected_length)
+            qname = self.file.create_vlarray(group, 'qname', t.VLStringAtom())
 
             # create qual vlarrays
-            qual = self.file.create_vlarray(group, 'qual', t.VLStringAtom(),
-                                            expectedrows=expected_length)
+            qual = self.file.create_vlarray(group, 'qual', t.VLStringAtom())
 
             # create seq vlarrays
-            seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom(),
-                                           expectedrows=expected_length)
+            seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom())
 
             self._row_counter = {
                 'reads': 0,
@@ -1214,16 +1204,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                                              complevel=2, shuffle=True))
             # create main tables
             self._reads = t.Table(group, 'mapped_reads',
-                                  FragmentMappedReadPairs.FragmentMappedReadDescription,
-                                  expectedrows=10000000)
+                                  FragmentMappedReadPairs.FragmentMappedReadDescription)
             
             self._pairs = MaskedTable(group, 'mapped_read_pairs',
-                                      FragmentMappedReadPairs.FragmentsMappedReadPairDescription,
-                                      expectedrows=5000000)
+                                      FragmentMappedReadPairs.FragmentsMappedReadPairDescription)
             
             self._single = MaskedTable(group, 'mapped_read_single',
-                                       FragmentMappedReadPairs.FragmentsMappedReadSingleDescription,
-                                       expectedrows=1000000)
+                                       FragmentMappedReadPairs.FragmentsMappedReadSingleDescription)
             self._read_count = 0
             self._pair_count = 0
             self._single_count = 0
