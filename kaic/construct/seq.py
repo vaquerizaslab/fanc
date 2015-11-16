@@ -243,15 +243,15 @@ class Reads(Maskable, MetaContainer, FileBased):
             cigar = self.file.create_vlarray(group, 'cigar', t.ObjectAtom(),
                                              expectedrows=expected_length)
 
-            # create cigar vlarrays
+            # create qname vlarrays
             qname = self.file.create_vlarray(group, 'qname', t.VLStringAtom(),
                                              expectedrows=expected_length)
 
-            # create cigar vlarrays
+            # create qual vlarrays
             qual = self.file.create_vlarray(group, 'qual', t.VLStringAtom(),
                                             expectedrows=expected_length)
 
-            # create cigar vlarrays
+            # create seq vlarrays
             seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom(),
                                            expectedrows=expected_length)
 
