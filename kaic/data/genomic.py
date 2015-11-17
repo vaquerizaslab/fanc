@@ -1554,7 +1554,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             file_name = os.path.expanduser(file_name)
         
         FileBased.__init__(self, file_name, read_only=read_only)
-        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
+        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes, read_only=read_only)
 
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
