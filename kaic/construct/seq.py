@@ -66,6 +66,8 @@ from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
+import numpy as np
+
 
 class Reads(Maskable, MetaContainer, FileBased):
     """
@@ -234,16 +236,20 @@ class Reads(Maskable, MetaContainer, FileBased):
             tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom())
             
             # create cigar vlarrays
-            cigar = self.file.create_vlarray(group, 'cigar', t.ObjectAtom())
+            # cigar = self.file.create_vlarray(group, 'cigar', t.ObjectAtom())
+            cigar = self.file.create_earray(group, 'cigar', t.StringAtom(itemsize=500), (0,))
 
             # create qname vlarrays
-            qname = self.file.create_vlarray(group, 'qname', t.VLStringAtom())
+            # qname = self.file.create_vlarray(group, 'qname', t.VLStringAtom())
+            qname = self.file.create_earray(group, 'qname', t.StringAtom(itemsize=150), (0,))
 
             # create qual vlarrays
-            qual = self.file.create_vlarray(group, 'qual', t.VLStringAtom())
+            # qual = self.file.create_vlarray(group, 'qual', t.VLStringAtom())
+            qual = self.file.create_earray(group, 'qual', t.StringAtom(itemsize=1000), (0,))
 
             # create seq vlarrays
-            seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom())
+            #seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom())
+            seq = self.file.create_earray(group, 'seq', t.StringAtom(itemsize=1000), (0,))
 
             self._row_counter = {
                 'reads': 0,
@@ -404,23 +410,23 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         # string info
         if store_qname:
-            self._qname.append(read.qname)
+            self._qname.append([np.array(read.qname, dtype='S150')])
             reads_row['qname'] = self._row_counter['qname']
             self._row_counter['qname'] += 1
 
-        cigar = read.cigar
+        cigar = read.cigarstring
         if store_cigar and cigar is not None:
-            self._cigar.append(cigar)
+            self._cigar.append([np.array(cigar, dtype='S500')])
             reads_row['cigar'] = self._row_counter['cigar']
             self._row_counter['cigar'] += 1
 
         if store_seq:
-            self._seq.append(read.seq)
+            self._seq.append([np.array(read.seq, dtype='S1000')])
             reads_row['seq'] = self._row_counter['seq']
             self._row_counter['seq'] += 1
 
         if store_qual:
-            self._qual.append(read.qual)
+            self._qual.append([np.array(read.qual, dtype='S1000')])
             reads_row['qual'] = self._row_counter['qual']
             self._row_counter['qual'] += 1
 
