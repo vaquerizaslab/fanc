@@ -242,7 +242,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         else:
             try:
                 self._mapper = self.header['PG'][0]['ID']
-            except (KeyError, AttributeError):
+            except (KeyError, AttributeError, TypeError):
                 self._mapper = None
                 logging.warn('Could not auto-detect mapping program from SAM header')
 
