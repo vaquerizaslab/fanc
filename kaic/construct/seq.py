@@ -296,7 +296,10 @@ class Reads(Maskable, MetaContainer, FileBased):
         """
         self.file.close()
     
-    def load(self, sambam, ignore_duplicates=True, is_sorted=False):
+    def load(self, sambam, ignore_duplicates=True, is_sorted=False,
+             store_qname=True, store_cigar=True,
+             store_seq=True, store_tags=True,
+             store_qual=True):
         """
         Load mapped reads from SAM/BAM file.
 
@@ -356,7 +359,9 @@ class Reads(Maskable, MetaContainer, FileBased):
                 self.log_info("%d" % i, save=False)
             if ignore_duplicates and read.qname == last_name:
                 continue
-            self.add_read(read, flush=False)
+            self.add_read(read, flush=False, store_cigar=store_cigar,
+                          store_seq=store_seq, store_qual=store_qual,
+                          store_qname=store_qname, store_tags=store_tags)
             last_name = read.qname
         self.flush()
         
