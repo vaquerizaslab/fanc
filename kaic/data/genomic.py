@@ -1191,10 +1191,27 @@ class RegionsTable(FileBased):
             self._regions = t.Table(self.file.root, _table_name_regions,
                                     RegionsTable.RegionDescription)
             self._max_region_ix = -1
-        
+
+        # index node table
+        try:
+            self._regions.cols.ix.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._regions.cols.start.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._regions.cols.end.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+
         if data is not None:
             self.add_regions(data)
-        
+
     def add_region(self, region, flush=True):
         """
         Add a genomic region to this object.
@@ -1264,10 +1281,14 @@ class RegionsTable(FileBased):
                         describe a genomic region. See
                         :class:`~RegionsTable.add_region` for options.
         """
+        #self._regions.autoindex = False
         for region in regions:
             self.add_region(region, flush=False)
         self._regions.flush()
-    
+        #self._regions.autoindex = True
+        #self._regions.flush_rows_to_index()
+
+
     def _get_region_ix(self, region):
         """
         Get index from other region properties (chromosome, start, end)
@@ -1554,7 +1575,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             file_name = os.path.expanduser(file_name)
         
         FileBased.__init__(self, file_name, read_only=read_only)
-        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes, read_only=read_only)
+        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
 
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
@@ -1567,23 +1588,8 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
-        
-        # index node table
-        try:
-            self._regions.cols.ix.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        try:
-            self._regions.cols.start.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        try:
-            self._regions.cols.end.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
+
+
         # index edge table
         try:
             self._edges.cols.source.create_csindex()
@@ -1640,6 +1646,9 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
         self.add_regions(pairs.regions())
 
+        # disable index
+        self._edges.autoindex = False
+
         edge_buffer = {}
         for pair in pairs._pairs:
             source = pair["left_fragment"]
@@ -1659,6 +1668,8 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 edge_buffer = {}
         logging.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
+
+        self._edges._autoindex = True
         
     def load_from_hic(self, hic, _edge_buffer_size=5000000,
                       _edges_by_overlap_method=_edge_overlap_split_rao):
