@@ -5,6 +5,7 @@ Created on Jul 15, 2015
 '''
 
 import os.path
+import numpy as np
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair
@@ -291,6 +292,20 @@ class TestFragmentMappedReads:
     def test_single(self):
         assert len(self.pairs._single) == 6
 
+    def test_auto_mindist(self):
+        pairs = FragmentMappedReadPairs()
+        dists = range(10)
+        inward_ratios = [4.00, 2.00, 1.00, 0.50, 1.00, 0.40, 0.60, 0.55, 0.51, 0.50]
+        outward_ratios = [0.10, 0.20, 0.40, 0.30, 0.55, 0.50, 0.45, 0.55, 0.49, 0.50]
+        sane_inward = pairs._auto_dist(dists, inward_ratios, 0.2, 0.2, 3)
+        sane_outward = pairs._auto_dist(dists, outward_ratios, 0.2, 0.2, 3)
+        insane_inward = pairs._auto_dist(dists, inward_ratios, 0.001, 0.001, 3)
+        insane_outward = pairs._auto_dist(dists, outward_ratios, 0.001, 0.001, 3)
+        assert sane_inward == dists[8]
+        assert sane_outward == dists[6]
+        assert insane_inward is None
+        assert insane_outward is None
+
     def test_filter_inward(self):
         mask = self.pairs.add_mask_description('inwards', 'Mask read pairs that inward facing and closer than 100bp')
         in_filter = InwardPairsFilter(minimum_distance=100, mask=mask)
@@ -303,7 +318,7 @@ class TestFragmentMappedReads:
 #             print pair[0]
 #             print pair[1]
         assert len(self.pairs) == 18
-        
+
     def test_filter_outward(self):
         mask = self.pairs.add_mask_description('outwards', 'Mask read pairs that outward facing and closer than 100bp')
         out_filter = OutwardPairsFilter(minimum_distance=100, mask=mask)
