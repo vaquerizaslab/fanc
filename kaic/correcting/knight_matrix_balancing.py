@@ -12,7 +12,7 @@ def correct(hic, only_intra_chromosomal=False):
             m_corrected, bias_vector_chromosome = correct_matrix(m)
             hic[chromosome, chromosome] = m_corrected
             bias_vectors.append(bias_vector_chromosome)
-        hic.bias_vector(np.append(bias_vectors))
+        hic.bias_vector(np.concatenate(bias_vectors))
     else:
         m = hic[:, :]
         m_corrected, bias_vector = correct_matrix(m)
