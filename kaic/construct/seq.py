@@ -66,7 +66,6 @@ from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
-import numpy as np
 
 
 class Reads(Maskable, MetaContainer, FileBased):
@@ -410,23 +409,23 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         # string info
         if store_qname:
-            self._qname.append([np.array(read.qname, dtype='S150')])
+            self._qname.append([read.qname])
             reads_row['qname'] = self._row_counter['qname']
             self._row_counter['qname'] += 1
 
         cigar = read.cigarstring
         if store_cigar and cigar is not None:
-            self._cigar.append([np.array(cigar, dtype='S500')])
+            self._cigar.append([cigar])
             reads_row['cigar'] = self._row_counter['cigar']
             self._row_counter['cigar'] += 1
 
         if store_seq:
-            self._seq.append([np.array(read.seq, dtype='S1000')])
+            self._seq.append([read.seq])
             reads_row['seq'] = self._row_counter['seq']
             self._row_counter['seq'] += 1
 
         if store_qual:
-            self._qual.append([np.array(read.qual, dtype='S1000')])
+            self._qual.append([read.qual])
             reads_row['qual'] = self._row_counter['qual']
             self._row_counter['qual'] += 1
 
