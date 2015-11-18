@@ -68,6 +68,7 @@ from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
 import msgpack as pickle
 import numpy as np
+import hashlib
 
 
 class Reads(Maskable, MetaContainer, FileBased):
@@ -128,9 +129,9 @@ class Reads(Maskable, MetaContainer, FileBased):
         seq = t.Int32Col(pos=10, dflt=-1)
         qual = t.Int32Col(pos=11, dflt=-1)
         tags = t.Int32Col(pos=12, dflt=-1)
+        qname_ix = t.Float64Col(pos=13, dflt=-1)
 
-    def __init__(self, sambam_file=None, file_name=None,
-                 qname_length=60, seq_length=200, read_only=False,
+    def __init__(self, sambam_file=None, file_name=None, read_only=False,
                  _group_name='reads', mapper=None):
         """
         Create Reads object and optionally load SAM file.
@@ -257,6 +258,13 @@ class Reads(Maskable, MetaContainer, FileBased):
         except NoSuchNodeError:
             self._tags = None
 
+        # add qname_ix index
+        try:
+            self._reads.cols.qname_ix.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
             self.load(sambam_file, ignore_duplicates=True)
@@ -320,23 +328,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         except AttributeError:
             file_name = sambam
 
-        # sort files if required
-        if not is_sorted:
-            self.log_info("Sorting...")
-            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".bam")
-            tmp_file.close()
-            logging.info(file_name)
-            logging.info(os.path.splitext(tmp_file.name)[0])
-            try:
-                subprocess.call(["samtools", "sort", "-n", file_name,
-                                 os.path.splitext(tmp_file.name)[0]])
-            except OSError:
-                pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
-            self.log_info("Done. Reading sorted BAM file...")
-            sambam = pysam.AlignmentFile(tmp_file.name, 'rb')
-            self.log_info("Done...")
-        else:
-            sambam = pysam.AlignmentFile(file_name, 'rb')
+        sambam = pysam.AlignmentFile(file_name, 'rb')
 
         if sample_fields:
             qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, 10000)
@@ -378,9 +370,6 @@ class Reads(Maskable, MetaContainer, FileBased):
         self._reads._v_attrs.ref = sambam.references
         self._ref = sambam.references
 
-        # disable indexing on reads table
-        self._reads.autoindex = False
-
         self.log_info("Loading mapped reads...")
         last_name = ""
         for i, read in enumerate(sambam):
@@ -393,9 +382,6 @@ class Reads(Maskable, MetaContainer, FileBased):
                           store_qname=store_qname, store_tags=store_tags)
             last_name = read.qname
         self.flush()
-
-        # re-enable indexing
-        self._reads.autoindex = True
 
         self.log_info("Done.")
 
@@ -475,10 +461,12 @@ class Reads(Maskable, MetaContainer, FileBased):
         reads_row['tlen'] = read.tlen
 
         # string info
+        qname = read.qname
         if store_qname:
-            self._qname.append([read.qname])
+            self._qname.append([qname])
             reads_row['qname'] = self._row_counter['qname']
             self._row_counter['qname'] += 1
+        reads_row['qname_ix'] = float(int(hashlib.md5(qname).hexdigest(), 16))
 
         cigar = read.cigar
         if store_cigar and cigar is not None:
@@ -594,20 +582,24 @@ class Reads(Maskable, MetaContainer, FileBased):
         return Read(qname=qname, flag=row['flag'], ref=ref,
                     pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
                     pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
-                    tags=tags, reference_id=ref_ix)
+                    tags=tags, reference_id=ref_ix, qname_ix=row['qname_ix'])
 
-    def reads(self, lazy=False):
+    def reads(self, lazy=False, sort_by_qname_ix=False):
         """
         Iterate over _reads table and convert each result to Read.
 
         :param lazy: Lazily load read properties (only works inside loop!)
+        :param sort_by_qname_ix: Iterate by ascending qname_ix
         :return: ReadsIter that iterates over visible reads
         """
         this = self
 
         class ReadsIter:
             def __init__(self):
-                self.iter = iter(this._reads)
+                if sort_by_qname_ix:
+                    self.iter = this._reads.itersorted('qname_ix')
+                else:
+                    self.iter = iter(this._reads)
 
             def __iter__(self):
                 return self
@@ -771,7 +763,8 @@ class Reads(Maskable, MetaContainer, FileBased):
                 return MaskedRead(qname=read.qname, flag=read.flag, ref=read.ref,
                                   pos=read.pos, mapq=read.mapq, cigar=read.cigar, rnext=read.rnext,
                                   pnext=read.pnext, tlen=read.tlen, seq=read.seq, qual=read.qual,
-                                  tags=read.tags, masks=masks)
+                                  tags=read.tags, reference_id=read.reference_id, qname_ix=read.qname_ix,
+                                  masks=masks)
         return MaskedReadsIter()
 
 
@@ -786,7 +779,7 @@ class Read(object):
     def __init__(self, qname="", flag=0, ref="",
                  pos=0, mapq=0, cigar="", rnext=0,
                  pnext=0, tlen=0, seq="", qual="",
-                 tags={}, reference_id=None):
+                 tags={}, reference_id=None, qname_ix=None):
         """
         Initialize a Read with specific attributes.
 
@@ -806,6 +799,7 @@ class Read(object):
         :param tags: Dictionary of tag-value pairs that provide
                      additional information about the alignment
         :param reference_id: ID (integer) of the reference sequence
+        :param qname_ix: qname converted into a unique float representation
         """
 
         self.qname = qname
@@ -821,6 +815,7 @@ class Read(object):
         self.qual = qual
         self.tags = tags
         self.reference_id = reference_id
+        self.qname_ix = qname_ix
 
     @property
     def strand(self):
@@ -879,7 +874,8 @@ class MaskedRead(Read):
     def __init__(self, qname="", flag=0, ref="",
                  pos=0, mapq=0, cigar="", rnext=0,
                  pnext=0, tlen=0, seq="", qual="",
-                 tags={}, reference_id=None, masks=None):
+                 tags={}, reference_id=None,
+                 qname_ix = None, masks=None):
         """
         Initialize a MaskedRead with specific attributes.
 
@@ -904,7 +900,7 @@ class MaskedRead(Read):
         super(MaskedRead, self).__init__(qname=qname, flag=flag, ref=ref,
                                          pos=pos, mapq=mapq, cigar=cigar, rnext=rnext,
                                          pnext=pnext, tlen=tlen, seq=seq, qual=qual,
-                                         tags=tags, reference_id=reference_id)
+                                         tags=tags, reference_id=reference_id, qname_ix=qname_ix)
         self.masks = masks
 
     def __repr__(self):
@@ -996,6 +992,10 @@ class LazyRead(Read):
     @property
     def reference_id(self):
         return self.row['ref']
+
+    @property
+    def qname_ix(self):
+        return self.row['qname_ix']
 
 
 #
@@ -1365,6 +1365,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self.log_info("Done.")
 
         # generate index for fragments
+        self.log_info("Generating region index...")
         fragment_ixs = None
         fragment_ends = None
         if _in_memory_index:
@@ -1385,8 +1386,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self.log_info("Loading reads 2")
             reads2 = Reads(sambam_file=reads2)
 
-        iter1 = iter(reads1)
-        iter2 = iter(reads2)
+        iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
+        iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
 
         def get_next_read(iterator):
             try:
@@ -1395,49 +1396,46 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             except StopIteration:
                 return None
 
-
-        # stop indexing until finished with loading
-        self._single.autoindex = False
-        self._pairs.autoindex = False
+        self.log_info("Adding read pairs...")
 
         # add and map reads
         i = 0
-        last_r1_name = ''
-        last_r2_name = ''
+        last_r1_name_ix = ''
+        last_r2_name_ix = ''
         r1 = get_next_read(iter1)
         r2 = get_next_read(iter2)
         r1_count = 0
         r2_count = 0
         while r1 is not None and r2 is not None:
-            c = cmp_natural(r1.qname, r2.qname)
+            c = cmp(r1.qname_ix, r2.qname_ix)
 
             i += 1
-            if r1.qname == last_r1_name:
+            if r1.qname_ix == last_r1_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
                 r1 = get_next_read(iter1)
                 r1_count += 1
-            elif r2.qname == last_r2_name:
+            elif r2.qname == last_r2_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
                 r2 = get_next_read(iter2)
                 r2_count += 1
             elif c == 0:
                 self.add_read_pair(r1, r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-                last_r1_name = r1.qname
-                last_r2_name = r2.qname
+                last_r1_name_ix = r1.qname_ix
+                last_r2_name_ix = r2.qname_ix
                 r1 = get_next_read(iter1)
                 r2 = get_next_read(iter2)
                 r1_count += 1
                 r2_count += 1
             elif c < 0:
                 self.add_read_single(r1, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-                last_r1_name = r1.qname
+                last_r1_name_ix = r1.qname_ix
                 r1 = get_next_read(iter1)
                 r1_count += 1
             else:
                 self.add_read_single(r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-                last_r2_name = r2.qname
+                last_r2_name_ix = r2.qname_ix
                 r2 = get_next_read(iter2)
                 r2_count += 1
 
@@ -1446,22 +1444,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
 
         # add remaining unpaired reads
         while r1 is not None:
-            if r1.qname == last_r1_name:
+            if r1.qname_ix == last_r1_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
             else:
                 self.add_read_single(r1, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-            last_r1_name = r1.qname
+            last_r1_name_ix = r1.qname_ix
             r1 = get_next_read(iter1)
             r1_count += 1
 
         while r2 is not None:
-            if r2.qname == last_r2_name:
+            if r2.qname_ix == last_r2_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
             else:
                 self.add_read_single(r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-            last_r2_name = r2.qname
+            last_r2_name_ix = r2.qname_ix
             r2 = get_next_read(iter2)
             r2_count += 1
 
@@ -1470,10 +1468,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         self._reads.flush()
         self._pairs.flush(update_index=True)
         self._single.flush(update_index=True)
-
-        # re-enable indexes
-        self._single.autoindex = True
-        self._pairs.autoindex = True
 
     def add_read_pair(self, read1, read2, flush=True, _fragment_ends=None, _fragment_ixs=None):
         """
@@ -1492,10 +1486,15 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         ix1 = self._add_read(read1, flush=flush)
         ix2 = self._add_read(read2, flush=flush)
+        #ix1 = 0
+        #ix2 = 0
         fragment_ix1 = self._find_fragment_ix(read1.ref, read1.pos,
                                               _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
         fragment_ix2 = self._find_fragment_ix(read2.ref, read2.pos,
                                               _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
+
+        #fragment_ix1 = 0
+        #fragment_ix2 = 0
 
         # both must be integer if successfully mapped
         if fragment_ix1 is not None and fragment_ix2 is not None:
@@ -1519,7 +1518,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
 
     def add_read_single(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
         ix = self._add_read(read, flush=flush)
+        #ix = 0
         fragment_ix = self._find_fragment_ix(read.ref, read.pos, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
+        #fragment_ix = 0
         if fragment_ix is not None:
             row = self._single.row
             row['ix'] = self._single_count
@@ -1634,6 +1635,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             gaps = []
             types = []
             for i, pair in enumerate(self):
+                print pair
                 _log_done(i)
                 if pair.is_same_fragment() and skip_self_ligations:
                     continue
