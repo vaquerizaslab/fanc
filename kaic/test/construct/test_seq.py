@@ -193,6 +193,13 @@ class TestReads:
         
         assert len(reads) < l
 
+    def test_iter_qname_sorted(self):
+        reads = Reads(self.sam1_file)
+        previous = 0
+        for read in reads.reads(sort_by_qname_ix=True):
+            assert read.qname_ix > previous
+            previous = read.qname_ix
+
 
 class TestFragmentMappedReads:
     @classmethod
