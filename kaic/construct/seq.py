@@ -192,6 +192,8 @@ class Reads(Maskable, MetaContainer, FileBased):
             'seq': 0
         }
 
+        print self.file
+
         # try to retrieve existing tables
         # Reads group
         try:
@@ -203,9 +205,10 @@ class Reads(Maskable, MetaContainer, FileBased):
                                                                         complevel=2, shuffle=True))
         # Main table
         try:
-            self._reads = self._file_group.get_node('main')
+            self._reads = self._file_group.main
             self._row_counter['reads'] = len(self._reads)
-        except NoSuchNodeError:
+        except NoSuchNodeError, e:
+            print e
             self._reads = MaskedTable(self._file_group, 'main', Reads.ReadsDefinition)
 
         # Header attribute
@@ -224,35 +227,35 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         # Qname table
         try:
-            self._qname = self._file_group.get_node('qname')
+            self._qname = self._file_group.qname
             self._row_counter['qname'] = len(self._qname)
         except NoSuchNodeError:
             self._qname = None
 
         # Cigar table
         try:
-            self._cigar = self._file_group.get_node('cigar')
+            self._cigar = self._file_group.cigar
             self._row_counter['cigar'] = len(self._cigar)
         except NoSuchNodeError:
             self._cigar = None
 
         # Seq table
         try:
-            self._seq = self._file_group.get_node('seq')
+            self._seq = self._file_group.seq
             self._row_counter['seq'] = len(self._seq)
         except NoSuchNodeError:
             self._seq = None
 
         # Qual table
         try:
-            self._qual = self._file_group.get_node('qual')
+            self._qual = self._file_group.qual
             self._row_counter['qual'] = len(self._qual)
         except NoSuchNodeError:
             self._qual = None
 
         # Tags table
         try:
-            self._tags = self._file_group.get_node('tags')
+            self._tags = self._file_group.tags
             self._row_counter['tags'] = len(self._tags)
         except NoSuchNodeError:
             self._tags = None
