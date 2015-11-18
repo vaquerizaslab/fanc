@@ -378,6 +378,9 @@ class Reads(Maskable, MetaContainer, FileBased):
         self._reads._v_attrs.ref = sambam.references
         self._ref = sambam.references
 
+        # disable indexing on reads table
+        self._reads.autoindex = False
+
         self.log_info("Loading mapped reads...")
         last_name = ""
         for i, read in enumerate(sambam):
@@ -390,6 +393,9 @@ class Reads(Maskable, MetaContainer, FileBased):
                           store_qname=store_qname, store_tags=store_tags)
             last_name = read.qname
         self.flush()
+
+        # re-enable indexing
+        self._reads.autoindex = True
 
         self.log_info("Done.")
 
@@ -1389,6 +1395,11 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             except StopIteration:
                 return None
 
+
+        # stop indexing until finished with loading
+        self._single.autoindex = False
+        self._pairs.autoindex = False
+
         # add and map reads
         i = 0
         last_r1_name = ''
@@ -1459,6 +1470,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         self._reads.flush()
         self._pairs.flush(update_index=True)
         self._single.flush(update_index=True)
+
+        # re-enable indexes
+        self._single.autoindex = True
+        self._pairs.autoindex = True
 
     def add_read_pair(self, read1, read2, flush=True, _fragment_ends=None, _fragment_ixs=None):
         """
