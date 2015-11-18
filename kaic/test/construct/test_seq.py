@@ -199,7 +199,7 @@ class TestReads:
         for read in reads.reads(sort_by_qname_ix=True):
             assert read.qname_ix > previous
             previous = read.qname_ix
-
+        assert previous != 0
 
 class TestFragmentMappedReads:
     @classmethod
@@ -220,23 +220,8 @@ class TestFragmentMappedReads:
     def test_select(self):
         pair = self.pairs[0]
         assert isinstance(pair, FragmentReadPair)
-        assert pair.left.position == 18401
-        assert pair.right.position == 18430
-        assert pair.left.strand == 1
-        assert pair.right.strand == -1
-        assert isinstance(pair.left.fragment, GenomicRegion)
-        assert isinstance(pair.right.fragment, GenomicRegion)
-        assert pair.left.fragment.start == 18001
-        assert pair.left.fragment.end == 19000
-        assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair.right.fragment.start == 18001
-        assert pair.right.fragment.end == 19000
-        assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        
-        pair = self.pairs[1]
-        assert isinstance(pair, FragmentReadPair)
-        assert pair.left.position == 40075
-        assert pair.right.position == 40211
+        assert pair.left.position == 40884
+        assert pair.right.position == 41039
         assert pair.left.strand == 1
         assert pair.right.strand == -1
         assert isinstance(pair.left.fragment, GenomicRegion)
@@ -244,23 +229,38 @@ class TestFragmentMappedReads:
         assert pair.left.fragment.start == 40001
         assert pair.left.fragment.end == 41000
         assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair.right.fragment.start == 40001
-        assert pair.right.fragment.end == 41000
+        assert pair.right.fragment.start == 41001
+        assert pair.right.fragment.end == 42000
         assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
         
-        pair = self.pairs[-1]
+        pair = self.pairs[1]
         assert isinstance(pair, FragmentReadPair)
-        assert pair.left.position == 5067
-        assert pair.right.position == 5200
+        assert pair.left.position == 19617
+        assert pair.right.position == 19736
         assert pair.left.strand == 1
         assert pair.right.strand == -1
         assert isinstance(pair.left.fragment, GenomicRegion)
         assert isinstance(pair.right.fragment, GenomicRegion)
-        assert pair.left.fragment.start == 5001
-        assert pair.left.fragment.end == 6000
+        assert pair.left.fragment.start == 19001
+        assert pair.left.fragment.end == 20000
         assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair.right.fragment.start == 5001
-        assert pair.right.fragment.end == 6000
+        assert pair.right.fragment.start == 19001
+        assert pair.right.fragment.end == 20000
+        assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        
+        pair = self.pairs[-1]
+        assert isinstance(pair, FragmentReadPair)
+        assert pair.left.position == 25765
+        assert pair.right.position == 25622
+        assert pair.left.strand == -1
+        assert pair.right.strand == 1
+        assert isinstance(pair.left.fragment, GenomicRegion)
+        assert isinstance(pair.right.fragment, GenomicRegion)
+        assert pair.left.fragment.start == 25001
+        assert pair.left.fragment.end == 26000
+        assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert pair.right.fragment.start == 25001
+        assert pair.right.fragment.end == 26000
         assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
     
     def test_iter(self):
@@ -339,7 +339,9 @@ class TestFragmentMappedReads:
         pairs = FragmentMappedReadPairs()
         pairs.load(reads1, reads2, genome.get_regions('HindIII'))
         x, i, o = pairs.get_error_structure(data_points=200, skip_self_ligations=False)
-        assert len(x) == len(i) == len(o) == 3
+        assert len(x) == len(i)
+        assert len(i) == len(o)
+        assert len(o) == 3
         assert x == [494.03856041131104, 4487.5800970873788, 19399.908018867925]
         assert i == [2.616915422885572, 0.8059701492537313, 0.6417910447761194]
         assert o == [0.2537313432835821, 0.24378109452736318, 0.46766169154228854]
