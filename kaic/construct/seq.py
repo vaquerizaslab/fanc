@@ -358,7 +358,7 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         if self._tags is None and store_tags:
             self._tags = self.file.create_earray(self._file_group, 'tags',
-                                                 t.StringAtom(itemsize=tags_length*10), (0,))
+                                                 t.StringAtom(itemsize=tags_length*2), (0,))
 
         # header
         self._reads._v_attrs.header = {k: sambam.header[k]
