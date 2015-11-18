@@ -18,7 +18,7 @@ import logging
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
-from repoze.lru import lru_cache, CacheMaker
+from kaic.tools.lru import lru_cache
 logging.basicConfig(level=logging.INFO)
 _filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
 
@@ -1327,10 +1327,6 @@ class Maskable(object):
     MaskedTable.filter(MaskFilter) function. 
     """
     
-    cache_maker = CacheMaker()
-    lru_get_mask = cache_maker.lrucache(maxsize=1024, name='get_mask')
-    lru_get_masks = cache_maker.lrucache(maxsize=1024*10, name='get_masks')
-
     class MaskDescription(t.IsDescription):
         ix = t.Int16Col(pos=0)
         name = t.StringCol(50, pos=1)
@@ -1429,7 +1425,6 @@ class Maskable(object):
         Returns:
             int:    id of the mask
         """
-        
         ix = len(self._mask)
         row = self._mask.row
         row['ix'] = ix
@@ -1437,8 +1432,13 @@ class Maskable(object):
         row['description'] = description
         row.append()
         self._mask.flush()
+        self.clear_caches()
         
         return Mask(ix, name, description)
+
+    def clear_caches(self):
+        self.get_mask.cache_clear()
+        self.get_masks.cache_clear()
 
     def masks(self):
         this = self
@@ -1460,7 +1460,7 @@ class Maskable(object):
     def _row_to_mask(row):
         return Mask(name=row['name'], ix=row['ix'], description=row['description'])
 
-    @lru_get_mask
+    @lru_cache(maxsize=1000)
     def get_mask(self, key):
         """
         Search _mask table for key and return Mask.
@@ -1481,7 +1481,7 @@ class Maskable(object):
                 return Maskable._row_to_mask(row)
         return KeyError("Unrecognised key type")
     
-    @lru_get_masks
+    @lru_cache(maxsize=1000)
     def get_masks(self, ix):
         """
         Extract mask IDs encoded in parameter and return masks.
