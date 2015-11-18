@@ -1281,13 +1281,9 @@ class RegionsTable(FileBased):
                         describe a genomic region. See
                         :class:`~RegionsTable.add_region` for options.
         """
-        #self._regions.autoindex = False
         for region in regions:
             self.add_region(region, flush=False)
         self._regions.flush()
-        #self._regions.autoindex = True
-        #self._regions.flush_rows_to_index()
-
 
     def _get_region_ix(self, region):
         """
@@ -1646,9 +1642,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
         self.add_regions(pairs.regions())
 
-        # disable index
-        self._edges.autoindex = False
-
         edge_buffer = {}
         for pair in pairs._pairs:
             source = pair["left_fragment"]
@@ -1669,8 +1662,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         logging.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
 
-        self._edges._autoindex = True
-        
     def load_from_hic(self, hic, _edge_buffer_size=5000000,
                       _edges_by_overlap_method=_edge_overlap_split_rao):
         """
