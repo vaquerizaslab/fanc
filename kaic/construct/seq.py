@@ -192,8 +192,6 @@ class Reads(Maskable, MetaContainer, FileBased):
             'seq': 0
         }
 
-        print self.file
-
         # try to retrieve existing tables
         # Reads group
         try:
@@ -207,8 +205,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         try:
             self._reads = self._file_group.main
             self._row_counter['reads'] = len(self._reads)
-        except NoSuchNodeError, e:
-            print e
+        except NoSuchNodeError:
             self._reads = MaskedTable(self._file_group, 'main', Reads.ReadsDefinition)
 
         # Header attribute
