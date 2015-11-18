@@ -66,6 +66,7 @@ from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
+import msgpack as pickle
 
 
 class Reads(Maskable, MetaContainer, FileBased):
@@ -232,7 +233,8 @@ class Reads(Maskable, MetaContainer, FileBased):
             # create main table
             main_table = MaskedTable(group, 'main', Reads.ReadsDefinition)
             # create tags vlarrays
-            tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom())
+            # tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom())
+            tags = self.file.create_earray(group, 'tags', t.StringAtom(itemsize=1000), (0,))
             
             # create cigar vlarrays
             # cigar = self.file.create_vlarray(group, 'cigar', t.ObjectAtom())
@@ -247,7 +249,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             qual = self.file.create_earray(group, 'qual', t.StringAtom(itemsize=1000), (0,))
 
             # create seq vlarrays
-            #seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom())
+            # seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom())
             seq = self.file.create_earray(group, 'seq', t.StringAtom(itemsize=1000), (0,))
 
             self._row_counter = {
@@ -429,9 +431,9 @@ class Reads(Maskable, MetaContainer, FileBased):
             reads_row['qual'] = self._row_counter['qual']
             self._row_counter['qual'] += 1
 
-        tags = read.tags
+        tags = pickle.dumps(read.tags)
         if store_tags and tags is not None:
-            self._tags.append(tags)
+            self._tags.append([tags])
             reads_row['tags'] = self._row_counter['tags']
             self._row_counter['tags'] += 1
 
