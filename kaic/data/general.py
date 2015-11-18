@@ -1625,7 +1625,7 @@ class MaskedTable(t.Table):
     def _flush(self, update_index=False):
         # commit any previous changes
         super(MaskedTable, self).flush()
-        
+
         if update_index:
             self._update_ix()
             # force flush of index if
@@ -1659,13 +1659,14 @@ class MaskedTable(t.Table):
         class VisibleSortedIter:
             def __init__(self):
                 self.iter = t.Table.itersorted(this, sortby, checkCSI=checkCSI,
-                                               start=start, stop=stop, step=step)
+                                                    start=start, stop=stop, step=step)
 
             def __iter__(self):
                 return self
 
             def next(self):
                 row = self.iter.next()
+
                 while row[this._mask_field] > 0:
                     row = self.iter.next()
                 return row
