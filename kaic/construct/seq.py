@@ -294,7 +294,7 @@ class Reads(Maskable, MetaContainer, FileBased):
     def load(self, sambam, ignore_duplicates=True, is_sorted=False,
              store_qname=True, store_cigar=True,
              store_seq=True, store_tags=True,
-             store_qual=True):
+             store_qual=True, sample_fields=False):
         """
         Load mapped reads from SAM/BAM file.
 
@@ -318,7 +318,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             file_name = sambam.filename
         except AttributeError:
             file_name = sambam
-        
+
         # sort files if required
         if not is_sorted:
             self.log_info("Sorting...")
@@ -337,28 +337,35 @@ class Reads(Maskable, MetaContainer, FileBased):
         else:
             sambam = pysam.AlignmentFile(file_name, 'rb')
 
-        qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name)
+        if sample_fields:
+            qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, 10000)
+            qname_length *= 2
+            seq_length *= 2
+            cigar_length *= 2
+            tags_length *= 2
+        else:
+            qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, None)
 
         # create string tables if they do not yet exist
         if self._qname is None and store_qname:
             self._qname = self.file.create_earray(self._file_group, 'qname',
-                                                  t.StringAtom(itemsize=qname_length*2), (0,))
+                                                  t.StringAtom(itemsize=qname_length), (0,))
 
         if self._cigar is None and store_cigar:
             self._cigar = self.file.create_earray(self._file_group, 'cigar',
-                                                  t.StringAtom(itemsize=cigar_length*2), (0,))
+                                                  t.StringAtom(itemsize=cigar_length), (0,))
 
         if self._seq is None and store_seq:
             self._seq = self.file.create_earray(self._file_group, 'seq',
-                                                t.StringAtom(itemsize=seq_length*2), (0,))
+                                                t.StringAtom(itemsize=seq_length), (0,))
 
         if self._qual is None and store_qual:
             self._qual = self.file.create_earray(self._file_group, 'qual',
-                                                 t.StringAtom(itemsize=seq_length*2), (0,))
+                                                 t.StringAtom(itemsize=seq_length), (0,))
 
         if self._tags is None and store_tags:
             self._tags = self.file.create_earray(self._file_group, 'tags',
-                                                 t.StringAtom(itemsize=tags_length*2), (0,))
+                                                 t.StringAtom(itemsize=tags_length), (0,))
 
         # header
         self._reads._v_attrs.header = {k: sambam.header[k]
@@ -423,7 +430,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 logging.info(i)
         sambam.close()
 
-        return qname_length, seq_length, cigar_length, tags_length
+        return qname_length+10, seq_length+10, cigar_length+10, tags_length+10
 
     def add_read(self, read, flush=True,
                  store_qname=True, store_cigar=True,
