@@ -181,92 +181,80 @@ class Reads(Maskable, MetaContainer, FileBased):
         FileBased.__init__(self, file_name, read_only=read_only)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
-        
-        # try to retrieve existing table
+
+        self._row_counter = {
+            'reads': 0,
+            'tags': 0,
+            'cigar': 0,
+            'qname': 0,
+            'qual': 0,
+            'seq': 0
+        }
+
+        # try to retrieve existing tables
+        # Reads group
         try:
-            main_table = self.file.get_node('/' + _group_name + '/main')
-            try:
-                self._header = main_table._v_attrs.header
-            except AttributeError:
-                logging.warn("No header attributes found in existing table")
-                self._header = None
-            try:
-                self._ref = main_table._v_attrs.ref
-            except AttributeError:
-                logging.warn("No ref attributes found in existing table")
-                self._ref = None
-            
-            # tags
-            tags = self.file.get_node('/' + _group_name + '/tags')
-            
-            # cigar
-            cigar = self.file.get_node('/' + _group_name + '/cigar')
-
-            # qname
-            qname = self.file.get_node('/' + _group_name + '/qname')
-
-            # qual
-            qual = self.file.get_node('/' + _group_name + '/qual')
-
-            # seq
-            seq = self.file.get_node('/' + _group_name + '/seq')
-
-            self._row_counter = {
-                'reads': len(main_table),
-                'tags': len(tags),
-                'cigar': len(cigar),
-                'qname': len(qname),
-                'qual': len(qual),
-                'seq': len(seq)
-            }
-
-        # or build table from scratch
+            self._file_group = self.file.get_node('/' + _group_name)
         except NoSuchNodeError:
-
-            # create data structures
-            self.log_info("Creating data structures...")
-            
             # create reads group
-            group = self.file.create_group("/", _group_name, 'Reads group',
-                                           filters=t.Filters(complib="blosc",
-                                                             complevel=2, shuffle=True))
-            # create main table
-            main_table = MaskedTable(group, 'main', Reads.ReadsDefinition)
-            # create tags vlarrays
-            # tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom())
-            tags = self.file.create_earray(group, 'tags', t.StringAtom(itemsize=1000), (0,))
-            
-            # create cigar vlarrays
-            # cigar = self.file.create_vlarray(group, 'cigar', t.ObjectAtom())
-            cigar = self.file.create_earray(group, 'cigar', t.StringAtom(itemsize=500), (0,))
+            self._file_group = self.file.create_group("/", _group_name, 'Reads group',
+                                                      filters=t.Filters(complib="blosc",
+                                                                        complevel=2, shuffle=True))
+        # Main table
+        try:
+            self._reads = self._file_group.get_node('main')
+            self._row_counter['reads'] = len(self._reads)
+        except NoSuchNodeError:
+            self._reads = MaskedTable(self._file_group, 'main', Reads.ReadsDefinition)
 
-            # create qname vlarrays
-            # qname = self.file.create_vlarray(group, 'qname', t.VLStringAtom())
-            qname = self.file.create_earray(group, 'qname', t.StringAtom(itemsize=150), (0,))
+        # Header attribute
+        try:
+            self._header = self._reads._v_attrs.header
+        except AttributeError:
+            logging.warn("No header attributes found in existing table")
+            self._header = None
 
-            # create qual vlarrays
-            # qual = self.file.create_vlarray(group, 'qual', t.VLStringAtom())
-            qual = self.file.create_earray(group, 'qual', t.StringAtom(itemsize=1000), (0,))
+        # Reference names
+        try:
+            self._ref = self._reads._v_attrs.ref
+        except AttributeError:
+            logging.warn("No ref attributes found in existing table")
+            self._ref = None
 
-            # create seq vlarrays
-            # seq = self.file.create_vlarray(group, 'seq', t.VLStringAtom())
-            seq = self.file.create_earray(group, 'seq', t.StringAtom(itemsize=1000), (0,))
+        # Qname table
+        try:
+            self._qname = self._file_group.get_node('qname')
+            self._row_counter['qname'] = len(self._qname)
+        except NoSuchNodeError:
+            self._qname = None
 
-            self._row_counter = {
-                'reads': 0,
-                'tags': 0,
-                'cigar': 0,
-                'qname': 0,
-                'qual': 0,
-                'seq': 0
-            }
+        # Cigar table
+        try:
+            self._cigar = self._file_group.get_node('cigar')
+            self._row_counter['cigar'] = len(self._cigar)
+        except NoSuchNodeError:
+            self._cigar = None
 
-        self._reads = main_table
-        self._tags = tags
-        self._cigar = cigar
-        self._qname = qname
-        self._qual = qual
-        self._seq = seq
+        # Seq table
+        try:
+            self._seq = self._file_group.get_node('seq')
+            self._row_counter['seq'] = len(self._seq)
+        except NoSuchNodeError:
+            self._seq = None
+
+        # Qual table
+        try:
+            self._qual = self._file_group.get_node('qual')
+            self._row_counter['qual'] = len(self._qual)
+        except NoSuchNodeError:
+            self._qual = None
+
+        # Tags table
+        try:
+            self._tags = self._file_group.get_node('tags')
+            self._row_counter['tags'] = len(self._tags)
+        except NoSuchNodeError:
+            self._tags = None
 
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
@@ -277,7 +265,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         else:
             try:
                 self._mapper = self.header['PG'][0]['ID']
-            except (KeyError, AttributeError):
+            except (KeyError, AttributeError, TypeError):
                 self._mapper = None
                 logging.warn('Could not auto-detect mapping program from SAM header')
 
@@ -348,7 +336,30 @@ class Reads(Maskable, MetaContainer, FileBased):
             self.log_info("Done...")
         else:
             sambam = pysam.AlignmentFile(file_name, 'rb')
-        
+
+        qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name)
+
+        # create string tables if they do not yet exist
+        if self._qname is None and store_qname:
+            self._qname = self.file.create_earray(self._file_group, 'qname',
+                                                  t.StringAtom(itemsize=qname_length*2), (0,))
+
+        if self._cigar is None and store_cigar:
+            self._cigar = self.file.create_earray(self._file_group, 'cigar',
+                                                  t.StringAtom(itemsize=cigar_length*2), (0,))
+
+        if self._seq is None and store_seq:
+            self._seq = self.file.create_earray(self._file_group, 'seq',
+                                                t.StringAtom(itemsize=seq_length*2), (0,))
+
+        if self._qual is None and store_qual:
+            self._qual = self.file.create_earray(self._file_group, 'qual',
+                                                 t.StringAtom(itemsize=seq_length*2), (0,))
+
+        if self._tags is None and store_tags:
+            self._tags = self.file.create_earray(self._file_group, 'tags',
+                                                 t.StringAtom(itemsize=tags_length*10), (0,))
+
         # header
         self._reads._v_attrs.header = {k: sambam.header[k]
                                        for k in sambam.header
@@ -373,6 +384,46 @@ class Reads(Maskable, MetaContainer, FileBased):
         self.flush()
         
         self.log_info("Done.")
+
+    @staticmethod
+    def determine_field_sizes(sambam, sample_size=10000):
+        """
+        Determine the sizes of relevant fields in a SAM/BAM file.
+
+        :param sambam: A string that describes the path to the SAM/BAM file
+                       to be loaded or a pysam AlignmentFile.
+        :param sample_size: Number of lines to sample to determine field
+                            sizes.
+        :return: qname length, sequence length
+        """
+        if type(sambam) == str:
+            sambam = pysam.AlignmentFile(sambam, 'rb')
+
+        qname_length = 0
+        seq_length = 0
+        cigar_length = 0
+        tags_length = 0
+        i = 0
+        for r in sambam:
+            i += 1
+            qname_length = max(qname_length, len(r.qname))
+            seq_length = max(seq_length, len(r.seq))
+            cigar = r.cigarstring
+            if cigar is not None:
+                cigar_dump = pickle.dumps(cigar)
+                cigar_length = max(cigar_length, len(cigar_dump))
+            tags = r.tags
+            if tags is not None:
+                tags_dump = pickle.dumps(tags)
+                tags_length = max(tags_length, len(tags_dump))
+            if sample_size is not None and i >= sample_size:
+                break
+
+            if i % 100000 == 0:
+                logging.info(i)
+        sambam.close()
+
+        return qname_length, seq_length, cigar_length, tags_length
 
     def add_read(self, read, flush=True,
                  store_qname=True, store_cigar=True,
@@ -415,9 +466,9 @@ class Reads(Maskable, MetaContainer, FileBased):
             reads_row['qname'] = self._row_counter['qname']
             self._row_counter['qname'] += 1
 
-        cigar = read.cigarstring
+        cigar = read.cigar
         if store_cigar and cigar is not None:
-            self._cigar.append([cigar])
+            self._cigar.append([pickle.dumps(cigar)])
             reads_row['cigar'] = self._row_counter['cigar']
             self._row_counter['cigar'] += 1
 
@@ -431,9 +482,10 @@ class Reads(Maskable, MetaContainer, FileBased):
             reads_row['qual'] = self._row_counter['qual']
             self._row_counter['qual'] += 1
 
-        tags = pickle.dumps(read.tags)
+        tags = read.tags
         if store_tags and tags is not None:
-            self._tags.append([tags])
+            tags_dump = pickle.dumps(tags)
+            self._tags.append([tags_dump])
             reads_row['tags'] = self._row_counter['tags']
             self._row_counter['tags'] += 1
 
@@ -449,20 +501,21 @@ class Reads(Maskable, MetaContainer, FileBased):
         Write the latest changes to this object to file.
         """
         self._reads.flush(update_index=True)
-        self._tags.flush()
-        self._cigar.flush()
-        self._seq.flush()
-        self._qual.flush()
-        self._qname.flush()
-
-        self._row_counter = {
-            'reads': len(self._reads),
-            'tags': len(self._tags),
-            'cigar': len(self._cigar),
-            'qname': len(self._qname),
-            'qual': len(self._qual),
-            'seq': len(self._seq)
-        }
+        if self._tags is not None:
+            self._tags.flush()
+            self._row_counter['tags'] = len(self._tags)
+        if self._cigar is not None:
+            self._cigar.flush()
+            self._row_counter['cigar'] = len(self._cigar)
+        if self._seq is not None:
+            self._seq.flush()
+            self._row_counter['seq'] = len(self._seq)
+        if self._qual is not None:
+            self._qual.flush()
+            self._row_counter['qual'] = len(self._qual)
+        if self._qname is not None:
+            self._qname.flush()
+            self._row_counter['qname'] = len(self._qname)
     
     @property
     def header(self):
@@ -488,17 +541,46 @@ class Reads(Maskable, MetaContainer, FileBased):
         if lazy:
             return LazyRead(row, self)
 
-        tags = self._tags[row['tags']]
-        cigar = self._cigar[row['cigar']]
-        qname = self._qname[row['qname']]
-        qual = self._qual[row['qual']]
-        seq = self._seq[row['seq']]
-        ref = self._ix2ref(row['ref'])
+        tags = None
+        tags_ix = row['tags']
+        if tags_ix >= 0:
+            tags_str = self._tags[tags_ix]
+            try:
+                tags = pickle.loads(tags_str)
+            except pickle.UnpackValueError:
+                tags = pickle.loads(tags_str + '\x00')
+
+        cigar = None
+        cigar_ix = row['cigar']
+        if cigar_ix >= 0:
+            cigar_str = self._cigar[cigar_ix]
+            try:
+                cigar = pickle.loads(cigar_str)
+            except pickle.UnpackValueError:
+                cigar = pickle.loads(cigar_str + '\x00')
+
+        qname = None
+        qname_ix = row['qname']
+        if qname_ix >= 0:
+            qname = self._qname[qname_ix]
+
+        qual = None
+        qual_ix = row['qual']
+        if qual_ix >= 0:
+            qual = self._qual[qual_ix]
+
+        seq = None
+        seq_ix = row['seq']
+        if seq_ix >= 0:
+            seq = self._seq[seq_ix]
+
+        ref_ix = row['ref']
+        ref = self._ix2ref(ref_ix)
 
         return Read(qname=qname, flag=row['flag'], ref=ref,
                     pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
                     pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
-                    tags=tags, reference_id=row['ref'])
+                    tags=tags, reference_id=ref_ix)
 
     def reads(self, lazy=False):
         """
@@ -827,10 +909,6 @@ class LazyRead(Read):
         self.parent = parent
 
     @property
-    def qname(self):
-        return self.row["qname"]
-
-    @property
     def flag(self):
         return self.row["flag"]
 
@@ -859,18 +937,14 @@ class LazyRead(Read):
         return self.row["tlen"]
 
     @property
-    def seq(self):
-        return self.row["seq"]
-
-    @property
-    def qual(self):
-        return self.row["qual"]
-
-    @property
     def cigar(self):
         ix = self.row["cigar"]
         if ix >= 0:
-            return self.parent._cigar[ix]
+            cigar = self.parent._cigar[ix]
+            try:
+                return pickle.loads(cigar)
+            except pickle.UnpackValueError:
+                return pickle.loads(cigar + '\x00')
         return None
 
     @property
@@ -898,7 +972,11 @@ class LazyRead(Read):
     def tags(self):
         ix = self.row["tags"]
         if ix >= 0:
-            return self.parent._tags[ix]
+            tags = self.parent._tags[ix]
+            try:
+                return pickle.loads(tags)
+            except pickle.UnpackValueError:
+                return pickle.loads(tags + '\x00')
         return None
 
     @property
