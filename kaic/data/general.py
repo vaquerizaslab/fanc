@@ -1491,7 +1491,8 @@ class Maskable(object):
         UNIX chmod (although that uses base 8)
         
         Args:
-            ix (int):    integer that is a power of 2 (1, 2, 4, 8, ...)
+            ix (int): integer that is the sum of powers of 2. Note that this value
+                      is not necessarily itself a power of 2.
             
         Returns:
             list (Mask): list of Masks extracted from ix
