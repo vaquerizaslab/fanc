@@ -67,6 +67,7 @@ from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
 import msgpack as pickle
+import numpy as np
 
 
 class Reads(Maskable, MetaContainer, FileBased):
@@ -177,7 +178,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             is_sambam_file(sambam_file)):
                 file_name = sambam_file
                 sambam_file = None
-        
+
         FileBased.__init__(self, file_name, read_only=read_only)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
@@ -280,17 +281,17 @@ class Reads(Maskable, MetaContainer, FileBased):
         """
         if type(sambam) == str:
             sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
-        
+
         count = sum(1 for _ in iter(sambam))
         sambam.close()
         return count
-    
+
     def close(self):
         """
         Close the file backing this object.
         """
         self.file.close()
-    
+
     def load(self, sambam, ignore_duplicates=True, is_sorted=False,
              store_qname=True, store_cigar=True,
              store_seq=True, store_tags=True,
@@ -372,11 +373,11 @@ class Reads(Maskable, MetaContainer, FileBased):
                                        for k in sambam.header
                                        if k in ('HD', 'RG', 'PG')}
         self._header = sambam.header
-        
+
         # references
         self._reads._v_attrs.ref = sambam.references
         self._ref = sambam.references
-        
+
         self.log_info("Loading mapped reads...")
         last_name = ""
         for i, read in enumerate(sambam):
@@ -389,7 +390,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                           store_qname=store_qname, store_tags=store_tags)
             last_name = read.qname
         self.flush()
-        
+
         self.log_info("Done.")
 
     @staticmethod
@@ -502,7 +503,7 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         if flush:
             self.flush()
-    
+
     def flush(self):
         """
         Write the latest changes to this object to file.
@@ -523,7 +524,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         if self._qname is not None:
             self._qname.flush()
             self._row_counter['qname'] = len(self._qname)
-    
+
     @property
     def header(self):
         """
@@ -532,7 +533,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         :return: The SAM/BAM header as extracted by pysam.
         """
         return self._header
-    
+
     def _ix2ref(self, ix):
         """
         Convert a reference_id (ix) to the reference name.
@@ -540,7 +541,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         if self._ref is None:
             raise RuntimeError("Chromosome reference for left read not present")
         return self._ref[ix]
-    
+
     def _row2read(self, row, lazy=False):
         """
         Convert a row from the internal _reads pytables table to Read object.
@@ -612,7 +613,7 @@ class Reads(Maskable, MetaContainer, FileBased):
 
     def __iter__(self):
         return self.reads()
-    
+
     def __getitem__(self, key):
         """
         Get a Read by index or slice.
@@ -625,13 +626,13 @@ class Reads(Maskable, MetaContainer, FileBased):
                 reads.append(self._row2read(row))
             return reads
         raise KeyError("Key %s not supported" % str(key))
-    
+
     def __len__(self):
         """
         Return number of (unmasked) reads in object.
         """
         return len(self._reads)
-    
+
     def where(self, query):
         """
         Search through reads using queries.
@@ -656,7 +657,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             if read.qname == qname:
                 return read
         return None
-    
+
     def filter(self, read_filter, queue=False, log_progress=False):
         """
         Filter reads using a ReadFilter object.
@@ -675,7 +676,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             self._reads.filter(read_filter, _logging=log_progress)
         else:
             self._reads.queue_filter(read_filter)
-    
+
     def filter_quality(self, cutoff=30, queue=False):
         """
         Convenience function that applies a QualityFilter.
@@ -694,7 +695,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         else:
             quality_filter = QualityFilter(cutoff, mask)
         self.filter(quality_filter, queue)
-    
+
     def filter_unmapped(self, queue=False):
         """
         Convenience function that applies an UnmappedFilter.
@@ -706,7 +707,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         mask = self.add_mask_description('unmapped', 'Mask read pairs that are unmapped')
         unmapped_filter = UnmappedFilter(mask)
         self.filter(unmapped_filter, queue)
-            
+
     def filter_non_unique(self, strict=True, cutoff=0.5, queue=False):
         """
         Convenience function that applies a UniquenessFilter.
@@ -729,7 +730,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         else:
             uniqueness_filter = UniquenessFilter(strict, mask)
         self.filter(uniqueness_filter, queue)
-    
+
     def run_queued_filters(self, log_progress=False):
         """
         Run queued filters.
@@ -738,7 +739,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                              will be continuously reported.
         """
         self._reads.run_queued_filters(_logging=log_progress)
-    
+
     def filtered_reads(self):
         """
         Iterate over filtered reads.
@@ -751,22 +752,22 @@ class Reads(Maskable, MetaContainer, FileBased):
         class MaskedReadsIter:
             def __init__(self):
                 self.iter = this._reads.masked_rows()
-                  
+
             def __iter__(self):
                 return self
-              
+
             def next(self):
                 row = self.iter.next()
                 read = this._row2read(row)
-                
+
                 masks = this.get_masks(row[this._reads._mask_field])
-                
+
                 return MaskedRead(qname=read.qname, flag=read.flag, ref=read.ref,
                                   pos=read.pos, mapq=read.mapq, cigar=read.cigar, rnext=read.rnext,
                                   pnext=read.pnext, tlen=read.tlen, seq=read.seq, qual=read.qual,
                                   tags=read.tags, masks=masks)
         return MaskedReadsIter()
-        
+
 
 class Read(object):
     """
@@ -857,7 +858,7 @@ class Read(object):
             return value
         except:
             raise KeyError("Read does not have %s attribute" % str(key))
-        
+
     def __repr__(self):
         return "%s, ref: %s, pos: %d" % (self.qname, self.ref, self.pos)
 
@@ -899,7 +900,7 @@ class MaskedRead(Read):
                                          pnext=pnext, tlen=tlen, seq=seq, qual=qual,
                                          tags=tags, reference_id=reference_id)
         self.masks = masks
-    
+
     def __repr__(self):
         representation = super(MaskedRead, self).__repr__()
         if self.masks is not None:
@@ -1013,7 +1014,7 @@ class ReadFilter(MaskFilter):
     """
 
     __metaclass__ = ABCMeta
-    
+
     def __init__(self, mask=None):
         """
         Initialize ReadFilter.
@@ -1024,7 +1025,7 @@ class ReadFilter(MaskFilter):
         """
         super(ReadFilter, self).__init__(mask)
         self._reads = None
-    
+
     @abstractmethod
     def valid_read(self, read):
         """
@@ -1042,7 +1043,7 @@ class ReadFilter(MaskFilter):
         :return: True if Read is valid, False otherwise
         """
         pass
-    
+
     def set_reads_object(self, reads_object):
         """
         Set the Reads instance to be filtered by this ReadFilter.
@@ -1052,7 +1053,7 @@ class ReadFilter(MaskFilter):
         :param reads_object: Reads object
         """
         self._reads = reads_object
-    
+
     def valid(self, row):
         """
         Map valid_read to MaskFilter.valid(self, row).
@@ -1062,7 +1063,7 @@ class ReadFilter(MaskFilter):
         """
         read = self._reads._row2read(row, lazy=True)
         return self.valid_read(read)
-        
+
 
 class QualityFilter(ReadFilter):
     """
@@ -1125,7 +1126,7 @@ class UniquenessFilter(ReadFilter):
         """
         self.strict = strict
         super(UniquenessFilter, self).__init__(mask)
-    
+
     def valid_read(self, read):
         """
         Check if a read has an XS tag.
@@ -1239,7 +1240,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         ix = t.Int32Col(pos=0)
         position = t.Int64Col(pos=2)
         strand = t.Int8Col(pos=3)
-    
+
     class FragmentsMappedReadPairDescription(t.IsDescription):
         """
         Needed by PyTables to build read pairs table.
@@ -1249,7 +1250,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         left_fragment = t.Int32Col(pos=2, dflt=-1)
         right_read = t.Int32Col(pos=3)
         right_fragment = t.Int32Col(pos=4, dflt=-1)
-    
+
     class FragmentsMappedReadSingleDescription(t.IsDescription):
         """
         Needed by PyTables to build single reads table.
@@ -1257,7 +1258,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         ix = t.Int32Col(pos=0)
         read = t.Int32Col(pos=1)
         fragment = t.Int32Col(pos=2, dflt=-1)
-        
+
     def __init__(self, file_name=None,
                  read_only=False,
                  group_name='fragment_map',
@@ -1274,13 +1275,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                      that will house the region/fragment
                                      data
         """
-        
+
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
-                
+
         FileBased.__init__(self, file_name, read_only=read_only)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=table_name_fragments)
-        
+
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
@@ -1302,22 +1303,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             # create main tables
             self._reads = t.Table(group, 'mapped_reads',
                                   FragmentMappedReadPairs.FragmentMappedReadDescription)
-            
+
             self._pairs = MaskedTable(group, 'mapped_read_pairs',
                                       FragmentMappedReadPairs.FragmentsMappedReadPairDescription)
-            
+
             self._single = MaskedTable(group, 'mapped_read_single',
                                        FragmentMappedReadPairs.FragmentsMappedReadSingleDescription)
             self._read_count = 0
             self._pair_count = 0
             self._single_count = 0
-        
+
         try:
             self._pairs.cols.left_fragment.create_csindex()
         except ValueError:
             # Index exists, no problem!
             pass
-    
+
     def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True):
         """
         Load paired reads and map them to genomic regions (e.g. RE-fragments).
@@ -1356,7 +1357,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self.log_info("Adding regions...")
             self.add_regions(regions)
             self.log_info("Done.")
-        
+
         # generate index for fragments
         fragment_ixs = None
         fragment_ends = None
@@ -1377,7 +1378,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         if isinstance(reads2, str):
             self.log_info("Loading reads 2")
             reads2 = Reads(sambam_file=reads2)
-        
+
         iter1 = iter(reads1)
         iter2 = iter(reads2)
 
@@ -1387,7 +1388,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 return r
             except StopIteration:
                 return None
-        
+
         # add and map reads
         i = 0
         last_r1_name = ''
@@ -1428,10 +1429,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 last_r2_name = r2.qname
                 r2 = get_next_read(iter2)
                 r2_count += 1
-            
+
             if i % 100000 == 0:
-                logging.info("%d reads processed" % i)        
-        
+                logging.info("%d reads processed" % i)
+
         # add remaining unpaired reads
         while r1 is not None:
             if r1.qname == last_r1_name:
@@ -1442,7 +1443,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             last_r1_name = r1.qname
             r1 = get_next_read(iter1)
             r1_count += 1
-        
+
         while r2 is not None:
             if r2.qname == last_r2_name:
                 if not ignore_duplicates:
@@ -1452,13 +1453,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             last_r2_name = r2.qname
             r2 = get_next_read(iter2)
             r2_count += 1
-            
+
         logging.info('Counts: R1 %d R2 %d' % (r1_count, r2_count))
-        
+
         self._reads.flush()
         self._pairs.flush(update_index=True)
         self._single.flush(update_index=True)
-        
+
     def add_read_pair(self, read1, read2, flush=True, _fragment_ends=None, _fragment_ixs=None):
         """
         Add a pair of reads to this object.
@@ -1480,7 +1481,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                               _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
         fragment_ix2 = self._find_fragment_ix(read2.ref, read2.pos,
                                               _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
-        
+
         # both must be integer if successfully mapped
         if fragment_ix1 is not None and fragment_ix2 is not None:
             row = self._pairs.row
@@ -1497,10 +1498,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 row['right_fragment'] = fragment_ix1
             row.append()
             self._pair_count += 1
-            
+
             if flush:
                 self._pairs.flush(update_index=True)
-    
+
     def add_read_single(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
         ix = self._add_read(read, flush=flush)
         fragment_ix = self._find_fragment_ix(read.ref, read.pos, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
@@ -1510,11 +1511,11 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             row['fragment'] = fragment_ix
             row['read'] = ix
             row.append()
-            
+
             if flush:
                 self._single.flush(update_index=True)
             self._single_count += 1
-    
+
     def _find_fragment_ix(self, chromosome, position, _fragment_ends=None, _fragment_ixs=None):
         """
         Find the index of a fragment by genomic coordinate and chromosome name.
@@ -1532,9 +1533,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             for row in self._regions.where(
                             "(start <= %d) & (end >= %d) & (chromosome == '%s')" % (position, position, chromosome)):
                 fragment_ix = row['ix']
-        
+
         return fragment_ix
-        
+
     def _add_read(self, read, flush=True):
         """
         Add position and strand information of a read to reads table.
@@ -1552,14 +1553,14 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             else:
                 row['strand'] = 1
         row.append()
-        
+
         self._read_count += 1
-        
+
         if flush:
             self._reads.flush()
-            
+
         return ix
-    
+
     def _pair_from_row(self, row, lazy=False):
         """
         Convert a pytables row to a FragmentReadPair
@@ -1603,19 +1604,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         type_inward = 1
         type_outward = 2
 
+        def _log_done(i):
+            last_percent = -1
+            if i % int(l/20) == 0:
+                percent = int(i/int(l/20))
+                if percent != last_percent:
+                    logging.info("Ligation error structure: {}%".format(percent*5))
+                    last_percent = percent
+
         def _init_gaps_and_types():
             same_count = 0
             inward_count = 0
             outward_count = 0
             gaps = []
             types = []
-            last_percent = -1
             for i, pair in enumerate(self):
-                if i % int(l/20) == 0:
-                    percent = int(i/int(l/20))
-                    if percent != last_percent:
-                        print "%d%% done" % (percent*5)
-                        last_percent = percent
+                _log_done(i)
                 if pair.is_same_fragment() and skip_self_ligations:
                     continue
                 if pair.is_same_chromosome():
@@ -1647,7 +1651,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         def _guess_datapoints(data_points):
             if data_points is None:
                 data_points = max(100, int(l * 0.0025))
-            logging.info("Number of data points averaged per point in plot: %d" % data_points)
+            logging.info("Number of data points averaged per point in plot: {}".format(data_points))
             return data_points
 
         def _calculate_ratios(gaps, types, data_points):
@@ -1660,12 +1664,12 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             outwards = 0
             inwards = 0
             same = 0
-            for i in xrange(0, len(gaps)):
-                mids += gaps[i]
-                if types[i] == type_same:
+            for typ, gap in zip(types, gaps):
+                mids += gap
+                if typ == type_same:
                     same += 1
                     same_counter += 1
-                elif types[i] == type_inward:
+                elif typ == type_inward:
                     inwards += 1
                 else:
                     outwards += 1
@@ -1710,7 +1714,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self._pairs.filter(pair_filter, _logging=log_progress)
         else:
             self._pairs.queue_filter(pair_filter)
-    
+
     def run_queued_filters(self, log_progress=False):
         """
         Run queued filters.
@@ -1719,8 +1723,37 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                              will be continuously reported.
         """
         self._pairs.run_queued_filters(_logging=log_progress)
-        
-    def filter_inward(self, minimum_distance, queue=False):
+
+    def _auto_dist(self, dists, ratios, threshold_ratio=0.1, threshold_std=0.1, window=3):
+        """
+        Function that attempts to infer sane distances for filtering inward
+        and outward read pairs
+
+        :param dists: List of distances in bp.
+        :param ratios: List of ratios
+        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
+                                in order to infer the corresponding distance
+        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
+                              must fall in order to infer the corresponding distance
+        :param window: Window for the rolling standard deviations
+        """
+        def rolling_window(a, window):
+            shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+            strides = a.strides + (a.strides[-1],)
+            r = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+            return np.insert(r, 0, [r[0]]*(window-1), axis=0)
+
+        ratios = np.array([1+np.log2(x) for x in ratios])
+        stds = np.std(rolling_window(ratios, window), -1)
+        ok_threshold_ratios = abs(ratios) <= threshold_ratio
+        ok_threshold_stds = stds <= threshold_std
+        ok_values = ok_threshold_ratios * ok_threshold_stds
+        ok_indices = np.argwhere(ok_values).flatten()
+        if len(ok_indices) > 0:
+            return dists[ok_indices[0]]
+        return None
+
+    def filter_inward(self, minimum_distance=None, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
         """
         Convenience function that applies an :class:`~InwardPairsFilter`.
 
@@ -1729,13 +1762,24 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
+        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
+                                in order to infer the corresponding distance
+        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
+                              must fall in order to infer the corresponding distance
+        :param window: Window for the rolling standard deviations
         """
-        mask = self.add_mask_description('inward',
-                                         'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
-        inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
-        self.filter(inward_filter, queue)
-    
-    def filter_outward(self, minimum_distance, queue=False):
+        if minimum_distance is None:
+            dists, inward_ratios, _ = self.get_error_structure()
+            minimum_distance = self._auto_dist(dists, inward_ratios, threshold_ratio, threshold_std, window)
+        if minimum_distance:
+            mask = self.add_mask_description('inward',
+                                             'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
+            inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
+            self.filter(inward_filter, queue)
+        else:
+            raise Exception('Could not automatically detect a sane distance threshold for filtering inward reads')
+
+    def filter_outward(self, minimum_distance=None, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
         """
         Convenience function that applies an :class:`~OutwardPairsFilter`.
 
@@ -1744,11 +1788,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
+        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
+                                in order to infer the corresponding distance
+        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
+                              must fall in order to infer the corresponding distance
+        :param window: Window for the rolling standard deviations
         """
-        mask = self.add_mask_description('outward',
-                                         'Mask read pairs that are outward facing and <%dbp apart' % minimum_distance)
-        outward_filter = OutwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
-        self.filter(outward_filter, queue)
+        if minimum_distance is None:
+            dists, _, outward_ratios = self.get_error_structure()
+            minimum_distance = self._auto_dist(dists, outward_ratios, threshold_ratio, threshold_std, window)
+        if minimum_distance:
+            mask = self.add_mask_description('outward',
+                                             'Mask read pairs that are outward facing and <%dbp apart' % minimum_distance)
+            outward_filter = OutwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
+            self.filter(outward_filter, queue)
+        else:
+            raise Exception('Could not automatically detect a sane distance threshold for filtering outward reads')
     
     def filter_re_dist(self, maximum_distance, queue=False):
         """
