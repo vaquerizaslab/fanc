@@ -1209,8 +1209,13 @@ class RegionsTable(FileBased):
             # Index exists, no problem!
             pass
 
+        self._ix_to_chromosome = dict()
+        self._chromosome_to_ix = dict()
+
         if data is not None:
             self.add_regions(data)
+        else:
+            self._update_references()
 
     def add_region(self, region, flush=True):
         """
@@ -1270,9 +1275,16 @@ class RegionsTable(FileBased):
             
         if flush:
             self._regions.flush()
+            self._update_references()
         
         return ix
-    
+
+    def _update_references(self):
+        chromosomes = self.chromosomes()
+        for i, chromosome in enumerate(chromosomes):
+            self._ix_to_chromosome[i] = chromosome
+            self._chromosome_to_ix[chromosome] = i
+
     def add_regions(self, regions):
         """
         Bulk insert multiple genomic regions.
@@ -1284,6 +1296,7 @@ class RegionsTable(FileBased):
         for region in regions:
             self.add_region(region, flush=False)
         self._regions.flush()
+        self._update_references()
 
     def _get_region_ix(self, region):
         """
