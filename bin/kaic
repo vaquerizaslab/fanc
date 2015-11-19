@@ -225,7 +225,7 @@ class Kaic(object):
             action='store_true',
             help='''Ignore qname, seq, and qual information to speed up read loading.'''
         )
-        parser.set_defaults(ignore_default=True)
+        parser.set_defaults(ignore_default=False)
 
         args = parser.parse_args(sys.argv[2:])
 
