@@ -408,7 +408,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             i += 1
             qname_length = max(qname_length, len(r.qname))
             seq_length = max(seq_length, len(r.seq))
-            cigar = r.cigarstring
+            cigar = r.cigar
             if cigar is not None:
                 cigar_dump = pickle.dumps(cigar)
                 cigar_length = max(cigar_length, len(cigar_dump))
