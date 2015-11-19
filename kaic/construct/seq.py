@@ -1184,12 +1184,11 @@ class BwaMemUniquenessFilter(ReadFilter):
     The presence of a non-zero XS tag does not mean a read is a multi-mapping one.
     Instead, we make sure that the ratio XS/AS is inferior to a certain threshold.
     """
-    def __init__(self, cutoff=0.5, mask=None):
+    def __init__(self, cutoff=3, mask=None):
         """
-        :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
-                       values mean that the next best secondary alignment is of substantially
-                       lower quality than the primary one, and that the latter can be considered
-                       as unique
+        :param cutoff: MAPQ score above which an alignment should be in order to be considered
+                       unique. In practice, a cutoff of 3 ensures that no other alignment is
+                       equally good.
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered reads.
         """
@@ -1200,11 +1199,7 @@ class BwaMemUniquenessFilter(ReadFilter):
         """
         Check if a read has a high alignment score.
         """
-        alignment_score = read.get_tag('AS')
-        nextbest_score = read.get_tag('XS')
-        if alignment_score:
-            return float(nextbest_score) / alignment_score <= self.cutoff
-        return False
+        return read.mapq > self.cutoff
 
 
 class UnmappedFilter(ReadFilter):
