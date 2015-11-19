@@ -1415,7 +1415,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
                 r1 = get_next_read(iter1)
                 r1_count += 1
-            elif r2.qname == last_r2_name_ix:
+            elif r2.qname_ix == last_r2_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
                 r2 = get_next_read(iter2)
