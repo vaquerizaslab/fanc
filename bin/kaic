@@ -250,7 +250,7 @@ class Kaic(object):
         logging.info("Starting to import file %s" % input_path)
         reads = kaic.Reads(file_name=output_path)
         reads.load(sambam=input_path, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
-                   store_qual=store_qual, store_tags=store_tags)
+                   store_qual=store_qual, store_tags=store_tags, sample_size=100000)
         reads.close()
         logging.info("All done.")
 
