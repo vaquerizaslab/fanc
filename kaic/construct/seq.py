@@ -202,7 +202,7 @@ class Reads(Maskable, MetaContainer, FileBased):
 
             reads_defininition = {
                 'ix': t.Int32Col(pos=0),
-                'qname': t.StringCol(qname_length, pos=1),
+                'qname': t.StringCol(qname_length*2, pos=1),
                 'flag': t.Int32Col(pos=2),
                 'ref': t.Int32Col(pos=3),
                 'pos': t.Int64Col(pos=4),
