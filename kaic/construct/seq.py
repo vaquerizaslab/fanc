@@ -303,7 +303,7 @@ class Reads(Maskable, MetaContainer, FileBased):
     def load(self, sambam, ignore_duplicates=True, is_sorted=False,
              store_qname=True, store_cigar=True,
              store_seq=True, store_tags=True,
-             store_qual=True, sample_fields=False):
+             store_qual=True, sample_size=None):
         """
         Load mapped reads from SAM/BAM file.
 
@@ -330,14 +330,18 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         sambam = pysam.AlignmentFile(file_name, 'rb')
 
-        if sample_fields:
-            qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, 10000)
+        logging.info("Estimating field sizes")
+        qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, sample_size,
+                                                                                          store_qname=True,
+                                                                                          store_cigar=True,
+                                                                                          store_seq=True,
+                                                                                          store_tags=True,
+                                                                                          store_qual=True)
+        if sample_size is not None:
             qname_length *= 2
             seq_length *= 2
             cigar_length *= 2
             tags_length *= 2
-        else:
-            qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, None)
 
         # create string tables if they do not yet exist
         if self._qname is None and store_qname:
@@ -386,7 +390,10 @@ class Reads(Maskable, MetaContainer, FileBased):
         self.log_info("Done.")
 
     @staticmethod
-    def determine_field_sizes(sambam, sample_size=10000):
+    def determine_field_sizes(sambam, sample_size=10000,
+                              store_qname=True, store_cigar=True,
+                              store_seq=True, store_tags=True,
+                              store_qual=True):
         """
         Determine the sizes of relevant fields in a SAM/BAM file.
 
@@ -406,16 +413,21 @@ class Reads(Maskable, MetaContainer, FileBased):
         i = 0
         for r in sambam:
             i += 1
-            qname_length = max(qname_length, len(r.qname))
-            seq_length = max(seq_length, len(r.seq))
-            cigar = r.cigar
-            if cigar is not None:
-                cigar_dump = pickle.dumps(cigar)
-                cigar_length = max(cigar_length, len(cigar_dump))
-            tags = r.tags
-            if tags is not None:
-                tags_dump = pickle.dumps(tags)
-                tags_length = max(tags_length, len(tags_dump))
+            if store_qname:
+                qname_length = max(qname_length, len(r.qname))
+            if store_seq:
+                seq_length = max(seq_length, len(r.seq))
+            if store_cigar:
+                cigar = r.cigar
+                if cigar is not None:
+                    cigar_dump = pickle.dumps(cigar)
+                    cigar_length = max(cigar_length, len(cigar_dump))
+            if store_tags:
+                tags = r.tags
+                if tags is not None:
+                    tags_dump = pickle.dumps(tags)
+                    tags_length = max(tags_length, len(tags_dump))
+
             if sample_size is not None and i >= sample_size:
                 break
 
