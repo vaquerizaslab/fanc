@@ -24,6 +24,9 @@ class Kaic(object):
                     load_reads         Load a SAM/BAM file into a Reads object
                     filter_reads       Filter a Reads object
 
+                    -- Genome
+                    build_genome       Convenience command to build a Genome object
+
                     --- Pairs
                     reads_to_pairs     Convert a Reads object into a Pairs object
                     filter_pairs       Filter a Pairs object
@@ -335,6 +338,39 @@ class Kaic(object):
             logging.info("Done.")
 
         reads.close()
+        logging.info("All done.")
+
+    def build_genome(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Convenience command to build a Genome object'
+        )
+
+        parser.add_argument(
+            'input',
+            nargs='+',
+            help=textwrap.dedent('''\
+                                 Can be a FASTA file,
+                                 a folder with FASTA files, or a
+                                 list of FASTA files.
+                                 ''')
+        )
+
+        parser.add_argument(
+            'output',
+            help='''Output file for Genome object'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        genome_string = ','.join(args.input)
+        output_path = os.path.expanduser(args.output)
+
+        import kaic
+
+        logging.info("Building Genome...")
+        genome = kaic.Genome.from_string(genome_string=genome_string, file_name=output_path)
+        genome.close()
         logging.info("All done.")
 
     def reads_to_pairs(self):
