@@ -182,6 +182,48 @@ class Kaic(object):
             help='''Output file'''
         )
 
+        parser.add_argument(
+            '-N', '--ignore-qname', dest='qname',
+            action='store_false',
+            help='''Do not store a read's qname, only a hashed version will be stored internally.'''
+        )
+        parser.set_defaults(qname=True)
+
+        parser.add_argument(
+            '-Q', '--ignore-qual', dest='qual',
+            action='store_false',
+            help='''Do not store a read's quality string.'''
+        )
+        parser.set_defaults(qual=True)
+
+        parser.add_argument(
+            '-S', '--ignore-seq', dest='seq',
+            action='store_false',
+            help='''Do not store a read's sequence string.'''
+        )
+        parser.set_defaults(seq=True)
+
+        parser.add_argument(
+            '-C', '--ignore-cigar', dest='cigar',
+            action='store_false',
+            help='''Do not store a read's cigar string. Warning: Some filters rely on this attribute.'''
+        )
+        parser.set_defaults(cigar=True)
+
+        parser.add_argument(
+            '-T', '--ignore-tags', dest='tags',
+            action='store_false',
+            help='''Do not store a read's tags. Warning: Some filters rely on this attribute.'''
+        )
+        parser.set_defaults(tags=True)
+
+        parser.add_argument(
+            '-D', '--ignore-default', dest='ignore_default',
+            action='store_true',
+            help='''Ignore qname, seq, and qual information to speed up read loading.'''
+        )
+        parser.set_defaults(ignore_default=True)
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
@@ -189,8 +231,23 @@ class Kaic(object):
         input_path = os.path.expanduser(args.input)
         output_path = os.path.expanduser(args.output)
 
+        if args.ignore_default is True:
+            store_qname = False
+            store_seq = False
+            store_qual = False
+            store_cigar = True
+            store_tags = True
+        else:
+            store_qname = args.qname
+            store_seq = args.seq
+            store_qual = args.qual
+            store_cigar = args.cigar
+            store_tags = args.tags
+
         logging.info("Starting to import file %s" % input_path)
-        reads = kaic.Reads(sambam_file=input_path, file_name=output_path)
+        reads = kaic.Reads(file_name=output_path)
+        reads.load(sambam=input_path, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
+                   store_qual=store_qual, store_tags=store_tags)
         reads.close()
         logging.info("All done.")
 
