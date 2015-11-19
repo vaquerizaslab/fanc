@@ -1647,7 +1647,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             gaps = []
             types = []
             for i, pair in enumerate(self):
-                print pair
                 _log_done(i)
                 if pair.is_same_fragment() and skip_self_ligations:
                     continue
