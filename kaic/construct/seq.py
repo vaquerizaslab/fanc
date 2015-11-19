@@ -1336,12 +1336,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self._pair_count = 0
             self._single_count = 0
 
-        try:
-            self._pairs.cols.left_fragment.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-
     def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True):
         """
         Load paired reads and map them to genomic regions (e.g. RE-fragments).
@@ -1644,8 +1638,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                   chromosome=self._ix_to_chromosome[row['right_fragment_chromosome']],
                                   ix=row['right_fragment'])
 
-        left_read = FragmentRead(fragment1, position=row['left_read_position'], strand=row['left_read_strand'])
-        right_read = FragmentRead(fragment2, position=row['right_read_position'], strand=row['right_read_strand'])
+        left_read = FragmentRead(fragment1, position=row['left_read_position'],
+                                 strand=row['left_read_strand'], qname_ix=row['left_read_qname_ix'])
+        right_read = FragmentRead(fragment2, position=row['right_read_position'],
+                                  strand=row['right_read_strand'], qname_ix=row['right_read_qname_ix'])
 
         return FragmentReadPair(left_read=left_read, right_read=right_read)
 
@@ -1947,7 +1943,7 @@ class FragmentRead(object):
 
         The strand this read maps to (-1 or +1).
     """
-    def __init__(self, fragment=None, position=None, strand=0):
+    def __init__(self, fragment=None, position=None, strand=0, qname_ix=None):
         """
         Initialize this :class:`~FragmentRead` object.
 
@@ -1960,6 +1956,7 @@ class FragmentRead(object):
         self.fragment = fragment
         self.position = position
         self.strand = strand
+        self.qname_ix = qname_ix
 
     def re_distance(self):
         return min(abs(self.position-self.fragment.start),
@@ -1985,6 +1982,10 @@ class LazyFragmentRead(FragmentRead):
     @property
     def strand(self):
         return self.row[self.side + "_read_strand"]
+
+    @property
+    def qname_ix(self):
+        return self.row[self.side + "_read_qname_ix"]
 
     @property
     def fragment(self):
