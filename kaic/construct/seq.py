@@ -737,27 +737,26 @@ class Reads(Maskable, MetaContainer, FileBased):
         mask = self.add_mask_description('unmapped', 'Mask read pairs that are unmapped')
         unmapped_filter = UnmappedFilter(mask)
         self.filter(unmapped_filter, queue)
-
-    def filter_non_unique(self, strict=True, cutoff=0.5, queue=False):
+            
+    def filter_non_unique(self, strict=True, cutoff=3, queue=False):
         """
         Convenience function that applies a UniquenessFilter.
         The actual algorithm and rationale used for filtering will depend on the
         internal _mapper attribute.
 
-        :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
-                       values mean that the next best secondary alignment is of substantially
-                       lower quality than the primary one, and that the latter can be considered
-                       as unique. Used only if the reads have been aligned with bwa-mem.
+        :param cutoff: Minimum mapq value if the alignments are from bwa-mem.
         :param strict: If True will filter if XS tag is present. If False,
-                       will filter only when XS tag is not 0.
+                       will filter only when XS tag is not 0. This is applied if
+                       alignments are from bowtie2.
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
         if self._mapper == 'bwa':
+            mask = self.add_mask_description('uniqueness', 'Mask reads that do not map uniquely (mapq <= {})'.format(cutoff))
             uniqueness_filter = BwaMemUniquenessFilter(cutoff, mask)
         else:
+            mask = self.add_mask_description('uniqueness', 'Mask reads that do not map uniquely (according to XS tag)')
             uniqueness_filter = UniquenessFilter(strict, mask)
         self.filter(uniqueness_filter, queue)
 
