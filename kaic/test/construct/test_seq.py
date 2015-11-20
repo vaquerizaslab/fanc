@@ -186,9 +186,9 @@ class TestBWAReads:
 
     def test_infer_mapper(self):
         reads = Reads(self.bwamem_sam1_file)
-        assert reads._mapper == 'bwa'
+        assert reads.mapper == 'bwa'
         reads = Reads(self.bwamem_sam1_file, mapper='bowtie2')
-        assert reads._mapper == 'bowtie2'
+        assert reads.mapper == 'bowtie2'
 
     def test_bwamem_quality_filter(self):
         reads = Reads(self.bwamem_sam1_file)
@@ -197,7 +197,6 @@ class TestBWAReads:
         assert len(reads) == 924
         for read in reads:
             assert float(read.get_tag('AS')) / read.alen >= 0.90
-        # assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
 
     def test_bwamem_uniqueness_filter(self):
         reads = Reads(self.bwamem_sam1_file)
