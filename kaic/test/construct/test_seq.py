@@ -21,8 +21,6 @@ class TestReads:
         self.sam1_file = self.dir + "/test_seq/test1.sam"
         self.sam2_file = self.dir + "/test_seq/test2.sam"
         self.lambda_sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
-        self.bwamem_sam1_file = self.dir + "/test_seq/test_bwa1.sam"
-        self.bwamem_sam2_file = self.dir + "/test_seq/test_bwa2.sam"
         
     def test_load(self):
         def compare(read, values):
@@ -106,12 +104,6 @@ class TestReads:
         
         assert len(reads) == 271
 
-    def test_infer_mapper(self):
-        reads = Reads(self.bwamem_sam1_file)
-        assert reads._mapper == 'bwa'
-        reads = Reads(self.bwamem_sam1_file, mapper='bowtie2')
-        assert reads._mapper == 'bowtie2'
-
     def test_read_alen(self):
         reads = Reads(self.sam1_file)
         read = reads[0]
@@ -162,23 +154,6 @@ class TestReads:
         
         assert len(reads) < l
 
-    def test_bwamem_quality_filter(self):
-        reads = Reads(self.bwamem_sam1_file)
-        assert len(reads) == 992
-        reads.filter_quality(cutoff=0.90, queue=False)
-        assert len(reads) == 924
-        for read in reads:
-            assert float(read.get_tag('AS')) / read.alen >= 0.90
-        # assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
-
-    def test_bwamem_uniqueness_filter(self):
-        reads = Reads(self.bwamem_sam1_file)
-        assert len(reads) == 992
-        reads.filter_non_unique(cutoff=0.5, queue=False)
-        assert len(reads) == 547
-        for read in reads:
-            assert float(read.get_tag('XS')) / read.get_tag('AS') <= 0.50
-
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)
         
@@ -200,6 +175,38 @@ class TestReads:
             assert read.qname_ix > previous
             previous = read.qname_ix
         assert previous != 0
+
+
+class TestBWAReads:
+    @classmethod
+    def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        self.bwamem_sam1_file = self.dir + "/test_seq/test_bwa1.sam"
+        self.bwamem_sam2_file = self.dir + "/test_seq/test_bwa2.sam"
+
+    def test_infer_mapper(self):
+        reads = Reads(self.bwamem_sam1_file)
+        assert reads._mapper == 'bwa'
+        reads = Reads(self.bwamem_sam1_file, mapper='bowtie2')
+        assert reads._mapper == 'bowtie2'
+
+    def test_bwamem_quality_filter(self):
+        reads = Reads(self.bwamem_sam1_file)
+        assert len(reads) == 992
+        reads.filter_quality(cutoff=0.90, queue=False)
+        assert len(reads) == 924
+        for read in reads:
+            assert float(read.get_tag('AS')) / read.alen >= 0.90
+        # assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
+
+    def test_bwamem_uniqueness_filter(self):
+        reads = Reads(self.bwamem_sam1_file)
+        assert len(reads) == 992
+        reads.filter_non_unique(cutoff=3, queue=False)
+        assert len(reads) == 623
+        for read in reads:
+            assert read.mapq > 3
+
 
 class TestFragmentMappedReads:
     @classmethod
@@ -369,6 +376,5 @@ class TestBWAFragmentMappedReads:
         self.pairs.load(self.reads1, self.reads2, regions=self.genome.get_regions('MboI'))
         
     def test_loaded_bwamem_pairs(self):
-        assert self.pairs._read_count == 992
-        assert self.pairs._single_count == 684
-        assert len(self.pairs) == 154
+        assert self.pairs._single_count == 686
+        assert len(self.pairs) == 158
