@@ -72,6 +72,7 @@ from abc import abstractmethod, ABCMeta
 import os.path
 import logging
 from kaic.tools.general import ranges, distribute_integer
+from itertools import izip as zip
 from xml.etree import ElementTree as et
 logging.basicConfig(level=logging.INFO)
 
@@ -1899,14 +1900,36 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         ix_conversion = {}
 
-        # merge genomic regions
-        self.log_info("Merging genomic regions...")
-        for region in hic.regions():
-            ix = self._get_region_ix(region)
-            if ix is None:
-                ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
-            ix_conversion[region.ix] = ix
-        self._regions.flush()
+        # check if regions are identical (saves a lot of time)
+        logging.info("Checking if regions are identical")
+        identical = True
+        region_counter = 0
+        for self_region, hic_region in zip(self.regions(), hic.regions()):
+            if self_region.chromosome != hic_region.chromosome:
+                identical = False
+                break
+            if self_region.start != hic_region.start:
+                identical = False
+                break
+            if self_region.end != hic_region.end:
+                identical = False
+                break
+            ix_conversion[region_counter] = region_counter
+            region_counter += 1
+
+        if region_counter < len(hic.regions()):
+            identical = False
+
+        if not identical:
+            ix_conversion = {}
+            # merge genomic regions
+            self.log_info("Merging genomic regions...")
+            for region in hic.regions():
+                ix = self._get_region_ix(region)
+                if ix is None:
+                    ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
+                ix_conversion[region.ix] = ix
+            self._regions.flush()
 
         # merge edges
         self.log_info("Merging contacts...")
