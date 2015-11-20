@@ -10,6 +10,7 @@ from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
+import numpy as np
 
 
 class TestReads:
@@ -30,7 +31,7 @@ class TestReads:
             assert read.ref == values[2]
             assert read.pos == values[3]
             assert read.mapq == values[4]
-            assert read.cigar == values[5]
+            assert np.array_equal(read.cigar, values[5])
             assert read.rnext == values[6]
             assert read.pnext == values[7]
             assert read.tlen == values[8]
@@ -42,25 +43,25 @@ class TestReads:
         reads = Reads()
         reads.load(self.sam1_file, is_sorted=False)
         
-        compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,'15M',-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9,1])
+        compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,[(0,15)],-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9,1])
         
         # SRR038105.1000167    0    chrXIV    703158    42    15M    *    0    0    TACGGTATTGGTCGG    FFFFCFFFFFFFFCF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
-        res = reads.where("qname == 'SRR038105.1000167'")
-        compare(res[0], ['SRR038105.1000167',0,'chrXIV',703158,42,'15M',-1,-1,0,'TACGGTATTGGTCGG','FFFFCFFFFFFFFCF',8,1])        
+        res = reads.get_read_by_qname('SRR038105.1000167')
+        compare(res, ['SRR038105.1000167',0,'chrXIV',703158,42,[(0,15)],-1,-1,0,'TACGGTATTGGTCGG','FFFFCFFFFFFFFCF',8,1])
         
         # SRR038105.1000320    0    chrXVI    577162    35    15M    *    0    0    TTGATAAAATAGTCC    <<@FF<FFFFAFAFA    AS:i:0    XS:i:-5    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
-        res = reads.where("qname == 'SRR038105.1000320'")
-        compare(res[0], ['SRR038105.1000320',0,'chrXVI',577162,35,'15M',-1,-1,0,'TTGATAAAATAGTCC','<<@FF<FFFFAFAFA',9,1])
+        res = reads.get_read_by_qname('SRR038105.1000320')
+        compare(res, ['SRR038105.1000320',0,'chrXVI',577162,35,[(0,15)],-1,-1,0,'TTGATAAAATAGTCC','<<@FF<FFFFAFAFA',9,1])
 
         # check unpaired right
         # SRR038105.1000002    16    chrIV    203242    42    16M    *    0    0    ACCCATTATTTCTCGA    IIIIIFIICIFIIIII    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
-        res = reads.where("qname == 'SRR038105.1000002'")
-        assert len(res) == 0
+        res = reads.get_read_by_qname('SRR038105.1000002')
+        assert res is None
         
         # check unpaired left
         # SRR038105.1000011    16    chrIV    526796    42    16M    *    0    0    GGTGAATTAGAAGATA    FFFFFFFFFFFFFFFF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
-        res = reads.where("qname == 'SRR038105.1000011'")
-        compare(res[0], ['SRR038105.1000011',16,'chrIV',526796,42,'16M',-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8,-1])
+        res = reads.get_read_by_qname('SRR038105.1000011')
+        compare(res, ['SRR038105.1000011',16,'chrIV',526796,42,[(0,16)],-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8,-1])
         
     def test_ix(self):
         pairs = Reads(self.sam1_file)
@@ -100,9 +101,7 @@ class TestReads:
         assert reads[0].qname == 'SRR038105.10'
         
     def test_build_from_scratch(self):
-        
-        qname_length, seq_length = Reads.determine_field_sizes(self.sam1_file, sample_size=10000)
-        reads = Reads(qname_length=qname_length, seq_length=seq_length)
+        reads = Reads()
         reads.load(self.sam1_file)
         
         assert len(reads) == 271
@@ -113,20 +112,10 @@ class TestReads:
         reads = Reads(self.bwamem_sam1_file, mapper='bowtie2')
         assert reads._mapper == 'bowtie2'
 
-    def test_parse_cigar(self):
-        reads = Reads()
-        parsed = reads.parse_cigar('22S42M1D18M4I5M')
-        assert parsed ==[('S',22), ('M',42), ('D',1), ('M',18), ('I',4), ('M',5)]
-
-    def test_parse_read_cigar(self):
-        reads = Reads(self.sam1_file)
-        assert reads[0].get_cigar == [('M',15)]
-        assert reads[1].get_cigar == [('M',20)]
-
     def test_read_alen(self):
         reads = Reads(self.sam1_file)
         read = reads[0]
-        read.cigar = '22S42M1D18M4I5M'
+        read.cigar = [(4,22), (0,42), (2,1), (0,18), (1,4), (0,5)]
         assert read.alen == 42 + 18 + 5
 
     def test_read_get_tag(self):
@@ -180,7 +169,7 @@ class TestReads:
         assert len(reads) == 809
         for read in reads:
             assert float(read.get_tag('AS')) / read.alen >= 0.90
-        assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
+        # assert len(reads.cache_maker._cache['parse_cigar'].data) > 0
 
     def test_bwamem_uniqueness_filter(self):
         reads = Reads(self.bwamem_sam1_file)
@@ -204,6 +193,13 @@ class TestReads:
         
         assert len(reads) < l
 
+    def test_iter_qname_sorted(self):
+        reads = Reads(self.sam1_file)
+        previous = 0
+        for read in reads.reads(sort_by_qname_ix=True):
+            assert read.qname_ix > previous
+            previous = read.qname_ix
+        assert previous != 0
 
 class TestFragmentMappedReads:
     @classmethod
@@ -224,23 +220,8 @@ class TestFragmentMappedReads:
     def test_select(self):
         pair = self.pairs[0]
         assert isinstance(pair, FragmentReadPair)
-        assert pair.left.position == 18401
-        assert pair.right.position == 18430
-        assert pair.left.strand == 1
-        assert pair.right.strand == -1
-        assert isinstance(pair.left.fragment, GenomicRegion)
-        assert isinstance(pair.right.fragment, GenomicRegion)
-        assert pair.left.fragment.start == 18001
-        assert pair.left.fragment.end == 19000
-        assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair.right.fragment.start == 18001
-        assert pair.right.fragment.end == 19000
-        assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        
-        pair = self.pairs[1]
-        assert isinstance(pair, FragmentReadPair)
-        assert pair.left.position == 40075
-        assert pair.right.position == 40211
+        assert pair.left.position == 40884
+        assert pair.right.position == 41039
         assert pair.left.strand == 1
         assert pair.right.strand == -1
         assert isinstance(pair.left.fragment, GenomicRegion)
@@ -248,23 +229,38 @@ class TestFragmentMappedReads:
         assert pair.left.fragment.start == 40001
         assert pair.left.fragment.end == 41000
         assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair.right.fragment.start == 40001
-        assert pair.right.fragment.end == 41000
+        assert pair.right.fragment.start == 41001
+        assert pair.right.fragment.end == 42000
         assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
         
-        pair = self.pairs[-1]
+        pair = self.pairs[1]
         assert isinstance(pair, FragmentReadPair)
-        assert pair.left.position == 5067
-        assert pair.right.position == 5200
+        assert pair.left.position == 19617
+        assert pair.right.position == 19736
         assert pair.left.strand == 1
         assert pair.right.strand == -1
         assert isinstance(pair.left.fragment, GenomicRegion)
         assert isinstance(pair.right.fragment, GenomicRegion)
-        assert pair.left.fragment.start == 5001
-        assert pair.left.fragment.end == 6000
+        assert pair.left.fragment.start == 19001
+        assert pair.left.fragment.end == 20000
         assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
-        assert pair.right.fragment.start == 5001
-        assert pair.right.fragment.end == 6000
+        assert pair.right.fragment.start == 19001
+        assert pair.right.fragment.end == 20000
+        assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        
+        pair = self.pairs[-1]
+        assert isinstance(pair, FragmentReadPair)
+        assert pair.left.position == 25765
+        assert pair.right.position == 25622
+        assert pair.left.strand == -1
+        assert pair.right.strand == 1
+        assert isinstance(pair.left.fragment, GenomicRegion)
+        assert isinstance(pair.right.fragment, GenomicRegion)
+        assert pair.left.fragment.start == 25001
+        assert pair.left.fragment.end == 26000
+        assert pair.left.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
+        assert pair.right.fragment.start == 25001
+        assert pair.right.fragment.end == 26000
         assert pair.right.fragment.chromosome == 'gi|9626243|ref|NC_001416.1|'
     
     def test_iter(self):
@@ -343,7 +339,9 @@ class TestFragmentMappedReads:
         pairs = FragmentMappedReadPairs()
         pairs.load(reads1, reads2, genome.get_regions('HindIII'))
         x, i, o = pairs.get_error_structure(data_points=200, skip_self_ligations=False)
-        assert len(x) == len(i) == len(o) == 3
+        assert len(x) == len(i)
+        assert len(i) == len(o)
+        assert len(o) == 3
         assert x == [494.03856041131104, 4487.5800970873788, 19399.908018867925]
         assert i == [2.616915422885572, 0.8059701492537313, 0.6417910447761194]
         assert o == [0.2537313432835821, 0.24378109452736318, 0.46766169154228854]

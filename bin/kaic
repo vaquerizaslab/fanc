@@ -24,6 +24,9 @@ class Kaic(object):
                     load_reads         Load a SAM/BAM file into a Reads object
                     filter_reads       Filter a Reads object
 
+                    -- Genome
+                    build_genome       Convenience command to build a Genome object
+
                     --- Pairs
                     reads_to_pairs     Convert a Reads object into a Pairs object
                     filter_pairs       Filter a Pairs object
@@ -182,6 +185,48 @@ class Kaic(object):
             help='''Output file'''
         )
 
+        parser.add_argument(
+            '-N', '--ignore-qname', dest='qname',
+            action='store_false',
+            help='''Do not store a read's qname, only a hashed version will be stored internally.'''
+        )
+        parser.set_defaults(qname=True)
+
+        parser.add_argument(
+            '-Q', '--ignore-qual', dest='qual',
+            action='store_false',
+            help='''Do not store a read's quality string.'''
+        )
+        parser.set_defaults(qual=True)
+
+        parser.add_argument(
+            '-S', '--ignore-seq', dest='seq',
+            action='store_false',
+            help='''Do not store a read's sequence string.'''
+        )
+        parser.set_defaults(seq=True)
+
+        parser.add_argument(
+            '-C', '--ignore-cigar', dest='cigar',
+            action='store_false',
+            help='''Do not store a read's cigar string. Warning: Some filters rely on this attribute.'''
+        )
+        parser.set_defaults(cigar=True)
+
+        parser.add_argument(
+            '-T', '--ignore-tags', dest='tags',
+            action='store_false',
+            help='''Do not store a read's tags. Warning: Some filters rely on this attribute.'''
+        )
+        parser.set_defaults(tags=True)
+
+        parser.add_argument(
+            '-D', '--ignore-default', dest='ignore_default',
+            action='store_true',
+            help='''Ignore qname, seq, and qual information to speed up read loading.'''
+        )
+        parser.set_defaults(ignore_default=False)
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
@@ -189,8 +234,23 @@ class Kaic(object):
         input_path = os.path.expanduser(args.input)
         output_path = os.path.expanduser(args.output)
 
+        if args.ignore_default is True:
+            store_qname = False
+            store_seq = False
+            store_qual = False
+            store_cigar = True
+            store_tags = True
+        else:
+            store_qname = args.qname
+            store_seq = args.seq
+            store_qual = args.qual
+            store_cigar = args.cigar
+            store_tags = args.tags
+
         logging.info("Starting to import file %s" % input_path)
-        reads = kaic.Reads(sambam_file=input_path, file_name=output_path)
+        reads = kaic.Reads(file_name=output_path)
+        reads.load(sambam=input_path, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
+                   store_qual=store_qual, store_tags=store_tags, sample_size=100000)
         reads.close()
         logging.info("All done.")
 
@@ -278,6 +338,39 @@ class Kaic(object):
             logging.info("Done.")
 
         reads.close()
+        logging.info("All done.")
+
+    def build_genome(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Convenience command to build a Genome object'
+        )
+
+        parser.add_argument(
+            'input',
+            nargs='+',
+            help=textwrap.dedent('''\
+                                 Can be a FASTA file,
+                                 a folder with FASTA files, or a
+                                 list of FASTA files.
+                                 ''')
+        )
+
+        parser.add_argument(
+            'output',
+            help='''Output file for Genome object'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        genome_string = ','.join(args.input)
+        output_path = os.path.expanduser(args.output)
+
+        import kaic
+
+        logging.info("Building Genome...")
+        genome = kaic.Genome.from_string(genome_string=genome_string, file_name=output_path)
+        genome.close()
         logging.info("All done.")
 
     def reads_to_pairs(self):
@@ -517,7 +610,7 @@ class Kaic(object):
         parser.add_argument(
             '-ld', '--low-coverage-default', dest='low_default',
             action='store_true',
-            help='''Filter bins with "low coverage" (under 5%% of median coverage for all non-zero bins)'''
+            help='''Filter bins with "low coverage" (under 10%% of median coverage for all non-zero bins)'''
         )
         parser.set_defaults(low_default=False)
 
@@ -545,7 +638,7 @@ class Kaic(object):
             if args.low:
                 logging.info("Already specified an exact cutoff with -l, skipping -ld...")
             else:
-                logging.info("Filtering low-coverage bins at 5%%")
+                logging.info("Filtering low-coverage bins at 10%%")
                 hic.filter_low_coverage_regions(queue=True)
 
         if args.low is not None:

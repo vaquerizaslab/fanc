@@ -72,6 +72,7 @@ from abc import abstractmethod, ABCMeta
 import os.path
 import logging
 from kaic.tools.general import ranges, distribute_integer
+from itertools import izip as zip
 from xml.etree import ElementTree as et
 logging.basicConfig(level=logging.INFO)
 
@@ -701,7 +702,7 @@ class Genome(Table):
         return cls(chromosomes=chromosomes, file_name=file_name)
 
     @classmethod
-    def from_string(cls, genome_string):
+    def from_string(cls, genome_string, file_name=None):
         """
         Convenience function to load a :class:`~Genome` from a string.
 
@@ -713,13 +714,13 @@ class Genome(Table):
         # case 1: FASTA file = Chromosome
         if is_fasta_file(genome_string):
             chromosome = Chromosome.from_fasta(genome_string)
-            genome = cls(chromosomes=[chromosome])
+            genome = cls(chromosomes=[chromosome], file_name=file_name)
         # case 2: Folder with FASTA files
         elif os.path.isdir(genome_string):
-            genome = cls.from_folder(genome_string)
+            genome = cls.from_folder(genome_string, file_name=file_name)
         # case 3: path to HDF5 file
         elif is_hdf5_file(genome_string):
-            genome = Genome(genome_string)
+            genome = cls(genome_string)
         # case 4: List of FASTA files
         else:
             chromosome_files = genome_string.split(',')
@@ -727,7 +728,7 @@ class Genome(Table):
             for chromosome_file in chromosome_files:
                 chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
                 chromosomes.append(chromosome)
-            genome = cls(chromosomes=chromosomes)
+            genome = cls(chromosomes=chromosomes, file_name=file_name)
 
         return genome
 
@@ -1191,10 +1192,32 @@ class RegionsTable(FileBased):
             self._regions = t.Table(self.file.root, _table_name_regions,
                                     RegionsTable.RegionDescription)
             self._max_region_ix = -1
-        
+
+        # index node table
+        try:
+            self._regions.cols.ix.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._regions.cols.start.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._regions.cols.end.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+
+        self._ix_to_chromosome = dict()
+        self._chromosome_to_ix = dict()
+
         if data is not None:
             self.add_regions(data)
-        
+        else:
+            self._update_references()
+
     def add_region(self, region, flush=True):
         """
         Add a genomic region to this object.
@@ -1253,9 +1276,16 @@ class RegionsTable(FileBased):
             
         if flush:
             self._regions.flush()
+            self._update_references()
         
         return ix
-    
+
+    def _update_references(self):
+        chromosomes = self.chromosomes()
+        for i, chromosome in enumerate(chromosomes):
+            self._ix_to_chromosome[i] = chromosome
+            self._chromosome_to_ix[chromosome] = i
+
     def add_regions(self, regions):
         """
         Bulk insert multiple genomic regions.
@@ -1267,7 +1297,8 @@ class RegionsTable(FileBased):
         for region in regions:
             self.add_region(region, flush=False)
         self._regions.flush()
-    
+        self._update_references()
+
     def _get_region_ix(self, region):
         """
         Get index from other region properties (chromosome, start, end)
@@ -1554,7 +1585,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             file_name = os.path.expanduser(file_name)
         
         FileBased.__init__(self, file_name, read_only=read_only)
-        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes, read_only=read_only)
+        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
 
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
@@ -1567,23 +1598,8 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
-        
-        # index node table
-        try:
-            self._regions.cols.ix.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        try:
-            self._regions.cols.start.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        try:
-            self._regions.cols.end.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
+
+
         # index edge table
         try:
             self._edges.cols.source.create_csindex()
@@ -1659,7 +1675,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 edge_buffer = {}
         logging.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
-        
+
     def load_from_hic(self, hic, _edge_buffer_size=5000000,
                       _edges_by_overlap_method=_edge_overlap_split_rao):
         """
@@ -1884,14 +1900,36 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         ix_conversion = {}
 
-        # merge genomic regions
-        self.log_info("Merging genomic regions...")
-        for region in hic.regions():
-            ix = self._get_region_ix(region)
-            if ix is None:
-                ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
-            ix_conversion[region.ix] = ix
-        self._regions.flush()
+        # check if regions are identical (saves a lot of time)
+        logging.info("Checking if regions are identical")
+        identical = True
+        region_counter = 0
+        for self_region, hic_region in zip(self.regions(), hic.regions()):
+            if self_region.chromosome != hic_region.chromosome:
+                identical = False
+                break
+            if self_region.start != hic_region.start:
+                identical = False
+                break
+            if self_region.end != hic_region.end:
+                identical = False
+                break
+            ix_conversion[region_counter] = region_counter
+            region_counter += 1
+
+        if region_counter < len(hic.regions()):
+            identical = False
+
+        if not identical:
+            ix_conversion = {}
+            # merge genomic regions
+            self.log_info("Merging genomic regions...")
+            for region in hic.regions():
+                ix = self._get_region_ix(region)
+                if ix is None:
+                    ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
+                ix_conversion[region.ix] = ix
+            self._regions.flush()
 
         # merge edges
         self.log_info("Merging contacts...")
@@ -2804,7 +2842,7 @@ class LowCoverageFilter(HicEdgeFilter):
 
         self._marginals = hic_object.marginals()
         if cutoff is None:
-            cutoff, _ = self.calculate_cutoffs(0.05)
+            cutoff, _ = self.calculate_cutoffs(0.1)
 
         self._regions_to_mask = set()
         for i, contacts in enumerate(self._marginals):

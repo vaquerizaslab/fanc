@@ -14,6 +14,7 @@ setup(
         'biopython',
         'pytest',
         'repoze.lru',
+        'msgpack-python',
         'tables>3.2.2'
     ],
     dependency_links=[

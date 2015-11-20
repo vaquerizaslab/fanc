@@ -94,4 +94,4 @@ def pairs_re_distance_plot(pairs, output=None, limit=10000, max_distance=None):
     old_backend = _prepare_backend(output)
     dplot = sns.distplot(distances)
     dplot.set_xlim(left=0)
-    _plot_figure(dplot, output, old_backend)
+    _plot_figure(dplot.figure, output, old_backend)

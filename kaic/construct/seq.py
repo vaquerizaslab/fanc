@@ -66,11 +66,11 @@ from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
-import re
-from repoze.lru import lru_cache, CacheMaker
+import msgpack as pickle
 import numpy as np
+import hashlib
 
-        
+
 class Reads(Maskable, MetaContainer, FileBased):
     """
     Load and filter mapped reads from a SAM/BAM file.
@@ -115,12 +115,23 @@ class Reads(Maskable, MetaContainer, FileBased):
     be overridden.
     """
 
-    CIGAR_REGEX = re.compile(r'(\d+)(\w)')
-    cache_maker = CacheMaker()
-    lru_parse_cigar = cache_maker.lrucache(maxsize=10000, name='parse_cigar')
+    class ReadsDefinition(t.IsDescription):
+        ix = t.Int32Col(pos=0)
+        qname = t.Int32Col(pos=1, dflt=-1)
+        flag = t.Int32Col(pos=2)
+        ref = t.Int32Col(pos=3)
+        pos = t.Int64Col(pos=4)
+        mapq = t.Int32Col(pos=5)
+        cigar = t.Int32Col(pos=6, dflt=-1)
+        rnext = t.Int32Col(pos=7)
+        pnext = t.Int32Col(pos=8)
+        tlen = t.Int32Col(pos=9)
+        seq = t.Int32Col(pos=10, dflt=-1)
+        qual = t.Int32Col(pos=11, dflt=-1)
+        tags = t.Int32Col(pos=12, dflt=-1)
+        qname_ix = t.Float64Col(pos=13, dflt=-1)
 
-    def __init__(self, sambam_file=None, file_name=None,
-                 qname_length=60, seq_length=200, read_only=False,
+    def __init__(self, sambam_file=None, file_name=None, read_only=False,
                  _group_name='reads', mapper=None):
         """
         Create Reads object and optionally load SAM file.
@@ -168,70 +179,91 @@ class Reads(Maskable, MetaContainer, FileBased):
             is_sambam_file(sambam_file)):
                 file_name = sambam_file
                 sambam_file = None
-        
+
         FileBased.__init__(self, file_name, read_only=read_only)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
-        
-        # try to retrieve existing table
+
+        self._row_counter = {
+            'reads': 0,
+            'tags': 0,
+            'cigar': 0,
+            'qname': 0,
+            'qual': 0,
+            'seq': 0
+        }
+
+        # try to retrieve existing tables
+        # Reads group
         try:
-            main_table = self.file.get_node('/' + _group_name + '/main')
-            try:
-                self._header = main_table._v_attrs.header
-            except AttributeError:
-                logging.warn("No header attributes found in existing table")
-                self._header = None
-            try:
-                self._ref = main_table._v_attrs.ref
-            except AttributeError:
-                logging.warn("No ref attributes found in existing table")
-                self._ref = None
-            
-            # tags
-            tags = self.file.get_node('/' + _group_name + '/tags')
-            
-            # cigar
-            cigar = self.file.get_node('/' + _group_name + '/cigar')
-
-        # or build table from scratch
+            self._file_group = self.file.get_node('/' + _group_name)
         except NoSuchNodeError:
-            
-            if sambam_file is not None:
-                self.log_info("Determining field sizes")
-                qname_length, seq_length = Reads.determine_field_sizes(sambam_file)
-
-            reads_defininition = {
-                'ix': t.Int32Col(pos=0),
-                'qname': t.StringCol(qname_length*2, pos=1),
-                'flag': t.Int32Col(pos=2),
-                'ref': t.Int32Col(pos=3),
-                'pos': t.Int64Col(pos=4),
-                'mapq': t.Int32Col(pos=5),
-                'rnext': t.Int32Col(pos=6),
-                'pnext': t.Int32Col(pos=7),
-                'tlen': t.Int32Col(pos=8),
-                'seq': t.StringCol(seq_length, pos=9),
-                'qual': t.StringCol(seq_length, pos=10)
-            }
-        
-            # create data structures
-            self.log_info("Creating data structures...")
-            
             # create reads group
-            group = self.file.create_group("/", _group_name, 'Read pairs group',
-                                           filters=t.Filters(complib="blosc",
-                                                             complevel=2, shuffle=True))
-            # create main table
-            main_table = MaskedTable(group, 'main', reads_defininition)
-            # create tags vlarrays
-            tags = self.file.create_vlarray(group, 'tags', t.ObjectAtom())
-            
-            # create cigar vlarrays
-            cigar = self.file.create_vlarray(group, 'cigar', t.VLStringAtom())
+            self._file_group = self.file.create_group("/", _group_name, 'Reads group',
+                                                      filters=t.Filters(complib="blosc",
+                                                                        complevel=2, shuffle=True))
+        # Main table
+        try:
+            self._reads = self._file_group.main
+            self._row_counter['reads'] = len(self._reads)
+        except NoSuchNodeError:
+            self._reads = MaskedTable(self._file_group, 'main', Reads.ReadsDefinition)
 
-        self._reads = main_table
-        self._tags = tags
-        self._cigar = cigar
+        # Header attribute
+        try:
+            self._header = self._reads._v_attrs.header
+        except AttributeError:
+            logging.warn("No header attributes found in existing table")
+            self._header = None
+
+        # Reference names
+        try:
+            self._ref = self._reads._v_attrs.ref
+        except AttributeError:
+            logging.warn("No ref attributes found in existing table")
+            self._ref = None
+
+        # Qname table
+        try:
+            self._qname = self._file_group.qname
+            self._row_counter['qname'] = len(self._qname)
+        except NoSuchNodeError:
+            self._qname = None
+
+        # Cigar table
+        try:
+            self._cigar = self._file_group.cigar
+            self._row_counter['cigar'] = len(self._cigar)
+        except NoSuchNodeError:
+            self._cigar = None
+
+        # Seq table
+        try:
+            self._seq = self._file_group.seq
+            self._row_counter['seq'] = len(self._seq)
+        except NoSuchNodeError:
+            self._seq = None
+
+        # Qual table
+        try:
+            self._qual = self._file_group.qual
+            self._row_counter['qual'] = len(self._qual)
+        except NoSuchNodeError:
+            self._qual = None
+
+        # Tags table
+        try:
+            self._tags = self._file_group.tags
+            self._row_counter['tags'] = len(self._tags)
+        except NoSuchNodeError:
+            self._tags = None
+
+        # add qname_ix index
+        try:
+            self._reads.cols.qname_ix.create_csindex()
+        except ValueError:
+            # Index exists, no problem!
+            pass
 
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
@@ -257,34 +289,21 @@ class Reads(Maskable, MetaContainer, FileBased):
         """
         if type(sambam) == str:
             sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
-        
+
         count = sum(1 for _ in iter(sambam))
         sambam.close()
         return count
-    
-    def _get_row_counter(self):
-        """
-        Get current number of rows (=reads) in object.
-        """
-        try:
-            return self._reads._v_attrs.row_counter
-        except AttributeError:
-            self._reads._v_attrs.row_counter = 0
-            return 0
-    
-    def _set_row_counter(self, value):
-        """
-        Set current number of rows in object.
-        """
-        self._reads._v_attrs.row_counter = value
-    
+
     def close(self):
         """
         Close the file backing this object.
         """
-        self.file.close()    
-    
-    def load(self, sambam, ignore_duplicates=True, is_sorted=False):
+        self.file.close()
+
+    def load(self, sambam, ignore_duplicates=True, is_sorted=False,
+             store_qname=True, store_cigar=True,
+             store_seq=True, store_tags=True,
+             store_qual=True, sample_size=None):
         """
         Load mapped reads from SAM/BAM file.
 
@@ -308,35 +327,53 @@ class Reads(Maskable, MetaContainer, FileBased):
             file_name = sambam.filename
         except AttributeError:
             file_name = sambam
-        
-        # sort files if required
-        if not is_sorted:
-            self.log_info("Sorting...")
-            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".bam")
-            tmp_file.close()
-            logging.info(file_name)
-            logging.info(os.path.splitext(tmp_file.name)[0])
-            try:
-                subprocess.call(["samtools", "sort", "-n", file_name,
-                                 os.path.splitext(tmp_file.name)[0]])
-            except OSError:
-                pysam.sort('-n', file_name, os.path.splitext(tmp_file.name)[0])
-            self.log_info("Done. Reading sorted BAM file...")
-            sambam = pysam.AlignmentFile(tmp_file.name, 'rb')
-            self.log_info("Done...")
-        else:
-            sambam = pysam.AlignmentFile(file_name, 'rb')
-        
+
+        sambam = pysam.AlignmentFile(file_name, 'rb')
+
+        logging.info("Estimating field sizes")
+        qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, sample_size,
+                                                                                          store_qname=True,
+                                                                                          store_cigar=True,
+                                                                                          store_seq=True,
+                                                                                          store_tags=True,
+                                                                                          store_qual=True)
+        if sample_size is not None:
+            qname_length *= 2
+            seq_length *= 2
+            cigar_length *= 2
+            tags_length *= 2
+
+        # create string tables if they do not yet exist
+        if self._qname is None and store_qname:
+            self._qname = self.file.create_earray(self._file_group, 'qname',
+                                                  t.StringAtom(itemsize=qname_length), (0,))
+
+        if self._cigar is None and store_cigar:
+            self._cigar = self.file.create_earray(self._file_group, 'cigar',
+                                                  t.StringAtom(itemsize=cigar_length), (0,))
+
+        if self._seq is None and store_seq:
+            self._seq = self.file.create_earray(self._file_group, 'seq',
+                                                t.StringAtom(itemsize=seq_length), (0,))
+
+        if self._qual is None and store_qual:
+            self._qual = self.file.create_earray(self._file_group, 'qual',
+                                                 t.StringAtom(itemsize=seq_length), (0,))
+
+        if self._tags is None and store_tags:
+            self._tags = self.file.create_earray(self._file_group, 'tags',
+                                                 t.StringAtom(itemsize=tags_length), (0,))
+
         # header
         self._reads._v_attrs.header = {k: sambam.header[k]
                                        for k in sambam.header
                                        if k in ('HD', 'RG', 'PG')}
         self._header = sambam.header
-        
+
         # references
         self._reads._v_attrs.ref = sambam.references
         self._ref = sambam.references
-        
+
         self.log_info("Loading mapped reads...")
         last_name = ""
         for i, read in enumerate(sambam):
@@ -344,13 +381,66 @@ class Reads(Maskable, MetaContainer, FileBased):
                 self.log_info("%d" % i, save=False)
             if ignore_duplicates and read.qname == last_name:
                 continue
-            self.add_read(read, flush=False)
+            self.add_read(read, flush=False, store_cigar=store_cigar,
+                          store_seq=store_seq, store_qual=store_qual,
+                          store_qname=store_qname, store_tags=store_tags)
             last_name = read.qname
         self.flush()
-        
+
         self.log_info("Done.")
 
-    def add_read(self, read, flush=True):
+    @staticmethod
+    def determine_field_sizes(sambam, sample_size=10000,
+                              store_qname=True, store_cigar=True,
+                              store_seq=True, store_tags=True,
+                              store_qual=True):
+        """
+        Determine the sizes of relevant fields in a SAM/BAM file.
+
+        :param sambam: A string that describes the path to the SAM/BAM file
+                       to be loaded or a pysam AlignmentFile.
+        :param sample_size: Number of lines to sample to determine field
+                            sizes.
+        :return: qname length, sequence length
+        """
+        if type(sambam) == str:
+            sambam = pysam.AlignmentFile(sambam, 'rb')
+
+        qname_length = 0
+        seq_length = 0
+        cigar_length = 0
+        tags_length = 0
+        i = 0
+        for r in sambam:
+            i += 1
+            if store_qname:
+                qname_length = max(qname_length, len(r.qname))
+            if store_seq:
+                seq_length = max(seq_length, len(r.seq))
+            if store_cigar:
+                cigar = r.cigar
+                if cigar is not None:
+                    cigar_dump = pickle.dumps(cigar)
+                    cigar_length = max(cigar_length, len(cigar_dump))
+            if store_tags:
+                tags = r.tags
+                if tags is not None:
+                    tags_dump = pickle.dumps(tags)
+                    tags_length = max(tags_length, len(tags_dump))
+
+            if sample_size is not None and i >= sample_size:
+                break
+
+            if i % 100000 == 0:
+                logging.info(i)
+        sambam.close()
+
+        return qname_length+10, seq_length+10, cigar_length+10, tags_length+10
+
+    def add_read(self, read, flush=True,
+                 store_qname=True, store_cigar=True,
+                 store_seq=True, store_tags=True,
+                 store_qual=True):
         """
         Add a read with all its attributes to this object.
 
@@ -366,8 +456,8 @@ class Reads(Maskable, MetaContainer, FileBased):
                       directly after the import.
         """
         reads_row = self._reads.row
-        # add main read info
-        reads_row['qname'] = read.qname
+
+        # main read info
         reads_row['flag'] = read.flag
         reads_row['ref'] = read.reference_id
         if read.pos >= 0:
@@ -381,60 +471,66 @@ class Reads(Maskable, MetaContainer, FileBased):
         reads_row['rnext'] = read.rnext
         reads_row['pnext'] = read.pnext
         reads_row['tlen'] = read.tlen
-        reads_row['seq'] = read.seq
-        reads_row['qual'] = read.qual
-        reads_row['ix'] = self._get_row_counter()
+
+        # string info
+        qname = read.qname
+        if store_qname:
+            self._qname.append([qname])
+            reads_row['qname'] = self._row_counter['qname']
+            self._row_counter['qname'] += 1
+        reads_row['qname_ix'] = float(int(hashlib.md5(qname).hexdigest(), 16))
+
+        cigar = read.cigar
+        if store_cigar and cigar is not None:
+            self._cigar.append([pickle.dumps(cigar)])
+            reads_row['cigar'] = self._row_counter['cigar']
+            self._row_counter['cigar'] += 1
+
+        if store_seq:
+            self._seq.append([read.seq])
+            reads_row['seq'] = self._row_counter['seq']
+            self._row_counter['seq'] += 1
+
+        if store_qual:
+            self._qual.append([read.qual])
+            reads_row['qual'] = self._row_counter['qual']
+            self._row_counter['qual'] += 1
+
+        tags = read.tags
+        if store_tags and tags is not None:
+            tags_dump = pickle.dumps(tags)
+            self._tags.append([tags_dump])
+            reads_row['tags'] = self._row_counter['tags']
+            self._row_counter['tags'] += 1
+
+        reads_row['ix'] = self._row_counter['reads']
         reads_row.append()
-        
-        # add string info
-        self._tags.append(read.tags)
-        if read.cigarstring is not None:
-            self._cigar.append(read.cigarstring)
-        else:
-            self._cigar.append('')
-        self._set_row_counter(self._get_row_counter()+1)
-        
+        self._row_counter['reads'] += 1
+
         if flush:
             self.flush()
-    
+
     def flush(self):
         """
         Write the latest changes to this object to file.
         """
         self._reads.flush(update_index=True)
-        self._tags.flush()
-        self._cigar.flush()
-    
-    @staticmethod
-    def determine_field_sizes(sambam, sample_size=10000):
-        """
-        Determine the sizes of relevant fields in a SAM/BAM file.
+        if self._tags is not None:
+            self._tags.flush()
+            self._row_counter['tags'] = len(self._tags)
+        if self._cigar is not None:
+            self._cigar.flush()
+            self._row_counter['cigar'] = len(self._cigar)
+        if self._seq is not None:
+            self._seq.flush()
+            self._row_counter['seq'] = len(self._seq)
+        if self._qual is not None:
+            self._qual.flush()
+            self._row_counter['qual'] = len(self._qual)
+        if self._qname is not None:
+            self._qname.flush()
+            self._row_counter['qname'] = len(self._qname)
 
-        :param sambam: A string that describes the path to the SAM/BAM file
-                       to be loaded or a pysam AlignmentFile.
-        :param sample_size: Number of lines to sample to determine field
-                            sizes.
-        :return: qname length, sequence length
-        """
-        if type(sambam) == str:
-            sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
-            
-        qname_length = 0
-        seq_length = 0
-        i = 0
-        for r in sambam:
-            i += 1
-            qname_length = max(qname_length,len(r.qname))
-            seq_length = max(seq_length,len(r.seq))
-            if sample_size is not None and i >= sample_size:
-                break
-            
-            if i % 100000 == 0:
-                logging.info(i)
-        sambam.close()
-        
-        return qname_length, seq_length
-    
     @property
     def header(self):
         """
@@ -443,7 +539,11 @@ class Reads(Maskable, MetaContainer, FileBased):
         :return: The SAM/BAM header as extracted by pysam.
         """
         return self._header
-    
+
+    @property
+    def chromosomes(self):
+        return self._ref
+
     def _ix2ref(self, ix):
         """
         Convert a reference_id (ix) to the reference name.
@@ -451,7 +551,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         if self._ref is None:
             raise RuntimeError("Chromosome reference for left read not present")
         return self._ref[ix]
-    
+
     def _row2read(self, row, lazy=False):
         """
         Convert a row from the internal _reads pytables table to Read object.
@@ -459,48 +559,75 @@ class Reads(Maskable, MetaContainer, FileBased):
         if lazy:
             return LazyRead(row, self)
 
-        ix = row['ix']
-        tags = self._tags[ix]
-        cigar = self._cigar[ix]
-        ref = self._ix2ref(row['ref'])
+        tags = None
+        tags_ix = row['tags']
+        if tags_ix >= 0:
+            tags_str = self._tags[tags_ix]
+            try:
+                tags = pickle.loads(tags_str)
+            except pickle.UnpackValueError:
+                tags = pickle.loads(tags_str + '\x00')
 
-        return Read(qname=row['qname'], flag=row['flag'], ref=ref,
+        cigar = None
+        cigar_ix = row['cigar']
+        if cigar_ix >= 0:
+            cigar_str = self._cigar[cigar_ix]
+            try:
+                cigar = pickle.loads(cigar_str)
+            except pickle.UnpackValueError:
+                cigar = pickle.loads(cigar_str + '\x00')
+
+        qname = None
+        qname_ix = row['qname']
+        if qname_ix >= 0:
+            qname = self._qname[qname_ix]
+
+        qual = None
+        qual_ix = row['qual']
+        if qual_ix >= 0:
+            qual = self._qual[qual_ix]
+
+        seq = None
+        seq_ix = row['seq']
+        if seq_ix >= 0:
+            seq = self._seq[seq_ix]
+
+        ref_ix = row['ref']
+        ref = self._ix2ref(ref_ix)
+
+        return Read(qname=qname, flag=row['flag'], ref=ref,
                     pos=row['pos'], mapq=row['mapq'], cigar=cigar, rnext=row['rnext'],
-                    pnext=row['pnext'], tlen=row['tlen'], seq=row['seq'], qual=row['qual'],
-                    tags=tags, reference_id=row['ref'])
+                    pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
+                    tags=tags, reference_id=ref_ix, qname_ix=row['qname_ix'])
 
-    @classmethod
-    @lru_parse_cigar
-    def parse_cigar(cls, cigar):
-        """
-        Parses a cigar string.
-
-        :cigar: CIGAR string to parse.
-        :return: A list of tuples of the form (<type>, count).
-                 For example [('M', 50), ('S', 12)] for a read
-                 that aligns for the first 50 bp.
-        """
-        matches = cls.CIGAR_REGEX.findall(cigar)
-        return [(i[1], int(i[0])) for i in matches]
-
-    def __iter__(self):
+    def reads(self, lazy=False, sort_by_qname_ix=False):
         """
         Iterate over _reads table and convert each result to Read.
+
+        :param lazy: Lazily load read properties (only works inside loop!)
+        :param sort_by_qname_ix: Iterate by ascending qname_ix
+        :return: ReadsIter that iterates over visible reads
         """
         this = self
 
         class ReadsIter:
             def __init__(self):
-                self.iter = iter(this._reads)
-                  
+                if sort_by_qname_ix:
+                    self.iter = this._reads.itersorted('qname_ix')
+                else:
+                    self.iter = iter(this._reads)
+
             def __iter__(self):
                 return self
-              
+
             def next(self):
                 row = self.iter.next()
-                return this._row2read(row)
+                return this._row2read(row, lazy=lazy)
         return ReadsIter()
-    
+
+    def __iter__(self):
+        return self.reads()
+
     def __getitem__(self, key):
         """
         Get a Read by index or slice.
@@ -513,22 +640,21 @@ class Reads(Maskable, MetaContainer, FileBased):
                 reads.append(self._row2read(row))
             return reads
         raise KeyError("Key %s not supported" % str(key))
-    
+
     def __len__(self):
         """
         Return number of (unmasked) reads in object.
         """
         return len(self._reads)
-    
+
     def where(self, query):
         """
         Search through reads using queries.
 
         .. code:: python
 
-            Examples:
+            Example:
 
-            result = reads.where("qname == 'ABCDEFGH'")
             result = reads.where("(mapq < 30) & (flag == 0)")
 
         :param query: A query string in pytables query format (see
@@ -539,7 +665,13 @@ class Reads(Maskable, MetaContainer, FileBased):
         for row in self._reads.where(query):
             reads.append(self._row2read(row))
         return reads
-    
+
+    def get_read_by_qname(self, qname):
+        for read in self.reads(lazy=True):
+            if read.qname == qname:
+                return read
+        return None
+
     def filter(self, read_filter, queue=False, log_progress=False):
         """
         Filter reads using a ReadFilter object.
@@ -558,7 +690,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             self._reads.filter(read_filter, _logging=log_progress)
         else:
             self._reads.queue_filter(read_filter)
-    
+
     def filter_quality(self, cutoff=30, queue=False):
         """
         Convenience function that applies a QualityFilter.
@@ -577,7 +709,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         else:
             quality_filter = QualityFilter(cutoff, mask)
         self.filter(quality_filter, queue)
-    
+
     def filter_unmapped(self, queue=False):
         """
         Convenience function that applies an UnmappedFilter.
@@ -589,7 +721,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         mask = self.add_mask_description('unmapped', 'Mask read pairs that are unmapped')
         unmapped_filter = UnmappedFilter(mask)
         self.filter(unmapped_filter, queue)
-            
+
     def filter_non_unique(self, strict=True, cutoff=0.5, queue=False):
         """
         Convenience function that applies a UniquenessFilter.
@@ -612,7 +744,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         else:
             uniqueness_filter = UniquenessFilter(strict, mask)
         self.filter(uniqueness_filter, queue)
-    
+
     def run_queued_filters(self, log_progress=False):
         """
         Run queued filters.
@@ -621,7 +753,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                              will be continuously reported.
         """
         self._reads.run_queued_filters(_logging=log_progress)
-    
+
     def filtered_reads(self):
         """
         Iterate over filtered reads.
@@ -634,22 +766,23 @@ class Reads(Maskable, MetaContainer, FileBased):
         class MaskedReadsIter:
             def __init__(self):
                 self.iter = this._reads.masked_rows()
-                  
+
             def __iter__(self):
                 return self
-              
+
             def next(self):
                 row = self.iter.next()
                 read = this._row2read(row)
-                
+
                 masks = this.get_masks(row[this._reads._mask_field])
-                
+
                 return MaskedRead(qname=read.qname, flag=read.flag, ref=read.ref,
                                   pos=read.pos, mapq=read.mapq, cigar=read.cigar, rnext=read.rnext,
                                   pnext=read.pnext, tlen=read.tlen, seq=read.seq, qual=read.qual,
-                                  tags=read.tags, masks=masks)
+                                  tags=read.tags, reference_id=read.reference_id, qname_ix=read.qname_ix,
+                                  masks=masks)
         return MaskedReadsIter()
-        
+
 
 class Read(object):
     """
@@ -662,7 +795,7 @@ class Read(object):
     def __init__(self, qname="", flag=0, ref="",
                  pos=0, mapq=0, cigar="", rnext=0,
                  pnext=0, tlen=0, seq="", qual="",
-                 tags={}, reference_id=None):
+                 tags={}, reference_id=None, qname_ix=None):
         """
         Initialize a Read with specific attributes.
 
@@ -682,6 +815,7 @@ class Read(object):
         :param tags: Dictionary of tag-value pairs that provide
                      additional information about the alignment
         :param reference_id: ID (integer) of the reference sequence
+        :param qname_ix: qname converted into a unique float representation
         """
 
         self.qname = qname
@@ -697,6 +831,7 @@ class Read(object):
         self.qual = qual
         self.tags = tags
         self.reference_id = reference_id
+        self.qname_ix = qname_ix
 
     @property
     def strand(self):
@@ -714,25 +849,22 @@ class Read(object):
     @property
     def alen(self):
         """
-        Returns the length of the aligned portion of the read
+        Return the length of the aligned portion of the read
         """
-        score = 0
-        valids = 'M'
-        return sum([i[1] for i in self.get_cigar if i[0] in valids])
+        valids = [0]
+        return sum([i[1] for i in self.cigar if i[0] in valids])
 
     def get_tag(self, key):
-        "Returns the value of a tag. None if does not exist"
+        """
+        Return the value of a tag. None if does not exist
+
+        :param key: Key/name of alignment tag
+        :return: Value of tag of none if tag not present
+        """
         for tag in self.tags:
             if tag[0] == key:
                 return tag[1]
         return None
-
-    @property
-    def get_cigar(self):
-        """
-        Parses own cigar string
-        """
-        return Reads.parse_cigar(self.cigar)
 
     def __getitem__(self, key):
         """
@@ -743,7 +875,7 @@ class Read(object):
             return value
         except:
             raise KeyError("Read does not have %s attribute" % str(key))
-        
+
     def __repr__(self):
         return "%s, ref: %s, pos: %d" % (self.qname, self.ref, self.pos)
 
@@ -758,7 +890,8 @@ class MaskedRead(Read):
     def __init__(self, qname="", flag=0, ref="",
                  pos=0, mapq=0, cigar="", rnext=0,
                  pnext=0, tlen=0, seq="", qual="",
-                 tags={}, reference_id=None, masks=None):
+                 tags={}, reference_id=None,
+                 qname_ix = None, masks=None):
         """
         Initialize a MaskedRead with specific attributes.
 
@@ -783,9 +916,9 @@ class MaskedRead(Read):
         super(MaskedRead, self).__init__(qname=qname, flag=flag, ref=ref,
                                          pos=pos, mapq=mapq, cigar=cigar, rnext=rnext,
                                          pnext=pnext, tlen=tlen, seq=seq, qual=qual,
-                                         tags=tags, reference_id=reference_id)
+                                         tags=tags, reference_id=reference_id, qname_ix=qname_ix)
         self.masks = masks
-    
+
     def __repr__(self):
         representation = super(MaskedRead, self).__repr__()
         if self.masks is not None:
@@ -800,10 +933,6 @@ class LazyRead(Read):
     def __init__(self, row, parent):
         self.row = row
         self.parent = parent
-
-    @property
-    def qname(self):
-        return self.row["qname"]
 
     @property
     def flag(self):
@@ -834,26 +963,55 @@ class LazyRead(Read):
         return self.row["tlen"]
 
     @property
+    def cigar(self):
+        ix = self.row["cigar"]
+        if ix >= 0:
+            cigar = self.parent._cigar[ix]
+            try:
+                return pickle.loads(cigar)
+            except pickle.UnpackValueError:
+                return pickle.loads(cigar + '\x00')
+        return None
+
+    @property
+    def qname(self):
+        ix = self.row["qname"]
+        if ix >= 0:
+            return self.parent._qname[ix]
+        return None
+
+    @property
     def seq(self):
-        return self.row["seq"]
+        ix = self.row["seq"]
+        if ix >= 0:
+            return self.parent._seq[ix]
+        return None
 
     @property
     def qual(self):
-        return self.row["qual"]
-
-    @property
-    def cigar(self):
-        ix = self.row["ix"]
-        return self.parent._cigar[ix]
+        ix = self.row["qual"]
+        if ix >= 0:
+            return self.parent._qual[ix]
+        return None
 
     @property
     def tags(self):
-        ix = self.row["ix"]
-        return self.parent._tags[ix]
+        ix = self.row["tags"]
+        if ix >= 0:
+            tags = self.parent._tags[ix]
+            try:
+                return pickle.loads(tags)
+            except pickle.UnpackValueError:
+                return pickle.loads(tags + '\x00')
+        return None
 
     @property
     def reference_id(self):
         return self.row['ref']
+
+    @property
+    def qname_ix(self):
+        return self.row['qname_ix']
 
 
 #
@@ -878,7 +1036,7 @@ class ReadFilter(MaskFilter):
     """
 
     __metaclass__ = ABCMeta
-    
+
     def __init__(self, mask=None):
         """
         Initialize ReadFilter.
@@ -889,7 +1047,7 @@ class ReadFilter(MaskFilter):
         """
         super(ReadFilter, self).__init__(mask)
         self._reads = None
-    
+
     @abstractmethod
     def valid_read(self, read):
         """
@@ -907,7 +1065,7 @@ class ReadFilter(MaskFilter):
         :return: True if Read is valid, False otherwise
         """
         pass
-    
+
     def set_reads_object(self, reads_object):
         """
         Set the Reads instance to be filtered by this ReadFilter.
@@ -917,7 +1075,7 @@ class ReadFilter(MaskFilter):
         :param reads_object: Reads object
         """
         self._reads = reads_object
-    
+
     def valid(self, row):
         """
         Map valid_read to MaskFilter.valid(self, row).
@@ -927,7 +1085,7 @@ class ReadFilter(MaskFilter):
         """
         read = self._reads._row2read(row, lazy=True)
         return self.valid_read(read)
-        
+
 
 class QualityFilter(ReadFilter):
     """
@@ -990,7 +1148,7 @@ class UniquenessFilter(ReadFilter):
         """
         self.strict = strict
         super(UniquenessFilter, self).__init__(mask)
-    
+
     def valid_read(self, read):
         """
         Check if a read has an XS tag.
@@ -1097,32 +1255,39 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     class and overriding the valid_pair method.
     """
 
-    class FragmentMappedReadDescription(t.IsDescription):
-        """
-        Needed by PyTables to build mapped read table.
-        """
-        ix = t.Int32Col(pos=0)
-        position = t.Int64Col(pos=2)
-        strand = t.Int8Col(pos=3)
-    
     class FragmentsMappedReadPairDescription(t.IsDescription):
         """
         Needed by PyTables to build read pairs table.
         """
         ix = t.Int32Col(pos=0)
-        left_read = t.Int32Col(pos=1)
-        left_fragment = t.Int32Col(pos=2, dflt=-1)
-        right_read = t.Int32Col(pos=3)
-        right_fragment = t.Int32Col(pos=4, dflt=-1)
-    
+        left_read_qname_ix = t.Float64Col(pos=1)
+        left_read_position = t.Int64Col(pos=2)
+        left_read_strand = t.Int8Col(pos=3)
+        left_fragment = t.Int32Col(pos=4, dflt=-1)
+        left_fragment_start = t.Int64Col(pos=5)
+        left_fragment_end = t.Int64Col(pos=6)
+        left_fragment_chromosome = t.Int32Col(pos=7)
+        right_read_qname_ix = t.Float64Col(pos=8)
+        right_read_position = t.Int64Col(pos=9)
+        right_read_strand = t.Int8Col(pos=10)
+        right_fragment = t.Int32Col(pos=11, dflt=-1)
+        right_fragment_start = t.Int64Col(pos=12)
+        right_fragment_end = t.Int64Col(pos=13)
+        right_fragment_chromosome = t.Int32Col(pos=14)
+
     class FragmentsMappedReadSingleDescription(t.IsDescription):
         """
         Needed by PyTables to build single reads table.
         """
         ix = t.Int32Col(pos=0)
-        read = t.Int32Col(pos=1)
-        fragment = t.Int32Col(pos=2, dflt=-1)
-        
+        read_qname_ix = t.Float64Col(pos=1)
+        read_position = t.Int64Col(pos=2)
+        read_strand = t.Int8Col(pos=3)
+        fragment = t.Int32Col(pos=4, dflt=-1)
+        fragment_start = t.Int64Col(pos=5)
+        fragment_end = t.Int64Col(pos=6)
+        fragment_chromosome = t.Int32Col(pos=7)
+
     def __init__(self, file_name=None,
                  read_only=False,
                  group_name='fragment_map',
@@ -1139,23 +1304,21 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                      that will house the region/fragment
                                      data
         """
-        
+
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
-                
+
         FileBased.__init__(self, file_name, read_only=read_only)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=table_name_fragments)
-        
+
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
 
         # try to retrieve existing table
         try:
-            self._reads = self.file.get_node('/' + group_name + '/mapped_reads')
             self._pairs = self.file.get_node('/' + group_name + '/mapped_read_pairs')
             self._single = self.file.get_node('/' + group_name + '/mapped_read_single')
-            self._read_count = len(self._reads)
             self._pair_count = self._pairs._original_len()
             self._single_count = self._single._original_len()
         # or build table from scratch
@@ -1164,25 +1327,15 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             group = self.file.create_group("/", group_name, 'Mapped read pairs group',
                                            filters=t.Filters(complib="blosc",
                                                              complevel=2, shuffle=True))
-            # create main tables
-            self._reads = t.Table(group, 'mapped_reads',
-                                  FragmentMappedReadPairs.FragmentMappedReadDescription)
-            
+
             self._pairs = MaskedTable(group, 'mapped_read_pairs',
                                       FragmentMappedReadPairs.FragmentsMappedReadPairDescription)
-            
+
             self._single = MaskedTable(group, 'mapped_read_single',
                                        FragmentMappedReadPairs.FragmentsMappedReadSingleDescription)
-            self._read_count = 0
             self._pair_count = 0
             self._single_count = 0
-        
-        try:
-            self._pairs.cols.left_fragment.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-    
+
     def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True):
         """
         Load paired reads and map them to genomic regions (e.g. RE-fragments).
@@ -1221,18 +1374,20 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self.log_info("Adding regions...")
             self.add_regions(regions)
             self.log_info("Done.")
-        
+
         # generate index for fragments
-        fragment_ixs = None
+        self.log_info("Generating region index...")
+        fragment_infos = None
         fragment_ends = None
         if _in_memory_index:
-            fragment_ixs = {}
+            fragment_infos = {}
             fragment_ends = {}
             for region in self.regions():
                 if region.chromosome not in fragment_ends:
                     fragment_ends[region.chromosome] = []
-                    fragment_ixs[region.chromosome] = []
-                fragment_ixs[region.chromosome].append(region.ix)
+                    fragment_infos[region.chromosome] = []
+                fragment_infos[region.chromosome].append((region.ix, self._chromosome_to_ix[region.chromosome],
+                                                          region.start, region.end))
                 fragment_ends[region.chromosome].append(region.end)
 
         if isinstance(reads1, str):
@@ -1242,9 +1397,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         if isinstance(reads2, str):
             self.log_info("Loading reads 2")
             reads2 = Reads(sambam_file=reads2)
-        
-        iter1 = iter(reads1)
-        iter2 = iter(reads2)
+
+        iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
+        iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
 
         def get_next_read(iterator):
             try:
@@ -1252,79 +1407,86 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 return r
             except StopIteration:
                 return None
-        
+
+        self.log_info("Adding read pairs...")
+
         # add and map reads
         i = 0
-        last_r1_name = ''
-        last_r2_name = ''
+        last_r1_name_ix = ''
+        last_r2_name_ix = ''
         r1 = get_next_read(iter1)
         r2 = get_next_read(iter2)
         r1_count = 0
         r2_count = 0
         while r1 is not None and r2 is not None:
-            c = cmp_natural(r1.qname, r2.qname)
+            c = cmp(r1.qname_ix, r2.qname_ix)
 
             i += 1
-            if r1.qname == last_r1_name:
+            if r1.qname_ix == last_r1_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
                 r1 = get_next_read(iter1)
                 r1_count += 1
-            elif r2.qname == last_r2_name:
+            elif r2.qname_ix == last_r2_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
                 r2 = get_next_read(iter2)
                 r2_count += 1
             elif c == 0:
-                self.add_read_pair(r1, r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-                last_r1_name = r1.qname
-                last_r2_name = r2.qname
+                self.add_read_pair(r1, r2, flush=False,
+                                   _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
+                last_r1_name_ix = r1.qname_ix
+                last_r2_name_ix = r2.qname_ix
                 r1 = get_next_read(iter1)
                 r2 = get_next_read(iter2)
                 r1_count += 1
                 r2_count += 1
             elif c < 0:
-                self.add_read_single(r1, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-                last_r1_name = r1.qname
+                self.add_read_single(r1, flush=False,
+                                     _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
+                last_r1_name_ix = r1.qname_ix
                 r1 = get_next_read(iter1)
                 r1_count += 1
             else:
-                self.add_read_single(r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-                last_r2_name = r2.qname
+                self.add_read_single(r2, flush=False,
+                                     _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
+                last_r2_name_ix = r2.qname_ix
                 r2 = get_next_read(iter2)
                 r2_count += 1
-            
+
             if i % 100000 == 0:
-                logging.info("%d reads processed" % i)        
-        
+                logging.info("%d reads processed" % i)
+
         # add remaining unpaired reads
         while r1 is not None:
-            if r1.qname == last_r1_name:
+            if r1.qname_ix == last_r1_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
             else:
-                self.add_read_single(r1, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-            last_r1_name = r1.qname
+                self.add_read_single(r1, flush=False,
+                                     _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
+            last_r1_name_ix = r1.qname_ix
             r1 = get_next_read(iter1)
             r1_count += 1
-        
+
         while r2 is not None:
-            if r2.qname == last_r2_name:
+            if r2.qname_ix == last_r2_name_ix:
                 if not ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
             else:
-                self.add_read_single(r2, flush=False, _fragment_ends=fragment_ends, _fragment_ixs=fragment_ixs)
-            last_r2_name = r2.qname
+                self.add_read_single(r2, flush=False,
+                                     _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
+            last_r2_name_ix = r2.qname_ix
             r2 = get_next_read(iter2)
             r2_count += 1
-            
+
         logging.info('Counts: R1 %d R2 %d' % (r1_count, r2_count))
-        
-        self._reads.flush()
+
         self._pairs.flush(update_index=True)
         self._single.flush(update_index=True)
-        
-    def add_read_pair(self, read1, read2, flush=True, _fragment_ends=None, _fragment_ixs=None):
+
+    def add_read_pair(self, read1, read2, flush=True,
+                      _fragment_ends=None, _fragment_infos=None):
         """
         Add a pair of reads to this object.
 
@@ -1336,118 +1498,150 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                fragment end positions as values. Speeds up
                                mapping, but preferably use
                                :func:`~FragmentMappedReadPairs.load` instead!
-        :param _fragment_ixs: (Internal) See previous argument, but provide
-                              fragment indices instead of end positions.
+        :param _fragment_infos: (Internal) See previous argument, but provide
+                                fragment info ([index, chromosome index, start, end])
+                                instead of end positions.
         """
-        ix1 = self._add_read(read1, flush=flush)
-        ix2 = self._add_read(read2, flush=flush)
-        fragment_ix1 = self._find_fragment_ix(read1.ref, read1.pos,
-                                              _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
-        fragment_ix2 = self._find_fragment_ix(read2.ref, read2.pos,
-                                              _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
-        
+        fragment_infos1 = self._find_fragment_info(read1.ref, read1.pos,
+                                                   _fragment_ends=_fragment_ends, _fragment_infos=_fragment_infos)
+        fragment_infos2 = self._find_fragment_info(read2.ref, read2.pos,
+                                                   _fragment_ends=_fragment_ends, _fragment_infos=_fragment_infos)
+
         # both must be integer if successfully mapped
-        if fragment_ix1 is not None and fragment_ix2 is not None:
+        if fragment_infos1 is not None and fragment_infos2 is not None:
+            if fragment_infos1[0] <= fragment_infos2[0]:
+                fragment_ix1, fragment_chromosome1, fragment_start1, fragment_end1 = fragment_infos1
+                fragment_ix2, fragment_chromosome2, fragment_start2, fragment_end2 = fragment_infos2
+            else:
+                tmp_read = read1
+                read1 = read2
+                read2 = tmp_read
+                fragment_ix1, fragment_chromosome1, fragment_start1, fragment_end1 = fragment_infos2
+                fragment_ix2, fragment_chromosome2, fragment_start2, fragment_end2 = fragment_infos1
+
+            try:
+                read1_strand = read1.strand
+            except AttributeError:
+                read1_strand = None
+
+            if read1_strand is None:
+                bit_flags = bit_flags_from_int(read1.flag)
+                if 4 in bit_flags:
+                    read1_strand = -1
+                else:
+                    read1_strand = 1
+
+            try:
+                read2_strand = read2.strand
+            except AttributeError:
+                read2_strand = None
+
+            if read2_strand is None:
+                bit_flags = bit_flags_from_int(read2.flag)
+                if 4 in bit_flags:
+                    read2_strand = -1
+                else:
+                    read2_strand = 1
+
             row = self._pairs.row
             row['ix'] = self._pair_count
-            if fragment_ix1 <= fragment_ix2:
-                row['left_read'] = ix1
-                row['right_read'] = ix2
-                row['left_fragment'] = fragment_ix1
-                row['right_fragment'] = fragment_ix2
-            else:
-                row['left_read'] = ix2
-                row['right_read'] = ix1
-                row['left_fragment'] = fragment_ix2
-                row['right_fragment'] = fragment_ix1
+            row['left_read_qname_ix'] = read1.qname_ix
+            row['left_read_position'] = read1.pos
+            row['left_read_strand'] = read1_strand
+            row['left_fragment'] = fragment_ix1
+            row['left_fragment_start'] = fragment_start1
+            row['left_fragment_end'] = fragment_end1
+            row['left_fragment_chromosome'] = fragment_chromosome1
+            row['right_read_qname_ix'] = read2.qname_ix
+            row['right_read_position'] = read2.pos
+            row['right_read_strand'] = read2_strand
+            row['right_fragment'] = fragment_ix2
+            row['right_fragment_start'] = fragment_start2
+            row['right_fragment_end'] = fragment_end2
+            row['right_fragment_chromosome'] = fragment_chromosome2
+
             row.append()
             self._pair_count += 1
-            
+
             if flush:
                 self._pairs.flush(update_index=True)
-    
-    def add_read_single(self, read, flush=True, _fragment_ends=None, _fragment_ixs=None):
-        ix = self._add_read(read, flush=flush)
-        fragment_ix = self._find_fragment_ix(read.ref, read.pos, _fragment_ends=_fragment_ends, _fragment_ixs=_fragment_ixs)
-        if fragment_ix is not None:
+
+    def add_read_single(self, read, flush=True,
+                        _fragment_ends=None, _fragment_infos=None):
+        fragment_info = self._find_fragment_info(read.ref, read.pos,
+                                                 _fragment_ends=_fragment_ends, _fragment_infos=_fragment_infos)
+
+        try:
+            read_strand = read.strand
+        except AttributeError:
+            read_strand = None
+
+        if read_strand is None:
+            bit_flags = bit_flags_from_int(read.flag)
+            if 4 in bit_flags:
+                read_strand = -1
+            else:
+                read_strand = 1
+
+        if fragment_info is not None:
             row = self._single.row
             row['ix'] = self._single_count
-            row['fragment'] = fragment_ix
-            row['read'] = ix
+            row['read_qname_ix'] = read.qname_ix
+            row['read_position'] = read.pos
+            row['read_strand'] = read_strand
+            row['fragment'] = fragment_info[0]
+            row['fragment_start'] = fragment_info[2]
+            row['fragment_end'] = fragment_info[3]
+            row['fragment_chromosome'] = fragment_info[1]
             row.append()
-            
+
             if flush:
                 self._single.flush(update_index=True)
             self._single_count += 1
-    
-    def _find_fragment_ix(self, chromosome, position, _fragment_ends=None, _fragment_ixs=None):
+
+    def _find_fragment_info(self, chromosome, position,
+                            _fragment_ends=None, _fragment_infos=None):
         """
         Find the index of a fragment by genomic coordinate and chromosome name.
         """
         # binary search for fragment
-        fragment_ix = None
-        if _fragment_ends is not None and _fragment_ixs is not None:
+        fragment_infos = None
+        if _fragment_ends is not None and _fragment_infos is not None:
             try:
                 pos_ix = bisect_right(_fragment_ends[chromosome], position)
-                fragment_ix = _fragment_ixs[chromosome][pos_ix]
+                fragment_infos = _fragment_infos[chromosome][pos_ix]
             except KeyError:
                 # potentially keep a record of unmatched chromosome names
                 pass
         else:
             for row in self._regions.where(
                             "(start <= %d) & (end >= %d) & (chromosome == '%s')" % (position, position, chromosome)):
-                fragment_ix = row['ix']
-        
-        return fragment_ix
-        
-    def _add_read(self, read, flush=True):
-        """
-        Add position and strand information of a read to reads table.
-        """
-        ix = self._read_count
-        row = self._reads.row
-        row['ix'] = ix
-        row['position'] = read.pos
-        if hasattr(read, 'strand') and read.strand is not None:
-            row['strand'] = read.strand
-        else:
-            bit_flags = bit_flags_from_int(read.flag)
-            if 4 in bit_flags:
-                row['strand'] = -1
-            else:
-                row['strand'] = 1
-        row.append()
-        
-        self._read_count += 1
-        
-        if flush:
-            self._reads.flush()
-            
-        return ix
-    
+                fragment_infos = [row['ix'], self._chromosome_to_ix[chromosome], row['start'], row['end']]
+
+        return fragment_infos
+
     def _pair_from_row(self, row, lazy=False):
         """
         Convert a pytables row to a FragmentReadPair
         """
         if lazy:
-            left_read = LazyFragmentRead(row, self, side="left")
-            right_read = LazyFragmentRead(row, self, side="right")
+            left_read = LazyFragmentRead(row, side="left")
+            right_read = LazyFragmentRead(row, side="right")
             return FragmentReadPair(left_read=left_read, right_read=right_read)
 
-        ix1 = row['left_read']
-        ix2 = row['right_read']
-        fragment_ix1 = row['left_fragment']
-        fragment_ix2 = row['right_fragment']
+        fragment1 = GenomicRegion(start=row['left_fragment_start'],
+                                  end=row['left_fragment_end'],
+                                  chromosome=self._ix_to_chromosome[row['left_fragment_chromosome']],
+                                  ix=row['left_fragment'])
+        fragment2 = GenomicRegion(start=row['right_fragment_start'],
+                                  end=row['right_fragment_end'],
+                                  chromosome=self._ix_to_chromosome[row['right_fragment_chromosome']],
+                                  ix=row['right_fragment'])
 
-        read1_row = self._reads[ix1]
-        fragment1_row = self._regions[fragment_ix1]
-        fragment1 = GenomicRegion(fragment1_row['start'], fragment1_row['end'], fragment1_row['chromosome'])
-        left_read = FragmentRead(fragment1, position=read1_row['position'], strand=read1_row['strand'])
-
-        read2_row = self._reads[ix2]
-        fragment2_row = self._regions[fragment_ix2]
-        fragment2 = GenomicRegion(fragment2_row['start'], fragment2_row['end'], fragment2_row['chromosome'])
-        right_read = FragmentRead(fragment2, position=read2_row['position'], strand=read2_row['strand'])
+        left_read = FragmentRead(fragment1, position=row['left_read_position'],
+                                 strand=row['left_read_strand'], qname_ix=row['left_read_qname_ix'])
+        right_read = FragmentRead(fragment2, position=row['right_read_position'],
+                                  strand=row['right_read_strand'], qname_ix=row['right_read_qname_ix'])
 
         return FragmentReadPair(left_read=left_read, right_read=right_read)
 
@@ -1578,7 +1772,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self._pairs.filter(pair_filter, _logging=log_progress)
         else:
             self._pairs.queue_filter(pair_filter)
-    
+
     def run_queued_filters(self, log_progress=False):
         """
         Run queued filters.
@@ -1642,7 +1836,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self.filter(inward_filter, queue)
         else:
             raise Exception('Could not automatically detect a sane distance threshold for filtering inward reads')
-    
+
     def filter_outward(self, minimum_distance=None, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
         """
         Convenience function that applies an :class:`~OutwardPairsFilter`.
@@ -1749,7 +1943,7 @@ class FragmentRead(object):
 
         The strand this read maps to (-1 or +1).
     """
-    def __init__(self, fragment=None, position=None, strand=0):
+    def __init__(self, fragment=None, position=None, strand=0, qname_ix=None):
         """
         Initialize this :class:`~FragmentRead` object.
 
@@ -1762,6 +1956,7 @@ class FragmentRead(object):
         self.fragment = fragment
         self.position = position
         self.strand = strand
+        self.qname_ix = qname_ix
 
     def re_distance(self):
         return min(abs(self.position-self.fragment.start),
@@ -1776,37 +1971,54 @@ class FragmentRead(object):
 
 
 class LazyFragmentRead(FragmentRead):
-    def __init__(self, row, parent, side='left'):
+    def __init__(self, row, side="left"):
         self.row = row
-        self.parent = parent
         self.side = side
-        self.read_row = None
-        self.fragment_row = None
-
-    def _update_read_row(self):
-        if self.read_row is None:
-            ix = self.row[self.side + '_read']
-            self.read_row = self.parent._reads[ix]
-
-    def _update_fragment_row(self):
-        if self.fragment_row is None:
-            ix = self.row[self.side + '_fragment']
-            self.fragment_row = self.parent._regions[ix]
 
     @property
     def position(self):
-        self._update_read_row()
-        return self.read_row["position"]
+        return self.row[self.side + "_read_position"]
 
     @property
     def strand(self):
-        self._update_read_row()
-        return self.read_row["strand"]
+        return self.row[self.side + "_read_strand"]
+
+    @property
+    def qname_ix(self):
+        return self.row[self.side + "_read_qname_ix"]
 
     @property
     def fragment(self):
-        self._update_fragment_row()
-        return LazyGenomicRegion(self.fragment_row)
+        return LazyFragment(self.row, side=self.side)
+
+
+class LazyFragment(GenomicRegion):
+    def __init__(self, row, ix=None, side="left"):
+        self.row = row
+        self.side = side
+        self.static_ix = ix
+
+    @property
+    def chromosome(self):
+        return self.row[self.side + "_fragment_chromosome"]
+
+    @property
+    def start(self):
+        return self.row[self.side + "_fragment_start"]
+
+    @property
+    def end(self):
+        return self.row[self.side + "_fragment_end"]
+
+    @property
+    def strand(self):
+        return 1
+
+    @property
+    def ix(self):
+        if self.static_ix is None:
+            return self.row[self.side + "_fragment"]
+        return self.static_ix
 
 
 class FragmentReadPair(object):
@@ -2035,88 +2247,3 @@ class ReDistanceFilter(FragmentMappedReadPairFilter):
                 and read.fragment.end - read.position > self.maximum_distance):
                 return False
         return True
-
-
-def cmp_natural(string1, string2):
-    """
-    Compare two strings the same way that samtools does.
-    """
-    def is_digit(char):
-        try:
-            int(char)
-            return True
-        except (ValueError, TypeError):
-            return False
-
-    class CharIterator(object):
-        def __init__(self, string):
-            self.string = string
-            self.current = 0
-        
-        def next(self):
-            try:
-                char = self.string[self.current]
-                self.current += 1
-                return char
-            except IndexError:
-                return None
-    
-        def current_plus(self, n):
-            try:
-                char = self.string[self.current+n]
-                return char
-            except IndexError:
-                return None
-    
-    char_iter1 = CharIterator(string1)
-    char_iter2 = CharIterator(string2)
-    
-    c1 = char_iter1.next()
-    c2 = char_iter2.next()
-    
-    while c1 and c2:
-        if is_digit(c1) and is_digit(c2):
-            # ignore leading zeros
-            while c1 == '0':
-                c1 = char_iter1.next()
-            while c2 == '0':
-                c2 = char_iter2.next()
-            
-            # skip through identical digits
-            while is_digit(c1) and is_digit(c2) and c1 == c2:
-                c1 = char_iter1.next()
-                c2 = char_iter2.next()
-
-            if is_digit(c1) and is_digit(c2):
-                # compare numbers at this point
-                n = 0
-                while is_digit(char_iter1.current_plus(n)) and is_digit(char_iter2.current_plus(n)):
-                    n += 1
-                if is_digit(char_iter1.current_plus(n)):
-                    return 1
-                if is_digit(char_iter2.current_plus(n)):
-                    return -1
-                if c1 > c2:
-                    return 1
-                return -1
-            elif is_digit(c1):
-                return 1
-            elif is_digit(c2):
-                return -1
-            elif char_iter1.current != char_iter2.current: # TODO double-check this block!
-                if char_iter1.current > char_iter2.current:
-                    return 1
-                return -1
-        else:
-            if c1 != c2:
-                if c1 > c2:
-                    return 1
-                return -1
-            c1 = char_iter1.next()
-            c2 = char_iter2.next()
-    
-    if char_iter1.current < len(string1):
-        return 1
-    if char_iter1.current < len(string2):
-        return -1
-    return 0
