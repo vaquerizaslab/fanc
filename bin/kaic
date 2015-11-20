@@ -610,7 +610,7 @@ class Kaic(object):
         parser.add_argument(
             '-ld', '--low-coverage-default', dest='low_default',
             action='store_true',
-            help='''Filter bins with "low coverage" (under 5%% of median coverage for all non-zero bins)'''
+            help='''Filter bins with "low coverage" (under 10%% of median coverage for all non-zero bins)'''
         )
         parser.set_defaults(low_default=False)
 
@@ -638,7 +638,7 @@ class Kaic(object):
             if args.low:
                 logging.info("Already specified an exact cutoff with -l, skipping -ld...")
             else:
-                logging.info("Filtering low-coverage bins at 5%%")
+                logging.info("Filtering low-coverage bins at 10%%")
                 hic.filter_low_coverage_regions(queue=True)
 
         if args.low is not None:

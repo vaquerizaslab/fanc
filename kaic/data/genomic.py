@@ -2842,7 +2842,7 @@ class LowCoverageFilter(HicEdgeFilter):
 
         self._marginals = hic_object.marginals()
         if cutoff is None:
-            cutoff, _ = self.calculate_cutoffs(0.05)
+            cutoff, _ = self.calculate_cutoffs(0.1)
 
         self._regions_to_mask = set()
         for i, contacts in enumerate(self._marginals):
