@@ -196,9 +196,6 @@ class Reads(Maskable, MetaContainer, FileBased):
             'seq': 0
         }
 
-        # mapper
-        self.mapper = mapper
-
         # try to retrieve existing tables
         # Reads group
         try:
@@ -271,6 +268,9 @@ class Reads(Maskable, MetaContainer, FileBased):
             # Index exists, no problem!
             pass
 
+        # mapper
+        self.mapper = mapper
+
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
             self.load(sambam_file, ignore_duplicates=True, mapper=mapper)
@@ -304,9 +304,11 @@ class Reads(Maskable, MetaContainer, FileBased):
     def mapper(self, mapper=None):
         if mapper:
             self._mapper = mapper
+            logging.info('Mapper was explicitly set to {}'.format(self._mapper))
         else:
             try:
                 self._mapper = self.header['PG'][0]['ID']
+                logging.info('Mapper was detected to be {}'.format(self._mapper))
             except (KeyError, AttributeError, TypeError):
                 self._mapper = None
                 logging.warn('Could not auto-detect mapping program from SAM header')
