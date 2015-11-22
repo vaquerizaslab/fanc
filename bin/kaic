@@ -487,6 +487,14 @@ class Kaic(object):
         parser.set_defaults(self_ligated=False)
 
         parser.add_argument(
+            '-d', '--duplicate', dest='dup_thresh',
+            type=int,
+            help='''If specified, filter read pairs for PCR duplicates. Parameter determines
+                    distance between aligment starts below which they are considered Starting
+                    at same position. Sensible values are between 1 and 5.'''
+        )
+
+        parser.add_argument(
             '-s', '--stats', dest='stats',
             help='''Path for saving stats pdf'''
         )
@@ -521,6 +529,10 @@ class Kaic(object):
         if args.self_ligated:
             logging.info("Filtering self-ligated read pairs")
             pairs.filter_self_ligated(queue=True)
+
+        if args.dup_thresh:
+            logging.info("Filtering PCR duplicates, threshold <=%dbp" % args.dup_thresh)
+            pairs.filter_pcr_duplicates(threshold=args.dup_thresh)
 
         logging.info("Running filters...")
         pairs.run_queued_filters(log_progress=True)
