@@ -2037,9 +2037,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         duplicate_stats = defaultdict(int)
         for j, p in enumerate(all_iter):
             pair = self._pair_from_row(p)
-            chrm = pair.left.fragment.chromosome
-            if not pair.is_same_chromosome:
-                continue
+            chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
             if pair_buffer.get(chrm) is None:
                 pair_buffer[chrm] = [(p.nrow, pair)]
                 logging.info("Log buffer for {} populated first time with {}".format(chrm, pair))
@@ -2048,7 +2046,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             if (abs(pair.left.position - pair_buffer[chrm][0][1].left.position) <= threshold and
                 abs(pair.right.position - pair_buffer[chrm][0][1].right.position) <= threshold):
                 pair_buffer[chrm].append((p.nrow, pair))
-                logging.info("Duplicate detected on chrm {}: {}".format(chrm, pair_buffer[chrm]))
+                logging.info("Duplicate detected on {}: {}".format(chrm, pair_buffer[chrm]))
                 continue
             if len(pair_buffer[chrm]) > 1:
                 duplicate_stats[len(pair_buffer[chrm])] += 1
