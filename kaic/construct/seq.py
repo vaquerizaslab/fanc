@@ -2014,7 +2014,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             return dists[ok_indices[0]]
         return None
 
-    def filter_pcr_duplicate(self, threshold=3):
+    def filter_pcr_duplicates(self, threshold=3):
         """
         Masks alignments that are suspected to be PCR duplicates.
         In order to be considered duplicates, two pairs need to have identical
@@ -2028,7 +2028,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
         # In order for sorted iteration to work, column needs to be indexed
         try:
-            self._pairs.cols.left_read_position.createCSIndex()
+            self._pairs.cols.left_read_position.create_csindex()
         except ValueError: # Index already exists
             pass
         # Using itersorted from Table class, since MaskedTable.itersorted only yields unmasked entries
