@@ -1266,8 +1266,8 @@ class PairLoader(object):
             self._pairs.log_info("Loading reads 2")
             reads2 = Reads(sambam_file=reads2)
 
-        self.iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
-        self.iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
+        self.iter1 = CachedIterator(reads1.reads(lazy=self.lazy, sort_by_qname_ix=True), 2)
+        self.iter2 = CachedIterator(reads2.reads(lazy=self.lazy, sort_by_qname_ix=True), 2)
         self.fragment_ends = fragment_ends
         self.fragment_infos = fragment_infos
 
@@ -1287,6 +1287,7 @@ class PairLoader(object):
 
 class Bowtie2PairLoader(PairLoader):
     def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+        self.lazy = True
         super(Bowtie2PairLoader, self).__init__(pairs, ignore_duplicates, _in_memory_index)
 
     @staticmethod
@@ -1370,13 +1371,22 @@ class Bowtie2PairLoader(PairLoader):
 
 
 class BwaMemPairLoader(PairLoader):
+
+    class Aln(object):
+        def __init__(self, row):
+            self.qname_ix = row.qname_ix
+            self.pos = row.pos
+            self.strand = row.strand
+            self.ref = row.ref
+            self.flag = row.flag
+
     def __init__(self, pairs, _in_memory_index=True):
+        self.lazy = False
         super(BwaMemPairLoader, self).__init__(pairs, False, _in_memory_index)
 
     @staticmethod
     def get_all_read_alns(it):
         alns = []
-        it = CachedIterator(it, 2)
         alns.append(it.next())
         if alns[0] is not None:
             name_ix = alns[0].qname_ix
