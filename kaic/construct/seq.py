@@ -1410,14 +1410,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
 
         self.log_info("Adding read pairs...")
 
-        def _qname_ix_cmp(qname_ix1, qname_ix2, threshold=0.5):
-            diff = qname_ix1-qname_ix2
-            if abs(diff) < threshold:
-                return 0
-            if diff < 0:
-                return -1
-            return 1
-
         # add and map reads
         i = 0
         last_r1_name_ix = ''
@@ -1427,8 +1419,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         r1_count = 0
         r2_count = 0
         while r1 is not None and r2 is not None:
-            c = _qname_ix_cmp(r1.qname_ix, r2.qname_ix)
-
             i += 1
             if r1.qname_ix == last_r1_name_ix:
                 if not ignore_duplicates:
@@ -1440,7 +1430,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
                 r2 = get_next_read(iter2)
                 r2_count += 1
-            elif c == 0:
+            elif abs(r1.qname_ix-r1.qname_ix) < 0.9:
                 self.add_read_pair(r1, r2, flush=False,
                                    _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
                 last_r1_name_ix = r1.qname_ix
@@ -1449,19 +1439,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 r2 = get_next_read(iter2)
                 r1_count += 1
                 r2_count += 1
-            elif c < 0:
-                print "smaller"
-                print "%s-%f" % (r1.qname, r1.qname_ix)
-                print "%s-%f" % (r2.qname, r2.qname_ix)
+            elif r1.qname_ix-r1.qname_ix < 0:
                 self.add_read_single(r1, flush=False,
                                      _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
                 last_r1_name_ix = r1.qname_ix
                 r1 = get_next_read(iter1)
                 r1_count += 1
             else:
-                print "bigger"
-                print "%s-%f" % (r1.qname, r1.qname_ix)
-                print "%s-%f" % (r2.qname, r2.qname_ix)
                 self.add_read_single(r2, flush=False,
                                      _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
                 last_r2_name_ix = r2.qname_ix
