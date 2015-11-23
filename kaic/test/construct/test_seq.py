@@ -375,5 +375,5 @@ class TestBWAFragmentMappedReads:
         self.pairs.load(self.reads1, self.reads2, regions=self.genome.get_regions('MboI'))
         
     def test_loaded_bwamem_pairs(self):
-        assert self.pairs._single_count == 686
-        assert len(self.pairs) == 158
+        assert self.pairs._single_count == 896
+        assert self.pairs._pair_count == 512
