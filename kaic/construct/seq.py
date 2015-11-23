@@ -1430,7 +1430,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
                 r2 = get_next_read(iter2)
                 r2_count += 1
-            elif abs(r1.qname_ix-r1.qname_ix) < 0.9:
+            elif abs(r1.qname_ix-r2.qname_ix) < 0.9:
                 self.add_read_pair(r1, r2, flush=False,
                                    _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
                 last_r1_name_ix = r1.qname_ix
@@ -1439,7 +1439,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 r2 = get_next_read(iter2)
                 r1_count += 1
                 r2_count += 1
-            elif r1.qname_ix-r1.qname_ix < 0:
+            elif r1.qname_ix-r2.qname_ix < 0:
                 self.add_read_single(r1, flush=False,
                                      _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
                 last_r1_name_ix = r1.qname_ix
