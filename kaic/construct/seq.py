@@ -2023,8 +2023,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param threshold: If distance between two alignments is smaller or equal the threshold, the alignments
                           are considered to be starting at the same position
         """
-        import ipdb
-        #logging.setLevel(10)
         mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
         # In order for sorted iteration to work, column needs to be indexed
         try:
@@ -2040,17 +2038,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
             if pair_buffer.get(chrm) is None:
                 pair_buffer[chrm] = [(p.nrow, pair)]
-                logging.info("Log buffer for {} populated first time with {}".format(chrm, pair))
                 continue
-            #ipdb.set_trace()
             if (abs(pair.left.position - pair_buffer[chrm][0][1].left.position) <= threshold and
                 abs(pair.right.position - pair_buffer[chrm][0][1].right.position) <= threshold):
                 pair_buffer[chrm].append((p.nrow, pair))
-                logging.info("Duplicate detected on {}: {}".format(chrm, pair_buffer[chrm]))
                 continue
             if len(pair_buffer[chrm]) > 1:
                 duplicate_stats[len(pair_buffer[chrm])] += 1
-                logging.info("Masking {} duplicate(s) of pair {}".format(len(pair_buffer[chrm]) - 1, pair_buffer[chrm][0][1]))
                 for i, _ in pair_buffer[chrm][1:]:
                     self._pairs.cols._f_col(self._pairs._mask_field)[i] += 2**mask.ix
             pair_buffer[chrm] = [(p.nrow, pair)]
