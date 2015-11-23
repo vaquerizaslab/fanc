@@ -1410,6 +1410,14 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
 
         self.log_info("Adding read pairs...")
 
+        def _qname_ix_cmp(qname_ix1, qname_ix2, threshold=0.5):
+            diff = qname_ix1-qname_ix2
+            if abs(diff) < threshold:
+                return 0
+            if diff < 0:
+                return -1
+            return 1
+
         # add and map reads
         i = 0
         last_r1_name_ix = ''
@@ -1419,7 +1427,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         r1_count = 0
         r2_count = 0
         while r1 is not None and r2 is not None:
-            c = cmp(r1.qname_ix, r2.qname_ix)
+            c = _qname_ix_cmp(r1.qname_ix, r2.qname_ix)
 
             i += 1
             if r1.qname_ix == last_r1_name_ix:
