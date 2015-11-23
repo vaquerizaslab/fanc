@@ -532,7 +532,7 @@ class Kaic(object):
 
         if args.dup_thresh:
             logging.info("Filtering PCR duplicates, threshold <=%dbp" % args.dup_thresh)
-            pairs.filter_pcr_duplicates(threshold=args.dup_thresh)
+            pairs.filter_pcr_duplicates(threshold=args.dup_thresh, queue=True)
 
         logging.info("Running filters...")
         pairs.run_queued_filters(log_progress=True)

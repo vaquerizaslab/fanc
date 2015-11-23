@@ -2014,42 +2014,19 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             return dists[ok_indices[0]]
         return None
 
-    def filter_pcr_duplicates(self, threshold=3):
+    def filter_pcr_duplicates(self, threshold=3, queue=False):
         """
-        Masks alignments that are suspected to be PCR duplicates.
-        In order to be considered duplicates, two pairs need to have identical
-        start positions of their respective left alignments AND of their right alignments.
+        Convenience function that applies an :class:`~PCRDuplicateFilter`.
 
         :param threshold: If distance between two alignments is smaller or equal the threshold, the alignments
                           are considered to be starting at the same position
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
         """
         mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
-        # In order for sorted iteration to work, column needs to be indexed
-        try:
-            self._pairs.cols.left_read_position.create_csindex()
-        except ValueError: # Index already exists
-            pass
-        # Using itersorted from Table class, since MaskedTable.itersorted only yields unmasked entries
-        all_iter = super(MaskedTable, self._pairs).itersorted(sortby="left_read_position")
-        pair_buffer = {}
-        duplicate_stats = defaultdict(int)
-        for j, p in enumerate(all_iter):
-            pair = self._pair_from_row(p)
-            chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
-            if pair_buffer.get(chrm) is None:
-                pair_buffer[chrm] = [(p.nrow, pair)]
-                continue
-            if (abs(pair.left.position - pair_buffer[chrm][0][1].left.position) <= threshold and
-                abs(pair.right.position - pair_buffer[chrm][0][1].right.position) <= threshold):
-                pair_buffer[chrm].append((p.nrow, pair))
-                continue
-            if len(pair_buffer[chrm]) > 1:
-                duplicate_stats[len(pair_buffer[chrm])] += 1
-                for i, _ in pair_buffer[chrm][1:]:
-                    self._pairs.cols._f_col(self._pairs._mask_field)[i] += 2**mask.ix
-            pair_buffer[chrm] = [(p.nrow, pair)]
-        self._pairs._update_ix()
-        return duplicate_stats
+        pcr_duplicate_filter = PCRDuplicateFilter(threshold=threshold)
+        self.filter(pcr_duplicate_filter, queue)
 
     def filter_inward(self, minimum_distance=None, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
         """
@@ -2455,6 +2432,70 @@ class InwardPairsFilter(FragmentMappedReadPairFilter):
             return True
         return False
 
+
+class PCRDuplicateFilter(FragmentMappedReadPairFilter):
+    """
+    Masks alignments that are suspected to be PCR duplicates.
+    In order to be considered duplicates, two pairs need to have identical
+    start positions of their respective left alignments AND of their right alignments.
+    """
+    def __init__(self, pairs, threshold=3, mask=None):
+        """
+        Initialize filter with filter settings.
+
+        :param pairs: The :class:`~FragmentMappedReadPairs` instance that the filter will be
+                      applied to
+        :param threshold: If distance between two alignments is smaller or equal the threshold,
+                          the alignments are considered to be starting at the same position
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        super(PCRDuplicateFilter, self).__init__(mask=mask)
+        self.threshold = threshold
+        self.pairs = pairs
+        # In order for sorted iteration to work, column needs to be indexed
+        try:
+            self.pairs._pairs.cols.left_read_position.create_csindex()
+            index_existed = False
+        except ValueError: # Index already exists
+            index_existed = True
+        # Using itersorted from Table class, since MaskedTable.itersorted only yields unmasked entries
+        all_iter = super(MaskedTable, self.pairs._pairs).itersorted(sortby="left_read_position")
+        cur_pair = {}
+        cur_duplicates = {}
+        self.duplicates_set = set()
+        duplicate_stats = defaultdict(int)
+        for p in all_iter:
+            pair = self.pairs._pair_from_row(p)
+            chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
+            if cur_pair.get(chrm) is None:
+                cur_pair[chrm] = pair
+                cur_duplicates[chrm] = 1
+                continue
+            if (abs(pair.left.position - cur_pair[chrm].left.position) <= threshold and
+                abs(pair.right.position - cur_pair[chrm].right.position) <= threshold):
+                self.duplicates_set.add(pair.ix)
+                cur_duplicates[chrm] += 1
+                continue
+            if cur_duplicates[chrm] > 1:
+                duplicate_stats[cur_duplicates[chrm]] += 1
+            cur_pair[chrm] = pair
+            cur_duplicates[chrm] = 1
+        if not index_existed:
+            self.pairs._pairs.cols.left_read_position.remove_index()
+        logging.info("PCR duplicates found: " +
+                     " ".join("{} duplications: {}".format(k, v) for k, v in self.duplicate_stats.iteritems()))
+
+    def valid_pair(self, pair):
+        raise NotImplementedError("This filter is only implemented for row, not pair objects")
+
+    def valid(self, row):
+        """
+        Check if a row is duplicated.
+        """
+        if row.ix in self.duplicates_set:
+            return False
+        return True
 
 class OutwardPairsFilter(FragmentMappedReadPairFilter):
     """
