@@ -1450,12 +1450,18 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 r1_count += 1
                 r2_count += 1
             elif c < 0:
+                print "smaller"
+                print "%s-%f" % (r1.qname, r1.qname_ix)
+                print "%s-%f" % (r2.qname, r2.qname_ix)
                 self.add_read_single(r1, flush=False,
                                      _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
                 last_r1_name_ix = r1.qname_ix
                 r1 = get_next_read(iter1)
                 r1_count += 1
             else:
+                print "bigger"
+                print "%s-%f" % (r1.qname, r1.qname_ix)
+                print "%s-%f" % (r2.qname, r2.qname_ix)
                 self.add_read_single(r2, flush=False,
                                      _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
                 last_r2_name_ix = r2.qname_ix
