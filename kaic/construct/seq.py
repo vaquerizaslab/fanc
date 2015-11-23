@@ -2050,8 +2050,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 continue
             if len(pair_buffer[chrm]) > 1:
                 duplicate_stats[len(pair_buffer[chrm])] += 1
-                for i, _ in pair_buffer[chrm]:
-                    logging.info("Masking row {}".format(i))
+                logging.info("Masking {} duplicate(s) of pair {}".format(len(pair_buffer[chrm]) - 1, pair_buffer[chrm][0][1]))
+                for i, _ in pair_buffer[chrm][1:]:
                     self._pairs.cols._f_col(self._pairs._mask_field)[i] += 2**mask.ix
             pair_buffer[chrm] = [(p.nrow, pair)]
         self._pairs._update_ix()
