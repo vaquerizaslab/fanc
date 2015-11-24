@@ -2632,7 +2632,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                                              'Mask low coverage regions in the Hic matrix (cutoff %.4f)' % cutoff)
         else:
             mask = self.add_mask_description('low_coverage',
-                                             'Mask low coverage regions in the Hic matrix (5%)')
+                                             'Mask low coverage regions in the Hic matrix (10%)')
         low_coverage_filter = LowCoverageFilter(self, cutoff=cutoff, mask=mask)
         self.filter(low_coverage_filter, queue)
     
