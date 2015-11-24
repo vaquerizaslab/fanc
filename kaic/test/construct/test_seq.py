@@ -8,7 +8,7 @@ import os.path
 import numpy as np
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
-    ReDistanceFilter, FragmentReadPair
+    ReDistanceFilter, FragmentReadPair, SelfLigationFilter
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
 import numpy as np
 
@@ -330,6 +330,14 @@ class TestFragmentMappedReads:
         assert len(self.pairs) == 44
         self.pairs.filter(re_filter)
         assert len(self.pairs) == 13
+
+    def test_filter_self_ligated(self):
+        mask = self.pairs.add_mask_description('self_ligated', 'Mask read pairs that represent self-ligated fragments')
+        self_ligation_filter = SelfLigationFilter(mask=mask)
+
+        assert len(self.pairs) == 44
+        self.pairs.filter(self_ligation_filter)
+        assert len(self.pairs) == 7
 
     def test_get_error_structure(self):
         reads1 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.1.sam")

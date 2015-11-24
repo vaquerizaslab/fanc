@@ -1875,6 +1875,19 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                          'Mask read pairs where a read is >%dbp away from nearest RE site' % maximum_distance)
         re_filter = ReDistanceFilter(maximum_distance=maximum_distance, mask=mask)
         self.filter(re_filter, queue)
+
+    def filter_self_ligated(self, queue=False):
+        """
+        Convenience function that applies an :class:`~SelfLigationFilter`.
+
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('self_ligated',
+                                         'Mask read pairs the represet a self-ligated fragment')
+        self_ligation_filter = SelfLigationFilter(mask=mask)
+        self.filter(self_ligation_filter, queue)
     
     def __iter__(self):
         """
@@ -2244,4 +2257,22 @@ class ReDistanceFilter(FragmentMappedReadPairFilter):
             if (read.position - read.fragment.start > self.maximum_distance
                 and read.fragment.end - read.position > self.maximum_distance):
                 return False
+        return True
+
+
+class SelfLigationFilter(FragmentMappedReadPairFilter):
+    """
+    Filters read pairs where one or both reads are more than
+    maximum_distance away from the nearest restriction site.
+    """
+
+    def __init__(self, mask=None):
+        super(SelfLigationFilter, self).__init__(mask=mask)
+
+    def valid_pair(self, pair):
+        """
+        Check if any read is >maximum_distance away from RE site.
+        """
+        if pair.is_same_fragment():
+            return False
         return True
