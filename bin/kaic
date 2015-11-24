@@ -473,6 +473,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-l', '--self-ligated', dest='self_ligated',
+            action='store_true',
+            help='''Remove read paires representing self-ligated fragments'''
+        )
+        parser.set_defaults(self_ligated=False)
+
+        parser.add_argument(
             '-s', '--stats', dest='stats',
             help='''Path for saving stats pdf'''
         )
@@ -497,6 +504,10 @@ class Kaic(object):
         if args.redist:
             logging.info("Filtering reads with RE distance >%dbp" % args.redist)
             pairs.filter_re_dist(args.redist, queue=True)
+
+        if args.self_ligated:
+            logging.info("Filtering self-ligated read pairs")
+            pairs.filter_self_ligated(queue=True)
 
         logging.info("Running filters...")
         pairs.run_queued_filters(log_progress=True)
