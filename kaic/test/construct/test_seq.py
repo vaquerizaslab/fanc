@@ -8,7 +8,7 @@ import os.path
 import numpy as np
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
-    ReDistanceFilter, FragmentReadPair, SelfLigationFilter
+    ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
 import numpy as np
 
@@ -385,3 +385,9 @@ class TestBWAFragmentMappedReads:
     def test_loaded_bwamem_pairs(self):
         assert self.pairs._single_count == 896
         assert self.pairs._pair_count == 512
+
+    def test_pcr_duplicate_filter(self):
+        mask = self.pairs.add_mask_description('pcr_duplicate', 'Mask suspected PCR duplicates.')
+        assert len(self.pairs) == 515
+        pcr_duplicate_filter = PCRDuplicateFilter(pairs=self.pairs, threshold=3)
+        assert len(self.pairs) == 515
