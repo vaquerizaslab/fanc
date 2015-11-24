@@ -1238,14 +1238,24 @@ class PairLoader(object):
 
     def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
         self._pairs = pairs
+        self._reads1 = None
+        self._reads2 = None
+        self.fragment_ends = None
+        self.fragment_infos = None
+        self.add_read_single = self._pairs.add_read_single
+        self.add_read_pair = self._pairs.add_read_pair
         self._in_memory_index = _in_memory_index
         self.ignore_duplicates = ignore_duplicates
 
     def load(self, reads1, reads2, regions=None):
-        self.prepare_regions(reads1, reads2, regions=regions)
-        self.load_pairs_from_reads()
+        self._reads1 = reads1
+        self._reads2 = reads2
+        reads1, reads2, regions, add_read_single, add_read_pair = self.setup(reads1, reads2, regions)
+        self.load_pairs_from_reads(reads1, reads2, regions, add_read_single, add_read_pair)
+        self._pairs._pairs.flush(update_index=True)
+        self._pairs._single.flush(update_index=True)
 
-    def prepare_regions(self, reads1, reads2, regions=None):
+    def setup(self, reads1, reads2, regions):
         if regions is not None:
             self._pairs.log_info("Adding regions...")
             self._pairs.add_regions(regions)
@@ -1267,41 +1277,36 @@ class PairLoader(object):
                                                           region.start, region.end))
                 fragment_ends[region.chromosome].append(region.end)
 
-        if isinstance(reads1, str):
+        if isinstance(self._reads1, str):
             self._pairs.log_info("Loading reads 1")
-            reads1 = Reads(sambam_file=reads1)
+            reads1 = Reads(sambam_file=self._reads1)
 
-        if isinstance(reads2, str):
+        if isinstance(self._reads2, str):
             self._pairs.log_info("Loading reads 2")
-            reads2 = Reads(sambam_file=reads2)
+            reads2 = Reads(sambam_file=self._reads2)
 
-        self.iter1 = CachedIterator(
-            (PairLoader.Aln(r) for r in reads1.reads(lazy=self.lazy, sort_by_qname_ix=True)), 2
-        )
-        self.iter2 = CachedIterator(
-            (PairLoader.Aln(r) for r in reads2.reads(lazy=self.lazy, sort_by_qname_ix=True)), 2
-        )
         self.fragment_ends = fragment_ends
         self.fragment_infos = fragment_infos
 
-        self.add_read_single = partial(self._pairs.add_read_single, flush=False,
-                                       _fragment_ends=self.fragment_ends,
-                                       _fragment_infos=self.fragment_infos)
-        self.add_read_pair = partial(self._pairs.add_read_pair, flush=False,
-                                     _fragment_ends=self.fragment_ends,
-                                     _fragment_infos=self.fragment_infos)
+        add_read_single = partial(self._pairs.add_read_single, flush=False,
+                                  _fragment_ends=self.fragment_ends,
+                                  _fragment_infos=self.fragment_infos)
+        add_read_pair = partial(self._pairs.add_read_pair, flush=False,
+                                _fragment_ends=self.fragment_ends,
+                                _fragment_infos=self.fragment_infos)
+
+        return reads1, reads2, regions, add_read_single, add_read_pair
 
     @abstractmethod
-    def load_pairs_from_reads(self):
-        logging.info('Counts: R1 %d R2 %d' % (self.r1_count, self.r2_count))
-        self._pairs._pairs.flush(update_index=True)
-        self._pairs._single.flush(update_index=True)
+    def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
+        pass
 
 
 class Bowtie2PairLoader(PairLoader):
     def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
-        self.lazy = True
-        super(Bowtie2PairLoader, self).__init__(pairs, ignore_duplicates, _in_memory_index)
+        super(Bowtie2PairLoader, self).__init__(pairs,
+                                                ignore_duplicates=ignore_duplicates,
+                                                _in_memory_index=_in_memory_index)
 
     @staticmethod
     def get_next_read(iterator):
@@ -1311,14 +1316,18 @@ class Bowtie2PairLoader(PairLoader):
         except StopIteration:
             return None
 
-    def load_pairs_from_reads(self):
+    def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
         self._pairs.log_info("Adding read pairs...")
+
+        iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
+        iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
+
         # add and map reads
         i = 0
         last_r1_name_ix = ''
         last_r2_name_ix = ''
-        r1 = self.get_next_read(self.iter1)
-        r2 = self.get_next_read(self.iter2)
+        r1 = self.get_next_read(iter1)
+        r2 = self.get_next_read(iter2)
         r1_count = 0
         r2_count = 0
 
@@ -1327,30 +1336,30 @@ class Bowtie2PairLoader(PairLoader):
             if r1.qname_ix == last_r1_name_ix:
                 if not self.ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
-                r1 = self.get_next_read(self.iter1)
+                r1 = self.get_next_read(iter1)
                 r1_count += 1
             elif r2.qname_ix == last_r2_name_ix:
                 if not self.ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
-                r2 = self.get_next_read(self.iter2)
+                r2 = self.get_next_read(iter2)
                 r2_count += 1
             elif abs(r1.qname_ix-r2.qname_ix) < 0.9:
-                self.add_read_pair(r1, r2)
+                add_read_pair(r1, r2)
                 last_r1_name_ix = r1.qname_ix
                 last_r2_name_ix = r2.qname_ix
-                r1 = self.get_next_read(self.iter1)
-                r2 = self.get_next_read(self.iter2)
+                r1 = self.get_next_read(iter1)
+                r2 = self.get_next_read(iter2)
                 r1_count += 1
                 r2_count += 1
             elif r1.qname_ix-r2.qname_ix < 0:
-                self.add_read_single(r1)
+                add_read_single(r1)
                 last_r1_name_ix = r1.qname_ix
-                r1 = self.get_next_read(self.iter1)
+                r1 = self.get_next_read(iter1)
                 r1_count += 1
             else:
-                self.add_read_single(r2)
+                add_read_single(r2)
                 last_r2_name_ix = r2.qname_ix
-                r2 = self.get_next_read(self.iter2)
+                r2 = self.get_next_read(iter2)
                 r2_count += 1
 
             if i % 100000 == 0:
@@ -1362,9 +1371,9 @@ class Bowtie2PairLoader(PairLoader):
                 if not self.ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
             else:
-                self.add_read_single(r1)
+                add_read_single(r1)
             last_r1_name_ix = r1.qname_ix
-            r1 = self.get_next_read(self.iter1)
+            r1 = self.get_next_read(iter1)
             r1_count += 1
 
         while r2 is not None:
@@ -1372,25 +1381,25 @@ class Bowtie2PairLoader(PairLoader):
                 if not self.ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
             else:
-                self.add_read_single(r2)
+                add_read_single(r2)
             last_r2_name_ix = r2.qname_ix
-            r2 = self.get_next_read(self.iter2)
+            r2 = self.get_next_read(iter2)
             r2_count += 1
 
-        self.r1_count = r1_count
-        self.r2_count = r2_count
-
-        super(Bowtie2PairLoader, self).load_pairs_from_reads()
+        logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
 
 class BwaMemPairLoader(PairLoader):
     def __init__(self, pairs, _in_memory_index=True):
-        self.lazy = True
-        super(BwaMemPairLoader, self).__init__(pairs, False, _in_memory_index)
+        self.add_read_single = None
+        self.add_read_pair = None
+        super(BwaMemPairLoader, self).__init__(pairs,
+                                               ignore_duplicates=False,
+                                               _in_memory_index=_in_memory_index)
 
     @staticmethod
     def get_all_read_alns(it):
-        alns = []
+        alns = list()
         alns.append(it.next())
         if alns[0] is not None:
             name_ix = alns[0].qname_ix
@@ -1431,7 +1440,9 @@ class BwaMemPairLoader(PairLoader):
         return [alns[s[2]] for s in sorted_segments]
 
     def process_bwa_alns(self, head=None, tail=None):
-        "Decide how to handle alignments"
+        """
+        Decide how to handle alignments
+        """
         if head and tail:
             if not(len(head) == len(tail) == 1):
                 head = self.sort_alns(head)
@@ -1446,12 +1457,22 @@ class BwaMemPairLoader(PairLoader):
             else:
                 pass
 
-    def load_pairs_from_reads(self):
+    def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
         self._pairs.log_info("Adding read pairs...")
+        self.add_read_single = add_read_single
+        self.add_read_pair = add_read_pair
+
+        iter1 = CachedIterator(
+            (PairLoader.Aln(r) for r in reads1.reads(lazy=True, sort_by_qname_ix=True)), 2
+        )
+        iter2 = CachedIterator(
+            (PairLoader.Aln(r) for r in reads2.reads(lazy=True, sort_by_qname_ix=True)), 2
+        )
+
         # add and map reads
         i = 0
-        r1 = self.get_all_read_alns(self.iter1)
-        r2 = self.get_all_read_alns(self.iter2)
+        r1 = self.get_all_read_alns(iter1)
+        r2 = self.get_all_read_alns(iter2)
         r1_count = 0
         r2_count = 0
 
@@ -1459,17 +1480,17 @@ class BwaMemPairLoader(PairLoader):
             i += 1
             if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.9:
                 self.process_bwa_alns(r1, r2)
-                r1 = self.get_all_read_alns(self.iter1)
-                r2 = self.get_all_read_alns(self.iter2)
+                r1 = self.get_all_read_alns(iter1)
+                r2 = self.get_all_read_alns(iter2)
                 r1_count += 1
                 r2_count += 1
             elif r1[0].qname_ix-r2[0].qname_ix < 0:
                 self.process_bwa_alns(r1)
-                r1 = self.get_all_read_alns(self.iter1)
+                r1 = self.get_all_read_alns(iter1)
                 r1_count += 1
             else:
                 self.process_bwa_alns(r2)
-                r2 = self.get_all_read_alns(self.iter2)
+                r2 = self.get_all_read_alns(iter2)
                 r2_count += 1
 
             if i % 100000 == 0:
@@ -1478,18 +1499,15 @@ class BwaMemPairLoader(PairLoader):
         # add remaining unpaired reads
         while r1[0] is not None:
             self.process_bwa_alns(r1)
-            r1 = self.get_all_read_alns(self.iter1)
+            r1 = self.get_all_read_alns(iter1)
             r1_count += 1
 
         while r2[0] is not None:
             self.process_bwa_alns(r2)
-            r2 = self.get_all_read_alns(self.iter2)
+            r2 = self.get_all_read_alns(iter2)
             r2_count += 1
 
-        self.r1_count = r1_count
-        self.r2_count = r2_count
-
-        super(BwaMemPairLoader, self).load_pairs_from_reads()
+        logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
 
 class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
