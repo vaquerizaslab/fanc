@@ -1818,7 +1818,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         if lazy:
             left_read = LazyFragmentRead(row, side="left")
             right_read = LazyFragmentRead(row, side="right")
-            return FragmentReadPair(left_read=left_read, right_read=right_read)
+            return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
         fragment1 = GenomicRegion(start=row['left_fragment_start'],
                                   end=row['left_fragment_end'],
@@ -1834,7 +1834,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         right_read = FragmentRead(fragment2, position=row['right_read_position'],
                                   strand=row['right_read_strand'], qname_ix=row['right_read_qname_ix'])
 
-        return FragmentReadPair(left_read=left_read, right_read=right_read)
+        return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
     def get_error_structure(self, data_points=None, skip_self_ligations=True):
 
@@ -2229,9 +2229,10 @@ class FragmentReadPair(object):
     """
     Container for two paired :class:`~FragmentRead` objects.
     """
-    def __init__(self, left_read, right_read):
+    def __init__(self, left_read, right_read, ix=None):
         self.left = left_read
         self.right = right_read
+        self.ix = ix
     
     def is_same_chromosome(self):
         """
