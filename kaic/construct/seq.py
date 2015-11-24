@@ -2464,42 +2464,33 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
         cur_pair = {}
         cur_duplicates = {}
         self.duplicates_set = set()
-        duplicate_stats = defaultdict(int)
+        duplicate_stats = collections.defaultdict(int)
         for p in all_iter:
             pair = self.pairs._pair_from_row(p)
             chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
-            logging.info("Checking pair {}".format(pair))
             if cur_pair.get(chrm) is None:
                 cur_pair[chrm] = pair
                 cur_duplicates[chrm] = 1
-                logging.info("Populating buffer for {} for first time with {}".format(chrm, pair))
                 continue
             if (abs(pair.left.position - cur_pair[chrm].left.position) <= threshold and
                 abs(pair.right.position - cur_pair[chrm].right.position) <= threshold):
-                self.duplicates_set.add(p["ix"])
+                self.duplicates_set.add(pair.ix)
                 cur_duplicates[chrm] += 1
-                logging.info("Duplicate found for {}".format(cur_pair[chrm]))
                 continue
             if cur_duplicates[chrm] > 1:
                 duplicate_stats[cur_duplicates[chrm]] += 1
-                logging.info("Removing {} duplicates of {}".format(cur_duplicates[chrm] - 1, cur_pair[chrm]))
             cur_pair[chrm] = pair
             cur_duplicates[chrm] = 1
-            import ipdb
-            ipdb.set_trace()
         if not index_existed:
             self.pairs._pairs.cols.left_read_position.remove_index()
-        logging.info("PCR duplicates found: " +
-                     " ".join("{} duplications: {}".format(k, v) for k, v in duplicate_stats.iteritems()))
+        logging.info("PCR duplicate stats (multiplicity: occurances) " +
+                     " ".join("{}: {}".format(k, v) for k, v in duplicate_stats.iteritems()))
 
     def valid_pair(self, pair):
-        raise NotImplementedError("This filter is only implemented for row, not pair objects")
-
-    def valid(self, row):
         """
-        Check if a row is duplicated.
+        Check if a pair is duplicated.
         """
-        if row["ix"] in self.duplicates_set:
+        if pair.ix in self.duplicates_set:
             return False
         return True
 
