@@ -2483,8 +2483,12 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
             cur_duplicates[chrm] = 1
         if not index_existed:
             self.pairs._pairs.cols.left_read_position.remove_index()
-        logging.info("PCR duplicate stats (multiplicity: occurances) " +
-                     " ".join("{}: {}".format(k, v) for k, v in duplicate_stats.iteritems()))
+        n_dups = len(self.duplicates_set)
+        percent_dups = 1.*n_dups/self.pairs._pairs._original_len()
+        logging.info("PCR duplicate stats: " +
+            "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
+            " (multiplicity:occurances)" +
+            " ".join("{}:{}".format(k, v) for k, v in duplicate_stats.iteritems()))
 
     def valid_pair(self, pair):
         """
