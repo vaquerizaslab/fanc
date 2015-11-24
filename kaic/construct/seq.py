@@ -2025,7 +2025,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                       run_queued_filters
         """
         mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
-        pcr_duplicate_filter = PCRDuplicateFilter(threshold=threshold)
+        pcr_duplicate_filter = PCRDuplicateFilter(pairs=self, threshold=threshold)
         self.filter(pcr_duplicate_filter, queue)
 
     def filter_inward(self, minimum_distance=None, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
@@ -2468,23 +2468,29 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
         for p in all_iter:
             pair = self.pairs._pair_from_row(p)
             chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
+            logging.info("Checking pair {}".format(pair))
             if cur_pair.get(chrm) is None:
                 cur_pair[chrm] = pair
                 cur_duplicates[chrm] = 1
+                logging.info("Populating buffer for {} for first time with {}".format(chrm, pair))
                 continue
             if (abs(pair.left.position - cur_pair[chrm].left.position) <= threshold and
                 abs(pair.right.position - cur_pair[chrm].right.position) <= threshold):
-                self.duplicates_set.add(pair.ix)
+                self.duplicates_set.add(p["ix"])
                 cur_duplicates[chrm] += 1
+                logging.info("Duplicate found for {}".format(cur_pair[chrm]))
                 continue
             if cur_duplicates[chrm] > 1:
                 duplicate_stats[cur_duplicates[chrm]] += 1
+                logging.info("Removing {} duplicates of {}".format(cur_duplicates[chrm] - 1, cur_pair[chrm]))
             cur_pair[chrm] = pair
             cur_duplicates[chrm] = 1
+            import ipdb
+            ipdb.set_trace()
         if not index_existed:
             self.pairs._pairs.cols.left_read_position.remove_index()
         logging.info("PCR duplicates found: " +
-                     " ".join("{} duplications: {}".format(k, v) for k, v in self.duplicate_stats.iteritems()))
+                     " ".join("{} duplications: {}".format(k, v) for k, v in duplicate_stats.iteritems()))
 
     def valid_pair(self, pair):
         raise NotImplementedError("This filter is only implemented for row, not pair objects")
@@ -2493,7 +2499,7 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
         """
         Check if a row is duplicated.
         """
-        if row.ix in self.duplicates_set:
+        if row["ix"] in self.duplicates_set:
             return False
         return True
 
