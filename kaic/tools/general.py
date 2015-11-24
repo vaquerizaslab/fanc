@@ -6,6 +6,40 @@ Created on Aug 28, 2015
 
 import itertools
 import random
+import collections
+
+
+class CachedIterator:
+    def __init__(self, it, cache_size=1):
+        self.it = iter(it)
+        self.current = None
+        self.cache = collections.deque(maxlen=cache_size)
+        self.cache_offset = 0
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        try:
+            if self.cache_offset:
+                self.cache_offset -= 1
+                if self.cache_offset:
+                    return self.cache[-self.cache_offset]
+                return self.current
+            self.cache.append(self.current)
+            self.current = self.it.next()
+            return self.current
+        except StopIteration:
+            return None
+
+    def prev(self):
+        try:
+            self.cache_offset += 1
+            return self.cache[-self.cache_offset]
+        except IndexError as e:
+            self.cache_offset -= 1
+            raise e
+
 
 def ranges(i):
     for _, b in itertools.groupby(enumerate(i), lambda (x, y): y - x):
@@ -45,4 +79,3 @@ def distribute_integer(value, divisor, _shuffle=True):
     if _shuffle:
         random.shuffle(a)
     return a
-    

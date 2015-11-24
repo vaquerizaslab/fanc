@@ -63,12 +63,15 @@ import logging
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
-from kaic.tools.general import bit_flags_from_int
+from kaic.tools.general import bit_flags_from_int, CachedIterator
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import subprocess
 import msgpack as pickle
 import numpy as np
 import hashlib
+import collections
+import itertools
+from functools import partial
 
 
 class Reads(Maskable, MetaContainer, FileBased):
@@ -265,18 +268,12 @@ class Reads(Maskable, MetaContainer, FileBased):
             # Index exists, no problem!
             pass
 
+        # mapper
+        self.mapper = mapper
+
         # load reads
         if sambam_file and is_sambam_file(sambam_file):
-            self.load(sambam_file, ignore_duplicates=True)
-
-        if mapper:
-            self._mapper = mapper
-        else:
-            try:
-                self._mapper = self.header['PG'][0]['ID']
-            except (KeyError, AttributeError, TypeError):
-                self._mapper = None
-                logging.warn('Could not auto-detect mapping program from SAM header')
+            self.load(sambam_file, ignore_duplicates=True, mapper=mapper)
 
     @staticmethod
     def sambam_size(sambam):
@@ -300,10 +297,26 @@ class Reads(Maskable, MetaContainer, FileBased):
         """
         self.file.close()
 
+    @property
+    def mapper(self):
+        return self._mapper
+    @mapper.setter
+    def mapper(self, mapper=None):
+        if mapper:
+            self._mapper = mapper
+            logging.info('Mapper was explicitly set to {}'.format(self._mapper))
+        else:
+            try:
+                self._mapper = self.header['PG'][0]['ID']
+                logging.info('Mapper was detected to be {}'.format(self._mapper))
+            except (KeyError, AttributeError, TypeError):
+                self._mapper = None
+                logging.warn('Could not auto-detect mapping program from SAM header')
+
     def load(self, sambam, ignore_duplicates=True, is_sorted=False,
              store_qname=True, store_cigar=True,
              store_seq=True, store_tags=True,
-             store_qual=True, sample_size=None):
+             store_qual=True, sample_size=None, mapper=None):
         """
         Load mapped reads from SAM/BAM file.
 
@@ -370,6 +383,11 @@ class Reads(Maskable, MetaContainer, FileBased):
                                        if k in ('HD', 'RG', 'PG')}
         self._header = sambam.header
 
+        # Tool used to map reads
+        self.mapper = mapper
+        if self.mapper == 'bwa':
+            ignore_duplicates = False
+        
         # references
         self._reads._v_attrs.ref = sambam.references
         self._ref = sambam.references
@@ -721,27 +739,26 @@ class Reads(Maskable, MetaContainer, FileBased):
         mask = self.add_mask_description('unmapped', 'Mask read pairs that are unmapped')
         unmapped_filter = UnmappedFilter(mask)
         self.filter(unmapped_filter, queue)
-
-    def filter_non_unique(self, strict=True, cutoff=0.5, queue=False):
+            
+    def filter_non_unique(self, strict=True, cutoff=3, queue=False):
         """
         Convenience function that applies a UniquenessFilter.
         The actual algorithm and rationale used for filtering will depend on the
         internal _mapper attribute.
 
-        :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
-                       values mean that the next best secondary alignment is of substantially
-                       lower quality than the primary one, and that the latter can be considered
-                       as unique. Used only if the reads have been aligned with bwa-mem.
+        :param cutoff: Minimum mapq value if the alignments are from bwa-mem.
         :param strict: If True will filter if XS tag is present. If False,
-                       will filter only when XS tag is not 0.
+                       will filter only when XS tag is not 0. This is applied if
+                       alignments are from bowtie2.
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('uniqueness', 'Mask read pairs that do not map uniquely (according to XS tag)')
         if self._mapper == 'bwa':
+            mask = self.add_mask_description('uniqueness', 'Mask reads that do not map uniquely (mapq <= {})'.format(cutoff))
             uniqueness_filter = BwaMemUniquenessFilter(cutoff, mask)
         else:
+            mask = self.add_mask_description('uniqueness', 'Mask reads that do not map uniquely (according to XS tag)')
             uniqueness_filter = UniquenessFilter(strict, mask)
         self.filter(uniqueness_filter, queue)
 
@@ -1168,12 +1185,11 @@ class BwaMemUniquenessFilter(ReadFilter):
     The presence of a non-zero XS tag does not mean a read is a multi-mapping one.
     Instead, we make sure that the ratio XS/AS is inferior to a certain threshold.
     """
-    def __init__(self, cutoff=0.5, mask=None):
+    def __init__(self, cutoff=3, mask=None):
         """
-        :param cutoff: Ratio of the secondary to the primary alignment score. Smaller
-                       values mean that the next best secondary alignment is of substantially
-                       lower quality than the primary one, and that the latter can be considered
-                       as unique
+        :param cutoff: MAPQ score above which an alignment should be in order to be considered
+                       unique. In practice, a cutoff of 3 ensures that no other alignment is
+                       equally good.
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered reads.
         """
@@ -1184,11 +1200,7 @@ class BwaMemUniquenessFilter(ReadFilter):
         """
         Check if a read has a high alignment score.
         """
-        alignment_score = read.get_tag('AS')
-        nextbest_score = read.get_tag('XS')
-        if alignment_score:
-            return float(nextbest_score) / alignment_score <= self.cutoff
-        return False
+        return read.mapq > self.cutoff
 
 
 class UnmappedFilter(ReadFilter):
@@ -1209,6 +1221,275 @@ class UnmappedFilter(ReadFilter):
         if 2 in bit_flags_from_int(read.flag):
             return False
         return True
+
+
+class PairLoader(object):
+
+    __metaclass__ = ABCMeta
+
+    class Aln(object):
+        def __init__(self, row):
+            self.qname_ix = row.qname_ix
+            self.pos = row.pos
+            self.strand = row.strand
+            self.ref = row.ref
+            self.flag = row.flag
+            self.cigar = row.cigar
+
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+        self._pairs = pairs
+        self._in_memory_index = _in_memory_index
+        self.ignore_duplicates = ignore_duplicates
+
+    def load(self, reads1, reads2, regions=None):
+        self.prepare_regions(reads1, reads2, regions=regions)
+        self.load_pairs_from_reads()
+
+    def prepare_regions(self, reads1, reads2, regions=None):
+        if regions is not None:
+            self._pairs.log_info("Adding regions...")
+            self._pairs.add_regions(regions)
+            self._pairs.log_info("Done.")
+
+        # generate index for fragments
+        self._pairs.log_info("Generating region index...")
+        fragment_infos = None
+        fragment_ends = None
+        if self._in_memory_index:
+            fragment_infos = {}
+            fragment_ends = {}
+            for region in self._pairs.regions():
+                if region.chromosome not in fragment_ends:
+                    fragment_ends[region.chromosome] = []
+                    fragment_infos[region.chromosome] = []
+                fragment_infos[region.chromosome].append((region.ix,
+                                                          self._pairs._chromosome_to_ix[region.chromosome],
+                                                          region.start, region.end))
+                fragment_ends[region.chromosome].append(region.end)
+
+        if isinstance(reads1, str):
+            self._pairs.log_info("Loading reads 1")
+            reads1 = Reads(sambam_file=reads1)
+
+        if isinstance(reads2, str):
+            self._pairs.log_info("Loading reads 2")
+            reads2 = Reads(sambam_file=reads2)
+
+        self.iter1 = CachedIterator(
+            (PairLoader.Aln(r) for r in reads1.reads(lazy=self.lazy, sort_by_qname_ix=True)), 2
+        )
+        self.iter2 = CachedIterator(
+            (PairLoader.Aln(r) for r in reads2.reads(lazy=self.lazy, sort_by_qname_ix=True)), 2
+        )
+        self.fragment_ends = fragment_ends
+        self.fragment_infos = fragment_infos
+
+        self.add_read_single = partial(self._pairs.add_read_single, flush=False,
+                                       _fragment_ends=self.fragment_ends,
+                                       _fragment_infos=self.fragment_infos)
+        self.add_read_pair = partial(self._pairs.add_read_pair, flush=False,
+                                     _fragment_ends=self.fragment_ends,
+                                     _fragment_infos=self.fragment_infos)
+
+    @abstractmethod
+    def load_pairs_from_reads(self):
+        logging.info('Counts: R1 %d R2 %d' % (self.r1_count, self.r2_count))
+        self._pairs._pairs.flush(update_index=True)
+        self._pairs._single.flush(update_index=True)
+
+
+class Bowtie2PairLoader(PairLoader):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+        self.lazy = True
+        super(Bowtie2PairLoader, self).__init__(pairs, ignore_duplicates, _in_memory_index)
+
+    @staticmethod
+    def get_next_read(iterator):
+        try:
+            r = iterator.next()
+            return r
+        except StopIteration:
+            return None
+
+    def load_pairs_from_reads(self):
+        self._pairs.log_info("Adding read pairs...")
+        # add and map reads
+        i = 0
+        last_r1_name_ix = ''
+        last_r2_name_ix = ''
+        r1 = self.get_next_read(self.iter1)
+        r2 = self.get_next_read(self.iter2)
+        r1_count = 0
+        r2_count = 0
+
+        while r1 is not None and r2 is not None:
+            i += 1
+            if r1.qname_ix == last_r1_name_ix:
+                if not self.ignore_duplicates:
+                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
+                r1 = self.get_next_read(self.iter1)
+                r1_count += 1
+            elif r2.qname_ix == last_r2_name_ix:
+                if not self.ignore_duplicates:
+                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
+                r2 = self.get_next_read(self.iter2)
+                r2_count += 1
+            elif abs(r1.qname_ix-r2.qname_ix) < 0.9:
+                self.add_read_pair(r1, r2)
+                last_r1_name_ix = r1.qname_ix
+                last_r2_name_ix = r2.qname_ix
+                r1 = self.get_next_read(self.iter1)
+                r2 = self.get_next_read(self.iter2)
+                r1_count += 1
+                r2_count += 1
+            elif r1.qname_ix-r2.qname_ix < 0:
+                self.add_read_single(r1)
+                last_r1_name_ix = r1.qname_ix
+                r1 = self.get_next_read(self.iter1)
+                r1_count += 1
+            else:
+                self.add_read_single(r2)
+                last_r2_name_ix = r2.qname_ix
+                r2 = self.get_next_read(self.iter2)
+                r2_count += 1
+
+            if i % 100000 == 0:
+                logging.info("%d reads processed" % i)
+
+        # add remaining unpaired reads
+        while r1 is not None:
+            if r1.qname_ix == last_r1_name_ix:
+                if not self.ignore_duplicates:
+                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
+            else:
+                self.add_read_single(r1)
+            last_r1_name_ix = r1.qname_ix
+            r1 = self.get_next_read(self.iter1)
+            r1_count += 1
+
+        while r2 is not None:
+            if r2.qname_ix == last_r2_name_ix:
+                if not self.ignore_duplicates:
+                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
+            else:
+                self.add_read_single(r2)
+            last_r2_name_ix = r2.qname_ix
+            r2 = self.get_next_read(self.iter2)
+            r2_count += 1
+
+        self.r1_count = r1_count
+        self.r2_count = r2_count
+
+        super(Bowtie2PairLoader, self).load_pairs_from_reads()
+
+
+class BwaMemPairLoader(PairLoader):
+    def __init__(self, pairs, _in_memory_index=True):
+        self.lazy = True
+        super(BwaMemPairLoader, self).__init__(pairs, False, _in_memory_index)
+
+    @staticmethod
+    def get_all_read_alns(it):
+        alns = []
+        alns.append(it.next())
+        if alns[0] is not None:
+            name_ix = alns[0].qname_ix
+            while 1:
+                r = it.next()
+                if r is None:
+                    break
+                elif r.qname_ix == name_ix:
+                    alns.append(r)
+                else:
+                    it.prev()
+                    break
+        return alns
+
+    @staticmethod
+    def sort_alns(alns):
+        """
+        Sorts split alignments of a read according to their order on the template.
+        Thanks Clemens for the inspiration!
+        """
+        def _get_match_part(a):
+            "Find part of alignment that is covered by M (matches)"
+            cigar = a.cigar if a.strand == 1 else reversed(a.cigar)
+            m = []
+            cur_pos = 0
+            for c in cigar:
+                if c[0] == 0:
+                    m.extend([cur_pos, cur_pos + c[1]])
+                if c[0] in (0, 1, 4, 5): # if c[0] in 'MISH'
+                    cur_pos += c[1]
+            return (min(m), max(m))
+        # Sort alignments based on their match positions
+        segments = [None] * len(alns)
+        for i, a in enumerate(alns):
+            m = _get_match_part(a)
+            segments[i] = (m[0], m[1], i)
+        sorted_segments = sorted(segments, key=lambda x: x[0])
+        return [alns[s[2]] for s in sorted_segments]
+
+    def process_bwa_alns(self, head=None, tail=None):
+        "Decide how to handle alignments"
+        if head and tail:
+            if not(len(head) == len(tail) == 1):
+                head = self.sort_alns(head)
+                tail = self.sort_alns(tail)
+            self.add_read_pair(head[0], tail[0])
+        else:
+            alns = head if head is not None else tail
+            if len(alns) == 1:
+                self.add_read_single(alns[0])
+            elif len(alns) == 2:
+                self.add_read_pair(*alns)
+            else:
+                pass
+
+    def load_pairs_from_reads(self):
+        self._pairs.log_info("Adding read pairs...")
+        # add and map reads
+        i = 0
+        r1 = self.get_all_read_alns(self.iter1)
+        r2 = self.get_all_read_alns(self.iter2)
+        r1_count = 0
+        r2_count = 0
+
+        while r1[0] is not None and r2[0] is not None:
+            i += 1
+            if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.9:
+                self.process_bwa_alns(r1, r2)
+                r1 = self.get_all_read_alns(self.iter1)
+                r2 = self.get_all_read_alns(self.iter2)
+                r1_count += 1
+                r2_count += 1
+            elif r1[0].qname_ix-r2[0].qname_ix < 0:
+                self.process_bwa_alns(r1)
+                r1 = self.get_all_read_alns(self.iter1)
+                r1_count += 1
+            else:
+                self.process_bwa_alns(r2)
+                r2 = self.get_all_read_alns(self.iter2)
+                r2_count += 1
+
+            if i % 100000 == 0:
+                logging.info("%d reads processed" % i)
+
+        # add remaining unpaired reads
+        while r1[0] is not None:
+            self.process_bwa_alns(r1)
+            r1 = self.get_all_read_alns(self.iter1)
+            r1_count += 1
+
+        while r2[0] is not None:
+            self.process_bwa_alns(r2)
+            r2 = self.get_all_read_alns(self.iter2)
+            r2_count += 1
+
+        self.r1_count = r1_count
+        self.r2_count = r2_count
+
+        super(BwaMemPairLoader, self).load_pairs_from_reads()
 
 
 class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
@@ -1370,118 +1651,12 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                  False if memory is an issue, but be prepared
                                  for a very long runtime.
         """
-        if regions is not None:
-            self.log_info("Adding regions...")
-            self.add_regions(regions)
-            self.log_info("Done.")
+        if reads1.mapper == 'bwa' and reads2.mapper == 'bwa':
+            loader = BwaMemPairLoader(self, _in_memory_index)
+        else:
+            loader = Bowtie2PairLoader(self, ignore_duplicates, _in_memory_index)
 
-        # generate index for fragments
-        self.log_info("Generating region index...")
-        fragment_infos = None
-        fragment_ends = None
-        if _in_memory_index:
-            fragment_infos = {}
-            fragment_ends = {}
-            for region in self.regions():
-                if region.chromosome not in fragment_ends:
-                    fragment_ends[region.chromosome] = []
-                    fragment_infos[region.chromosome] = []
-                fragment_infos[region.chromosome].append((region.ix, self._chromosome_to_ix[region.chromosome],
-                                                          region.start, region.end))
-                fragment_ends[region.chromosome].append(region.end)
-
-        if isinstance(reads1, str):
-            self.log_info("Loading reads 1")
-            reads1 = Reads(sambam_file=reads1)
-
-        if isinstance(reads2, str):
-            self.log_info("Loading reads 2")
-            reads2 = Reads(sambam_file=reads2)
-
-        iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
-        iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
-
-        def get_next_read(iterator):
-            try:
-                r = iterator.next()
-                return r
-            except StopIteration:
-                return None
-
-        self.log_info("Adding read pairs...")
-
-        # add and map reads
-        i = 0
-        last_r1_name_ix = ''
-        last_r2_name_ix = ''
-        r1 = get_next_read(iter1)
-        r2 = get_next_read(iter2)
-        r1_count = 0
-        r2_count = 0
-        while r1 is not None and r2 is not None:
-            i += 1
-            if r1.qname_ix == last_r1_name_ix:
-                if not ignore_duplicates:
-                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
-                r1 = get_next_read(iter1)
-                r1_count += 1
-            elif r2.qname_ix == last_r2_name_ix:
-                if not ignore_duplicates:
-                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
-                r2 = get_next_read(iter2)
-                r2_count += 1
-            elif abs(r1.qname_ix-r2.qname_ix) < 0.9:
-                self.add_read_pair(r1, r2, flush=False,
-                                   _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
-                last_r1_name_ix = r1.qname_ix
-                last_r2_name_ix = r2.qname_ix
-                r1 = get_next_read(iter1)
-                r2 = get_next_read(iter2)
-                r1_count += 1
-                r2_count += 1
-            elif r1.qname_ix-r2.qname_ix < 0:
-                self.add_read_single(r1, flush=False,
-                                     _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
-                last_r1_name_ix = r1.qname_ix
-                r1 = get_next_read(iter1)
-                r1_count += 1
-            else:
-                self.add_read_single(r2, flush=False,
-                                     _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
-                last_r2_name_ix = r2.qname_ix
-                r2 = get_next_read(iter2)
-                r2_count += 1
-
-            if i % 100000 == 0:
-                logging.info("%d reads processed" % i)
-
-        # add remaining unpaired reads
-        while r1 is not None:
-            if r1.qname_ix == last_r1_name_ix:
-                if not ignore_duplicates:
-                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
-            else:
-                self.add_read_single(r1, flush=False,
-                                     _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
-            last_r1_name_ix = r1.qname_ix
-            r1 = get_next_read(iter1)
-            r1_count += 1
-
-        while r2 is not None:
-            if r2.qname_ix == last_r2_name_ix:
-                if not ignore_duplicates:
-                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
-            else:
-                self.add_read_single(r2, flush=False,
-                                     _fragment_ends=fragment_ends, _fragment_infos=fragment_infos)
-            last_r2_name_ix = r2.qname_ix
-            r2 = get_next_read(iter2)
-            r2_count += 1
-
-        logging.info('Counts: R1 %d R2 %d' % (r1_count, r2_count))
-
-        self._pairs.flush(update_index=True)
-        self._single.flush(update_index=True)
+        loader.load(reads1, reads2, regions=regions)
 
     def add_read_pair(self, read1, read2, flush=True,
                       _fragment_ends=None, _fragment_infos=None):
