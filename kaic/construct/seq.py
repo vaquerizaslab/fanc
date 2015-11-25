@@ -73,6 +73,14 @@ import collections
 import itertools
 from functools import partial
 
+def str2float(s):
+    result = 0.0
+    scale = 1.0
+    for i in range(0, len(s)):
+        scale /= 26
+        index = (1 + ord(s[i]) - ord('a'))
+        result += index / scale
+    return result
 
 class Reads(Maskable, MetaContainer, FileBased):
     """
@@ -496,7 +504,8 @@ class Reads(Maskable, MetaContainer, FileBased):
             self._qname.append([qname])
             reads_row['qname'] = self._row_counter['qname']
             self._row_counter['qname'] += 1
-        reads_row['qname_ix'] = float(int(hashlib.md5(qname).hexdigest(), 16))
+        #reads_row['qname_ix'] = float(int(hashlib.md5(qname).hexdigest(), 16))
+        reads_row['qname_ix'] = str2float(qname)
 
         cigar = read.cigar
         if store_cigar and cigar is not None:
