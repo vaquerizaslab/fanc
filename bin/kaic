@@ -467,6 +467,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '--auto',
+            action='store_true',
+            help='''Auto-guess settings for inward/outward read pair filters.
+                    Overrides --outward and --inward if set.'''
+        )
+
+        parser.add_argument(
             '-r', '--re-distance', dest='redist',
             type=int,
             help='''Maximum distance for a read to the nearest restriction site'''
@@ -493,13 +500,19 @@ class Kaic(object):
 
         pairs = kaic.FragmentMappedReadPairs(file_name=input_path)
 
-        if args.inward:
-            logging.info("Filtering inward-facing reads at %dbp" % args.inward)
-            pairs.filter_inward(minimum_distance=args.inward, queue=True)
+        if args.auto:
+            logging.info("Filtering inward- and outward-facing reads using automatically"
+                         "determined thresholds.")
+            pairs.filter_inward(minimum_distance=None, queue=True)
+            pairs.filter_outward(minimum_distance=None, queue=True)
+        else:
+            if args.inward:
+                logging.info("Filtering inward-facing reads at %dbp" % args.inward)
+                pairs.filter_inward(minimum_distance=args.inward, queue=True)
 
-        if args.outward:
-            logging.info("Filtering outward-facing reads at %dbp" % args.outward)
-            pairs.filter_outward(minimum_distance=args.outward, queue=True)
+            if args.outward:
+                logging.info("Filtering outward-facing reads at %dbp" % args.outward)
+                pairs.filter_outward(minimum_distance=args.outward, queue=True)
 
         if args.redist:
             logging.info("Filtering reads with RE distance >%dbp" % args.redist)
