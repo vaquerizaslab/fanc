@@ -57,6 +57,7 @@ import tables as t
 import pysam
 from kaic.tools.files import is_sambam_file
 from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, FileBased
+import tempfile
 import os
 import logging
 from tables.exceptions import NoSuchNodeError
@@ -64,11 +65,22 @@ from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int, CachedIterator
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
+import subprocess
 import msgpack as pickle
 import numpy as np
 import hashlib
+import collections
+import itertools
 from functools import partial
 
+def str2float(s):
+    result = 0.0
+    scale = 1.0
+    for i in range(0, len(s)):
+        scale /= 26
+        index = (1 + ord(s[i]) - ord('a'))
+        result += index / scale
+    return result
 
 class Reads(Maskable, MetaContainer, FileBased):
     """
@@ -128,7 +140,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         seq = t.Int32Col(pos=10, dflt=-1)
         qual = t.Int32Col(pos=11, dflt=-1)
         tags = t.Int32Col(pos=12, dflt=-1)
-        qname_ix = t.StringCol(32, pos=13, dflt=-1)
+        qname_ix = t.Float64Col(pos=13, dflt=-1)
 
     def __init__(self, sambam_file=None, file_name=None, read_only=False,
                  _group_name='reads', mapper=None):
@@ -492,7 +504,8 @@ class Reads(Maskable, MetaContainer, FileBased):
             self._qname.append([qname])
             reads_row['qname'] = self._row_counter['qname']
             self._row_counter['qname'] += 1
-        reads_row['qname_ix'] = hashlib.md5(qname).hexdigest()
+        #reads_row['qname_ix'] = float(int(hashlib.md5(qname).hexdigest(), 16))
+        reads_row['qname_ix'] = str2float(qname)
 
         cigar = read.cigar
         if store_cigar and cigar is not None:
@@ -1339,7 +1352,7 @@ class Bowtie2PairLoader(PairLoader):
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
                 r2 = self.get_next_read(iter2)
                 r2_count += 1
-            elif r1.qname_ix == r2.qname_ix:
+            elif abs(r1.qname_ix-r2.qname_ix) < 0.9:
                 add_read_pair(r1, r2)
                 last_r1_name_ix = r1.qname_ix
                 last_r2_name_ix = r2.qname_ix
@@ -1347,7 +1360,7 @@ class Bowtie2PairLoader(PairLoader):
                 r2 = self.get_next_read(iter2)
                 r1_count += 1
                 r2_count += 1
-            elif r1.qname_ix < r2.qname_ix:
+            elif r1.qname_ix-r2.qname_ix < 0:
                 add_read_single(r1)
                 last_r1_name_ix = r1.qname_ix
                 r1 = self.get_next_read(iter1)
@@ -1474,13 +1487,13 @@ class BwaMemPairLoader(PairLoader):
 
         while r1[0] is not None and r2[0] is not None:
             i += 1
-            if r1[0].qname_ix == r2[0].qname_ix:
+            if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.9:
                 self.process_bwa_alns(r1, r2)
                 r1 = self.get_all_read_alns(iter1)
                 r2 = self.get_all_read_alns(iter2)
                 r1_count += 1
                 r2_count += 1
-            elif r1[0].qname_ix < r2[0].qname_ix:
+            elif r1[0].qname_ix-r2[0].qname_ix < 0:
                 self.process_bwa_alns(r1)
                 r1 = self.get_all_read_alns(iter1)
                 r1_count += 1
@@ -1555,14 +1568,14 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         Needed by PyTables to build read pairs table.
         """
         ix = t.Int32Col(pos=0)
-        left_read_qname_ix = t.StringCol(32, pos=1)
+        left_read_qname_ix = t.Float64Col(pos=1)
         left_read_position = t.Int64Col(pos=2)
         left_read_strand = t.Int8Col(pos=3)
         left_fragment = t.Int32Col(pos=4, dflt=-1)
         left_fragment_start = t.Int64Col(pos=5)
         left_fragment_end = t.Int64Col(pos=6)
         left_fragment_chromosome = t.Int32Col(pos=7)
-        right_read_qname_ix = t.StringCol(32, pos=8)
+        right_read_qname_ix = t.Float64Col(pos=8)
         right_read_position = t.Int64Col(pos=9)
         right_read_strand = t.Int8Col(pos=10)
         right_fragment = t.Int32Col(pos=11, dflt=-1)
@@ -1575,7 +1588,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         Needed by PyTables to build single reads table.
         """
         ix = t.Int32Col(pos=0)
-        read_qname_ix = t.StringCol(32, pos=1)
+        read_qname_ix = t.Float64Col(pos=1)
         read_position = t.Int64Col(pos=2)
         read_strand = t.Int8Col(pos=3)
         fragment = t.Int32Col(pos=4, dflt=-1)
