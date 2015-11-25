@@ -101,6 +101,6 @@ def mapq_hist_plot(reads, output=None, include_masked=False):
     reads = reads.reads(lazy=True, include_masked=include_masked)
     mapqs = [r.mapq for r in reads]
     old_backend = _prepare_backend(output)
-    mqplot = sns.distplot(mapqs, norm_hist=False, kde=False, bins=range(min(mapqs), max(mapqs)+1))
-    mqplot.set_xlim(left=0)
+    mqplot = sns.distplot(mapqs, norm_hist=False, kde=False, bins=np.arange(min(mapqs), max(mapqs)+1.5)-0.5)
+    mqplot.set_xlim(left=-1, right=max(mapqs)+2)
     _plot_figure(mqplot.figure, output, old_backend)
