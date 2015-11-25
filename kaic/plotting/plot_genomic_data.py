@@ -13,12 +13,14 @@ def _prepare_backend(output):
     if output is not None:
         old_backend = sns.plt.get_backend()
         # extension = os.path.splitext(output)[1]
+        sns.set_style("ticks")
         sns.plt.switch_backend('pdf')
         sns.plt.ioff()
         return old_backend
     return None
 
 def _plot_figure(figure, output, old_backend):
+    sns.despine()
     if output is not None:
         figure.savefig(output)
         sns.plt.close(figure)
