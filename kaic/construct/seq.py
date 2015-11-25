@@ -613,7 +613,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                     pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
                     tags=tags, reference_id=ref_ix, qname_ix=row['qname_ix'])
 
-    def reads(self, lazy=False, sort_by_qname_ix=False):
+    def reads(self, lazy=False, sort_by_qname_ix=False, include_masked=False):
         """
         Iterate over _reads table and convert each result to Read.
 
@@ -635,10 +635,11 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         class ReadsIter:
             def __init__(self):
+                reads_table = this._reads.all() if include_masked else this._reads
                 if sort_by_qname_ix:
                     self.iter = this._reads.itersorted('qname_ix')
                 else:
-                    self.iter = iter(this._reads)
+                    self.iter = iter(reads_table)
 
             def __iter__(self):
                 return self
