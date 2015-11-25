@@ -1319,6 +1319,30 @@ class Bowtie2PairLoader(PairLoader):
     def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
         self._pairs.log_info("Adding read pairs...")
 
+        logging.info("Sorting qnames...")
+        if reads1._reads.cols.qname_ix.index is None:
+            reads1._reads.cols.qname_ix.create_csindex()
+        else:
+            if not reads1._reads.cols.qname_ix.index.is_csi:
+                reads1._reads.cols.qname_ix.reindex()
+            # just to make sure we really got this
+            if not reads1._reads.cols.qname_ix.index.is_csi:
+                reads1._reads.cols.qname_ix.remove_index()
+                reads1._reads.cols.qname_ix.create_csindex()
+
+        if reads2._reads.cols.qname_ix.index is None:
+            reads2._reads.cols.qname_ix.create_csindex()
+        else:
+            if not reads2._reads.cols.qname_ix.index.is_csi:
+                reads2._reads.cols.qname_ix.reindex()
+            # just to make sure we really got this
+            if not reads2._reads.cols.qname_ix.index.is_csi:
+                reads2._reads.cols.qname_ix.remove_index()
+                reads2._reads.cols.qname_ix.create_csindex()
+
+        assert reads2._reads.cols.qname_ix.index.is_csi
+        assert reads1._reads.cols.qname_ix.index.is_csi
+
         iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
         iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
 
