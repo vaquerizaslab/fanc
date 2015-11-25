@@ -128,7 +128,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         seq = t.Int32Col(pos=10, dflt=-1)
         qual = t.Int32Col(pos=11, dflt=-1)
         tags = t.Int32Col(pos=12, dflt=-1)
-        qname_ix = t.StringCol(33, pos=13, dflt=-1)
+        qname_ix = t.StringCol(32, pos=13, dflt=-1)
 
     def __init__(self, sambam_file=None, file_name=None, read_only=False,
                  _group_name='reads', mapper=None):
@@ -492,7 +492,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             self._qname.append([qname])
             reads_row['qname'] = self._row_counter['qname']
             self._row_counter['qname'] += 1
-        reads_row['qname_ix'] = '1' + hashlib.md5(qname).hexdigest()
+        reads_row['qname_ix'] = hashlib.md5(qname).hexdigest()
 
         cigar = read.cigar
         if store_cigar and cigar is not None:
