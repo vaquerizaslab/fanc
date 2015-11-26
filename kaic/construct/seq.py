@@ -1335,6 +1335,8 @@ class Bowtie2PairLoader(PairLoader):
         r2 = self.get_next_read(iter2)
         r1_count = 0
         r2_count = 0
+        pair_count = 0
+        single_count = 0
 
         while r1 is not None and r2 is not None:
             i += 1
@@ -1356,16 +1358,19 @@ class Bowtie2PairLoader(PairLoader):
                 r2 = self.get_next_read(iter2)
                 r1_count += 1
                 r2_count += 1
+                pair_count += 1
             elif r1.qname_ix-r2.qname_ix < 0:
                 add_read_single(r1)
                 last_r1_name_ix = r1.qname_ix
                 r1 = self.get_next_read(iter1)
                 r1_count += 1
+                single_count += 1
             else:
                 add_read_single(r2)
                 last_r2_name_ix = r2.qname_ix
                 r2 = self.get_next_read(iter2)
                 r2_count += 1
+                single_count += 1
 
             if i % 100000 == 0:
                 logging.info("%d reads processed" % i)
@@ -1380,6 +1385,7 @@ class Bowtie2PairLoader(PairLoader):
             last_r1_name_ix = r1.qname_ix
             r1 = self.get_next_read(iter1)
             r1_count += 1
+            single_count += 1
 
         while r2 is not None:
             if r2.qname_ix == last_r2_name_ix:
@@ -1390,8 +1396,10 @@ class Bowtie2PairLoader(PairLoader):
             last_r2_name_ix = r2.qname_ix
             r2 = self.get_next_read(iter2)
             r2_count += 1
+            single_count += 1
 
         logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
+        logging.info("Pairs: %d. Single: %d" % (pair_count, single_count))
 
 
 class BwaMemPairLoader(PairLoader):
