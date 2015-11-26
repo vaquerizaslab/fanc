@@ -36,7 +36,7 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
         sns.plt.show()
 
 
-def hic_ligation_error_structure_plot(pairs, output=None, data_points=None, skip_self_ligations=True):
+def hic_ligation_structure_biases_plot(pairs, output=None, data_points=None, skip_self_ligations=True):
     """
     Plot the ligation error structure of a dataset.
 
