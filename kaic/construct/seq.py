@@ -1877,6 +1877,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
+    @lru_cache(maxsize=1000)
     def get_error_structure(self, data_points=None, skip_self_ligations=True):
 
         """
