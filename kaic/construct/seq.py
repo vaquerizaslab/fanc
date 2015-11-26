@@ -57,7 +57,6 @@ import tables as t
 import pysam
 from kaic.tools.files import is_sambam_file
 from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, FileBased
-import tempfile
 import os
 import logging
 from tables.exceptions import NoSuchNodeError
@@ -65,12 +64,9 @@ from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int, CachedIterator
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
-import subprocess
 import msgpack as pickle
 import numpy as np
 import hashlib
-import collections
-import itertools
 from functools import partial
 
 
