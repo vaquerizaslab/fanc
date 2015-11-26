@@ -261,13 +261,6 @@ class Reads(Maskable, MetaContainer, FileBased):
         except NoSuchNodeError:
             self._tags = None
 
-        # add qname_ix index
-        try:
-            self._reads.cols.qname_ix.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-
         # mapper
         self.mapper = mapper
 
@@ -285,7 +278,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         :return: (int) read count
         """
         if type(sambam) == str:
-            sambam = pysam.AlignmentFile(sambam, 'rb')  # @UndefinedVariable
+            sambam = pysam.AlignmentFile(sambam, 'rb')
 
         count = sum(1 for _ in iter(sambam))
         sambam.close()
@@ -300,6 +293,7 @@ class Reads(Maskable, MetaContainer, FileBased):
     @property
     def mapper(self):
         return self._mapper
+
     @mapper.setter
     def mapper(self, mapper=None):
         if mapper:
@@ -406,6 +400,22 @@ class Reads(Maskable, MetaContainer, FileBased):
         self.flush()
 
         self.log_info("Done.")
+
+    def _update_csi(self):
+        if not self._reads.cols.qname_ix.is_indexed:
+            logging.info("Sorting on qname_ix...")
+            self._reads.cols.qname_ix.create_csindex()
+            logging.info("Done.")
+        elif not self._reads.cols.qname_ix.index.is_csi:
+            logging.info("qname_ix sorting is stale, reindexing...")
+            self._reads.cols.qname_ix.reindex()
+            logging.info("Done.")
+
+    def _is_sorted(self):
+        if (self._reads.cols.qname_ix.index is None or
+                not self._reads.cols.qname_ix.index.is_csi):
+            return False
+        return True
 
     @staticmethod
     def determine_field_sizes(sambam, sample_size=10000,
@@ -533,6 +543,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         Write the latest changes to this object to file.
         """
         self._reads.flush(update_index=True)
+        self._update_csi()
         if self._tags is not None:
             self._tags.flush()
             self._row_counter['tags'] = len(self._tags)
@@ -626,6 +637,16 @@ class Reads(Maskable, MetaContainer, FileBased):
         :param sort_by_qname_ix: Iterate by ascending qname_ix
         :return: ReadsIter that iterates over visible reads
         """
+
+        # ensure sorting on qname_ix column
+        if sort_by_qname_ix and not self._is_sorted():
+            try:
+                logging.info("Sorting qnames...")
+                self._update_csi()
+            except t.exceptions.FileModeError:
+                raise RuntimeError("This object is not sorted by qname_ix! "
+                                   "Cannot sort manually, because file is in read-only mode.")
+
         this = self
 
         class ReadsIter:
@@ -1319,30 +1340,6 @@ class Bowtie2PairLoader(PairLoader):
     def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
         self._pairs.log_info("Adding read pairs...")
 
-        logging.info("Sorting qnames...")
-        if reads1._reads.cols.qname_ix.index is None:
-            reads1._reads.cols.qname_ix.create_csindex()
-        else:
-            if not reads1._reads.cols.qname_ix.index.is_csi:
-                reads1._reads.cols.qname_ix.reindex()
-            # just to make sure we really got this
-            if not reads1._reads.cols.qname_ix.index.is_csi:
-                reads1._reads.cols.qname_ix.remove_index()
-                reads1._reads.cols.qname_ix.create_csindex()
-
-        if reads2._reads.cols.qname_ix.index is None:
-            reads2._reads.cols.qname_ix.create_csindex()
-        else:
-            if not reads2._reads.cols.qname_ix.index.is_csi:
-                reads2._reads.cols.qname_ix.reindex()
-            # just to make sure we really got this
-            if not reads2._reads.cols.qname_ix.index.is_csi:
-                reads2._reads.cols.qname_ix.remove_index()
-                reads2._reads.cols.qname_ix.create_csindex()
-
-        assert reads2._reads.cols.qname_ix.index.is_csi
-        assert reads1._reads.cols.qname_ix.index.is_csi
-
         iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
         iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
 
@@ -1367,7 +1364,7 @@ class Bowtie2PairLoader(PairLoader):
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
                 r2 = self.get_next_read(iter2)
                 r2_count += 1
-            elif abs(r1.qname_ix-r2.qname_ix) < 0.9:
+            elif abs(r1.qname_ix-r2.qname_ix) < 0.5:
                 add_read_pair(r1, r2)
                 last_r1_name_ix = r1.qname_ix
                 last_r2_name_ix = r2.qname_ix
@@ -1454,7 +1451,7 @@ class BwaMemPairLoader(PairLoader):
                     m.extend([cur_pos, cur_pos + c[1]])
                 if c[0] in (0, 1, 4, 5): # if c[0] in 'MISH'
                     cur_pos += c[1]
-            return (min(m), max(m))
+            return min(m), max(m)
         # Sort alignments based on their match positions
         segments = [None] * len(alns)
         for i, a in enumerate(alns):
@@ -1502,7 +1499,7 @@ class BwaMemPairLoader(PairLoader):
 
         while r1[0] is not None and r2[0] is not None:
             i += 1
-            if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.9:
+            if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.5:
                 self.process_bwa_alns(r1, r2)
                 r1 = self.get_all_read_alns(iter1)
                 r2 = self.get_all_read_alns(iter2)
