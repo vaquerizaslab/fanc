@@ -2,9 +2,12 @@ from matplotlib.ticker import Formatter, MaxNLocator
 from kaic.data.genomic import GenomicRegion, HicMatrix
 import numpy as np
 import math
-import matpotlib as mpl
+import matplotlib as mpl
 import seaborn as sns
 plt = sns.plt
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(10)
 
 def millify(n, precision=1):
     """Take input float and return string which is turned human readable.
@@ -33,14 +36,14 @@ def millify(n, precision=1):
 
 class GenomeCoordFormatter(Formatter):
     def __init__(self, chromosome, start, end):
-        self.chromsome = chromosome
+        self.chromosome = chromosome
         self.start = start
         self.end = end
 
     def __call__(self, x, pos=None):
         if x == 0:
-            return chromosome
-        return millify(x + start)
+            return self.chromosome
+        return millify(x + self.start)
 
 class GenomeCoordLocator(MaxNLocator):
     def __init__(self, chromosome, start, end, **kwargs):
@@ -65,18 +68,19 @@ class BasePlotter(object):
 
     @property
     def fig(self):
-        if self.fig is None:
-            self.fig, self.ax = self._make_fig_ax()
+        if self._fig is None:
+            self._make_fig_ax()
         return self._fig
     
     @property
     def ax(self):
-        if self.ax is None:
-            self.fig, self.ax = self._make_fig_ax()
+        if self._ax is None:
+             self._make_fig_ax()
         return self._ax
 
     def _make_fig_ax(self):
-        return plt.subplots()
+        self._fig, self._ax = plt.subplots()
+        return self._fig, self._ax
 
     def _plot(self, region):
         raise NotImplementedError("Subclasses need to override _plot function")
@@ -104,19 +108,20 @@ class HicPlot(BasePlotter):
             raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
     def _plot(self, region):
-        hm = hic_data[region.to_string(), region.to_string()]
+        log.debug("Generating matrix from hic object")
+        hm = self.hic_data[region.to_string(), region.to_string()]
         n = hm.shape[0]
-
+        log.debug("Taking upper triangle.")
         # mask areas we don't want to plot
         # lower triangle
         mask_lower = np.tril_indices(n, k=-1)
         hm[mask_lower] = np.nan
-        if max_height is not None:
+        if self.max_height is not None:
             # upper right corner
-            mask_upper = np.triu_indices(n, k=max_height)
+            mask_upper = np.triu_indices(n, k=self.max_height)
             hm[mask_upper] = np.nan
         triangle = np.ma.masked_array(hm, np.isnan(hm))
-
+        log.debug("Rotating matrix")
         # prepare an array of tuples that will be used to rotate triangle
         A = np.array([(y, x) for x in range(n, -1, -1) for y in range(n + 1)])
         # rotation matrix 45 degrees
@@ -126,6 +131,8 @@ class HicPlot(BasePlotter):
         # transform A into x and y values
         X = A[:, 1].reshape((n + 1, n + 1))
         Y = A[:, 0].reshape((n + 1, n + 1))
+        import ipdb
+        ipdb.set_trace()
 
         # flip triangle (because that pcolormesh works opposite than imshow)
         flip_triangle = np.flipud(triangle)
@@ -134,19 +141,22 @@ class HicPlot(BasePlotter):
             # normalize colors
             cmap = mpl.cm.get_cmap(self.colormap)
 
+            log.debug("Plotting matrix")
             # create plot
             caxes = sns.plt.pcolormesh(X, Y, flip_triangle, axes=self.ax, cmap=cmap, norm=self.norm)
 
+            log.debug("Resetting axis limits")
             # re-calculate and reset axis limits
-            max_x = max(A[:, 1])
-            max_y = 0
-            for i in xrange(flip_triangle.shape[0]):
-                for j in xrange(flip_triangle.shape[1]):
-                    if flip_triangle[i, j] is not np.ma.masked:
-                        max_y = max(max_y, Y[i, j]+2)
-            self.ax.set_ylim((-1, max_y))
-            self.ax.set_xlim((0, max_x))
+            # max_x = max(A[:, 1])
+            # max_y = 0
+            # for i in xrange(flip_triangle.shape[0]):
+            #     for j in xrange(flip_triangle.shape[1]):
+            #         if flip_triangle[i, j] is not np.ma.masked:
+            #             max_y = max(max_y, Y[i, j]+2)
+            # self.ax.set_ylim((-1, max_y))
+            # self.ax.set_xlim((0, max_x))
 
+            log.debug("Setting custom x tick formatter")
             # set genome tick formatter
             self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region.chromosome, region.start, region.end))
 
@@ -161,6 +171,7 @@ class HicPlot(BasePlotter):
             # Only show ticks on the left and bottom spines
             self.ax.xaxis.set_ticks_position('bottom')
 
+            log.debug("Setting tight layout")
             # make figure margins accommodate labels
             sns.plt.tight_layout()
 
