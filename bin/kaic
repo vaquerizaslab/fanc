@@ -418,9 +418,9 @@ class Kaic(object):
         output_path = os.path.expanduser(args.output)
 
         logging.info("Loading left side of reads...")
-        reads1 = kaic.Reads(reads1_path)
+        reads1 = kaic.Reads(reads1_path, read_only=True)
         logging.info("Loading right side of reads...")
-        reads2 = kaic.Reads(reads2_path)
+        reads2 = kaic.Reads(reads2_path, read_only=True)
         logging.info("Building genome...")
         genome = kaic.Genome.from_string(genome_path)
         logging.info("Getting fragments...")
