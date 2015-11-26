@@ -345,14 +345,14 @@ class TestFragmentMappedReads:
         self.pairs.filter(self_ligation_filter)
         assert len(self.pairs) == 7
 
-    def test_get_error_structure(self):
+    def test_get_ligation_structure_biases(self):
         reads1 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.1.sam")
         reads2 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.2.sam")
         chrI = Chromosome.from_fasta(self.dir + "/../data/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
         pairs = FragmentMappedReadPairs()
         pairs.load(reads1, reads2, genome.get_regions('HindIII'))
-        x, i, o = pairs.get_error_structure(data_points=200, skip_self_ligations=False)
+        x, i, o = pairs.get_ligation_structure_biases(data_points=200, skip_self_ligations=False)
         assert len(x) == len(i)
         assert len(i) == len(o)
         assert len(o) == 3
