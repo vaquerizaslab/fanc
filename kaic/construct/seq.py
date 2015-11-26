@@ -150,20 +150,8 @@ class Reads(Maskable, MetaContainer, FileBased):
                           be loaded. Or the name or a non-existing file that
                           will be used to save the Reads object. If not
                           provided, all operations are performed in memory.
-        :param qname_length: If it is for some reason not wanted to load reads
-                             during initialization (for example, when building
-                             the Reads object from scratch using the add_read
-                             method) this parameter can be used to set the
-                             expected length of read names. If
-                             the respective strings are longer than the field
-                             size specified here, they will be truncated.
-        :param seq_length: If it is for some reason not wanted to load reads
-                           during initialization (for example, when building
-                           the Reads object from scratch using the add_read
-                           method) this parameter can be used to set the
-                           expected length of sequences. If
-                           the respective strings are longer than the field
-                           size specified here, they will be truncated.
+        :param read_only: If True, opens HDF5 file in read-only mode. Default:
+                          False.
         :param _group_name: (internal) Name for the HDF5 group that will house
                             the Reads object's tables.
         :param mapper: Mapper that was used to align the reads. If None, will
@@ -826,10 +814,10 @@ class Read(object):
     read information.
     """
 
-    def __init__(self, qname="", flag=0, ref="",
-                 pos=0, mapq=0, cigar="", rnext=0,
-                 pnext=0, tlen=0, seq="", qual="",
-                 tags={}, reference_id=None, qname_ix=None):
+    def __init__(self, qname=None, flag=0, ref="",
+                 pos=0, mapq=0, cigar=None, rnext=0,
+                 pnext=0, tlen=0, seq=None, qual=None,
+                 tags=None, reference_id=None, qname_ix=None):
         """
         Initialize a Read with specific attributes.
 
@@ -921,11 +909,11 @@ class MaskedRead(Read):
     Provides all the functionality of Read plus access to the
     masks that are hiding this read in the Reads object.
     """
-    def __init__(self, qname="", flag=0, ref="",
-                 pos=0, mapq=0, cigar="", rnext=0,
-                 pnext=0, tlen=0, seq="", qual="",
-                 tags={}, reference_id=None,
-                 qname_ix = None, masks=None):
+    def __init__(self, qname=None, flag=0, ref="",
+                 pos=0, mapq=0, cigar=None, rnext=0,
+                 pnext=0, tlen=0, seq=None, qual=None,
+                 tags=None, reference_id=None,
+                 qname_ix=None, masks=None):
         """
         Initialize a MaskedRead with specific attributes.
 
