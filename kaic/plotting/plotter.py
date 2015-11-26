@@ -122,15 +122,17 @@ class HicPlot(BasePlotter):
             hm[mask_upper] = np.nan
         triangle = np.ma.masked_array(hm, np.isnan(hm))
         log.debug("Rotating matrix")
-        # prepare an array of tuples that will be used to rotate triangle
-        A = np.array([(y, x) for x in range(n, -1, -1) for y in range(n + 1)])
-        # rotation matrix 45 degrees
-        t = np.array([[0.707, 0.707], [-0.707, 0.707]])
+        # prepare an array of the corner coordinates of the Hic-matrix
+        sqrt2 = math.sqrt(2)
+        sin45 = math.sin(math.radians(45))
+        bin_coords = np.r_[[sqrt2*(x.start - 1) for x in hm.row_regions], sqrt2*(hm.row_regions[-1].end -1)]
+        X, Y = np.meshgrid(bin_coords, bin_coords)
+        # rotation coordinate matrix 45 degrees
+        t = np.array([[sin45, sin45], [-sin45, sin45]])
         # "rotate" A
-        A = np.dot(A, t)
-        # transform A into x and y values
-        X = A[:, 1].reshape((n + 1, n + 1))
-        Y = A[:, 0].reshape((n + 1, n + 1))
+        corner_coords = np.dot(np.stack((X, Y), axis=-1), t)
+        # and shift x coords to correct start
+        corner_coords[:,:,0] += (np.abs(np.min(corner_coords[:,:,0])) + hm.row_regions[0].start)
         import ipdb
         ipdb.set_trace()
 
@@ -143,18 +145,7 @@ class HicPlot(BasePlotter):
 
             log.debug("Plotting matrix")
             # create plot
-            caxes = sns.plt.pcolormesh(X, Y, flip_triangle, axes=self.ax, cmap=cmap, norm=self.norm)
-
-            log.debug("Resetting axis limits")
-            # re-calculate and reset axis limits
-            # max_x = max(A[:, 1])
-            # max_y = 0
-            # for i in xrange(flip_triangle.shape[0]):
-            #     for j in xrange(flip_triangle.shape[1]):
-            #         if flip_triangle[i, j] is not np.ma.masked:
-            #             max_y = max(max_y, Y[i, j]+2)
-            # self.ax.set_ylim((-1, max_y))
-            # self.ax.set_xlim((0, max_x))
+            caxes = sns.plt.pcolormesh(corner_coords[:,:,0], corner_coords[:,:,1], flip_triangle, axes=self.ax, cmap=cmap, norm=self.norm)
 
             log.debug("Setting custom x tick formatter")
             # set genome tick formatter
