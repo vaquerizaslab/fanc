@@ -328,7 +328,7 @@ class TestFragmentMappedReads:
         assert len(self.pairs) == 44
         self.pairs.filter(out_filter)
         assert len(self.pairs) == 28
-        
+
     def test_filter_redist(self):
         mask = self.pairs.add_mask_description('re-dist', 'Mask read pairs where one half maps more than 100bp away from both RE sites')
         re_filter = ReDistanceFilter(maximum_distance=300, mask=mask)

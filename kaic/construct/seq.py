@@ -2109,6 +2109,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self.filter(outward_filter, queue)
         else:
             raise Exception('Could not automatically detect a sane distance threshold for filtering outward reads')
+
+    def filter_ligation_products(self, inward_threshold=None, outward_threshold=None, queue=False):
+        self.filter_inward(inward_threshold, queue=queue)
+        self.filter_outward(outward_threshold, queue=queue)
     
     def filter_re_dist(self, maximum_distance, queue=False):
         """
