@@ -2111,6 +2111,17 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             raise Exception('Could not automatically detect a sane distance threshold for filtering outward reads')
 
     def filter_ligation_products(self, inward_threshold=None, outward_threshold=None, queue=False):
+        """
+        Convenience function that applies an :class:`~OutwardPairsFilter` and an :class:`~InwardPairsFilter`.
+
+        :param inward_threshold: Minimum distance inward-facing read
+                                 pairs must have to pass this filter. If None, will be infered from the data
+        :param outward_threshold: Minimum distance outward-facing read
+                                 pairs must have to pass this filter. If None, will be infered from the data
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
         self.filter_inward(inward_threshold, queue=queue)
         self.filter_outward(outward_threshold, queue=queue)
     
