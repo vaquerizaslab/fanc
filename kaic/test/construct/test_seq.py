@@ -352,13 +352,28 @@ class TestFragmentMappedReads:
         genome = Genome(chromosomes=[chrI])
         pairs = FragmentMappedReadPairs()
         pairs.load(reads1, reads2, genome.get_regions('HindIII'))
-        x, i, o = pairs.get_ligation_structure_biases(data_points=200, skip_self_ligations=False)
-        assert len(x) == len(i)
-        assert len(i) == len(o)
-        assert len(o) == 3
+        x, i, o, b = pairs.get_ligation_structure_biases(data_points=200, skip_self_ligations=False)
+        assert len(x) == len(i) == len(o) == len(b) == 3
         assert x == [494.03856041131104, 4487.5800970873788, 19399.908018867925]
         assert i == [2.616915422885572, 0.8059701492537313, 0.6417910447761194]
         assert o == [0.2537313432835821, 0.24378109452736318, 0.46766169154228854]
+        assert b == [778, 412, 424]
+
+    def test_autothreshold_ligation_structure_filter(self):
+        reads1 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/../data/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = FragmentMappedReadPairs()
+        pairs.load(reads1, reads2, genome.get_regions('HindIII'))
+        x, i, o, b = pairs.get_ligation_structure_biases(data_points=50, skip_self_ligations=False)
+        print i
+        print o
+        print b
+        print pairs._auto_dist(x, i, b)
+        from kaic.plotting.plot_statistics import hic_ligation_structure_biases_plot
+        hic_ligation_structure_biases_plot(pairs, output="bla.pdf", data_points=50, skip_self_ligations=False)
+
 
     def test_re_dist(self):
         read1 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=200, strand=-1)
