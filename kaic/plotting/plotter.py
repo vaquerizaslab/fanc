@@ -109,61 +109,41 @@ class HicPlot(BasePlotter):
     def _plot(self, region):
         log.debug("Generating matrix from hic object")
         hm = self.hic_data[region.to_string(), region.to_string()]
-        n = hm.shape[0]
-        log.debug("Taking upper triangle.")
-        # mask areas we don't want to plot
-        # lower triangle
-        #mask_lower = np.tril_indices(n, k=-1)
-        #hm[mask_lower] = np.nan
-        #if self.max_height is not None:
-        #    # upper right corner
-        #    mask_upper = np.triu_indices(n, k=self.max_height)
-        #    hm[mask_upper] = np.nan
-        #triangle = np.ma.masked_array(hm, np.isnan(hm))
         log.debug("Rotating matrix")
         # prepare an array of the corner coordinates of the Hic-matrix
-        # Distances have to be scaled by sqrt(2), because we want the diagonals
-        # of the pixels to be one unit (bp) long
+        # Distances have to be scaled by sqrt(2), because the diagonals of the bins
+        # are sqrt(2)*len(bin_size)
         sqrt2 = math.sqrt(2)
         bin_coords = np.r_[[(x.start - 1)/sqrt2 for x in hm.row_regions], (hm.row_regions[-1].end -1)/sqrt2]
         X, Y = np.meshgrid(bin_coords, bin_coords)
         # rotatate coordinate matrix 45 degrees
         sin45 = math.sin(math.radians(45))
         X_, Y_ = X*sin45 - Y*sin45, X*sin45 + Y*sin45
-        # and shift x coords to correct start
+        # shift x coords to correct start coordinate and center the diagonal directly on the 
+        # x-axis
         X_ -= np.min(X_) - (hm.row_regions[0].start - 1)
         Y_ -= Y_[0, 0]
-        import ipdb
-        ipdb.set_trace()
         with sns.axes_style("ticks"):
             # normalize colors
             cmap = mpl.cm.get_cmap(self.colormap)
-
             log.debug("Plotting matrix")
             # create plot
-            caxes = sns.plt.pcolormesh(Y_, X_, hm, axes=self.ax, cmap=cmap, norm=self.norm)
-
+            sns.plt.pcolormesh(Y_, X_, hm, axes=self.ax, cmap=cmap, norm=self.norm)
             # set limits and aspect ratio
             self.ax.set_xlim(region.start, region.end)
             self.ax.set_ylim(0, max_height if max_height else 0.5*(region.end-region.start))
             self.ax.set_aspect(aspect="equal", adjustable="datalim")
-
             log.debug("Setting custom x tick formatter")
             # set genome tick formatter
             self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region.chromosome, region.start, region.end))
-
             # remove y ticks
             self.ax.set_yticks([])
-
             # Hide the left, right and top spines
             sns.despine(left=True)
             # hide background patch
             self.ax.patch.set_visible(False)
-
             # Only show ticks on the left and bottom spines
             self.ax.xaxis.set_ticks_position('bottom')
-
             log.debug("Setting tight layout")
             # make figure margins accommodate labels
             sns.plt.tight_layout()
-
