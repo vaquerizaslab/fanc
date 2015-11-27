@@ -68,6 +68,7 @@ import msgpack as pickle
 import numpy as np
 import hashlib
 from functools import partial
+from collections import defaultdict
 
 class Reads(Maskable, MetaContainer, FileBased):
     """
@@ -2464,7 +2465,7 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
         cur_pos = {}
         cur_duplicates = {}
         self.duplicates_set = set()
-        duplicate_stats = collections.defaultdict(int)
+        duplicate_stats = defaultdict(int)
         for p in all_iter:
             pair = self.pairs._pair_from_row(p, lazy=True)
             chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
