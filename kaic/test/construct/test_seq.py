@@ -295,18 +295,14 @@ class TestFragmentMappedReads:
         assert len(self.pairs._single) == 6
 
     def test_auto_mindist(self):
-        pairs = FragmentMappedReadPairs()
-        dists = range(10)
-        inward_ratios = [4.00, 2.00, 1.00, 0.50, 1.00, 0.40, 0.60, 0.55, 0.51, 0.50]
-        outward_ratios = [0.10, 0.20, 0.40, 0.30, 0.55, 0.50, 0.45, 0.55, 0.49, 0.50]
-        sane_inward = pairs._auto_dist(dists, inward_ratios, 0.2, 0.2, 3)
-        sane_outward = pairs._auto_dist(dists, outward_ratios, 0.2, 0.2, 3)
-        insane_inward = pairs._auto_dist(dists, inward_ratios, 0.001, 0.001, 3)
-        insane_outward = pairs._auto_dist(dists, outward_ratios, 0.001, 0.001, 3)
-        assert sane_inward == dists[8]
-        assert sane_outward == dists[6]
-        assert insane_inward is None
-        assert insane_outward is None
+        ad = FragmentMappedReadPairs._auto_dist
+        np.random.seed(101)
+        x = np.linspace(1, 100, 10)
+        i = [4.0, 3.0, 1.0, 1.2, 0.4, 0.8, 0.5, 0.4, 0.6, 0.5, 0.6, 0.5, 0.5, 0.5]
+        o = [0.2, 0.4, 0.3, 0.6, 0.5, 0.4, 0.5, 0.5, 0.6, 0.5, 0.5, 0.4, 0.5, 0.5]
+        b = np.random.normal(500, 200, 14).astype(int)
+        assert ad(x, i, b, 0.05) == 78
+        assert ad(x, o, b, 0.05) == 34
 
     def test_filter_inward(self):
         mask = self.pairs.add_mask_description('inwards', 'Mask read pairs that inward facing and closer than 100bp')
@@ -358,22 +354,6 @@ class TestFragmentMappedReads:
         assert i == [2.616915422885572, 0.8059701492537313, 0.6417910447761194]
         assert o == [0.2537313432835821, 0.24378109452736318, 0.46766169154228854]
         assert b == [778, 412, 424]
-
-    def test_autothreshold_ligation_structure_filter(self):
-        reads1 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.1.sam")
-        reads2 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.2.sam")
-        chrI = Chromosome.from_fasta(self.dir + "/../data/test_genomic/chrI.fa")
-        genome = Genome(chromosomes=[chrI])
-        pairs = FragmentMappedReadPairs()
-        pairs.load(reads1, reads2, genome.get_regions('HindIII'))
-        x, i, o, b = pairs.get_ligation_structure_biases(data_points=50, skip_self_ligations=False)
-        print i
-        print o
-        print b
-        print pairs._auto_dist(x, i, b)
-        from kaic.plotting.plot_statistics import hic_ligation_structure_biases_plot
-        hic_ligation_structure_biases_plot(pairs, output="bla.pdf", data_points=50, skip_self_ligations=False)
-
 
     def test_re_dist(self):
         read1 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=200, strand=-1)

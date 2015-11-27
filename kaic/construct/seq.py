@@ -2025,9 +2025,12 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         binom_probs = np.array([sp.stats.binom_test(r*b, b) if r < 1 else 0.0 \
                                 for r, b in zip(ratios, bins_sizes)])
-        print binom_probs
-        ix_cutoff = np.where(binom_probs >= 0.05)[0][0]
-        return ix_cutoff if ix_cutoff else None
+        # binom_probs /= binom_probs.size # Simple and naive multiple testing correction
+        which_valid = (binom_probs > p)
+        for i in range(len(binom_probs), 4, -1):
+            s = which_valid[i-5:i]
+            if np.count_nonzero(s) < 4:
+                return dists[i-5]
 
     def filter_pcr_duplicates(self, threshold=3, queue=False):
         """
