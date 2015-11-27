@@ -2014,7 +2014,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         self._pairs.run_queued_filters(_logging=log_progress)
 
-    def _auto_dist(self, dists, ratios, bins_sizes, p=0.05):
+    @staticmethod
+    def _auto_dist(dists, ratios, bins_sizes, p=0.05):
         """
         Function that attempts to infer sane distances for filtering inward
         and outward read pairs
