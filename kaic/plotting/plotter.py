@@ -41,9 +41,9 @@ class GenomeCoordFormatter(Formatter):
         self.end = end
 
     def __call__(self, x, pos=None):
-        if x == 0:
-            return self.chromosome
-        return millify(x + self.start)
+        if pos == 0:
+            return "{}:{}".format(self.chromosome, self.start)
+        return millify(x)
 
 class GenomeCoordLocator(MaxNLocator):
     def __init__(self, chromosome, start, end, **kwargs):
@@ -59,7 +59,6 @@ class GenomeCoordLocator(MaxNLocator):
 class BasePlotter(object):
     def __init__(self):
         self._fig = None
-        self.plotter = None
         self._ax = None
 
     def add_fig_ax(self, fig, ax):
@@ -114,38 +113,40 @@ class HicPlot(BasePlotter):
         log.debug("Taking upper triangle.")
         # mask areas we don't want to plot
         # lower triangle
-        mask_lower = np.tril_indices(n, k=-1)
-        hm[mask_lower] = np.nan
-        if self.max_height is not None:
-            # upper right corner
-            mask_upper = np.triu_indices(n, k=self.max_height)
-            hm[mask_upper] = np.nan
-        triangle = np.ma.masked_array(hm, np.isnan(hm))
+        #mask_lower = np.tril_indices(n, k=-1)
+        #hm[mask_lower] = np.nan
+        #if self.max_height is not None:
+        #    # upper right corner
+        #    mask_upper = np.triu_indices(n, k=self.max_height)
+        #    hm[mask_upper] = np.nan
+        #triangle = np.ma.masked_array(hm, np.isnan(hm))
         log.debug("Rotating matrix")
         # prepare an array of the corner coordinates of the Hic-matrix
+        # Distances have to be scaled by sqrt(2), because we want the diagonals
+        # of the pixels to be one unit (bp) long
         sqrt2 = math.sqrt(2)
-        sin45 = math.sin(math.radians(45))
-        bin_coords = np.r_[[sqrt2*(x.start - 1) for x in hm.row_regions], sqrt2*(hm.row_regions[-1].end -1)]
+        bin_coords = np.r_[[(x.start - 1)/sqrt2 for x in hm.row_regions], (hm.row_regions[-1].end -1)/sqrt2]
         X, Y = np.meshgrid(bin_coords, bin_coords)
-        # rotation coordinate matrix 45 degrees
-        t = np.array([[sin45, sin45], [-sin45, sin45]])
-        # "rotate" A
-        corner_coords = np.dot(np.stack((X, Y), axis=-1), t)
+        # rotatate coordinate matrix 45 degrees
+        sin45 = math.sin(math.radians(45))
+        X_, Y_ = X*sin45 - Y*sin45, X*sin45 + Y*sin45
         # and shift x coords to correct start
-        corner_coords[:,:,0] += (np.abs(np.min(corner_coords[:,:,0])) + hm.row_regions[0].start)
+        X_ -= np.min(X_) - (hm.row_regions[0].start - 1)
+        Y_ -= Y_[0, 0]
         import ipdb
         ipdb.set_trace()
-
-        # flip triangle (because that pcolormesh works opposite than imshow)
-        flip_triangle = np.flipud(triangle)
-
         with sns.axes_style("ticks"):
             # normalize colors
             cmap = mpl.cm.get_cmap(self.colormap)
 
             log.debug("Plotting matrix")
             # create plot
-            caxes = sns.plt.pcolormesh(corner_coords[:,:,0], corner_coords[:,:,1], flip_triangle, axes=self.ax, cmap=cmap, norm=self.norm)
+            caxes = sns.plt.pcolormesh(Y_, X_, hm, axes=self.ax, cmap=cmap, norm=self.norm)
+
+            # set limits and aspect ratio
+            self.ax.set_xlim(region.start, region.end)
+            self.ax.set_ylim(0, max_height if max_height else 0.5*(region.end-region.start))
+            self.ax.set_aspect(aspect="equal", adjustable="datalim")
 
             log.debug("Setting custom x tick formatter")
             # set genome tick formatter
