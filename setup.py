@@ -7,6 +7,7 @@ setup(
     packages=find_packages(exclude=["test"]),
     install_requires=[
         'numpy',
+        'scipy',
         'matplotlib',
         'pandas',
         'h5py',

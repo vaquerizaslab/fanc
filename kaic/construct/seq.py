@@ -66,7 +66,6 @@ from kaic.tools.general import bit_flags_from_int, CachedIterator
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import msgpack as pickle
 import numpy as np
-import scipy as sp
 from scipy.stats import binom_test
 import hashlib
 from functools import partial
@@ -2023,7 +2022,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param dists: List of distances in bp.
         :param ratios: List of ratios
         """
-        binom_probs = np.array([sp.stats.binom_test(r*b, b) if r < 1 else 0.0 \
+        binom_probs = np.array([binom_test(r*b, b) if r < 1 else 0.0 \
                                 for r, b in zip(ratios, bins_sizes)])
         # binom_probs /= binom_probs.size # Simple and naive multiple testing correction
         which_valid = (binom_probs > p)
