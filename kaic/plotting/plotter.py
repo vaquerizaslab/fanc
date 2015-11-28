@@ -112,13 +112,11 @@ class HicPlot(BasePlotter):
         hm[np.tril_indices(hm.shape[0])] = np.nan
         # Remove part of matrix further away than max_height
         if self.max_height:
-            max_bin = 0
             for i, r in enumerate(hm.row_regions):
                 if r.start - region.start > self.max_height:
-                    max_bin = i
+                    hm[np.triu_indices(hm.shape[0], k=i)] = np.nan
                     break
-            hm[np.triu_indices(hm.shape[0], k=max_bin)] = np.nan
-        hm = np.ma.MaskedArray(hm, mask=np.isnan(hm))
+        hm_masked = np.ma.MaskedArray(hm, mask=np.isnan(hm))
         log.debug("Rotating matrix")
         # prepare an array of the corner coordinates of the Hic-matrix
         # Distances have to be scaled by sqrt(2), because the diagonals of the bins
@@ -138,7 +136,7 @@ class HicPlot(BasePlotter):
             cmap = mpl.cm.get_cmap(self.colormap)
             log.debug("Plotting matrix")
             # create plot
-            sns.plt.pcolormesh(X_, Y_, hm, axes=self.ax, cmap=cmap, norm=self.norm)
+            sns.plt.pcolormesh(X_, Y_, hm_masked, axes=self.ax, cmap=cmap, norm=self.norm)
             # set limits and aspect ratio
             self.ax.set_aspect(aspect="equal")
             self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
