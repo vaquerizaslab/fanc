@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 log.setLevel(10)
 
 def millify(n, precision=1):
-    """Take input float and return string which is turned human readable.
+    """Take input float and return human readable string.
     E.g.:
     millify(1000f0) -> "10k"
     millify(2300000) -> "2M"
@@ -41,6 +41,7 @@ class GenomeCoordFormatter(Formatter):
         self.end = end
 
     def __call__(self, x, pos=None):
+        print((x, pos))
         if pos == 0:
             return "{}:{}".format(self.chromosome, self.start)
         return millify(x)
@@ -108,31 +109,45 @@ class HicPlot(BasePlotter):
 
     def _plot(self, region):
         log.debug("Generating matrix from hic object")
-        hm = self.hic_data[region.to_string(), region.to_string()]
+        hm = self.hic_data[region, region]
+        hm[np.tril_indices(hm.shape[0])] = np.nan
+        # Remove part of matrix further away than max_height
+        if self.max_height:
+            max_bin = 0
+            for i, r in enumerate(hm.row_regions):
+                if r.start - region.start > self.max_height:
+                    max_bin = i
+                    break
+            import ipdb
+            ipdb.set_trace()
+            hm[np.triu_indices(hm.shape[0], k=max_bin)] = np.nan
+        hm = np.ma.MaskedArray(hm, mask=np.isnan(hm))
         log.debug("Rotating matrix")
         # prepare an array of the corner coordinates of the Hic-matrix
         # Distances have to be scaled by sqrt(2), because the diagonals of the bins
         # are sqrt(2)*len(bin_size)
         sqrt2 = math.sqrt(2)
-        bin_coords = np.r_[[(x.start - 1)/sqrt2 for x in hm.row_regions], (hm.row_regions[-1].end -1)/sqrt2]
+        bin_coords = np.r_[[(x.start - 1) for x in hm.row_regions], (hm.row_regions[-1].end)]/sqrt2
         X, Y = np.meshgrid(bin_coords, bin_coords)
         # rotatate coordinate matrix 45 degrees
         sin45 = math.sin(math.radians(45))
-        X_, Y_ = X*sin45 - Y*sin45, X*sin45 + Y*sin45
+        X_, Y_ = X*sin45 + Y*sin45, X*sin45 - Y*sin45
         # shift x coords to correct start coordinate and center the diagonal directly on the 
         # x-axis
         X_ -= np.min(X_) - (hm.row_regions[0].start - 1)
-        Y_ -= Y_[0, 0]
+        Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         with sns.axes_style("ticks"):
             # normalize colors
             cmap = mpl.cm.get_cmap(self.colormap)
             log.debug("Plotting matrix")
             # create plot
-            sns.plt.pcolormesh(Y_, X_, hm, axes=self.ax, cmap=cmap, norm=self.norm)
+            sns.plt.pcolormesh(X_, Y_, hm, axes=self.ax, cmap=cmap, norm=self.norm)
             # set limits and aspect ratio
-            self.ax.set_xlim(region.start, region.end)
-            self.ax.set_ylim(0, max_height if max_height else 0.5*(region.end-region.start))
             self.ax.set_aspect(aspect="equal", adjustable="datalim")
+            self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
+            self.ax.set_ylim(0, self.max_height if self.max_height else 0.5*(region.end-region.start))
+            import ipdb
+            ipdb.set_trace()
             log.debug("Setting custom x tick formatter")
             # set genome tick formatter
             self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region.chromosome, region.start, region.end))
