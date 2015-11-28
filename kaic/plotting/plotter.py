@@ -41,8 +41,7 @@ class GenomeCoordFormatter(Formatter):
         self.end = end
 
     def __call__(self, x, pos=None):
-        print((x, pos))
-        if pos == 0:
+        if pos == 0 or x == 0:
             return "{}:{}".format(self.chromosome, self.start)
         return millify(x)
 
@@ -118,8 +117,6 @@ class HicPlot(BasePlotter):
                 if r.start - region.start > self.max_height:
                     max_bin = i
                     break
-            import ipdb
-            ipdb.set_trace()
             hm[np.triu_indices(hm.shape[0], k=max_bin)] = np.nan
         hm = np.ma.MaskedArray(hm, mask=np.isnan(hm))
         log.debug("Rotating matrix")
@@ -143,11 +140,9 @@ class HicPlot(BasePlotter):
             # create plot
             sns.plt.pcolormesh(X_, Y_, hm, axes=self.ax, cmap=cmap, norm=self.norm)
             # set limits and aspect ratio
-            self.ax.set_aspect(aspect="equal", adjustable="datalim")
+            self.ax.set_aspect(aspect="equal")
             self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
             self.ax.set_ylim(0, self.max_height if self.max_height else 0.5*(region.end-region.start))
-            import ipdb
-            ipdb.set_trace()
             log.debug("Setting custom x tick formatter")
             # set genome tick formatter
             self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region.chromosome, region.start, region.end))
