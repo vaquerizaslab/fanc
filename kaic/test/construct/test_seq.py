@@ -8,7 +8,7 @@ import os.path
 import numpy as np
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
-    ReDistanceFilter, FragmentReadPair, SelfLigationFilter
+    ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
 import numpy as np
 
@@ -192,17 +192,17 @@ class TestBWAReads:
 
     def test_bwamem_quality_filter(self):
         reads = Reads(self.bwamem_sam1_file)
-        assert len(reads) == 992
+        assert len(reads) == 995
         reads.filter_quality(cutoff=0.90, queue=False)
-        assert len(reads) == 924
+        assert len(reads) == 927
         for read in reads:
             assert float(read.get_tag('AS')) / read.alen >= 0.90
 
     def test_bwamem_uniqueness_filter(self):
         reads = Reads(self.bwamem_sam1_file)
-        assert len(reads) == 992
+        assert len(reads) == 995
         reads.filter_non_unique(cutoff=3, queue=False)
-        assert len(reads) == 623
+        assert len(reads) == 626
         for read in reads:
             assert read.mapq > 3
 
@@ -384,4 +384,12 @@ class TestBWAFragmentMappedReads:
         
     def test_loaded_bwamem_pairs(self):
         assert self.pairs._single_count == 896
-        assert self.pairs._pair_count == 512
+        assert self.pairs._pair_count == 515
+
+    def test_pcr_duplicate_filter(self):
+        mask = self.pairs.add_mask_description('pcr_duplicate', 'Mask suspected PCR duplicates.')
+        pcr_duplicate_filter = PCRDuplicateFilter(pairs=self.pairs, threshold=3)
+
+        assert len(self.pairs) == 515
+        self.pairs.filter(pcr_duplicate_filter)
+        assert len(self.pairs) == 512
