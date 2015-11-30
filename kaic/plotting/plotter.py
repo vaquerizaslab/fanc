@@ -155,3 +155,9 @@ class HicPlot(BasePlotter):
             log.debug("Setting tight layout")
             # make figure margins accommodate labels
             sns.plt.tight_layout()
+        cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=cmap)
+        cmap_data.set_array([self.vmin if self.vmin else np.ma.min(hm_masked), self.vmax if self.vmax else np.ma.max(hm_masked)])
+        cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
+        plt.colorbar(cmap_data, cax=cax, **kw)
+        import ipdb
+        ipdb.set_trace()
