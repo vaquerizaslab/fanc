@@ -18,7 +18,7 @@ def correct(hic, tolerance=1e-2, max_iterations=500):
             weight = row['weight']
             row['weight'] = weight/np.sqrt(m[source])/np.sqrt(m[sink])
             row.update()
-        hic.flush()
+        hic._edges.flush()
         current_iteration += 1
         logging.info("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
     hic.bias_vector(bias_vector)
