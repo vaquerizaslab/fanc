@@ -2653,7 +2653,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # prepare marginals dict
         marginals = np.zeros(len(self.regions()), float)
 
-        for edge in self.edges():
+        for edge in self.edges(lazy=True):
             marginals[edge.source] += edge.weight
             if edge.source != edge.sink:
                 marginals[edge.sink] += edge.weight
