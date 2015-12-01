@@ -63,6 +63,7 @@ from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int, CachedIterator
+from kaic.tools.lru import lru_cache
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import msgpack as pickle
 import numpy as np
@@ -2014,7 +2015,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         self._pairs.run_queued_filters(_logging=log_progress)
 
     @staticmethod
-    def _auto_dist(dists, ratios, bins_sizes, p=0.05):
+    def _auto_dist(dists, ratios, bins_sizes, p=0.05, expected_ratio=0.5):
         """
         Function that attempts to infer sane distances for filtering inward
         and outward read pairs
@@ -2022,7 +2023,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param dists: List of distances in bp.
         :param ratios: List of ratios
         """
-        binom_probs = np.array([binom_test(r*b, b) if r < 1 else 0.0 \
+        binom_probs = np.array([binom_test(r*b, b, expected_ratio) if r < 1 else 0.0 \
                                 for r, b in zip(ratios, bins_sizes)])
         # binom_probs /= binom_probs.size # Simple and naive multiple testing correction
         which_valid = (binom_probs > p)
