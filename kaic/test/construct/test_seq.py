@@ -348,7 +348,7 @@ class TestFragmentMappedReads:
         genome = Genome(chromosomes=[chrI])
         pairs = FragmentMappedReadPairs()
         pairs.load(reads1, reads2, genome.get_regions('HindIII'))
-        x, i, o, b = pairs.get_ligation_structure_biases(data_points=200, skip_self_ligations=False)
+        x, i, o, b = pairs.get_ligation_structure_biases(sampling=200, skip_self_ligations=False)
         assert len(x) == len(i) == len(o) == len(b) == 3
         assert x == [494.03856041131104, 4487.5800970873788, 19399.908018867925]
         assert i == [2.616915422885572, 0.8059701492537313, 0.6417910447761194]
