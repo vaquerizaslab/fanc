@@ -8,7 +8,8 @@ import os.path
 import numpy as np
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
-    ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter
+    ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter,\
+    LazyFragmentRead
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
 import numpy as np
 
@@ -364,6 +365,142 @@ class TestFragmentMappedReads:
         assert read1.re_distance() == 199
         read2 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=990, strand=-1)
         assert read2.re_distance() == 10
+
+
+class TestFragmentRead:
+    def setup_method(self, method):
+        fragment1 = GenomicRegion(1, 1000, chromosome='chr1', strand=1, ix=0)
+        fragment2 = GenomicRegion(1001, 2000, chromosome='chr2', strand=-1, ix=1)
+        self.read1 = FragmentRead(fragment1, position=500, strand=1, qname_ix=1)
+        self.read2 = FragmentRead(fragment2, position=1200, strand=1, qname_ix=2)
+
+        class DummyPairs(object):
+            def __init__(self):
+                self._ix_to_chromosome = {
+                    0: 'chr1',
+                    1: 'chr2'
+                }
+
+        row = dict()
+        row['ix'] = 0
+        row['left_read_qname_ix'] = 1
+        row['left_read_position'] = 500
+        row['left_read_strand'] = 1
+        row['left_fragment'] = 0
+        row['left_fragment_start'] = 1
+        row['left_fragment_end'] = 1000
+        row['left_fragment_chromosome'] = 0
+        row['right_read_qname_ix'] = 2
+        row['right_read_position'] = 1200
+        row['right_read_strand'] = -1
+        row['right_fragment'] = 1
+        row['right_fragment_start'] = 1001
+        row['right_fragment_end'] = 2000
+        row['right_fragment_chromosome'] = 1
+        dummy_pairs = DummyPairs()
+        self.lazy_read1 = LazyFragmentRead(row, dummy_pairs, side='left')
+        self.lazy_read2 = LazyFragmentRead(row, dummy_pairs, side='right')
+
+    def test_attributes(self):
+        assert isinstance(self.read1.fragment, GenomicRegion)
+        assert self.read1.fragment.chromosome == 'chr1'
+        assert self.read1.fragment.start == 1
+        assert self.read1.fragment.end == 1000
+        assert self.read1.fragment.strand == 1
+        assert self.read1.position == 500
+        assert self.read1.strand == 1
+        assert self.read1.qname_ix == 1
+
+    def test_lazy_attributes(self):
+        assert isinstance(self.lazy_read1.fragment, GenomicRegion)
+        assert self.lazy_read1.fragment.chromosome == 'chr1'
+        assert self.lazy_read1.fragment.start == 1
+        assert self.lazy_read1.fragment.end == 1000
+        assert self.lazy_read1.fragment.strand == 1
+        assert self.lazy_read1.position == 500
+        assert self.lazy_read1.strand == 1
+        assert self.lazy_read1.qname_ix == 1
+
+        assert isinstance(self.lazy_read2.fragment, GenomicRegion)
+        assert self.lazy_read2.fragment.chromosome == 'chr2'
+        assert self.lazy_read2.fragment.start == 1001
+        assert self.lazy_read2.fragment.end == 2000
+        assert self.lazy_read2.fragment.strand == 1
+        assert self.lazy_read2.position == 1200
+        assert self.lazy_read2.strand == -1
+        assert self.lazy_read2.qname_ix == 2
+
+
+class TestFragmentReadPair:
+
+    def test_convenience_functions(self):
+        pair = FragmentReadPair(
+            FragmentRead(
+                GenomicRegion(1, 1000, chromosome='chr1'),
+                position=500, strand=1
+            ),
+            FragmentRead(
+                GenomicRegion(10001, 11000, chromosome='chr1'),
+                position=10500, strand=-1
+            )
+        )
+        assert pair.is_same_chromosome()
+        assert pair.get_gap_size() == 9001
+        assert pair.is_inward_pair()
+        assert not pair.is_outward_pair()
+        assert not pair.is_same_fragment()
+        assert not pair.is_same_pair()
+
+        pair = FragmentReadPair(
+            FragmentRead(
+                GenomicRegion(1, 1000, chromosome='chr1'),
+                position=500, strand=1
+            ),
+            FragmentRead(
+                GenomicRegion(1, 1000, chromosome='chr1'),
+                position=600, strand=1
+            )
+        )
+        assert pair.is_same_chromosome()
+        assert pair.get_gap_size() == 0
+        assert not pair.is_inward_pair()
+        assert not pair.is_outward_pair()
+        assert pair.is_same_fragment()
+        assert pair.is_same_pair()
+
+        pair = FragmentReadPair(
+            FragmentRead(
+                GenomicRegion(1, 1000, chromosome='chr1'),
+                position=500, strand=-1
+            ),
+            FragmentRead(
+                GenomicRegion(1, 1000, chromosome='chr2'),
+                position=600, strand=1
+            )
+        )
+        assert not pair.is_same_chromosome()
+        assert pair.get_gap_size() is None
+        assert not pair.is_inward_pair()
+        assert not pair.is_outward_pair()
+        assert not pair.is_same_fragment()
+        assert not pair.is_same_pair()
+
+        pair = FragmentReadPair(
+            FragmentRead(
+                GenomicRegion(1, 1000, chromosome='chr1'),
+                position=500, strand=-1
+            ),
+            FragmentRead(
+                GenomicRegion(1001, 2000, chromosome='chr1'),
+                position=1200, strand=1
+            )
+        )
+        assert pair.is_same_chromosome()
+        assert pair.get_gap_size() == 0
+        assert not pair.is_inward_pair()
+        assert pair.is_outward_pair()
+        assert not pair.is_same_fragment()
+        assert not pair.is_same_pair()
 
 
 class TestBWAFragmentMappedReads:

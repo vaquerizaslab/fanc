@@ -1829,23 +1829,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         Convert a pytables row to a FragmentReadPair
         """
         if lazy:
-            left_read = LazyFragmentRead(row, side="left")
-            right_read = LazyFragmentRead(row, side="right")
-            return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
+            left_read = LazyFragmentRead(row, self, side="left")
+            right_read = LazyFragmentRead(row, self, side="right")
+        else:
+            fragment1 = GenomicRegion(start=row['left_fragment_start'],
+                                      end=row['left_fragment_end'],
+                                      chromosome=self._ix_to_chromosome[row['left_fragment_chromosome']],
+                                      ix=row['left_fragment'])
+            fragment2 = GenomicRegion(start=row['right_fragment_start'],
+                                      end=row['right_fragment_end'],
+                                      chromosome=self._ix_to_chromosome[row['right_fragment_chromosome']],
+                                      ix=row['right_fragment'])
 
-        fragment1 = GenomicRegion(start=row['left_fragment_start'],
-                                  end=row['left_fragment_end'],
-                                  chromosome=self._ix_to_chromosome[row['left_fragment_chromosome']],
-                                  ix=row['left_fragment'])
-        fragment2 = GenomicRegion(start=row['right_fragment_start'],
-                                  end=row['right_fragment_end'],
-                                  chromosome=self._ix_to_chromosome[row['right_fragment_chromosome']],
-                                  ix=row['right_fragment'])
-
-        left_read = FragmentRead(fragment1, position=row['left_read_position'],
-                                 strand=row['left_read_strand'], qname_ix=row['left_read_qname_ix'])
-        right_read = FragmentRead(fragment2, position=row['right_read_position'],
-                                  strand=row['right_read_strand'], qname_ix=row['right_read_qname_ix'])
+            left_read = FragmentRead(fragment1, position=row['left_read_position'],
+                                     strand=row['left_read_strand'], qname_ix=row['left_read_qname_ix'])
+            right_read = FragmentRead(fragment2, position=row['right_read_position'],
+                                      strand=row['right_read_strand'], qname_ix=row['right_read_qname_ix'])
 
         return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
@@ -2202,8 +2201,9 @@ class FragmentRead(object):
 
 
 class LazyFragmentRead(FragmentRead):
-    def __init__(self, row, side="left"):
+    def __init__(self, row, pairs, side="left"):
         self.row = row
+        self.pairs = pairs
         self.side = side
 
     @property
@@ -2220,18 +2220,19 @@ class LazyFragmentRead(FragmentRead):
 
     @property
     def fragment(self):
-        return LazyFragment(self.row, side=self.side)
+        return LazyFragment(self.row, self.pairs, side=self.side)
 
 
 class LazyFragment(GenomicRegion):
-    def __init__(self, row, ix=None, side="left"):
+    def __init__(self, row, pairs, ix=None, side="left"):
         self.row = row
+        self.pairs = pairs
         self.side = side
         self.static_ix = ix
 
     @property
     def chromosome(self):
-        return self.row[self.side + "_fragment_chromosome"]
+        return self.pairs._ix_to_chromosome[self.row[self.side + "_fragment_chromosome"]]
 
     @property
     def start(self):
