@@ -36,7 +36,7 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
         sns.plt.show()
 
 
-def hic_ligation_structure_biases_plot(pairs, output=None, data_points=None, skip_self_ligations=True):
+def hic_ligation_structure_biases_plot(pairs, output=None, *args, **kwargs):
     """
     Plot the ligation error structure of a dataset.
 
@@ -49,7 +49,7 @@ def hic_ligation_structure_biases_plot(pairs, output=None, data_points=None, ski
                                 self-ligated fragments for assessing
                                 the error rates.
     """
-    x, inward_ratios, outward_ratios, bins_sizes = pairs.get_ligation_structure_biases(data_points, skip_self_ligations)
+    x, inward_ratios, outward_ratios, bins_sizes = pairs.get_ligation_structure_biases(*args, **kwargs)
     old_backend = _prepare_backend(output)
     with sns.axes_style("white", {
             "legend.frameon": True,

@@ -2046,7 +2046,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         pcr_duplicate_filter = PCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
         self.filter(pcr_duplicate_filter, queue)
 
-    def filter_inward(self, minimum_distance=None, queue=False):
+    def filter_inward(self, minimum_distance=None, queue=False, *args, **kwargs):
         """
         Convenience function that applies an :class:`~InwardPairsFilter`.
 
@@ -2057,7 +2057,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                       run_queued_filters
         """
         if minimum_distance is None:
-            dists, inward_ratios, _, bins_sizes = self.get_ligation_structure_biases()
+            dists, inward_ratios, _, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
             minimum_distance = self._auto_dist(dists, inward_ratios, bins_sizes)
         if minimum_distance:
             mask = self.add_mask_description('inward',
@@ -2069,7 +2069,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         else:
             raise Exception('Could not automatically detect a sane distance threshold for filtering inward reads')
 
-    def filter_outward(self, minimum_distance=None, queue=False):
+    def filter_outward(self, minimum_distance=None, queue=False, *args, **kwargs):
         """
         Convenience function that applies an :class:`~OutwardPairsFilter`.
 
@@ -2080,7 +2080,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                       run_queued_filters
         """
         if minimum_distance is None:
-            dists, _, outward_ratios, bins_sizes = self.get_ligation_structure_biases()
+            dists, _, outward_ratios, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
             minimum_distance = self._auto_dist(dists, outward_ratios, bins_sizes)
         if minimum_distance:
             mask = self.add_mask_description('outward',
@@ -2092,7 +2092,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         else:
             raise Exception('Could not automatically detect a sane distance threshold for filtering outward reads')
 
-    def filter_ligation_products(self, inward_threshold=None, outward_threshold=None, queue=False):
+    def filter_ligation_products(self, inward_threshold=None, outward_threshold=None, queue=False, *args, **kwargs):
         """
         Convenience function that applies an :class:`~OutwardPairsFilter` and an :class:`~InwardPairsFilter`.
 
@@ -2104,8 +2104,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                       along with other queued filters using
                       run_queued_filters
         """
-        self.filter_inward(inward_threshold, queue=queue)
-        self.filter_outward(outward_threshold, queue=queue)
+        self.filter_inward(inward_threshold, queue=queue, *args, **kwargs)
+        self.filter_outward(outward_threshold, queue=queue, *args, **kwargs)
     
     def filter_re_dist(self, maximum_distance, queue=False):
         """
