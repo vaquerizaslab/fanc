@@ -1879,7 +1879,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
-    @lru_cache(maxsize=1000)
+    @lru_cache(maxsize=10)
     def get_ligation_structure_biases(self, data_points=None, skip_self_ligations=True):
 
         """
@@ -2063,7 +2063,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             mask = self.add_mask_description('inward',
                                              'Mask read pairs that are inward facing and < {}bp apart'
                                              .format(minimum_distance))
-            logging.info("Filtering out inward facing read pairs < {} bp apart")
+            logging.info("Filtering out inward facing read pairs < {} bp apart".format(minimum_distance))
             inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
             self.filter(inward_filter, queue)
         else:
@@ -2086,7 +2086,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             mask = self.add_mask_description('outward',
                                              'Mask read pairs that are outward facing and < {}bp apart'
                                              .format(minimum_distance))
-            logging.info("Filtering out outward facing read pairs < {} bp apart")
+            logging.info("Filtering out outward facing read pairs < {} bp apart".format(minimum_distance))
             outward_filter = OutwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
             self.filter(outward_filter, queue)
         else:
