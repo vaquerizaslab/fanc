@@ -1880,14 +1880,14 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
     @lru_cache(maxsize=10)
-    def get_ligation_structure_biases(self, data_points=None, skip_self_ligations=True):
+    def get_ligation_structure_biases(self, sampling=None, skip_self_ligations=True):
 
         """
         Compute the ligation biases (inward and outward to same-strand) of this data set.
 
-        :param data_points: Number of data points to average per point
-                            in the plot. If None (default), this will
-                            be determined on a best-guess basis.
+        :param sampling: Approximate number of data points to average per point
+                         in the plot. If None (default), this will
+                         be determined on a best-guess basis.
         :param skip_self_ligations: If True (default), will not consider
                                     self-ligated fragments for assessing
                                     the error rates.
@@ -1939,13 +1939,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             sorted_points = sorted(points)
             return zip(*sorted_points)
 
-        def _guess_datapoints(data_points):
-            if data_points is None:
-                data_points = max(100, int(l * 0.0025))
-            logging.info("Number of data points averaged per point in plot: {}".format(data_points))
-            return data_points
+        def _guess_sampling(sampling):
+            if sampling is None:
+                sampling = max(100, int(l * 0.0025))
+            logging.info("Number of data points averaged per point in plot: {}".format(sampling))
+            return sampling
 
-        def _calculate_ratios(gaps, types, data_points):
+        def _calculate_ratios(gaps, types, sampling):
             x = []
             inward_ratios = []
             outward_ratios = []
@@ -1964,7 +1964,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                 else:
                     outwards += 1
                 counter += 1
-                if same_counter > data_points:
+                if same_counter > sampling:
                     x.append(mids/counter)
                     inward_ratios.append(inwards/same_counter)
                     outward_ratios.append(outwards/same_counter)
@@ -1981,9 +1981,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         # sort data
         gaps, types = _sort_data(gaps, types)
         # best guess for number of data points
-        data_points = _guess_datapoints(data_points)
+        sampling = _guess_sampling(sampling)
         # calculate ratios
-        return _calculate_ratios(gaps, types, data_points)
+        return _calculate_ratios(gaps, types, sampling)
 
     def filter(self, pair_filter, queue=False, log_progress=False):
         """
