@@ -1728,6 +1728,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         Map edges in this object to equi-distant bins.
 
         :param bin_size: Bin size in base pairs
+        :param file_name: File name of the new, binned Hic object
         :return: :class:`~Hic` object
         """
         # find chromosome lengths
@@ -1743,6 +1744,11 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         genome = Genome(chromosomes=chromosome_list)
         hic = Hic(file_name=file_name)
+        if len(hic.regions()) > 0:
+            # you are loading an existing Hic object from file - this is probably not
+            # what you want to do.
+            raise RuntimeError("The Hic object that you are trying to bin into already exists "
+                               "and has more than 0 regions!")
         hic.add_regions(genome.get_regions(bin_size))
 
         hic.load_from_hic(self)
