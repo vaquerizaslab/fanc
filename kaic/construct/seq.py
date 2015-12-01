@@ -2055,6 +2055,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
         """
         if minimum_distance is None:
             dists, inward_ratios, _, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
@@ -2078,6 +2080,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
         """
         if minimum_distance is None:
             dists, _, outward_ratios, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
@@ -2103,6 +2107,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
         """
         self.filter_inward(inward_threshold, queue=queue, *args, **kwargs)
         self.filter_outward(outward_threshold, queue=queue, *args, **kwargs)

@@ -42,12 +42,8 @@ def hic_ligation_structure_biases_plot(pairs, output=None, *args, **kwargs):
 
     :param pairs: Read pairs mapped to genomic regions (:class:`~FragmentMappedReadPairs`)
     :param output: Path to pdf file to save this plot.
-    :param data_points: Number of data points to average per point
-                        in the plot. If None (default), this will
-                        be determined on a best-guess basis.
-    :param skip_self_ligations: If True (default), will not consider
-                                self-ligated fragments for assessing
-                                the error rates.
+    :param *args **kwargs: Additional arguments to pass
+                           to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
     """
     x, inward_ratios, outward_ratios, bins_sizes = pairs.get_ligation_structure_biases(*args, **kwargs)
     old_backend = _prepare_backend(output)
