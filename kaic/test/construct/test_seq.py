@@ -301,8 +301,8 @@ class TestFragmentMappedReads:
         i = [4.0, 3.0, 1.0, 1.2, 0.4, 0.8, 0.5, 0.4, 0.6, 0.5, 0.6, 0.5, 0.5, 0.5]
         o = [0.2, 0.4, 0.3, 0.6, 0.5, 0.4, 0.5, 0.5, 0.6, 0.5, 0.5, 0.4, 0.5, 0.5]
         b = np.random.normal(500, 200, 14).astype(int)
-        assert ad(x, i, b, 0.05) == 78
-        assert ad(x, o, b, 0.05) == 34
+        assert ad(x, i, b, 0.05) == 67
+        assert ad(x, o, b, 0.05) == 45
 
     def test_filter_inward(self):
         mask = self.pairs.add_mask_description('inwards', 'Mask read pairs that inward facing and closer than 100bp')

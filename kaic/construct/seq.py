@@ -2015,7 +2015,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         self._pairs.run_queued_filters(_logging=log_progress)
 
     @staticmethod
-    def _auto_dist(dists, ratios, bins_sizes, p=0.05, expected_ratio=0.5):
+    def _auto_dist(dists, ratios, sample_sizes, p=0.05, expected_ratio=0.5):
         """
         Function that attempts to infer sane distances for filtering inward
         and outward read pairs
@@ -2023,14 +2023,19 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param dists: List of distances in bp.
         :param ratios: List of ratios
         """
-        binom_probs = np.array([binom_test(r*b, b, expected_ratio) if r < 1 else 0.0 \
-                                for r, b in zip(ratios, bins_sizes)])
-        # binom_probs /= binom_probs.size # Simple and naive multiple testing correction
-        which_valid = (binom_probs > p)
-        for i in range(len(binom_probs), 4, -1):
-            s = which_valid[i-5:i]
-            if np.count_nonzero(s) < 4:
-                return dists[i-5]
+        def movingaverage(interval, window_size):
+            window = np.ones(int(window_size))/float(window_size)
+            return np.convolve(interval, window, 'same')
+        ratios = np.clip(ratios, 0.0, 1.0)
+        ratios = movingaverage(ratios, max(1, len(ratios)/30))
+        sample_sizes = movingaverage(sample_sizes, max(1, len(sample_sizes)/30))
+        binom_probs = np.array([binom_test(r*b, b, expected_ratio) \
+                                for r, b in zip(ratios, sample_sizes)])
+        which_valid = binom_probs > p
+        which_valid_indices = np.argwhere(which_valid).flatten()
+        if len(which_valid_indices) > 0:
+            return int(dists[which_valid_indices[0]])
+        return None
 
     def filter_pcr_duplicates(self, threshold=3, queue=False):
         """
