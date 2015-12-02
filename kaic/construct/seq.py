@@ -1965,7 +1965,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     outwards += 1
                 counter += 1
                 if same_counter > sampling:
-                    x.append(mids/counter)
+                    x.append(int(mids/counter))
                     inward_ratios.append(inwards/same_counter)
                     outward_ratios.append(outwards/same_counter)
                     bin_sizes.append(counter)
