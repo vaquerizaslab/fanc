@@ -1179,7 +1179,7 @@ class UniquenessFilter(ReadFilter):
         the value of the XS tag id different from 0.
         """
         xs_tag = read.get_tag('XS')
-        if xs_tag is not None or (not self.strict and xs_tag == 0):
+        if xs_tag is not None and (self.strict or xs_tag != 0):
             return False
         return True
 
