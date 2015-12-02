@@ -1671,7 +1671,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
             if len(edge_buffer) > _max_buffer_size:
                 logging.info("Flushing buffer")
-                self._flush_edge_buffer(edge_buffer, replace=False)
+                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                 edge_buffer = {}
         logging.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
@@ -1719,7 +1719,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     edge_buffer[key_pair] += new_edge[2]
 
                 if len(edge_buffer) > _edge_buffer_size:
-                    self._flush_edge_buffer(edge_buffer)
+                    self._flush_edge_buffer(edge_buffer, update_index=False)
                     edge_buffer = {}
             self._flush_edge_buffer(edge_buffer)
 
@@ -1960,14 +1960,14 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
             if len(edge_buffer) > _edge_buffer_size:
                 logging.info("Flushing buffer...")
-                self._flush_edge_buffer(edge_buffer, replace=False)
+                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                 edge_buffer = {}
 
         # final flush
         self.log_info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
 
-    def _flush_edge_buffer(self, e_buffer, replace=False):
+    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True):
         # update current rows
         for row in self._edges:
             key = (row["source"], row["sink"])
@@ -1992,14 +1992,15 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             row["weight"] = weight
             row.append()
         self._edges.flush()
-        self._remove_zero_edges()
+        self._remove_zero_edges(update_index=update_index)
 
-    def flush(self, flush_nodes=True, flush_edges=True):
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
         """
         Write data to file and flush buffers.
 
         :param flush_nodes: Flush nodes tables
         :param flush_edges: Flush edges table
+        :param update_index: Update mask indices in edges table
         """
         if flush_nodes:
             self._regions.flush()
@@ -2008,7 +2009,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 # reindex node table
                 self._regions.flush_rows_to_index()
         if flush_edges:
-            self._edges.flush(update_index=True)
+            self._edges.flush(update_index=update_index)
             if not self._edges.autoindex:
                 # reindex edge table
                 self._edges.flush_rows_to_index()
@@ -2452,9 +2453,9 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             if flush:
                 self.flush()
         if not value_set:
-            self.add_edge(HicEdge(source=source,sink=sink,weight=weight), flush=flush)
+            self.add_edge(HicEdge(source=source, sink=sink, weight=weight), flush=flush)
     
-    def _remove_zero_edges(self, flush=True):
+    def _remove_zero_edges(self, flush=True, update_index=True):
         zero_edge_ix = []
         ix = 0
         for row in self._edges.iterrows():
@@ -2466,7 +2467,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             self._edges.remove_row(ix)        
         
         if flush:
-            self.flush()
+            self.flush(update_index=update_index)
     
     def autoindex(self, index=None):
         """
