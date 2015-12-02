@@ -618,7 +618,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                     pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
                     tags=tags, reference_id=ref_ix, qname_ix=row['qname_ix'])
 
-    def reads(self, lazy=False, sort_by_qname_ix=False, include_masked=False):
+    def reads(self, lazy=False, sort_by_qname_ix=False, excluded_filters=[]):
         """
         Iterate over _reads table and convert each result to Read.
 
@@ -644,10 +644,21 @@ class Reads(Maskable, MetaContainer, FileBased):
                 if sort_by_qname_ix:
                     self.iter = this._reads.itersorted('qname_ix')
                 else:
-                    self.iter = iter(reads_table)
+                    self.iter = iter(this._reads)
+                if len(excluded_filters) > 0:
+                    self.next = self._partial_filters_next
+                else:
+                    self.next = self._all_filters_next
 
             def __iter__(self):
                 return self
+
+            def _all_filters_next(self):
+                row = self.iter.next()
+                return this._row2read(row, lazy=lazy)
+
+            def _partial_filters_next(self):
+                pass
 
             def next(self):
                 row = self.iter.next()
@@ -1247,7 +1258,7 @@ class PairLoader(object):
             self.flag = row.flag
             self.cigar = row.cigar
 
-    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filters=None):
         self._pairs = pairs
         self._reads1 = None
         self._reads2 = None
@@ -1257,6 +1268,7 @@ class PairLoader(object):
         self.add_read_pair = self._pairs.add_read_pair
         self._in_memory_index = _in_memory_index
         self.ignore_duplicates = ignore_duplicates
+        self.excluded_filters = excluded_filters
 
     def load(self, reads1, reads2, regions=None):
         self._reads1 = reads1
@@ -1314,10 +1326,11 @@ class PairLoader(object):
 
 
 class Bowtie2PairLoader(PairLoader):
-    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filter=None):
         super(Bowtie2PairLoader, self).__init__(pairs,
                                                 ignore_duplicates=ignore_duplicates,
-                                                _in_memory_index=_in_memory_index)
+                                                _in_memory_index=_in_memory_index,
+                                                excluded_filters=excluded_filters)
 
     @staticmethod
     def get_next_read(iterator):
@@ -1330,8 +1343,8 @@ class Bowtie2PairLoader(PairLoader):
     def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
         self._pairs.log_info("Adding read pairs...")
 
-        iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
-        iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
+        iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True, excluded_filters=self.excluded_filters)
+        iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True, excluded_filters=self.excluded_filters)
 
         # add and map reads
         i = 0
@@ -1680,7 +1693,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         self._pairs.flush(update_index=update_index)
         self._single.flush(update_index=update_index)
 
-    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True):
+    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True, included_filters='all', excluded_filters=[]):
         """
         Load paired reads and map them to genomic regions (e.g. RE-fragments).
 
@@ -1715,9 +1728,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                  for a very long runtime.
         """
         if reads1.mapper == 'bwa' and reads2.mapper == 'bwa':
-            loader = BwaMemPairLoader(self, _in_memory_index)
+            loader = BwaMemPairLoader(self, _in_memory_index, included_filters, excluded_filters)
         else:
-            loader = Bowtie2PairLoader(self, ignore_duplicates, _in_memory_index)
+            loader = Bowtie2PairLoader(self, ignore_duplicates, _in_memory_index, included_filters, excluded_filters)
 
         loader.load(reads1, reads2, regions=regions)
 
