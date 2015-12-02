@@ -1975,7 +1975,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                     outwards = 0
                     inwards = 0
                     same = 0
-            return x, inward_ratios, outward_ratios, bin_sizes
+            return list(map(np.array, [x, inward_ratios, outward_ratios, bin_sizes]))
 
         gaps, types = _init_gaps_and_types()
         # sort data
