@@ -600,23 +600,29 @@ class Chromosome(object):
         :param include_sequence: If True (default), stores the chromosome
                                  sequence in memory. Else, the sequence
                                  attribute will be set to None.
-        :return: :class:`~Chromosome`
+        :return: :class:`~Chromosome` if there is only a single FASTA
+                 sequence in the file, list(:class:`~Chromosome`) if
+                 there are multiple sequences.
         """
         if type(file_name) is file:
             fastas = SeqIO.parse(file_name, 'fasta')
         else:
             fastas = SeqIO.parse(open(file_name, 'r'), 'fasta')
-            
-        try:
-            fasta = fastas.next()
-        except StopIteration:
+
+        chromosomes = []
+        for fasta in fastas:
+            if include_sequence:
+                chromosome = cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
+            else:
+                chromosome = cls(name if name else fasta.id, length=len(fasta))
+            chromosomes.append(chromosome)
+
+        if len(chromosomes) == 0:
             raise ValueError("File %s does not appear to be a FASTA file" % file_name)
-        
-        if include_sequence:
-            return cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
-        else:
-            return cls(name if name else fasta.id, length=len(fasta))
-        
+        if len(chromosomes) == 1:
+            return chromosomes[0]
+        return chromosomes
+
     def get_restriction_sites(self, restriction_enzyme):
         """
         Find the restriction sites of a provided enzyme in this chromosome.
@@ -670,8 +676,11 @@ class Genome(Table):
             self._sequences = self.file.create_vlarray("/", 'genome_sequences', t.VLStringAtom())
         
         if chromosomes is not None:
-            for chromosome in chromosomes:
-                self.add_chromosome(chromosome)
+            if isinstance(chromosomes, Chromosome):
+                self.add_chromosome(chromosomes)
+            else:
+                for chromosome in chromosomes:
+                    self.add_chromosome(chromosome)
             
     @classmethod
     def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
@@ -713,8 +722,8 @@ class Genome(Table):
         """
         # case 1: FASTA file = Chromosome
         if is_fasta_file(genome_string):
-            chromosome = Chromosome.from_fasta(genome_string)
-            genome = cls(chromosomes=[chromosome], file_name=file_name)
+            chromosomes = Chromosome.from_fasta(genome_string)
+            genome = cls(chromosomes=chromosomes, file_name=file_name)
         # case 2: Folder with FASTA files
         elif os.path.isdir(genome_string):
             genome = cls.from_folder(genome_string, file_name=file_name)
