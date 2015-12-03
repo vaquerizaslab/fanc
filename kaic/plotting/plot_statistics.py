@@ -8,7 +8,7 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
     stats = maskable.mask_statistics(masked_table)
 
     # calculate total
-    total = sum(stats.values())
+    total = masked_table._original_len()
 
     labels = ['total', 'unmasked']
     values = [total, stats['unmasked']]
