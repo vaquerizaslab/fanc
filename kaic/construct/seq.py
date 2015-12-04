@@ -375,6 +375,8 @@ class Reads(Maskable, MetaContainer, FileBased):
         for i, read in enumerate(sambam):
             if i % 10000 == 0:
                 self.log_info("%d" % i, save=False)
+            if i % 1000000 == 0:
+                self.flush(update_index=False, update_csi=False)
             if ignore_duplicates and read.qname == last_name:
                 continue
             self.add_read(read, flush=False, store_cigar=store_cigar,
@@ -522,12 +524,13 @@ class Reads(Maskable, MetaContainer, FileBased):
         if flush:
             self.flush()
 
-    def flush(self):
+    def flush(self, update_index=True, update_csi=True):
         """
         Write the latest changes to this object to file.
         """
-        self._reads.flush(update_index=True)
-        self._update_csi()
+        self._reads.flush(update_index=update_index)
+        if update_csi:
+            self._update_csi()
         if self._tags is not None:
             self._tags.flush()
             self._row_counter['tags'] = len(self._tags)
@@ -1375,8 +1378,12 @@ class Bowtie2PairLoader(PairLoader):
             if i % 100000 == 0:
                 logging.info("%d reads processed" % i)
 
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
+
         # add remaining unpaired reads
         while r1 is not None:
+            i += 1
             if r1.qname_ix == last_r1_name_ix:
                 if not self.ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
@@ -1387,7 +1394,11 @@ class Bowtie2PairLoader(PairLoader):
             r1_count += 1
             single_count += 1
 
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
+
         while r2 is not None:
+            i += 1
             if r2.qname_ix == last_r2_name_ix:
                 if not self.ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
@@ -1397,6 +1408,9 @@ class Bowtie2PairLoader(PairLoader):
             r2 = self.get_next_read(iter2)
             r2_count += 1
             single_count += 1
+
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
 
         logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
         logging.info("Pairs: %d. Single: %d" % (pair_count, single_count))
@@ -1509,16 +1523,27 @@ class BwaMemPairLoader(PairLoader):
             if i % 100000 == 0:
                 logging.info("%d reads processed" % i)
 
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
+
         # add remaining unpaired reads
         while r1[0] is not None:
+            i += 1
             self.process_bwa_alns(r1)
             r1 = self.get_all_read_alns(iter1)
             r1_count += 1
 
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
+
         while r2[0] is not None:
+            i += 1
             self.process_bwa_alns(r2)
             r2 = self.get_all_read_alns(iter2)
             r2_count += 1
+
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
 
         logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
@@ -1647,6 +1672,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                        FragmentMappedReadPairs.FragmentsMappedReadSingleDescription)
             self._pair_count = 0
             self._single_count = 0
+
+    def flush(self, update_index=True):
+        self._pairs.flush(update_index=update_index)
+        self._single.flush(update_index=update_index)
 
     def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True):
         """
