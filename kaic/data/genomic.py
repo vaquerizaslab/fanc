@@ -1728,7 +1728,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     edge_buffer[key_pair] += new_edge[2]
 
                 if len(edge_buffer) > _edge_buffer_size:
-                    self._flush_edge_buffer(edge_buffer, update_index=False)
+                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                     edge_buffer = {}
             self._flush_edge_buffer(edge_buffer)
 
