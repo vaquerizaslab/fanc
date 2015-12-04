@@ -59,7 +59,7 @@ def create_or_open_pytables_file(file_name=None, mode='a'):
     # check if is existing
     if os.path.isfile(file_name):
         try:
-            f = t.open_file(file_name, "r", driver="H5FD_STDIO", chunk_cache_size=270536704, chunk_cache_nelmts=2084)
+            f = t.open_file(file_name, "r", chunk_cache_size=270536704, chunk_cache_nelmts=2084)
             f.close()
         except t.HDF5ExtError:
             raise ImportError("File exists and is not an HDF5 dict")
@@ -68,7 +68,7 @@ def create_or_open_pytables_file(file_name=None, mode='a'):
         return t.open_file(file_name, mode, driver="H5FD_CORE", driver_core_backing_store=0)
     else:
         # 256Mb cache
-        return t.open_file(file_name, mode, driver="H5FD_STDIO", chunk_cache_size=270536704, chunk_cache_nelmts=2084)
+        return t.open_file(file_name, mode, chunk_cache_size=270536704, chunk_cache_nelmts=2084)
 
 
 def is_bed_file(file_name):
