@@ -4,6 +4,8 @@ import argparse
 import os.path
 import textwrap
 import sys
+import shutil
+import tempfile
 
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -227,12 +229,27 @@ class Kaic(object):
         )
         parser.set_defaults(ignore_default=False)
 
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
+        from kaic.tools.files import create_temporary_copy
 
         input_path = os.path.expanduser(args.input)
+        if args.tmp:
+            input_path = create_temporary_copy(input_path, preserve_extension=True)
+
         output_path = os.path.expanduser(args.output)
+        original_output_path = output_path
+        if args.tmp:
+            tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            output_path = tmp_file.name
 
         if args.ignore_default is True:
             store_qname = False
@@ -252,6 +269,10 @@ class Kaic(object):
         reads.load(sambam=input_path, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
                    store_qual=store_qual, store_tags=store_tags, sample_size=100000)
         reads.close()
+
+        if args.tmp:
+            os.unlink(input_path)
+            shutil.move(output_path, original_output_path)
         logging.info("All done.")
 
     def filter_reads(self):
@@ -302,13 +323,24 @@ class Kaic(object):
             '-s', '--stats', dest='stats',
             help='''Path for saving stats pdf'''
         )
+
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
-        from kaic.tools.files import copy_or_expand
+        from kaic.tools.files import copy_or_expand, create_temporary_copy
 
         # copy file if required
         input_path = copy_or_expand(args.input, args.output)
+        original_input_path = input_path
+        if args.tmp:
+            input_path = create_temporary_copy(original_input_path)
 
         reads = kaic.Reads(file_name=input_path)
 
@@ -338,6 +370,10 @@ class Kaic(object):
             logging.info("Done.")
 
         reads.close()
+
+        if args.tmp:
+            shutil.move(input_path, original_input_path)
+
         logging.info("All done.")
 
     def build_genome(self):
@@ -408,14 +444,36 @@ class Kaic(object):
             help='''Output file for mapped pairs'''
         )
 
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
+        from kaic.tools.files import copy_or_expand, create_temporary_copy
 
         reads1_path = os.path.expanduser(args.reads1)
+        # copy file if required
+        if args.tmp:
+            reads1_path = create_temporary_copy(reads1_path)
+
         reads2_path = os.path.expanduser(args.reads2)
+        # copy file if required
+        if args.tmp:
+            reads2_path = create_temporary_copy(reads2_path)
+
         genome_path = os.path.expanduser(args.genome)
+
         output_path = os.path.expanduser(args.output)
+        original_output_path = output_path
+        if args.tmp:
+            tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            tmp_file.close()
+            output_path = tmp_file.name
 
         logging.info("Loading left side of reads...")
         reads1 = kaic.Reads(reads1_path, read_only=True)
@@ -434,6 +492,11 @@ class Kaic(object):
         reads1.close()
         reads2.close()
         pairs.close()
+
+        if args.tmp:
+            os.unlink(reads1_path)
+            os.unlink(reads2_path)
+            shutil.move(output_path, original_output_path)
 
         logging.info("All done.")
 
@@ -499,12 +562,23 @@ class Kaic(object):
             help='''Path for saving stats pdf'''
         )
 
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
-        from kaic.tools.files import copy_or_expand
+        from kaic.tools.files import copy_or_expand, create_temporary_copy
 
+        # copy file if required
         input_path = copy_or_expand(args.input, args.output)
+        original_input_path = input_path
+        if args.tmp:
+            input_path = create_temporary_copy(original_input_path)
 
         pairs = kaic.FragmentMappedReadPairs(file_name=input_path)
 
@@ -545,6 +619,9 @@ class Kaic(object):
             logging.info("Done.")
 
         pairs.close()
+
+        if args.tmp:
+            shutil.move(input_path, original_input_path)
 
         logging.info("All done.")
 

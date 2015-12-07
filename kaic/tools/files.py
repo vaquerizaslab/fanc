@@ -12,6 +12,7 @@ import random
 import h5py
 import pysam
 from Bio import SeqIO
+import tempfile
 import shutil
 
 
@@ -21,6 +22,20 @@ def without_extension(file_name):
 
 def get_extension(file_name):
     os.path.splitext(file_name)[1][1:]
+
+
+def create_temporary_copy(src_file_name, preserve_extension=False):
+    """
+    Copies the source file into a temporary file.
+    Returns a _TemporaryFileWrapper, whose destructor deletes the temp file
+    (i.e. the temp file is deleted when the object goes out of scope).
+    """
+    tf_suffix = ''
+    if preserve_extension:
+        _, tf_suffix = os.path.splitext(src_file_name)
+    tf = tempfile.NamedTemporaryFile(suffix=tf_suffix, delete=False)
+    shutil.copy2(src_file_name, tf.name)
+    return tf.name
 
 
 def make_dir(dir_name, fail_if_exists=False, make_subdirs=True):
