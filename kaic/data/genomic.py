@@ -1752,12 +1752,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = Hic(file_name=file_name)
-        if len(hic.regions()) > 0:
-            # you are loading an existing Hic object from file - this is probably not
-            # what you want to do.
-            raise RuntimeError("The Hic object that you are trying to bin into already exists "
-                               "and has more than 0 regions!")
+        hic = Hic(file_name=file_name, mode='w')
         hic.add_regions(genome.get_regions(bin_size))
 
         hic.load_from_hic(self)
