@@ -2900,7 +2900,10 @@ class HicMatrix(np.ndarray):
             index = (row_key, col_key)
         else:
             row_key = self._convert_key(index, self.row_regions)
-            col_key = slice(0, len(self.col_regions), 1)
+            try:
+                col_key = slice(0, len(self.col_regions), 1)
+            except TypeError:
+                col_key = None
             index = row_key
 
         try:
