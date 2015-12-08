@@ -30,6 +30,7 @@ def create_temporary_copy(src_file_name, preserve_extension=False):
     Returns a _TemporaryFileWrapper, whose destructor deletes the temp file
     (i.e. the temp file is deleted when the object goes out of scope).
     """
+    src_file_name = os.path.expanduser(src_file_name)
     tf_suffix = ''
     if preserve_extension:
         _, tf_suffix = os.path.splitext(src_file_name)
