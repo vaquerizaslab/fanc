@@ -72,7 +72,7 @@ def create_or_open_pytables_file(file_name=None, mode='a'):
         return file_name
     
     # check if is existing
-    if os.path.isfile(file_name):
+    if mode == 'a' and os.path.isfile(file_name):
         try:
             f = t.open_file(file_name, "r", chunk_cache_size=270536704, chunk_cache_nelmts=2084)
             f.close()

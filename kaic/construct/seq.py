@@ -130,7 +130,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         tags = t.Int32Col(pos=12, dflt=-1)
         qname_ix = t.Float64Col(pos=13, dflt=-1)
 
-    def __init__(self, sambam_file=None, file_name=None, read_only=False,
+    def __init__(self, sambam_file=None, file_name=None, mode='a',
                  _group_name='reads', mapper=None):
         """
         Create Reads object and optionally load SAM file.
@@ -167,7 +167,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 file_name = sambam_file
                 sambam_file = None
 
-        FileBased.__init__(self, file_name, read_only=read_only)
+        FileBased.__init__(self, file_name, mode=mode)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
 
@@ -1626,7 +1626,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         fragment_chromosome = t.Int32Col(pos=7)
 
     def __init__(self, file_name=None,
-                 read_only=False,
+                 mode='a',
                  group_name='fragment_map',
                  table_name_fragments='fragments'):
         """
@@ -1645,7 +1645,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
 
-        FileBased.__init__(self, file_name, read_only=read_only)
+        FileBased.__init__(self, file_name, mode=mode)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=table_name_fragments)
 
         # generate tables from inherited classes

@@ -1162,7 +1162,7 @@ class RegionsTable(FileBased):
         end = t.Int64Col(pos=3)
     
     def __init__(self, data=None, file_name=None,
-                 read_only=False,
+                 mode='a',
                  _table_name_regions='regions'):
         """
         Initialize region table.
@@ -1188,7 +1188,7 @@ class RegionsTable(FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name, read_only=read_only)
+        FileBased.__init__(self, file_name, mode=mode)
         
         # check if this is an existing Hi-C file
         if _table_name_regions in self.file.root:
@@ -1560,7 +1560,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         weight = t.Float64Col(pos=2)  
     
     def __init__(self, data=None, file_name=None,
-                 read_only=False,
+                 mode='a',
                  _table_name_nodes='nodes',
                  _table_name_edges='edges'):
 
@@ -1593,7 +1593,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name, read_only=read_only)
+        FileBased.__init__(self, file_name, mode=mode)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
 
         if _table_name_edges in self.file.root:

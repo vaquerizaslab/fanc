@@ -974,7 +974,7 @@ class TestFileBased:
         f.file.create_table("/", "test1", {'a': t.Int32Col()})
         f.close()
 
-        r = FileBased(str(tmpdir) + "/test.file", read_only=True)
+        r = FileBased(str(tmpdir) + "/test.file", mode='r')
         with pytest.raises(t.FileModeError):
             r.file.create_table("/", "test2", {'b': t.Int32Col()})
         r.close()

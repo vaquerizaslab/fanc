@@ -249,15 +249,12 @@ def _file_to_data(file_name, sep="\t", has_header=None, types=None):
 
 
 class FileBased(object):
-    def __init__(self, file_name=None, read_only=False):
+    def __init__(self, file_name=None, mode='a'):
         # open file or keep in memory
         if hasattr(self, 'file'):
             if not isinstance(self.file, t.file.File):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
         else:
-            mode = 'a'
-            if read_only:
-                mode = 'r'
             if file_name is None:
                 self.file = create_or_open_pytables_file()
             elif type(file_name) == str:
