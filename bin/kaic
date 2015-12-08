@@ -243,13 +243,17 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.input)
         if args.tmp:
+            logging.info("Creating copy to work in temporary folder...")
             input_path = create_temporary_copy(input_path, preserve_extension=True)
+            logging.info("Copy created in %s" % input_path)
 
         output_path = os.path.expanduser(args.output)
         original_output_path = output_path
         if args.tmp:
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            tmp_file.close()
             output_path = tmp_file.name
+            logging.info("Output temporarily redirected to %s" % output_path)
 
         if args.ignore_default is True:
             store_qname = False
@@ -265,13 +269,15 @@ class Kaic(object):
             store_tags = args.tags
 
         logging.info("Starting to import file %s" % input_path)
-        reads = kaic.Reads(file_name=output_path)
+        reads = kaic.Reads(file_name=output_path, mode='w')
         reads.load(sambam=input_path, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
                    store_qual=store_qual, store_tags=store_tags, sample_size=100000)
         reads.close()
 
         if args.tmp:
+            logging.info("Removing temporary file...")
             os.unlink(input_path)
+            logging.info("Moving output file to destination...")
             shutil.move(output_path, original_output_path)
         logging.info("All done.")
 
@@ -337,12 +343,15 @@ class Kaic(object):
         from kaic.tools.files import copy_or_expand, create_temporary_copy
 
         # copy file if required
-        input_path = copy_or_expand(args.input, args.output)
-        original_input_path = input_path
+        original_input_path = os.path.expanduser(args.input)
         if args.tmp:
+            logging.info("Copying Reads object to temporary file...")
             input_path = create_temporary_copy(original_input_path)
+            logging.info("Temporarily working in %s" % input_path)
+        else:
+            input_path = copy_or_expand(args.input, args.output)
 
-        reads = kaic.Reads(file_name=input_path)
+        reads = kaic.Reads(file_name=input_path, mode='a')
 
         if args.mapped:
             logging.info("Unmapped filter enabled")
@@ -372,7 +381,11 @@ class Kaic(object):
         reads.close()
 
         if args.tmp:
-            shutil.move(input_path, original_input_path)
+            output_path = os.path.expanduser(args.output)
+            if os.path.isdir(output_path):
+                output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
+            logging.info("Moving temporary output file to destination %s..." % output_path)
+            shutil.move(input_path, output_path)
 
         logging.info("All done.")
 
@@ -454,17 +467,21 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
-        from kaic.tools.files import copy_or_expand, create_temporary_copy
+        from kaic.tools.files import create_temporary_copy
 
         reads1_path = os.path.expanduser(args.reads1)
         # copy file if required
         if args.tmp:
+            logging.info("Creating temporary copy of first half of reads...")
             reads1_path = create_temporary_copy(reads1_path)
+            logging.info("Working with temporary copy %s" % reads1_path)
 
         reads2_path = os.path.expanduser(args.reads2)
         # copy file if required
         if args.tmp:
+            logging.info("Creating temporary copy of second half of reads...")
             reads2_path = create_temporary_copy(reads2_path)
+            logging.info("Working with temporary copy %s" % reads2_path)
 
         genome_path = os.path.expanduser(args.genome)
 
@@ -474,18 +491,19 @@ class Kaic(object):
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
             output_path = tmp_file.name
+            logging.info("Working in temporary output file %s" % output_path)
 
         logging.info("Loading left side of reads...")
-        reads1 = kaic.Reads(reads1_path, read_only=True)
+        reads1 = kaic.Reads(reads1_path, mode='r')
         logging.info("Loading right side of reads...")
-        reads2 = kaic.Reads(reads2_path, read_only=True)
+        reads2 = kaic.Reads(reads2_path, mode='r')
         logging.info("Building genome...")
         genome = kaic.Genome.from_string(genome_path)
         logging.info("Getting fragments...")
         nodes = genome.get_regions(args.restriction_enzyme)
 
         logging.info("Building pairs...")
-        pairs = kaic.FragmentMappedReadPairs(file_name=output_path)
+        pairs = kaic.FragmentMappedReadPairs(file_name=output_path, mode='w')
         logging.info("Mapping reads...")
         pairs.load(reads1, reads2, nodes)
 
@@ -494,8 +512,10 @@ class Kaic(object):
         pairs.close()
 
         if args.tmp:
+            logging.info("Removing temporary input files...")
             os.unlink(reads1_path)
             os.unlink(reads2_path)
+            logging.info("Moving output file to destination %s" % original_output_path)
             shutil.move(output_path, original_output_path)
 
         logging.info("All done.")
@@ -575,12 +595,16 @@ class Kaic(object):
         from kaic.tools.files import copy_or_expand, create_temporary_copy
 
         # copy file if required
-        input_path = copy_or_expand(args.input, args.output)
-        original_input_path = input_path
-        if args.tmp:
-            input_path = create_temporary_copy(original_input_path)
 
-        pairs = kaic.FragmentMappedReadPairs(file_name=input_path)
+        original_input_path = os.path.expanduser(args.input)
+        if args.tmp:
+            logging.info("Creating temporary copy of input file...")
+            input_path = create_temporary_copy(original_input_path)
+            logging.info("Working from copy in %s" % input_path)
+        else:
+            input_path = copy_or_expand(args.input, args.output)
+
+        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='a')
 
         if args.auto:
             logging.info("Filtering inward- and outward-facing reads using automatically"
@@ -621,7 +645,11 @@ class Kaic(object):
         pairs.close()
 
         if args.tmp:
-            shutil.move(input_path, original_input_path)
+            output_path = os.path.expanduser(args.output)
+            if os.path.isdir(output_path):
+                output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
+            logging.info("Moving temporary output file to destination %s..." % output_path)
+            shutil.move(input_path, output_path)
 
         logging.info("All done.")
 
@@ -641,24 +669,51 @@ class Kaic(object):
             help='''Output path for Hic file'''
         )
 
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
+        from kaic.tools.files import create_temporary_copy
 
-        pairs_path = os.path.expanduser(args.pairs)
-        hic_path = os.path.expanduser(args.hic)
+        original_pairs_path = os.path.expanduser(args.pairs)
+        original_hic_path = os.path.expanduser(args.hic)
+        if args.tmp:
+            logging.info("Creating temporary copy of input file...")
+            pairs_path = create_temporary_copy(original_pairs_path)
+            logging.info("Woring from temporary input file %s" % pairs_path)
+            tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            tmp_file.close()
+            hic_path = tmp_file.name
+            logging.info("Working in temporary output file %s" % hic_path)
+        else:
+            pairs_path = original_pairs_path
+            hic_path = original_hic_path
 
         logging.info("Loading pairs...")
-        pairs = kaic.FragmentMappedReadPairs(pairs_path, read_only=True)
+        pairs = kaic.FragmentMappedReadPairs(pairs_path, mode='r')
         logging.info("Done.")
 
         logging.info("Adding pairs to Hic...")
-        hic = kaic.Hic(hic_path)
+        hic = kaic.Hic(hic_path, mode='w')
         hic.load_read_fragment_pairs(pairs)
         logging.info("Done.")
 
         pairs.close()
         hic.close()
+
+        if args.tmp:
+            logging.info("Removing temporary input file...")
+            os.unlink(pairs_path)
+            logging.info("Moving output file to destination %s" % original_hic_path)
+            shutil.move(hic_path, original_hic_path)
+
+        logging.info("All done.")
 
     def merge_hic(self):
         parser = argparse.ArgumentParser(
@@ -805,7 +860,7 @@ class Kaic(object):
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
 
-        hic = kaic.Hic(file_name=input_path, read_only=True)
+        hic = kaic.Hic(file_name=input_path, mode='r')
 
         logging.info("Binning at %dbp" % args.bin_size)
         binned = hic.bin(args.bin_size, file_name=output_path)
@@ -900,7 +955,7 @@ class Kaic(object):
         if args.output:
             output_path = os.path.expanduser(args.output)
 
-        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, read_only=True)
+        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='r')
         kplt.hic_ligation_error_structure_plot(pairs, output=output_path, data_points=args.points)
         pairs.close()
 
@@ -946,7 +1001,7 @@ class Kaic(object):
         if args.output:
             output_path = os.path.expanduser(args.output)
 
-        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, read_only=True)
+        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='r')
         kplt.pairs_re_distance_plot(pairs, output=output_path, limit=args.limit, max_distance=args.max_dist)
         pairs.close()
 
@@ -988,8 +1043,8 @@ class Kaic(object):
         hic1_path = os.path.expanduser(args.hic1)
         hic2_path = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(hic1_path, read_only=True)
-        hic2 = kaic.Hic(hic2_path, read_only=True)
+        hic1 = kaic.Hic(hic1_path, mode='r')
+        hic2 = kaic.Hic(hic2_path, mode='r')
 
         output_path = None
         if args.output:
@@ -1062,7 +1117,7 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.input)
 
-        hic = kaic.Hic(input_path, read_only=True)
+        hic = kaic.Hic(input_path, mode='r')
 
         output_path = None
         if args.output:
@@ -1113,7 +1168,7 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.input)
 
-        hic = kaic.Hic(input_path, read_only=True)
+        hic = kaic.Hic(input_path, mode='r')
 
         output_path = None
         if args.output:
@@ -1190,8 +1245,8 @@ class Kaic(object):
         input_path1 = os.path.expanduser(args.hic1)
         input_path2 = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(input_path1, read_only=True)
-        hic2 = kaic.Hic(input_path2, read_only=True)
+        hic1 = kaic.Hic(input_path1, mode='r')
+        hic2 = kaic.Hic(input_path2, mode='r')
 
         output_path = None
         if args.output:
@@ -1269,8 +1324,8 @@ class Kaic(object):
         input_path1 = os.path.expanduser(args.hic1)
         input_path2 = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(input_path1, read_only=True)
-        hic2 = kaic.Hic(input_path2, read_only=True)
+        hic1 = kaic.Hic(input_path1, mode='r')
+        hic2 = kaic.Hic(input_path2, mode='r')
 
         output_path = None
         if args.output:
