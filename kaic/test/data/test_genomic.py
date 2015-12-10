@@ -87,6 +87,18 @@ class TestGenome:
                 assert node['start'] == 4001
                 assert node['end'] == 5000
             i += 1
+
+    def test_from_string(self):
+        dir = os.path.dirname(os.path.realpath(__file__))
+        genome = Genome.from_string(dir + '/test_genomic/chromosomes.fa')
+        chr1 = genome[0]
+        assert len(chr1) == 5
+        chr2 = genome[1]
+        assert len(chr2) == 3
+        chr3 = genome[2]
+        assert len(chr3) == 4
+        chr4 = genome[3]
+        assert len(chr4) == 2
             
 class TestGenomicRegions:
     @classmethod

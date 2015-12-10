@@ -130,7 +130,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         tags = t.Int32Col(pos=12, dflt=-1)
         qname_ix = t.Float64Col(pos=13, dflt=-1)
 
-    def __init__(self, sambam_file=None, file_name=None, read_only=False,
+    def __init__(self, sambam_file=None, file_name=None, mode='a',
                  _group_name='reads', mapper=None):
         """
         Create Reads object and optionally load SAM file.
@@ -167,7 +167,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 file_name = sambam_file
                 sambam_file = None
 
-        FileBased.__init__(self, file_name, read_only=read_only)
+        FileBased.__init__(self, file_name, mode=mode)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
 
@@ -375,6 +375,8 @@ class Reads(Maskable, MetaContainer, FileBased):
         for i, read in enumerate(sambam):
             if i % 10000 == 0:
                 self.log_info("%d" % i, save=False)
+            if i % 1000000 == 0:
+                self.flush(update_index=False, update_csi=False)
             if ignore_duplicates and read.qname == last_name:
                 continue
             self.add_read(read, flush=False, store_cigar=store_cigar,
@@ -522,12 +524,13 @@ class Reads(Maskable, MetaContainer, FileBased):
         if flush:
             self.flush()
 
-    def flush(self):
+    def flush(self, update_index=True, update_csi=True):
         """
         Write the latest changes to this object to file.
         """
-        self._reads.flush(update_index=True)
-        self._update_csi()
+        self._reads.flush(update_index=update_index)
+        if update_csi:
+            self._update_csi()
         if self._tags is not None:
             self._tags.flush()
             self._row_counter['tags'] = len(self._tags)
@@ -1179,7 +1182,7 @@ class UniquenessFilter(ReadFilter):
         the value of the XS tag id different from 0.
         """
         xs_tag = read.get_tag('XS')
-        if xs_tag is not None or (not self.strict and xs_tag == 0):
+        if xs_tag is not None and (self.strict or xs_tag != 0):
             return False
         return True
 
@@ -1375,8 +1378,12 @@ class Bowtie2PairLoader(PairLoader):
             if i % 100000 == 0:
                 logging.info("%d reads processed" % i)
 
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
+
         # add remaining unpaired reads
         while r1 is not None:
+            i += 1
             if r1.qname_ix == last_r1_name_ix:
                 if not self.ignore_duplicates:
                     raise ValueError("Duplicate left read QNAME %s" % r1.qname)
@@ -1387,7 +1394,11 @@ class Bowtie2PairLoader(PairLoader):
             r1_count += 1
             single_count += 1
 
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
+
         while r2 is not None:
+            i += 1
             if r2.qname_ix == last_r2_name_ix:
                 if not self.ignore_duplicates:
                     raise ValueError("Duplicate right read QNAME %s" % r2.qname)
@@ -1397,6 +1408,9 @@ class Bowtie2PairLoader(PairLoader):
             r2 = self.get_next_read(iter2)
             r2_count += 1
             single_count += 1
+
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
 
         logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
         logging.info("Pairs: %d. Single: %d" % (pair_count, single_count))
@@ -1509,16 +1523,27 @@ class BwaMemPairLoader(PairLoader):
             if i % 100000 == 0:
                 logging.info("%d reads processed" % i)
 
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
+
         # add remaining unpaired reads
         while r1[0] is not None:
+            i += 1
             self.process_bwa_alns(r1)
             r1 = self.get_all_read_alns(iter1)
             r1_count += 1
 
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
+
         while r2[0] is not None:
+            i += 1
             self.process_bwa_alns(r2)
             r2 = self.get_all_read_alns(iter2)
             r2_count += 1
+
+            if i % 1000000 == 0:
+                self._pairs.flush(update_index=False)
 
         logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
@@ -1601,7 +1626,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         fragment_chromosome = t.Int32Col(pos=7)
 
     def __init__(self, file_name=None,
-                 read_only=False,
+                 mode='a',
                  group_name='fragment_map',
                  table_name_fragments='fragments'):
         """
@@ -1620,7 +1645,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
 
-        FileBased.__init__(self, file_name, read_only=read_only)
+        FileBased.__init__(self, file_name, mode=mode)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=table_name_fragments)
 
         # generate tables from inherited classes
@@ -1647,6 +1672,10 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                        FragmentMappedReadPairs.FragmentsMappedReadSingleDescription)
             self._pair_count = 0
             self._single_count = 0
+
+    def flush(self, update_index=True):
+        self._pairs.flush(update_index=update_index)
+        self._single.flush(update_index=update_index)
 
     def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True):
         """
@@ -1829,23 +1858,22 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         Convert a pytables row to a FragmentReadPair
         """
         if lazy:
-            left_read = LazyFragmentRead(row, side="left")
-            right_read = LazyFragmentRead(row, side="right")
-            return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
+            left_read = LazyFragmentRead(row, self, side="left")
+            right_read = LazyFragmentRead(row, self, side="right")
+        else:
+            fragment1 = GenomicRegion(start=row['left_fragment_start'],
+                                      end=row['left_fragment_end'],
+                                      chromosome=self._ix_to_chromosome[row['left_fragment_chromosome']],
+                                      ix=row['left_fragment'])
+            fragment2 = GenomicRegion(start=row['right_fragment_start'],
+                                      end=row['right_fragment_end'],
+                                      chromosome=self._ix_to_chromosome[row['right_fragment_chromosome']],
+                                      ix=row['right_fragment'])
 
-        fragment1 = GenomicRegion(start=row['left_fragment_start'],
-                                  end=row['left_fragment_end'],
-                                  chromosome=self._ix_to_chromosome[row['left_fragment_chromosome']],
-                                  ix=row['left_fragment'])
-        fragment2 = GenomicRegion(start=row['right_fragment_start'],
-                                  end=row['right_fragment_end'],
-                                  chromosome=self._ix_to_chromosome[row['right_fragment_chromosome']],
-                                  ix=row['right_fragment'])
-
-        left_read = FragmentRead(fragment1, position=row['left_read_position'],
-                                 strand=row['left_read_strand'], qname_ix=row['left_read_qname_ix'])
-        right_read = FragmentRead(fragment2, position=row['right_read_position'],
-                                  strand=row['right_read_strand'], qname_ix=row['right_read_qname_ix'])
+            left_read = FragmentRead(fragment1, position=row['left_read_position'],
+                                     strand=row['left_read_strand'], qname_ix=row['left_read_qname_ix'])
+            right_read = FragmentRead(fragment2, position=row['right_read_position'],
+                                      strand=row['right_read_strand'], qname_ix=row['right_read_qname_ix'])
 
         return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
@@ -2202,8 +2230,9 @@ class FragmentRead(object):
 
 
 class LazyFragmentRead(FragmentRead):
-    def __init__(self, row, side="left"):
+    def __init__(self, row, pairs, side="left"):
         self.row = row
+        self.pairs = pairs
         self.side = side
 
     @property
@@ -2220,18 +2249,19 @@ class LazyFragmentRead(FragmentRead):
 
     @property
     def fragment(self):
-        return LazyFragment(self.row, side=self.side)
+        return LazyFragment(self.row, self.pairs, side=self.side)
 
 
 class LazyFragment(GenomicRegion):
-    def __init__(self, row, ix=None, side="left"):
+    def __init__(self, row, pairs, ix=None, side="left"):
         self.row = row
+        self.pairs = pairs
         self.side = side
         self.static_ix = ix
 
     @property
     def chromosome(self):
-        return self.row[self.side + "_fragment_chromosome"]
+        return self.pairs._ix_to_chromosome[self.row[self.side + "_fragment_chromosome"]]
 
     @property
     def start(self):

@@ -600,23 +600,29 @@ class Chromosome(object):
         :param include_sequence: If True (default), stores the chromosome
                                  sequence in memory. Else, the sequence
                                  attribute will be set to None.
-        :return: :class:`~Chromosome`
+        :return: :class:`~Chromosome` if there is only a single FASTA
+                 sequence in the file, list(:class:`~Chromosome`) if
+                 there are multiple sequences.
         """
         if type(file_name) is file:
             fastas = SeqIO.parse(file_name, 'fasta')
         else:
             fastas = SeqIO.parse(open(file_name, 'r'), 'fasta')
-            
-        try:
-            fasta = fastas.next()
-        except StopIteration:
+
+        chromosomes = []
+        for fasta in fastas:
+            if include_sequence:
+                chromosome = cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
+            else:
+                chromosome = cls(name if name else fasta.id, length=len(fasta))
+            chromosomes.append(chromosome)
+
+        if len(chromosomes) == 0:
             raise ValueError("File %s does not appear to be a FASTA file" % file_name)
-        
-        if include_sequence:
-            return cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
-        else:
-            return cls(name if name else fasta.id, length=len(fasta))
-        
+        if len(chromosomes) == 1:
+            return chromosomes[0]
+        return chromosomes
+
     def get_restriction_sites(self, restriction_enzyme):
         """
         Find the restriction sites of a provided enzyme in this chromosome.
@@ -670,8 +676,11 @@ class Genome(Table):
             self._sequences = self.file.create_vlarray("/", 'genome_sequences', t.VLStringAtom())
         
         if chromosomes is not None:
-            for chromosome in chromosomes:
-                self.add_chromosome(chromosome)
+            if isinstance(chromosomes, Chromosome):
+                self.add_chromosome(chromosomes)
+            else:
+                for chromosome in chromosomes:
+                    self.add_chromosome(chromosome)
             
     @classmethod
     def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
@@ -713,8 +722,8 @@ class Genome(Table):
         """
         # case 1: FASTA file = Chromosome
         if is_fasta_file(genome_string):
-            chromosome = Chromosome.from_fasta(genome_string)
-            genome = cls(chromosomes=[chromosome], file_name=file_name)
+            chromosomes = Chromosome.from_fasta(genome_string)
+            genome = cls(chromosomes=chromosomes, file_name=file_name)
         # case 2: Folder with FASTA files
         elif os.path.isdir(genome_string):
             genome = cls.from_folder(genome_string, file_name=file_name)
@@ -1153,7 +1162,7 @@ class RegionsTable(FileBased):
         end = t.Int64Col(pos=3)
     
     def __init__(self, data=None, file_name=None,
-                 read_only=False,
+                 mode='a',
                  _table_name_regions='regions'):
         """
         Initialize region table.
@@ -1179,7 +1188,7 @@ class RegionsTable(FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name, read_only=read_only)
+        FileBased.__init__(self, file_name, mode=mode)
         
         # check if this is an existing Hi-C file
         if _table_name_regions in self.file.root:
@@ -1551,7 +1560,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         weight = t.Float64Col(pos=2)  
     
     def __init__(self, data=None, file_name=None,
-                 read_only=False,
+                 mode='a',
                  _table_name_nodes='nodes',
                  _table_name_edges='edges'):
 
@@ -1584,7 +1593,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name, read_only=read_only)
+        FileBased.__init__(self, file_name, mode=mode)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
 
         if _table_name_edges in self.file.root:
@@ -1671,7 +1680,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
             if len(edge_buffer) > _max_buffer_size:
                 logging.info("Flushing buffer")
-                self._flush_edge_buffer(edge_buffer, replace=False)
+                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                 edge_buffer = {}
         logging.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
@@ -1719,7 +1728,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     edge_buffer[key_pair] += new_edge[2]
 
                 if len(edge_buffer) > _edge_buffer_size:
-                    self._flush_edge_buffer(edge_buffer)
+                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                     edge_buffer = {}
             self._flush_edge_buffer(edge_buffer)
 
@@ -1728,6 +1737,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         Map edges in this object to equi-distant bins.
 
         :param bin_size: Bin size in base pairs
+        :param file_name: File name of the new, binned Hic object
         :return: :class:`~Hic` object
         """
         # find chromosome lengths
@@ -1742,7 +1752,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = Hic(file_name=file_name)
+        hic = Hic(file_name=file_name, mode='w')
         hic.add_regions(genome.get_regions(bin_size))
 
         hic.load_from_hic(self)
@@ -1954,14 +1964,14 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
             if len(edge_buffer) > _edge_buffer_size:
                 logging.info("Flushing buffer...")
-                self._flush_edge_buffer(edge_buffer, replace=False)
+                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                 edge_buffer = {}
 
         # final flush
         self.log_info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
 
-    def _flush_edge_buffer(self, e_buffer, replace=False):
+    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True):
         # update current rows
         for row in self._edges:
             key = (row["source"], row["sink"])
@@ -1986,14 +1996,15 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             row["weight"] = weight
             row.append()
         self._edges.flush()
-        self._remove_zero_edges()
+        self._remove_zero_edges(update_index=update_index)
 
-    def flush(self, flush_nodes=True, flush_edges=True):
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
         """
         Write data to file and flush buffers.
 
         :param flush_nodes: Flush nodes tables
         :param flush_edges: Flush edges table
+        :param update_index: Update mask indices in edges table
         """
         if flush_nodes:
             self._regions.flush()
@@ -2002,7 +2013,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 # reindex node table
                 self._regions.flush_rows_to_index()
         if flush_edges:
-            self._edges.flush(update_index=True)
+            self._edges.flush(update_index=update_index)
             if not self._edges.autoindex:
                 # reindex edge table
                 self._edges.flush_rows_to_index()
@@ -2446,9 +2457,9 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             if flush:
                 self.flush()
         if not value_set:
-            self.add_edge(HicEdge(source=source,sink=sink,weight=weight), flush=flush)
+            self.add_edge(HicEdge(source=source, sink=sink, weight=weight), flush=flush)
     
-    def _remove_zero_edges(self, flush=True):
+    def _remove_zero_edges(self, flush=True, update_index=True):
         zero_edge_ix = []
         ix = 0
         for row in self._edges.iterrows():
@@ -2460,7 +2471,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             self._edges.remove_row(ix)        
         
         if flush:
-            self.flush()
+            self.flush(update_index=update_index)
     
     def autoindex(self, index=None):
         """
@@ -2889,7 +2900,10 @@ class HicMatrix(np.ndarray):
             index = (row_key, col_key)
         else:
             row_key = self._convert_key(index, self.row_regions)
-            col_key = slice(0, len(self.col_regions), 1)
+            try:
+                col_key = slice(0, len(self.col_regions), 1)
+            except TypeError:
+                col_key = None
             index = row_key
 
         try:

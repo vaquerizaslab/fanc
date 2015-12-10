@@ -12,6 +12,7 @@ import random
 import h5py
 import pysam
 from Bio import SeqIO
+import tempfile
 import shutil
 
 
@@ -21,6 +22,21 @@ def without_extension(file_name):
 
 def get_extension(file_name):
     os.path.splitext(file_name)[1][1:]
+
+
+def create_temporary_copy(src_file_name, preserve_extension=False):
+    """
+    Copies the source file into a temporary file.
+    Returns a _TemporaryFileWrapper, whose destructor deletes the temp file
+    (i.e. the temp file is deleted when the object goes out of scope).
+    """
+    src_file_name = os.path.expanduser(src_file_name)
+    tf_suffix = ''
+    if preserve_extension:
+        _, tf_suffix = os.path.splitext(src_file_name)
+    tf = tempfile.NamedTemporaryFile(suffix=tf_suffix, delete=False)
+    shutil.copy2(src_file_name, tf.name)
+    return tf.name
 
 
 def make_dir(dir_name, fail_if_exists=False, make_subdirs=True):
@@ -57,9 +73,9 @@ def create_or_open_pytables_file(file_name=None, mode='a'):
         return file_name
     
     # check if is existing
-    if os.path.isfile(file_name):
+    if mode == 'a' and os.path.isfile(file_name):
         try:
-            f = t.open_file(file_name, "r")
+            f = t.open_file(file_name, "r", chunk_cache_size=270536704, chunk_cache_nelmts=2084)
             f.close()
         except t.HDF5ExtError:
             raise ImportError("File exists and is not an HDF5 dict")
@@ -67,7 +83,8 @@ def create_or_open_pytables_file(file_name=None, mode='a'):
     if in_memory:
         return t.open_file(file_name, mode, driver="H5FD_CORE", driver_core_backing_store=0)
     else:
-        return t.open_file(file_name, mode)
+        # 256Mb cache
+        return t.open_file(file_name, mode, chunk_cache_size=270536704, chunk_cache_nelmts=2084)
 
 
 def is_bed_file(file_name):
