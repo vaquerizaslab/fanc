@@ -91,3 +91,12 @@ def pairs_re_distance_plot(pairs, output=None, limit=10000, max_distance=None):
     dplot = sns.distplot(distances)
     dplot.set_xlim(left=0)
     _plot_figure(dplot.figure, output, old_backend)
+
+
+def mapq_hist_plot(reads, output=None, include_masked=False):
+    reads = reads.reads(lazy=True, include_masked=include_masked)
+    mapqs = [r.mapq for r in reads]
+    old_backend = _prepare_backend(output)
+    mqplot = sns.distplot(mapqs, norm_hist=False, kde=False, bins=np.arange(min(mapqs), max(mapqs)+1.5)-0.5)
+    mqplot.set_xlim(left=-1, right=max(mapqs)+2)
+    _plot_figure(mqplot.figure, output, old_backend)
