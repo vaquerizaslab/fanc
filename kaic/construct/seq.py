@@ -63,9 +63,11 @@ from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int, CachedIterator
+from kaic.tools.lru import lru_cache
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import msgpack as pickle
 import numpy as np
+from scipy.stats import binom_test
 import hashlib
 from functools import partial
 from collections import defaultdict
@@ -616,7 +618,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                     pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
                     tags=tags, reference_id=ref_ix, qname_ix=row['qname_ix'])
 
-    def reads(self, lazy=False, sort_by_qname_ix=False):
+    def reads(self, lazy=False, sort_by_qname_ix=False, include_masked=False):
         """
         Iterate over _reads table and convert each result to Read.
 
@@ -638,10 +640,11 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         class ReadsIter:
             def __init__(self):
+                reads_table = this._reads.all() if include_masked else this._reads
                 if sort_by_qname_ix:
                     self.iter = this._reads.itersorted('qname_ix')
                 else:
-                    self.iter = iter(this._reads)
+                    self.iter = iter(reads_table)
 
             def __iter__(self):
                 return self
@@ -1877,14 +1880,15 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
-    def get_error_structure(self, data_points=None, skip_self_ligations=True):
+    @lru_cache(maxsize=10)
+    def get_ligation_structure_biases(self, sampling=None, skip_self_ligations=True):
 
         """
-        Compute the ligation error structure of this data set.
+        Compute the ligation biases (inward and outward to same-strand) of this data set.
 
-        :param data_points: Number of data points to average per point
-                            in the plot. If None (default), this will
-                            be determined on a best-guess basis.
+        :param sampling: Approximate number of data points to average per point
+                         in the plot. If None (default), this will
+                         be determined on a best-guess basis.
         :param skip_self_ligations: If True (default), will not consider
                                     self-ligated fragments for assessing
                                     the error rates.
@@ -1906,12 +1910,16 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             same_count = 0
             inward_count = 0
             outward_count = 0
+            same_fragment_count = 0
+            inter_chrm_count = 0
             gaps = []
             types = []
             for i, pair in enumerate(self):
                 _log_done(i)
-                if pair.is_same_fragment() and skip_self_ligations:
-                    continue
+                if pair.is_same_fragment():
+                    same_fragment_count += 1
+                    if skip_self_ligations:
+                        continue
                 if pair.is_same_chromosome():
                     gap_size = pair.get_gap_size()
                     if gap_size > 0:
@@ -1925,65 +1933,66 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                         else:
                             types.append(0)
                             same_count += 1
+                else:
+                    inter_chrm_count += 1
             logging.info("Pairs: %d" % l)
-            logging.info("Same: %d" % same_count)
-            logging.info("Inward: %d" % inward_count)
-            logging.info("Outward: %d" % outward_count)
+            logging.info("Inter-chromosomal: {}".format(inter_chrm_count))
+            logging.info("Same fragment: {}".format(same_fragment_count))
+            logging.info("Same: {}".format(same_count))
+            logging.info("Inward: {}".format(inward_count))
+            logging.info("Outward: {}".format(outward_count))
             return gaps, types
 
         def _sort_data(gaps, types):
             points = zip(gaps, types)
             sorted_points = sorted(points)
-            gaps = [point[0] for point in sorted_points]
-            types = [point[1] for point in sorted_points]
-            return gaps, types
+            return zip(*sorted_points)
 
-        def _guess_datapoints(data_points):
-            if data_points is None:
-                data_points = max(100, int(l * 0.0025))
-            logging.info("Number of data points averaged per point in plot: {}".format(data_points))
-            return data_points
+        def _guess_sampling(sampling):
+            if sampling is None:
+                sampling = max(100, int(l * 0.0025))
+            logging.info("Number of data points averaged per point in plot: {}".format(sampling))
+            return sampling
 
-        def _calculate_ratios(gaps, types, data_points):
+        def _calculate_ratios(gaps, types, sampling):
             x = []
             inward_ratios = []
             outward_ratios = []
+            bin_sizes = []
             counter = 0
             same_counter = 0
             mids = 0
             outwards = 0
             inwards = 0
-            same = 0
             for typ, gap in zip(types, gaps):
                 mids += gap
                 if typ == type_same:
-                    same += 1
                     same_counter += 1
                 elif typ == type_inward:
                     inwards += 1
                 else:
                     outwards += 1
                 counter += 1
-                if same_counter > data_points:
-                    x.append(mids/counter)
-                    inward_ratios.append(inwards/same)
-                    outward_ratios.append(outwards/same)
+                if same_counter > sampling:
+                    x.append(int(mids/counter))
+                    inward_ratios.append(inwards/same_counter)
+                    outward_ratios.append(outwards/same_counter)
+                    bin_sizes.append(counter)
                     same_counter = 0
                     counter = 0
                     mids = 0
                     outwards = 0
                     inwards = 0
                     same = 0
-            return x, inward_ratios, outward_ratios
+            return list(map(np.array, [x, inward_ratios, outward_ratios, bin_sizes]))
 
         gaps, types = _init_gaps_and_types()
         # sort data
         gaps, types = _sort_data(gaps, types)
         # best guess for number of data points
-        data_points = _guess_datapoints(data_points)
+        sampling = _guess_sampling(sampling)
         # calculate ratios
-        x, inward_ratios, outward_ratios = _calculate_ratios(gaps, types, data_points)
-        return x, inward_ratios, outward_ratios
+        return _calculate_ratios(gaps, types, sampling)
 
     def filter(self, pair_filter, queue=False, log_progress=False):
         """
@@ -2014,33 +2023,27 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         self._pairs.run_queued_filters(_logging=log_progress)
 
-    def _auto_dist(self, dists, ratios, threshold_ratio=0.1, threshold_std=0.1, window=3):
+    @staticmethod
+    def _auto_dist(dists, ratios, sample_sizes, p=0.05, expected_ratio=0.5):
         """
         Function that attempts to infer sane distances for filtering inward
         and outward read pairs
 
         :param dists: List of distances in bp.
         :param ratios: List of ratios
-        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
-                                in order to infer the corresponding distance
-        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
-                              must fall in order to infer the corresponding distance
-        :param window: Window for the rolling standard deviations
         """
-        def rolling_window(a, window):
-            shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
-            strides = a.strides + (a.strides[-1],)
-            r = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-            return np.insert(r, 0, [r[0]]*(window-1), axis=0)
-
-        ratios = np.array([1+np.log2(x) for x in ratios])
-        stds = np.std(rolling_window(ratios, window), -1)
-        ok_threshold_ratios = abs(ratios) <= threshold_ratio
-        ok_threshold_stds = stds <= threshold_std
-        ok_values = ok_threshold_ratios * ok_threshold_stds
-        ok_indices = np.argwhere(ok_values).flatten()
-        if len(ok_indices) > 0:
-            return dists[ok_indices[0]]
+        def movingaverage(interval, window_size):
+            window = np.ones(int(window_size))/float(window_size)
+            return np.convolve(interval, window, 'same')
+        ratios = np.clip(ratios, 0.0, 1.0)
+        ratios = movingaverage(ratios, max(1, len(ratios)/30))
+        sample_sizes = movingaverage(sample_sizes, max(1, len(sample_sizes)/30))
+        binom_probs = np.array([binom_test(r*b, b, expected_ratio) \
+                                for r, b in zip(ratios, sample_sizes)])
+        which_valid = binom_probs > p
+        which_valid_indices = np.argwhere(which_valid).flatten()
+        if len(which_valid_indices) > 0:
+            return int(dists[which_valid_indices[0]])
         return None
 
     def filter_pcr_duplicates(self, threshold=3, queue=False):
@@ -2057,7 +2060,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         pcr_duplicate_filter = PCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
         self.filter(pcr_duplicate_filter, queue)
 
-    def filter_inward(self, minimum_distance=None, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
+    def filter_inward(self, minimum_distance=None, queue=False, *args, **kwargs):
         """
         Convenience function that applies an :class:`~InwardPairsFilter`.
 
@@ -2066,24 +2069,23 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
-        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
-                                in order to infer the corresponding distance
-        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
-                              must fall in order to infer the corresponding distance
-        :param window: Window for the rolling standard deviations
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
         """
         if minimum_distance is None:
-            dists, inward_ratios, _ = self.get_error_structure()
-            minimum_distance = self._auto_dist(dists, inward_ratios, threshold_ratio, threshold_std, window)
+            dists, inward_ratios, _, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
+            minimum_distance = self._auto_dist(dists, inward_ratios, bins_sizes)
         if minimum_distance:
             mask = self.add_mask_description('inward',
-                                             'Mask read pairs that are inward facing and <%dbp apart' % minimum_distance)
+                                             'Mask read pairs that are inward facing and < {}bp apart'
+                                             .format(minimum_distance))
+            logging.info("Filtering out inward facing read pairs < {} bp apart".format(minimum_distance))
             inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
             self.filter(inward_filter, queue)
         else:
             raise Exception('Could not automatically detect a sane distance threshold for filtering inward reads')
 
-    def filter_outward(self, minimum_distance=None, queue=False, threshold_ratio=0.1, threshold_std=0.1, window=3):
+    def filter_outward(self, minimum_distance=None, queue=False, *args, **kwargs):
         """
         Convenience function that applies an :class:`~OutwardPairsFilter`.
 
@@ -2092,22 +2094,38 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
-        :param threshold_ratio: Threshold below which the 1+log2(ratio) must fall
-                                in order to infer the corresponding distance
-        :param threshold_std: Threshold below which the standard deviation of 1+log2(ratio)
-                              must fall in order to infer the corresponding distance
-        :param window: Window for the rolling standard deviations
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
         """
         if minimum_distance is None:
-            dists, _, outward_ratios = self.get_error_structure()
-            minimum_distance = self._auto_dist(dists, outward_ratios, threshold_ratio, threshold_std, window)
+            dists, _, outward_ratios, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
+            minimum_distance = self._auto_dist(dists, outward_ratios, bins_sizes)
         if minimum_distance:
             mask = self.add_mask_description('outward',
-                                             'Mask read pairs that are outward facing and <%dbp apart' % minimum_distance)
+                                             'Mask read pairs that are outward facing and < {}bp apart'
+                                             .format(minimum_distance))
+            logging.info("Filtering out outward facing read pairs < {} bp apart".format(minimum_distance))
             outward_filter = OutwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
             self.filter(outward_filter, queue)
         else:
             raise Exception('Could not automatically detect a sane distance threshold for filtering outward reads')
+
+    def filter_ligation_products(self, inward_threshold=None, outward_threshold=None, queue=False, *args, **kwargs):
+        """
+        Convenience function that applies an :class:`~OutwardPairsFilter` and an :class:`~InwardPairsFilter`.
+
+        :param inward_threshold: Minimum distance inward-facing read
+                                 pairs must have to pass this filter. If None, will be infered from the data
+        :param outward_threshold: Minimum distance outward-facing read
+                                 pairs must have to pass this filter. If None, will be infered from the data
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
+        """
+        self.filter_inward(inward_threshold, queue=queue, *args, **kwargs)
+        self.filter_outward(outward_threshold, queue=queue, *args, **kwargs)
     
     def filter_re_dist(self, maximum_distance, queue=False):
         """

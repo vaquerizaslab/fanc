@@ -608,8 +608,7 @@ class Kaic(object):
         if args.auto:
             logging.info("Filtering inward- and outward-facing reads using automatically"
                          "determined thresholds.")
-            pairs.filter_inward(minimum_distance=None, queue=True)
-            pairs.filter_outward(minimum_distance=None, queue=True)
+            pairs.filter_ligation_products(queue=True)
         else:
             if args.inward:
                 logging.info("Filtering inward-facing reads at %dbp" % args.inward)
@@ -1012,7 +1011,7 @@ class Kaic(object):
     def plot_ligation_err(self):
         parser = argparse.ArgumentParser(
             prog="kaic " + sys.argv[1],
-            description='Plot the ligation error of a Pairs object'
+            description='Plot the ligation structure biases of a Pairs object'
         )
 
         parser.add_argument(
@@ -1043,7 +1042,7 @@ class Kaic(object):
             output_path = os.path.expanduser(args.output)
 
         pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='r')
-        kplt.hic_ligation_error_structure_plot(pairs, output=output_path, data_points=args.points)
+        kplt.hic_ligation_structure_biases_plot(pairs, output=output_path, data_points=args.points)
         pairs.close()
 
         logging.info("All done.")
