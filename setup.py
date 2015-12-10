@@ -7,13 +7,13 @@ setup(
     packages=find_packages(exclude=["test"]),
     install_requires=[
         'numpy',
+        'scipy',
         'matplotlib',
         'pandas',
         'h5py',
         'pysam',
         'biopython',
         'pytest',
-        'repoze.lru',
         'msgpack-python',
         'tables>3.2.2'
     ],
