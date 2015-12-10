@@ -1909,12 +1909,16 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             same_count = 0
             inward_count = 0
             outward_count = 0
+            same_fragment_count = 0
+            inter_chrm_count = 0
             gaps = []
             types = []
             for i, pair in enumerate(self):
                 _log_done(i)
-                if pair.is_same_fragment() and skip_self_ligations:
-                    continue
+                if pair.is_same_fragment():
+                    same_fragment_count += 1
+                    if skip_self_ligations:
+                        continue
                 if pair.is_same_chromosome():
                     gap_size = pair.get_gap_size()
                     if gap_size > 0:
@@ -1928,10 +1932,14 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                         else:
                             types.append(0)
                             same_count += 1
+                else:
+                    inter_chrm_count += 1
             logging.info("Pairs: %d" % l)
-            logging.info("Same: %d" % same_count)
-            logging.info("Inward: %d" % inward_count)
-            logging.info("Outward: %d" % outward_count)
+            logging.info("Inter-chromosomal: {}".format(inter_chrm_count))
+            logging.info("Same fragment: {}".format(same_fragment_count))
+            logging.info("Same: {}".format(same_count))
+            logging.info("Inward: {}".format(inward_count))
+            logging.info("Outward: {}".format(outward_count))
             return gaps, types
 
         def _sort_data(gaps, types):
