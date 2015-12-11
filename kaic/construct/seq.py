@@ -640,7 +640,7 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         class ReadsIter:
             def __init__(self):
-                reads_table = this._reads.all() if include_masked else this._reads
+                self.reads_table = this._reads.filtered_iterator()
                 if sort_by_qname_ix:
                     self.iter = this._reads.itersorted('qname_ix')
                 else:

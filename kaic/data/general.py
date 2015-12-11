@@ -1839,6 +1839,44 @@ class MaskedTable(t.Table):
                 logging.info("%d%%..." % int(last_percent * 100))
                 last_percent += 0.05
         self.flush(update_index=False)
+
+    def selected_filter_iterator(self, excluded_filter=[]):
+        this = self
+        class FilteredIter:
+            def __init__(self, excluded_filter=[]):
+                self.iter = this._iter_visible_and_masked()
+                self._excluded_filters = self.maskid_from_names(excluded_filter) 
+
+            def maskid_from_names(self, masks):
+                f = []
+                for m in masks:
+                    pass
+
+            def __iter__(self):
+                return self
+            
+            def next(self):
+                row = self.iter.next()
+                while row[this._mask_field] == 0:
+                    row = self.iter.next()
+                return row
+            
+            def __getitem__(self, key):
+                if type(key) == int:
+                    if key >= 0:
+                        key = -1*key - 1
+                        res = [x.fetch_all_fields() for x in super(MaskedTable,this).where("%s == %d" % (this._mask_index_field,key))]
+                        if len(res) == 1:
+                            return res[0]
+                        if len(res) == 0:
+                            raise IndexError("Index %d out of bounds" % key)
+                        raise RuntimeError("Duplicate row for key %d" % key)
+                    else:
+                        l = this._visible_len()
+                        return self[l+key]
+                else:
+                    raise KeyError('Cannot retrieve row with key ' + str(key))
+        return FilteredIter()
     
     def all(self):
         """
