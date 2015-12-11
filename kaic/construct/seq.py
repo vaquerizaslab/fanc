@@ -640,25 +640,15 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         class ReadsIter:
             def __init__(self):
-                self.reads_table = this._reads.filtered_iterator()
+                self.excluded_mask_idx = this.get_mask_idx_from_names(excluded_filters)
+                self.reads_table = this._reads.selected_filtered_iterator(self.excluded_mask_idx)
                 if sort_by_qname_ix:
                     self.iter = this._reads.itersorted('qname_ix')
                 else:
-                    self.iter = iter(this._reads)
-                if len(excluded_filters) > 0:
-                    self.next = self._partial_filters_next
-                else:
-                    self.next = self._all_filters_next
+                    self.iter = iter(self.reads_table)
 
             def __iter__(self):
                 return self
-
-            def _all_filters_next(self):
-                row = self.iter.next()
-                return this._row2read(row, lazy=lazy)
-
-            def _partial_filters_next(self):
-                pass
 
             def next(self):
                 row = self.iter.next()

@@ -1457,6 +1457,10 @@ class Maskable(object):
     def _row_to_mask(row):
         return Mask(name=row['name'], ix=row['ix'], description=row['description'])
 
+    @staticmethod
+    def get_mask_idx_from_names(self, mask_names):
+        return sum([self.get_mask(x).ix**2 for x in mask_names])
+
     @lru_cache(maxsize=1000)
     def get_mask(self, key):
         """
@@ -1764,6 +1768,21 @@ class MaskedTable(t.Table):
                 ix += 1
             row.update()
     
+    @lru_cache(maxsize=1000)
+    def _get_masks(self, binnary_mask):
+        def bits(n):
+            while n:
+                b = n & (~n+1)
+                yield b
+                n ^= b
+        return list(bits(binnary_mask))
+
+    def _row_masks(self, row):
+        return self._get_masks(row[self._mask_field])
+
+    def _has_mask(self, row, mask):
+        return mask in self._row_masks(row)
+
     def filter(self, mask_filter, _logging=False):
         """
         Run a MaskFilter on this table.
@@ -1840,42 +1859,21 @@ class MaskedTable(t.Table):
                 last_percent += 0.05
         self.flush(update_index=False)
 
-    def selected_filter_iterator(self, excluded_filter=[]):
+    def selected_filter_iterator(self, excluded_mask_idx=0):
         this = self
         class FilteredIter:
-            def __init__(self, excluded_filter=[]):
+            def __init__(self, excluded_filters=0):
                 self.iter = this._iter_visible_and_masked()
-                self._excluded_filters = self.maskid_from_names(excluded_filter) 
-
-            def maskid_from_names(self, masks):
-                f = []
-                for m in masks:
-                    pass
+                self._excluded_mask_idx = excluded_mask_idx
 
             def __iter__(self):
                 return self
             
             def next(self):
                 row = self.iter.next()
-                while row[this._mask_field] == 0:
+                while row[this._mask_field] not in [0, self._excluded_mask_idx]:
                     row = self.iter.next()
                 return row
-            
-            def __getitem__(self, key):
-                if type(key) == int:
-                    if key >= 0:
-                        key = -1*key - 1
-                        res = [x.fetch_all_fields() for x in super(MaskedTable,this).where("%s == %d" % (this._mask_index_field,key))]
-                        if len(res) == 1:
-                            return res[0]
-                        if len(res) == 0:
-                            raise IndexError("Index %d out of bounds" % key)
-                        raise RuntimeError("Duplicate row for key %d" % key)
-                    else:
-                        l = this._visible_len()
-                        return self[l+key]
-                else:
-                    raise KeyError('Cannot retrieve row with key ' + str(key))
         return FilteredIter()
     
     def all(self):
