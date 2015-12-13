@@ -1,13 +1,15 @@
 from matplotlib.ticker import Formatter, MaxNLocator
-from kaic.data.genomic import GenomicRegion, HicMatrix
+from kaic.data.genomic import GenomicRegion
+from abc import abstractmethod, ABCMeta
 import numpy as np
 import math
 import matplotlib as mpl
+import logging
 import seaborn as sns
 plt = sns.plt
-import logging
 log = logging.getLogger(__name__)
 log.setLevel(10)
+
 
 def millify(n, precision=1):
     """Take input float and return human readable string.
@@ -26,13 +28,14 @@ def millify(n, precision=1):
     -------
     str : Human readable string representation of n
     """
-    millnames = ["","k","M","B","T"]
+    millnames = ["", "k", "M", "B", "T"]
     if n == 0:
         return 0
     n = float(n)
     millidx = max(0, min(len(millnames) - 1,
                       int(math.floor(math.log10(abs(n))/3))))
     return "{:.{prec}f}{}".format(n/10**(3*millidx), millnames[millidx], prec=precision)
+
 
 class GenomeCoordFormatter(Formatter):
     def __init__(self, chromosome, start, end):
@@ -45,52 +48,109 @@ class GenomeCoordFormatter(Formatter):
             return "{}:{}".format(self.chromosome, self.start)
         return millify(x)
 
-class GenomeCoordLocator(MaxNLocator):
-    def __init__(self, chromosome, start, end, **kwargs):
-        self.chromsome = chromosome
-        self.start = start
-        self.end = end
-        super(GenomeCoordLocator, self).__init__(**kwargs)
 
-    def __call__(self):
-        vmin, vmax = self.axis.get_view_interval()
-        return self.tick_values(max(self.start, vmin), min(self.end, vmax))
+class BasePlotter1D(object):
 
-class BasePlotter(object):
+    __metaclass__ = ABCMeta
+
     def __init__(self):
-        self._fig = None
-        self._ax = None
+        self.fig = None
+        self.ax = None
 
-    def add_fig_ax(self, fig, ax):
-        self._fig = fig
-        self._ax = ax
+    @abstractmethod
+    def _plot(self, region=None):
+        raise NotImplementedError("Subclasses need to override _plot function")
 
-    @property
-    def fig(self):
-        if self._fig is None:
-            self._make_fig_ax()
-        return self._fig
-    
-    @property
-    def ax(self):
-        if self._ax is None:
-             self._make_fig_ax()
-        return self._ax
-
-    def _make_fig_ax(self):
-        self._fig, self._ax = plt.subplots()
-        return self._fig, self._ax
-
-    def _plot(self, region):
+    @abstractmethod
+    def _refresh(self, region=None):
         raise NotImplementedError("Subclasses need to override _plot function")
     
-    def plot(self, region):
+    def plot(self, region=None, ax=None):
         if isinstance(region, basestring):
             region = GenomicRegion.from_string(region)
+
+        if ax is not None:
+            self.ax = ax
+            self.fig = ax.figure
+        else:
+            self.fig, self.ax = plt.subplots()
+
         self._plot(region)
         return self.fig, self.ax
 
-class HicPlot(BasePlotter):
+
+class BasePlotter2D(object):
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self):
+        self.fig = None
+        self.ax = None
+        self.cid = None
+        self.current_chromosome_x = None
+        self.current_chromosome_y = None
+
+    @abstractmethod
+    def _plot(self, x_region=None, y_region=None):
+        raise NotImplementedError("Subclasses need to override _plot function")
+
+    @abstractmethod
+    def _refresh(self, x_region=None, y_region=None):
+        raise NotImplementedError("Subclasses need to override _plot function")
+
+    def mouse_release_refresh(self, _):
+        xlim = self.ax.get_xlim()
+        x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
+        x_region = GenomicRegion(x_start, x_end, self.current_chromosome_x)
+        ylim = self.ax.get_ylim()
+        y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
+        y_region = GenomicRegion(y_start, y_end, self.current_chromosome_y)
+
+        self._refresh(x_region, y_region)
+
+    def plot(self, x_region=None, y_region=None, ax=None, interactive=True):
+        if isinstance(x_region, basestring):
+            x_region = GenomicRegion.from_string(x_region)
+            self.current_chromosome_x = x_region.chromosome
+
+        if isinstance(y_region, basestring):
+            y_region = GenomicRegion.from_string(y_region)
+            self.current_chromosome_y = y_region.chromosome
+
+        if ax is not None:
+            self.ax = ax
+            self.fig = ax.figure
+        else:
+            self.fig, self.ax = plt.subplots()
+
+        if interactive:
+            plt.ion()
+            self.cid = self.fig.canvas.mpl_connect('button_release_event', self.mouse_release_refresh)
+
+        self._plot(x_region, y_region)
+        return self.fig, self.ax
+
+
+class HicPlot2D(BasePlotter2D):
+    def __init__(self, hic):
+        super(HicPlot2D, self).__init__()
+        self.hic = hic
+
+    def _plot(self, x_region=None, y_region=None):
+        m = self.hic[y_region, x_region]
+        self.im = self.ax.imshow(m, interpolation='none',
+                                 extent=[m.col_regions[0].start, m.col_regions[-1].end,
+                                         m.row_regions[-1].end, m.row_regions[0].start])
+
+    def _refresh(self, x_region=None, y_region=None):
+        m = self.hic[x_region, y_region]
+
+        self.im.set_data(m)
+        self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
+                            m.row_regions[-1].end, m.row_regions[0].start])
+
+
+class HicPlot(BasePlotter1D):
     def __init__(self, hic_data, colormap='viridis', max_height=None, norm="log",
                  vmin=None, vmax=None):
         super(HicPlot, self).__init__()
@@ -106,9 +166,12 @@ class HicPlot(BasePlotter):
         else:
             raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
-    def _plot(self, region):
+    def _plot(self, region=None):
         log.debug("Generating matrix from hic object")
-        hm = self.hic_data[region, region]
+        if region is None:
+            hm = self.hic_data[:]
+        else:
+            hm = self.hic_data[region, region]
         hm[np.tril_indices(hm.shape[0])] = np.nan
         # Remove part of matrix further away than max_height
         if self.max_height:
@@ -159,5 +222,5 @@ class HicPlot(BasePlotter):
         cmap_data.set_array([self.vmin if self.vmin else np.ma.min(hm_masked), self.vmax if self.vmax else np.ma.max(hm_masked)])
         cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
         plt.colorbar(cmap_data, cax=cax, **kw)
-        import ipdb
-        ipdb.set_trace()
+        #import ipdb
+        #ipdb.set_trace()
