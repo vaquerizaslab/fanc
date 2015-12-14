@@ -56,7 +56,7 @@ from __future__ import division
 import tables as t
 import pysam
 from kaic.tools.files import is_sambam_file
-from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, FileBased
+from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, MaskedTableView, FileBased
 import os
 import logging
 from tables.exceptions import NoSuchNodeError
@@ -627,33 +627,22 @@ class Reads(Maskable, MetaContainer, FileBased):
         :return: ReadsIter that iterates over visible reads
         """
 
+        excluded_masks = self.get_mask_idx_from_names(excluded_filters)
+
         # ensure sorting on qname_ix column
-        if sort_by_qname_ix and not self._is_sorted():
-            try:
-                logging.info("Sorting qnames...")
-                self._update_csi()
-            except t.exceptions.FileModeError:
-                raise RuntimeError("This object is not sorted by qname_ix! "
-                                   "Cannot sort manually, because file is in read-only mode.")
+        if sort_by_qname_ix:
+            if not self._is_sorted():
+                try:
+                    logging.info("Sorting qnames...")
+                    self._update_csi()
+                except t.exceptions.FileModeError:
+                    raise RuntimeError("This object is not sorted by qname_ix! "
+                                    "Cannot sort manually, because file is in read-only mode.")
+            it = self._reads.itersorted('qname_ix', excluded_masks=excluded_masks)
+        else:
+            it = self._reads.iterrows(excluded_masks=excluded_masks)
 
-        this = self
-
-        class ReadsIter:
-            def __init__(self):
-                self.excluded_mask_idx = this.get_mask_idx_from_names(excluded_filters)
-                self.reads_table = this._reads.selected_filtered_iterator(self.excluded_mask_idx)
-                if sort_by_qname_ix:
-                    self.iter = this._reads.itersorted('qname_ix')
-                else:
-                    self.iter = iter(self.reads_table)
-
-            def __iter__(self):
-                return self
-
-            def next(self):
-                row = self.iter.next()
-                return this._row2read(row, lazy=lazy)
-        return ReadsIter()
+        return (self._row2read(row, lazy=lazy) for row in it)
 
     def __iter__(self):
         return self.reads()
@@ -1248,7 +1237,7 @@ class PairLoader(object):
             self.flag = row.flag
             self.cigar = row.cigar
 
-    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filters=None):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filters=[]):
         self._pairs = pairs
         self._reads1 = None
         self._reads2 = None
@@ -1316,7 +1305,7 @@ class PairLoader(object):
 
 
 class Bowtie2PairLoader(PairLoader):
-    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filter=None):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filters=None):
         super(Bowtie2PairLoader, self).__init__(pairs,
                                                 ignore_duplicates=ignore_duplicates,
                                                 _in_memory_index=_in_memory_index,
@@ -1423,12 +1412,13 @@ class Bowtie2PairLoader(PairLoader):
 
 
 class BwaMemPairLoader(PairLoader):
-    def __init__(self, pairs, _in_memory_index=True):
+    def __init__(self, pairs, _in_memory_index=True, excluded_filters=[]):
         self.add_read_single = None
         self.add_read_pair = None
         super(BwaMemPairLoader, self).__init__(pairs,
                                                ignore_duplicates=False,
-                                               _in_memory_index=_in_memory_index)
+                                               _in_memory_index=_in_memory_index,
+                                               excluded_filters=excluded_filters)
 
     @staticmethod
     def get_all_read_alns(it):
@@ -1683,7 +1673,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         self._pairs.flush(update_index=update_index)
         self._single.flush(update_index=update_index)
 
-    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True, included_filters='all', excluded_filters=[]):
+    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True, excluded_filters=[]):
         """
         Load paired reads and map them to genomic regions (e.g. RE-fragments).
 
@@ -1718,9 +1708,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                  for a very long runtime.
         """
         if reads1.mapper == 'bwa' and reads2.mapper == 'bwa':
-            loader = BwaMemPairLoader(self, _in_memory_index, included_filters, excluded_filters)
+            loader = BwaMemPairLoader(self, _in_memory_index, excluded_filters)
         else:
-            loader = Bowtie2PairLoader(self, ignore_duplicates, _in_memory_index, included_filters, excluded_filters)
+            loader = Bowtie2PairLoader(self, ignore_duplicates, _in_memory_index, excluded_filters)
 
         loader.load(reads1, reads2, regions=regions)
 
