@@ -933,7 +933,6 @@ class TestMaskedTable:
             assert row[self.table._mask_index_field] == masked_ix
             masked_ix -= 1
 
-
 class TestMeta:
     def setup_method(self, method):
         self.meta = MetaContainer()

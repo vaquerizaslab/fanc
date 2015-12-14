@@ -1534,6 +1534,48 @@ class Maskable(object):
         return masks
 
 
+class MaskedTableView(object):
+    def __init__(self, masked_table, it=None):
+        self.masked_table = masked_table
+        self.iter = it if it else self.masked_table._iter_visible_and_masked()
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        raise NotImplementedError()
+
+    @staticmethod
+    def view(masked_table, it=None, excluded_masks=None):
+        if excluded_masks is None or len(excluded_masks) == 0:
+            return FullMaskedTableView(masked_table, it)
+        else:
+            return PartialMaskedTableView(masked_table, it, excluded_masks)
+
+
+class FullMaskedTableView(MaskedTableView):
+    def __init__(self, masked_table, it=None):
+        super(FullMaskedTableView, self).__init__(masked_table, it)
+
+    def next(self):
+        row = self.iter.next()
+        while row[self.masked_table._mask_field] > 0:
+            row = self.iter.next()
+        return row
+
+
+class PartialMaskedTableView(MaskedTableView):
+    def __init__(self, masked_table, it=None, excluded_masks=[]):
+        super(PartialMaskedTableView, self).__init__(masked_table, it)
+        self.excluded_masks = set(excluded_masks)
+
+    def next(self):
+        row = self.iter.next()
+        while row[self.masked_table._mask_field] not in [0, self.excluded_masks]:
+            row = self.iter.next()
+        return row
+
+
 class MaskedTable(t.Table):
     """
     Wrapper that adds masking functionality to a pytables table. 
@@ -1643,44 +1685,52 @@ class MaskedTable(t.Table):
                 self.flush_rows_to_index()
             # commit index changes
             super(MaskedTable, self).flush()
-    
-    def iterrows(self, start=None, stop=None, step=None):
-        this = self
 
-        class VisibleIter:
-            def __init__(self):
-                self.iter = t.Table.iterrows(this, start, stop, step)
-                  
-            def __iter__(self):
-                return self
-              
-            def next(self):
-                row = self.iter.next()
-                while row[this._mask_field] > 0:
-                    row = self.iter.next()
-                return row
-        return VisibleIter()
+    def iterrows(self, start=None, stop=None, step=None, excluded_masks=[]):
+        it = t.Table.iterrows(self, start, stop, step)
+        return MaskedTableView.view(self, it, excluded_masks=excluded_masks)
 
     def itersorted(self, sortby, checkCSI=False,
-                   start=None, stop=None, step=None):
+                   start=None, stop=None, step=None, excluded_masks=[]):
+        it = t.Table.itersorted(self, sortby, checkCSI=checkCSI,
+                                start=start, stop=stop, step=step)
+        return MaskedTableView.view(self, it, excluded_masks=excluded_masks)
+
+    def _iter_visible_and_masked(self):
+        """
+        Return an iterator over all rows, including masked ones.
+        """
+        return t.Table.iterrows(self)
+
+    def masked_rows(self):
+        """
+        Return an iterator over masked rows.
+        """
+        self.it = this._iter_visible_and_masked()
         this = self
 
-        class VisibleSortedIter:
-            def __init__(self):
-                self.iter = t.Table.itersorted(this, sortby, checkCSI=checkCSI,
-                                                    start=start, stop=stop, step=step)
+        class MaskedRows(MaskedTableView):
+            def __init__(self, masked_table, it):
+                super(MaskedRows, self).__init__(masked_table, it)
 
-            def __iter__(self):
-                return self
+            def __getitem__(self, key):
+                if type(key) == int:
+                    if key >= 0:
+                        key = -1*key - 1
+                        res = [x.fetch_all_fields() for x in super(MaskedTable,this).where("%s == %d" % (this._mask_index_field,key))]
+                        if len(res) == 1:
+                            return res[0]
+                        if len(res) == 0:
+                            raise IndexError("Index %d out of bounds" % key)
+                        raise RuntimeError("Duplicate row for key %d" % key)
+                    else:
+                        l = this._visible_len()
+                        return self[l+key]
+                else:
+                    raise KeyError('Cannot retrieve row with key ' + str(key))
 
-            def next(self):
-                row = self.iter.next()
+        return MaskedRows(self, it)
 
-                while row[this._mask_field] > 0:
-                    row = self.iter.next()
-                return row
-        return VisibleSortedIter()
-      
     def __getitem__(self, key):
         return self._get_visible_item(key)
     
@@ -1769,13 +1819,13 @@ class MaskedTable(t.Table):
             row.update()
     
     @lru_cache(maxsize=1000)
-    def _get_masks(self, binnary_mask):
+    def _get_masks(self, binary_mask):
         def bits(n):
             while n:
                 b = n & (~n+1)
                 yield b
                 n ^= b
-        return list(bits(binnary_mask))
+        return list(bits(binary_mask))
 
     def _row_masks(self, row):
         return self._get_masks(row[self._mask_field])
@@ -1859,69 +1909,6 @@ class MaskedTable(t.Table):
                 last_percent += 0.05
         self.flush(update_index=False)
 
-    def selected_filter_iterator(self, excluded_mask_idx=0):
-        this = self
-        class FilteredIter:
-            def __init__(self, excluded_filters=0):
-                self.iter = this._iter_visible_and_masked()
-                self._excluded_mask_idx = excluded_mask_idx
-
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                row = self.iter.next()
-                while row[this._mask_field] not in [0, self._excluded_mask_idx]:
-                    row = self.iter.next()
-                return row
-        return FilteredIter()
-    
-    def all(self):
-        """
-        Return an iterator over all rows, including masked ones.
-        """
-         
-        return self._iter_visible_and_masked()
-    
-    def _iter_visible_and_masked(self):
-        return t.Table.iterrows(self)
-        
-    def masked_rows(self):
-        """
-        Return an iterator over masked rows.
-        """
-        this = self
-
-        class FilteredIter:
-            def __init__(self):
-                self.iter = this._iter_visible_and_masked()
-                
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                row = self.iter.next()
-                while row[this._mask_field] == 0:
-                    row = self.iter.next()
-                return row
-            
-            def __getitem__(self, key):
-                if type(key) == int:
-                    if key >= 0:
-                        key = -1*key - 1
-                        res = [x.fetch_all_fields() for x in super(MaskedTable,this).where("%s == %d" % (this._mask_index_field,key))]
-                        if len(res) == 1:
-                            return res[0]
-                        if len(res) == 0:
-                            raise IndexError("Index %d out of bounds" % key)
-                        raise RuntimeError("Duplicate row for key %d" % key)
-                    else:
-                        l = this._visible_len()
-                        return self[l+key]
-                else:
-                    raise KeyError('Cannot retrieve row with key ' + str(key))
-        return FilteredIter()
-    
     def where(self, condition, condvars=None,
               start=None, stop=None, step=None):
         condition = "(" + condition + ") & (%s >= 0)" % self._mask_index_field

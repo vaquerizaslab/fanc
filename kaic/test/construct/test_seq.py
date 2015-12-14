@@ -122,7 +122,7 @@ class TestReads:
         reads = Reads(self.sam1_file)
         
         reads.filter_quality(30, queue=False)
-        for row in reads._reads.all():
+        for row in reads._reads._iter_visible_and_masked():
             if row['mapq'] < 30:
                 assert row[reads._reads._mask_field] == 2
             else:
@@ -132,7 +132,7 @@ class TestReads:
         reads = Reads(self.sam1_file)
         
         reads.filter_non_unique(strict=True)
-        for row in reads._reads.all():
+        for row in reads._reads._iter_visible_and_masked():
             if row['pos'] > 0:
                 tags = reads._tags[row['ix']]
                 has_xs = False
