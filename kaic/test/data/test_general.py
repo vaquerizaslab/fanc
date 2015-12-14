@@ -890,7 +890,6 @@ class TestMaskedTable:
         self.filtered_table.flush(update_index=True)
         self.filtered_table.filter(TestMaskedTable.ExampleFilter())
         
-        
     def test_initialize(self):
         assert len(self.table) == 50
         for i in range(0,50):
@@ -908,7 +907,6 @@ class TestMaskedTable:
         x = self.filtered_table[1:3]
         assert np.array_equal(tuple(x[0]), ('test_26',26,26.0,0,1))
         assert np.array_equal(tuple(x[1]), ('test_27',27,27.0,0,2))
-    
     
     def test_filter(self):
         self.table.filter(TestMaskedTable.ExampleFilter())
@@ -932,6 +930,13 @@ class TestMaskedTable:
         for row in self.filtered_table.masked_rows():
             assert row[self.table._mask_index_field] == masked_ix
             masked_ix -= 1
+
+    def test_exclude_filters(self):
+        a = Maskable()
+        a.add_mask_description('test_filter', 'test_description')
+        excluded_masks = a.get_mask_idx_from_names(['test_filter'])
+        t = self.filtered_table
+        assert len([i for i in t.iterrows(excluded_masks=excluded_masks)]) == 50
 
 class TestMeta:
     def setup_method(self, method):

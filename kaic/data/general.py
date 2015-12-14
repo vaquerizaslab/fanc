@@ -1457,7 +1457,6 @@ class Maskable(object):
     def _row_to_mask(row):
         return Mask(name=row['name'], ix=row['ix'], description=row['description'])
 
-    @staticmethod
     def get_mask_idx_from_names(self, mask_names):
         return sum([self.get_mask(x).ix**2 for x in mask_names])
 
@@ -1535,43 +1534,17 @@ class Maskable(object):
 
 
 class MaskedTableView(object):
-    def __init__(self, masked_table, it=None):
+    def __init__(self, masked_table, it=None, excluded_masks=0):
         self.masked_table = masked_table
         self.iter = it if it else self.masked_table._iter_visible_and_masked()
+        self.excluded_mask_ix = excluded_masks
 
     def __iter__(self):
         return self
 
     def next(self):
-        raise NotImplementedError()
-
-    @staticmethod
-    def view(masked_table, it=None, excluded_masks=None):
-        if excluded_masks is None or len(excluded_masks) == 0:
-            return FullMaskedTableView(masked_table, it)
-        else:
-            return PartialMaskedTableView(masked_table, it, excluded_masks)
-
-
-class FullMaskedTableView(MaskedTableView):
-    def __init__(self, masked_table, it=None):
-        super(FullMaskedTableView, self).__init__(masked_table, it)
-
-    def next(self):
         row = self.iter.next()
-        while row[self.masked_table._mask_field] > 0:
-            row = self.iter.next()
-        return row
-
-
-class PartialMaskedTableView(MaskedTableView):
-    def __init__(self, masked_table, it=None, excluded_masks=[]):
-        super(PartialMaskedTableView, self).__init__(masked_table, it)
-        self.excluded_masks = set(excluded_masks)
-
-    def next(self):
-        row = self.iter.next()
-        while row[self.masked_table._mask_field] not in [0, self.excluded_masks]:
+        while row[self.masked_table._mask_field] | self.excluded_mask_ix != self.excluded_mask_ix:
             row = self.iter.next()
         return row
 
@@ -1686,15 +1659,15 @@ class MaskedTable(t.Table):
             # commit index changes
             super(MaskedTable, self).flush()
 
-    def iterrows(self, start=None, stop=None, step=None, excluded_masks=[]):
+    def iterrows(self, start=None, stop=None, step=None, excluded_masks=0):
         it = t.Table.iterrows(self, start, stop, step)
-        return MaskedTableView.view(self, it, excluded_masks=excluded_masks)
+        return MaskedTableView(self, it, excluded_masks=excluded_masks)
 
     def itersorted(self, sortby, checkCSI=False,
-                   start=None, stop=None, step=None, excluded_masks=[]):
+                   start=None, stop=None, step=None, excluded_masks=0):
         it = t.Table.itersorted(self, sortby, checkCSI=checkCSI,
                                 start=start, stop=stop, step=step)
-        return MaskedTableView.view(self, it, excluded_masks=excluded_masks)
+        return MaskedTableView(self, it, excluded_masks=excluded_masks)
 
     def _iter_visible_and_masked(self):
         """
@@ -1712,6 +1685,12 @@ class MaskedTable(t.Table):
         class MaskedRows(MaskedTableView):
             def __init__(self, masked_table, it):
                 super(MaskedRows, self).__init__(masked_table, it)
+
+            def next(self):
+                row = self.iter.next()
+                while row[this._mask_field] == 0:
+                    row = self.iter.next()
+                return row
 
             def __getitem__(self, key):
                 if type(key) == int:
