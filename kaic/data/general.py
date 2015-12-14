@@ -1679,8 +1679,8 @@ class MaskedTable(t.Table):
         """
         Return an iterator over masked rows.
         """
-        self.it = this._iter_visible_and_masked()
         this = self
+        it = self._iter_visible_and_masked()
 
         class MaskedRows(MaskedTableView):
             def __init__(self, masked_table, it):
