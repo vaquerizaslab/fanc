@@ -106,6 +106,9 @@ class BasePlotter2D(object):
         y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
         y_region = GenomicRegion(y_start, y_end, self.current_chromosome_y)
 
+        print x_region
+        print y_region
+
         self._refresh(x_region, y_region)
 
     def plot(self, x_region=None, y_region=None, ax=None, interactive=True):
@@ -117,15 +120,17 @@ class BasePlotter2D(object):
             y_region = GenomicRegion.from_string(y_region)
             self.current_chromosome_y = y_region.chromosome
 
+        if interactive:
+            plt.ion()
+            logging.info("ion")
+
         if ax is not None:
             self.ax = ax
             self.fig = ax.figure
         else:
             self.fig, self.ax = plt.subplots()
 
-        if interactive:
-            plt.ion()
-            self.cid = self.fig.canvas.mpl_connect('button_release_event', self.mouse_release_refresh)
+        self.cid = self.fig.canvas.mpl_connect('button_release_event', self.mouse_release_refresh)
 
         self._plot(x_region, y_region)
         return self.fig, self.ax
@@ -143,7 +148,7 @@ class HicPlot2D(BasePlotter2D):
                                          m.row_regions[-1].end, m.row_regions[0].start])
 
     def _refresh(self, x_region=None, y_region=None):
-        m = self.hic[x_region, y_region]
+        m = self.hic[y_region, x_region]
 
         self.im.set_data(m)
         self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
