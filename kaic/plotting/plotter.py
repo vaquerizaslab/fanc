@@ -96,7 +96,7 @@ class BasePlotter2D(object):
 
     @abstractmethod
     def _refresh(self, x_region=None, y_region=None):
-        raise NotImplementedError("Subclasses need to override _plot function")
+        raise NotImplementedError("Subclasses need to override _refresh function")
 
     def mouse_release_refresh(self, _):
         xlim = self.ax.get_xlim()
