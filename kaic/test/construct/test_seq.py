@@ -361,6 +361,26 @@ class TestFragmentMappedReads:
         read2 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=990, strand=-1)
         assert read2.re_distance() == 10
 
+    def test_iterate_exclude_filters(self):
+        mask = self.pairs.add_mask_description('inwards', 'Mask read pairs that inward facing and closer than 100bp')
+        in_filter = InwardPairsFilter(minimum_distance=100, mask=mask)
+        self.pairs.filter(in_filter)
+        mask = self.pairs.add_mask_description('outwards', 'Mask read pairs that outward facing and closer than 100bp')
+        out_filter = OutwardPairsFilter(minimum_distance=100, mask=mask)
+        self.pairs.filter(out_filter)
+        mask = self.pairs.add_mask_description('re-dist', 'Mask read pairs where one half maps more than 100bp away from both RE sites')
+        re_filter = ReDistanceFilter(maximum_distance=300, mask=mask)
+        self.pairs.filter(re_filter)
+        for p in self.pairs._pairs._iter_visible_and_masked():
+            print p[self.pairs._pairs._mask_field]
+        assert len(self.pairs) == 0
+        assert len(list(self.pairs.pairs(excluded_filters=['inwards', 'outwards', 're-dist']))) == 44
+        assert len(list(self.pairs.pairs(excluded_filters=['inwards', 'outwards']))) == 13
+        assert len(list(self.pairs.pairs(excluded_filters=['inwards', 're-dist']))) == 28
+        assert len(list(self.pairs.pairs(excluded_filters=['outwards', 're-dist']))) == 18
+        assert len(list(self.pairs.pairs(excluded_filters=['inwards']))) == 11
+        assert len(list(self.pairs.pairs(excluded_filters=['outwards']))) == 2
+
 
 class TestFragmentRead:
     def setup_method(self, method):

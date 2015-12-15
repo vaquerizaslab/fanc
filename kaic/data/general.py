@@ -1458,7 +1458,7 @@ class Maskable(object):
         return Mask(name=row['name'], ix=row['ix'], description=row['description'])
 
     def get_mask_idx_from_names(self, mask_names):
-        return sum([self.get_mask(x).ix**2 for x in mask_names])
+        return sum([2**self.get_mask(x).ix for x in mask_names])
 
     @lru_cache(maxsize=1000)
     def get_mask(self, key):
