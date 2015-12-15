@@ -1457,8 +1457,20 @@ class Maskable(object):
     def _row_to_mask(row):
         return Mask(name=row['name'], ix=row['ix'], description=row['description'])
 
-    def get_mask_idx_from_names(self, mask_names):
-        return sum([2**self.get_mask(x).ix for x in mask_names])
+    def get_binary_mask_from_masks(self, masks):
+        o = []
+        for m in masks:
+            if type(m) == type('str'):
+                o.append(2**self.get_mask(m).ix)
+            elif isinstance(m, MaskFilter):
+                o.append(2**m.mask_ix)
+            elif isinstance(m, Mask):
+                o.append(2**m.ix)
+            elif type(m) == type(1):
+                o.append(2**m)
+            else:
+                raise ValueError('Can only get binary mask from mask names, indexes and MaskFilter instances')
+        return sum(o)
 
     @lru_cache(maxsize=1000)
     def get_mask(self, key):

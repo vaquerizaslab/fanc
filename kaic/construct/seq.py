@@ -627,7 +627,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         :return: ReadsIter that iterates over visible reads
         """
 
-        excluded_masks = self.get_mask_idx_from_names(excluded_filters)
+        excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
 
         # ensure sorting on qname_ix column
         if sort_by_qname_ix:
@@ -2158,7 +2158,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         Iterate over unfiltered fragment-mapped read pairs.
         """
-        excluded_masks = self.get_mask_idx_from_names(excluded_filters)
+        excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
         it = self._pairs.iterrows(excluded_masks=excluded_masks)
         return (self._pair_from_row(i, lazy=lazy) for i in it)
     

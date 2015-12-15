@@ -393,6 +393,9 @@ class TestFragmentMappedReads:
         assert len(list(self.pairs.pairs(excluded_filters=['inwards']))) == 11
         assert len(list(self.pairs.pairs(excluded_filters=['outwards']))) == 2
         assert len(list(self.pairs.pairs(excluded_filters=['re-dist']))) == 2
+        assert len(list(self.pairs.pairs(excluded_filters=[in_filter, re_filter]))) == 28
+        assert len(list(self.pairs.pairs(excluded_filters=[in_filter, mask]))) == 28
+        assert len(list(self.pairs.pairs(excluded_filters=[in_filter, 3]))) == 28
 
 
 class TestFragmentRead:
