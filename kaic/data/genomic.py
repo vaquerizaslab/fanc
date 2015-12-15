@@ -1648,7 +1648,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
     def __del__(self):
         self.close()
     
-    def load_read_fragment_pairs(self, pairs, _max_buffer_size=5000000):
+    def load_read_fragment_pairs(self, pairs, excluded_filters=[], _max_buffer_size=5000000):
         """
         Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
 
@@ -1657,6 +1657,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         :param pairs: A :class:`~kaic.construct.seq.FragmentMappedReadPairs`
                       object.
+        :param excluded_filters: Filters to ignore when loading the data
         :param _max_buffer_size: Number of edges kept in buffer before
                                  writing to Table.
         """
@@ -1666,13 +1667,11 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         self.add_regions(pairs.regions())
 
         edge_buffer = {}
-        for pair in pairs._pairs:
-            source = pair["left_fragment"]
-            sink = pair["right_fragment"]
+        for pair in pairs.pairs(lazy=True, excluded_filters=[]):
+            source = pair.left.fragment.ix
+            sink = pair.right.fragment.ix
             if source > sink:
-                tmp = source
-                source = sink
-                sink = tmp
+                source, sink = sink, source
             key = (source, sink)
             if key not in edge_buffer:
                 edge_buffer[key] = 0

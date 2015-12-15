@@ -2154,26 +2154,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         return self.pairs(lazy=False)
 
-    def pairs(self, lazy=False):
+    def pairs(self, lazy=False, excluded_filters=[]):
         """
         Iterate over unfiltered fragment-mapped read pairs.
         """
-        this = self
-
-        class FragmentMappedReadPairIter:
-            def __init__(self):
-                self.iter = iter(this._pairs)
-
-            def __iter__(self):
-                return self
-
-            def next(self):
-                return this._pair_from_row(self.iter.next(), lazy=lazy)
-
-            def __len__(self):
-                return len(this._pairs)
-
-        return FragmentMappedReadPairIter()
+        excluded_masks = self.get_mask_idx_from_names(excluded_filters)
+        it = self._pairs.iterrows(excluded_masks=excluded_masks)
+        return (self._pair_from_row(i, lazy=lazy) for i in it)
     
     def __getitem__(self, key):
         """
