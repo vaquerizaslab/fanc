@@ -1,4 +1,4 @@
-from matplotlib.ticker import Formatter, MaxNLocator
+from matplotlib.ticker import Formatter, MaxNLocator, LinearLocator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, ABCMeta
 import numpy as np
@@ -38,13 +38,16 @@ def millify(n, precision=1):
 
 
 class GenomeCoordFormatter(Formatter):
-    def __init__(self, chromosome, start, end):
-        self.chromosome = chromosome
-        self.start = start
-        self.end = end
+    def __init__(self, chromosome=None, start=None):
+        if isinstance(chromosome, GenomicRegion):
+            self.chromosome = chromosome.chromosome
+            self.start = chromosome.start
+        else:
+            self.chromosome = chromosome
+            self.start = start
 
     def __call__(self, x, pos=None):
-        if pos == 0 or x == 0:
+        if self.start is not None and self.chromosome is not None and (pos == 0 or x == 0):
             return "{}:{}".format(self.chromosome, self.start)
         return millify(x)
 
@@ -130,6 +133,10 @@ class BasePlotter2D(object):
         else:
             self.fig, self.ax = plt.subplots()
 
+        # set base-pair formatters
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
+        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
+        # set release event callback
         self.cid = self.fig.canvas.mpl_connect('button_release_event', self.mouse_release_refresh)
 
         self._plot(x_region, y_region)
@@ -137,22 +144,81 @@ class BasePlotter2D(object):
 
 
 class HicPlot2D(BasePlotter2D):
-    def __init__(self, hic):
+    def __init__(self, hic, colormap='viridis', norm="log",
+                 vmin=None, vmax=None, show_colorbar=True):
         super(HicPlot2D, self).__init__()
         self.hic = hic
+        self.colormap = colormap
+        self.vmin = vmin
+        self.vmax = vmax
+        self.show_colorbar = show_colorbar
+        self._prepare_normalization(norm, vmin=vmin, vmax=vmax)
+
+    def _prepare_normalization(self, norm="lin", vmin=None, vmax=None):
+        if norm == "log":
+            self.norm = mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
+        elif norm == "lin":
+            self.norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+    def _get_updated_matrix(self, x_region=None, y_region=None):
+        return self.hic[y_region, x_region]
 
     def _plot(self, x_region=None, y_region=None):
-        m = self.hic[y_region, x_region]
-        self.im = self.ax.imshow(m, interpolation='none',
+        m = self._get_updated_matrix(x_region=x_region, y_region=y_region)
+        self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm,
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
+        if self.show_colorbar:
+            m_min, m_max = self.vmin if self.vmin else np.ma.min(m), self.vmax if self.vmax else np.ma.max(m)
+            cax, kw = mpl.colorbar.make_axes(self.ax, location="top")
+            cb = plt.colorbar(self.im, cax=cax, **kw)
+            cb.set_ticks([m_min, (m_max-m_min)/2+m_min, m_max])
+            cb.set_ticklabels([m_min, (m_max-m_min)/2+m_min, m_max])
+
+        # cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
+        # cmap_data.set_array([self.vmin if self.vmin else np.ma.min(m), self.vmax if self.vmax else np.ma.max(m)])
+        # cax, kw = mpl.colorbar.make_axes(self.ax, location="right")
+        # #ticks = LinearLocator(5)
+        # #print ticks
+        # cb = self.fig.colorbar(cmap_data, cax=cax, ticks=[0, 30, 50], **kw)
+        # cb.ax.set_yticklabels([0, 30, 50])
 
     def _refresh(self, x_region=None, y_region=None):
-        m = self.hic[y_region, x_region]
+
+        m = self._get_updated_matrix(x_region=x_region, y_region=y_region)
 
         self.im.set_data(m)
         self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
                             m.row_regions[-1].end, m.row_regions[0].start])
+
+
+class HicSideBySidePlot2D(object):
+    def __init__(self, hic1, hic2, colormap='viridis', norm="log",
+                 vmin=None, vmax=None):
+        self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+
+    def plot(self, region):
+        fig = plt.figure()
+        ax1 = plt.subplot(121)
+        ax2 = plt.subplot(122, sharex=ax1, sharey=ax1)
+
+        self.hic_plotter1.plot(x_region=region, y_region=region, ax=ax1)
+        self.hic_plotter2.plot(x_region=region, y_region=region, ax=ax2)
+
+        return fig, ax1, ax2
+
+
+class HicComparisonPlot2D(HicPlot2D):
+    def __init__(self, hic_top, hic_bottom, colormap='viridis', norm='log',
+                 vmin=None, vmax=None):
+        super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+        self.hic_bottom = hic_bottom
+
+    def _get_updated_matrix(self, x_region=None, y_region=None):
+        m_top = self.hic[y_region, x_region]
+        m_bottom = self.hic[y_region, x_region]
+        iu = np.triu_indices(m_top.shape)
 
 
 class HicPlot(BasePlotter1D):
