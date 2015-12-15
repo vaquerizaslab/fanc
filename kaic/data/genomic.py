@@ -1667,7 +1667,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         self.add_regions(pairs.regions())
 
         edge_buffer = {}
-        for pair in pairs.pairs(lazy=True, excluded_filters=[]):
+        for pair in pairs.pairs(lazy=True, excluded_filters=excluded_filters):
             source = pair.left.fragment.ix
             sink = pair.right.fragment.ix
             if source > sink:
