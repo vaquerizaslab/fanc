@@ -109,9 +109,6 @@ class BasePlotter2D(object):
         y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
         y_region = GenomicRegion(y_start, y_end, self.current_chromosome_y)
 
-        print x_region
-        print y_region
-
         self._refresh(x_region, y_region)
 
     def plot(self, x_region=None, y_region=None, ax=None, interactive=True):
@@ -153,6 +150,9 @@ class HicPlot2D(BasePlotter2D):
         self.vmax = vmax
         self.show_colorbar = show_colorbar
         self._prepare_normalization(norm, vmin=vmin, vmax=vmax)
+        self.buffered_x_region = None
+        self.buffered_y_region = None
+        self.buffered_matrix = None
 
     def _prepare_normalization(self, norm="lin", vmin=None, vmax=None):
         if norm == "log":
@@ -161,7 +161,31 @@ class HicPlot2D(BasePlotter2D):
             self.norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
 
     def _get_updated_matrix(self, x_region=None, y_region=None):
-        return self.hic[y_region, x_region]
+
+        if (self.buffered_y_region is None or not self.buffered_y_region.contains(y_region) or
+                self.buffered_x_region is None or not self.buffered_x_region.contains(x_region) or
+                self.buffered_matrix is None):
+
+            logging.info("Buffering matrix")
+            if x_region.start is not None and x_region.end is not None:
+                x_region_size = x_region.end-x_region.start
+                new_x_start = max(1, x_region.start-x_region_size)
+                new_x_end = x_region.end + x_region_size
+                self.buffered_x_region = GenomicRegion(new_x_start, new_x_end, x_region.chromosome)
+            else:
+                self.buffered_x_region = GenomicRegion(None, None, x_region.chromosome)
+
+            if y_region.start is not None and y_region.end is not None:
+                y_region_size = y_region.end-y_region.start
+                new_y_start = max(1, y_region.start-y_region_size)
+                new_y_end = y_region.end + y_region_size
+                self.buffered_y_region = GenomicRegion(new_y_start, new_y_end, y_region.chromosome)
+            else:
+                self.buffered_y_region = GenomicRegion(None, None, y_region.chromosome)
+
+            self.buffered_matrix = self.hic[self.buffered_y_region, self.buffered_x_region]
+
+        return self.buffered_matrix[y_region, x_region]
 
     def _plot(self, x_region=None, y_region=None):
         m = self._get_updated_matrix(x_region=x_region, y_region=y_region)
