@@ -932,11 +932,8 @@ class TestMaskedTable:
             masked_ix -= 1
 
     def test_exclude_filters(self):
-        a = Maskable()
-        a.add_mask_description('test_filter', 'test_description')
-        excluded_masks = a.get_mask_idx_from_names(['test_filter'])
         t = self.filtered_table
-        assert len([i for i in t.iterrows(excluded_masks=excluded_masks)]) == 50
+        assert len(list(t.iterrows(excluded_masks=1))) == 50
 
 class TestMeta:
     def setup_method(self, method):

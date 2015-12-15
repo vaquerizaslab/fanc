@@ -177,6 +177,20 @@ class TestReads:
             previous = read.qname_ix
         assert previous != 0
 
+    def test_iterate_exclude_filters(self):
+        reads = Reads(self.sam1_file)
+        reads.filter_unmapped(queue=True)
+        reads.filter_quality(35, queue=True)
+        reads.filter_non_unique(strict=True, queue=True)
+        reads.run_queued_filters()
+        assert len(list(reads.reads(excluded_filters=['unmapped', 'mapq', 'uniqueness']))) == 271
+        assert len(list(reads.reads(excluded_filters=['unmapped', 'uniqueness']))) == 246
+        assert len(list(reads.reads(excluded_filters=['unmapped', 'mapq']))) == 153
+        assert len(list(reads.reads(excluded_filters=['mapq', 'uniqueness']))) == 271
+        assert len(list(reads.reads(excluded_filters=['unmapped']))) == 153
+        assert len(list(reads.reads(excluded_filters=['mapq']))) == 153
+        assert len(list(reads.reads(excluded_filters=['uniqueness']))) == 246
+
 
 class TestBWAReads:
     @classmethod
@@ -371,8 +385,6 @@ class TestFragmentMappedReads:
         mask = self.pairs.add_mask_description('re-dist', 'Mask read pairs where one half maps more than 100bp away from both RE sites')
         re_filter = ReDistanceFilter(maximum_distance=300, mask=mask)
         self.pairs.filter(re_filter)
-        for p in self.pairs._pairs._iter_visible_and_masked():
-            print p[self.pairs._pairs._mask_field]
         assert len(self.pairs) == 0
         assert len(list(self.pairs.pairs(excluded_filters=['inwards', 'outwards', 're-dist']))) == 44
         assert len(list(self.pairs.pairs(excluded_filters=['inwards', 'outwards']))) == 13
@@ -380,6 +392,7 @@ class TestFragmentMappedReads:
         assert len(list(self.pairs.pairs(excluded_filters=['outwards', 're-dist']))) == 18
         assert len(list(self.pairs.pairs(excluded_filters=['inwards']))) == 11
         assert len(list(self.pairs.pairs(excluded_filters=['outwards']))) == 2
+        assert len(list(self.pairs.pairs(excluded_filters=['re-dist']))) == 2
 
 
 class TestFragmentRead:
