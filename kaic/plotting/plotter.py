@@ -1,4 +1,5 @@
 from matplotlib.ticker import Formatter, MaxNLocator, LinearLocator
+from matplotlib.widgets import Slider
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, ABCMeta
 import numpy as np
@@ -142,7 +143,8 @@ class BasePlotter2D(object):
 
 class HicPlot2D(BasePlotter2D):
     def __init__(self, hic, colormap='viridis', norm="log",
-                 vmin=None, vmax=None, show_colorbar=True):
+                 vmin=None, vmax=None, show_colorbar=True,
+                 adjust_range=True):
         super(HicPlot2D, self).__init__()
         self.hic = hic
         self.colormap = colormap
@@ -153,6 +155,8 @@ class HicPlot2D(BasePlotter2D):
         self.buffered_x_region = None
         self.buffered_y_region = None
         self.buffered_matrix = None
+        self.slider = None
+        self.adjust_range = adjust_range
 
     def _prepare_normalization(self, norm="lin", vmin=None, vmax=None):
         if norm == "log":
@@ -199,6 +203,11 @@ class HicPlot2D(BasePlotter2D):
             cb.set_ticks([m_min, (m_max-m_min)/2+m_min, m_max])
             cb.set_ticklabels([m_min, (m_max-m_min)/2+m_min, m_max])
 
+            if self.adjust_range:
+                axs = plt.axes([0.25, 0, 0.65, 0.03], axisbg='blue')
+                self.slider = Slider(axs, 'vmin', m_min, m_max, valinit=(m_max-m_min)/2)
+
+
         # cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         # cmap_data.set_array([self.vmin if self.vmin else np.ma.min(m), self.vmax if self.vmax else np.ma.max(m)])
         # cax, kw = mpl.colorbar.make_axes(self.ax, location="right")
@@ -220,7 +229,7 @@ class HicSideBySidePlot2D(object):
     def __init__(self, hic1, hic2, colormap='viridis', norm="log",
                  vmin=None, vmax=None):
         self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
-        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax, adjust_range=False)
 
     def plot(self, region):
         fig = plt.figure()
