@@ -123,7 +123,7 @@ def get_bias_vector(A, x0=None, tol=1e-06, delta=0.1, Delta=3, fl=0, high_precis
                 n_iterations_outer += 1
 
                 if n_iterations_outer > outer_limit:
-                    raise StopIteration("Number of iterations has exceeded the limit (%d)." % outer_limit)
+                    raise ValueError("Number of iterations has exceeded the limit (%d)." % outer_limit)
 
                 i += 1
                 k = 0
