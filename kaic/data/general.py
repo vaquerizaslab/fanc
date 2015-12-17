@@ -13,12 +13,15 @@ from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
 import numpy as np
 import warnings
 import os.path
+import os
 import time
 import logging
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from kaic.tools.lru import lru_cache
+import shutil
+import binascii
 logging.basicConfig(level=logging.INFO)
 _filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
 
@@ -249,23 +252,80 @@ def _file_to_data(file_name, sep="\t", has_header=None, types=None):
 
 
 class FileBased(object):
-    def __init__(self, file_name=None, mode='a'):
+    def __init__(self, file_name=None, mode='a', tmpdir=None):
         # open file or keep in memory
         if hasattr(self, 'file'):
             if not isinstance(self.file, t.file.File):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
+        self.file = None
+        self.tmp_file = None
+        self.file_name = file_name
+        self.tmp_file_name = None
+        self.mode = mode
+        if tmpdir is None:
+            self.tmp_file_name = None
+            self._init_file(file_name, mode)
         else:
-            if file_name is None:
-                self.file = create_or_open_pytables_file()
-            elif type(file_name) == str:
-                self.file = create_or_open_pytables_file(file_name, mode=mode)
-            elif isinstance(file_name, t.file.File):
-                self.file = file_name
-            else:
-                raise ValueError("file_name is not a recognisable type")
+            self.tmp_file_name = os.path.join(tmpdir, self._generate_tmp_file_name())
+            if mode in ['w', 'x', 'w-']:
+                pass
+            elif mode in ['r+', 'r']:
+                shutil.copyfile(file_name, self.tmp_file_name)
+            elif mode in ['a'] and os.path.isfile(file_name):
+                shutil.copyfile(file_name, self.tmp_file_name)
+            self._init_file(self.tmp_file_name, mode)
     
     def close(self):
         self.file.close()
+
+    def finalize(self):
+        if self.tmp_file_name:
+            shutil.copyfile(self.tmp_file_name, self.file_name)
+
+    def cleanup(self):
+        os.remove(self.tmp_file_name)
+
+    def _generate_tmp_file_name(self):
+        rand_str = binascii.b2a_hex(os.urandom(15))
+        return "tmp_{}.h5".format(rand_str)
+
+    def _init_file(self, file_name, mode):
+        if file_name is None:
+            self.file = create_or_open_pytables_file()
+        elif type(file_name) == str:
+            self.file = create_or_open_pytables_file(file_name, mode=mode)
+        elif isinstance(file_name, t.file.File):
+            self.file = file_name
+        else:
+            raise ValueError("file_name is not a recognisable type")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.file.close()
+        if exc_type is None:
+            if self.tmp_file_name:
+                self.finalize()
+                self.cleanup()
+            return True
+        else:
+            if self.tmp_file_name:
+                self.cleanup()
+            return False
+
+    @property
+    def mode(self):
+        return self._mode
+    @mode.setter
+    def mode(self, mode):
+        if mode not in ['r', 'w', 'x', 'w-', 'r+', 'a']:
+            raise ValueError('Unknown mode {}'.format(mode))
+        if mode in ['r', 'r+'] and not os.path.isfile(self.file_name):
+            raise OSError('The file {} does not exists'.format(self.file_name))
+        if mode in ['x', 'w-'] and os.path.isfile(self.file_name):
+            raise OSError('The file {} already exists'.format(self.file_name))
+        self._mode = mode
 
 
 class TableRow(tuple):
@@ -1293,6 +1353,7 @@ class Mask(object):
 
     def __repr__(self):
         return "%d. %s: %s" % (self.ix, self.name, self.description)
+
 
 class Maskable(object):
     """
