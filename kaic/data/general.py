@@ -274,16 +274,24 @@ class FileBased(object):
             elif mode in ['a'] and os.path.isfile(file_name):
                 shutil.copyfile(file_name, self.tmp_file_name)
             self._init_file(self.tmp_file_name, mode)
+        self.closed = False
     
     def close(self):
         self.file.close()
+        self.closed = True
 
     def finalize(self):
-        if self.tmp_file_name:
-            shutil.copyfile(self.tmp_file_name, self.file_name)
+        if self.closed:
+            if self.tmp_file_name:
+                shutil.copyfile(self.tmp_file_name, self.file_name)
+        else:
+            raise IOError('The file has to be closed before copying the tmp file. Use close()')
 
     def cleanup(self):
-        os.remove(self.tmp_file_name)
+        if self.closed:
+            os.remove(self.tmp_file_name)
+        else:
+            raise IOError('The file has to be closed before deleting the tmp file. Use close()')
 
     def _generate_tmp_file_name(self):
         rand_str = binascii.b2a_hex(os.urandom(15))
@@ -303,7 +311,7 @@ class FileBased(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.file.close()
+        self.close()
         if exc_type is None:
             if self.tmp_file_name:
                 self.finalize()
