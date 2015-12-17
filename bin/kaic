@@ -1042,7 +1042,7 @@ class Kaic(object):
             output_path = os.path.expanduser(args.output)
 
         pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='r')
-        kplt.hic_ligation_structure_biases_plot(pairs, output=output_path, data_points=args.points)
+        kplt.hic_ligation_structure_biases_plot(pairs, output=output_path, sampling=args.points)
         pairs.close()
 
         logging.info("All done.")
