@@ -1362,9 +1362,6 @@ class Maskable(object):
                                 pytables file, does not usually need to be 
                                 modified
         """
-        
-        super(Maskable, self).__init__()
-
         # check what we have in data
         mask_file = None
         
