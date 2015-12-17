@@ -72,6 +72,7 @@ import hashlib
 from functools import partial
 from collections import defaultdict
 
+
 class Reads(Maskable, MetaContainer, FileBased):
     """
     Load and filter mapped reads from a SAM/BAM file.
@@ -133,7 +134,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         qname_ix = t.Float64Col(pos=13, dflt=-1)
 
     def __init__(self, sambam_file=None, file_name=None, mode='a',
-                 _group_name='reads', mapper=None):
+                 _group_name='reads', mapper=None, tmpdir=None):
         """
         Create Reads object and optionally load SAM file.
 
@@ -169,7 +170,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 file_name = sambam_file
                 sambam_file = None
 
-        FileBased.__init__(self, file_name, mode=mode)
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
 
@@ -1631,7 +1632,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     def __init__(self, file_name=None,
                  mode='a',
                  group_name='fragment_map',
-                 table_name_fragments='fragments'):
+                 table_name_fragments='fragments',
+                 tmpdir=None):
         """
         Initialize empty FragmentMappedReadPairs object.
 
@@ -1648,7 +1650,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
 
-        FileBased.__init__(self, file_name, mode=mode)
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=table_name_fragments)
 
         # generate tables from inherited classes

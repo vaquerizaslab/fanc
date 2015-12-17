@@ -2057,7 +2057,7 @@ class MetaContainer(FileBased):
         value = t.Int32Col(pos=5, dflt=-1)
     
     def __init__(self, data=None, file_name=None,
-                 group_name='meta', logger_name="meta"):
+                 group_name='meta', logger_name="meta", tmpdir=None):
         """
         Enable recording of meta-information in pytables-backed object.
         
@@ -2099,7 +2099,7 @@ class MetaContainer(FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name)
+        FileBased.__init__(self, file_name, tmpdir=tmpdir)
         
         try:
             self._meta = self.file.get_node("/" + group_name + "/main")
