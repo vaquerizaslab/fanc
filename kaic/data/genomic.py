@@ -1038,6 +1038,21 @@ class GenomicRegion(TableObject):
             return True
         return False
 
+    def _equals(self, region):
+        if region.chromosome != self.chromosome:
+            return False
+        if region.start != self.start:
+            return False
+        if region.end != self.end:
+            return False
+        return True
+
+    def __eq__(self, other):
+        return self._equals(other)
+
+    def __ne__ (self, other):
+        return not self._equals(other)
+
 
 class BedElement(GenomicRegion):
     def __init__(self, chromosome, start, end, **kwargs):
@@ -2218,6 +2233,75 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             else:
                 all_nodes_ix.append(nodes_ix)
         return all_nodes_ix
+
+    def scaling_factor(self, hic):
+        """
+        Compute the scaling factor to another Hic library.
+
+        Calculates the ratio between the number of contacts in
+        this Hic object to the number of contacts in another
+        Hic object.
+
+        :param hic: A :class:`~Hic` object
+        :return: float
+        """
+        logging.info("Calculating scaling factor...")
+        hic1_sum = 0.0
+        for edge in self.edges(lazy=True):
+            hic1_sum += edge['weight']
+        hic2_sum = 0.0
+        for edge in hic.edges(lazy=True):
+            hic2_sum += edge['weight']
+        scaling_factor = hic1_sum/hic2_sum
+        logging.info("Scaling factor: %f" % scaling_factor)
+        return scaling_factor
+
+    def get_combined_matrix(self, hic, key=None, scaling_factor=None):
+        """
+        Return a :class:`~HicMatrix` where values above the diagonal
+        are from this object and values below the diagonal are from
+        another :class:`~Hic` object.
+
+        "Above the diagonal" refers to the diagonal of the complete
+        Hic object, not the diagonal of the returned matrix.
+
+        :param hic: Another :class:`~Hic` object
+        :param key: A matrix selector. Use tuple to selct row and
+                    columns, also see __getitem__
+        :param scaling_factor: Factor to scale the hic values. If None,
+                               will be computed using
+                               :func:`~Hic.scaling_factor`.
+        :return: :class:`~HicMatrix`
+        """
+        if key is None:
+            key = slice(0, None, None)
+
+        if scaling_factor is None:
+            scaling_factor = self.scaling_factor(hic)
+
+        m_top = self[key]
+
+        # find diagonal
+        row_region = m_top.row_regions[0]
+        matching_index = None
+        for i, col_region in enumerate(m_top.col_regions):
+            if col_region == row_region:
+                matching_index = i
+
+        if matching_index is None:
+            col_region = m_top.col_regions[0]
+            for i, row_region in enumerate(m_top.row_regions):
+                if col_region == row_region:
+                    matching_index = -1*i
+
+        if matching_index is None:
+            return m_top
+
+        # replace diagonal
+        m_bottom = hic[key]*scaling_factor
+        top_indices = np.triu_indices(m_top.shape[0], matching_index, m_top.shape[1])
+        m_bottom[top_indices] = m_top[top_indices]
+        return m_bottom
     
     def as_data_frame(self, key):
         """
