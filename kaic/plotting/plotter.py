@@ -93,6 +93,8 @@ class BasePlotter2D(object):
         self.cid = None
         self.current_chromosome_x = None
         self.current_chromosome_y = None
+        self.last_ylim = None
+        self.last_xlim = None
 
     @abstractmethod
     def _plot(self, x_region=None, y_region=None):
@@ -104,22 +106,37 @@ class BasePlotter2D(object):
 
     def mouse_release_refresh(self, _):
         xlim = self.ax.get_xlim()
-        x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
-        x_region = GenomicRegion(x_start, x_end, self.current_chromosome_x)
         ylim = self.ax.get_ylim()
-        y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
-        y_region = GenomicRegion(y_start, y_end, self.current_chromosome_y)
 
-        self._refresh(x_region, y_region)
+        if xlim != self.last_xlim or ylim != self.last_ylim:
+            self.last_xlim = xlim
+            self.last_ylim = ylim
+            x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
+            x_region = GenomicRegion(x_start, x_end, self.current_chromosome_x)
+
+            y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
+            y_region = GenomicRegion(y_start, y_end, self.current_chromosome_y)
+
+            self._refresh(x_region, y_region)
+
+            # this should take care of any unwanted ylim changes
+            # from custom _refresh methods
+            self.ax.set_ylim(self.last_ylim)
+            self.ax.set_xlim(self.last_xlim)
 
     def plot(self, x_region=None, y_region=None, ax=None, interactive=True):
         if isinstance(x_region, basestring):
             x_region = GenomicRegion.from_string(x_region)
-            self.current_chromosome_x = x_region.chromosome
+
+        self.current_chromosome_x = x_region.chromosome
+
+        if y_region is None:
+            y_region = x_region
 
         if isinstance(y_region, basestring):
             y_region = GenomicRegion.from_string(y_region)
-            self.current_chromosome_y = y_region.chromosome
+
+        self.current_chromosome_y = y_region.chromosome
 
         if interactive:
             plt.ion()
@@ -164,11 +181,19 @@ class HicPlot2D(BasePlotter2D):
         elif norm == "lin":
             self.norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
 
-    def _get_updated_matrix(self, x_region=None, y_region=None):
 
+    def _get_matrix(self, x_region, y_region):
+        return self.hic[y_region, x_region]
+
+    def _is_buffered_region(self, x_region, y_region):
         if (self.buffered_y_region is None or not self.buffered_y_region.contains(y_region) or
                 self.buffered_x_region is None or not self.buffered_x_region.contains(x_region) or
                 self.buffered_matrix is None):
+            return False
+        return True
+
+    def _get_updated_matrix(self, x_region=None, y_region=None):
+        if not self._is_buffered_region(x_region, y_region):
 
             logging.info("Buffering matrix")
             if x_region.start is not None and x_region.end is not None:
@@ -187,7 +212,7 @@ class HicPlot2D(BasePlotter2D):
             else:
                 self.buffered_y_region = GenomicRegion(None, None, y_region.chromosome)
 
-            self.buffered_matrix = self.hic[self.buffered_y_region, self.buffered_x_region]
+            self.buffered_matrix = self._get_matrix(self.buffered_x_region, self.buffered_y_region)
 
         return self.buffered_matrix[y_region, x_region]
 
@@ -196,40 +221,48 @@ class HicPlot2D(BasePlotter2D):
         self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm,
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
+        self.last_ylim = self.ax.get_ylim()
+        self.last_xlim = self.ax.get_xlim()
+
         if self.show_colorbar:
             m_min, m_max = self.vmin if self.vmin else np.ma.min(m), self.vmax if self.vmax else np.ma.max(m)
-            cax, kw = mpl.colorbar.make_axes(self.ax, location="top")
+            cax, kw = mpl.colorbar.make_axes(self.ax, location="top", anchor=(0.5, 1.5),
+                                             aspect=40, shrink=0.6, panchor=False)
             cb = plt.colorbar(self.im, cax=cax, **kw)
             cb.set_ticks([m_min, (m_max-m_min)/2+m_min, m_max])
             cb.set_ticklabels([m_min, (m_max-m_min)/2+m_min, m_max])
 
             if self.adjust_range:
-                axs = plt.axes([0.25, 0, 0.65, 0.03], axisbg='blue')
-                self.slider = Slider(axs, 'vmin', m_min, m_max, valinit=(m_max-m_min)/2)
-
-
-        # cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
-        # cmap_data.set_array([self.vmin if self.vmin else np.ma.min(m), self.vmax if self.vmax else np.ma.max(m)])
-        # cax, kw = mpl.colorbar.make_axes(self.ax, location="right")
-        # #ticks = LinearLocator(5)
-        # #print ticks
-        # cb = self.fig.colorbar(cmap_data, cax=cax, ticks=[0, 30, 50], **kw)
-        # cb.ax.set_yticklabels([0, 30, 50])
+                plot_position = cax.get_position()
+                vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
+                self.vmin_slider = Slider(vmin_axs, 'vmin', m_min, m_max, valinit=m_min,
+                                          facecolor='#dddddd', edgecolor='none')
+                vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
+                self.vmax_slider = Slider(vmax_axs, 'vmax', m_min, m_max, valinit=m_max,
+                                          facecolor='#dddddd', edgecolor='none')
+                self.fig.subplots_adjust(top=0.90, bottom=0.15)
+                self.vmin_slider.on_changed(self._slider_refresh)
+                self.vmax_slider.on_changed(self._slider_refresh)
 
     def _refresh(self, x_region=None, y_region=None):
-
+        print "refreshing"
         m = self._get_updated_matrix(x_region=x_region, y_region=y_region)
 
         self.im.set_data(m)
         self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
                             m.row_regions[-1].end, m.row_regions[0].start])
 
+    def _slider_refresh(self, val):
+        new_vmin = self.vmin_slider.val
+        new_vmax = self.vmax_slider.val
+        self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
+
 
 class HicSideBySidePlot2D(object):
     def __init__(self, hic1, hic2, colormap='viridis', norm="log",
                  vmin=None, vmax=None):
         self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
-        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax, adjust_range=False)
+        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
 
     def plot(self, region):
         fig = plt.figure()
@@ -244,14 +277,18 @@ class HicSideBySidePlot2D(object):
 
 class HicComparisonPlot2D(HicPlot2D):
     def __init__(self, hic_top, hic_bottom, colormap='viridis', norm='log',
-                 vmin=None, vmax=None):
+                 vmin=None, vmax=None, scale_matrices=True):
         super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+        self.hic_top = hic_top
         self.hic_bottom = hic_bottom
+        self.scaling_factor = 1
+        if scale_matrices:
+            self.scaling_factor = hic_top.scaling_factor(hic_bottom)
 
-    def _get_updated_matrix(self, x_region=None, y_region=None):
-        m_top = self.hic[y_region, x_region]
-        m_bottom = self.hic[y_region, x_region]
-        iu = np.triu_indices(m_top.shape)
+    def _get_matrix(self, x_region, y_region):
+        print x_region, y_region
+        return self.hic_top.get_combined_matrix(self.hic_bottom, key=(y_region, x_region),
+                                                scaling_factor=self.scaling_factor)
 
 
 class HicPlot(BasePlotter1D):
