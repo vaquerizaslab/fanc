@@ -266,7 +266,9 @@ class FileBased(object):
             self.tmp_file_name = None
             self._init_file(file_name, mode)
         else:
+            logging.info("Working in temporary directory...")
             self.tmp_file_name = os.path.join(tmpdir, self._generate_tmp_file_name())
+            logging.info("Temporary output file: {}".format(output_path))
             if mode in ['w', 'x', 'w-']:
                 pass
             elif mode in ['r+', 'r']:
@@ -283,6 +285,7 @@ class FileBased(object):
     def finalize(self):
         if self.closed:
             if self.tmp_file_name:
+                logging.info("Moving temporary output file to destination {}".format(original_output_path))
                 shutil.copyfile(self.tmp_file_name, self.file_name)
         else:
             raise IOError('The file has to be closed before copying the tmp file. Use close()')

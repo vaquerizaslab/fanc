@@ -1838,7 +1838,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     edge_buffer = {}
             self._flush_edge_buffer(edge_buffer)
 
-    def bin(self, bin_size, file_name=None):
+    def bin(self, bin_size, file_name=None, tmpdir=None):
         """
         Map edges in this object to equi-distant bins.
 
@@ -1858,10 +1858,10 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = Hic(file_name=file_name, mode='w')
-        hic.add_regions(genome.get_regions(bin_size))
 
-        hic.load_from_hic(self)
+        with Hic(file_name=file_name, mode='w', tmpdir=tmpdir) as hic:
+            hic.add_regions(genome.get_regions(bin_size))
+            hic.load_from_hic(self)
 
         return hic
 

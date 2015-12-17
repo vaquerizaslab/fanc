@@ -911,30 +911,35 @@ class Kaic(object):
         import kaic
         from kaic.tools.files import create_temporary_copy
 
-        original_output_path = os.path.expanduser(args.output)
-        if args.tmp:
-            input_path = create_temporary_copy(args.hic)
-            logging.info("Working in temporary directory...")
-            tmp_file = tempfile.NamedTemporaryFile(delete=False)
-            tmp_file.close()
-            output_path = tmp_file.name
-            logging.info("Temporary output file: %s" % output_path)
-        else:
-            input_path = os.path.expanduser(args.hic)
-            output_path = original_output_path
+        # original_output_path = os.path.expanduser(args.output)
+        # if args.tmp:
+        #     input_path = create_temporary_copy(args.hic)
+        #     logging.info("Working in temporary directory...")
+        #     tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        #     tmp_file.close()
+        #     output_path = tmp_file.name
+        #     logging.info("Temporary output file: %s" % output_path)
+        # else:
+        #     input_path = os.path.expanduser(args.hic)
+        #     output_path = original_output_path
 
-        hic = kaic.Hic(file_name=input_path, mode='r')
+        input_path = os.path.expanduser(args.hic)
+        output_path = original_output_path
+        tmpdir = '/tmp' if args.tmp else None
 
-        logging.info("Binning at %dbp" % args.bin_size)
-        binned = hic.bin(args.bin_size, file_name=output_path)
+        with kaic.Hic(file_name=input_path, mode='r', tmpdir=tmpdir) as hic:
+            logging.info("Binning at %dbp" % args.bin_size)
+            binned = hic.bin(args.bin_size, file_name=output_path):
 
-        hic.close()
-        binned.close()
+        # binned = hic.bin(args.bin_size, file_name=output_path)
 
-        if args.tmp:
-            logging.info("Moving temporary output file to destination %s" % original_output_path)
-            os.unlink(input_path)
-            shutil.move(output_path, original_output_path)
+        # hic.close()
+        # binned.close()
+
+        # if args.tmp:
+        #     logging.info("Moving temporary output file to destination %s" % original_output_path)
+        #     os.unlink(input_path)
+        #     shutil.move(output_path, original_output_path)
 
         logging.info("All done.")
 
