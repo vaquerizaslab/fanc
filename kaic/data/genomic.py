@@ -2660,13 +2660,36 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
     
     def bias_vector(self, vector=None):
         """
-        Get the bias vector of this Hic matrix.
+        Get or set the bias vector of this Hic matrix.
 
-        Only works if previously corrected.
+        :param vector: Numpy float vector. If provided, sets the
+                       the bias vector of the object.
         """
+
         if vector is not None:
-            self._edges._v_attrs.bias_vector = vector
-        return self._edges._v_attrs.bias_vector
+            if len(vector) != len(self.regions()):
+                raise ValueError("Bias vector must be the same length as number of regions (%d)" % len(self.regions()))
+
+            # overwrite biases
+            if len(self._node_annotations) == len(vector):
+                for i, row in enumerate(self._node_annotations):
+                    row['bias'] = vector[i]
+                    row.update()
+            # create new biases
+            else:
+                row = self._node_annotations.row
+                for value in vector:
+                    row['bias'] = value
+                    row.append()
+            self._node_annotations.flush()
+            return vector
+
+        vector = np.ones(len(self.regions()))
+        if len(self._node_annotations) > 0:
+            for i, row in enumerate(self._node_annotations):
+                vector[i] = row['bias']
+
+        return vector
 
     def marginals(self):
         """
