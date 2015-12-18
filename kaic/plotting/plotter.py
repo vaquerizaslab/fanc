@@ -1,13 +1,16 @@
-from matplotlib.ticker import Formatter, MaxNLocator
-from kaic.data.genomic import GenomicRegion, HicMatrix
+from matplotlib.ticker import Formatter, MaxNLocator, LinearLocator
+from matplotlib.widgets import Slider
+from kaic.data.genomic import GenomicRegion
+from abc import abstractmethod, ABCMeta
 import numpy as np
 import math
 import matplotlib as mpl
+import logging
 import seaborn as sns
 plt = sns.plt
-import logging
 log = logging.getLogger(__name__)
 log.setLevel(10)
+
 
 def millify(n, precision=1):
     """Take input float and return human readable string.
@@ -26,7 +29,7 @@ def millify(n, precision=1):
     -------
     str : Human readable string representation of n
     """
-    millnames = ["","k","M","B","T"]
+    millnames = ["", "k", "M", "B", "T"]
     if n == 0:
         return 0
     n = float(n)
@@ -34,63 +37,261 @@ def millify(n, precision=1):
                       int(math.floor(math.log10(abs(n))/3))))
     return "{:.{prec}f}{}".format(n/10**(3*millidx), millnames[millidx], prec=precision)
 
+
 class GenomeCoordFormatter(Formatter):
-    def __init__(self, chromosome, start, end):
-        self.chromosome = chromosome
-        self.start = start
-        self.end = end
+    def __init__(self, chromosome=None, start=None):
+        if isinstance(chromosome, GenomicRegion):
+            self.chromosome = chromosome.chromosome
+            self.start = chromosome.start
+        else:
+            self.chromosome = chromosome
+            self.start = start
 
     def __call__(self, x, pos=None):
-        if pos == 0 or x == 0:
+        if self.start is not None and self.chromosome is not None and (pos == 0 or x == 0):
             return "{}:{}".format(self.chromosome, self.start)
         return millify(x)
 
-class GenomeCoordLocator(MaxNLocator):
-    def __init__(self, chromosome, start, end, **kwargs):
-        self.chromsome = chromosome
-        self.start = start
-        self.end = end
-        super(GenomeCoordLocator, self).__init__(**kwargs)
 
-    def __call__(self):
-        vmin, vmax = self.axis.get_view_interval()
-        return self.tick_values(max(self.start, vmin), min(self.end, vmax))
+class BasePlotter1D(object):
 
-class BasePlotter(object):
+    __metaclass__ = ABCMeta
+
     def __init__(self):
-        self._fig = None
-        self._ax = None
+        self.fig = None
+        self.ax = None
 
-    def add_fig_ax(self, fig, ax):
-        self._fig = fig
-        self._ax = ax
+    @abstractmethod
+    def _plot(self, region=None):
+        raise NotImplementedError("Subclasses need to override _plot function")
 
-    @property
-    def fig(self):
-        if self._fig is None:
-            self._make_fig_ax()
-        return self._fig
-    
-    @property
-    def ax(self):
-        if self._ax is None:
-             self._make_fig_ax()
-        return self._ax
-
-    def _make_fig_ax(self):
-        self._fig, self._ax = plt.subplots()
-        return self._fig, self._ax
-
-    def _plot(self, region):
+    @abstractmethod
+    def _refresh(self, region=None):
         raise NotImplementedError("Subclasses need to override _plot function")
     
-    def plot(self, region):
+    def plot(self, region=None, ax=None):
         if isinstance(region, basestring):
             region = GenomicRegion.from_string(region)
+
+        if ax is not None:
+            self.ax = ax
+            self.fig = ax.figure
+        else:
+            self.fig, self.ax = plt.subplots()
+
         self._plot(region)
         return self.fig, self.ax
 
-class HicPlot(BasePlotter):
+
+class BasePlotter2D(object):
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self):
+        self.fig = None
+        self.ax = None
+        self.cid = None
+        self.current_chromosome_x = None
+        self.current_chromosome_y = None
+        self.last_ylim = None
+        self.last_xlim = None
+
+    @abstractmethod
+    def _plot(self, x_region=None, y_region=None):
+        raise NotImplementedError("Subclasses need to override _plot function")
+
+    @abstractmethod
+    def _refresh(self, x_region=None, y_region=None):
+        raise NotImplementedError("Subclasses need to override _refresh function")
+
+    def mouse_release_refresh(self, _):
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+
+        if xlim != self.last_xlim or ylim != self.last_ylim:
+            self.last_xlim = xlim
+            self.last_ylim = ylim
+            x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
+            x_region = GenomicRegion(x_start, x_end, self.current_chromosome_x)
+
+            y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
+            y_region = GenomicRegion(y_start, y_end, self.current_chromosome_y)
+
+            self._refresh(x_region, y_region)
+
+            # this should take care of any unwanted ylim changes
+            # from custom _refresh methods
+            self.ax.set_ylim(self.last_ylim)
+            self.ax.set_xlim(self.last_xlim)
+
+    def plot(self, x_region=None, y_region=None, ax=None, interactive=True):
+        if isinstance(x_region, basestring):
+            x_region = GenomicRegion.from_string(x_region)
+
+        self.current_chromosome_x = x_region.chromosome
+
+        if y_region is None:
+            y_region = x_region
+
+        if isinstance(y_region, basestring):
+            y_region = GenomicRegion.from_string(y_region)
+
+        self.current_chromosome_y = y_region.chromosome
+
+        if interactive:
+            plt.ion()
+            logging.info("ion")
+
+        if ax is not None:
+            self.ax = ax
+            self.fig = ax.figure
+        else:
+            self.fig, self.ax = plt.subplots()
+
+        # set base-pair formatters
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
+        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
+        # set release event callback
+        self.cid = self.fig.canvas.mpl_connect('button_release_event', self.mouse_release_refresh)
+
+        self._plot(x_region, y_region)
+        return self.fig, self.ax
+
+
+class HicPlot2D(BasePlotter2D):
+    def __init__(self, hic, colormap='viridis', norm="log",
+                 vmin=None, vmax=None, show_colorbar=True,
+                 adjust_range=True):
+        super(HicPlot2D, self).__init__()
+        self.hic = hic
+        self.colormap = colormap
+        self.vmin = vmin
+        self.vmax = vmax
+        self.show_colorbar = show_colorbar
+        self._prepare_normalization(norm, vmin=vmin, vmax=vmax)
+        self.buffered_x_region = None
+        self.buffered_y_region = None
+        self.buffered_matrix = None
+        self.slider = None
+        self.adjust_range = adjust_range
+
+    def _prepare_normalization(self, norm="lin", vmin=None, vmax=None):
+        if norm == "log":
+            self.norm = mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
+        elif norm == "lin":
+            self.norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+
+    def _get_matrix(self, x_region, y_region):
+        return self.hic[y_region, x_region]
+
+    def _is_buffered_region(self, x_region, y_region):
+        if (self.buffered_y_region is None or not self.buffered_y_region.contains(y_region) or
+                self.buffered_x_region is None or not self.buffered_x_region.contains(x_region) or
+                self.buffered_matrix is None):
+            return False
+        return True
+
+    def _get_updated_matrix(self, x_region=None, y_region=None):
+        if not self._is_buffered_region(x_region, y_region):
+
+            logging.info("Buffering matrix")
+            if x_region.start is not None and x_region.end is not None:
+                x_region_size = x_region.end-x_region.start
+                new_x_start = max(1, x_region.start-x_region_size)
+                new_x_end = x_region.end + x_region_size
+                self.buffered_x_region = GenomicRegion(new_x_start, new_x_end, x_region.chromosome)
+            else:
+                self.buffered_x_region = GenomicRegion(None, None, x_region.chromosome)
+
+            if y_region.start is not None and y_region.end is not None:
+                y_region_size = y_region.end-y_region.start
+                new_y_start = max(1, y_region.start-y_region_size)
+                new_y_end = y_region.end + y_region_size
+                self.buffered_y_region = GenomicRegion(new_y_start, new_y_end, y_region.chromosome)
+            else:
+                self.buffered_y_region = GenomicRegion(None, None, y_region.chromosome)
+
+            self.buffered_matrix = self._get_matrix(self.buffered_x_region, self.buffered_y_region)
+
+        return self.buffered_matrix[y_region, x_region]
+
+    def _plot(self, x_region=None, y_region=None):
+        m = self._get_updated_matrix(x_region=x_region, y_region=y_region)
+        self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm,
+                                 extent=[m.col_regions[0].start, m.col_regions[-1].end,
+                                         m.row_regions[-1].end, m.row_regions[0].start])
+        self.last_ylim = self.ax.get_ylim()
+        self.last_xlim = self.ax.get_xlim()
+
+        if self.show_colorbar:
+            m_min, m_max = self.vmin if self.vmin else np.ma.min(m), self.vmax if self.vmax else np.ma.max(m)
+            cax, kw = mpl.colorbar.make_axes(self.ax, location="top", anchor=(0.5, 1.5),
+                                             aspect=40, shrink=0.6, panchor=False)
+            cb = plt.colorbar(self.im, cax=cax, **kw)
+            cb.set_ticks([m_min, (m_max-m_min)/2+m_min, m_max])
+            cb.set_ticklabels([m_min, (m_max-m_min)/2+m_min, m_max])
+
+            if self.adjust_range:
+                plot_position = cax.get_position()
+                vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
+                self.vmin_slider = Slider(vmin_axs, 'vmin', m_min, m_max, valinit=m_min,
+                                          facecolor='#dddddd', edgecolor='none')
+                vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
+                self.vmax_slider = Slider(vmax_axs, 'vmax', m_min, m_max, valinit=m_max,
+                                          facecolor='#dddddd', edgecolor='none')
+                self.fig.subplots_adjust(top=0.90, bottom=0.15)
+                self.vmin_slider.on_changed(self._slider_refresh)
+                self.vmax_slider.on_changed(self._slider_refresh)
+
+    def _refresh(self, x_region=None, y_region=None):
+        print "refreshing"
+        m = self._get_updated_matrix(x_region=x_region, y_region=y_region)
+
+        self.im.set_data(m)
+        self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
+                            m.row_regions[-1].end, m.row_regions[0].start])
+
+    def _slider_refresh(self, val):
+        new_vmin = self.vmin_slider.val
+        new_vmax = self.vmax_slider.val
+        self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
+
+
+class HicSideBySidePlot2D(object):
+    def __init__(self, hic1, hic2, colormap='viridis', norm="log",
+                 vmin=None, vmax=None):
+        self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+
+    def plot(self, region):
+        fig = plt.figure()
+        ax1 = plt.subplot(121)
+        ax2 = plt.subplot(122, sharex=ax1, sharey=ax1)
+
+        self.hic_plotter1.plot(x_region=region, y_region=region, ax=ax1)
+        self.hic_plotter2.plot(x_region=region, y_region=region, ax=ax2)
+
+        return fig, ax1, ax2
+
+
+class HicComparisonPlot2D(HicPlot2D):
+    def __init__(self, hic_top, hic_bottom, colormap='viridis', norm='log',
+                 vmin=None, vmax=None, scale_matrices=True):
+        super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+        self.hic_top = hic_top
+        self.hic_bottom = hic_bottom
+        self.scaling_factor = 1
+        if scale_matrices:
+            self.scaling_factor = hic_top.scaling_factor(hic_bottom)
+
+    def _get_matrix(self, x_region, y_region):
+        print x_region, y_region
+        return self.hic_top.get_combined_matrix(self.hic_bottom, key=(y_region, x_region),
+                                                scaling_factor=self.scaling_factor)
+
+
+class HicPlot(BasePlotter1D):
     def __init__(self, hic_data, colormap='viridis', max_height=None, norm="log",
                  vmin=None, vmax=None):
         super(HicPlot, self).__init__()
@@ -106,9 +307,12 @@ class HicPlot(BasePlotter):
         else:
             raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
-    def _plot(self, region):
+    def _plot(self, region=None):
         log.debug("Generating matrix from hic object")
-        hm = self.hic_data[region, region]
+        if region is None:
+            hm = self.hic_data[:]
+        else:
+            hm = self.hic_data[region, region]
         hm[np.tril_indices(hm.shape[0])] = np.nan
         # Remove part of matrix further away than max_height
         if self.max_height:
@@ -159,5 +363,5 @@ class HicPlot(BasePlotter):
         cmap_data.set_array([self.vmin if self.vmin else np.ma.min(hm_masked), self.vmax if self.vmax else np.ma.max(hm_masked)])
         cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
         plt.colorbar(cmap_data, cax=cax, **kw)
-        import ipdb
-        ipdb.set_trace()
+        #import ipdb
+        #ipdb.set_trace()
