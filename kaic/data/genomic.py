@@ -1557,12 +1557,16 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
     class HicEdgeDescription(t.IsDescription):
         source = t.Int32Col(pos=0)  
         sink = t.Int32Col(pos=1)  
-        weight = t.Float64Col(pos=2)  
+        weight = t.Float64Col(pos=2)
+
+    class HicRegionAnnotationDescription(t.IsDescription):
+        bias = t.Float32Col(pos=0, dflt=1)
     
     def __init__(self, data=None, file_name=None,
                  mode='a',
                  _table_name_nodes='nodes',
-                 _table_name_edges='edges'):
+                 _table_name_edges='edges',
+                 _table_name_node_annotations='node_annot'):
 
         """
         Initialize a :class:`~Hic` object.
@@ -1603,11 +1607,21 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                                       Hic.HicEdgeDescription)
         
         self._edges.flush()
-        
+
+        if _table_name_node_annotations in self.file.root:
+            self._node_annotations = self.file.get_node('/', _table_name_node_annotations)
+        elif mode not in ('r', 'r+'):
+            self._node_annotations = t.Table(self.file.root, _table_name_node_annotations,
+                                             Hic.HicRegionAnnotationDescription)
+        else:
+            # compatibility with existing objects
+            self._node_annotations = None
+
+        self._node_annotations.flush()
+
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
-
 
         # index edge table
         try:
