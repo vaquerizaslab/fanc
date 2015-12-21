@@ -52,6 +52,48 @@ class GenomeCoordFormatter(Formatter):
             return "{}:{}".format(self.chromosome, self.start)
         return millify(x)
 
+class BufferedMatrix(object):
+    def __init__(self, hic_data):
+        self.hic_data = hic_data
+        self.buffered_x_region = None
+        self.buffered_y_region = None
+        self.buffered_matrix = None
+
+    def is_buffered_region(self, x_region, y_region):
+        if (self.buffered_y_region is None or not self.buffered_y_region.contains(y_region) or
+                self.buffered_x_region is None or not self.buffered_x_region.contains(x_region) or
+                self.buffered_matrix is None):
+            return False
+        return True
+
+    def get_matrix(self, x_region=None, y_region=None):
+        if not self.is_buffered_region(x_region, y_region):
+            logging.info("Buffering matrix")
+            if x_region.start is not None and x_region.end is not None:
+                x_region_size = x_region.end-x_region.start
+                new_x_start = max(1, x_region.start-x_region_size)
+                new_x_end = x_region.end + x_region_size
+                self.buffered_x_region = GenomicRegion(new_x_start, new_x_end, x_region.chromosome)
+            else:
+                self.buffered_x_region = GenomicRegion(None, None, x_region.chromosome)
+
+            if y_region.start is not None and y_region.end is not None:
+                y_region_size = y_region.end-y_region.start
+                new_y_start = max(1, y_region.start-y_region_size)
+                new_y_end = y_region.end + y_region_size
+                self.buffered_y_region = GenomicRegion(new_y_start, new_y_end, y_region.chromosome)
+            else:
+                self.buffered_y_region = GenomicRegion(None, None, y_region.chromosome)
+            self.buffered_matrix = self.hic_data[self.buffered_x_region, self.buffered_y_region]
+        return self.buffered_matrix[y_region, x_region]
+
+    @property
+    def buffered_min(self):
+        return np.ma.min(self.buffered_matrix) if self.buffered_matrix is not None else None
+
+    @property
+    def buffered_max(self):
+        return np.ma.max(self.buffered_matrix) if self.buffered_matrix is not None else None
 
 class BasePlotter1D(object):
 
@@ -82,7 +124,67 @@ class BasePlotter1D(object):
         self._plot(region)
         return self.fig, self.ax
 
+class Scrollable(object):
 
+    __metaclass__ = ABCMeta
+
+class BasePlotterHic(object):
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self, hic_data, colormap='viridis', norm="log",
+                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True):
+        self.hic_data = hic_data
+        self.hic_buffer = BufferedMatrix(hic_data)
+        self.colormap = mpl.cm.get_cmap(colormap)
+        self.vmin = vmin
+        self.vmax = vmax
+        self.norm = self._prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
+        self.cax = None
+        self.colorbar = None
+        self.slider = None
+        self.show_colorbar = show_colorbar
+        self.adjust_range = adjust_range
+
+    def _prepare_normalization(self, norm="lin", vmin=None, vmax=None):
+        if norm == "log":
+            self.norm = mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
+        elif norm == "lin":
+            self.norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+        else:
+            raise ValueError("'{}'' not a valid normalization method.".format(norm))
+
+    def add_colorbar(self):
+        cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
+        cmap_data.set_array([self.m_min, self.m_max])
+        self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
+        self.colorbar = plt.colorbar(cmap_data, cax=self.cax, **kw)
+
+    def add_adj_slider(self):
+        plot_position = self.cax.get_position()
+        vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
+        self.vmin_slider = Slider(vmin_axs, 'vmin', self.m_min, self.m_max, valinit=self.m_min,
+                                  facecolor='#dddddd', edgecolor='none')
+        vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
+        self.vmax_slider = Slider(vmax_axs, 'vmax', self.m_min, self.m_max, valinit=self.m_max,
+                                  facecolor='#dddddd', edgecolor='none')
+        self.fig.subplots_adjust(top=0.90, bottom=0.15)
+        self.vmin_slider.on_changed(self._slider_refresh)
+        self.vmax_slider.on_changed(self._slider_refresh)
+
+    def _slider_refresh(self, val):
+        new_vmin = self.vmin_slider.val
+        new_vmax = self.vmax_slider.val
+        self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
+
+    @property
+    def m_min(self):
+        return self.vmin if self.vmin else self.hic_buffer.buffered_min
+
+    @property
+    def m_max(self):
+        return self.vmax if self.vmax else self.hic_buffer.buffered_max
+ 
 class BasePlotter2D(object):
 
     __metaclass__ = ABCMeta
@@ -158,66 +260,17 @@ class BasePlotter2D(object):
         return self.fig, self.ax
 
 
-class HicPlot2D(BasePlotter2D):
-    def __init__(self, hic, colormap='viridis', norm="log",
+class HicPlot2D(BasePlotter2D, BasePlotterHic):
+    def __init__(self, hic_data, colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True,
                  adjust_range=True):
-        super(HicPlot2D, self).__init__()
-        self.hic = hic
-        self.colormap = colormap
-        self.vmin = vmin
-        self.vmax = vmax
-        self.show_colorbar = show_colorbar
-        self._prepare_normalization(norm, vmin=vmin, vmax=vmax)
-        self.buffered_x_region = None
-        self.buffered_y_region = None
-        self.buffered_matrix = None
-        self.slider = None
-        self.adjust_range = adjust_range
-
-    def _prepare_normalization(self, norm="lin", vmin=None, vmax=None):
-        if norm == "log":
-            self.norm = mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
-        elif norm == "lin":
-            self.norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-
-
-    def _get_matrix(self, x_region, y_region):
-        return self.hic[y_region, x_region]
-
-    def _is_buffered_region(self, x_region, y_region):
-        if (self.buffered_y_region is None or not self.buffered_y_region.contains(y_region) or
-                self.buffered_x_region is None or not self.buffered_x_region.contains(x_region) or
-                self.buffered_matrix is None):
-            return False
-        return True
-
-    def _get_updated_matrix(self, x_region=None, y_region=None):
-        if not self._is_buffered_region(x_region, y_region):
-
-            logging.info("Buffering matrix")
-            if x_region.start is not None and x_region.end is not None:
-                x_region_size = x_region.end-x_region.start
-                new_x_start = max(1, x_region.start-x_region_size)
-                new_x_end = x_region.end + x_region_size
-                self.buffered_x_region = GenomicRegion(new_x_start, new_x_end, x_region.chromosome)
-            else:
-                self.buffered_x_region = GenomicRegion(None, None, x_region.chromosome)
-
-            if y_region.start is not None and y_region.end is not None:
-                y_region_size = y_region.end-y_region.start
-                new_y_start = max(1, y_region.start-y_region_size)
-                new_y_end = y_region.end + y_region_size
-                self.buffered_y_region = GenomicRegion(new_y_start, new_y_end, y_region.chromosome)
-            else:
-                self.buffered_y_region = GenomicRegion(None, None, y_region.chromosome)
-
-            self.buffered_matrix = self._get_matrix(self.buffered_x_region, self.buffered_y_region)
-
-        return self.buffered_matrix[y_region, x_region]
+        BasePlotter2D.__init__(self)
+        BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
+                                norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
+                                adjust_range=adjust_range)
 
     def _plot(self, x_region=None, y_region=None):
-        m = self._get_updated_matrix(x_region=x_region, y_region=y_region)
+        m = self.hic_buffer.get_matrix(x_region=x_region, y_region=y_region)
         self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm,
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
@@ -225,37 +278,17 @@ class HicPlot2D(BasePlotter2D):
         self.last_xlim = self.ax.get_xlim()
 
         if self.show_colorbar:
-            m_min, m_max = self.vmin if self.vmin else np.ma.min(m), self.vmax if self.vmax else np.ma.max(m)
-            cax, kw = mpl.colorbar.make_axes(self.ax, location="top", anchor=(0.5, 1.5),
-                                             aspect=40, shrink=0.6, panchor=False)
-            cb = plt.colorbar(self.im, cax=cax, **kw)
-            cb.set_ticks([m_min, (m_max-m_min)/2+m_min, m_max])
-            cb.set_ticklabels([m_min, (m_max-m_min)/2+m_min, m_max])
-
+            self.add_colorbar()
             if self.adjust_range:
-                plot_position = cax.get_position()
-                vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
-                self.vmin_slider = Slider(vmin_axs, 'vmin', m_min, m_max, valinit=m_min,
-                                          facecolor='#dddddd', edgecolor='none')
-                vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
-                self.vmax_slider = Slider(vmax_axs, 'vmax', m_min, m_max, valinit=m_max,
-                                          facecolor='#dddddd', edgecolor='none')
-                self.fig.subplots_adjust(top=0.90, bottom=0.15)
-                self.vmin_slider.on_changed(self._slider_refresh)
-                self.vmax_slider.on_changed(self._slider_refresh)
+                self.add_adj_slider()
 
     def _refresh(self, x_region=None, y_region=None):
         print "refreshing"
-        m = self._get_updated_matrix(x_region=x_region, y_region=y_region)
+        m = self.hic_buffer.get_matrix(x_region=x_region, y_region=y_region)
 
         self.im.set_data(m)
         self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
                             m.row_regions[-1].end, m.row_regions[0].start])
-
-    def _slider_refresh(self, val):
-        new_vmin = self.vmin_slider.val
-        new_vmax = self.vmax_slider.val
-        self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
 
 
 class HicSideBySidePlot2D(object):
@@ -291,28 +324,19 @@ class HicComparisonPlot2D(HicPlot2D):
                                                 scaling_factor=self.scaling_factor)
 
 
-class HicPlot(BasePlotter1D):
+class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, colormap='viridis', max_height=None, norm="log",
-                 vmin=None, vmax=None):
-        super(HicPlot, self).__init__()
-        self.hic_data = hic_data
-        self.colormap = colormap
+                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True):
+        BasePlotter1D.__init__(self)
+        BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
+                                show_colorbar=show_colorbar, adjust_range=adjust_range)
         self.max_height = max_height
-        self.vmin = vmin
-        self.vmax = vmax
-        if norm == "log":
-            self.norm = mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
-        elif norm == "lin":
-            self.norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-        else:
-            raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
     def _plot(self, region=None):
         log.debug("Generating matrix from hic object")
         if region is None:
-            hm = self.hic_data[:]
-        else:
-            hm = self.hic_data[region, region]
+            raise ValueError("Cannot plot triangle plot for whole genome.")
+        hm = self.buffered_matrix.get_matrix(region, region)
         hm[np.tril_indices(hm.shape[0])] = np.nan
         # Remove part of matrix further away than max_height
         if self.max_height:
@@ -335,33 +359,27 @@ class HicPlot(BasePlotter1D):
         # x-axis
         X_ -= np.min(X_) - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
-        with sns.axes_style("ticks"):
-            # normalize colors
-            cmap = mpl.cm.get_cmap(self.colormap)
-            log.debug("Plotting matrix")
-            # create plot
-            sns.plt.pcolormesh(X_, Y_, hm_masked, axes=self.ax, cmap=cmap, norm=self.norm)
-            # set limits and aspect ratio
-            self.ax.set_aspect(aspect="equal")
-            self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
-            self.ax.set_ylim(0, self.max_height if self.max_height else 0.5*(region.end-region.start))
-            log.debug("Setting custom x tick formatter")
-            # set genome tick formatter
-            self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region.chromosome, region.start, region.end))
-            # remove y ticks
-            self.ax.set_yticks([])
-            # Hide the left, right and top spines
-            sns.despine(left=True)
-            # hide background patch
-            self.ax.patch.set_visible(False)
-            # Only show ticks on the left and bottom spines
-            self.ax.xaxis.set_ticks_position('bottom')
-            log.debug("Setting tight layout")
-            # make figure margins accommodate labels
-            sns.plt.tight_layout()
-        cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=cmap)
-        cmap_data.set_array([self.vmin if self.vmin else np.ma.min(hm_masked), self.vmax if self.vmax else np.ma.max(hm_masked)])
-        cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
-        plt.colorbar(cmap_data, cax=cax, **kw)
+        sns.axes_style("ticks"):
+        log.debug("Plotting matrix")
+        # create plot
+        sns.plt.pcolormesh(X_, Y_, hm_masked, axes=self.ax, cmap=self.colormap, norm=self.norm)
+        # set limits and aspect ratio
+        self.ax.set_aspect(aspect="equal")
+        self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
+        self.ax.set_ylim(0, self.max_height if self.max_height else 0.5*(region.end-region.start))
+        log.debug("Setting custom x tick formatter")
+        # set genome tick formatter
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region.chromosome, region.start, region.end))
+        # remove y ticks
+        self.ax.set_yticks([])
+        # Hide the left, right and top spines
+        sns.despine(left=True)
+        # hide background patch
+        self.ax.patch.set_visible(False)
+        # Only show ticks on the left and bottom spines
+        self.ax.xaxis.set_ticks_position('bottom')
+        log.debug("Setting tight layout")
+        # make figure margins accommodate labels
+        sns.plt.tight_layout()
         #import ipdb
         #ipdb.set_trace()
