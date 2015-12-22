@@ -789,7 +789,38 @@ class TestHicBasic:
         
         for n in sum(m_corr):
             assert abs(1.0-n) < 1e-5 or n == 0
-        
+
+    def test_knight_matrix_balancing_copy(self):
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+
+        hic = Hic()
+        hic.add_regions(genome.get_regions(10000))
+        hic.load_from_hic(self.hic_cerevisiae)
+
+        m = hic[:, :]
+        assert is_symmetric(m)
+
+        hic_new = knight.correct(hic, copy=True)
+        m_corr = hic_new[:, :]
+        assert is_symmetric(m_corr)
+        assert m_corr.shape == m.shape
+
+        assert hic is not hic_new
+
+        for n in sum(m_corr):
+            assert abs(1.0-n) < 1e-5 or n == 0
+
+        hic_new2 = knight.correct(hic, copy=True, only_intra_chromosomal=True)
+        m_corr_pc = hic_new2[:, :]
+        assert is_symmetric(m_corr_pc)
+        assert m_corr_pc.shape == m.shape
+
+        assert hic is not hic_new2
+
+        for i in xrange(m_corr.shape[0]):
+            for j in xrange(m_corr.shape[1]):
+                assert abs(m_corr[i, j]-m_corr_pc[i, j]) < 0.0001
             
     def test_ice_matrix_balancing(self):
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
