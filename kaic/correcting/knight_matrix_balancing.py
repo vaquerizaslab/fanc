@@ -23,6 +23,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
         for chromosome in hic.chromosomes():
             m = hic[chromosome, chromosome]
             m_corrected, bias_vector_chromosome = correct_matrix(m)
+            logging.info("Adding/replacing edges...")
             if hic_new is None:
                 hic[chromosome, chromosome] = m_corrected
             else:
@@ -35,13 +36,17 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
                         if weight != 0:
                             hic_new.add_edge([i_region, j_region, weight], flush=False)
             bias_vectors.append(bias_vector_chromosome)
+            logging.info("Done.")
+        logging.info("Adding bias vector...")
         if hic_new is None:
             hic.bias_vector(np.concatenate(bias_vectors))
         else:
             hic_new.bias_vector(np.concatenate(bias_vectors))
+        logging.info("Done.")
     else:
         m = hic[:, :]
         m_corrected, bias_vector = correct_matrix(m)
+        logging.info("Adding/replacing edges...")
         if hic_new is None:
             hic[:, :] = m_corrected
         else:
@@ -50,10 +55,13 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
                     weight = m_corrected[i, j]
                     if weight != 0:
                         hic_new.add_edge([i, j, weight], flush=False)
+        logging.info("Done.")
+        logging.info("Adding bias vector...")
         if hic_new is None:
             hic.bias_vector(bias_vector)
         else:
             hic_new.bias_vector(bias_vector)
+        logging.info("Done.")
 
     if hic_new is None:
         return hic
