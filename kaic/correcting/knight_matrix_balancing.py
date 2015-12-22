@@ -35,7 +35,10 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
                         if weight != 0:
                             hic_new.add_edge([i_region, j_region, weight], flush=False)
             bias_vectors.append(bias_vector_chromosome)
-        hic.bias_vector(np.concatenate(bias_vectors))
+        if hic_new is None:
+            hic.bias_vector(np.concatenate(bias_vectors))
+        else:
+            hic_new.bias_vector(np.concatenate(bias_vectors))
     else:
         m = hic[:, :]
         m_corrected, bias_vector = correct_matrix(m)
@@ -47,7 +50,10 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
                     weight = m_corrected[i, j]
                     if weight != 0:
                         hic_new.add_edge([i, j, weight], flush=False)
-        hic.bias_vector(bias_vector)
+        if hic_new is None:
+            hic.bias_vector(bias_vector)
+        else:
+            hic_new.bias_vector(bias_vector)
 
     if hic_new is None:
         hic_new.flush()

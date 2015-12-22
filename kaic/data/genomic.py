@@ -1613,11 +1613,10 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         elif mode not in ('r', 'r+'):
             self._node_annotations = t.Table(self.file.root, _table_name_node_annotations,
                                              Hic.HicRegionAnnotationDescription)
+            self._node_annotations.flush()
         else:
             # compatibility with existing objects
             self._node_annotations = None
-
-        self._node_annotations.flush()
 
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
