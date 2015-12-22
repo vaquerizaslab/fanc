@@ -121,6 +121,9 @@ class BasePlotter1D(object):
         else:
             self.fig, self.ax = plt.subplots()
 
+        # set genome tick formatter
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
+
         self._plot(region)
         return self.fig, self.ax
 
@@ -325,23 +328,23 @@ class HicComparisonPlot2D(HicPlot2D):
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
-    def __init__(self, hic_data, colormap='viridis', max_height=None, norm="log",
+    def __init__(self, hic_data, colormap='viridis', max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True):
         BasePlotter1D.__init__(self)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range)
-        self.max_height = max_height
+        self.max_dist = max_dist
 
     def _plot(self, region=None):
         log.debug("Generating matrix from hic object")
         if region is None:
             raise ValueError("Cannot plot triangle plot for whole genome.")
-        hm = self.buffered_matrix.get_matrix(region, region)
+        hm = self.hic_buffer.get_matrix(region, region)
         hm[np.tril_indices(hm.shape[0])] = np.nan
-        # Remove part of matrix further away than max_height
-        if self.max_height:
+        # Remove part of matrix further away than max_dist
+        if self.max_dist:
             for i, r in enumerate(hm.row_regions):
-                if r.start - region.start > self.max_height:
+                if r.start - region.start > self.max_dist:
                     hm[np.triu_indices(hm.shape[0], k=i)] = np.nan
                     break
         hm_masked = np.ma.MaskedArray(hm, mask=np.isnan(hm))
@@ -359,17 +362,14 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # x-axis
         X_ -= np.min(X_) - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
-        sns.axes_style("ticks"):
+        sns.axes_style("ticks")
         log.debug("Plotting matrix")
         # create plot
         sns.plt.pcolormesh(X_, Y_, hm_masked, axes=self.ax, cmap=self.colormap, norm=self.norm)
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
         self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
-        self.ax.set_ylim(0, self.max_height if self.max_height else 0.5*(region.end-region.start))
-        log.debug("Setting custom x tick formatter")
-        # set genome tick formatter
-        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region.chromosome, region.start, region.end))
+        self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
         # remove y ticks
         self.ax.set_yticks([])
         # Hide the left, right and top spines
@@ -383,3 +383,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         sns.plt.tight_layout()
         #import ipdb
         #ipdb.set_trace()
+
+    def _refresh(self, region=None):
+        pass
