@@ -56,8 +56,8 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
             hic_new.bias_vector(bias_vector)
 
     if hic_new is None:
-        hic_new.flush()
         return hic
+    hic_new.flush()
     return hic_new
 
 
