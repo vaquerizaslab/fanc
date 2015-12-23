@@ -37,6 +37,14 @@ def millify(n, precision=1):
                       int(math.floor(math.log10(abs(n))/3))))
     return "{:.{prec}f}{}".format(n/10**(3*millidx), millnames[millidx], prec=precision)
 
+def prepare_normalization(norm="lin", vmin=None, vmax=None):
+    if norm == "log":
+        return mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
+    elif norm == "lin":
+        return mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+    else:
+        raise ValueError("'{}'' not a valid normalization method.".format(norm))
+
 class GenomeCoordFormatter(Formatter):
     def __init__(self, chromosome=None, start=None):
         if isinstance(chromosome, GenomicRegion):
@@ -67,7 +75,7 @@ class BufferedMatrix(object):
 
     def get_matrix(self, x_region=None, y_region=None):
         if not self.is_buffered_region(x_region, y_region):
-            logging.info("Buffering matrix")
+            log.info("Buffering matrix")
             if x_region.start is not None and x_region.end is not None:
                 x_region_size = x_region.end-x_region.start
                 new_x_start = max(1, x_region.start-x_region_size)
@@ -126,10 +134,6 @@ class BasePlotter1D(object):
         self._plot(region)
         return self.fig, self.ax
 
-class Scrollable(object):
-
-    __metaclass__ = ABCMeta
-
 class BasePlotterHic(object):
 
     __metaclass__ = ABCMeta
@@ -139,36 +143,28 @@ class BasePlotterHic(object):
         self.hic_data = hic_data
         self.hic_buffer = BufferedMatrix(hic_data)
         self.colormap = mpl.cm.get_cmap(colormap)
-        self.vmin = vmin
-        self.vmax = vmax
-        self.norm = self._prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
+        self._vmin = vmin
+        self._vmax = vmax
+        self.norm = prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
         self.cax = None
         self.colorbar = None
         self.slider = None
         self.show_colorbar = show_colorbar
         self.adjust_range = adjust_range
 
-    def _prepare_normalization(self, norm="lin", vmin=None, vmax=None):
-        if norm == "log":
-            self.norm = mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
-        elif norm == "lin":
-            self.norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-        else:
-            raise ValueError("'{}'' not a valid normalization method.".format(norm))
-
     def add_colorbar(self):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
-        cmap_data.set_array([self.m_min, self.m_max])
+        cmap_data.set_array([self.vmin, self.vmax])
         self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, **kw)
 
     def add_adj_slider(self):
         plot_position = self.cax.get_position()
         vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
-        self.vmin_slider = Slider(vmin_axs, 'vmin', self.m_min, self.m_max, valinit=self.m_min,
+        self.vmin_slider = Slider(vmin_axs, 'vmin', self.vmin, self.vmax, valinit=self.vmin,
                                   facecolor='#dddddd', edgecolor='none')
         vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
-        self.vmax_slider = Slider(vmax_axs, 'vmax', self.m_min, self.m_max, valinit=self.m_max,
+        self.vmax_slider = Slider(vmax_axs, 'vmax', self.vmin, self.vmax, valinit=self.vmax,
                                   facecolor='#dddddd', edgecolor='none')
         self.fig.subplots_adjust(top=0.90, bottom=0.15)
         self.vmin_slider.on_changed(self._slider_refresh)
@@ -180,12 +176,12 @@ class BasePlotterHic(object):
         self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
 
     @property
-    def m_min(self):
-        return self.vmin if self.vmin else self.hic_buffer.buffered_min
+    def vmin(self):
+        return self._vmin if self._vmin else self.hic_buffer.buffered_min
 
     @property
-    def m_max(self):
-        return self.vmax if self.vmax else self.hic_buffer.buffered_max
+    def vmax(self):
+        return self._vmax if self._vmax else self.hic_buffer.buffered_max
  
 class BasePlotter2D(object):
 
