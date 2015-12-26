@@ -45,6 +45,13 @@ def prepare_normalization(norm="lin", vmin=None, vmax=None):
     else:
         raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
+def plot(plots, region):
+    n = len(plots)
+    fig, axes = plt.subplots(n, sharex=True)
+    for p, a in zip(plots, axes):
+        p.plot(region, a)
+    return fig, axes
+
 class GenomeCoordFormatter(Formatter):
     def __init__(self, chromosome=None, start=None):
         if isinstance(chromosome, GenomicRegion):
@@ -102,13 +109,12 @@ class BufferedMatrix(object):
     def buffered_max(self):
         return np.ma.max(self.buffered_matrix) if self.buffered_matrix is not None else None
 
-class BasePlotter1D(object):
+class BasePlotter(object):
 
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self.fig = None
-        self.ax = None
+        self._ax = None
 
     @abstractmethod
     def _plot(self, region=None):
@@ -116,18 +122,36 @@ class BasePlotter1D(object):
 
     @abstractmethod
     def _refresh(self, region=None):
-        raise NotImplementedError("Subclasses need to override _plot function")
+        raise NotImplementedError("Subclasses need to override _refresh function")
+
+    @abstractmethod
+    def plot(self, region=None):
+        raise NotImplementedError("Subclasses need to override plot function")
     
+    @property
+    def fig(self):
+        return self._ax.figure
+
+    @property
+    def ax(self):
+        if not self._ax:
+            log.debug("Creating new figure object.")
+            _, self._ax = plt.subplots()
+        return self._ax
+
+    @ax.setter
+    def ax(self, value):
+        self._ax = value
+
+class BasePlotter1D(BasePlotter):
+
+    __metaclass__ = ABCMeta
+
     def plot(self, region=None, ax=None):
         if isinstance(region, basestring):
             region = GenomicRegion.from_string(region)
-
-        if ax is not None:
+        if ax:
             self.ax = ax
-            self.fig = ax.figure
-        else:
-            self.fig, self.ax = plt.subplots()
-
         # set genome tick formatter
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
 
@@ -183,26 +207,17 @@ class BasePlotterHic(object):
     def vmax(self):
         return self._vmax if self._vmax else self.hic_buffer.buffered_max
  
-class BasePlotter2D(object):
+class BasePlotter2D(BasePlotter):
 
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self.fig = None
-        self.ax = None
+        BasePlotter.__init__(self)
         self.cid = None
         self.current_chromosome_x = None
         self.current_chromosome_y = None
         self.last_ylim = None
         self.last_xlim = None
-
-    @abstractmethod
-    def _plot(self, x_region=None, y_region=None):
-        raise NotImplementedError("Subclasses need to override _plot function")
-
-    @abstractmethod
-    def _refresh(self, x_region=None, y_region=None):
-        raise NotImplementedError("Subclasses need to override _refresh function")
 
     def mouse_release_refresh(self, _):
         xlim = self.ax.get_xlim()
@@ -224,9 +239,11 @@ class BasePlotter2D(object):
             self.ax.set_ylim(self.last_ylim)
             self.ax.set_xlim(self.last_xlim)
 
-    def plot(self, x_region=None, y_region=None, ax=None, interactive=True):
+    def plot(self, x_region=None, y_region=None, ax=None):
         if isinstance(x_region, basestring):
             x_region = GenomicRegion.from_string(x_region)
+        if ax:
+            self.ax = ax
 
         self.current_chromosome_x = x_region.chromosome
 
@@ -238,16 +255,6 @@ class BasePlotter2D(object):
 
         self.current_chromosome_y = y_region.chromosome
 
-        if interactive:
-            plt.ion()
-            logging.info("ion")
-
-        if ax is not None:
-            self.ax = ax
-            self.fig = ax.figure
-        else:
-            self.fig, self.ax = plt.subplots()
-
         # set base-pair formatters
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
         self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
@@ -256,7 +263,6 @@ class BasePlotter2D(object):
 
         self._plot(x_region, y_region)
         return self.fig, self.ax
-
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, colormap='viridis', norm="log",
@@ -324,7 +330,7 @@ class HicComparisonPlot2D(HicPlot2D):
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, colormap='viridis', max_dist=None, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True):
+                 vmin=None, vmax=None, show_colorbar=True, adjust_range=False):
         BasePlotter1D.__init__(self)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range)
@@ -357,10 +363,9 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # x-axis
         X_ -= np.min(X_) - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
-        sns.axes_style("ticks")
         log.debug("Plotting matrix")
         # create plot
-        sns.plt.pcolormesh(X_, Y_, hm_masked, axes=self.ax, cmap=self.colormap, norm=self.norm)
+        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
         self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
@@ -373,11 +378,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.ax.patch.set_visible(False)
         # Only show ticks on the left and bottom spines
         self.ax.xaxis.set_ticks_position('bottom')
-        log.debug("Setting tight layout")
-        # make figure margins accommodate labels
-        sns.plt.tight_layout()
-        #import ipdb
-        #ipdb.set_trace()
 
     def _refresh(self, region=None):
         pass
