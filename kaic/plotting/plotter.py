@@ -45,12 +45,39 @@ def prepare_normalization(norm="lin", vmin=None, vmax=None):
     else:
         raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
-def plot(plots, region):
-    n = len(plots)
-    fig, axes = plt.subplots(n, sharex=True)
-    for p, a in zip(plots, axes):
-        p.plot(region, a)
-    return fig, axes
+class GenomeFigure(object):
+    def __init__(self, plots, figsize=None):
+        self.plots = plots
+        self.n = len(plots)
+        if figsize is None:
+            figsize = (10, 8*self.n)
+        _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
+
+    @property
+    def fig(self):
+        return self.axes[0].figure
+    
+    def plot(self, region):
+        for p, a in zip(self.plots, self.axes):
+            p.plot(region, ax=a)
+        return self.fig, self.axes
+
+    # def add_colorbar(self):
+    #     vmin, vmax = float("inf"), float("-inf")
+    #     for p in self.plots:
+    #         if p.vmin < vmin:
+    #             vmin = p.vmin
+    #         if p.vmax > vmax:
+    #             vmax = p.vmax
+    #     cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
+    #     cmap_data.set_array([self.vmin, self.vmax])
+    #     self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
+    #     self.colorbar = plt.colorbar(cmap_data, cax=self.cax, **kw)
+
+    # @property
+    # def norm(self):
+    #     return self.p
+    
 
 class GenomeCoordFormatter(Formatter):
     def __init__(self, chromosome=None, start=None):
@@ -365,7 +392,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         log.debug("Plotting matrix")
         # create plot
-        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
+        with sns.axes_style("ticks"):
+            self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
         self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
@@ -373,11 +401,11 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # remove y ticks
         self.ax.set_yticks([])
         # Hide the left, right and top spines
-        sns.despine(left=True)
+        #sns.despine(left=True)
         # hide background patch
         self.ax.patch.set_visible(False)
         # Only show ticks on the left and bottom spines
-        self.ax.xaxis.set_ticks_position('bottom')
+        #self.ax.xaxis.set_ticks_position('bottom')
 
     def _refresh(self, region=None):
         pass
