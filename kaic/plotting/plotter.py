@@ -99,6 +99,18 @@ class GenomeCoordFormatter(ScalarFormatter):
             return "{}:{}".format(self.chromosome, s)
         return s
 
+    def get_offset(self):
+        """
+        Returns little offset string that is written in bottom right corner
+        of plot by default.
+        """
+        if len(self.locs) == 0:
+            return ""
+        s = ""
+        if self.orderOfMagnitude:
+            s = millify(10**self.orderOfMagnitude, precision=0)
+        return self.fix_minus(s) + "b"
+
 class GenomeCoordLocator(MaxNLocator):
     def __call__(self):
         vmin, vmax = self.axis.get_view_interval()
