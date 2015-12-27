@@ -1,4 +1,4 @@
-from matplotlib.ticker import Formatter, MaxNLocator, LinearLocator
+from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from matplotlib.widgets import Slider
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, ABCMeta
@@ -7,10 +7,12 @@ import math
 import matplotlib as mpl
 import logging
 import seaborn as sns
+import ipdb
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
 
+sns.set_style("ticks")
 
 def millify(n, precision=1):
     """Take input float and return human readable string.
@@ -50,7 +52,7 @@ class GenomeFigure(object):
         self.plots = plots
         self.n = len(plots)
         if figsize is None:
-            figsize = (10, 8*self.n)
+            figsize = (8, 5*self.n)
         _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
 
     @property
@@ -60,6 +62,7 @@ class GenomeFigure(object):
     def plot(self, region):
         for p, a in zip(self.plots, self.axes):
             p.plot(region, ax=a)
+        self.fig.tight_layout()
         return self.fig, self.axes
 
     # def add_colorbar(self):
@@ -79,19 +82,36 @@ class GenomeFigure(object):
     #     return self.p
     
 
-class GenomeCoordFormatter(Formatter):
-    def __init__(self, chromosome=None, start=None):
+class GenomeCoordFormatter(ScalarFormatter):
+    def __init__(self, chromosome=None, start=None, sigfigs=3):
+        ScalarFormatter.__init__(self, useOffset=False)
         if isinstance(chromosome, GenomicRegion):
             self.chromosome = chromosome.chromosome
             self.start = chromosome.start
         else:
             self.chromosome = chromosome
             self.start = start
+        self.sigfigs = sigfigs
 
     def __call__(self, x, pos=None):
-        if self.start is not None and self.chromosome is not None and (pos == 0 or x == 0):
-            return "{}:{}".format(self.chromosome, self.start)
-        return millify(x)
+        s = ScalarFormatter.__call__(self, x=x, pos=pos)
+        if pos == 0 or x == 0:
+            return "{}:{}".format(self.chromosome, s)
+        return s
+
+class GenomeCoordLocator(MaxNLocator):
+    def __call__(self):
+        vmin, vmax = self.axis.get_view_interval()
+        ticks = self.tick_values(vmin, vmax)
+        # Make sure that first and last tick are the start
+        # and the end of the genomic range plotted. If next
+        # ticks are too close, remove them.
+        if ticks[0] - vmin < (vmax - vmin)/(self._nbins*3):
+            ticks = ticks[1:]
+        if vmax - ticks[-1] < (vmax - vmin)/(self._nbins*3):
+            ticks = ticks[:-1]
+        ticks = np.r_[vmin, ticks, vmax]
+        return ticks
 
 class BufferedMatrix(object):
     def __init__(self, hic_data):
@@ -181,6 +201,7 @@ class BasePlotter1D(BasePlotter):
             self.ax = ax
         # set genome tick formatter
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
+        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=10))
 
         self._plot(region)
         return self.fig, self.ax
@@ -392,8 +413,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         log.debug("Plotting matrix")
         # create plot
-        with sns.axes_style("ticks"):
-            self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
+        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
         self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
