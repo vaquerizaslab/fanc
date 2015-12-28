@@ -83,7 +83,7 @@ class GenomeFigure(object):
     
 
 class GenomeCoordFormatter(ScalarFormatter):
-    def __init__(self, chromosome=None, start=None, sigfigs=3):
+    def __init__(self, chromosome=None, start=None):
         ScalarFormatter.__init__(self, useOffset=False)
         if isinstance(chromosome, GenomicRegion):
             self.chromosome = chromosome.chromosome
@@ -91,7 +91,6 @@ class GenomeCoordFormatter(ScalarFormatter):
         else:
             self.chromosome = chromosome
             self.start = start
-        self.sigfigs = sigfigs
 
     def __call__(self, x, pos=None):
         s = ScalarFormatter.__call__(self, x=x, pos=pos)
@@ -421,7 +420,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         X_, Y_ = X*sin45 + Y*sin45, X*sin45 - Y*sin45
         # shift x coords to correct start coordinate and center the diagonal directly on the 
         # x-axis
-        X_ -= np.min(X_) - (hm.row_regions[0].start - 1)
+        X_ -= X_[1, 0] - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         log.debug("Plotting matrix")
         # create plot
