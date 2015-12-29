@@ -8,6 +8,7 @@ import matplotlib as mpl
 import logging
 import seaborn as sns
 import ipdb
+import pybedtools as pbt
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -47,12 +48,15 @@ def prepare_normalization(norm="lin", vmin=None, vmax=None):
     else:
         raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
+def region_to_pbt_interval(region):
+    return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
+
 class GenomeFigure(object):
     def __init__(self, plots, figsize=None):
         self.plots = plots
         self.n = len(plots)
         if figsize is None:
-            figsize = (8, 5*self.n)
+            figsize = (8, 4*self.n)
         _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
 
     @property
@@ -171,8 +175,9 @@ class BasePlotter(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self):
+    def __init__(self, title):
         self._ax = None
+        self.title = title
 
     @abstractmethod
     def _plot(self, region=None):
@@ -205,6 +210,9 @@ class BasePlotter1D(BasePlotter):
 
     __metaclass__ = ABCMeta
 
+    def __init__(self, title):
+        BasePlotter.__init__(self, title=title)
+
     def plot(self, region=None, ax=None):
         if isinstance(region, basestring):
             region = GenomicRegion.from_string(region)
@@ -213,7 +221,7 @@ class BasePlotter1D(BasePlotter):
         # set genome tick formatter
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=10))
-
+        self.ax.set_title(self.title)
         self._plot(region)
         return self.fig, self.ax
 
@@ -270,8 +278,8 @@ class BasePlotter2D(BasePlotter):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self):
-        BasePlotter.__init__(self)
+    def __init__(self, title):
+        BasePlotter.__init__(self, title=title)
         self.cid = None
         self.current_chromosome_x = None
         self.current_chromosome_y = None
@@ -324,10 +332,10 @@ class BasePlotter2D(BasePlotter):
         return self.fig, self.ax
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
-    def __init__(self, hic_data, colormap='viridis', norm="log",
+    def __init__(self, hic_data, title='', colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True,
                  adjust_range=True):
-        BasePlotter2D.__init__(self)
+        BasePlotter2D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
                                 norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
                                 adjust_range=adjust_range)
@@ -388,9 +396,9 @@ class HicComparisonPlot2D(HicPlot2D):
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
-    def __init__(self, hic_data, colormap='viridis', max_dist=None, norm="log",
+    def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False):
-        BasePlotter1D.__init__(self)
+        BasePlotter1D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range)
         self.max_dist = max_dist
@@ -440,3 +448,38 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
 
     def _refresh(self, region=None):
         pass
+
+class ScalarPlot(BasePlotter1D):
+    def __init__(self, values, regions, title=''):
+        BasePlotter1D.__init__(self, title=title)
+        self.values = values
+        self.regions = regions
+
+    def _get_values_per_bp(self, region_list):
+        v = np.empty(region_list[-1].end - region_list[0].start + 1)
+        n = 0
+        for r in region_list:
+            v[n:n + r.end - r.start + 1] = self.values[r.ix]
+            n += r.end - r.start + 1
+        return v
+
+    def _plot(self, region):
+        region_list = list(self.regions.intersect(region))
+        v = self._get_values_per_bp(region_list)
+        self.ax.plot(np.arange(region_list[0].start, region_list[-1].end + 1), v)
+
+    def _refresh(self):
+        pass
+
+class GeneModelPlot(BasePlotter1D):
+    def __init__(self, gtf, feature_type="gene", id_field="gene_id"):
+        import pybedtools as pbt
+        BasePlotter1D.__init__(self)
+        self.gtf = pbt.BedTool(gtf)
+        self.feature_type = feature_type
+        self.id_field = id_field
+
+    def _plot(self, region):
+        interval = region_to_pbt_interval(region)
+        genes = self.gtf.all_hits(interval)
+        
