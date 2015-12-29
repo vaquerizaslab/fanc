@@ -1404,12 +1404,12 @@ class RegionsTable(FileBased):
 
     @property
     def chromosome_bins(self):
-    """
-    Returns a dictionary of chromosomes and the start
-    and end index of the bins they cover.
-    """
+        """
+        Returns a dictionary of chromosomes and the start
+        and end index of the bins they cover.
+        """
         chr_bins = {}
-        for r in hic.regions():
+        for r in self.regions():
             if chr_bins.get(r.chromosome) is None:
                 chr_bins[r.chromosome] = [r.ix, r.ix + 1]
                 continue
@@ -3021,7 +3021,6 @@ class LowCoverageFilter(HicEdgeFilter):
         if edge.sink in self._regions_to_mask:
             return False
         return True
-
 
 class HicMatrix(np.ndarray):
     def __new__(cls, input_matrix, col_regions=None, row_regions=None):
