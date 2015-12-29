@@ -1432,7 +1432,7 @@ class RegionsTable(GenomicRegions, FileBased):
         """
         Iterate over genomic regions in this object.
 
-        Will return a :class:`~HicNode` object in every iteration.
+        Will return a :class:`~GenomicRegion` object in every iteration.
         Can also be used to get the number of regions by calling
         len() on the object returned by this method.
 
@@ -1485,6 +1485,50 @@ class RegionsTable(GenomicRegions, FileBased):
             if region.chromosome not in chromosomes:
                 chromosomes.append(region.chromosome)
         return chromosomes
+
+    def region_bins(self, region):
+        """
+        Takes a genomic region and returns a slice of the bin 
+        indices that are covered by the region.
+
+        :param region: String or GenomicRegion
+                       Region for which covered bins will
+                       be returned.
+        """
+        if isinstance(region, basestring):
+            region = GenomicRegion.from_string(region)
+        start_ix = None
+        end_ix = None
+        for r in self.regions():
+            if not (r.chromosome == region.chromosome and r.start < region.end and r.end > region.start):
+                continue
+            if start_ix is None:
+                start_ix = r.ix
+                end_ix = r.ix + 1
+                continue
+            end_ix = r.ix + 1
+        return slice(start_ix, end_ix)
+
+    # def intersect(self, region):
+    #     """
+    #     Takes a genomic region and returns all region that
+    #     overlap with the supplied region.
+    #     """
+    #     if isinstance(region, basestring):
+    #         region = GenomicRegion.from_string(region)
+    #     condition = "(start < %d) & (end > %d) & (chromosome == '%s')"
+    #     condition = condition % (region.end, region.start, region.chromosome)
+    #     return [r for r in self.]
+    def intersect(self, region):
+        """
+        Takes a genomic region and returns all region that
+        overlap with the supplied region.
+        """
+        if isinstance(region, basestring):
+            region = GenomicRegion.from_string(region)
+        condition = "(start < %d) & (end > %d) & (chromosome == '%s')"
+        condition = condition % (region.end, region.start, region.chromosome)
+        return self.regions(selectby=condition)
 
     @property
     def chromosome_lens(self):
