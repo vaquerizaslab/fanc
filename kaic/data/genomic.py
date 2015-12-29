@@ -1474,6 +1474,46 @@ class RegionsTable(GenomicRegions, FileBased):
 
         return RegionIter()
 
+	def chromosomes(self):
+        """
+        Get a list of chromosome names.
+
+        :return:
+        """
+        chromosomes = []
+        for region in self.regions():
+            if region.chromosome not in chromosomes:
+                chromosomes.append(region.chromosome)
+        return chromosomes
+
+    @property
+    def chromosome_lens(self):
+        """
+        Returns a dictionary of chromosomes and their length
+        in bp.
+        """
+        chr_lens = {}
+        for r in self.regions():
+            if chr_lens.get(r.chromosome) is None:
+                chr_lens[r.chromosome] = r.end
+                continue
+            if r.end > chr_lens[r.chromosome]:
+                chr_lens[r.chromosome] = r.end
+        return chr_lens
+
+    @property
+    def chromosome_bins(self):
+    """
+    Returns a dictionary of chromosomes and the start
+    and end index of the bins they cover.
+    """
+        chr_bins = {}
+        for r in hic.regions():
+            if chr_bins.get(r.chromosome) is None:
+                chr_bins[r.chromosome] = [r.ix, r.ix + 1]
+                continue
+            chr_bins[r.chromosome][1] = r.ix + 1
+        return chr_bins
 
 class HicNode(GenomicRegion, TableObject):
     """
@@ -1863,14 +1903,9 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         # find chromosome lengths
         chromosomes = self.chromosomes()
-        chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
-        for region in self.regions():
-            if chromosome_sizes[region.chromosome] < region.end:
-                chromosome_sizes[region.chromosome] = region.end
-
         chromosome_list = []
         for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
+            chromosome_list.append(Chromosome(name=chromosome,length=self.chromosome_lens[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
         hic = Hic(file_name=file_name, mode='w', tmpdir=tmpdir)
