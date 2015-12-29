@@ -1340,7 +1340,7 @@ class RegionsTable(FileBased):
         return GenomicRegion(chromosome=row["chromosome"], start=row["start"],
                              end=row["end"], ix=row["ix"])
 
-    def regions(self):
+    def regions(self, sortby=None):
         """
         Iterate over genomic regions in this object.
 
@@ -1348,13 +1348,21 @@ class RegionsTable(FileBased):
         Can also be used to get the number of regions by calling
         len() on the object returned by this method.
 
+        :param sortby: Iterator will return regions sorted by this
+                       key. Valid are "ix", "start" and "end".
+                       Default: None. Returns regions as stored in
+                       the file.
+
         :return: RegionIter
         """
         this = self
 
         class RegionIter:
             def __init__(self):
-                self.iter = iter(this._regions)
+                if sortby:
+                    self.iter = iter(this._regions.itersorted(sortby=sortby))
+                else:
+                    self.iter = iter(this._regions)
                 
             def __iter__(self):
                 return self
@@ -1373,14 +1381,40 @@ class RegionsTable(FileBased):
 
         :return:
         """
-        chromosomes_set = set()
         chromosomes = []
         for region in self.regions():
-            if region.chromosome not in chromosomes_set:
-                chromosomes_set.add(region.chromosome)
+            if region.chromosome not in chromosomes:
                 chromosomes.append(region.chromosome)
         return chromosomes
 
+    @property
+    def chromosome_lens(self):
+        """
+        Returns a dictionary of chromosomes and their length
+        in bp.
+        """
+        chr_lens = {}
+        for r in self.regions():
+            if chr_lens.get(r.chromosome) is None:
+                chr_lens[r.chromosome] = r.end
+                continue
+            if r.end > chr_lens[r.chromosome]:
+                chr_lens[r.chromosome] = r.end
+        return chr_lens
+
+    @property
+    def chromosome_bins(self):
+    """
+    Returns a dictionary of chromosomes and the start
+    and end index of the bins they cover.
+    """
+        chr_bins = {}
+        for r in hic.regions():
+            if chr_bins.get(r.chromosome) is None:
+                chr_bins[r.chromosome] = [r.ix, r.ix + 1]
+                continue
+            chr_bins[r.chromosome][1] = r.ix + 1
+        return chr_bins
 
 class HicNode(GenomicRegion, TableObject):
     """
@@ -1771,14 +1805,9 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         # find chromosome lengths
         chromosomes = self.chromosomes()
-        chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
-        for region in self.regions():
-            if chromosome_sizes[region.chromosome] < region.end:
-                chromosome_sizes[region.chromosome] = region.end
-
         chromosome_list = []
         for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
+            chromosome_list.append(Chromosome(name=chromosome,length=self.chromosome_lens[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
         hic = Hic(file_name=file_name, mode='w')
