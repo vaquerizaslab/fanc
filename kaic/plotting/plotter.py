@@ -51,6 +51,17 @@ def prepare_normalization(norm="lin", vmin=None, vmax=None):
 def region_to_pbt_interval(region):
     return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
 
+def get_typed_array(input_iterable, nan_strings, count=-1):
+    try:
+        return np.fromiter((0 if x in nan_strings else x for x in input_iterable), int, count)
+    except ValueError:
+        pass
+    try:
+        return np.fromiter((np.nan if x in nan_strings else x for x in input_iterable), float, count)
+    except ValueError:
+        pass
+    return np.fromiter(input_iterable, str, count)
+
 class GenomicTrack(RegionsTable):
     def __init__(self, file_name, data_dict=None, regions=None, _table_name_tracks='tracks'):
         """
@@ -73,6 +84,39 @@ class GenomicTrack(RegionsTable):
         if data_dict:
             for k, v in data_dict.iteritems():
                 self.add_data(k, v)
+
+    @classmethod
+    def from_gtf(cls, file_name, gtf_file, store_attrs=None, nan_strings=[".", ""]):
+        """
+        Import a GTF file as GenomicTrack.
+
+        :param file_name: Storage location of the genomic track HDF5 file
+        :param gtf_file: Location of GTF file_name
+        :param store_attrs: List or listlike
+                            Only store attributes in the list
+        :param nan_strings: These characters will be considered NaN for parsing.
+                            Will become 0 for int arrays, np.nan for float arrays
+                            and left as is for string arrays.
+        """
+        gtf = pbt.BedTool(gtf_file)
+        n = len(gtf)
+        regions = []
+        values = {}
+        for i, f in enumerate(gtf.sort()):
+            regions.append(GenomicRegion(chromosome=f.chrom, start=f.start, end=f.end, strand=f.strand))
+            # Check if there is a new attribute that hasn't occured before
+            for k in f.attrs.keys():
+                if not k in values and (not store_attrs or k in store_attrs):
+                    if i > 0:
+                        # Fill up values for this attribute with nan
+                        values[k] = [nan_strings[0]]*i
+                    else:
+                        values[k] = []
+            for k in values.keys():
+                values[k].append(f.attrs.get(k, nan_strings[0]))
+        for k, v in values.iteritems():
+            values[k] = get_typed_array(v, nan_strings=nan_strings, count=n)
+        return cls(file_name=file_name, data_dict=values, regions=regions)
 
     def add_data(self, title, values, description=None):
         """
