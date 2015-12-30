@@ -1,6 +1,6 @@
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from matplotlib.widgets import Slider
-from kaic.data.genomic import GenomicRegion
+from kaic.data.genomic import GenomicRegion, RegionsTable
 from abc import abstractmethod, ABCMeta
 import numpy as np
 import math
@@ -50,6 +50,53 @@ def prepare_normalization(norm="lin", vmin=None, vmax=None):
 
 def region_to_pbt_interval(region):
     return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
+
+class GenomicTrack(RegionsTable):
+    def __init__(self, file_name, data_dict=None, regions=None, _table_name_tracks='tracks'):
+        """
+        Initialize a genomic track.
+
+        :param file_name: Storage location of the genomic track HDF5 file
+        :param data_dict: Dictionary containing data tracks as numpy arrays.
+                          The arrays must have as many elements in the first
+                          dimension as there are regions.
+        :param regions: An iterable of (:class: `~kaic.data.genomic.GenomicRegion~)
+                        or String elemnts that describe regions.
+        """
+        RegionsTable.__init__(self, file_name=file_name)
+        if regions:
+            self.add_regions(regions)
+        if _table_name_tracks in self.file.root:
+            self._tracks = self.file.get_node('/', _table_name_tracks)
+        else:
+            self._tracks = self.file.create_group('/', _table_name_tracks, "Genomic tracks")
+        if data_dict:
+            for k, v in data_dict.iteritems():
+                self.add_data(k, v)
+
+    def add_data(self, title, values, description=None):
+        """
+        Add a single genomic track to the object
+
+        :param title: A string representing the title or name of the track
+        :param values: A numpy array of values for each region in the object
+        :param description: Longer description of track contents.
+        """
+        if values.shape[0] != len(self._regions):
+            raise ValueError("First dimension of values must have as many elements "
+                             "({}) as there are regions ({})".format(values.shape, len(self._regions)))
+        self.file.create_array(self._tracks, title, values, description if description else "")
+
+    def __getitem__(self, key):
+        if isinstance(key, int) or isinstance(key, slice):
+            return {t.name: t[key] for t in self._tracks}
+        if isinstance(key, basestring):
+            region = GenomicRegion.from_string(key)
+            return self[self.region_bins(region)]
+
+    @property
+    def tracks(self):
+        return self._tracks._f_list_nodes()
 
 class GenomeFigure(object):
     def __init__(self, plots, figsize=None):
