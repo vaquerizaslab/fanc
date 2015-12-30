@@ -3156,7 +3156,7 @@ class HicMatrix(np.ndarray):
                         if start is None:
                             start = i
                         stop = i
-            return slice(start, stop + 1, 1)
+            return slice(start, stop, 1)
         return key
 
 
