@@ -907,6 +907,12 @@ class GenomicRegion(TableObject):
         """
         self.start = start
         self.end = end
+        if strand == "+":
+            strand = 1
+        elif strand == "-":
+            strand = -1
+        elif strand == "0":
+            strand = None
         self.strand = strand
         self.chromosome = chromosome
         self.ix = ix
