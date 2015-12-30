@@ -968,8 +968,11 @@ class GenomicRegion(TableObject):
                 try:
                     end = int(start_end_bp[1])
                 except ValueError:
-                    raise ValueError("End of genomic range must be integer") 
-        
+                    raise ValueError("End of genomic range must be integer")
+
+                if not end > start:
+                    raise ValueError("The end coordinate must be bigger than the start.")
+
         # there is strand information
         if len(fields) > 2:
             if fields[2] == '+' or fields[2] == '+1' or fields[2] == '1':
