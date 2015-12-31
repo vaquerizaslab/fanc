@@ -9,6 +9,7 @@ import logging
 import seaborn as sns
 import ipdb
 import pybedtools as pbt
+import itertools as it
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -220,39 +221,33 @@ class GenomeCoordLocator(MaxNLocator):
         return ticks
 
 class BufferedMatrix(object):
-    def __init__(self, hic_data):
-        self.hic_data = hic_data
-        self.buffered_x_region = None
-        self.buffered_y_region = None
+    def __init__(self, data):
+        self.data = data
+        self.buffered_region = None
         self.buffered_matrix = None
 
-    def is_buffered_region(self, x_region, y_region):
-        if (self.buffered_y_region is None or not self.buffered_y_region.contains(y_region) or
-                self.buffered_x_region is None or not self.buffered_x_region.contains(x_region) or
+    def is_buffered_region(self, *regions):
+        if (self.buffered_region is None or 
+                not all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)) or
                 self.buffered_matrix is None):
             return False
         return True
 
-    def get_matrix(self, x_region=None, y_region=None):
-        if not self.is_buffered_region(x_region, y_region):
+    def get_matrix(self, *regions):
+        ipdb.set_trace()
+        if not self.is_buffered_region(*regions):
             log.info("Buffering matrix")
-            if x_region.start is not None and x_region.end is not None:
-                x_region_size = x_region.end-x_region.start
-                new_x_start = max(1, x_region.start-x_region_size)
-                new_x_end = x_region.end + x_region_size
-                self.buffered_x_region = GenomicRegion(new_x_start, new_x_end, x_region.chromosome)
-            else:
-                self.buffered_x_region = GenomicRegion(None, None, x_region.chromosome)
-
-            if y_region.start is not None and y_region.end is not None:
-                y_region_size = y_region.end-y_region.start
-                new_y_start = max(1, y_region.start-y_region_size)
-                new_y_end = y_region.end + y_region_size
-                self.buffered_y_region = GenomicRegion(new_y_start, new_y_end, y_region.chromosome)
-            else:
-                self.buffered_y_region = GenomicRegion(None, None, y_region.chromosome)
-            self.buffered_matrix = self.hic_data[self.buffered_x_region, self.buffered_y_region]
-        return self.buffered_matrix[y_region, x_region]
+            self.buffered_region = []
+            for rq in regions:
+                if rq.start is not None and rq.end is not None:
+                    rq_size = rq.end - rq.start
+                    new_start = max(1, rq.start - rq_size)
+                    new_end = rq.end + rq_size
+                    self.buffered_region.append(GenomicRegion(start=new_start, end=new_end, chromosome=rq.chromosome))
+                else:
+                    self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
+            self.buffered_matrix = self.data[tuple(self.buffered_region)]
+        return self.buffered_matrix[tuple(regions)]
 
     @property
     def buffered_min(self):
@@ -314,6 +309,7 @@ class BasePlotter1D(BasePlotter):
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=10))
         self.ax.set_title(self.title)
         self._plot(region)
+        self.ax.set_xlim(region.start, region.end)
         return self.fig, self.ax
 
 class BasePlotterHic(object):
@@ -526,7 +522,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
-        self.ax.set_xlim(hm.row_regions[0].start - 1, hm.row_regions[-1].end)
         self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
         # remove y ticks
         self.ax.set_yticks([])
@@ -556,7 +551,7 @@ class ScalarPlot(BasePlotter1D):
 
     def _plot(self, region):
         region_list = list(self.regions.intersect(region))
-        v = self._get_values_per_bp(region_list)
+        v = get_values_per_bp(region_list, self.values)
         self.ax.plot(np.arange(region_list[0].start, region_list[-1].end + 1), v)
 
     def _refresh(self):
