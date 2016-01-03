@@ -143,7 +143,7 @@ class GenomicTrack(RegionsTable):
     def tracks(self):
         return self._tracks._f_list_nodes()
 
-class GenomeFigure(object):
+class GenomicFigure(object):
     def __init__(self, plots, figsize=None):
         self.plots = plots
         self.n = len(plots)
@@ -553,6 +553,31 @@ class ScalarPlot(BasePlotter1D):
         region_list = list(self.regions.intersect(region))
         v = get_values_per_bp(region_list, self.values)
         self.ax.plot(np.arange(region_list[0].start, region_list[-1].end + 1), v)
+
+    def _refresh(self):
+        pass
+
+class GenomicTrackPlot(BasePlotter1D):
+    def __init__(self, track, title=''):
+        BasePlotter1D.__init__(self, title=title)
+        self.track = track
+
+    def get_values_per_bp(self, values, region_list):
+        v = np.empty(region_list[-1].end - region_list[0].start + 1)
+        n = 0
+        for i, r in enumerate(region_list):
+            v[n:n + r.end - r.start + 1] = values[i]
+            n += r.end - r.start + 1
+        return v
+
+    def _plot(self, region):
+        bins = self.track.region_bins(region)
+        values = self.track[bins]
+        regions = self.track.regions()[bins]
+        for k, v in values.iteritems():
+            self.ax.plot(np.arange(regions[0].start, regions[-1].end + 1),
+                self.get_values_per_bp(v, regions), label=k)
+        self.ax.legend()
 
     def _refresh(self):
         pass
