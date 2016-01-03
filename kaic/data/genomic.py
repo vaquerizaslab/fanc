@@ -1387,6 +1387,14 @@ class RegionsTable(FileBased):
             
             def __len__(self):
                 return len(this._regions)
+
+            def __getitem__(self, key):
+                if isinstance(key, int):
+                    return RegionsTable._row_to_region(this._regions[key])
+                elif isinstance(key, slice):
+                    return [RegionsTable._row_to_region(r) for r in this._regions[key]]
+                else:
+                    raise ValueError("key '{}'' is not valid".format(key))
             
         return RegionIter()
 
