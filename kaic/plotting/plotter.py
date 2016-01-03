@@ -562,7 +562,7 @@ class GenomicTrackPlot(BasePlotter1D):
         BasePlotter1D.__init__(self, title=title)
         self.track = track
 
-    def get_values_per_bp(self, values, region_list):
+    def _get_values_per_bp(self, values, region_list):
         v = np.empty(region_list[-1].end - region_list[0].start + 1)
         n = 0
         for i, r in enumerate(region_list):
@@ -576,7 +576,7 @@ class GenomicTrackPlot(BasePlotter1D):
         regions = self.track.regions()[bins]
         for k, v in values.iteritems():
             self.ax.plot(np.arange(regions[0].start, regions[-1].end + 1),
-                self.get_values_per_bp(v, regions), label=k)
+                self._get_values_per_bp(v, regions), label=k)
         self.ax.legend()
 
     def _refresh(self):
