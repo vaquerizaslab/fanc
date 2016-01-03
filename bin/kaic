@@ -51,6 +51,9 @@ class Kaic(object):
                     plot_diff          Plot the difference between two Hic matrices
                     plot_ratio         Plot the ratio between two Hic matrices
 
+                    --- Architecture
+                    structure_tracks
+
                     --- Other
                     hiclib_to_kaic     Convert a hiclib object to a Hic object
 
@@ -2010,6 +2013,49 @@ class Kaic(object):
                                       colormap=args.colormap, log=args.log)
         hic1.close()
         hic2.close()
+        logging.info("All done.")
+
+    def structure_tracks(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Calculate genomic tracks about structural features of the Hi-C map'
+        )
+        parser.add_argument(
+            'hic',
+            help='Input Hic file'
+        )
+        parser.add_argument(
+            'output',
+            help='Output path for genomic track'
+        )
+        parser.add_argument(
+            '-i', '--insulation_index',
+            nargs='+',
+            type=int,
+            help='Calculate insulation index for the given distances.'
+        )
+        parser.add_argument(
+            '-b', '--contact_band',
+            nargs='+',
+            type=str,
+            help='Calculate the contact band for the given distances. Eg. 5-10 10-15.'
+        )
+        args = parser.parse_args(sys.argv[2:])
+        import kaic
+        from kaic.analyzing.architecture import insulation_index, contact_band
+        from kaic.plotting.plotter import GenomicTrack
+        input_path = os.path.expanduser(args.hic)
+        output_path = os.path.expanduser(args.output)
+        h = kaic.Hic(input_path)
+        gt = GenomicTrack(output_path, regions=h.regions())
+        if args.insulation_index:
+            for d in args.insulation_index:
+                logging.info("Calculating insulation index up to {} bins away.".format(d))
+                gt.add_data("insulation_index_{}".format(d), insulation_index(h, d))
+        if args.contact_band:
+            for d1, d2 in (d.split("-") for d in args.contact_band):
+                logging.info("Calculating contact band between {} and {} bins away.".format(d1, d2))
+                gt.add_data("contact_band_{}-{}".format(d1, d2), contact_band(h, d1, d2))
         logging.info("All done.")
 
     def hiclib_to_kaic(self):
