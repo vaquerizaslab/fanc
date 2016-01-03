@@ -52,7 +52,7 @@ class Kaic(object):
                     plot_ratio         Plot the ratio between two Hic matrices
 
                     --- Architecture
-                    structure_tracks
+                    structure_tracks   Calculate structural features of an Hic object
 
                     --- Other
                     hiclib_to_kaic     Convert a hiclib object to a Hic object
