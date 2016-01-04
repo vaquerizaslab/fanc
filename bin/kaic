@@ -1446,13 +1446,19 @@ class Kaic(object):
             '-i', '--insulation_index',
             nargs='+',
             type=int,
-            help='Calculate insulation index for the given distances.'
+            help='Calculate insulation index for the given distances (in bins).'
         )
         parser.add_argument(
             '-b', '--contact_band',
             nargs='+',
             type=str,
-            help='Calculate the contact band for the given distances. Eg. 5-10 10-15.'
+            help='Calculate the contact band for the given distances. Eg. 5-10 10-15. (in bins)'
+        )
+        parser.add_argument(
+            '-d', '--directionality_index',
+            nargs='+',
+            type=int,
+            help='Calculate the directionality index for the given distances (in bp)'
         )
         args = parser.parse_args(sys.argv[2:])
         import kaic
@@ -1469,7 +1475,11 @@ class Kaic(object):
         if args.contact_band:
             for d1, d2 in (d.split("-") for d in args.contact_band):
                 logging.info("Calculating contact band between {} and {} bins away.".format(d1, d2))
-                gt.add_data("contact_band_{}-{}".format(d1, d2), contact_band(h, d1, d2))
+                gt.add_data("contact_band_{}_{}".format(d1, d2), contact_band(h, d1, d2))
+        if args.directionality_index:
+            for d in args.directionality_index:
+                logging.info("Calculating directionality with a window size of {}bp.".format(d))
+                gt.add_data("directionality_index_{}".format(d), h.directionality_index(d))
         logging.info("All done.")
 
     def hiclib_to_kaic(self):
