@@ -7,7 +7,7 @@ Created on Jun 29, 2015
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, HicNode, HicEdge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
-    HicMatrix
+    HicMatrix, RegionsTable
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -197,7 +197,28 @@ class TestGenomicRegions:
         assert bins.start == 9
         assert bins.stop == 15
 
-        
+    def test_intersect(self):
+        # this is essentially the same as region_bins
+        intersect = self.regions.intersect(GenomicRegion(chromosome='chr1', start=3400, end=8100))
+        print intersect
+        assert len(intersect) == 6
+
+class TestRegionsTable(TestGenomicRegions):
+    @classmethod
+    def setup_method(self, method):
+        chromosomes = [
+            {'name': 'chr1', 'end': 10000},
+            {'name': 'chr2', 'end': 15000},
+            {'name': 'chr3', 'end': 7000}
+        ]
+
+        regions = []
+        for chromosome in chromosomes:
+            for start in range(1,chromosome["end"]-1000, 1000):
+                regions.append(GenomicRegion(start, start+999, chromosome=chromosome["name"]))
+        self.regions = RegionsTable(regions)
+
+
 class TestHicBasic:
     
     def setup_method(self, method):

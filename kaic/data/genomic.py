@@ -1203,7 +1203,6 @@ class GenomicRegions(object):
         start_ix = None
         end_ix = None
         for r in self.regions:
-            print r.ix, r
             if not (r.chromosome == region.chromosome and r.start <= region.end and r.end >= region.start):
                 continue
             if start_ix is None:
@@ -1215,24 +1214,14 @@ class GenomicRegions(object):
 
     def intersect(self, region):
         """
-        Takes a genomic region and returns all region that
+        Takes a class:`~GenomicRegion` and returns all regions that
         overlap with the supplied region.
 
         :param region: String or class:`~GenomicRegion`
                        object for which covered bins will
                        be returned.
         """
-        intersect = []
-        for r in self.regions:
-            if not r.chromosome == region.chromosome:
-                continue
-            if not r.start <= region.end:
-                continue
-            if not r.end >= region.start:
-                continue
-            intersect.append(r)
-
-        return intersect
+        return self.regions[self.region_bins(region)]
 
     def chromosomes(self):
         """
@@ -1275,56 +1264,6 @@ class GenomicRegions(object):
             chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
 
-
-class GenomicRegionsDf(GenomicRegions, Table):
-    """
-    A collection of :class:`~GenomicRegion` objects.
-    """
-    class GenomicRegionDescription(t.IsDescription):
-        """
-        Description for PyTables Table representing a :class:`~GenomicRegion`.
-        """
-        chromosome = t.StringCol(50, pos=0)
-        start = t.Int64Col(pos=1)
-        end = t.Int64Col(pos=2)
-        strand = t.Int8Col(pos=3)
-        
-    def __init__(self, file_name=None, regions=None):
-        """
-        :param file_name: Path to a file this object will be saved to.
-        :param regions: A list of :class:`~GenomicRegion` objects.
-        """
-        if not isinstance(file_name, str) and not isinstance(file_name, t.file.File):
-            regions = file_name
-            file_name = None
-        self.file = create_or_open_pytables_file(file_name)
-        
-        # create table
-        columns = ["chromosome", "start", "end", "strand"]
-        column_types = [t.StringCol(50, pos=0), t.Int64Col(pos=1),
-                        t.Int64Col(pos=2), t.Int8Col(pos=3)]
-        Table.__init__(self, colnames=columns, col_types=column_types, return_type=GenomicRegion)
-        
-        # load data if provided
-        if regions is not None:
-            for region in regions:
-                self._add_region(region, flush=False)
-        self._flush()
-
-    def __len__(self):
-        return len(self._table)
-
-    def _get_regions(self, key):
-        return self._table[key]
-
-    def _add_region(self, region, flush=True):
-        self._append_row_dict({
-            'chromosome': region.chromosome,
-            'start': region.start,
-            'end': region.end,
-            'strand': region.strand
-        }, flush=flush)
-    
 
 class RegionsTable(GenomicRegions, FileBased):
     """
@@ -1502,7 +1441,15 @@ class RegionsTable(GenomicRegions, FileBased):
                 return this.regions
 
             def __getitem__(self, item):
-                return RegionsTable._row_to_region(this._regions[item])
+                res = this._regions[item]
+
+                if isinstance(res, np.ndarray):
+                    regions = []
+                    for region in res:
+                        regions.append(RegionsTable._row_to_region(region))
+                    return regions
+                else:
+                    return RegionsTable._row_to_region(res)
             
         return RegionIter()
 
