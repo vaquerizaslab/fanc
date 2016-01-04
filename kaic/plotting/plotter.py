@@ -557,29 +557,47 @@ class ScalarPlot(BasePlotter1D):
         pass
 
 class GenomicTrackPlot(BasePlotter1D):
-    def __init__(self, track, title=''):
+    _STYLE_STEP = "step"
+    _STYLE_MID = "mid"
+
+    def __init__(self, track, mode="step", attributes=None, title=''):
         BasePlotter1D.__init__(self, title=title)
         self.track = track
+        self.attributes = attributes
+        self.mode = mode
+        if mode not in self._STYLES:
+            raise ValueError("Only the modes {} are supported.".format(self._STYLES.iterkeys()))
 
     def _get_values_per_bp(self, values, region_list):
-        v = np.empty(region_list[-1].end - region_list[0].start + 1)
+        x = np.arange(region_list[0].start, region_list[-1].end + 1)
+        y = np.empty(region_list[-1].end - region_list[0].start + 1)
         n = 0
         for i, r in enumerate(region_list):
-            v[n:n + r.end - r.start + 1] = values[i]
+            y[n:n + r.end - r.start + 1] = values[i]
             n += r.end - r.start + 1
-        return v
+        return x, y
+
+    def _get_values_per_mid(self, values, region_list):
+        x = np.empty(len(values), dtype=np.int_)
+        for i, r in enumerate(region_list):
+            x[i] = int(round((r.end + r.start)/2))
+        return x, values
 
     def _plot(self, region):
         bins = self.track.region_bins(region)
         values = self.track[bins]
         regions = self.track.regions()[bins]
         for k, v in values.iteritems():
-            self.ax.plot(np.arange(regions[0].start, regions[-1].end + 1),
-                self._get_values_per_bp(v, regions), label=k)
+            if not self.attributes or k in self.attributes:
+                x, y = self._STYLES[self.mode](self, v, regions)
+                self.ax.plot(x, y, label=k)
         self.ax.legend()
 
     def _refresh(self):
         pass
+
+    _STYLES = {_STYLE_STEP: _get_values_per_bp, 
+               _STYLE_MID: _get_values_per_mid}
 
 class GeneModelPlot(BasePlotter1D):
     def __init__(self, gtf, feature_type="gene", id_field="gene_id"):
