@@ -234,7 +234,6 @@ class BufferedMatrix(object):
         return True
 
     def get_matrix(self, *regions):
-        ipdb.set_trace()
         if not self.is_buffered_region(*regions):
             log.info("Buffering matrix")
             self.buffered_region = []
