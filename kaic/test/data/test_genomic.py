@@ -7,7 +7,7 @@ Created on Jun 29, 2015
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, HicNode, HicEdge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
-    HicMatrix
+    HicMatrix, RegionsTable
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -163,8 +163,62 @@ class TestGenomicRegions:
         with pytest.raises(ValueError):
             # invalid strand
             GenomicRegion.from_string('chr1:0-4956:0')
-    
-        
+
+    def test_len(self):
+        assert len(self.regions) == 29
+        assert len(self.regions.regions) == 29
+
+    def test_iter(self):
+        region_iter = self.regions
+
+        for i, region in enumerate(region_iter):
+            start = 1 + i*1000
+            chromosome = 'chr1'
+            if i > 22:
+                start -= 23000
+                chromosome = 'chr3'
+            elif i > 8:
+                start -= 9000
+                chromosome = 'chr2'
+
+            assert region.chromosome == chromosome
+            assert region.start == start
+
+    def test_region_bins(self):
+        bins = self.regions.region_bins(GenomicRegion(chromosome='chr1', start=3400, end=8100))
+        assert bins.start == 3
+        assert bins.stop == 9
+
+        bins = self.regions.region_bins('chr2:1-5000')
+        assert bins.start == 9
+        assert bins.stop == 14
+
+        bins = self.regions.region_bins('chr2:1-5001')
+        assert bins.start == 9
+        assert bins.stop == 15
+
+    def test_intersect(self):
+        # this is essentially the same as region_bins
+        intersect = self.regions.intersect(GenomicRegion(chromosome='chr1', start=3400, end=8100))
+        print intersect
+        assert len(intersect) == 6
+
+class TestRegionsTable(TestGenomicRegions):
+    @classmethod
+    def setup_method(self, method):
+        chromosomes = [
+            {'name': 'chr1', 'end': 10000},
+            {'name': 'chr2', 'end': 15000},
+            {'name': 'chr3', 'end': 7000}
+        ]
+
+        regions = []
+        for chromosome in chromosomes:
+            for start in range(1,chromosome["end"]-1000, 1000):
+                regions.append(GenomicRegion(start, start+999, chromosome=chromosome["name"]))
+        self.regions = RegionsTable(regions)
+
+
 class TestHicBasic:
     
     def setup_method(self, method):
@@ -789,7 +843,38 @@ class TestHicBasic:
         
         for n in sum(m_corr):
             assert abs(1.0-n) < 1e-5 or n == 0
-        
+
+    def test_knight_matrix_balancing_copy(self):
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+
+        hic = Hic()
+        hic.add_regions(genome.get_regions(10000))
+        hic.load_from_hic(self.hic_cerevisiae)
+
+        m = hic[:, :]
+        assert is_symmetric(m)
+
+        hic_new = knight.correct(hic, copy=True)
+        m_corr = hic_new[:, :]
+        assert is_symmetric(m_corr)
+        assert m_corr.shape == m.shape
+
+        assert hic is not hic_new
+
+        for n in sum(m_corr):
+            assert abs(1.0-n) < 1e-5 or n == 0
+
+        hic_new2 = knight.correct(hic, copy=True, only_intra_chromosomal=True)
+        m_corr_pc = hic_new2[:, :]
+        assert is_symmetric(m_corr_pc)
+        assert m_corr_pc.shape == m.shape
+
+        assert hic is not hic_new2
+
+        for i in xrange(m_corr.shape[0]):
+            for j in xrange(m_corr.shape[1]):
+                assert abs(m_corr[i, j]-m_corr_pc[i, j]) < 0.0001
             
     def test_ice_matrix_balancing(self):
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
@@ -944,15 +1029,15 @@ class TestHicMatrix:
     def test_convert_key(self):
         key = self.m._convert_key('chr1:2001-5000', self.m.row_regions)
         assert key.start == 2
-        assert key.stop == 4
+        assert key.stop == 5
 
         key = self.m._convert_key('chr1', self.m.row_regions)
         assert key.start == 0
-        assert key.stop == 4
+        assert key.stop == 5
 
         key = self.m._convert_key('chr2', self.m.row_regions)
         assert key.start == 5
-        assert key.stop == 7
+        assert key.stop == 8
 
     def test_select(self):
         res_all = self.m[:, :]

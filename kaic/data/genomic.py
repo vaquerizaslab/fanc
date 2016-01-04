@@ -336,12 +336,10 @@ class Bedpe(object):
     
     def __del__(self):
         try:
-            print "Closing hdf5 file"
             self.close()
         except AttributeError:
-            print "Nothing to close"
-    
-    
+            pass
+
     def load_bedpe_file(self,in_file,has_header=True):
         
         if not is_bedpe_file:
@@ -520,8 +518,6 @@ class Bedpe(object):
             if label not in labels:
                 labels.append(label)
         
-
-        print "Running query"
         if query != '':
             contacts = [[x[y] for y in labels] for x in self.table.where(query)]
         else:
@@ -834,7 +830,7 @@ class Genome(Table):
         :return: :class:`~GenomicRegions`
         """
 
-        regions = GenomicRegions(file_name=file_name)
+        regions = RegionsTable(file_name=file_name)
         for chromosome in self:
             split_locations = []
             if isinstance(split, str):
@@ -861,9 +857,8 @@ class Genome(Table):
                                        end=chromosome.length, chromosome=chromosome.name)
             else:
                 region = GenomicRegion(start=1, end=chromosome.length, chromosome=chromosome.name)
-            regions.add_region(region, flush=False)
-            regions._flush()
-                
+            regions.add_region(region, flush=True)
+
         return regions
 
 
@@ -1047,21 +1042,6 @@ class GenomicRegion(TableObject):
             return True
         return False
 
-    def _equals(self, region):
-        if region.chromosome != self.chromosome:
-            return False
-        if region.start != self.start:
-            return False
-        if region.end != self.end:
-            return False
-        return True
-
-    def __eq__(self, other):
-        return self._equals(other)
-
-    def __ne__ (self, other):
-        return not self._equals(other)
-
 
 class BedElement(GenomicRegion):
     def __init__(self, chromosome, start, end, **kwargs):
@@ -1098,75 +1078,203 @@ class LazyGenomicRegion(GenomicRegion):
         return self.static_ix
 
 
-class GenomicRegions(Table):
-    """
-    A collection of :class:`~GenomicRegion` objects.
-    """
-    class GenomicRegionDescription(t.IsDescription):
-        """
-        Description for PyTables Table representing a :class:`~GenomicRegion`.
-        """
-        chromosome = t.StringCol(50, pos=0)
-        start = t.Int64Col(pos=1)
-        end = t.Int64Col(pos=2)
-        strand = t.Int8Col(pos=3)
-        
-    def __init__(self, file_name=None, regions=None):
-        """
-        :param file_name: Path to a file this object will be saved to.
-        :param regions: A list of :class:`~GenomicRegion` objects.
-        """
-        if not isinstance(file_name, str) and not isinstance(file_name, t.file.File):
-            regions = file_name
-            file_name = None
-        self.file = create_or_open_pytables_file(file_name)
-        
-        # create table
-        columns = ["chromosome", "start", "end", "strand"]
-        column_types = [t.StringCol(50, pos=0), t.Int64Col(pos=1),
-                        t.Int64Col(pos=2), t.Int8Col(pos=3)]
-        Table.__init__(self, colnames=columns, col_types=column_types, return_type=GenomicRegion)
-        
-        # load data if provided
+class GenomicRegions(object):
+
+    def __init__(self, regions=None):
+        self._regions = []
+        self._max_region_ix = -1
+
         if regions is not None:
             for region in regions:
-                self.add_region(region, flush=False)
-        self._flush()
-                
-    def add_region(self, region, flush=True):
-        """
-        Add a :class:`~GenomicRegion` to this object.
+                self.add_region(region)
 
-        :param region: A :class:`~GenomicRegion` object or any object
-                       with the same attributes (at least chromosome,
-                       start, end, strand)
+    def add_region(self, region):
         """
+        Add a genomic region to this object.
 
-        # try access by attribute first
-        try:
+        This method offers some flexibility in the types of objects
+        that can be loaded. See below for details.
+
+        :param region: Can be a :class:`~GenomicRegion`, a dict with
+                       at least the fields 'chromosome', 'start', and
+                       'end', optionally 'ix', or a list of length 3
+                       (chromosome, start, end) or 4 (ix, chromosome,
+                       start, end).
+        """
+        ix = -1
+
+        if isinstance(region, GenomicRegion):
+            if hasattr(region, 'ix') and region.ix is not None:
+                ix = region.ix
             chromosome = region.chromosome
             start = region.start
             end = region.end
             strand = region.strand
-        # if that fails try access by item
-        except AttributeError:
+        elif type(region) is dict:
+            if 'ix' in region:
+                ix = region['ix']
             chromosome = region['chromosome']
             start = region['start']
             end = region['end']
-            strand = region['strand']
-        
-        if strand is None:
-            strand = 0
-        
-        self._append_row_dict({
-            'chromosome': chromosome,
-            'start': start,
-            'end': end,
-            'strand': strand
-        }, flush=flush)
-    
+            strand = 1
+            if 'strand' in region:
+                strand = region['strand']
+        else:
+            try:
+                offset = 0
+                if len(region) == 4:
+                    ix = region[0]
+                    offset += 1
+                chromosome = region[offset]
+                start = region[offset + 1]
+                end = region[offset + 2]
+                strand = 1
+            except TypeError:
+                raise ValueError("Node parameter has to be GenomicRegion, dict, or list")
 
-class RegionsTable(FileBased):
+        if ix is None or ix < 0:
+            ix = self._max_region_ix + 1
+
+        new_region = GenomicRegion(chromosome=chromosome, start=start, end=end, strand=strand, ix=ix)
+        return self._add_region(new_region)
+
+    def _add_region(self, region):
+        self._regions.append(region)
+
+        if region.ix > self._max_region_ix:
+            self._max_region_ix = region.ix
+
+        return self._len()
+
+    def _len(self):
+        return len(self._regions)
+
+    def __len__(self):
+        return self._len()
+
+    def _get_regions(self, key):
+        return self._regions[key]
+
+    @property
+    def regions(self):
+        """
+        Iterate over genomic regions in this object.
+
+        Will return a :class:`~GenomicRegion` object in every iteration.
+        Can also be used to get the number of regions by calling
+        len() on the object returned by this method.
+
+        :return: Iterator over requested :class:`~GenomicRegion` objects
+        """
+
+        this = self
+
+        class RegionIter:
+            def __init__(self):
+                self.regions = this._regions
+                self.iter = iter(self.regions)
+
+            def __iter__(self):
+                return self
+
+            def next(self):
+                return self.iter.next()
+
+            def __len__(self):
+                return this._len()
+
+            def __getitem__(self, key):
+                return this._get_regions(key)
+
+            def __call__(self):
+                return this.regions
+
+        return RegionIter()
+
+    def __iter__(self):
+        return self.regions
+
+    def __getitem__(self, item):
+        return self.regions[item]
+
+    def region_bins(self, region):
+        """
+        Takes a genomic region and returns a slice of the bin
+        indices that are covered by the region.
+
+        :param region: String or class:`~GenomicRegion`
+                       object for which covered bins will
+                       be returned.
+        :return: slice
+        """
+        if isinstance(region, basestring):
+            region = GenomicRegion.from_string(region)
+        start_ix = None
+        end_ix = None
+        for r in self.regions:
+            if not (r.chromosome == region.chromosome and r.start <= region.end and r.end >= region.start):
+                continue
+            if start_ix is None:
+                start_ix = r.ix
+                end_ix = r.ix + 1
+                continue
+            end_ix = r.ix + 1
+        return slice(start_ix, end_ix)
+
+    def intersect(self, region):
+        """
+        Takes a class:`~GenomicRegion` and returns all regions that
+        overlap with the supplied region.
+
+        :param region: String or class:`~GenomicRegion`
+                       object for which covered bins will
+                       be returned.
+        """
+        return self.regions[self.region_bins(region)]
+
+    def chromosomes(self):
+        """
+        Get a list of chromosome names.
+        """
+        chromosomes_set = set()
+        chromosomes = []
+        for region in self.regions():
+            if region.chromosome not in chromosomes_set:
+                chromosomes_set.add(region.chromosome)
+                chromosomes.append(region.chromosome)
+        return chromosomes
+
+    @property
+    def chromosome_lens(self):
+        """
+        Returns a dictionary of chromosomes and their length
+        in bp.
+        """
+        chr_lens = {}
+        for r in self.regions:
+            if chr_lens.get(r.chromosome) is None:
+                chr_lens[r.chromosome] = r.end
+                continue
+            if r.end > chr_lens[r.chromosome]:
+                chr_lens[r.chromosome] = r.end
+        return chr_lens
+
+    @property
+    def chromosome_bins(self):
+        """
+        Returns a dictionary of chromosomes and the start
+        and end index of the bins they cover.
+        """
+        chr_bins = {}
+        for r in self.regions:
+            if chr_bins.get(r.chromosome) is None:
+                chr_bins[r.chromosome] = [r.ix, r.ix + 1]
+                continue
+            chr_bins[r.chromosome][1] = r.ix + 1
+        return chr_bins
+
+
+class RegionsTable(GenomicRegions, FileBased):
     """
     PyTables Table wrapper for storing genomic regions.
 
@@ -1184,9 +1292,9 @@ class RegionsTable(FileBased):
         chromosome = t.StringCol(50, pos=1)
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
+        strand = t.Int8Col(pos=4)
     
-    def __init__(self, data=None, file_name=None,
-                 mode='a',
+    def __init__(self, data=None, file_name=None, mode='a',
                  _table_name_regions='regions'):
         """
         Initialize region table.
@@ -1252,65 +1360,28 @@ class RegionsTable(FileBased):
             self._update_references()
 
     def add_region(self, region, flush=True):
-        """
-        Add a genomic region to this object.
+        ix = GenomicRegions.add_region(self, region)
+        if flush:
+            self._regions.flush()
+            self._update_references()
+        return ix
 
-        This method offers some flexibility in the types of objects
-        that can be loaded. See below for details.
-
-        :param region: Can be a :class:`~GenomicRegion`, a dict with
-                       at least the fields 'chromosome', 'start', and
-                       'end', optionally 'ix', or a list of length 3
-                       (chromosome, start, end) or 4 (ix, chromosome,
-                       start, end).
-        :param flush: If True, data will be written to file and made
-                      available immediately. For bulk inserts use
-                      :func:`~RegionsTable.add_regions`.
-        """
-        ix = -1
-        
-        if isinstance(region, GenomicRegion):
-            if hasattr(region, 'ix') and region.ix is not None:
-                ix = region.ix
-            chromosome = region.chromosome
-            start = region.start
-            end = region.end
-        elif type(region) is dict:
-            if 'ix' in region:
-                ix = region['ix']
-            chromosome = region['chromosome']
-            start = region['start']
-            end = region['end']
-        else:
-            try:
-                offset = 0
-                if len(region) == 4:
-                    ix = region[0]
-                    offset += 1
-                chromosome = region[offset]
-                start = region[offset + 1]
-                end = region[offset + 2]
-            except TypeError:
-                raise ValueError("Node parameter has to be HicNode, dict, or list")
-        
-        if ix == -1:
+    def _add_region(self, region):
+        ix = region.ix
+        if ix is None or ix < 0:
             ix = self._max_region_ix + 1
         
         # actually append
         row = self._regions.row
         row['ix'] = ix
-        row['chromosome'] = chromosome
-        row['start'] = start
-        row['end'] = end
+        row['chromosome'] = region.chromosome
+        row['start'] = region.start
+        row['end'] = region.end
         row.append()
         
         if ix > self._max_region_ix:
             self._max_region_ix = ix
-            
-        if flush:
-            self._regions.flush()
-            self._update_references()
-        
+
         return ix
 
     def _update_references(self):
@@ -1349,7 +1420,8 @@ class RegionsTable(FileBased):
         return GenomicRegion(chromosome=row["chromosome"], start=row["start"],
                              end=row["end"], ix=row["ix"])
 
-    def regions(self, selectby=None, sortby=None):
+    @property
+    def regions(self):
         """
         Iterate over genomic regions in this object.
 
@@ -1357,27 +1429,12 @@ class RegionsTable(FileBased):
         Can also be used to get the number of regions by calling
         len() on the object returned by this method.
 
-        :param selectby: Will only retun regions which match the supplied
-                         condition. Must be a Pytables selector expression.
-
-        :param sortby: Iterator will return regions sorted by this
-                       key. Valid are "ix", "start" and "end".
-                       Default: None. Returns regions as stored in
-                       the file.
-
         :return: RegionIter
         """
-        if selectby and sortby:
-            raise ValueError("Cannot sort and select at the same time.")
         this = self
         class RegionIter:
             def __init__(self):
-                if sortby:
-                    self.iter = iter(this._regions.itersorted(sortby=sortby))
-                elif selectby:
-                    self.iter = iter(this._regions.where(selectby))
-                else:
-                    self.iter = iter(this._regions)
+                self.iter = iter(this._regions)
                 
             def __iter__(self):
                 return self
@@ -1388,100 +1445,22 @@ class RegionsTable(FileBased):
             def __len__(self):
                 return len(this._regions)
 
-            def __getitem__(self, key):
-                if isinstance(key, int):
-                    return RegionsTable._row_to_region(this._regions[key])
-                elif isinstance(key, slice):
-                    return [RegionsTable._row_to_region(r) for r in this._regions[key]]
+            def __call__(self):
+                return this.regions
+
+            def __getitem__(self, item):
+                res = this._regions[item]
+
+                if isinstance(res, np.ndarray):
+                    regions = []
+                    for region in res:
+                        regions.append(RegionsTable._row_to_region(region))
+                    return regions
                 else:
-                    raise ValueError("key '{}'' is not valid".format(key))
+                    return RegionsTable._row_to_region(res)
             
         return RegionIter()
 
-    def chromosomes(self):
-        """
-        Get a list of chromosome names.
-
-        :return:
-        """
-        chromosomes = []
-        for region in self.regions():
-            if region.chromosome not in chromosomes:
-                chromosomes.append(region.chromosome)
-        return chromosomes
-
-    def region_bins(self, region):
-        """
-        Takes a genomic region and returns a slice of the bin 
-        indices that are covered by the region.
-
-        :param region: String or GenomicRegion
-                       Region for which covered bins will
-                       be returned.
-        """
-        if isinstance(region, basestring):
-            region = GenomicRegion.from_string(region)
-        start_ix = None
-        end_ix = None
-        for r in self.regions():
-            if not (r.chromosome == region.chromosome and r.start < region.end and r.end > region.start):
-                continue
-            if start_ix is None:
-                start_ix = r.ix
-                end_ix = r.ix + 1
-                continue
-            end_ix = r.ix + 1
-        return slice(start_ix, end_ix)
-
-    # def intersect(self, region):
-    #     """
-    #     Takes a genomic region and returns all region that
-    #     overlap with the supplied region.
-    #     """
-    #     if isinstance(region, basestring):
-    #         region = GenomicRegion.from_string(region)
-    #     condition = "(start < %d) & (end > %d) & (chromosome == '%s')"
-    #     condition = condition % (region.end, region.start, region.chromosome)
-    #     return [r for r in self.]
-    def intersect(self, region):
-        """
-        Takes a genomic region and returns all region that
-        overlap with the supplied region.
-        """
-        if isinstance(region, basestring):
-            region = GenomicRegion.from_string(region)
-        condition = "(start < %d) & (end > %d) & (chromosome == '%s')"
-        condition = condition % (region.end, region.start, region.chromosome)
-        return self.regions(selectby=condition)
-
-    @property
-    def chromosome_lens(self):
-        """
-        Returns a dictionary of chromosomes and their length
-        in bp.
-        """
-        chr_lens = {}
-        for r in self.regions():
-            if chr_lens.get(r.chromosome) is None:
-                chr_lens[r.chromosome] = r.end
-                continue
-            if r.end > chr_lens[r.chromosome]:
-                chr_lens[r.chromosome] = r.end
-        return chr_lens
-
-    @property
-    def chromosome_bins(self):
-        """
-        Returns a dictionary of chromosomes and the start
-        and end index of the bins they cover.
-        """
-        chr_bins = {}
-        for r in self.regions():
-            if chr_bins.get(r.chromosome) is None:
-                chr_bins[r.chromosome] = [r.ix, r.ix + 1]
-                continue
-            chr_bins[r.chromosome][1] = r.ix + 1
-        return chr_bins
 
 class HicNode(GenomicRegion, TableObject):
     """
@@ -1729,11 +1708,10 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         elif mode not in ('r', 'r+'):
             self._node_annotations = t.Table(self.file.root, _table_name_node_annotations,
                                              Hic.HicRegionAnnotationDescription)
+            self._node_annotations.flush()
         else:
             # compatibility with existing objects
             self._node_annotations = None
-
-        self._node_annotations.flush()
 
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
@@ -2343,75 +2321,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             else:
                 all_nodes_ix.append(nodes_ix)
         return all_nodes_ix
-
-    def scaling_factor(self, hic):
-        """
-        Compute the scaling factor to another Hic library.
-
-        Calculates the ratio between the number of contacts in
-        this Hic object to the number of contacts in another
-        Hic object.
-
-        :param hic: A :class:`~Hic` object
-        :return: float
-        """
-        logging.info("Calculating scaling factor...")
-        hic1_sum = 0.0
-        for edge in self.edges(lazy=True):
-            hic1_sum += edge['weight']
-        hic2_sum = 0.0
-        for edge in hic.edges(lazy=True):
-            hic2_sum += edge['weight']
-        scaling_factor = hic1_sum/hic2_sum
-        logging.info("Scaling factor: %f" % scaling_factor)
-        return scaling_factor
-
-    def get_combined_matrix(self, hic, key=None, scaling_factor=None):
-        """
-        Return a :class:`~HicMatrix` where values above the diagonal
-        are from this object and values below the diagonal are from
-        another :class:`~Hic` object.
-
-        "Above the diagonal" refers to the diagonal of the complete
-        Hic object, not the diagonal of the returned matrix.
-
-        :param hic: Another :class:`~Hic` object
-        :param key: A matrix selector. Use tuple to selct row and
-                    columns, also see __getitem__
-        :param scaling_factor: Factor to scale the hic values. If None,
-                               will be computed using
-                               :func:`~Hic.scaling_factor`.
-        :return: :class:`~HicMatrix`
-        """
-        if key is None:
-            key = slice(0, None, None)
-
-        if scaling_factor is None:
-            scaling_factor = self.scaling_factor(hic)
-
-        m_top = self[key]
-
-        # find diagonal
-        row_region = m_top.row_regions[0]
-        matching_index = None
-        for i, col_region in enumerate(m_top.col_regions):
-            if col_region == row_region:
-                matching_index = i
-
-        if matching_index is None:
-            col_region = m_top.col_regions[0]
-            for i, row_region in enumerate(m_top.row_regions):
-                if col_region == row_region:
-                    matching_index = -1*i
-
-        if matching_index is None:
-            return m_top
-
-        # replace diagonal
-        m_bottom = hic[key]*scaling_factor
-        top_indices = np.triu_indices(m_top.shape[0], matching_index, m_top.shape[1])
-        m_bottom[top_indices] = m_top[top_indices]
-        return m_bottom
     
     def as_data_frame(self, key):
         """
@@ -3164,7 +3073,7 @@ class HicMatrix(np.ndarray):
                         if start is None:
                             start = i
                         stop = i
-            return slice(start, stop, 1)
+            return slice(start, stop+1, 1)
         return key
 
 

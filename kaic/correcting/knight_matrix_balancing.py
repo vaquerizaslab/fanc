@@ -2,22 +2,71 @@ import logging
 import warnings
 import numpy as np
 from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
+from kaic.data.genomic import Hic
 
 
-def correct(hic, only_intra_chromosomal=False):
+def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
+    hic_new = None
+    chromosome_starts = dict()
+    last_chromosome = None
+    if copy:
+        hic_new = Hic(file_name=file_name, mode='w')
+        for i, region in enumerate(hic.regions()):
+            hic_new.add_region(region, flush=False)
+            if region.chromosome != last_chromosome:
+                chromosome_starts[region.chromosome] = i
+            last_chromosome = region.chromosome
+        hic_new.flush()
+
     if only_intra_chromosomal:
         bias_vectors = []
         for chromosome in hic.chromosomes():
             m = hic[chromosome, chromosome]
             m_corrected, bias_vector_chromosome = correct_matrix(m)
-            hic[chromosome, chromosome] = m_corrected
+            logging.info("Adding/replacing edges...")
+            if hic_new is None:
+                hic[chromosome, chromosome] = m_corrected
+            else:
+                chromosome_offset = chromosome_starts[chromosome]
+                for i in xrange(m_corrected.shape[0]):
+                    i_region = i + chromosome_offset
+                    for j in xrange(i, m_corrected.shape[1]):
+                        j_region = j + chromosome_offset
+                        weight = m_corrected[i, j]
+                        if weight != 0:
+                            hic_new.add_edge([i_region, j_region, weight], flush=False)
             bias_vectors.append(bias_vector_chromosome)
-        hic.bias_vector(np.concatenate(bias_vectors))
+            logging.info("Done.")
+        logging.info("Adding bias vector...")
+        if hic_new is None:
+            hic.bias_vector(np.concatenate(bias_vectors))
+        else:
+            hic_new.bias_vector(np.concatenate(bias_vectors))
+        logging.info("Done.")
     else:
         m = hic[:, :]
         m_corrected, bias_vector = correct_matrix(m)
-        hic[:, :] = m_corrected
-        hic.bias_vector(bias_vector)
+        logging.info("Adding/replacing edges...")
+        if hic_new is None:
+            hic[:, :] = m_corrected
+        else:
+            for i in xrange(m_corrected.shape[0]):
+                for j in xrange(i, m_corrected.shape[1]):
+                    weight = m_corrected[i, j]
+                    if weight != 0:
+                        hic_new.add_edge([i, j, weight], flush=False)
+        logging.info("Done.")
+        logging.info("Adding bias vector...")
+        if hic_new is None:
+            hic.bias_vector(bias_vector)
+        else:
+            hic_new.bias_vector(bias_vector)
+        logging.info("Done.")
+
+    if hic_new is None:
+        return hic
+    hic_new.flush()
+    return hic_new
 
 
 def correct_matrix(m, max_attempts=50):

@@ -986,28 +986,37 @@ class Kaic(object):
 
         # copy file if required
         original_input_path = os.path.expanduser(args.input)
+        original_output_path = os.path.expanduser(args.output)
         if args.tmp:
             logging.info("Copying data to temporary file...")
             input_path = create_temporary_copy(original_input_path)
             logging.info("Working from temporary file %s" % input_path)
+            tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            tmp_file.close()
+            output_path = tmp_file.name
+            logging.info("Temporary output file: %s" % output_path)
         else:
-            input_path = copy_or_expand(original_input_path, args.output)
-
-        hic = kaic.Hic(file_name=input_path)
+            input_path = os.path.expanduser(args.input)
+            output_path = os.path.expanduser(args.output)
 
         if args.ice:
             import kaic.correcting.ice_matrix_balancing as ice
+            hic = kaic.Hic(file_name=input_path, mode='a')
             ice.correct(hic)
+            hic.close()
+            if args.tmp:
+                logging.info("Moving temporary output file to destination %s" % original_output_path)
+                shutil.move(input_path, original_output_path)
         else:
             import kaic.correcting.knight_matrix_balancing as knight
-            knight.correct(hic, only_intra_chromosomal=args.chromosome)
-
-        hic.close()
-
-        if args.tmp:
-            output_path = os.path.expanduser(args.output)
-            logging.info("Moving temporary output file to destination %s" % output_path)
-            shutil.move(input_path, output_path)
+            hic = kaic.Hic(file_name=input_path, mode='r')
+            hic_new = knight.correct(hic, only_intra_chromosomal=args.chromosome, copy=True, file_name=output_path)
+            hic.close()
+            hic_new.close()
+            if args.tmp:
+                logging.info("Moving temporary output file to destination %s" % original_output_path)
+                os.unlink(input_path)
+                shutil.move(output_path, original_output_path)
 
         logging.info("All done.")
 
