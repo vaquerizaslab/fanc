@@ -142,7 +142,7 @@ class GenomicTrack(RegionsTable):
 
     @property
     def tracks(self):
-        return self._tracks._f_list_nodes()
+        return {t.name: t[:] for t in self._tracks}
 
 class GenomicFigure(object):
     def __init__(self, plots, figsize=None):
@@ -561,13 +561,13 @@ class GenomicTrackPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, track, mode="step", attributes=None, title=''):
+    def __init__(self, track, style="step", attributes=None, title=''):
         BasePlotter1D.__init__(self, title=title)
         self.track = track
         self.attributes = attributes
-        self.mode = mode
-        if mode not in self._STYLES:
-            raise ValueError("Only the modes {} are supported.".format(self._STYLES.iterkeys()))
+        self.style = style
+        if style not in self._STYLES:
+            raise ValueError("Only the styles {} are supported.".format(self._STYLES.iterkeys()))
 
     def _get_values_per_bp(self, values, region_list):
         x = np.arange(region_list[0].start, region_list[-1].end + 1)
@@ -590,7 +590,7 @@ class GenomicTrackPlot(BasePlotter1D):
         regions = self.track.regions()[bins]
         for k, v in values.iteritems():
             if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
-                x, y = self._STYLES[self.mode](self, v, regions)
+                x, y = self._STYLES[self.style](self, v, regions)
                 self.ax.plot(x, y, label=k)
         self.ax.legend()
 
