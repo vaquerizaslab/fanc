@@ -163,7 +163,40 @@ class TestGenomicRegions:
         with pytest.raises(ValueError):
             # invalid strand
             GenomicRegion.from_string('chr1:0-4956:0')
-    
+
+    def test_len(self):
+        assert len(self.regions) == 29
+        assert len(self.regions.regions) == 29
+
+    def test_iter(self):
+        region_iter = self.regions
+
+        for i, region in enumerate(region_iter):
+            start = 1 + i*1000
+            chromosome = 'chr1'
+            if i > 22:
+                start -= 23000
+                chromosome = 'chr3'
+            elif i > 8:
+                start -= 9000
+                chromosome = 'chr2'
+
+            assert region.chromosome == chromosome
+            assert region.start == start
+
+    def test_region_bins(self):
+        bins = self.regions.region_bins(GenomicRegion(chromosome='chr1', start=3400, end=8100))
+        assert bins.start == 3
+        assert bins.stop == 9
+
+        bins = self.regions.region_bins('chr2:1-5000')
+        assert bins.start == 9
+        assert bins.stop == 14
+
+        bins = self.regions.region_bins('chr2:1-5001')
+        assert bins.start == 9
+        assert bins.stop == 15
+
         
 class TestHicBasic:
     
