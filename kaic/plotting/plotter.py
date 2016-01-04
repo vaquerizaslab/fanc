@@ -427,7 +427,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                                 adjust_range=adjust_range)
 
     def _plot(self, x_region=None, y_region=None):
-        m = self.hic_buffer.get_matrix(x_region=x_region, y_region=y_region)
+        m = self.hic_buffer.get_matrix(x_region, y_region)
         self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm,
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
@@ -441,7 +441,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
     def _refresh(self, x_region=None, y_region=None):
         print "refreshing"
-        m = self.hic_buffer.get_matrix(x_region=x_region, y_region=y_region)
+        m = self.hic_buffer.get_matrix(x_region, y_region)
 
         self.im.set_data(m)
         self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
