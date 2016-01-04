@@ -2053,18 +2053,19 @@ class Kaic(object):
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
         h = kaic.Hic(input_path)
+        hic_matrix = h[:]
         gt = GenomicTrack(output_path, regions=h.regions())
         if args.insulation_index:
             for d in args.insulation_index:
                 logging.info("Calculating insulation index up to {} bins away.".format(d))
-                gt.add_data("insulation_index_{}".format(d), insulation_index(h, d))
+                gt.add_data("insulation_index_{}".format(d), insulation_index(h, d, hic_matrix=hic_matrix))
         if args.contact_band:
             for d1, d2 in (d.split("-") for d in args.contact_band):
                 logging.info("Calculating contact band between {} and {} bins away.".format(d1, d2))
-                gt.add_data("contact_band_{}_{}".format(d1, d2), contact_band(h, d1, d2))
+                gt.add_data("contact_band_{}_{}".format(d1, d2), contact_band(h, d1, d2, hic_matrix=hic_matrix))
         if args.directionality_index:
             for d in args.directionality_index:
-                logging.info("Calculating directionality with a window size of {}bp.".format(d))
+                logging.info("Calculating directionality index with a window size of {}bp.".format(d))
                 gt.add_data("directionality_index_{}".format(d), h.directionality_index(d))
         logging.info("All done.")
 
