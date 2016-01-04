@@ -975,15 +975,15 @@ class TestHicMatrix:
     def test_convert_key(self):
         key = self.m._convert_key('chr1:2001-5000', self.m.row_regions)
         assert key.start == 2
-        assert key.stop == 4
+        assert key.stop == 5
 
         key = self.m._convert_key('chr1', self.m.row_regions)
         assert key.start == 0
-        assert key.stop == 4
+        assert key.stop == 5
 
         key = self.m._convert_key('chr2', self.m.row_regions)
         assert key.start == 5
-        assert key.stop == 7
+        assert key.stop == 8
 
     def test_select(self):
         res_all = self.m[:, :]
