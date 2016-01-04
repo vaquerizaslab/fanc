@@ -10,6 +10,7 @@ import seaborn as sns
 import ipdb
 import pybedtools as pbt
 import itertools as it
+import re
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -588,7 +589,7 @@ class GenomicTrackPlot(BasePlotter1D):
         values = self.track[bins]
         regions = self.track.regions()[bins]
         for k, v in values.iteritems():
-            if not self.attributes or k in self.attributes:
+            if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
                 x, y = self._STYLES[self.mode](self, v, regions)
                 self.ax.plot(x, y, label=k)
         self.ax.legend()
