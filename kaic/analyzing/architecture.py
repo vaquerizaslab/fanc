@@ -4,11 +4,12 @@ import logging
 log = logging.getLogger(__name__)
 log.setLevel(10)
 
-def insulation_index(hic, d):
+def insulation_index(hic, d, hic_matrix=None):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
-    log.debug("Fetching matrix")
-    hic_matrix = hic[:,:]
+    if hic_matrix is None:
+        log.debug("Fetching matrix")
+        hic_matrix = hic[:,:]
     ins_matrix = np.empty(n)
     log.debug("Starting processing")
     for i, r in enumerate(hic.regions()):
@@ -21,11 +22,12 @@ def insulation_index(hic, d):
         ins_matrix[i] = np.ma.sum(hic_matrix[i: i + d, i - d:i])
     return ins_matrix
 
-def contact_band(hic, d1, d2, use_oe_ratio=False):
+def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
-    log.debug("Fetching matrix")
-    hic_matrix = hic[:,:]
+    if hic_matrix is None:
+        log.debug("Fetching matrix")
+        hic_matrix = hic[:,:]
     band = np.empty(n)
     if use_oe_ratio:
         raise NotImplementedError("oe not implemented yet :(")
