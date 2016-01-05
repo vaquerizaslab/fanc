@@ -1,6 +1,7 @@
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from matplotlib.widgets import Slider
 from kaic.data.genomic import GenomicRegion, RegionsTable
+import matplotlib.patches as patches
 from abc import abstractmethod, ABCMeta
 import numpy as np
 import math
@@ -652,9 +653,9 @@ class GenomicTrackPlot(BasePlotter1D):
                _STYLE_MID: _get_values_per_mid}
 
 class GeneModelPlot(BasePlotter1D):
-    def __init__(self, gtf, feature_type="gene", id_field="gene_id"):
+    def __init__(self, gtf, title="", feature_type="gene", id_field="gene_symbol"):
         import pybedtools as pbt
-        BasePlotter1D.__init__(self)
+        BasePlotter1D.__init__(self, title=title)
         self.gtf = pbt.BedTool(gtf)
         self.feature_type = feature_type
         self.id_field = id_field
@@ -662,4 +663,16 @@ class GeneModelPlot(BasePlotter1D):
     def _plot(self, region):
         interval = region_to_pbt_interval(region)
         genes = self.gtf.all_hits(interval)
-        
+        trans = self.ax.get_xaxis_transform()
+        for g in genes:
+            gene_patch = patches.Rectangle(
+                (g.start, 0.05),
+                width=abs(g.end - g.start), height=0.03,
+                transform=trans, color="black"
+            )
+            self.ax.add_patch(gene_patch)
+            self.ax.text((g.start + g.end)/2, 0.6, g.attrs[self.id_field], transform=trans,
+                         ha="center", size="small")
+
+    def _refresh(self):
+        pass
