@@ -620,13 +620,13 @@ class GenomicTrackPlot(BasePlotter1D):
         if style not in self._STYLES:
             raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
 
-    def _get_values_per_bp(self, values, region_list):
-        x = np.arange(region_list[0].start, region_list[-1].end + 1)
-        y = np.empty(region_list[-1].end - region_list[0].start + 1)
-        n = 0
+    def _get_values_per_step(self, values, region_list):
+        x = np.empty(len(region_list)*2)
+        y = np.empty(len(region_list)*2)
         for i, r in enumerate(region_list):
-            y[n:n + r.end - r.start + 1] = values[i]
-            n += r.end - r.start + 1
+            j = i*2
+            x[j], x[j + 1] = r.start, r.end
+            y[j:j + 2] = values[i]
         return x, y
 
     def _get_values_per_mid(self, values, region_list):
@@ -649,7 +649,7 @@ class GenomicTrackPlot(BasePlotter1D):
     def _refresh(self):
         pass
 
-    _STYLES = {_STYLE_STEP: _get_values_per_bp, 
+    _STYLES = {_STYLE_STEP: _get_values_per_step,
                _STYLE_MID: _get_values_per_mid}
 
 class GeneModelPlot(BasePlotter1D):
