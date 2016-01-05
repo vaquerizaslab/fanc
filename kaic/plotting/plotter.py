@@ -244,32 +244,57 @@ class GenomeCoordLocator(MaxNLocator):
         return ticks
 
 class BufferedMatrix(object):
-    def __init__(self, data):
+    _STRATEGY_ALL = "all"
+    _STRATEGY_FIXED = "fixed"
+    _STRATEGY_RELATIVE ="relative"
+
+    def __init__(self, data, buffering_strategy="relative", buffering_arg=1):
         self.data = data
+        if buffering_strategy not in self._BUFFERING_STRATEGIES:
+            raise ValueError("Only support the buffering strategies {}".format(self._BUFFERING_STRATEGIES.keys()))
+        self.buffering_strategy = buffering_strategy
+        self.buffering_arg = buffering_arg
         self.buffered_region = None
         self.buffered_matrix = None
 
     def is_buffered_region(self, *regions):
-        if (self.buffered_region is None or 
-                not all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)) or
-                self.buffered_matrix is None):
+        if (self.buffered_region is None or self.buffered_matrix is None or
+                (not self.buffered_region == self._STRATEGY_ALL and not all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)))):
             return False
         return True
 
     def get_matrix(self, *regions):
         if not self.is_buffered_region(*regions):
             log.info("Buffering matrix")
-            self.buffered_region = []
-            for rq in regions:
-                if rq.start is not None and rq.end is not None:
-                    rq_size = rq.end - rq.start
-                    new_start = max(1, rq.start - rq_size)
-                    new_end = rq.end + rq_size
-                    self.buffered_region.append(GenomicRegion(start=new_start, end=new_end, chromosome=rq.chromosome))
-                else:
-                    self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
-            self.buffered_matrix = self.data[tuple(self.buffered_region)]
+            self._BUFFERING_STRATEGIES[self.buffering_strategy](self, *regions)
         return self.buffered_matrix[tuple(regions)]
+
+    def _buffer_all(self, *regions):
+        self.buffered_region = self._STRATEGY_ALL
+        self.buffered_matrix = self.data[tuple([slice(None, None)]*len(regions))]
+
+    def _buffer_relative(self, *regions):
+        self.buffered_region = []
+        for rq in regions:
+            if rq.start is not None and rq.end is not None:
+                rq_size = rq.end - rq.start
+                new_start = max(1, rq.start - rq_size*self.buffering_arg)
+                new_end = rq.end + rq_size*self.buffering_arg
+                self.buffered_region.append(GenomicRegion(start=new_start, end=new_end, chromosome=rq.chromosome))
+            else:
+                self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
+        self.buffered_matrix = self.data[tuple(self.buffered_region)]
+
+    def _buffer_fixed(self, *regions):
+        self.buffered_region = []
+        for rq in regions:
+            if rq.start is not None and rq.end is not None:
+                new_start = max(1, rq.start - self.buffering_arg)
+                new_end = rq.end + self.buffering_arg
+                self.buffered_region.append(GenomicRegion(start=new_start, end=new_end, chromosome=rq.chromosome))
+            else:
+                self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
+        self.buffered_matrix = self.data[tuple(self.buffered_region)]
 
     @property
     def buffered_min(self):
@@ -278,6 +303,10 @@ class BufferedMatrix(object):
     @property
     def buffered_max(self):
         return np.ma.max(self.buffered_matrix) if self.buffered_matrix is not None else None
+
+    _BUFFERING_STRATEGIES = {_STRATEGY_ALL: _buffer_all, 
+                             _STRATEGY_RELATIVE: _buffer_relative,
+                             _STRATEGY_FIXED: _buffer_fixed}
 
 class BasePlotter(object):
 
@@ -339,9 +368,10 @@ class BasePlotterHic(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, hic_data, colormap='viridis', norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True):
+                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
+                 buffering_strategy="relative", buffering_arg=1):
         self.hic_data = hic_data
-        self.hic_buffer = BufferedMatrix(hic_data)
+        self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
         self.colormap = mpl.cm.get_cmap(colormap)
         self._vmin = vmin
         self._vmax = vmax
@@ -443,11 +473,11 @@ class BasePlotter2D(BasePlotter):
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True,
-                 adjust_range=True):
+                 adjust_range=True, buffering_strategy="relative", buffering_arg=1):
         BasePlotter2D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
                                 norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
-                                adjust_range=adjust_range)
+                                adjust_range=adjust_range, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
 
     def _plot(self, x_region=None, y_region=None):
         m = self.hic_buffer.get_matrix(x_region, y_region)
@@ -506,10 +536,12 @@ class HicComparisonPlot2D(HicPlot2D):
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=False):
+                 vmin=None, vmax=None, show_colorbar=True, adjust_range=False,
+                 buffering_strategy="relative", buffering_arg=1):
         BasePlotter1D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
-                                show_colorbar=show_colorbar, adjust_range=adjust_range)
+                                show_colorbar=show_colorbar, adjust_range=adjust_range,
+                                buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
         self.max_dist = max_dist
 
     def _plot(self, region=None):
@@ -585,7 +617,7 @@ class GenomicTrackPlot(BasePlotter1D):
         self.attributes = attributes
         self.style = style
         if style not in self._STYLES:
-            raise ValueError("Only the styles {} are supported.".format(self._STYLES.iterkeys()))
+            raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
 
     def _get_values_per_bp(self, values, region_list):
         x = np.arange(region_list[0].start, region_list[-1].end + 1)
