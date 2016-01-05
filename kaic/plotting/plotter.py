@@ -10,6 +10,7 @@ import seaborn as sns
 import ipdb
 import pybedtools as pbt
 import itertools as it
+import tables
 import re
 plt = sns.plt
 log = logging.getLogger(__name__)
@@ -65,7 +66,7 @@ def get_typed_array(input_iterable, nan_strings, count=-1):
     return np.fromiter(input_iterable, str, count)
 
 class GenomicTrack(RegionsTable):
-    def __init__(self, file_name, data_dict=None, regions=None, _table_name_tracks='tracks'):
+    def __init__(self, file_name, title=None, data_dict=None, regions=None, _table_name_tracks='tracks'):
         """
         Initialize a genomic track.
 
@@ -73,6 +74,7 @@ class GenomicTrack(RegionsTable):
         :param data_dict: Dictionary containing data tracks as numpy arrays.
                           The arrays must have as many elements in the first
                           dimension as there are regions.
+        :param title: The overall title of the track.
         :param regions: An iterable of (:class: `~kaic.data.genomic.GenomicRegion~)
                         or String elemnts that describe regions.
         """
@@ -83,6 +85,8 @@ class GenomicTrack(RegionsTable):
             self._tracks = self.file.get_node('/', _table_name_tracks)
         else:
             self._tracks = self.file.create_group('/', _table_name_tracks, "Genomic tracks")
+        if title:
+            self.title = title
         if data_dict:
             for k, v in data_dict.iteritems():
                 self.add_data(k, v)
@@ -120,18 +124,18 @@ class GenomicTrack(RegionsTable):
             values[k] = get_typed_array(v, nan_strings=nan_strings, count=n)
         return cls(file_name=file_name, data_dict=values, regions=regions)
 
-    def add_data(self, title, values, description=None):
+    def add_data(self, name, values, description=None):
         """
         Add a single genomic track to the object
 
-        :param title: A string representing the title or name of the track
+        :param name: A string representing the name or name of the track
         :param values: A numpy array of values for each region in the object
         :param description: Longer description of track contents.
         """
         if values.shape[0] != len(self._regions):
             raise ValueError("First dimension of values must have as many elements "
                              "({}) as there are regions ({})".format(values.shape, len(self._regions)))
-        self.file.create_array(self._tracks, title, values, description if description else "")
+        self.file.create_array(self._tracks, name, values, description if description else "")
 
     def __getitem__(self, key):
         if isinstance(key, int) or isinstance(key, slice):
@@ -143,6 +147,24 @@ class GenomicTrack(RegionsTable):
     @property
     def tracks(self):
         return {t.name: t[:] for t in self._tracks}
+
+    @property
+    def title(self):
+        try:
+            return self.file.get_node("/title").read()
+        except tables.NoSuchNodeError:
+            return None
+
+    @title.setter
+    def title(self, value):
+        if value is None:
+            self.file.remove_node("/title")
+            return None
+        try:
+            self.file.create_array("/", "title", value)
+        except tables.NodeError:
+            self.file.remove_node("/title")
+            self.file.create_array("/", "title", value)
 
 class GenomicFigure(object):
     def __init__(self, plots, figsize=None):
@@ -503,7 +525,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
                     hm[np.triu_indices(hm.shape[0], k=i)] = np.nan
                     break
         hm_masked = np.ma.MaskedArray(hm, mask=np.isnan(hm))
-        log.debug("Rotating matrix")
         # prepare an array of the corner coordinates of the Hic-matrix
         # Distances have to be scaled by sqrt(2), because the diagonals of the bins
         # are sqrt(2)*len(bin_size)
@@ -517,7 +538,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # x-axis
         X_ -= X_[1, 0] - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
-        log.debug("Plotting matrix")
         # create plot
         self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
         # set limits and aspect ratio
@@ -525,12 +545,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
         # remove y ticks
         self.ax.set_yticks([])
-        # Hide the left, right and top spines
-        #sns.despine(left=True)
         # hide background patch
         self.ax.patch.set_visible(False)
-        # Only show ticks on the left and bottom spines
-        #self.ax.xaxis.set_ticks_position('bottom')
 
     def _refresh(self, region=None):
         pass
@@ -561,9 +577,11 @@ class GenomicTrackPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, track, style="step", attributes=None, title=''):
+    def __init__(self, tracks, style="step", attributes=None, title=''):
         BasePlotter1D.__init__(self, title=title)
-        self.track = track
+        if not isinstance(tracks, list):
+            tracks = [tracks]
+        self.tracks = tracks
         self.attributes = attributes
         self.style = style
         if style not in self._STYLES:
@@ -585,13 +603,14 @@ class GenomicTrackPlot(BasePlotter1D):
         return x, values
 
     def _plot(self, region):
-        bins = self.track.region_bins(region)
-        values = self.track[bins]
-        regions = self.track.regions()[bins]
-        for k, v in values.iteritems():
-            if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
-                x, y = self._STYLES[self.style](self, v, regions)
-                self.ax.plot(x, y, label=k)
+        for track in self.tracks:
+            bins = track.region_bins(region)
+            values = track[bins]
+            regions = track.regions()[bins]
+            for k, v in values.iteritems():
+                if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
+                    x, y = self._STYLES[self.style](self, v, regions)
+                    self.ax.plot(x, y, label="{}{}".format(track.title + "_" if track.title and len(self.tracks) > 1 else "", k))
         self.ax.legend()
 
     def _refresh(self):
