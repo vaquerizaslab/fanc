@@ -22,6 +22,26 @@ def insulation_index(hic, d, hic_matrix=None):
         ins_matrix[i] = np.ma.sum(hic_matrix[i: i + d, i - d:i])
     return ins_matrix
 
+def rel_insulation_index(hic, d, hic_matrix=None):
+    chr_bins = hic.chromosome_bins
+    n = len(hic.regions())
+    if hic_matrix is None:
+        log.debug("Fetching matrix")
+        hic_matrix = hic[:,:]
+    rel_ins_matrix = np.empty(n)
+    log.debug("Starting processing")
+    for i, r in enumerate(hic.regions()):
+        if i - chr_bins[r.chromosome][0] < d:
+            rel_ins_matrix[i] = np.nan
+            continue
+        if chr_bins[r.chromosome][1] - i < d:
+            rel_ins_matrix[i] = np.nan
+            continue
+        rel_ins_matrix[i] = ((np.ma.sum(hic_matrix[i - d:i, i - d:i]) +
+            np.ma.sum(hic_matrix[i:i + d, i:i + d])) /
+            (2*np.ma.sum(hic_matrix[i: i + d, i - d:i])))
+    return rel_ins_matrix
+
 def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
