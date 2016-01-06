@@ -1412,7 +1412,7 @@ class RegionsTable(GenomicRegions, FileBased):
                              end=row["end"], ix=row["ix"])
 
     @property
-    def regions(self, lazy=False):
+    def regions(self):
         """
         Iterate over genomic regions in this object.
 
@@ -1430,18 +1430,20 @@ class RegionsTable(GenomicRegions, FileBased):
         class RegionIter:
             def __init__(self):
                 self.iter = iter(this._regions)
+                self.lazy = False
                 
             def __iter__(self):
                 return self
             
             def next(self):
-                return RegionsTable._row_to_region(self.iter.next(), lazy=lazy)
+                return RegionsTable._row_to_region(self.iter.next(), lazy=self.lazy)
             
             def __len__(self):
                 return len(this._regions)
 
-            def __call__(self):
-                return this.regions
+            def __call__(self, lazy=False):
+                self.lazy = lazy
+                return iter(self)
 
             def __getitem__(self, item):
                 res = this._regions[item]
@@ -1449,10 +1451,10 @@ class RegionsTable(GenomicRegions, FileBased):
                 if isinstance(res, np.ndarray):
                     regions = []
                     for region in res:
-                        regions.append(RegionsTable._row_to_region(region, lazy=lazy))
+                        regions.append(RegionsTable._row_to_region(region, lazy=self.lazy))
                     return regions
                 else:
-                    return RegionsTable._row_to_region(res, lazy=lazy)
+                    return RegionsTable._row_to_region(res, lazy=self.lazy)
             
         return RegionIter()
 
