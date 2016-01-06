@@ -1412,13 +1412,16 @@ class RegionsTable(GenomicRegions, FileBased):
                              end=row["end"], ix=row["ix"])
 
     @property
-    def regions(self):
+    def regions(self, lazy=False):
         """
         Iterate over genomic regions in this object.
 
         Will return a :class:`~HicNode` object in every iteration.
         Can also be used to get the number of regions by calling
         len() on the object returned by this method.
+
+        :param lazy: If True, will only retrieve properties in
+                     a lazy fashion, i.e. on request
 
         :return: RegionIter
         """
@@ -1432,7 +1435,7 @@ class RegionsTable(GenomicRegions, FileBased):
                 return self
             
             def next(self):
-                return RegionsTable._row_to_region(self.iter.next())
+                return RegionsTable._row_to_region(self.iter.next(), lazy=lazy)
             
             def __len__(self):
                 return len(this._regions)
@@ -1446,10 +1449,10 @@ class RegionsTable(GenomicRegions, FileBased):
                 if isinstance(res, np.ndarray):
                     regions = []
                     for region in res:
-                        regions.append(RegionsTable._row_to_region(region))
+                        regions.append(RegionsTable._row_to_region(region, lazy=lazy))
                     return regions
                 else:
-                    return RegionsTable._row_to_region(res)
+                    return RegionsTable._row_to_region(res, lazy=lazy)
             
         return RegionIter()
 
