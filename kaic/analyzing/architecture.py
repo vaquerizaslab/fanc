@@ -1,8 +1,19 @@
 from kaic.data.genomic import Hic
 import numpy as np
 import logging
+import ipdb
 log = logging.getLogger(__name__)
 log.setLevel(10)
+
+def kth_diag_indices(n, k):
+    #http://stackoverflow.com/questions/10925671/numpy-k-th-diagonal-indices
+    rows, cols = np.diag_indices(n)
+    if k < 0:
+        return rows[:k], cols[-k:]
+    elif k > 0:
+        return rows[k:], cols[:-k]
+    else:
+        return rows, cols
 
 def insulation_index(hic, d, hic_matrix=None):
     chr_bins = hic.chromosome_bins
@@ -62,5 +73,29 @@ def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
         band[i] = np.ma.sum(hic_matrix[i - d2:i - d1, i + d1:i + d2])
     return band
 
-def observed_expected_ratio(hic, per_chromosome=True):
-    pass
+def observed_expected_ratio(hic, hic_matrix=None, per_chromosome=True):
+    chr_bins = hic.chromosome_bins
+    n = len(hic.regions())
+    if hic_matrix is None:
+        log.debug("Fetching matrix")
+        hic_matrix = hic[:,:]
+    oe = hic_matrix.copy()
+    log.debug("starting processing")
+    if per_chromosome:
+        for so, eo in chr_bins.itervalues():
+            # Correcting intrachromosomal contacts by mean contact count at each diagonal
+            for i in range(n):
+                oe[so:eo, so:eo][kth_diag_indices(eo - so, -i)] /= np.ma.mean(hic_matrix[so:eo, so:eo][kth_diag_indices(eo - so, -i)])
+            # Correcting interchromosomal contacts by mean of all contact counts between
+            # each set of chromosomes
+            for si, ei in chr_bins.itervalues():
+                # Only correct upper triangle
+                if si <= so:
+                    continue
+                oe[so:eo, si:ei] /= np.ma.mean(hic_matrix[so:eo, si:ei])
+    else:
+        for i in range(n):
+            oe[kth_diag_indices(n, i)] /= np.ma.mean(hic_matrix.diagonal(i))
+    # Copying upper triangle to lower triangle
+    oe[np.tril_indices(n)] = oe.T[np.tril_indices(n)]
+    return oe
