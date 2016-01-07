@@ -2,6 +2,8 @@ from kaic.data.genomic import Hic
 import numpy as np
 import logging
 import ipdb
+from scipy.signal import savgol_filter
+
 log = logging.getLogger(__name__)
 log.setLevel(10)
 
@@ -99,3 +101,39 @@ def observed_expected_ratio(hic, hic_matrix=None, per_chromosome=True):
     # Copying upper triangle to lower triangle
     oe[np.tril_indices(n)] = oe.T[np.tril_indices(n)]
     return oe
+
+def call_peaks_deriv(x, window_length=9, polyorder=2, as_range=True, thresh=None):
+    # Calculate Savitzky-Golay smoothed 1st and 2nd order derivative of input
+    d1 = savgol_filter(x=x, window_length=window_length, polyorder=polyorder, deriv=1)
+    d2 = savgol_filter(x=x, window_length=window_length, polyorder=polyorder, deriv=2)
+    # Find indices of zero crossings of 1st derivative
+    zc1 = np.nonzero(np.diff(np.signbit(d1)))[0]
+    if thresh:
+        # If threshold is set, only retain peaks where 2nd derivative
+        # is above threshold (sharpness of peak)
+        is_above = np.abs(d2[zc1]) > thresh
+        zc1 = zc1[is_above]
+    # Minima have negative 2nd order derivative at minimum
+    is_minimum = d2[zc1] > 0
+    if as_range:
+        # Boundaries of peaks can be defined as the inflection point up-
+        # and downstream of the peak. (zero crossings of 2nd derivative)
+        zc2 = np.nonzero(np.diff(np.signbit(d2)))[0]
+        boundary_ix = np.searchsorted(zc2, zc1, side="right")
+        extrema = np.empty((len(zc1), 2), dtype=np.int_)
+        # Have to catch boundary condition if inflection point before first peak
+        # or after last peak is not known
+        try:
+            extrema[:, 0] = zc2[boundary_ix - 1]
+        except IndexError:
+            boundary_ix[0] = 1
+            extrema[:, 0] = zc2[boundary_ix - 1]
+            extrema[0][0] = zc1[0]
+        try:
+            extrema[:, 1] = zc2[boundary_ix]
+        except IndexError:
+            boundary_ix[-1] = 1
+            extrema[:, 1] = zc2[boundary_ix]
+            extrema[-1][1] = zc1[-1]
+        return (extrema[is_minimum], extrema[~is_minimum])
+    return (zc1[is_minimum], zc1[~is_minimum])
