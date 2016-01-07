@@ -1,5 +1,6 @@
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from matplotlib.widgets import Slider
+import kaic
 from kaic.data.genomic import GenomicRegion, RegionsTable
 import matplotlib.patches as patches
 from abc import abstractmethod, ABCMeta
@@ -258,6 +259,13 @@ class BufferedMatrix(object):
         self.buffered_region = None
         self.buffered_matrix = None
 
+    @classmethod
+    def from_hic_matrix(cls, hic_matrix):
+        bm = cls(data=None, buffering_strategy="all")
+        bm.buffered_region = bm._STRATEGY_ALL
+        bm.buffered_matrix = hic_matrix
+        return bm
+
     def is_buffered_region(self, *regions):
         if (self.buffered_region is None or self.buffered_matrix is None or
                 (not self.buffered_region == self._STRATEGY_ALL and not all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)))):
@@ -372,7 +380,12 @@ class BasePlotterHic(object):
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
                  buffering_strategy="relative", buffering_arg=1):
         self.hic_data = hic_data
-        self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
+        if isinstance(hic_data, kaic.Hic):
+            self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
+        elif isinstance(hic_data, kaic.data.genomic.HicMatrix):
+            self.hic_buffer = BufferedMatrix.from_hic_matrix(hic_data)
+        else:
+            raise ValueError("Unknown type for hic_data")
         self.colormap = mpl.cm.get_cmap(colormap)
         self._vmin = vmin
         self._vmax = vmax
