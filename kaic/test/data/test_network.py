@@ -318,7 +318,8 @@ class TestRaoPeakCaller:
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
 
-        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=2)
+        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=2, e_ll_cutoff=None,
+                                    e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
         peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info1,
                                           observed_chunk_distribution, lambda_chunks, w=2, p=0)
 
@@ -352,14 +353,16 @@ class TestRaoPeakCaller:
         peak_info2 = f.create_table('/', 'peak_info2', RaoPeakCaller.PeakInformation)
         peak_info3 = f.create_table('/', 'peak_info3', RaoPeakCaller.PeakInformation)
 
-        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=1)
+        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=1, e_ll_cutoff=None,
+                                    e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
         peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info2,
                                           observed_chunk_distribution, lambda_chunks, w=2, p=0)
         cmp_batches(peak_info1, peak_info2)
 
-        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=100)
+        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=100, e_ll_cutoff=None,
+                                    e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
         peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info3,
@@ -383,9 +386,10 @@ class TestRaoPeakCaller:
         hic_10kb = Hic(dir + "/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
         chromosome_map = RaoPeakCaller.chromosome_map(hic_10kb)
         for i, region in enumerate(hic_10kb.regions(lazy=True)):
-            if region.chromosome == 'chr18':
+            if region.chromosome == 'chr11':
                 assert chromosome_map[i] == 0
             else:
+                print region
                 assert chromosome_map[i] == 1
         hic_10kb.close()
 

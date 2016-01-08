@@ -75,6 +75,7 @@ from kaic.tools.general import ranges, distribute_integer
 from itertools import izip as zip
 from xml.etree import ElementTree as et
 import pickle
+from collections import defaultdict
 logging.basicConfig(level=logging.INFO)
 
 
@@ -2800,7 +2801,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
     def mappable_regions(self):
         marginals = self.marginals()
         mappable = defaultdict(int)
-        for i, region in self.regions():
+        for i, region in enumerate(self.regions()):
             if marginals[i] > 0:
                 mappable[region.chromosome] += 1
         return mappable
