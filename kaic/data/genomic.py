@@ -74,6 +74,7 @@ import logging
 from kaic.tools.general import ranges, distribute_integer
 from itertools import izip as zip
 from xml.etree import ElementTree as et
+import pickle
 logging.basicConfig(level=logging.INFO)
 
 
@@ -3099,6 +3100,20 @@ class HicMatrix(np.ndarray):
                         stop = i
             return slice(start, stop+1, 1)
         return key
+
+    def __reduce__(self):
+        # Get the parent's __reduce__ tuple
+        pickled_state = super(HicMatrix, self).__reduce__()
+        # Create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (pickle.dumps(self.row_regions), pickle.dumps(self.col_regions))
+        # Return a tuple that replaces the parent's __setstate__ tuple with our own
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        self.row_regions = pickle.loads(state[-2])
+        self.col_regions = pickle.loads(state[-1])
+        # Call the parent's __setstate__ with the other tuple elements.
+        super(HicMatrix, self).__setstate__(state[0:-2])
 
 
 class HicXmlFile(object):
