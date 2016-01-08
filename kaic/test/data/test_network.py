@@ -380,7 +380,7 @@ class TestRaoPeakCaller:
 
     def test_chromosome_map(self):
         dir = os.path.dirname(os.path.realpath(__file__))
-        hic_10kb = Hic(dir + "/test_network/rao2014.chr11_77400000_78600000.hic")
+        hic_10kb = Hic(dir + "/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
         chromosome_map = RaoPeakCaller.chromosome_map(hic_10kb)
         for i, region in enumerate(hic_10kb.regions(lazy=True)):
             if region.chromosome == 'chr18':
@@ -391,7 +391,7 @@ class TestRaoPeakCaller:
 
     def test_call_peaks(self):
         dir = os.path.dirname(os.path.realpath(__file__))
-        hic_10kb = Hic(dir + "/test_network/rao2014.chr11_77400000_78600000.hic")
+        hic_10kb = Hic(dir + "/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
 
         peak_caller = RaoPeakCaller(process_inter=False, e_ll_cutoff=1.75,
                                     e_d_cutoff=1.75, e_h_cutoff=1.5, e_v_cutoff=1.5)
