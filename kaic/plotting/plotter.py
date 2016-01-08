@@ -420,6 +420,8 @@ class BasePlotterHic(object):
         new_vmin = self.vmin_slider.val
         new_vmax = self.vmax_slider.val
         self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
+        self.colorbar.set_clim(vmin=new_vmin, vmax=new_vmax)
+        self.colorbar.draw_all()
 
     @property
     def vmin(self):
