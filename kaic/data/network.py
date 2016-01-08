@@ -662,6 +662,13 @@ class RaoPeakCaller(PeakCaller):
         # return peak_info, fdr_cutoffs, observed_chunk_distribution
         return peak_info, f
 
+    def merge_peaks(self, peak_list, euclidian_distance=20000, resolution=10000):
+        merged_list = []
+        peak_list_ixs = []
+        current_peak = None
+
+
+
 
 def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
                          min_locus_dist=3, min_ll_reads=16, max_w=20,
