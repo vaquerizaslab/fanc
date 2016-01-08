@@ -399,7 +399,9 @@ class BasePlotterHic(object):
     def add_colorbar(self):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array([self.vmin, self.vmax])
-        self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
+        #self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
+        self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", anchor=(0.5, 1.5),
+                                              aspect=40, shrink=0.6, panchor=False)
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, **kw)
 
     def add_adj_slider(self):
