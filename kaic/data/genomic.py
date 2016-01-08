@@ -2796,6 +2796,27 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return marginals
 
+    def mappable_regions(self):
+        marginals = self.marginals()
+        mappable = defaultdict(int)
+        for i, region in self.regions():
+            if marginals[i] > 0:
+                mappable[region.chromosome] += 1
+        return mappable
+
+    def possible_contacts(self, _mappable=None):
+        if _mappable is None:
+            _mappable = self.mappable_regions()
+
+        # calculate possible combinations
+        total_mappable = sum(n for n in _mappable.itervalues())
+        intra_possible = 0
+        inter_possible = 0
+        for chromosome, n in _mappable.iteritems():
+            intra_possible += n**2/2 + n/2
+            inter_possible += (total_mappable - n) * n
+        return intra_possible, inter_possible
+
     def _get_boundary_distances(self):
         n_bins = len(self.regions())
         # find distances to chromosome boundaries in bins
