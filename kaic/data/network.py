@@ -660,7 +660,7 @@ class RaoPeakCaller(PeakCaller):
         peak_info.flush()
 
         # return peak_info, fdr_cutoffs, observed_chunk_distribution
-        return peak_info
+        return peak_info, f
 
 
 def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
