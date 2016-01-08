@@ -380,31 +380,37 @@ class TestRaoPeakCaller:
 
     def test_chromosome_map(self):
         dir = os.path.dirname(os.path.realpath(__file__))
-        hic_5kb = Hic(dir + "/test_network/yeast_sample.chr_I_and_II.5kb.hic")
-        chromosome_map = RaoPeakCaller.chromosome_map(hic_5kb)
-        for i, region in enumerate(hic_5kb.regions(lazy=True)):
-            if region.chromosome == 'chrI':
+        hic_10kb = Hic(dir + "/test_network/rao2014.chr11_77400000_78600000.hic")
+        chromosome_map = RaoPeakCaller.chromosome_map(hic_10kb)
+        for i, region in enumerate(hic_10kb.regions(lazy=True)):
+            if region.chromosome == 'chr18':
                 assert chromosome_map[i] == 0
             else:
                 assert chromosome_map[i] == 1
-        hic_5kb.close()
+        hic_10kb.close()
 
     def test_call_peaks(self):
         dir = os.path.dirname(os.path.realpath(__file__))
-        hic_5kb = Hic(dir + "/test_network/yeast_sample.chr_I_and_II.5kb.hic")
-        hic_10kb = Hic(dir + "/test_network/yeast_sample.chr_I_and_II.10kb.hic")
+        hic_10kb = Hic(dir + "/test_network/rao2014.chr11_77400000_78600000.hic")
 
-        peak_caller = RaoPeakCaller(observed_cutoff=1)
-        peak_info = peak_caller.call_peaks(hic_5kb)
+        peak_caller = RaoPeakCaller(process_inter=False, e_ll_cutoff=1.75,
+                                    e_d_cutoff=1.75, e_h_cutoff=1.5, e_v_cutoff=1.5)
+        peak_info = peak_caller.call_peaks(hic_10kb)
 
-        print peak_info
+        assert len(peak_info) == 219
 
+        valid_peaks = []
+
+        has_43_57 = False
         for peak in peak_info:
-            print peak.fetch_all_fields()
+            if peak['fdr_ll'] < 0.1 and peak['fdr_v'] < 0.1 and peak['fdr_h'] < 0.1 and peak['fdr_d'] < 0.1:
+                valid_peaks.append(peak.fetch_all_fields())
+            if peak['source'] == 43 and peak['sink'] == 57:
+                has_43_57 = True
 
-        hic_5kb.close()
+        assert len(valid_peaks) == 6
+        assert has_43_57
         hic_10kb.close()
-        #assert 0
 
     def test_pickle_matrix(self):
         assert hasattr(self.m, 'row_regions')
