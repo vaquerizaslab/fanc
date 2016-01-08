@@ -1090,7 +1090,7 @@ class Kaic(object):
         )
 
         parser.add_argument(
-            '-h', '--horizontal-cutoff', dest='h_cutoff',
+            '-z', '--horizontal-cutoff', dest='h_cutoff',
             type=float,
             default=1.0,
             help='''Minimum enrichment of peak compared to horizontal neighborhood (observed/e_h > cutoff).'''
@@ -1116,6 +1116,13 @@ class Kaic(object):
             help='''If set, also find peaks in inter-chromosomal data.'''
         )
         parser.set_defaults(inter=False)
+
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
 
         args = parser.parse_args(sys.argv[2:])
 
@@ -1145,6 +1152,8 @@ class Kaic(object):
 
         hic = kaic.Hic(input_path, mode='r')
         peaks, f = pk.call_peaks(hic, chromosomes=args.chromosomes, file_name=output_path)
+
+        logging.info("Found %d potential peaks" % len(peaks))
         f.close()
 
         if args.tmp:
