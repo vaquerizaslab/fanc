@@ -112,6 +112,10 @@ class GenomicTrack(RegionsTable):
         values = {}
         for i, f in enumerate(gtf.sort()):
             regions.append(GenomicRegion(chromosome=f.chrom, start=f.start, end=f.end, strand=f.strand))
+            # If input is a GTF file, also store the type and source fields
+            if f.file_type in ("gff", "gtf"):
+                f.attrs["source"] = a.fields[1]
+                f.attrs["feature"] = a.fields[2]
             # Check if there is a new attribute that hasn't occured before
             for k in f.attrs.keys():
                 if not k in values and (not store_attrs or k in store_attrs):
