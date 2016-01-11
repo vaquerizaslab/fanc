@@ -3062,6 +3062,28 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return directionality_index
 
+    def scaling_factor(self, hic):
+        """
+        Compute the scaling factor to another Hic library.
+
+        Calculates the ratio between the number of contacts in
+        this Hic object to the number of contacts in another
+        Hic object.
+
+        :param hic: A :class:`~Hic` object
+        :return: float
+        """
+        logging.info("Calculating scaling factor...")
+        hic1_sum = 0.0
+        for edge in self.edges(lazy=True):
+            hic1_sum += edge['weight']
+        hic2_sum = 0.0
+        for edge in hic.edges(lazy=True):
+            hic2_sum += edge['weight']
+        scaling_factor = hic1_sum/hic2_sum
+        logging.info("Scaling factor: %f" % scaling_factor)
+        return scaling_factor
+
     def get_combined_matrix(self, hic, key=None, scaling_factor=None):
         """
         Return a :class:`~HicMatrix` where values above the diagonal
