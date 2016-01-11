@@ -321,6 +321,26 @@ class BufferedMatrix(object):
                              _STRATEGY_RELATIVE: _buffer_relative,
                              _STRATEGY_FIXED: _buffer_fixed}
 
+
+class BufferedCombinedMatrix(BufferedMatrix):
+    def __init__(self, hic_top, hic_bottom, scale_matrices=True, buffering_strategy="relative", buffering_arg=1):
+        super(BufferedCombinedMatrix, self).__init__(None, buffering_strategy, buffering_arg)
+
+        scaling_factor = 1
+        if scale_matrices:
+            scaling_factor = hic_top.scaling_factor(hic_bottom)
+
+        class CombinedData(object):
+            def __init__(self, hic_top, hic_bottom, scaling_factor=1):
+                self.hic_top = hic_top
+                self.hic_bottom = hic_bottom
+                self.scaling_factor = scaling_factor
+
+            def __getitem__(self, item):
+                return hic_top.get_combined_matrix(self.hic_bottom, key=item, scaling_factor=self.scaling_factor)
+
+        self.data = CombinedData(hic_top, hic_bottom, scaling_factor)
+
 class BasePlotter(object):
 
     __metaclass__ = ABCMeta
@@ -542,18 +562,12 @@ class HicSideBySidePlot2D(object):
 
 class HicComparisonPlot2D(HicPlot2D):
     def __init__(self, hic_top, hic_bottom, colormap='viridis', norm='log',
-                 vmin=None, vmax=None, scale_matrices=True):
+                 vmin=None, vmax=None, scale_matrices=True,
+                 buffering_strategy="relative", buffering_arg=1):
         super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
-        self.scaling_factor = 1
-        if scale_matrices:
-            self.scaling_factor = hic_top.scaling_factor(hic_bottom)
-
-    def _get_matrix(self, x_region, y_region):
-        print x_region, y_region
-        return self.hic_top.get_combined_matrix(self.hic_bottom, key=(y_region, x_region),
-                                                scaling_factor=self.scaling_factor)
+        self.hic_buffer = BufferedCombinedMatrix(hic_top, hic_bottom, scale_matrices, buffering_strategy, buffering_arg)
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
