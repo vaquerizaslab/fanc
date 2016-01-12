@@ -992,7 +992,7 @@ class GenomicRegion(TableObject):
                 
                 if self.end is not None:
                     region_string += '-%d' % self.end
-                
+
                 if self.strand is not None:
                     if self.strand == 1:
                         region_string += ':+'
@@ -1062,7 +1062,10 @@ class LazyGenomicRegion(GenomicRegion):
 
     @property
     def strand(self):
-        return self.row["strand"]
+        try:
+            return self.row["strand"]
+        except KeyError:
+            return None
 
     @property
     def ix(self):
