@@ -268,7 +268,7 @@ class FileBased(object):
         else:
             logging.info("Working in temporary directory...")
             self.tmp_file_name = os.path.join(tmpdir, self._generate_tmp_file_name())
-            logging.info("Temporary output file: {}".format(output_path))
+            logging.info("Temporary output file: {}".format(self.tmp_file_name))
             if mode in ['w', 'x', 'w-']:
                 pass
             elif mode in ['r+', 'r']:
@@ -285,7 +285,7 @@ class FileBased(object):
     def finalize(self):
         if self.closed:
             if self.tmp_file_name:
-                logging.info("Moving temporary output file to destination {}".format(original_output_path))
+                logging.info("Moving temporary output file to destination {}".format(self.file_name))
                 shutil.copyfile(self.tmp_file_name, self.file_name)
         else:
             raise IOError('The file has to be closed before copying the tmp file. Use close()')
@@ -308,7 +308,7 @@ class FileBased(object):
         elif isinstance(file_name, t.file.File):
             self.file = file_name
         else:
-            raise ValueError("file_name is not a recognisable type")
+            raise TypeError("file_name is not a recognisable type")
 
     def __enter__(self):
         return self
