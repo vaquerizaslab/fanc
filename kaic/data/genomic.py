@@ -1288,6 +1288,20 @@ class GenomicRegions(object):
             chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
 
+    def range(self, range_region):
+        regions = []
+
+        for region in self.regions:
+            if not range_region.chromosome == region.chromosome:
+                if len(regions) == 0:
+                    continue
+                break
+
+            if region.start <= range_region.end and region.end >= range_region.start:
+                regions.append(region)
+
+        return regions
+
 
 class RegionsTable(GenomicRegions, FileBased):
     """

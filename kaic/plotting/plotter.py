@@ -1,8 +1,9 @@
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from matplotlib.widgets import Slider
 import kaic
-from kaic.data.genomic import GenomicRegion, RegionsTable
+from kaic.data.genomic import GenomicRegion, RegionsTable, GenomicRegions
 import matplotlib.patches as patches
+import matplotlib.gridspec as gridspec
 from abc import abstractmethod, ABCMeta
 import numpy as np
 import math
@@ -173,12 +174,23 @@ class GenomicTrack(RegionsTable):
             self.file.create_array("/", "title", value)
 
 class GenomicFigure(object):
-    def __init__(self, plots, figsize=None):
+    def __init__(self, plots, height_ratios=None, figsize=None):
         self.plots = plots
         self.n = len(plots)
+
+        gs = gridspec.GridSpec(self.n, 1, height_ratios=height_ratios, width_ratios=[1] * self.n)
+
         if figsize is None:
             figsize = (8, 4*self.n)
-        _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
+
+        self.axes = []
+        for i in xrange(self.n):
+            if i > 0:
+                ax = plt.subplot(gs[i], sharex=self.axes[0])
+            else:
+                ax = plt.subplot(gs[i])
+            self.axes.append(ax)
+        # _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
 
     @property
     def fig(self):
@@ -187,7 +199,7 @@ class GenomicFigure(object):
     def plot(self, region):
         for p, a in zip(self.plots, self.axes):
             p.plot(region, ax=a)
-        self.fig.tight_layout()
+        #self.fig.tight_layout()
         return self.fig, self.axes
 
     # def add_colorbar(self):
@@ -431,10 +443,12 @@ class BasePlotterHic(object):
     def add_adj_slider(self):
         plot_position = self.cax.get_position()
         vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
-        self.vmin_slider = Slider(vmin_axs, 'vmin', self.vmin, self.vmax, valinit=self.vmin,
+        self.vmin_slider = Slider(vmin_axs, 'vmin', self.hic_buffer.buffered_min,
+                                  self.hic_buffer.buffered_max, valinit=self.vmin,
                                   facecolor='#dddddd', edgecolor='none')
         vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
-        self.vmax_slider = Slider(vmax_axs, 'vmax', self.vmin, self.vmax, valinit=self.vmax,
+        self.vmax_slider = Slider(vmax_axs, 'vmax', self.hic_buffer.buffered_min,
+                                  self.hic_buffer.buffered_max, valinit=self.vmax,
                                   facecolor='#dddddd', edgecolor='none')
         self.fig.subplots_adjust(top=0.90, bottom=0.15)
         self.vmin_slider.on_changed(self._slider_refresh)
@@ -562,9 +576,10 @@ class HicSideBySidePlot2D(object):
 
 class HicComparisonPlot2D(HicPlot2D):
     def __init__(self, hic_top, hic_bottom, colormap='viridis', norm='log',
-                 vmin=None, vmax=None, scale_matrices=True,
+                 vmin=None, vmax=None, scale_matrices=True, show_colorbar=True,
                  buffering_strategy="relative", buffering_arg=1):
-        super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+        super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax,
+                                                  show_colorbar=show_colorbar)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
         self.hic_buffer = BufferedCombinedMatrix(hic_top, hic_bottom, scale_matrices, buffering_strategy, buffering_arg)
@@ -577,7 +592,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         BasePlotter1D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
-                                buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
+                                buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
+                                norm=norm)
         self.max_dist = max_dist
 
     def _plot(self, region=None):
@@ -615,6 +631,11 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.ax.set_yticks([])
         # hide background patch
         self.ax.patch.set_visible(False)
+
+        if self.show_colorbar:
+            self.add_colorbar()
+            if self.adjust_range:
+                self.add_adj_slider()
 
     def _refresh(self, region=None):
         pass
@@ -708,6 +729,43 @@ class GeneModelPlot(BasePlotter1D):
             self.ax.add_patch(gene_patch)
             self.ax.text((g.start + g.end)/2, 0.6, g.attrs[self.id_field], transform=trans,
                          ha="center", size="small")
+
+    def _refresh(self):
+        pass
+
+
+class GenomicFeaturePlot(BasePlotter1D):
+    def __init__(self, regions, labels, title="", color='black'):
+        BasePlotter1D.__init__(self, title=title)
+        sorted_regions = sorted(zip(regions, labels), key=lambda x: (x[0].chromosome, x[0].start))
+        regions, self.labels = zip(*sorted_regions)
+
+        self.color = color
+        self.regions = GenomicRegions(regions=regions)
+
+        for region in regions:
+            print region
+
+    def _plot(self, region):
+        trans = self.ax.get_xaxis_transform()
+        overlap_regions = self.regions.range(region)
+        for r in overlap_regions:
+            region_patch = patches.Rectangle(
+                (r.start, 0.05),
+                width=abs(r.end - r.start), height=0.6,
+                transform=trans, color=self.color
+            )
+            self.ax.add_patch(region_patch)
+            self.ax.text((r.start + r.end)/2, 0.8, self.labels[r.ix], transform=trans,
+                         ha="center", size="small")
+
+        self.ax.spines['right'].set_visible(False)
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['left'].set_visible(False)
+        self.ax.spines['bottom'].set_visible(False)
+        self.ax.xaxis.set_ticks_position('bottom')
+        self.ax.yaxis.set_visible(False)
+        self.ax.xaxis.set_visible(False)
 
     def _refresh(self):
         pass
