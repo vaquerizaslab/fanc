@@ -1858,10 +1858,10 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
+        hic = Hic(file_name=file_name, mode='w', tmpdir=tmpdir)
+        hic.add_regions(genome.get_regions(bin_size))
 
-        with Hic(file_name=file_name, mode='w', tmpdir=tmpdir) as hic:
-            hic.add_regions(genome.get_regions(bin_size))
-            hic.load_from_hic(self)
+        hic.load_from_hic(self)
 
         return hic
 
