@@ -6,6 +6,7 @@ Created on Jul 15, 2015
 
 import os.path
 import numpy as np
+import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter,\
@@ -190,6 +191,28 @@ class TestReads:
         assert len(list(reads.reads(excluded_filters=['unmapped']))) == 153
         assert len(list(reads.reads(excluded_filters=['mapq']))) == 153
         assert len(list(reads.reads(excluded_filters=['uniqueness']))) == 246
+
+
+class TestFileOpsReads:
+    def test_tmp_with(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with Reads(file_name=filename, mode='a', tmpdir='/tmp') as f:
+            assert os.path.isfile(filename) == False
+            assert os.path.isfile(f.tmp_file_name) == True
+        assert os.path.isfile(filename) == True
+        assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with_exception(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with pytest.raises(Exception):
+            with Reads(file_name=filename, mode='a', tmpdir='/tmp') as f:
+                assert os.path.isfile(filename) == False
+                assert os.path.isfile(f.tmp_file_name) == True
+                try:
+                    raise Exception
+                except:
+                    assert os.path.isfile(filename) == False
+                    assert os.path.isfile(f.tmp_file_name) == False
 
 
 class TestBWAReads:
@@ -532,6 +555,28 @@ class TestFragmentReadPair:
         assert pair.is_outward_pair()
         assert not pair.is_same_fragment()
         assert not pair.is_same_pair()
+
+
+class TestFileOpsFragmentMappedReadPairs:
+    def test_tmp_with(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with FragmentMappedReadPairs(file_name=filename, mode='a', tmpdir='/tmp') as f:
+            assert os.path.isfile(filename) == False
+            assert os.path.isfile(f.tmp_file_name) == True
+        assert os.path.isfile(filename) == True
+        assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with_exception(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with pytest.raises(Exception):
+            with FragmentMappedReadPairs(file_name=filename, mode='a', tmpdir='/tmp') as f:
+                assert os.path.isfile(filename) == False
+                assert os.path.isfile(f.tmp_file_name) == True
+                try:
+                    raise Exception
+                except:
+                    assert os.path.isfile(filename) == False
+                    assert os.path.isfile(f.tmp_file_name) == False
 
 
 class TestBWAFragmentMappedReads:

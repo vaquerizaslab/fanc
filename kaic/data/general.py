@@ -257,6 +257,8 @@ class FileBased(object):
         if hasattr(self, 'file'):
             if not isinstance(self.file, t.file.File):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
+            else:
+                return
         self.file = None
         self.tmp_file = None
         self.file_name = file_name

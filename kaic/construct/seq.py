@@ -271,12 +271,6 @@ class Reads(Maskable, MetaContainer, FileBased):
         sambam.close()
         return count
 
-    def close(self):
-        """
-        Close the file backing this object.
-        """
-        self.file.close()
-
     @property
     def mapper(self):
         return self._mapper
