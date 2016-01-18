@@ -1659,7 +1659,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                  mode='a',
                  _table_name_nodes='nodes',
                  _table_name_edges='edges',
-                 _table_name_node_annotations='node_annot'
+                 _table_name_node_annotations='node_annot',
                  tmpdir=None):
 
         """
