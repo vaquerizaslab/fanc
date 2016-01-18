@@ -626,6 +626,22 @@ class TestHicBasic:
             reads += edge.weight
         
         assert reads == pl
+
+    def test_from_pairs_and_exclude_filter(self):
+        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = FragmentMappedReadPairs()
+        pairs.load(reads1,reads2,genome.get_regions('HindIII'))
+        pairs.filter_ligation_products(inward_threshold=1000, outward_threshold=1000)
+        hic = Hic()
+        hic.load_read_fragment_pairs(pairs, _max_buffer_size=1000)
+        hl = len(hic.edges())
+        hic.close()
+        hic = Hic()
+        hic.load_read_fragment_pairs(pairs, excluded_filters=['inward', 'outward'], _max_buffer_size=1000)
+        assert len(hic.edges()) > hl
         
     def test_overlap_map(self):
         # ----|----|----|----|---|-----|-| new
