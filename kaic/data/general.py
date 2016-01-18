@@ -1623,6 +1623,8 @@ class MaskedTableView(object):
     def next(self):
         row = self.iter.next()
         # bit-shift magic! Go @alexis!
+        # a is a subset of b if and only if a | b == b.
+        # If this condition is satisfied for each byte, return TRUE. Otherwise return FALSE
         while row[self.masked_table._mask_field] | self.excluded_mask_ix != self.excluded_mask_ix:
             row = self.iter.next()
         return row
