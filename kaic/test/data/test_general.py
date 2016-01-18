@@ -979,6 +979,51 @@ class TestFileBased:
             r.file.create_table("/", "test2", {'b': t.Int32Col()})
         r.close()
 
+    def test_tmp(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        f = FileBased(file_name=filename, mode='a', tmpdir='/tmp')
+        assert os.path.isfile(filename) == False
+        assert os.path.isfile(f.tmp_file_name) == True
+        f.close()
+        f.finalize()
+        assert os.path.isfile(filename) == True
+        f.cleanup()
+        assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
+            assert os.path.isfile(filename) == False
+            assert os.path.isfile(f.tmp_file_name) == True
+        assert os.path.isfile(filename) == True
+        assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with_exception(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with pytest.raises(Exception):
+            with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
+                assert os.path.isfile(filename) == False
+                assert os.path.isfile(f.tmp_file_name) == True
+                try:
+                    raise Exception
+                except:
+                    assert os.path.isfile(filename) == False
+                    assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with_existing(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        f = FileBased(str(tmpdir) + "/test.file")
+        f.file.create_table("/", "test1", {'a': t.Int32Col()})
+        f.close()
+        assert os.path.isfile(filename) == True
+        with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
+            f.file.create_table("/", "test2", {'b': t.Int32Col()})
+            assert os.path.isfile(f.tmp_file_name) == True
+        assert os.path.isfile(filename) == True
+        assert os.path.isfile(f.tmp_file_name) == False
+        with FileBased(file_name=filename, mode='r') as f:
+            assert 'test1' in f.file.root
+            assert 'test2' in f.file.root
 
 class TestPytablesInheritance:
     class MinTable(t.Table):

@@ -517,7 +517,7 @@ class Bedpe(object):
         for label in desc:
             if label not in labels:
                 labels.append(label)
-        
+
         if query != '':
             contacts = [[x[y] for y in labels] for x in self.table.where(query)]
         else:
@@ -1284,9 +1284,10 @@ class RegionsTable(GenomicRegions, FileBased):
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
         strand = t.Int8Col(pos=4)
-    
+
     def __init__(self, data=None, file_name=None, mode='a',
-                 _table_name_regions='regions'):
+                 _table_name_regions='regions',
+                 tmpdir=None):
         """
         Initialize region table.
 
@@ -1311,7 +1312,7 @@ class RegionsTable(GenomicRegions, FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name, mode=mode)
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         
         # check if this is an existing Hi-C file
         if _table_name_regions in self.file.root:
@@ -1431,7 +1432,7 @@ class RegionsTable(GenomicRegions, FileBased):
             def __init__(self):
                 self.iter = iter(this._regions)
                 self.lazy = False
-                
+
             def __iter__(self):
                 return self
             
@@ -1455,7 +1456,7 @@ class RegionsTable(GenomicRegions, FileBased):
                     return regions
                 else:
                     return RegionsTable._row_to_region(res, lazy=self.lazy)
-            
+
         return RegionIter()
 
 
@@ -1658,7 +1659,8 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                  mode='a',
                  _table_name_nodes='nodes',
                  _table_name_edges='edges',
-                 _table_name_node_annotations='node_annot'):
+                 _table_name_node_annotations='node_annot'
+                 tmpdir=None):
 
         """
         Initialize a :class:`~Hic` object.
@@ -1689,7 +1691,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name, mode=mode)
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
 
         if _table_name_edges in self.file.root:
