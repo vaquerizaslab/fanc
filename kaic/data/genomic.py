@@ -2069,11 +2069,12 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 logging.info("Flushing buffer...")
                 self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                 edge_buffer = {}
+        return edge_buffer
 
     def merge(self, hic_or_hics, _edge_buffer_size=5000000):
         import traceback
         if isinstance(hic_or_hics, Hic):
-            self._merge(hic_or_hics, _edge_buffer_size=_edge_buffer_size)
+            edge_buffer = self._merge(hic_or_hics, _edge_buffer_size=_edge_buffer_size)
         else:
             try:
                 _ = (e for e in hic_or_hics)
@@ -2082,7 +2083,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             for hic in _:
                 logging.info("Merging {}".format(hic.file_name))
                 try:
-                    self._merge(hic, _edge_buffer_size=_edge_buffer_size)
+                    edge_buffer = self._merge(hic, _edge_buffer_size=_edge_buffer_size)
                 except Exception as e:
                     hic.__exit__(e, e.message, traceback.format_exc())
                 else:
