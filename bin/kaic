@@ -738,8 +738,7 @@ class Kaic(object):
         parser.set_defaults(tmp=False)
 
         args = parser.parse_args(sys.argv[2:])
-
-        tmpdir = '/tmp' if args.tmpdir else None
+        tmpdir = '/tmp' if args.tmp else None
 
         import kaic
         from kaic.tools.files import copy_or_expand, create_temporary_copy
