@@ -2069,29 +2069,33 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 logging.info("Flushing buffer...")
                 self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                 edge_buffer = {}
-        return edge_buffer
+        self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
 
     def merge(self, hic_or_hics, _edge_buffer_size=5000000):
         import traceback
         if isinstance(hic_or_hics, Hic):
-            edge_buffer = self._merge(hic_or_hics, _edge_buffer_size=_edge_buffer_size)
+            hic = hic_or_hics
+            try:
+                self._merge(hic, _edge_buffer_size=_edge_buffer_size)
+            except Exception as e:
+                hic.__exit__(e, e.message, traceback.format_exc())
+            else:
+                hic.__exit__(None, None, None)
         else:
             try:
-                _ = (e for e in hic_or_hics)
+                for hic in hic_or_hics:
+                    logging.info("Merging {}".format(hic.file_name))
+                    try:
+                        self._merge(hic, _edge_buffer_size=_edge_buffer_size)
+                    except Exception as e:
+                        hic.__exit__(e, e.message, traceback.format_exc())
+                    else:
+                        hic.__exit__(None, None, None)
             except TypeError:
                 logging.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
-            for hic in _:
-                logging.info("Merging {}".format(hic.file_name))
-                try:
-                    edge_buffer = self._merge(hic, _edge_buffer_size=_edge_buffer_size)
-                except Exception as e:
-                    hic.__exit__(e, e.message, traceback.format_exc())
-                else:
-                    hic.__exit__()
-        # final flush
-        self.log_info("Final flush")
-        self._flush_edge_buffer(edge_buffer, replace=False)
 
+        self.log_info("Removing zero edges")
+        self._remove_zero_edges(update_index=True)
 
     def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True):
         # update current rows
