@@ -2095,7 +2095,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             except TypeError:
                 logging.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
 
-        self.log_info("Removing zero edges")
+        logging.info("Removing zero edges")
         self._remove_zero_edges(update_index=True)
 
     def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True):

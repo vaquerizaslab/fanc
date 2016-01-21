@@ -605,8 +605,9 @@ class TestHicBasic:
     def test_multi_merge(self):
         def populate_hic(hic, seed=0):
             import random
+            from itertools import product
             random.seed(seed)
-            # add some nodes (120 to be exact)
+            # add some nodes (169 to be exact)
             nodes = []
             for i in range(1,5000,1000):
                 nodes.append(HicNode(chromosome="chr1",start=i,end=i+1000-1))
@@ -618,23 +619,28 @@ class TestHicBasic:
             # add half as many random edges
             edges = []
             weight = 1
-            sources = random.sample(range(0, len(nodes)), (len(nodes))/2)
-            sinks = random.sample(range(0, len(nodes)), (len(nodes))/2)
-            for i, j in zip(sources, sinks):
+            p = list(product(range(len(nodes)), range(len(nodes))))
+            n = (len(nodes)**2)/8
+            s_s = random.sample(p, n)
+            s_s = set([(max(i), min(i)) for i in s_s])
+            for i, j in s_s:
                 edges.append(HicEdge(source=i, sink=j, weight=weight))
                 weight += 1
             hic.add_edges(edges)
 
         hic1 = Hic()
         populate_hic(hic1, seed=24)
+        assert hic1[:,:].sum() == 411
         hic2 = Hic()
-        populate_hic(hic1, seed=42)
+        populate_hic(hic2, seed=42)
+        assert hic2[:,:].sum() == 443
         hic3 = Hic()
-        populate_hic(hic1, seed=84)
+        populate_hic(hic3, seed=84)
+        assert hic3[:,:].sum() == 331
 
         hic_sum = hic1[:,:] + hic2[:,:] + hic3[:,:]
-        hic1.merge([hic1, hic2], _edge_buffer_size=5)
-        assert hic1[:,:] == hic_sum
+        hic1.merge([hic2, hic3], _edge_buffer_size=5)
+        assert (hic1[:,:] == hic_sum).all()
 
     def test_from_pairs(self):
         reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
