@@ -2073,6 +2073,19 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
 
     def merge(self, hic_or_hics, _edge_buffer_size=5000000):
+        """
+        Merge this object with other :class:`~Hic` objects.
+
+        First merges genomic regions, then merges edges.
+        It is strongly advised that the genomic regions in
+        both objects are the same, although this method will attempt to
+        "translate" regions from one object to the other if
+        this is not the case.
+
+        :param hic_or_hics: :class:`~Hic` object or a list
+                            of :class:`~Hic` objects to be
+                            merged into this one
+        """
         import traceback
         if isinstance(hic_or_hics, Hic):
             hic = hic_or_hics
