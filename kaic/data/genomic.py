@@ -2069,6 +2069,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 logging.info("Flushing buffer...")
                 self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                 edge_buffer = {}
+        logging.info("Final flush...")
         self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
 
     def merge(self, hic_or_hics, _edge_buffer_size=5000000):
