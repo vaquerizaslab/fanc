@@ -602,6 +602,40 @@ class TestHicBasic:
             for j in four:
                 assert merged[i,j] == right[i,j-4]
 
+    def test_multi_merge(self):
+        def populate_hic(hic, seed=0):
+            import random
+            random.seed(seed)
+            # add some nodes (120 to be exact)
+            nodes = []
+            for i in range(1,5000,1000):
+                nodes.append(HicNode(chromosome="chr1",start=i,end=i+1000-1))
+            for i in range(1,3000,1000):
+                nodes.append(HicNode(chromosome="chr2",start=i,end=i+1000-1))
+            for i in range(1,2000,400):
+                nodes.append(HicNode(chromosome="chr4",start=i,end=i+100-1))
+            hic.add_nodes(nodes)
+            # add half as many random edges
+            edges = []
+            weight = 1
+            sources = random.sample(range(0, len(nodes)), (len(nodes))/2)
+            sinks = random.sample(range(0, len(nodes)), (len(nodes))/2)
+            for i, j in zip(sources, sinks):
+                edges.append(HicEdge(source=i, sink=j, weight=weight))
+                weight += 1
+            hic.add_edges(edges)
+
+        hic1 = Hic()
+        populate_hic(hic1, seed=24)
+        hic2 = Hic()
+        populate_hic(hic1, seed=42)
+        hic3 = Hic()
+        populate_hic(hic1, seed=84)
+
+        hic_sum = hic1[:,:] + hic2[:,:] + hic3[:,:]
+        hic1.merge([hic1, hic2], _edge_buffer_size=5)
+        assert hic1[:,:] == hic_sum
+
     def test_from_pairs(self):
         reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
         reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
