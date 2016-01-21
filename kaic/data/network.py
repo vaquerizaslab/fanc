@@ -7,7 +7,8 @@ from collections import defaultdict
 import tables as t
 from bisect import bisect_left
 from functools import partial
-from kaic.tools.files import create_or_open_pytables_file
+from kaic.data.genomic import RegionsTable
+from kaic.data.general import FileBased, MaskedTable, MaskFilter
 import msgpack
 import time
 
@@ -29,6 +30,182 @@ class PeakCaller(object):
     @abstractmethod
     def call_peaks(self, hic):
         pass
+
+
+class RaoPeakInfo(RegionsTable, FileBased):
+    class PeakInformation(t.IsDescription):
+        source = t.Int32Col(pos=0)
+        sink = t.Int32Col(pos=1)
+        observed = t.Int32Col(pos=2)
+        e_ll = t.Float32Col(pos=3)
+        e_h = t.Float32Col(pos=4)
+        e_v = t.Float32Col(pos=5)
+        e_d = t.Float32Col(pos=6)
+        e_ll_chunk = t.Int32Col(pos=7)
+        e_h_chunk = t.Int32Col(pos=8)
+        e_v_chunk = t.Int32Col(pos=9)
+        e_d_chunk = t.Int32Col(pos=10)
+        fdr_ll = t.Float32Col(pos=11)
+        fdr_h = t.Float32Col(pos=12)
+        fdr_v = t.Float32Col(pos=13)
+        fdr_d = t.Float32Col(pos=14)
+
+    def __init__(self, file_name, mode='a', _table_name_regions='regions',
+                 _table_name_peaks_intra='peak_info_intra',
+                 _table_name_peaks_inter='peak_info_inter'):
+        FileBased.__init__(self, file_name, mode=mode)
+        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_regions)
+
+        if _table_name_peaks_intra in self.file.root:
+            self._edges = self.file.get_node('/', _table_name_peaks_intra)
+        else:
+            self.peak_table_intra = MaskedTable(self.file.root, _table_name_peaks_intra, RaoPeakInfo.PeakInformation)
+
+        if _table_name_peaks_inter in self.file.root:
+            self._edges = self.file.get_node('/', _table_name_peaks_inter)
+        else:
+            self.peak_table_inter = MaskedTable(self.file.root, _table_name_peaks_inter, RaoPeakInfo.PeakInformation)
+
+    def _row2peak(self, row, lazy=False, auto_update=True):
+        if not lazy:
+            peak = RaoPeak(row['source'], row['sink'], row['observed'],
+                           e_ll=row['e_ll'], e_h=row['e_h'], e_v=row['e_v'], e_d=row['e_d'],
+                           e_ll_chunk=row['e_ll_chunk'], e_h_chunk=row['e_h_chunk'],
+                           e_v_chunk=row['e_v_chunk'], e_d_chunk=row['e_d_chunk'],
+                           fdr_ll=row['fdr_ll'], fdr_h=row['fdr_h'], fdr_v=row['fdr_v'], fdr_d=row['fdr_d'])
+        else:
+            peak = LazyRaoPeak(row, auto_update=auto_update)
+        return peak
+
+    def intra_peaks(self, lazy=False, auto_update=True):
+        it = self.peak_table_intra.iterrows()
+        return (self._row2peak(row, lazy=lazy, auto_update=auto_update) for row in it)
+
+    def filter_intra(self, peak_filter, queue=False, log_progress=False):
+        """
+        Filter edges in this object by using a :class:`~PeakFilter`.
+
+        :param peak_filter: Class implementing :class:`~PeakFilter`.
+                            Must override valid_peak method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        if not queue:
+            self.peak_table_intra.filter(peak_filter, _logging=log_progress)
+        else:
+            self.peak_table_intra.queue_filter(peak_filter)
+
+
+class RaoPeak(object):
+    def __init__(self, source, sink, observed=0, e_ll=0, e_h=0, e_v=0, e_d=0,
+                 e_ll_chunk=0, e_h_chunk=0, e_v_chunk=0, e_d_chunk=0,
+                 fdr_ll=1, fdr_h=1, fdr_v=1, fdr_d=1):
+        self.source = source
+        self.sink = sink
+        self.observed = observed
+        self.e_ll = e_ll
+        self.e_h = e_h
+        self.e_v = e_v
+        self.e_d = e_d
+        self.e_ll_chunk = e_ll_chunk
+        self.e_h_chunk = e_h_chunk
+        self.e_v_chunk = e_v_chunk
+        self.e_d_chunk = e_d_chunk
+        self.fdr_ll = fdr_ll
+        self.fdr_h = fdr_h
+        self.fdr_v = fdr_v
+        self.fdr_d = fdr_d
+
+
+class LazyRaoPeak(object):
+    def __init__(self, row, auto_update=True):
+        self.row = row
+        self.auto_update = auto_update
+
+    def _set_item(self, item, value):
+        self.row[item] = value
+        if self.auto_update:
+            self.row.update()
+
+    def __getattr__(self, item):
+        if item == 'row' or item == 'auto_update':
+            return super(LazyRaoPeak, self).__getattr__(item)
+        return self.row[item]
+
+    def __setattr__(self, key, value):
+        if key == 'row' or key == 'auto_update':
+            super(LazyRaoPeak, self).__setattr__(key, value)
+        else:
+            self.row[key] = value
+            if self.auto_update:
+                self.row.update()
+
+    def update(self):
+        self.row.update()
+
+
+class PeakFilter(MaskFilter):
+    """
+    Abstract class that provides filtering functionality for the
+    peaks in a :class:`~RaoPeakInfo` object.
+
+    Extends MaskFilter and overrides valid(self, row) to make
+    :class:`~RaoPeakInfo` filtering more "natural".
+
+    To create custom filters for the :class:`~RapPeakInfo` object, extend this
+    class and override the valid_peak(self, peak) method.
+    valid_peak should return False for a specific :class:`~RaoPeak` object
+    if the object is supposed to be filtered/masked and True
+    otherwise. See :class:`~DiagonalFilter` for an example.
+
+    Pass a custom filter to the :func:`~Hic.filter` method in :class:`~Hic`
+    to apply it.
+    """
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self, mask=None):
+        """
+        Initialize PeakFilter.
+
+        :param mask: The Mask object that should be used to mask
+                     filtered :class:`~RaoPeak` objects. If None the default
+                     Mask will be used.
+        """
+        super(PeakFilter, self).__init__(mask)
+
+    @abstractmethod
+    def valid_peak(self, peak):
+        """
+        Determine if a :class:`~RaoPeak` object is valid or should
+        be filtered.
+
+        When implementing custom PeakFilter this method must be
+        overridden. It should return False for :class:`~RaoPeak` objects that
+        are to be fitered and True otherwise.
+
+        Internally, the :class:`~RaoPeakInfo` object will iterate over all RaoPeak
+        instances to determine their validity on an individual
+        basis.
+
+        :param peak: A :class:`~RaoPeak` object
+        :return: True if :class:`~PeakFilter` is valid, False otherwise
+        """
+        pass
+
+    def valid(self, row):
+        """
+        Map valid_peak to MaskFilter.valid(self, row).
+
+        :param row: A pytables Table row.
+        :return: The boolean value returned by valid_edge.
+        """
+        peak = LazyRaoPeak(row)
+        return self.valid_peak(peak)
 
 
 class RaoPeakCaller(PeakCaller):
@@ -59,35 +236,14 @@ class RaoPeakCaller(PeakCaller):
     The :class:`~RaoPeakCaller` is initialized with the peak
     calling parameters and run using :func:`~RaoPeakCaller.call_peaks`.
     """
-    class PeakInformation(t.IsDescription):
-        source = t.Int32Col(pos=0)
-        sink = t.Int32Col(pos=1)
-        inter = t.BoolCol(pos=2, dflt=False)
-        observed = t.Int32Col(pos=3)
-        e_ll = t.Float32Col(pos=4)
-        e_h = t.Float32Col(pos=5)
-        e_v = t.Float32Col(pos=6)
-        e_d = t.Float32Col(pos=7)
-        e_ll_chunk = t.Int32Col(pos=8)
-        e_h_chunk = t.Int32Col(pos=9)
-        e_v_chunk = t.Int32Col(pos=10)
-        e_d_chunk = t.Int32Col(pos=11)
-        fdr_ll = t.Float32Col(pos=12)
-        fdr_h = t.Float32Col(pos=13)
-        fdr_v = t.Float32Col(pos=14)
-        fdr_d = t.Float32Col(pos=15)
 
-    def __init__(self, fdr_intra=None, fdr_inter=None, p=None, w_init=None, min_locus_dist=3,
-                 max_w=20, min_ll_reads=16, observed_cutoff=1, e_ll_cutoff=1.0, e_h_cutoff=1.0,
-                 e_v_cutoff=1.0, e_d_cutoff=1.0, process_inter=False, n_processes=4,
+    def __init__(self, p=None, w_init=None, min_locus_dist=3, max_w=20, min_ll_reads=16,
+                 observed_cutoff=1, e_ll_cutoff=1.0, e_h_cutoff=1.0, e_v_cutoff=1.0,
+                 e_d_cutoff=1.0, process_inter=False, n_processes=4,
                  batch_size=500000):
         """
         Initialize the peak caller with parameters.
 
-        :param fdr_intra: FDR cutoff for intra-chromosomal contacts. All
-               (non-zero) pixels will be reported if None is chosen.
-        :param fdr_inter: FDR cutoff for inter-chromosomal contacts. All
-               (non-zero) pixels will be reported if None is chosen.
         :param p:
         :param w_init:
         :param min_locus_dist:
@@ -103,8 +259,6 @@ class RaoPeakCaller(PeakCaller):
         :param batch_size:
         :return:
         """
-        self.fdr_intra = fdr_intra
-        self.fdr_inter = fdr_inter
         self.p = p
         self.w_init = w_init
         self.min_locus_dist = min_locus_dist
@@ -402,7 +556,7 @@ class RaoPeakCaller(PeakCaller):
 
         return m_sub, ij_converted
 
-    def _process_jobs(self, jobs, peak_info, observed_chunk_distribution, inter=False):
+    def _process_jobs(self, jobs, peak_info, observed_chunk_distribution):
         if _has_gridmap:
             t1 = time.time()
             job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes)
@@ -430,7 +584,6 @@ class RaoPeakCaller(PeakCaller):
                         row['source'] = source
                         row['sink'] = sink
                         row['observed'] = observed
-                        row['inter'] = inter
                         row['e_ll'] = e_ll
                         row['e_h'] = e_h
                         row['e_v'] = e_v
@@ -447,8 +600,6 @@ class RaoPeakCaller(PeakCaller):
                             observed_chunk_distribution[e_type][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
 
             t3 = time.time()
-            print "Importing took %f seconds" % (t2-t1)
-            print "Saving took %f seconds" % (t3-t2)
         else:
             raise RuntimeError("gridmap not installed, multiprocessing not enabled")
 
@@ -548,7 +699,7 @@ class RaoPeakCaller(PeakCaller):
                                                       e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
                     jobs.append(job)
                     if len(jobs) >= self.n_processes:
-                        self._process_jobs(jobs, peak_info, observed_chunk_distribution, inter=inter)
+                        self._process_jobs(jobs, peak_info, observed_chunk_distribution)
                         jobs = []
                     ij_pairs = []
                     ij_region_pairs = []
@@ -566,16 +717,14 @@ class RaoPeakCaller(PeakCaller):
             jobs.append(job)
 
         if len(jobs) > 0:
-            self._process_jobs(jobs, peak_info, observed_chunk_distribution, inter=inter)
+            self._process_jobs(jobs, peak_info, observed_chunk_distribution)
         peak_info.flush()
 
     def call_peaks(self, hic, chromosomes=None, file_name=None):
-        if file_name is None:
-            f = create_or_open_pytables_file()
-        else:
-            f = create_or_open_pytables_file(file_name, mode='w')
+        peaks = RaoPeakInfo(file_name)
 
-        peak_info = f.create_table('/', 'peak_info', RaoPeakCaller.PeakInformation)
+        peak_info = peaks.peak_table_intra
+        peak_info_inter = peaks.peak_table_inter
 
         # mappability
         logging.info("Calculating visibility of regions...")
@@ -633,7 +782,7 @@ class RaoPeakCaller(PeakCaller):
                     self._find_peaks_in_matrix(m, intra_expected, c, False, mappable, peak_info,
                                                observed_chunk_distribution, lambda_chunks, w_init, p)
                 elif self.process_inter:
-                    self._find_peaks_in_matrix(m, inter_expected, c, True, mappable, peak_info,
+                    self._find_peaks_in_matrix(m, inter_expected, c, True, mappable, peak_info_inter,
                                                observed_chunk_distribution, lambda_chunks, w_init, p)
         peak_info.flush()
 
@@ -641,28 +790,18 @@ class RaoPeakCaller(PeakCaller):
         fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
 
         # inter_pvalues = []
-        for peak in peak_info:
-            if peak['inter']:
-                # collect for multiple testing
-                #inter_pvalues.append(1-poisson.cdf(peak['observed'], inter_expected))
-                pass
-            else:
-                observed = peak['observed']
-                e_ll_chunk = peak['e_ll_chunk']
-                e_h_chunk = peak['e_h_chunk']
-                e_v_chunk = peak['e_v_chunk']
-                e_d_chunk = peak['e_d_chunk']
-                peak['fdr_ll'] = fdr_cutoffs['ll'][e_ll_chunk][observed]
-                peak['fdr_h'] = fdr_cutoffs['h'][e_h_chunk][observed]
-                peak['fdr_v'] = fdr_cutoffs['v'][e_v_chunk][observed]
-                peak['fdr_d'] = fdr_cutoffs['d'][e_d_chunk][observed]
-                peak.update()
+        for peak in peaks.intra_peaks(lazy=True, auto_update=False):
+            peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.observed]
+            peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.observed]
+            peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
+            peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
+            peak.update()
         peak_info.flush()
 
         # return peak_info, fdr_cutoffs, observed_chunk_distribution
-        return peak_info, f
+        return peaks
 
-    def merge_peaks(self, peak_list, euclidian_distance=20000, resolution=10000):
+    def merge_peaks(self, peak_list, hic, euclidian_distance=20000):
         merged_list = []
         peak_list_ixs = []
         current_peak = None

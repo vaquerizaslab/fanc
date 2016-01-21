@@ -1,5 +1,5 @@
 from __future__ import division
-from kaic.data.network import RaoPeakCaller, process_matrix_range
+from kaic.data.network import RaoPeakCaller, process_matrix_range, RaoPeakInfo
 from kaic.data.genomic import Hic, HicMatrix, GenomicRegion
 import numpy as np
 import tables as t
@@ -313,7 +313,7 @@ class TestRaoPeakCaller:
         mappable = [True, True, True, True, True, True, True]
 
         f = t.open_file('test_peaks', 'w', driver="H5FD_CORE", driver_core_backing_store=0)
-        peak_info1 = f.create_table('/', 'peak_info1', RaoPeakCaller.PeakInformation)
+        peak_info1 = f.create_table('/', 'peak_info1', RaoPeakInfo.PeakInformation)
 
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
@@ -350,8 +350,8 @@ class TestRaoPeakCaller:
             for row1, row2 in zip(peak_info_1, peak_info_2):
                 assert np.array_equal(row1.fetch_all_fields(), row2.fetch_all_fields())
 
-        peak_info2 = f.create_table('/', 'peak_info2', RaoPeakCaller.PeakInformation)
-        peak_info3 = f.create_table('/', 'peak_info3', RaoPeakCaller.PeakInformation)
+        peak_info2 = f.create_table('/', 'peak_info2', RaoPeakInfo.PeakInformation)
+        peak_info3 = f.create_table('/', 'peak_info3', RaoPeakInfo.PeakInformation)
 
         peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=1, e_ll_cutoff=None,
                                     e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
@@ -399,7 +399,8 @@ class TestRaoPeakCaller:
 
         peak_caller = RaoPeakCaller(process_inter=False, e_ll_cutoff=1.75,
                                     e_d_cutoff=1.75, e_h_cutoff=1.5, e_v_cutoff=1.5)
-        peak_info, f = peak_caller.call_peaks(hic_10kb)
+        peaks = peak_caller.call_peaks(hic_10kb)
+        peak_info = peaks.peak_table_intra
 
         assert len(peak_info) == 219
 
