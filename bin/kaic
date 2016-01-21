@@ -736,43 +736,21 @@ class Kaic(object):
         parser.set_defaults(tmp=False)
 
         args = parser.parse_args(sys.argv[2:])
+        tmpdir = '/tmp' if args.tmp else None
 
         import kaic
         from kaic.tools.files import copy_or_expand, create_temporary_copy
 
-        original_output_path = os.path.expanduser(args.output)
-        if args.tmp:
-            logging.info("Working in temporary directory...")
-            tmp_file = tempfile.NamedTemporaryFile(delete=False)
-            tmp_file.close()
-            output_path = tmp_file.name
-            logging.info("Temporary output file: %s" % output_path)
-        else:
-            output_path = original_output_path
+        output_path = os.path.expanduser(args.output)
 
         logging.info("Copying to %s" % output_path)
         base_path = copy_or_expand(args.hic.pop(0), output_path)
-        merged = kaic.Hic(base_path, mode='a')
 
-        for path in args.hic:
-            logging.info("Merging %s" % path)
-            if args.tmp:
-                input_path = create_temporary_copy(path)
-            else:
-                input_path = os.path.expanduser(path)
-            hic = kaic.Hic(input_path)
-            merged.merge(hic)
-            hic.close()
+        with kaic.Hic(base_path, mode='a', tmpdir=tmpdir) as merged:
+            paths = [os.path.expanduser(path) for path in args.hic]
+            hics = (kaic.Hic(path, mode='r', tmpdir=tmpdir) for path in paths)
+            merged.merge(hics)
 
-            if args.tmp:
-                logging.info("Removing temporary file...")
-                os.unlink(input_path)
-
-        merged.close()
-
-        if args.tmp:
-            logging.info("Moving temporary output to destination %s" % original_output_path)
-            shutil.move(base_path, original_output_path)
         logging.info("All done")
 
     def filter_hic(self):
