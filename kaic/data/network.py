@@ -11,6 +11,7 @@ from kaic.data.genomic import RegionsTable
 from kaic.data.general import FileBased, MaskedTable, MaskFilter
 import msgpack
 import time
+import math
 
 try:
     import gridmap
@@ -32,6 +33,95 @@ class PeakCaller(object):
         pass
 
 
+class PeakInfo(RegionsTable, FileBased):
+    class MergedPeakInformation(t.IsDescription):
+        source = t.Int32Col(pos=0)
+        sink = t.Int32Col(pos=1)
+        observed = t.Int32Col(pos=2)
+        expected = t.Float32Col(pos=3)
+        p_value = t.Float32Col(pos=4)
+        x = t.Float32Col(pos=5)
+        y = t.Float32Col(pos=6)
+        radius = t.Float32Col(pos=7)
+
+    def __init__(self, file_name, mode='a', regions=None, _table_name_regions='regions',
+                 _group_name='peaks',
+                 _table_name_peaks_intra='peak_info_intra',
+                 _table_name_peaks_inter='peak_info_inter'):
+        FileBased.__init__(self, file_name, mode=mode)
+        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_regions)
+
+        # try to retrieve existing tables
+        # Peaks group
+        try:
+            self._file_group = self.file.get_node('/' + _group_name)
+        except t.NoSuchNodeError:
+            # create peaks group
+            self._file_group = self.file.create_group("/", _group_name, 'Peaks group',
+                                                      filters=t.Filters(complib="blosc",
+                                                                        complevel=2, shuffle=True))
+
+        try:
+            self.peak_table = self._file_group.peaks
+        except t.NoSuchNodeError:
+            self.peak_table = MaskedTable(self._file_group, 'peaks', PeakInfo.MergedPeakInformation)
+
+        if regions is not None:
+            for region in regions:
+                self.add_region(region, flush=False)
+            self._regions.flush()
+
+    def _row2peak(self, row, lazy=False, auto_update=True):
+        if not lazy:
+            peak = Peak(row['source'], row['sink'], row['observed'],
+                        expected=row['expected'], p_value=row['p_value'],
+                        x=row['x'], y=row['y'], radius=row['radius'])
+        else:
+            peak = LazyPeak(row, auto_update=auto_update)
+        return peak
+
+    def peaks(self, lazy=False, auto_update=True):
+        it = self.peak_table.iterrows()
+        return (self._row2peak(row, lazy=lazy, auto_update=auto_update) for row in it)
+
+    def add_peak(self, peak, flush=True):
+        source = None
+        sink = None
+        observed = None
+        expected = None
+        p_value = None
+        x = None
+        y = None
+        radius = None
+
+        if isinstance(peak, Peak):
+            source = peak.source
+            sink = peak.sink
+            observed = peak.observed
+            expected = peak.expected
+            p_value = peak.p_value
+            x = peak.x
+            y = peak.y
+            radius = peak.radius
+
+        row = self.peak_table.row
+        row['source'] = source
+        row['sink'] = sink
+        row['observed'] = observed
+        row['expected'] = expected
+        row['p_value'] = p_value
+        row['x'] = x
+        row['y'] = y
+        row['radius'] = radius
+        row.append()
+
+        if flush:
+            self.peak_table.flush(update_index=True)
+
+    def flush(self, update_index=False):
+        self.peak_table.flush(update_index=update_index)
+
+
 class RaoPeakInfo(RegionsTable, FileBased):
     class PeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
@@ -50,21 +140,35 @@ class RaoPeakInfo(RegionsTable, FileBased):
         fdr_v = t.Float32Col(pos=13)
         fdr_d = t.Float32Col(pos=14)
 
-    def __init__(self, file_name, mode='a', _table_name_regions='regions',
-                 _table_name_peaks_intra='peak_info_intra',
-                 _table_name_peaks_inter='peak_info_inter'):
+    class MergedPeakInformation(t.IsDescription):
+        source = t.Int32Col(pos=0)
+        sink = t.Int32Col(pos=1)
+        observed = t.Int32Col(pos=2)
+
+    def __init__(self, file_name, mode='a', regions=None, _table_name_regions='regions',
+                 _group_name='rao_peaks'):
         FileBased.__init__(self, file_name, mode=mode)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_regions)
 
-        if _table_name_peaks_intra in self.file.root:
-            self._edges = self.file.get_node('/', _table_name_peaks_intra)
-        else:
-            self.peak_table_intra = MaskedTable(self.file.root, _table_name_peaks_intra, RaoPeakInfo.PeakInformation)
+        # try to retrieve existing tables
+        # Rao Peaks group
+        try:
+            self._file_group = self.file.get_node('/' + _group_name)
+        except t.NoSuchNodeError:
+            # create peaks group
+            self._file_group = self.file.create_group('/', _group_name, 'Rao Peaks group',
+                                                      filters=t.Filters(complib="blosc",
+                                                                        complevel=2, shuffle=True))
 
-        if _table_name_peaks_inter in self.file.root:
-            self._edges = self.file.get_node('/', _table_name_peaks_inter)
-        else:
-            self.peak_table_inter = MaskedTable(self.file.root, _table_name_peaks_inter, RaoPeakInfo.PeakInformation)
+        try:
+            self.peak_table = self._file_group.peaks
+        except t.NoSuchNodeError:
+            self.peak_table = MaskedTable(self._file_group, 'peaks', RaoPeakInfo.PeakInformation)
+
+        if regions is not None:
+            for region in regions:
+                self.add_region(region, flush=False)
+            self._regions.flush()
 
     def _row2peak(self, row, lazy=False, auto_update=True):
         if not lazy:
@@ -77,11 +181,11 @@ class RaoPeakInfo(RegionsTable, FileBased):
             peak = LazyRaoPeak(row, auto_update=auto_update)
         return peak
 
-    def intra_peaks(self, lazy=False, auto_update=True):
-        it = self.peak_table_intra.iterrows()
+    def peaks(self, lazy=False, auto_update=True):
+        it = self.peak_table.iterrows()
         return (self._row2peak(row, lazy=lazy, auto_update=auto_update) for row in it)
 
-    def filter_intra(self, peak_filter, queue=False, log_progress=False):
+    def filter(self, peak_filter, queue=False, log_progress=False):
         """
         Filter edges in this object by using a :class:`~PeakFilter`.
 
@@ -95,9 +199,130 @@ class RaoPeakInfo(RegionsTable, FileBased):
                              will be continuously reported.
         """
         if not queue:
-            self.peak_table_intra.filter(peak_filter, _logging=log_progress)
+            self.peak_table.filter(peak_filter, _logging=log_progress)
         else:
-            self.peak_table_intra.queue_filter(peak_filter)
+            self.peak_table.queue_filter(peak_filter)
+
+    @staticmethod
+    def _euclidian_distance(x1, y1, x2, y2):
+        return math.sqrt((x1-x2)**2+(y1-y2)**2)
+
+    @staticmethod
+    def _centroid_and_radius(peak_list):
+        x = 0
+        y = 0
+        for peak in peak_list:
+            x += peak.source
+            y += peak.sink
+        x /= len(peak_list)
+        y /= len(peak_list)
+
+        radius = 0
+        for peak in peak_list:
+            distance = RaoPeakInfo._euclidian_distance(x, y, peak.x, peak.y)
+            if distance > radius:
+                radius = distance
+        return x, y, radius
+
+    def merged_peaks(self, file_name=None, euclidian_distance=20000):
+        merged_peaks = PeakInfo(file_name=file_name, regions=self.regions(lazy=True))
+
+        # get region index
+        regions_dict = self.regions_dict
+        bin_size = self.bin_size
+
+        chromosome_names = self.chromosomes()
+        for i, chromosome_name1 in enumerate(chromosome_names):
+            for j in xrange(i, len(chromosome_names)):
+                chromosome_name2 = chromosome_names[j]
+
+                remaining_peaks_set = set()
+                for peak in self.peaks():
+                    region1 = regions_dict[peak.source]
+                    region2 = regions_dict[peak.sink]
+                    if region1.chromosome == chromosome_name1 and region2.chromosome == chromosome_name2:
+                        remaining_peaks_set.add(peak)
+
+                last_peak_number = 0
+                current_peaks = []
+                while len(remaining_peaks_set) > 0:
+                    x, y, radius = RaoPeakInfo._centroid_and_radius(current_peaks)
+
+                    if len(current_peaks) == last_peak_number:
+                        if len(current_peaks) > 0:
+                            # add merged peak
+                            highest_peak = current_peaks[0]
+                            merged_peak = Peak(source=highest_peak.source, sink=highest_peak.sink,
+                                               observed=highest_peak.observed, expected=highest_peak.e_d,
+                                               p_value=highest_peak.fdr_d, x=x, y=y, radius=radius)
+                            merged_peaks.add_peak(merged_peak)
+                            current_peaks = []
+                            last_peak_number = 0
+                        # find highest peak
+                        highest_peak = None
+                        for peak in remaining_peaks_set:
+                            if highest_peak is None:
+                                highest_peak = peak
+                            else:
+                                if highest_peak.observed < peak.observed:
+                                    highest_peak = peak
+
+                        current_peaks.append(highest_peak)
+                        remaining_peaks_set.remove(highest_peak)
+                    else:
+                        last_peak_number = len(current_peaks)
+
+                        closest_peak = None
+                        closest_distance = None
+                        for peak in remaining_peaks_set:
+                            distance = RaoPeakInfo._euclidian_distance(x, y, peak.x, peak.y)
+                            if closest_peak is None or distance < closest_distance:
+                                closest_peak = peak
+                                closest_distance = distance
+
+                        if closest_distance <= euclidian_distance:
+                            current_peaks.append(closest_peak)
+                            remaining_peaks_set.remove(closest_peak)
+        return merged_peaks
+
+
+class Peak(object):
+    def __init__(self, source, sink, observed=0, expected=0, p_value=1, x=0, y=0, radius=0):
+        self.source = source
+        self.sink = sink
+        self.observed = observed
+        self.expected = expected
+        self.p_value = p_value
+        self.x = x
+        self.y = y
+        self.radius = radius
+
+
+class LazyPeak(object):
+    def __init__(self, row, auto_update=True):
+        self.row = row
+        self.auto_update = auto_update
+
+    def _set_item(self, item, value):
+        self.row[item] = value
+        if self.auto_update:
+            self.row.update()
+
+    def __getattr__(self, item):
+        if item == 'row' or item == 'auto_update':
+            return super(LazyPeak, self).__getattr__(item)
+        return self.row[item]
+
+    def __setattr__(self, key, value):
+        if key == 'row' or key == 'auto_update':
+            super(LazyPeak, self).__setattr__(key, value)
+        else:
+            self.row[key] = value
+            if self.auto_update:
+                self.row.update()
+
+    def update(self):
+        self.row.update()
 
 
 class RaoPeak(object):
@@ -768,10 +993,9 @@ class RaoPeakCaller(PeakCaller):
         peak_info.flush()
 
     def call_peaks(self, hic, chromosomes=None, file_name=None):
-        peaks = RaoPeakInfo(file_name)
+        peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True))
 
-        peak_info = peaks.peak_table_intra
-        peak_info_inter = peaks.peak_table_inter
+        peak_info = peaks.peak_table
 
         # mappability
         logging.info("Calculating visibility of regions...")
@@ -829,20 +1053,23 @@ class RaoPeakCaller(PeakCaller):
                     self._find_peaks_in_matrix(m, intra_expected, c, False, mappable, peak_info,
                                                observed_chunk_distribution, lambda_chunks, w_init, p)
                 elif self.process_inter:
-                    self._find_peaks_in_matrix(m, inter_expected, c, True, mappable, peak_info_inter,
+                    self._find_peaks_in_matrix(m, inter_expected, c, True, mappable, peak_info,
                                                observed_chunk_distribution, lambda_chunks, w_init, p)
         peak_info.flush()
 
         # calculate fdrs
         fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
 
-        # inter_pvalues = []
-        for peak in peaks.intra_peaks(lazy=True, auto_update=False):
-            peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.observed]
-            peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.observed]
-            peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
-            peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
-            peak.update()
+        region_dict = peaks.regions_dict
+        for peak in peaks.peaks(lazy=True, auto_update=False):
+            region1 = region_dict[peak.source]
+            region2 = region_dict[peak.sink]
+            if region1.chromosome == region2.chromosome:
+                peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.observed]
+                peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.observed]
+                peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
+                peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
+                peak.update()
         peak_info.flush()
 
         # return peak_info, fdr_cutoffs, observed_chunk_distribution

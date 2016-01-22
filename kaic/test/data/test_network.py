@@ -400,7 +400,7 @@ class TestRaoPeakCaller:
         peak_caller = RaoPeakCaller(process_inter=False, e_ll_cutoff=1.75,
                                     e_d_cutoff=1.75, e_h_cutoff=1.5, e_v_cutoff=1.5)
         peaks = peak_caller.call_peaks(hic_10kb)
-        peak_info = peaks.peak_table_intra
+        peak_info = peaks.peak_table
 
         assert len(peak_info) == 219
 
