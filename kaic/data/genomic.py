@@ -1269,6 +1269,18 @@ class GenomicRegions(object):
             chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
 
+    @property
+    def regions_dict(self):
+        regions_dict = dict()
+        for r in self.regions:
+            regions_dict[r.ix] = r
+        return regions_dict
+
+    @property
+    def bin_size(self):
+        node = self.regions[0]
+        return node.end - node.start + 1
+
 
 class RegionsTable(GenomicRegions, FileBased):
     """
