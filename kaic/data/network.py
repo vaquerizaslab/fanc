@@ -208,6 +208,53 @@ class PeakFilter(MaskFilter):
         return self.valid_peak(peak)
 
 
+class FdrPeakFilter(PeakFilter):
+    def __init__(self, mask=None, fdr_cutoff=None, fdr_ll_cutoff=0.1, fdr_v_cutoff=0.1,
+                 fdr_h_cutoff=0.1, fdr_d_cutoff=0.1):
+        super(FdrPeakFilter, self).__init__(mask=mask)
+        if fdr_cutoff is not None:
+            fdr_ll_cutoff = fdr_cutoff
+            fdr_h_cutoff = fdr_cutoff
+            fdr_v_cutoff = fdr_cutoff
+            fdr_d_cutoff = fdr_cutoff
+        self.fdr_cutoff = fdr_cutoff
+        self.fdr_ll_cutoff = fdr_ll_cutoff
+        self.fdr_h_cutoff = fdr_h_cutoff
+        self.fdr_v_cutoff = fdr_v_cutoff
+        self.fdr_d_cutoff = fdr_d_cutoff
+
+    def valid_peak(self, peak):
+        if peak.fdr_ll > self.fdr_ll_cutoff:
+            return False
+        if peak.fdr_h > self.fdr_h_cutoff:
+            return False
+        if peak.fdr_v > self.fdr_v_cutoff:
+            return False
+        if peak.fdr_d > self.fdr_d_cutoff:
+            return False
+        return True
+
+
+class ObservedExpectedRatioPeakFilter(PeakFilter):
+    def __init__(self, ll_ratio=1.0, h_ratio=1.0, v_ratio=1.0, d_ratio=1.0, mask=None):
+        super(ObservedExpectedRatioPeakFilter, self).__init__(mask=mask)
+        self.ll_ratio = ll_ratio
+        self.h_ratio = h_ratio
+        self.v_ratio = v_ratio
+        self.d_ratio = d_ratio
+
+    def valid_peak(self, peak):
+        if self.ll_ratio is not None and peak.observed/peak.e_ll < self.ll_ratio:
+            return False
+        if self.h_ratio is not None and peak.observed/peak.e_h < self.h_ratio:
+            return False
+        if self.v_ratio is not None and peak.observed/peak.e_v < self.v_ratio:
+            return False
+        if self.d_ratio is not None and peak.observed/peak.e_d < self.d_ratio:
+            return False
+        return True
+
+
 class RaoPeakCaller(PeakCaller):
     """
     Class that calls peaks the same way Rao et al. (2014) propose.
@@ -800,13 +847,6 @@ class RaoPeakCaller(PeakCaller):
 
         # return peak_info, fdr_cutoffs, observed_chunk_distribution
         return peaks
-
-    def merge_peaks(self, peak_list, hic, euclidian_distance=20000):
-        merged_list = []
-        peak_list_ixs = []
-        current_peak = None
-
-
 
 
 def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
