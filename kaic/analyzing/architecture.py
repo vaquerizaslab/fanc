@@ -1,7 +1,10 @@
+from __future__ import division
 from kaic.data.genomic import Hic
+from kaic.plotting.plotter import GenomicTrack
 import numpy as np
 import logging
 import ipdb
+import itertools as it
 from scipy.signal import savgol_filter
 
 log = logging.getLogger(__name__)
@@ -16,6 +19,10 @@ def kth_diag_indices(n, k):
         return rows[k:], cols[:-k]
     else:
         return rows, cols
+
+# class HicArchitecture(object):
+#     def __init__(self, hic):
+#         self.hic = hic
 
 def insulation_index(hic, d, hic_matrix=None):
     chr_bins = hic.chromosome_bins
@@ -50,9 +57,8 @@ def rel_insulation_index(hic, d, hic_matrix=None):
         if chr_bins[r.chromosome][1] - i < d:
             rel_ins_matrix[i] = np.nan
             continue
-        rel_ins_matrix[i] = ((np.ma.sum(hic_matrix[i - d:i, i - d:i]) +
-            np.ma.sum(hic_matrix[i:i + d, i:i + d])) /
-            (2*np.ma.sum(hic_matrix[i: i + d, i - d:i])))
+        rel_ins_matrix[i] = (2*np.ma.sum(hic_matrix[i: i + d, i - d:i]) /
+            (np.ma.sum(hic_matrix[i - d:i, i - d:i]) + np.ma.sum(hic_matrix[i:i + d, i:i + d])))
     return rel_ins_matrix
 
 def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
@@ -72,7 +78,7 @@ def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
         if chr_bins[r.chromosome][1] - i < d2:
             band[i] = np.nan
             continue
-        band[i] = np.ma.sum(hic_matrix[i - d2:i - d1, i + d1:i + d2])
+        band[i] = np.ma.mean(hic_matrix[i - d2:i - d1, i + d1:i + d2])
     return band
 
 def observed_expected_ratio(hic, hic_matrix=None, per_chromosome=True):
@@ -102,38 +108,84 @@ def observed_expected_ratio(hic, hic_matrix=None, per_chromosome=True):
     oe[np.tril_indices(n)] = oe.T[np.tril_indices(n)]
     return oe
 
-def call_peaks_deriv(x, window_length=9, polyorder=2, as_range=True, thresh=None):
-    # Calculate Savitzky-Golay smoothed 1st and 2nd order derivative of input
-    d1 = savgol_filter(x=x, window_length=window_length, polyorder=polyorder, deriv=1)
-    d2 = savgol_filter(x=x, window_length=window_length, polyorder=polyorder, deriv=2)
-    # Find indices of zero crossings of 1st derivative
-    zc1 = np.nonzero(np.diff(np.signbit(d1)))[0]
-    if thresh:
-        # If threshold is set, only retain peaks where 2nd derivative
-        # is above threshold (sharpness of peak)
-        is_above = np.abs(d2[zc1]) > thresh
-        zc1 = zc1[is_above]
-    # Minima have negative 2nd order derivative at minimum
-    is_minimum = d2[zc1] > 0
-    if as_range:
+def create_gtf_from_region_ix(regions, region_ix):
+    for s, e in region_ix:
+        yield "{}\tkaic\tboundary\t{}\t{}\t.\t.\t.\n".format(
+            regions[s].chromosome, regions[s].start, regions[e].end)
+
+class PeakCallerDeriv(object):
+    def __init__(self, x, window_size=9, poly_order=2):
+        self.x = x
+        self.window_size = window_size
+        self.poly_order = poly_order
+        self._call_peaks()
+
+    def _call_peaks(self):
+        # Calculate Savitzky-Golay smoothed x and 1st and 2nd order derivative of input
+        self.x_smooth = savgol_filter(self.x, window_length=self.window_size, polyorder=self.poly_order, deriv=0)
+        self.d1 = savgol_filter(self.x, window_length=self.window_size, polyorder=self.poly_order, deriv=1)
+        self.d2 = savgol_filter(self.x, window_length=self.window_size, polyorder=self.poly_order, deriv=2)
+        # Find indices of zero crossings of 1st derivative
+        self._peaks = np.nonzero(np.diff(np.signbit(self.d1)))[0]
+        log.info("Found {} raw peaks".format(len(self._peaks)))
+        # Minima have negative 2nd order derivative at minimum
+        self._min_mask = self.d2[self._peaks] > 0
         # Boundaries of peaks can be defined as the inflection point up-
         # and downstream of the peak. (zero crossings of 2nd derivative)
-        zc2 = np.nonzero(np.diff(np.signbit(d2)))[0]
-        boundary_ix = np.searchsorted(zc2, zc1, side="right")
-        extrema = np.empty((len(zc1), 2), dtype=np.int_)
+        self.infl_points = np.nonzero(np.diff(np.signbit(self.d2)))[0]
+        infl_ix = np.searchsorted(self.infl_points, self._peaks, side="right")
+        self.peak_bounds = np.empty((len(self._peaks), 2), dtype=np.int_)
         # Have to catch boundary condition if inflection point before first peak
         # or after last peak is not known
         try:
-            extrema[:, 0] = zc2[boundary_ix - 1]
+            self.peak_bounds[:, 0] = self.infl_points[infl_ix - 1]
         except IndexError:
-            boundary_ix[0] = 1
-            extrema[:, 0] = zc2[boundary_ix - 1]
-            extrema[0][0] = zc1[0]
+            infl_ix[0] = 1
+            self.peak_bounds[:, 0] = self.infl_points[infl_ix - 1]
+            self.peak_bounds[0][0] = self._peaks[0]
         try:
-            extrema[:, 1] = zc2[boundary_ix]
+            self.peak_bounds[:, 1] = self.infl_points[infl_ix]
         except IndexError:
-            boundary_ix[-1] = 1
-            extrema[:, 1] = zc2[boundary_ix]
-            extrema[-1][1] = zc1[-1]
-        return (extrema[is_minimum], extrema[~is_minimum])
-    return (zc1[is_minimum], zc1[~is_minimum])
+            infl_ix[-1] = 1
+            self.peak_bounds[:, 1] = self.infl_points[infl_ix]
+            self.peak_bounds[-1][1] = self._peaks[-1]
+        peak_vals = self.x_smooth[self._peaks]
+        # For each peak get average value of inflection points left and right
+        # Maybe what we want instead is the inflection point that has largest distance to peak summit?
+        ip_means = np.ma.mean([self.x_smooth[self.peak_bounds[:, 0]], self.x_smooth[self.peak_bounds[:, 1]]], axis=0)
+        self._heights = peak_vals - ip_means
+        self._peak_mask = np.full(self._peaks.shape, True, dtype=np.bool_)
+
+    def get_peaks(self, as_range=False):
+        if as_range:
+            return self.peak_bounds[self._peak_mask]
+        return self._peaks[self._peak_mask]
+
+    def get_minima(self, as_range=False):
+        if as_range:
+            return self.peak_bounds[np.logical_and(self._peak_mask, self._min_mask)]
+        return self._peaks[np.logical_and(self._peak_mask, self._min_mask)]
+
+    def get_maxima(self, as_range=False):
+        if as_range:
+            return self.peak_bounds[np.logical_and(self._peak_mask, ~self._min_mask)]
+        return self._peaks[np.logical_and(self._peak_mask, ~self._min_mask)]
+
+    @property
+    def heights(self):
+        return self._heights[self._peak_mask]
+
+    def filter(self, steepness_thresh=None, height_thresh=None):
+        if steepness_thresh:
+            # If threshold is set, only retain peaks where 2nd derivative
+            # is above the required percentile for steepness
+            d2_thresh = np.nanpercentile(np.abs(self.d2[self._peaks]), 100 - steepness_thresh)
+            steep_pass = np.abs(self.d2[zc1]) > d2_thresh
+            self._peak_mask = np.logical_and([self._peak_mask, steep_pass], axis=0)
+            log.info("Discarding {}({:.1%}) of total peaks due to steepness threshold ({}%)".format(np.sum(~steep_pass), np.sum(~steep_pass)/len(self._peaks), steepness_thresh))
+        if height_thresh:
+            height_thresh_minima = np.nanpercentile(self._heights[self._min_mask], height_thresh)
+            height_thresh_maxima = np.nanpercentile(self._heights[~self._min_mask], 100 - height_thresh)
+            height_pass = np.where(self._min_mask, self._heights <= height_thresh_minima, self._heights >= height_thresh_maxima)
+            self._peak_mask = np.logical_and(self._peak_mask, height_pass)
+            log.info("Discarding {}({:.1%}) of total peaks due to peak height threshold ({}%)".format(np.sum(~height_pass), np.sum(~height_pass)/len(self._peaks), height_thresh))

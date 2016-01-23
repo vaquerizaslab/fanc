@@ -53,6 +53,7 @@ class Kaic(object):
 
                     --- Architecture
                     structure_tracks   Calculate structural features of an Hic object
+                    boundaries         Call boundaries in an Hic object
 
                     --- Other
                     hiclib_to_kaic     Convert a hiclib object to a Hic object
@@ -2029,6 +2030,23 @@ class Kaic(object):
             help='Output path for genomic track'
         )
         parser.add_argument(
+            '-d', '--derivatives',
+            type=int,
+            nargs='+',
+            help='Optionally save derivatives of the specified order (>1).'
+        )
+        parser.add_argument(
+            '-w', '--window_size',
+            type=int, default=15,
+            help='Window size for smoothing derivatives in Savitzky Golay filter (in bins).'
+                 'Default 15. Must be an odd number.'
+        )
+        parser.add_argument(
+            '-o', '--poly_order',
+            type=int, default=2,
+            help='Order of polynomial used for smoothing derivatives. Default 2.'
+        )
+        parser.add_argument(
             '-i', '--insulation_index',
             nargs='+',
             type=int,
@@ -2041,15 +2059,22 @@ class Kaic(object):
             help='Calculate the contact band for the given distances. Eg. 5-10 10-15. (in bins)'
         )
         parser.add_argument(
-            '-d', '--directionality_index',
+            '-di', '--directionality_index',
             nargs='+',
             type=int,
             help='Calculate the directionality index for the given distances (in bp)'
         )
+        parser.add_argument(
+            '-ri', '--relative_insulation_index',
+            nargs='+',
+            type=int,
+            help='Calculate the relative insulation indices for the given distances (in bins)'
+        )
         args = parser.parse_args(sys.argv[2:])
         import kaic
-        from kaic.analyzing.architecture import insulation_index, contact_band
+        from kaic.analyzing.architecture import insulation_index, rel_insulation_index, contact_band
         from kaic.plotting.plotter import GenomicTrack
+        from scipy.signal import savgol_filter
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
         h = kaic.Hic(input_path)
@@ -2067,6 +2092,100 @@ class Kaic(object):
             for d in args.directionality_index:
                 logging.info("Calculating directionality index with a window size of {}bp.".format(d))
                 gt.add_data("directionality_index_{}".format(d), h.directionality_index(d))
+        if args.relative_insulation_index:
+            for d in args.relative_insulation_index:
+                logging.info("Calculating relative insulation index up to {} bins away.".format(d))
+                gt.add_data("relative_insulation_index_{}".format(d), rel_insulation_index(h, d, hic_matrix=hic_matrix))
+        if args.derivatives:
+            for k, v in gt.tracks.iteritems():
+                for i in args.derivatives:
+                    d = savgol_filter(v, window_length=args.window_size, polyorder=args.poly_order, deriv=i)
+                    gt.add_data("{}_d{}".format(k, i), d)
+        logging.info("All done.")
+
+    def boundaries(self):
+        import kaic
+        from kaic.analyzing.architecture import PeakCallerDeriv, insulation_index, rel_insulation_index
+        from kaic.plotting.plotter import GenomicTrack
+        from scipy.signal import savgol_filter
+        import numpy as np
+        METRIC_INSULATION_INDEX = "insulation_index"
+        METRIC_REL_INSULATION_INDEX = "rel_insulation_index"
+        METRICS = {METRIC_INSULATION_INDEX: insulation_index, METRIC_REL_INSULATION_INDEX: rel_insulation_index}
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Determine structural boundaries'
+        )
+        parser.add_argument(
+            'hic',
+            help='Input Hic file'
+        )
+        parser.add_argument(
+            'metric',
+            help='Metric to use for boundary calling. Supported are ' +
+                 ', '.join('"{}"'.format(s) for s in METRICS.keys())
+        )
+        parser.add_argument(
+            'distance',
+            type=int,
+            help='Distance in bins used to calculate metric. (In Drosophila for 5kb bins, '
+                 '15 bins works well)'
+        )
+        parser.add_argument(
+            'output',
+            help='Output path for boundary gtf file.'
+        )
+        parser.add_argument(
+            '-w', '--window_size',
+            type=int, default=15,
+            help='Window size for smoothing derivatives in Savitzky Golay filter (in bins).'
+                 'Default 15. Must be an odd number.'
+        )
+        parser.add_argument(
+            '-o', '--poly_order',
+            type=int, default=2,
+            help='Order of polynomial used for smoothing. Default 2.'
+        )
+        parser.add_argument(
+            '-s', '--steepness_thresh',
+            type=int,
+            help='Report only peaks where the absolute second derivative is within this quantile. (0-100)'
+                 'Default None.'
+        )
+        parser.add_argument(
+            '-t', '--height_thresh',
+            type=int,
+            help='Report only peaks where the peak height is within this quantile (0-100)'
+                 'Default None.'
+        )
+        parser.add_argument(
+            '-r', '--as_range',
+            action='store_true', default=False,
+            help='Report peaks as range between the two inflection points around the peak.'
+                 'Default False.'
+        )
+        args = parser.parse_args(sys.argv[2:])
+        input_path = os.path.expanduser(args.hic)
+        output_path = os.path.expanduser(args.output)
+        h = kaic.Hic(input_path)
+        hic_matrix = h[:]
+        metric = METRICS[args.metric](h, d=args.distance, hic_matrix=hic_matrix)
+        logging.info("Calling borders using {}, distance {}.".format(args.metric, args.distance))
+        peak_caller = PeakCallerDeriv(metric, window_size=args.window_size, poly_order=args.poly_order)
+        peak_caller.filter(steepness_thresh=args.steepness_thresh, height_thresh=args.height_thresh)
+        minima = peak_caller.get_minima(as_range=args.as_range)
+        heights = np.ma.abs(peak_caller.heights)
+        with open(args.output, "w") as f:
+            for i, m in enumerate(minima):
+                if args.as_range:
+                    r1, r2 = h.regions[m[0]], h.regions[m[1]]
+                    r = kaic.GenomicRegion(r1.chromosome, r1.start, r2.end)
+                else:
+                    r = h.regions[m]
+                f.write("{chrm}\t{source}\t{feature}\t{start}\t{end}\t{score}\t.\t{attrs}\n".format(
+                    chrm=r.chromosome, source="kaic", feature="border_regions",
+                    start=r.start, end=r.end, score=heights[i], attrs="")
+                )
         logging.info("All done.")
 
     def hiclib_to_kaic(self):
