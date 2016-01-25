@@ -1,6 +1,6 @@
 from __future__ import division
 from kaic.data.network import RaoPeakCaller, process_matrix_range, RaoPeakInfo
-from kaic.data.genomic import Hic, HicMatrix, GenomicRegion
+from kaic.data.genomic import Hic, RegionMatrix, GenomicRegion
 import numpy as np
 import tables as t
 import pickle
@@ -25,7 +25,7 @@ class TestRaoPeakCaller:
                    GenomicRegion(4001, 5000, 'chr1', ix=4), GenomicRegion(5001, 6000, 'chr1', ix=5),
                    GenomicRegion(6001, 7000, 'chr1', ix=6)]
 
-        self.m = HicMatrix(np.array(l), col_regions=regions, row_regions=regions)
+        self.m = RegionMatrix(np.array(l), col_regions=regions, row_regions=regions)
 
     def test_ll_sum(self):
         # change p
