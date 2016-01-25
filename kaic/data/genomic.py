@@ -1617,7 +1617,7 @@ class LazyHicEdge(HicEdge):
         return self._sink_node
 
 
-class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
+class RegionMatrix(Maskable, MetaContainer, RegionsTable, FileBased):
     """
     Class for working with Hi-C data.
 
@@ -1663,20 +1663,12 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         hic.add_edges(edges)
     """
 
-    class HicEdgeDescription(t.IsDescription):
+    class EntryDescription(t.IsDescription):
         source = t.Int32Col(pos=0)  
         sink = t.Int32Col(pos=1)  
         weight = t.Float64Col(pos=2)
-
-    class HicRegionAnnotationDescription(t.IsDescription):
-        bias = t.Float32Col(pos=0, dflt=1)
     
-    def __init__(self, data=None, file_name=None,
-                 mode='a',
-                 _table_name_nodes='nodes',
-                 _table_name_edges='edges',
-                 _table_name_node_annotations='node_annot'):
-
+    def __init__(self, file_name=None, mode='a', _table_name_nodes='nodes', _table_name_edges='edges'):
         """
         Initialize a :class:`~Hic` object.
 
@@ -1693,245 +1685,33 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         # private variables
         self._max_node_ix = -1
         
-        # parse potential unnamed argument
-        if data is not None:
-            # data is file name
-            if type(data) is str:
-                data = os.path.expanduser(data)
-                
-                if (not os.path.isfile(data) or not is_hic_xml_file(data)) and file_name is None:
-                    file_name = data
-                    data = None
-        
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
         
         FileBased.__init__(self, file_name, mode=mode)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
+        Maskable.__init__(self, self.file)
+        MetaContainer.__init__(self, self.file)
 
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
         else:
             self._edges = MaskedTable(self.file.root, _table_name_edges,
-                                      Hic.HicEdgeDescription)
+                                      RegionMatrix.EntryDescription)
         
         self._edges.flush()
 
-        if _table_name_node_annotations in self.file.root:
-            self._node_annotations = self.file.get_node('/', _table_name_node_annotations)
-        elif mode not in ('r', 'r+'):
-            self._node_annotations = t.Table(self.file.root, _table_name_node_annotations,
-                                             Hic.HicRegionAnnotationDescription)
-            self._node_annotations.flush()
-        else:
-            # compatibility with existing objects
-            self._node_annotations = None
-
-        # generate tables from inherited classes
-        Maskable.__init__(self, self.file)
-        MetaContainer.__init__(self, self.file)
-
         # index edge table
         try:
-            self._edges.cols.source.create_csindex()
+            self._edges.cols.source.create_index()
         except ValueError:
             # Index exists, no problem!
             pass
         try:
-            self._edges.cols.sink.create_csindex()
+            self._edges.cols.sink.create_index()
         except ValueError:
             # Index exists, no problem!
             pass
-        
-        # add data
-        if data is not None:
-            if type(data) is str:
-                if is_hic_xml_file(data):
-                    xml = HicXmlFile(data)
-                    for node in xml.nodes():
-                        self.add_node(node, flush=False)
-                    self.flush()
-                    
-                    for edge in xml.edges():
-                        self.add_edge(edge, flush=False)
-                    self.flush()
-                else:
-                    raise ValueError("File is not in Hi-C XML format")
-                    
-            # data is existing Hic object
-            elif isinstance(data, Hic):
-                self.load_from_hic(data)
-            else:
-                try:
-                    self.load_read_fragment_pairs(data)
-                except AttributeError:
-                    raise ValueError("Input data type not recognized")
-    
-    def __del__(self):
-        self.close()
-    
-    def load_read_fragment_pairs(self, pairs, _max_buffer_size=5000000):
-        """
-        Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
-
-        This method automatically sums up reads mapping to the same
-        fragment pairs and creates exactly one edge per fragment pair.
-
-        :param pairs: A :class:`~kaic.construct.seq.FragmentMappedReadPairs`
-                      object.
-        :param _max_buffer_size: Number of edges kept in buffer before
-                                 writing to Table.
-        """
-        # add regions
-        if len(self._regions) != 0:
-            raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
-        self.add_regions(pairs.regions())
-
-        edge_buffer = {}
-        for pair in pairs._pairs:
-            source = pair["left_fragment"]
-            sink = pair["right_fragment"]
-            if source > sink:
-                tmp = source
-                source = sink
-                sink = tmp
-            key = (source, sink)
-            if key not in edge_buffer:
-                edge_buffer[key] = 0
-            edge_buffer[key] += 1
-
-            if len(edge_buffer) > _max_buffer_size:
-                logging.info("Flushing buffer")
-                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                edge_buffer = {}
-        logging.info("Final flush")
-        self._flush_edge_buffer(edge_buffer, replace=False)
-
-    def load_from_hic(self, hic, _edge_buffer_size=5000000,
-                      _edges_by_overlap_method=_edge_overlap_split_rao):
-        """
-        Load data from another :class:`~Hic` object.
-
-        :param hic: Another :class:`~Hic` object
-        :param _edge_buffer_size: Number of edges in memory before writing
-                                  to file
-        :param _edges_by_overlap_method: A function that maps reads from
-                                         one genomic region to others using
-                                         a supplied overlap map. By default
-                                         it uses the Rao et al. (2014) method.
-                                         See :func:`~_edge_overlap_split_rao`
-        """
-        # if we do not have any nodes in this Hi-C object...
-        if len(self.regions()) == 0:
-            logging.info("Copying Hi-C")
-            # ...simply import everything
-            for region in hic.regions():
-                self.add_region(region, flush=False)
-            for edge in hic.edges():
-                self.add_edge(edge, check_nodes_exist=False, flush=False)
-            self.flush()
-        # if already have nodes in this HiC object...
-        else:
-            logging.info("Binning Hi-C contacts")
-            # create region "overlap map"
-            overlap_map = _get_overlap_map(hic.regions(), self.regions())
-
-            edge_buffer = {}
-            for old_edge in hic._edges:
-                old_source = old_edge['source']
-                old_sink = old_edge['sink']
-                old_weight = old_edge['weight']
-                new_edges = _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map)
-
-                for new_edge in new_edges:
-                    key_pair = (new_edge[0], new_edge[1])
-                    if key_pair not in edge_buffer:
-                        edge_buffer[key_pair] = 0
-                    edge_buffer[key_pair] += new_edge[2]
-
-                if len(edge_buffer) > _edge_buffer_size:
-                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                    edge_buffer = {}
-            self._flush_edge_buffer(edge_buffer)
-
-    def bin(self, bin_size, file_name=None):
-        """
-        Map edges in this object to equi-distant bins.
-
-        :param bin_size: Bin size in base pairs
-        :param file_name: File name of the new, binned Hic object
-        :return: :class:`~Hic` object
-        """
-        # find chromosome lengths
-        chromosomes = self.chromosomes()
-        chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
-        for region in self.regions():
-            if chromosome_sizes[region.chromosome] < region.end:
-                chromosome_sizes[region.chromosome] = region.end
-
-        chromosome_list = []
-        for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
-
-        genome = Genome(chromosomes=chromosome_list)
-        hic = Hic(file_name=file_name, mode='w')
-        hic.add_regions(genome.get_regions(bin_size))
-
-        hic.load_from_hic(self)
-
-        return hic
-
-    def bin_size(self):
-        node = self.get_node(0)
-        return node.end - node.start + 1
-
-    @classmethod
-    def from_hiclib(cls, hl, file_name=None):
-        """
-        Create :class:`~Hic` object from hiclib object.
-
-        :param hl: hiclib object
-        :param file_name: Path to save file
-        :return: :class:`~Hic`
-        """
-        hic = cls(file_name=file_name)
-        
-        # nodes
-        chrms = {hl.genome.chrmStartsBinCont[i] : hl.genome.chrmLabels[i] for i in xrange(0,len(hl.genome.chrmLabels))}
-        chromosome = ''
-        for i in xrange(0,len(hl.genome.posBinCont)):
-            start = hl.genome.posBinCont[i]+1
-            if i in chrms:
-                chromosome = chrms[i]
-            
-            if i < len(hl.genome.posBinCont)-1:
-                end = hl.genome.posBinCont[i+1]
-            else:
-                ix = hl.genome.label2idx[chromosome]
-                end = hl.genome.chrmLens[ix]
-            
-            hic.add_node([chromosome, start, end], flush=False)
-        hic.flush(flush_edges=False)
-        
-        # edges
-        for chr1, chr2 in hl.data:
-            data = hl.data[(chr1, chr2)].getData()
-            chr1StartBin = hl.genome.chrmStartsBinCont[chr1]
-            chr2StartBin = hl.genome.chrmStartsBinCont[chr2]
-            
-            for i in xrange(0,data.shape[0]):
-                iNode = i+chr1StartBin
-                start = i
-                if chr1 != chr2:
-                    start = 0
-                for j in xrange(start,data.shape[1]):
-                    jNode = j+chr2StartBin
-                    
-                    if data[i,j] != 0:
-                        hic.add_edge([iNode, jNode, data[i,j]], flush=False)
-        hic.flush(flush_nodes=False)
-        
-        return hic
             
     def add_node(self, node, flush=True):
         """
@@ -1978,9 +1758,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         if weight is None:
             weight = 1.
         if source > sink:
-            tmp = source
-            source = sink
-            sink = tmp
+            source, sink = sink, source
         
         if check_nodes_exist:
             n_regions = len(self._regions)
@@ -2016,82 +1794,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         for edge in edges:
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
-
-    def merge(self, hic, _edge_buffer_size=5000000):
-        """
-        Merge this object with another :class:`~Hic` object.
-
-        First merges genomic regions, then merges edges.
-        It is strongly advised that the genomic regions in
-        both objects are the same, although this method will attempt to
-        "translate" regions from one object to the other if
-        this is not the case.
-
-        :param hic: :class:`~Hic` object to be merged into this one
-        """
-
-        ix_conversion = {}
-
-        # check if regions are identical (saves a lot of time)
-        logging.info("Checking if regions are identical")
-        identical = True
-        region_counter = 0
-        for self_region, hic_region in zip(self.regions(), hic.regions()):
-            if self_region.chromosome != hic_region.chromosome:
-                identical = False
-                break
-            if self_region.start != hic_region.start:
-                identical = False
-                break
-            if self_region.end != hic_region.end:
-                identical = False
-                break
-            ix_conversion[region_counter] = region_counter
-            region_counter += 1
-
-        if region_counter < len(hic.regions()):
-            identical = False
-
-        if not identical:
-            ix_conversion = {}
-            # merge genomic regions
-            self.log_info("Merging genomic regions...")
-            for region in hic.regions():
-                ix = self._get_region_ix(region)
-                if ix is None:
-                    ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
-                ix_conversion[region.ix] = ix
-            self._regions.flush()
-
-        # merge edges
-        self.log_info("Merging contacts...")
-        edge_buffer = {}
-        l = len(hic._edges)
-        last_percent = 0.0
-        for i, merge_row in enumerate(hic._edges):
-            merge_source = ix_conversion[merge_row["source"]]
-            merge_sink = ix_conversion[merge_row["sink"]]
-            merge_weight = merge_row["weight"]
-
-            if merge_source > merge_sink:
-                tmp = merge_source
-                merge_source = merge_sink
-                merge_sink = tmp
-
-            edge_buffer[(merge_source, merge_sink)] = merge_weight
-
-            if i/l > last_percent:
-                logging.info("%d%%" % int(round(last_percent*100)))
-                last_percent += 0.05
-
-            if len(edge_buffer) > _edge_buffer_size:
-                logging.info("Flushing buffer...")
-                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                edge_buffer = {}
-
-        # final flush
-        self.log_info("Final flush")
-        self._flush_edge_buffer(edge_buffer, replace=False)
 
     def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True):
         # update current rows
@@ -2130,15 +1832,9 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         if flush_nodes:
             self._regions.flush()
-            # re-indexing not necessary when 'autoindex' is True on table
-            if not self._regions.autoindex:
-                # reindex node table
-                self._regions.flush_rows_to_index()
+
         if flush_edges:
             self._edges.flush(update_index=update_index)
-            if not self._edges.autoindex:
-                # reindex edge table
-                self._edges.flush_rows_to_index()
 
     def __getitem__(self, key):
         """
@@ -2465,99 +2161,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 replacement_edges[key] = weight
 
         self._flush_edge_buffer(replacement_edges, replace=True)
-
-    def _set_matrix_old(self, item, nodes_ix_row=None, nodes_ix_col=None):
-        # calculate number of rows
-        if (nodes_ix_row is not None
-            and not isinstance(nodes_ix_row, list)):
-            range_nodes_ix_row = [nodes_ix_row]
-        else:
-            range_nodes_ix_row = nodes_ix_row
-
-        # calculate number of columns
-        if (nodes_ix_col is not None
-            and not isinstance(nodes_ix_col, list)):
-            range_nodes_ix_col = [nodes_ix_col]
-        else:
-            range_nodes_ix_col = nodes_ix_col
-
-        # get row range generator
-        row_ranges = ranges(range_nodes_ix_row)
-
-        # set every edge that is to be replaced to 0
-        row_offset = 0
-        for row_range in row_ranges:
-            n_rows_sub = row_range[1] - row_range[0] + 1
-
-            col_ranges = ranges(range_nodes_ix_col)
-            col_offset = 0
-            for col_range in col_ranges:
-                n_cols_sub = col_range[1] - col_range[0] + 1
-
-                condition = "((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
-                condition += "| ((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
-                condition = condition % (row_range[0], row_range[1], col_range[0], col_range[1],
-                                         col_range[0], col_range[1], row_range[0], row_range[1])
-
-                # actually set weight to zero
-                for edge_row in self._edges.where(condition):
-                    edge_row['weight'] = 0
-                    edge_row.update()
-
-                col_offset += n_cols_sub
-            row_offset += n_rows_sub
-
-        self.flush()
-        self._remove_zero_edges()
-
-        # create new edges with updated weights
-        # select the correct format
-        # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            n_rows = len(nodes_ix_row)
-            n_cols = len(nodes_ix_col)
-            # check that we have a matrix with the correct dimensions
-            if (not isinstance(item, np.ndarray) or
-                not np.array_equal(item.shape, [n_rows,n_cols])):
-                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows,n_cols))
-
-            for i in xrange(0, n_rows):
-                for j in xrange(0,n_cols):
-                    source = nodes_ix_row[i]
-                    sink = nodes_ix_col[j]
-                    weight = item[i,j]
-                    self.add_edge([source, sink, weight], flush=False)
-
-        # row selector is list: vector
-        elif isinstance(nodes_ix_row, list):
-            n_rows = len(nodes_ix_row)
-            if (not isinstance(item, np.ndarray) or
-                not np.array_equal(item.shape, [n_rows])):
-                raise ValueError("Item is not a numpy vector of length %d!" % (n_rows))
-
-            for i, sink in enumerate(nodes_ix_row):
-                source = nodes_ix_col
-                weight = item[i]
-                self.add_edge([source, sink, weight], flush=False)
-
-        # column selector is list: vector
-        elif isinstance(nodes_ix_col, list):
-            n_cols = len(nodes_ix_col)
-            if (not isinstance(item, np.ndarray) or
-                not np.array_equal(item.shape, [n_cols])):
-                raise ValueError("Item is not a numpy vector of length %d!" % (n_cols))
-
-            for i, source in enumerate(nodes_ix_col):
-                sink = nodes_ix_row
-                weight = item[i]
-                self.add_edge([source, sink, weight], flush=False)
-
-        # both must be indexes
-        else:
-            weight = item
-            self.add_edge([nodes_ix_row, nodes_ix_col, weight], flush=False)
-
-        self.flush()
     
     def _update_edge_weight(self, source, sink, weight, add=False, flush=True):
         if source > sink:
@@ -2591,32 +2194,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         
         if flush:
             self.flush(update_index=update_index)
-    
-    def autoindex(self, index=None):
-        """
-        Switch on/off autoindexing.
-        """
-        if index is not None:
-            self._regions.autoindex = bool(index)
-            self._edges.autoindex = bool(index)
-            return index
-        return self._regions.autoindex
-
-    def save(self, file_name, _table_name_nodes='nodes', _table_name_edges='edges',
-             _table_name_meta='meta', _table_name_meta_values='meta', _table_name_mask='mask'):
-        """
-        Copy content of this object to a new file.
-
-        :param file_name: Path to new save file
-        """
-        self.file.copy_file(file_name)
-        self.file.close()
-        self.file = create_or_open_pytables_file(file_name)
-        self._regions = self.file.get_node('/' + _table_name_nodes)
-        self._edges = self.file.get_node('/' + _table_name_edges)
-        self._meta = self.file.get_node('/' + _table_name_meta)
-        self._meta_values = self.file.get_node('/' + _table_name_meta_values)
-        self._mask = self.file.get_node('/' + _table_name_mask)
 
     def _row_to_node(self, row, lazy=False):
         if lazy:
@@ -2685,21 +2262,406 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         :return: Iterator over :class:`~HicEdge`
         """
-        hic = self
+        this = self
 
         class EdgeIter:
             def __init__(self):
-                self.iter = iter(hic._edges)
+                self.iter = iter(this._edges)
                 
             def __iter__(self):
                 return self
             
             def next(self):
-                return hic._row_to_edge(self.iter.next(), lazy=lazy)
+                return this._row_to_edge(self.iter.next(), lazy=lazy)
 
             def __len__(self):
-                return len(hic._edges)
+                return len(this._edges)
         return EdgeIter()
+
+
+class Hic(RegionMatrix):
+    """
+    Class for working with Hi-C data.
+
+    Generally, a Hi-C object has two components:
+
+    - Nodes or regions: (Non-overlapping) genomic regions
+      obtained by splitting the genome into distinct pieces.
+      See also :class:`~GenomicRegion` and :class:`~RegionsTable`
+
+    - Edges or contacts: Pairs of genomic regions with optionally
+      associated weight or contact strength. See also
+      :class:`~HicEdge`
+
+    This is a memory-efficient implementation of a Hi-C data
+    container. Internally, this is achieved by saving entries
+    of the Hi-C matrix in sparse notation, i.e. in a list of
+    non-zero contacts.
+
+    Its bracket-notation access behaves like a numpy
+    array and handles data retrieval and assignment in matrix-
+    fashion, e.g. hic[1:3] would return rows 1 and 2 of
+    the Hi-C matrix (0-based index). However, the bracket
+    notation can also handle :class:`~GenomicRegion` descriptior
+    strings, i.e. hic['chr1','chr5'] will extract the inter-
+    chromosomal matrix between chromosomes 1 and 5 only.
+
+    Examples:
+
+    .. code:: python
+
+        hic = Hic(file_name="/path/to/save/file")
+
+        # load genomic regions
+        genome = Genome.from_folder("/path/to/fasta/folder")
+        regions = genome.get_regions("HindIII")
+        hic.add_regions(regions)
+
+        # load edges
+        edges = []
+        edges.append(HicEdge(source=10, sink=23, weight=3)
+        edges.append(HicEdge(source=8, sink=9, weight=57)
+        # ...
+        hic.add_edges(edges)
+    """
+
+    class HicRegionAnnotationDescription(t.IsDescription):
+        bias = t.Float32Col(pos=0, dflt=1)
+
+    def __init__(self, data=None, file_name=None,
+                 mode='a',
+                 _table_name_nodes='nodes',
+                 _table_name_edges='edges',
+                 _table_name_node_annotations='node_annot'):
+
+        """
+        Initialize a :class:`~Hic` object.
+
+        :param data: Can be the path to an XML file denoting a Hic object,
+                     another Hic object, a :class:`~FragmentMappedReadPairs`
+                     object, or a path to a save file. In the latter case,
+                     this parameter may replace file_name, but only if
+                     file_name is None.
+        :param file_name: Path to a save file
+        :param _table_name_nodes: (Internal) name of the HDF5 node for regions
+        :param _table_name_edges: (Internal) name of the HDF5 node for edges
+        """
+
+        # parse potential unnamed argument
+        if data is not None:
+            # data is file name
+            if type(data) is str:
+                data = os.path.expanduser(data)
+
+                if (not os.path.isfile(data) or not is_hic_xml_file(data)) and file_name is None:
+                    file_name = data
+                    data = None
+
+        if file_name is not None:
+            file_name = os.path.expanduser(file_name)
+
+        RegionMatrix.__init__(self, file_name, mode=mode, _table_name_nodes=_table_name_nodes,
+                              _table_name_edges=_table_name_edges)
+
+        if _table_name_node_annotations in self.file.root:
+            self._node_annotations = self.file.get_node('/', _table_name_node_annotations)
+        elif mode not in ('r', 'r+'):
+            self._node_annotations = t.Table(self.file.root, _table_name_node_annotations,
+                                             Hic.HicRegionAnnotationDescription)
+            self._node_annotations.flush()
+        else:
+            # compatibility with existing objects
+            self._node_annotations = None
+
+        # add data
+        if data is not None:
+            if type(data) is str:
+                if is_hic_xml_file(data):
+                    xml = HicXmlFile(data)
+                    for node in xml.nodes():
+                        self.add_node(node, flush=False)
+                    self.flush()
+
+                    for edge in xml.edges():
+                        self.add_edge(edge, flush=False)
+                    self.flush()
+                else:
+                    raise ValueError("File is not in Hi-C XML format")
+
+            # data is existing Hic object
+            elif isinstance(data, Hic):
+                self.load_from_hic(data)
+            else:
+                try:
+                    self.load_read_fragment_pairs(data)
+                except AttributeError:
+                    raise ValueError("Input data type not recognized")
+
+    def load_read_fragment_pairs(self, pairs, _max_buffer_size=5000000):
+        """
+        Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
+
+        This method automatically sums up reads mapping to the same
+        fragment pairs and creates exactly one edge per fragment pair.
+
+        :param pairs: A :class:`~kaic.construct.seq.FragmentMappedReadPairs`
+                      object.
+        :param _max_buffer_size: Number of edges kept in buffer before
+                                 writing to Table.
+        """
+        # add regions
+        if len(self._regions) != 0:
+            raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
+        self.add_regions(pairs.regions())
+
+        edge_buffer = {}
+        for pair in pairs._pairs:
+            source = pair["left_fragment"]
+            sink = pair["right_fragment"]
+            if source > sink:
+                tmp = source
+                source = sink
+                sink = tmp
+            key = (source, sink)
+            if key not in edge_buffer:
+                edge_buffer[key] = 0
+            edge_buffer[key] += 1
+
+            if len(edge_buffer) > _max_buffer_size:
+                logging.info("Flushing buffer")
+                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+                edge_buffer = {}
+        logging.info("Final flush")
+        self._flush_edge_buffer(edge_buffer, replace=False)
+
+    def load_from_hic(self, hic, _edge_buffer_size=5000000,
+                      _edges_by_overlap_method=_edge_overlap_split_rao):
+        """
+        Load data from another :class:`~Hic` object.
+
+        :param hic: Another :class:`~Hic` object
+        :param _edge_buffer_size: Number of edges in memory before writing
+                                  to file
+        :param _edges_by_overlap_method: A function that maps reads from
+                                         one genomic region to others using
+                                         a supplied overlap map. By default
+                                         it uses the Rao et al. (2014) method.
+                                         See :func:`~_edge_overlap_split_rao`
+        """
+        # if we do not have any nodes in this Hi-C object...
+        if len(self.regions()) == 0:
+            logging.info("Copying Hi-C")
+            # ...simply import everything
+            for region in hic.regions():
+                self.add_region(region, flush=False)
+            for edge in hic.edges():
+                self.add_edge(edge, check_nodes_exist=False, flush=False)
+            self.flush()
+        # if already have nodes in this HiC object...
+        else:
+            logging.info("Binning Hi-C contacts")
+            # create region "overlap map"
+            overlap_map = _get_overlap_map(hic.regions(), self.regions())
+
+            edge_buffer = {}
+            for old_edge in hic._edges:
+                old_source = old_edge['source']
+                old_sink = old_edge['sink']
+                old_weight = old_edge['weight']
+                new_edges = _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map)
+
+                for new_edge in new_edges:
+                    key_pair = (new_edge[0], new_edge[1])
+                    if key_pair not in edge_buffer:
+                        edge_buffer[key_pair] = 0
+                    edge_buffer[key_pair] += new_edge[2]
+
+                if len(edge_buffer) > _edge_buffer_size:
+                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+                    edge_buffer = {}
+            self._flush_edge_buffer(edge_buffer)
+
+    def bin(self, bin_size, file_name=None):
+        """
+        Map edges in this object to equi-distant bins.
+
+        :param bin_size: Bin size in base pairs
+        :param file_name: File name of the new, binned Hic object
+        :return: :class:`~Hic` object
+        """
+        # find chromosome lengths
+        chromosomes = self.chromosomes()
+        chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
+        for region in self.regions():
+            if chromosome_sizes[region.chromosome] < region.end:
+                chromosome_sizes[region.chromosome] = region.end
+
+        chromosome_list = []
+        for chromosome in chromosomes:
+            chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
+
+        genome = Genome(chromosomes=chromosome_list)
+        hic = Hic(file_name=file_name, mode='w')
+        hic.add_regions(genome.get_regions(bin_size))
+
+        hic.load_from_hic(self)
+
+        return hic
+
+    def bin_size(self):
+        node = self.get_node(0)
+        return node.end - node.start + 1
+
+    @classmethod
+    def from_hiclib(cls, hl, file_name=None):
+        """
+        Create :class:`~Hic` object from hiclib object.
+
+        :param hl: hiclib object
+        :param file_name: Path to save file
+        :return: :class:`~Hic`
+        """
+        hic = cls(file_name=file_name)
+
+        # nodes
+        chrms = {hl.genome.chrmStartsBinCont[i] : hl.genome.chrmLabels[i] for i in xrange(0,len(hl.genome.chrmLabels))}
+        chromosome = ''
+        for i in xrange(0,len(hl.genome.posBinCont)):
+            start = hl.genome.posBinCont[i]+1
+            if i in chrms:
+                chromosome = chrms[i]
+
+            if i < len(hl.genome.posBinCont)-1:
+                end = hl.genome.posBinCont[i+1]
+            else:
+                ix = hl.genome.label2idx[chromosome]
+                end = hl.genome.chrmLens[ix]
+
+            hic.add_node([chromosome, start, end], flush=False)
+        hic.flush(flush_edges=False)
+
+        # edges
+        for chr1, chr2 in hl.data:
+            data = hl.data[(chr1, chr2)].getData()
+            chr1StartBin = hl.genome.chrmStartsBinCont[chr1]
+            chr2StartBin = hl.genome.chrmStartsBinCont[chr2]
+
+            for i in xrange(0,data.shape[0]):
+                iNode = i+chr1StartBin
+                start = i
+                if chr1 != chr2:
+                    start = 0
+                for j in xrange(start,data.shape[1]):
+                    jNode = j+chr2StartBin
+
+                    if data[i,j] != 0:
+                        hic.add_edge([iNode, jNode, data[i,j]], flush=False)
+        hic.flush(flush_nodes=False)
+
+        return hic
+
+    def merge(self, hic, _edge_buffer_size=5000000):
+        """
+        Merge this object with another :class:`~Hic` object.
+
+        First merges genomic regions, then merges edges.
+        It is strongly advised that the genomic regions in
+        both objects are the same, although this method will attempt to
+        "translate" regions from one object to the other if
+        this is not the case.
+
+        :param hic: :class:`~Hic` object to be merged into this one
+        """
+
+        ix_conversion = {}
+
+        # check if regions are identical (saves a lot of time)
+        logging.info("Checking if regions are identical")
+        identical = True
+        region_counter = 0
+        for self_region, hic_region in zip(self.regions(), hic.regions()):
+            if self_region.chromosome != hic_region.chromosome:
+                identical = False
+                break
+            if self_region.start != hic_region.start:
+                identical = False
+                break
+            if self_region.end != hic_region.end:
+                identical = False
+                break
+            ix_conversion[region_counter] = region_counter
+            region_counter += 1
+
+        if region_counter < len(hic.regions()):
+            identical = False
+
+        if not identical:
+            ix_conversion = {}
+            # merge genomic regions
+            self.log_info("Merging genomic regions...")
+            for region in hic.regions():
+                ix = self._get_region_ix(region)
+                if ix is None:
+                    ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
+                ix_conversion[region.ix] = ix
+            self._regions.flush()
+
+        # merge edges
+        self.log_info("Merging contacts...")
+        edge_buffer = {}
+        l = len(hic._edges)
+        last_percent = 0.0
+        for i, merge_row in enumerate(hic._edges):
+            merge_source = ix_conversion[merge_row["source"]]
+            merge_sink = ix_conversion[merge_row["sink"]]
+            merge_weight = merge_row["weight"]
+
+            if merge_source > merge_sink:
+                tmp = merge_source
+                merge_source = merge_sink
+                merge_sink = tmp
+
+            edge_buffer[(merge_source, merge_sink)] = merge_weight
+
+            if i/l > last_percent:
+                logging.info("%d%%" % int(round(last_percent*100)))
+                last_percent += 0.05
+
+            if len(edge_buffer) > _edge_buffer_size:
+                logging.info("Flushing buffer...")
+                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+                edge_buffer = {}
+
+        # final flush
+        self.log_info("Final flush")
+        self._flush_edge_buffer(edge_buffer, replace=False)
+
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+        """
+        Write data to file and flush buffers.
+
+        :param flush_nodes: Flush nodes tables
+        :param flush_edges: Flush edges table
+        :param update_index: Update mask indices in edges table
+        """
+        RegionMatrix.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges, update_index=update_index)
+        self._node_annotations.flush()
+
+    def save(self, file_name, _table_name_nodes='nodes', _table_name_edges='edges',
+             _table_name_meta='meta', _table_name_meta_values='meta', _table_name_mask='mask'):
+        """
+        Copy content of this object to a new file.
+
+        :param file_name: Path to new save file
+        """
+        self.file.copy_file(file_name)
+        self.file.close()
+        self.file = create_or_open_pytables_file(file_name)
+        self._regions = self.file.get_node('/' + _table_name_nodes)
+        self._edges = self.file.get_node('/' + _table_name_edges)
+        self._meta = self.file.get_node('/' + _table_name_meta)
+        self._meta_values = self.file.get_node('/' + _table_name_meta_values)
+        self._mask = self.file.get_node('/' + _table_name_mask)
 
     def filter(self, edge_filter, queue=False, log_progress=False):
         """
@@ -2765,7 +2727,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                                              'Mask low coverage regions in the Hic matrix (10%)')
         low_coverage_filter = LowCoverageFilter(self, cutoff=cutoff, mask=mask)
         self.filter(low_coverage_filter, queue)
-    
+
     def bias_vector(self, vector=None):
         """
         Get or set the bias vector of this Hic matrix.
