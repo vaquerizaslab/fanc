@@ -3380,27 +3380,28 @@ class HicMatrix(np.ndarray):
         return key
 
 class MaskedHicMatrix(np.ma.MaskedArray):
-    def __new__(cls, input_matrix, col_regions=None, row_regions=None, col_mask=None, row_mask=None):
-        obj = np.asarray(input_matrix).view(cls)
+    def __new__(cls, input_matrix, col_regions=None, row_regions=None, mask=None):
+        if mask is None:
+            mask = MaskedHicMatrix._get_zero_mask(input_matrix)
+        obj = np.ma.MaskedArray.__new__(cls, input_matrix, mask)
+        if col_regions is None:
+            try:
+                col_regions = input_matrix.col_regions
+            except AttributeError:
+                pass
+        if row_regions is None:
+            try:
+                row_regions = input_matrix.row_regions
+            except AttributeError:
+                pass
         obj.col_regions = col_regions
         obj.row_regions = row_regions
-        obj.col_mask = col_mask
-        obj.row_mask = row_mask
         return obj
 
     def __array_finalize__(self, obj):
         np.ma.MaskedArray.__array_finalize__(self, obj)
         if obj is None:
             return
-        col_mask = getattr(obj, 'col_mask', None)
-        if col_mask is None:
-            col_mask = np.isclose(obj.sum(axis=1), 0.)
-        row_mask = getattr(obj, 'row_mask', None)
-        if row_mask is None:
-            row_mask = np.isclose(obj.sum(axis=0), 0.)
-        self.col_mask = col_mask
-        self.row_mask = row_mask
-        self._update_mask()
         self.row_regions = getattr(obj, 'row_regions', None)
         self.col_regions = getattr(obj, 'col_regions', None)
 
@@ -3443,9 +3444,7 @@ class MaskedHicMatrix(np.ma.MaskedArray):
             #logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(col_key) +
             #             "Falling back on setting col regions to None")
 
-        out.row_mask = self.row_mask[row_key]
-        out.col_mask = self.col_mask[col_key]
-        out._update_mask()
+        out.mask = MaskedHicMatrix._get_zero_mask(out)
         out.col_regions = col_regions
         out.row_regions = row_regions
 
@@ -3454,8 +3453,11 @@ class MaskedHicMatrix(np.ma.MaskedArray):
     def __getslice__(self, start, stop):
         return self.__getitem__(slice(start, stop))
 
-    def _update_mask(self):
-        self.mask = ~(~self.col_mask*~self.row_mask[:, None])
+    @classmethod
+    def _get_zero_mask(cls, matrix):
+        row_zero = np.isclose(np.sum(matrix, axis=0), 0.)
+        col_zero = np.isclose(np.sum(matrix, axis=1), 0.)
+        return ~(~col_zero*~row_zero[:, None])
 
     def _convert_key(self, key, regions):
         if isinstance(key, str):
