@@ -3379,6 +3379,100 @@ class HicMatrix(np.ndarray):
             return slice(start, stop+1, 1)
         return key
 
+class MaskedHicMatrix(np.ma.MaskedArray):
+    def __new__(cls, input_matrix, col_regions=None, row_regions=None, col_mask=None, row_mask=None):
+        obj = np.asarray(input_matrix).view(cls)
+        obj.col_regions = col_regions
+        obj.row_regions = row_regions
+        obj.col_mask = col_mask
+        obj.row_mask = row_mask
+        return obj
+
+    def __array_finalize__(self, obj):
+        np.ma.MaskedArray.__array_finalize__(self, obj)
+        if obj is None:
+            return
+        col_mask = getattr(obj, 'col_mask', None)
+        if col_mask is None:
+            col_mask = np.isclose(obj.sum(axis=1), 0.)
+        row_mask = getattr(obj, 'row_mask', None)
+        if row_mask is None:
+            row_mask = np.isclose(obj.sum(axis=0), 0.)
+        self.col_mask = col_mask
+        self.row_mask = row_mask
+        self._update_mask()
+        self.row_regions = getattr(obj, 'row_regions', None)
+        self.col_regions = getattr(obj, 'col_regions', None)
+
+    def __getitem__(self, index):
+        self._getitem = True
+
+        # convert string types into region indexes
+        if isinstance(index, tuple):
+            row_key = self._convert_key(index[0], self.row_regions)
+            col_key = self._convert_key(index[1], self.col_regions)
+            index = (row_key, col_key)
+        else:
+            row_key = self._convert_key(index, self.row_regions)
+            try:
+                col_key = slice(0, len(self.col_regions), 1)
+            except TypeError:
+                col_key = None
+            index = row_key
+
+        try:
+            out = np.ndarray.__getitem__(self, index)
+        finally:
+            self._getitem = False
+
+        if not isinstance(out, np.ndarray):
+            return out
+
+        # get regions
+        try:
+            row_regions = self.row_regions[row_key]
+        except TypeError:
+            row_regions = None
+            #logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(row_key) +
+            #             "Falling back on setting row regions to None")
+
+        try:
+            col_regions = self.col_regions[col_key]
+        except TypeError:
+            col_regions = None
+            #logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(col_key) +
+            #             "Falling back on setting col regions to None")
+
+        out.row_mask = self.row_mask[row_key]
+        out.col_mask = self.col_mask[col_key]
+        out._update_mask()
+        out.col_regions = col_regions
+        out.row_regions = row_regions
+
+        return out
+
+    def __getslice__(self, start, stop):
+        return self.__getitem__(slice(start, stop))
+
+    def _update_mask(self):
+        self.mask = ~(~self.col_mask*~self.row_mask[:, None])
+
+    def _convert_key(self, key, regions):
+        if isinstance(key, str):
+            key = GenomicRegion.from_string(key)
+        if isinstance(key, GenomicRegion):
+            key_start = max(0, key.start)
+            key_end = key.end
+            start = None
+            stop = None
+            for i, region in enumerate(regions):
+                if region.chromosome == key.chromosome:
+                    if (key_end is None or region.start <= key_end) and region.end >= key_start:
+                        if start is None:
+                            start = i
+                        stop = i
+            return slice(start, stop+1, 1)
+        return key
 
 class HicXmlFile(object):
     def __init__(self, file_name):
