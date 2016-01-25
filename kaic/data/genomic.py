@@ -3145,6 +3145,17 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         m_bottom[top_indices] = m_top[top_indices]
         return m_bottom
 
+    def distance_scaling(self):
+        """
+        Return the the distance scaling vector of the Hi-C map. Shows how the
+        distances of contacts are distributed.
+
+        :return: numpy array of the same length as bins in the object
+        """
+        s = np.zeros(len(hic.regions()))
+        for e in self.edges(lazy=True):
+            s[e.sink - e.source] += e.weight
+        return s
 
 class HicEdgeFilter(MaskFilter):
     """
