@@ -24,7 +24,7 @@ def kth_diag_indices(n, k):
 #     def __init__(self, hic):
 #         self.hic = hic
 
-def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None):
+def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.ma.median):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
     if hic_matrix is None:
@@ -46,11 +46,11 @@ def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None):
             skipped += 1
             ins_matrix[i] = np.nan
             continue
-        ins_matrix[i] = np.ma.mean(hic_matrix[i: i + d, i - d:i])
+        ins_matrix[i] = aggr_func(hic_matrix[i: i + d, i - d:i])
     log.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
     return ins_matrix
 
-def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None):
+def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.ma.median):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
     if hic_matrix is None:
@@ -72,12 +72,12 @@ def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None):
             skipped += 1
             rel_ins_matrix[i] = np.nan
             continue
-        rel_ins_matrix[i] = (np.ma.mean(hic_matrix[i: i + d, i - d:i]) /
-            np.ma.mean([hic_matrix[i - d:i, i - d:i], hic_matrix[i:i + d, i:i + d]]))
+        rel_ins_matrix[i] = (aggr_func(hic_matrix[i: i + d, i - d:i]) /
+            aggr_func([hic_matrix[i - d:i, i - d:i], hic_matrix[i:i + d, i:i + d]]))
     log.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
     return rel_ins_matrix
 
-def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, use_oe_ratio=False):
+def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, use_oe_ratio=False, aggr_func=np.ma.median):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
     if hic_matrix is None:
@@ -100,7 +100,7 @@ def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, use_oe_ratio=Fals
             skipped += 1
             band[i] = np.nan
             continue
-        band[i] = np.ma.mean(hic_matrix[i - d2:i - d1, i + d1:i + d2])
+        band[i] = aggr_func(hic_matrix[i - d2:i - d1, i + d1:i + d2])
     log.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
     return band
 
