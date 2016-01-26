@@ -1,19 +1,14 @@
-'''
-Created on Jun 29, 2015
-
-@author: kkruse1
-'''
-
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
-    RegionMatrix, RegionsTable
+    RegionMatrix, RegionsTable, RegionMatrixTable
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.tools.matrix import is_symmetric
 import kaic.correcting.knight_matrix_balancing as knight
 import kaic.correcting.ice_matrix_balancing as ice
+import tables as t
 
 class TestChromosome:
     
@@ -217,6 +212,143 @@ class TestRegionsTable(TestGenomicRegions):
             for start in range(1,chromosome["end"]-1000, 1000):
                 regions.append(GenomicRegion(start, start+999, chromosome=chromosome["name"]))
         self.regions = RegionsTable(regions)
+
+
+class TestRegionMatrixTable:
+    def setup_method(self, method):
+        self.rmt = RegionMatrixTable(additional_fields={'foo': t.Int32Col(pos=0),
+                                                        'bar': t.Float32Col(pos=1),
+                                                        'baz': t.StringCol(50, pos=2)})
+
+        for i in xrange(10):
+            if i < 5:
+                chromosome = 'chr1'
+                start = i*1000
+                end = (i+1)*1000
+            elif i < 8:
+                chromosome = 'chr2'
+                start = (i-5)*1000
+                end = (i+1-5)*1000
+            else:
+                chromosome = 'chr3'
+                start = (i-8)*1000
+                end = (i+1-8)*1000
+            node = Node(chromosome=chromosome, start=start, end=end)
+            self.rmt.add_region(node, flush=False)
+        self.rmt.flush()
+
+        for i in xrange(10):
+            for j in xrange(i, 10):
+                edge = Edge(source=i, sink=j, weight=i*j, foo=i, bar=j, baz='x' + str(i*j))
+                self.rmt.add_edge(edge, flush=False)
+        self.rmt.flush()
+
+    def test_create(self):
+        rmt1 = RegionMatrixTable()
+        assert rmt1.field_names == ['source', 'sink', 'weight']
+        assert len(rmt1.edges()) == 0
+
+        rmt2 = RegionMatrixTable(additional_fields={'foo': t.Int32Col(pos=0), 'bar': t.Float32Col(pos=1)})
+        assert rmt2.field_names == ['source', 'sink', 'weight', 'foo', 'bar']
+        assert len(rmt2.edges()) == 0
+
+        class AdditionalFields(t.IsDescription):
+            foo = t.Int32Col(pos=0)
+            bar = t.Float32Col(pos=1)
+
+        rmt3 = RegionMatrixTable(additional_fields=AdditionalFields)
+        assert rmt3.field_names == ['source', 'sink', 'weight', 'foo', 'bar']
+        assert len(rmt3.edges()) == 0
+
+        assert len(self.rmt.edges()) == 55
+        assert self.rmt.field_names == ['source', 'sink', 'weight', 'foo', 'bar', 'baz']
+
+    def test_edges(self):
+        j = 0
+        i = 0
+        for edge in self.rmt.edges():
+            assert edge.source == i
+            assert edge.sink == j
+            assert edge.weight == i*j
+            assert edge.foo == i
+            assert edge.bar == j
+            assert edge.baz == 'x' + str(i*j)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
+            if j == 9:
+                i += 1
+                j = i
+            else:
+                j += 1
+
+    def test_lazy_edges(self):
+        j = 0
+        i = 0
+        for edge in self.rmt.edges(lazy=True):
+            assert edge.source == i
+            assert edge.sink == j
+            assert edge.weight == i*j
+            assert edge.foo == i
+            assert edge.bar == j
+            assert edge.baz == 'x' + str(i*j)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
+            if j == 9:
+                i += 1
+                j = i
+            else:
+                j += 1
+
+    def test_edges_set_attribute(self):
+        for edge in self.rmt.edges():
+            edge.foo = 999
+
+        for edge in self.rmt.edges():
+            assert edge.foo != 999
+
+    def test_lazy_edges_set_attribute(self):
+        for edge in self.rmt.edges(lazy=True):
+            edge.foo = 999
+
+        for edge in self.rmt.edges():
+            assert edge.foo == 999
+
+    def test_matrix(self):
+        m = self.rmt.as_matrix()
+        for row_region in m.row_regions:
+            i = row_region.ix
+            for col_region in m.col_regions:
+                j = col_region.ix
+                assert m[i, j] == m[j, i] == i*j
+
+        m = self.rmt.as_matrix(values_from='foo')
+        for row_region in m.row_regions:
+            i = row_region.ix
+            for col_region in m.col_regions:
+                j = col_region.ix
+                assert m[i, j] == m[j, i] == min(i, j)
+
+        m = self.rmt.as_matrix(values_from='bar')
+        for row_region in m.row_regions:
+            i = row_region.ix
+            for col_region in m.col_regions:
+                j = col_region.ix
+                assert m[i, j] == m[j, i] == max(i, j)
+
+    def test_matrix_subset(self):
+        m = self.rmt.as_matrix(key=('chr2', 'chr2'), values_from='bar')
+        for i, row_region in enumerate(m.row_regions):
+            for j, col_region in enumerate(m.col_regions):
+                assert m[i, j] == m[j, i] == max(row_region.ix, col_region.ix)
+
+        m = self.rmt.as_matrix(key=('chr2', 'chr3'), values_from='bar')
+        for i, row_region in enumerate(m.row_regions):
+            for j, col_region in enumerate(m.col_regions):
+                assert m[i, j] == max(row_region.ix, col_region.ix)
 
 
 class TestHicBasic:
