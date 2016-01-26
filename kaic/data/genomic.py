@@ -1539,17 +1539,30 @@ class Edge(TableObject):
         The weight or contact strength of the edge. Can, for
         example, be the number of reads mapping to a contact.
     """
-    def __init__(self, source, sink, weight=1):
+    def __init__(self, source, sink, *args, **kwargs):
         """
         :param source: The index of the "source" genomic region
                        or :class:`~Node` object.
         :param sink: The index of the "sink" genomic region
                      or :class:`~Node` object.
-        :param weight: The weight or contact strength of the edge.
+        :param data: The weight or of the edge or a dictionary with
+                     other fields
         """
         self._source = source
         self._sink = sink
-        self.weight = weight
+        self.weight = 1.
+        self.field_names = []
+
+        if len(args) > 1:
+            raise ValueError("Can only have a single element in args.")
+
+        if len(args) == 1:
+            self.weight = float(args[0])
+            self.field_names.append('weight')
+
+        for key, value in kwargs.iteritems():
+            setattr(self, key, value)
+            self.field_names.append(key)
 
     @property
     def source(self):
@@ -1576,7 +1589,10 @@ class Edge(TableObject):
         raise RuntimeError("Sink not not provided during object initialization!")
 
     def __repr__(self):
-        return "%d--%d (%.2f)" % (self.source, self.sink, self.weight)
+        base_info = "%d--%d" % (self.source, self.sink)
+        for field in self.field_names:
+            base_info += "\n\t%s: %s" % (field, str(getattr(self, field)))
+        return base_info
     
     @classmethod
     def from_row(cls, row):
@@ -1584,15 +1600,37 @@ class Edge(TableObject):
 
 
 class LazyEdge(Edge):
-    def __init__(self, row, nodes_table):
+    def __init__(self, row, nodes_table, auto_update=True):
+        self.reserved = {'_row', '_nodes_table', 'auto_update', '_source_node', '_sink_node'}
         self._row = row
         self._nodes_table = nodes_table
+        self.auto_update = auto_update
         self._source_node = None
         self._sink_node = None
 
-    @property
-    def weight(self):
-        return self._row['weight']
+    def _set_item(self, item, value):
+        self._row[item] = value
+        if self.auto_update:
+            self.update()
+
+    def __getattr__(self, item):
+        if item == 'reserved' or item in self.reserved:
+            return object.__getattribute__(self, item)
+        try:
+            return self._row[item]
+        except KeyError:
+            raise AttributeError
+
+    def __setattr__(self, key, value):
+        if key == 'reserved' or key in self.reserved:
+            super(LazyEdge, self).__setattr__(key, value)
+        else:
+            self._row[key] = value
+            if self.auto_update:
+                self.update()
+
+    def update(self):
+        self._row.update()
 
     @property
     def source(self):
@@ -1615,6 +1653,10 @@ class LazyEdge(Edge):
             sink_row = self._nodes_table[self.sink]
             return LazyNode(sink_row)
         return self._sink_node
+
+    def __repr__(self):
+        base_info = "%d--%d" % (self.source, self.sink)
+        return base_info
 
 
 class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
@@ -1666,9 +1708,10 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
     class EntryDescription(t.IsDescription):
         source = t.Int32Col(pos=0)  
         sink = t.Int32Col(pos=1)  
-        weight = t.Float64Col(pos=2)
+        weight = t.Float64Col(pos=2, dflt=1.0)
     
-    def __init__(self, file_name=None, mode='a', _table_name_nodes='nodes', _table_name_edges='edges'):
+    def __init__(self, file_name=None, mode='a', additional_fields=None,
+                 _table_name_nodes='nodes', _table_name_edges='edges'):
         """
         Initialize a :class:`~RegionMatrixTable` object.
 
@@ -1694,8 +1737,21 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
         else:
-            self._edges = MaskedTable(self.file.root, _table_name_edges,
-                                      RegionMatrixTable.EntryDescription)
+            basic_fields = RegionMatrixTable.EntryDescription().columns.copy()
+            if additional_fields is not None:
+                if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
+                    # IsDescription subclass case
+                    additional_fields = additional_fields.columns
+
+                current = len(basic_fields)
+                for key, value in sorted(additional_fields.iteritems(), key=lambda x: x[1]._v_pos):
+                    if key not in basic_fields:
+                        if value._v_pos is not None:
+                            value._v_pos = current
+                            current += 1
+                        basic_fields[key] = value
+
+            self._edges = MaskedTable(self.file.root, _table_name_edges, basic_fields)
         self._edges.flush()
 
         # index edge table
@@ -1709,7 +1765,19 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         except ValueError:
             # Index exists, no problem!
             pass
-            
+
+        # update field names
+        self._source_field_ix = 0
+        self._sink_field_ix = 0
+        self.field_names = []
+        for i, name in enumerate(self._edges.colnames):
+            if not name.startswith("_"):
+                self.field_names.append(name)
+            if name == 'source':
+                self._source_field_ix = i
+            if name == 'sink':
+                self._sink_field_ix = i
+
     def add_node(self, node, flush=True):
         """
         Add a :class:`~Node` or :class:`~GenomicRegion`.
@@ -1720,7 +1788,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         return self.add_region(node, flush)        
     
-    def add_edge(self, edge, check_nodes_exist=True, flush=True):
+    def add_edge(self, edge, check_nodes_exist=True, flush=True, replace=False, row=None):
         """
         Add an edge to this object.
 
@@ -1732,45 +1800,134 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
                                   that match source and sink indexes
         :param flush: Write data to file immediately after import
         """
-        weight = None
-        
-        if isinstance(edge, Edge):
+        source = None
+        sink = None
+
+        # object
+        is_object = True
+        try:
             source = edge.source
             sink = edge.sink
-            weight = edge.weight
-        elif type(edge) is dict:
-            source = edge['source']
-            sink = edge['sink']
-            if 'weight' in edge:
-                weight = edge['weight']
-        else:
+        except AttributeError:
+            is_object = False
+
+        # dictionary
+        is_dict = False
+        if not is_object:
+            is_dict = True
             try:
-                source = edge[0]
-                sink = edge[1]
-                if len(edge) > 2:
-                    weight = edge[2]
+                source = edge['source']
+                sink = edge['sink']
             except TypeError:
-                raise ValueError("Edge parameter has to be Edge, dict, or list")
-        
-        if weight is None:
-            weight = 1.
-        if source > sink:
-            source, sink = sink, source
-        
+                is_dict = False
+
+        # list
+        is_list = False
+        if not is_object and not is_dict:
+            is_list = True
+            try:
+                source = edge[self._source_field_ix]
+                sink = edge[self._sink_field_ix]
+            except TypeError:
+                is_list = False
+
+        if source is None and sink is None:
+            raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+
         if check_nodes_exist:
             n_regions = len(self._regions)
             if source >= n_regions or sink >= n_regions:
                 raise ValueError("Node index exceeds number of nodes in object")
-        
-        if weight != 0:
-            row = self._edges.row
-            row['source'] = source
-            row['sink'] = sink
-            row['weight'] = weight
-            row.append()
-        
+
+        if is_object:
+            self._edge_from_object(edge, row=row, replace=replace)
+        elif is_dict:
+            self._edge_from_dict(edge, row=row, replace=replace)
+        elif is_list:
+            self._edge_from_list(edge, row=row, replace=replace)
+        else:
+            raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+
         if flush:
             self.flush()
+
+    def _edge_from_object(self, edge, row=None, replace=False):
+        source, sink = edge.source, edge.sink
+        if source > sink:
+            source, sink = sink, source
+
+        update = True
+        if row is None:
+            update = False
+            row = self._edges.row
+        row['source'] = source
+        row['sink'] = sink
+        for name in self.field_names:
+            if not name == 'source' and not name == 'sink':
+                try:
+                    value = getattr(edge, name)
+                    if replace or not update:
+                        row[name] = value
+                    else:
+                        row[name] += value
+                except AttributeError:
+                    pass
+        if update:
+            row.update()
+        else:
+            row.append()
+
+    def _edge_from_dict(self, edge, row=None, replace=False):
+        source, sink = edge['source'], edge['sink']
+        if source > sink:
+            source, sink = sink, source
+
+        update = True
+        if row is None:
+            update = False
+            row = self._edges.row
+        row['source'] = source
+        row['sink'] = sink
+        for name, value in edge.iteritems():
+            if not name == 'source' and not name == 'sink':
+                try:
+                    if replace or not update:
+                        row[name] = value
+                    else:
+                        row[name] += value
+                except AttributeError:
+                    pass
+        if update:
+            row.update()
+        else:
+            row.append()
+
+    def _edge_from_list(self, edge, row=None, replace=False):
+        source, sink = edge[self._source_field_ix], edge[self._sink_field_ix]
+        if source > sink:
+            source, sink = sink, source
+
+        update = True
+        if row is None:
+            update = False
+            row = self._edges.row
+        row['source'] = source
+        row['sink'] = sink
+
+        for i, name in enumerate(self.field_names):
+            if not name == 'source' and not name == 'sink':
+                try:
+                    if replace or not update:
+                        row[name] = edge[i]
+                    else:
+                        row[name] += edge[i]
+                except IndexError:
+                    break
+
+        if update:
+            row.update()
+        else:
+            row.append()
     
     def add_nodes(self, nodes):
         """
@@ -1794,32 +1951,42 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
 
-    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True):
+    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
+                           clean_zero=True, default_column='weight'):
+
         # update current rows
         for row in self._edges:
             key = (row["source"], row["sink"])
 
             if key in e_buffer:
-                if replace:
-                    row["weight"] = e_buffer[key]
-                else:
-                    row["weight"] += e_buffer[key]
-                row.update()
+                value = e_buffer[key]
+                # it is a weight
+                try:
+                    if replace:
+                        row[default_column] = float(value)
+                    else:
+                        row[default_column] += float(value)
+                    row.update()
+                except TypeError:
+                    self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
                 del e_buffer[key]
         self._edges.flush()
 
         # flush remaining buffer
-        row = self._edges.row
         for source, sink in e_buffer:
-            weight = e_buffer[(source, sink)]
-            if weight == 0:
-                continue
-            row["source"] = source
-            row["sink"] = sink
-            row["weight"] = weight
-            row.append()
+            key = (source, sink)
+            value = e_buffer[key]
+            try:
+                v = float(value)
+                if v == 0:
+                    continue
+                self._edge_from_dict({'source': source, 'sink': sink, default_column: v})
+            except TypeError:
+                self.add_edge(value, check_nodes_exist=False, flush=False)
+
         self._edges.flush()
-        self._remove_zero_edges(update_index=update_index)
+        if clean_zero:
+            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
 
     def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
         """
@@ -1836,40 +2003,44 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             self._edges.flush(update_index=update_index)
 
     def __getitem__(self, key):
+        return self.as_matrix(key)
+
+    def as_matrix(self, key=slice(0, None, None), values_from='weight'):
         """
         Get a chunk of the matrix.
-        
-        Possible key types are:
 
-        Region types
+        :param key: Possible key types are:
 
-        - Node: Only the ix of this node will be used for
-          identification
-        - GenomicRegion: self-explanatory
-        - str: key is assumed to describe a genomic region
-          of the form: <chromosome>[:<start>-<end>:[<strand>]],
-          e.g.: 'chr1:1000-54232:+'
+                    Region types
 
-        Node types
+                    - Node: Only the ix of this node will be used for
+                      identification
+                    - GenomicRegion: self-explanatory
+                    - str: key is assumed to describe a genomic region
+                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                      e.g.: 'chr1:1000-54232:+'
 
-        - int: node index
-        - slice: node range
+                    Node types
 
-        List types
+                    - int: node index
+                    - slice: node range
 
-        - list: This key type allows for a combination of all
-          of the above key types - the corresponding matrix
-          will be concatenated
+                    List types
 
-            
-        If the key is a 2-tuple, each entry will be treated as the 
-        row and column key, respectively,
-        e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
-        map of the relevant regions between chromosomes 1 and 4.
+                    - list: This key type allows for a combination of all
+                      of the above key types - the corresponding matrix
+                      will be concatenated
 
+
+                    If the key is a 2-tuple, each entry will be treated as the
+                    row and column key, respectively,
+                    e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
+                    map of the relevant regions between chromosomes 1 and 4.
+        :param values_from: Determines which column will be used to populate
+                            the matrix. Default is 'weight'.
         :return: :class:`RegionMatrix`
         """
-        
+
         nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
 
         nodes_ix_row = None
@@ -1885,8 +2056,8 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
                 nodes_ix_col = [node.ix for node in nodes_col]
             else:
                 nodes_ix_col = nodes_col.ix
-        
-        m = self._get_matrix(nodes_ix_row, nodes_ix_col)
+
+        m = self._get_matrix(nodes_ix_row, nodes_ix_col, weight_column=values_from)
 
         # select the correct output format
         # empty result: matrix
@@ -1895,7 +2066,6 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         # both selectors are lists: matrix
         if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
             return RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
-            #return m
         # row selector is list: vector
         if isinstance(nodes_ix_row, list):
             return RegionMatrix(m[:, 0], col_regions=[nodes_ix_col], row_regions=nodes_row)
@@ -1920,7 +2090,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         
         return nodes_ix_row, nodes_ix_col
     
-    def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None):
+    def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None, weight_column='weight'):
         # calculate number of rows
         if nodes_ix_row is None:
             n_rows = len(self._regions)
@@ -1960,7 +2130,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
                     for edge_row in self._edges.where(condition):
                         source = edge_row['source']
                         sink = edge_row['sink']
-                        weight = edge_row['weight']
+                        weight = edge_row[weight_column]
 
                         ir = source - row_range[0] + row_offset
                         jr = sink - col_range[0] + col_offset
@@ -2036,19 +2206,20 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
                 all_nodes_ix.append(nodes_ix)
         return all_nodes_ix
     
-    def as_data_frame(self, key):
+    def as_data_frame(self, key, weight_column='weight'):
         """
         Get a pandas data frame by key.
 
         For key types see :func:`~RegionMatrixTable.__getitem__`.
 
         :param key: For key types see :func:`~RegionMatrixTable.__getitem__`.
+        :param weight_column: Determines which column populates the DF
         :return: Pandas data frame, row and column labels are
                  corresponding node start positions
         """
         nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
         nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
-        m = self._get_matrix(nodes_ix_row, nodes_ix_col)
+        m = self._get_matrix(nodes_ix_row, nodes_ix_col, weight_column=weight_column)
         labels_row = []
         for node in nodes_row:
             labels_row.append(node.start)
@@ -2060,42 +2231,49 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         return df
     
     def __setitem__(self, key, item):
+        self.set_matrix(key, item, clean_zero=True)
+
+    def set_matrix(self, key, item, clean_zero=False, values_to='weight'):
         """
         Set a chunk of the matrix.
-        
-        Possible key types are:
 
-        Region types
+        :param key: Possible key types are:
 
-        - Node: Only the ix of this node will be used for
-          identification
-        - GenomicRegion: self-explanatory
-        - str: key is assumed to describe a genomic region
-          of the form: <chromosome>[:<start>-<end>:[<strand>]],
-          e.g.: 'chr1:1000-54232:+'
+                    Region types
 
-        Node types
+                    - Node: Only the ix of this node will be used for
+                      identification
+                    - GenomicRegion: self-explanatory
+                    - str: key is assumed to describe a genomic region
+                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                      e.g.: 'chr1:1000-54232:+'
 
-        - int: node index
-        - slice: node range
+                    Node types
 
-        List types
+                    - int: node index
+                    - slice: node range
 
-        - list: This key type allows for a combination of all
-          of the above key types - the corresponding matrix
-          will be concatenated
+                    List types
 
-        If the key is a 2-tuple, each entry will be treated as the 
-        row and column key, respectively,
-        e.g.: 'chr1:0-1000, chr4:2300-3000' will set the entries
-        of the relevant regions between chromosomes 1 and 4.
-            
+                    - list: This key type allows for a combination of all
+                      of the above key types - the corresponding matrix
+                      will be concatenated
+
+                    If the key is a 2-tuple, each entry will be treated as the
+                    row and column key, respectively,
+                    e.g.: 'chr1:0-1000, chr4:2300-3000' will set the entries
+                    of the relevant regions between chromosomes 1 and 4.
+        :param item: matrix to replace existing values
+        :param clean_zero: Remove edges where 'values_to' colum is zero
+        :param values_to: Determines which column is replaced by the provided
+                          item. Default: weight
         """
-        
-        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
-        self._set_matrix(item, nodes_ix_row, nodes_ix_col)
 
-    def _set_matrix(self, item, nodes_ix_row=None, nodes_ix_col=None):
+        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+        self._set_matrix(item, nodes_ix_row, nodes_ix_col, clean_zero=clean_zero, weight_column=values_to)
+
+    def _set_matrix(self, item, nodes_ix_row=None, nodes_ix_col=None,
+                    clean_zero=False, weight_column='weight'):
         replacement_edges = {}
 
         # create new edges with updated weights
@@ -2159,20 +2337,18 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             if key not in replacement_edges:
                 replacement_edges[key] = weight
 
-        self._flush_edge_buffer(replacement_edges, replace=True)
+        self._flush_edge_buffer(replacement_edges, replace=True, clean_zero=clean_zero, default_column=weight_column)
     
-    def _update_edge_weight(self, source, sink, weight, add=False, flush=True):
+    def _update_edge_weight(self, source, sink, weight, add=False, flush=True, weight_column='weight'):
         if source > sink:
-            tmp = source
-            source = sink
-            sink = tmp
+            source, sink = sink, source
         
         value_set = False
         for row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
             original = 0
             if add:
-                original = row['weight']
-            row['weight'] = weight + original
+                original = row[weight_column]
+            row[weight_column] = weight + original
             row.update()
             value_set = True
             if flush:
@@ -2180,11 +2356,11 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         if not value_set:
             self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=flush)
     
-    def _remove_zero_edges(self, flush=True, update_index=True):
+    def _remove_zero_edges(self, flush=True, update_index=True, weight_column='weight'):
         zero_edge_ix = []
         ix = 0
         for row in self._edges.iterrows():
-            if row['weight'] == 0:
+            if row[weight_column] == 0:
                 zero_edge_ix.append(ix)
             ix += 1
         
@@ -2228,12 +2404,16 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         if not lazy:
             source = row["source"]
             sink = row["sink"]
-            weight = row["weight"]
+            d = dict()
+            for field in self.field_names:
+                if field != 'source' and field != 'sink':
+                    d[field] = row[field]
+
             source_node_row = self._regions[source]
             source_node = self._row_to_node(source_node_row)
             sink_node_row = self._regions[sink]
             sink_node = self._row_to_node(sink_node_row)
-            return Edge(source_node, sink_node, weight)
+            return Edge(source_node, sink_node, **d)
         else:
             return LazyEdge(row, self._regions)
 
@@ -2261,6 +2441,9 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         Iterate over :class:`~Edge` objects.
 
+        :param lazy: Enable lazy loading of edge attributes,
+                     only works in the loop iteration this
+                     edge is accessed.
         :return: Iterator over :class:`~Edge`
         """
         this = self
