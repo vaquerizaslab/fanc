@@ -7,7 +7,7 @@ from collections import defaultdict
 import tables as t
 from bisect import bisect_left
 from functools import partial
-from kaic.data.genomic import RegionsTable, RegionMatrixTable
+from kaic.data.genomic import RegionsTable, RegionMatrixTable, Edge, LazyEdge
 from kaic.data.general import FileBased, MaskedTable, MaskFilter, Maskable
 import msgpack
 import time
@@ -33,7 +33,7 @@ class PeakCaller(object):
         pass
 
 
-class PeakInfo(Maskable, RegionsTable, FileBased):
+class PeakInfo(RegionMatrixTable):
     class MergedPeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
@@ -45,90 +45,48 @@ class PeakInfo(Maskable, RegionsTable, FileBased):
         radius = t.Float32Col(pos=7)
 
     def __init__(self, file_name, mode='a', regions=None, _table_name_regions='regions',
-                 _group_name='peaks', _table_name_peaks_intra='peak_info_intra',
-                 _table_name_peaks_inter='peak_info_inter'):
-        FileBased.__init__(self, file_name, mode=mode)
-        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_regions)
-        Maskable.__init__(self, self.file)
+                 _table_name_peaks='edges'):
 
-        # try to retrieve existing tables
-        # Peaks group
-        try:
-            self._file_group = self.file.get_node('/' + _group_name)
-        except t.NoSuchNodeError:
-            # create peaks group
-            self._file_group = self.file.create_group("/", _group_name, 'Peaks group',
-                                                      filters=t.Filters(complib="blosc",
-                                                                        complevel=2, shuffle=True))
+        RegionMatrixTable.__init__(self, file_name, mode=mode, additional_fields=PeakInfo.MergedPeakInformation,
+                                   _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
 
-        try:
-            self.peak_table = self._file_group.peaks
-        except t.NoSuchNodeError:
-            self.peak_table = MaskedTable(self._file_group, 'peaks', PeakInfo.MergedPeakInformation)
+        self.peak_table = self._edges
 
         if regions is not None:
             for region in regions:
                 self.add_region(region, flush=False)
             self._regions.flush()
 
-    def _row2peak(self, row, distances_in_bp=False, lazy=False, auto_update=True):
-        if not lazy:
-            if distances_in_bp:
-                f = self.bin_size
-            else:
-                f = 1
-            peak = Peak(row['source'], row['sink'], row['observed'],
-                        expected=row['expected'], p_value=row['p_value'],
-                        x=f*row['x'], y=f*row['y'], radius=f*row['radius'])
+    def _row_to_edge(self, row, lazy=False, distances_in_bp=False, auto_update=True):
+        if distances_in_bp:
+            bin_size = self.bin_size
         else:
-            peak = LazyPeak(row, auto_update=auto_update, bin_size=self.bin_size)
-        return peak
+            bin_size = 1
+
+        if not lazy:
+            source = row["source"]
+            sink = row["sink"]
+            d = dict()
+            for field in self.field_names:
+                if field != 'source' and field != 'sink':
+                    if field in ('x', 'y', 'radius'):
+                        d[field] = row[field]*bin_size
+                    else:
+                        d[field] = row[field]
+
+            source_node_row = self._regions[source]
+            source_node = self._row_to_node(source_node_row)
+            sink_node_row = self._regions[sink]
+            sink_node = self._row_to_node(sink_node_row)
+            return Peak(source_node, sink_node, **d)
+        else:
+            return LazyPeak(row, self._regions, bin_size=bin_size, auto_update=auto_update)
 
     def peaks(self, distances_in_bp=False, lazy=False, auto_update=True):
-        it = self.peak_table.iterrows()
-        return (self._row2peak(row, distances_in_bp=distances_in_bp, lazy=lazy, auto_update=auto_update) for row in it)
-
-    def add_peak(self, peak, flush=True):
-        source = None
-        sink = None
-        observed = None
-        expected = None
-        p_value = None
-        x = None
-        y = None
-        radius = None
-
-        if isinstance(peak, Peak):
-            source = peak.source
-            sink = peak.sink
-            observed = peak.observed
-            expected = peak.expected
-            p_value = peak.p_value
-            x = peak.x
-            y = peak.y
-            radius = peak.radius
-
-        row = self.peak_table.row
-        row['source'] = source
-        row['sink'] = sink
-        row['observed'] = observed
-        row['expected'] = expected
-        row['p_value'] = p_value
-        row['x'] = x
-        row['y'] = y
-        row['radius'] = radius
-        row.append()
-
-        if flush:
-            self.peak_table.flush(update_index=True)
-
-    def flush(self, update_index=False):
-        self.peak_table.flush(update_index=update_index)
-
-    #def peak_info_matrix(self, weight_attribute='')
+        return self.edges(lazy=lazy, distances_in_bp=distances_in_bp, auto_update=auto_update)
 
 
-class RaoPeakInfo(Maskable, RegionsTable, FileBased):
+class RaoPeakInfo(RegionMatrixTable):
     class PeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
@@ -146,51 +104,21 @@ class RaoPeakInfo(Maskable, RegionsTable, FileBased):
         fdr_v = t.Float32Col(pos=13)
         fdr_d = t.Float32Col(pos=14)
 
-    class MergedPeakInformation(t.IsDescription):
-        source = t.Int32Col(pos=0)
-        sink = t.Int32Col(pos=1)
-        observed = t.Int32Col(pos=2)
-
     def __init__(self, file_name, mode='a', regions=None, _table_name_regions='regions',
-                 _group_name='rao_peaks'):
-        FileBased.__init__(self, file_name, mode=mode)
-        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_regions)
-        Maskable.__init__(self, self.file)
+                 _table_name_peaks='edges'):
 
-        # try to retrieve existing tables
-        # Rao Peaks group
-        try:
-            self._file_group = self.file.get_node('/' + _group_name)
-        except t.NoSuchNodeError:
-            # create peaks group
-            self._file_group = self.file.create_group('/', _group_name, 'Rao Peaks group',
-                                                      filters=t.Filters(complib="blosc",
-                                                                        complevel=2, shuffle=True))
+        RegionMatrixTable.__init__(self, file_name, mode=mode, additional_fields=RaoPeakInfo.PeakInformation,
+                                   _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
 
-        try:
-            self.peak_table = self._file_group.peaks
-        except t.NoSuchNodeError:
-            self.peak_table = MaskedTable(self._file_group, 'peaks', RaoPeakInfo.PeakInformation)
+        self.peak_table = self._edges
 
         if regions is not None:
             for region in regions:
                 self.add_region(region, flush=False)
             self._regions.flush()
 
-    def _row2peak(self, row, lazy=False, auto_update=True):
-        if not lazy:
-            peak = RaoPeak(row['source'], row['sink'], row['observed'],
-                           e_ll=row['e_ll'], e_h=row['e_h'], e_v=row['e_v'], e_d=row['e_d'],
-                           e_ll_chunk=row['e_ll_chunk'], e_h_chunk=row['e_h_chunk'],
-                           e_v_chunk=row['e_v_chunk'], e_d_chunk=row['e_d_chunk'],
-                           fdr_ll=row['fdr_ll'], fdr_h=row['fdr_h'], fdr_v=row['fdr_v'], fdr_d=row['fdr_d'])
-        else:
-            peak = LazyRaoPeak(row, auto_update=auto_update)
-        return peak
-
     def peaks(self, lazy=False, auto_update=True):
-        it = self.peak_table.iterrows()
-        return (self._row2peak(row, lazy=lazy, auto_update=auto_update) for row in it)
+        return self.edges(lazy=lazy, auto_update=auto_update)
 
     def filter(self, peak_filter, queue=False, log_progress=False):
         """
@@ -319,147 +247,22 @@ class RaoPeakInfo(Maskable, RegionsTable, FileBased):
         return merged_peaks
 
 
-class BasePeak(object):
-    def __init__(self):
-        self.source = -1
-        self.sink = -1
-        self.observed = 1
-        self.expected = 1.0
-        self.p_value = 1.0
-        self.x = -1
-        self.y = -1
-        self.radius = -1
-
-    def __repr__(self):
-        return "x: %e, y: %e, radius: %e (peak: %d-%d, observed: %e, expected: %e, p_value: %e" % (self.x, self.y,
-                                                                                                   self.radius,
-                                                                                                   self.source,
-                                                                                                   self.sink,
-                                                                                                   self.observed,
-                                                                                                   self.expected,
-                                                                                                   self.p_value)
+class Peak(Edge):
+    def __init__(self, source, sink, *args, **kwargs):
+        super(Peak, self).__init__(source, sink, *args, **kwargs)
 
 
-class Peak(BasePeak):
-    def __init__(self, source, sink, observed=0, expected=0, p_value=1, x=0, y=0, radius=0):
-        #super(Peak, self).__init__()
-        self.source = source
-        self.sink = sink
-        self.observed = observed
-        self.expected = expected
-        self.p_value = p_value
-        self.x = x
-        self.y = y
-        self.radius = radius
-
-
-class LazyPeak(BasePeak):
-    def __init__(self, row, auto_update=True, bin_size=1):
-        self.row = row
-        self.auto_update = auto_update
+class LazyPeak(LazyEdge):
+    def __init__(self, row, nodes_table, auto_update=True, bin_size=1):
+        super(LazyPeak, self).__init__(row, nodes_table, auto_update=auto_update)
+        self.reserved.append('bin_size')
         self.bin_size = bin_size
 
-    def _set_item(self, item, value):
-        self.row[item] = value
-        if self.auto_update:
-            self.row.update()
-
     def __getattr__(self, item):
-        if item == 'row' or item == 'auto_update' or item == 'bin_size':
-            return object.__getattribute__(self, item)
-
-        if item == 'x' or item == 'y' or item == 'radius':
-            return self.bin_size*self.row[item]
-        return self.row[item]
-
-    def __setattr__(self, key, value):
-        if key == 'row' or key == 'auto_update' or key == 'bin_size':
-            super(LazyPeak, self).__setattr__(key, value)
-        else:
-            self.row[key] = value
-            if self.auto_update:
-                self.row.update()
-
-    def update(self):
-        self.row.update()
-
-
-class RaoBasePeak(object):
-    def __init__(self):
-        self.source = -1
-        self.sink = -1
-        self.observed = 1
-        self.e_ll = 1.0
-        self.e_h = 1.0
-        self.e_v = 1.0
-        self.e_d = 1.0
-        self.e_ll_chunk = -1
-        self.e_h_chunk = -1
-        self.e_v_chunk = -1
-        self.e_d_chunk = -1
-        self.fdr_ll = 1
-        self.fdr_h = 1
-        self.fdr_v = 1
-        self.fdr_d = 1
-
-    def __repr__(self):
-        return "%d-%d (obs: %e, e_ll: %e (%e), e_h: %e (%e), e_v: %e (%e), e_d: %e (%e))" % (self.source,
-                                                                                             self.sink,
-                                                                                             self.observed,
-                                                                                             self.e_ll, self.fdr_ll,
-                                                                                             self.e_h, self.fdr_h,
-                                                                                             self.e_v, self.fdr_v,
-                                                                                             self.e_d, self.fdr_d)
-
-
-class RaoPeak(RaoBasePeak):
-    def __init__(self, source, sink, observed=0, e_ll=0, e_h=0, e_v=0, e_d=0,
-                 e_ll_chunk=0, e_h_chunk=0, e_v_chunk=0, e_d_chunk=0,
-                 fdr_ll=1, fdr_h=1, fdr_v=1, fdr_d=1):
-        #super(RaoPeak, self).__init__()
-        self.source = source
-        self.sink = sink
-        self.observed = observed
-        self.e_ll = e_ll
-        self.e_h = e_h
-        self.e_v = e_v
-        self.e_d = e_d
-        self.e_ll_chunk = e_ll_chunk
-        self.e_h_chunk = e_h_chunk
-        self.e_v_chunk = e_v_chunk
-        self.e_d_chunk = e_d_chunk
-        self.fdr_ll = fdr_ll
-        self.fdr_h = fdr_h
-        self.fdr_v = fdr_v
-        self.fdr_d = fdr_d
-
-
-class LazyRaoPeak(RaoBasePeak):
-    def __init__(self, row, auto_update=True):
-        #super(LazyRaoPeak, self).__init__()
-        self.row = row
-        self.auto_update = auto_update
-
-    def _set_item(self, item, value):
-        self.row[item] = value
-        if self.auto_update:
-            self.row.update()
-
-    def __getattr__(self, item):
-        if item == 'row' or item == 'auto_update':
-            return object.__getattribute__(self, item)
-        return self.row[item]
-
-    def __setattr__(self, key, value):
-        if key == 'row' or key == 'auto_update':
-            super(LazyRaoPeak, self).__setattr__(key, value)
-        else:
-            self.row[key] = value
-            if self.auto_update:
-                self.row.update()
-
-    def update(self):
-        self.row.update()
+        res = super(LazyPeak, self).__getattr__(item)
+        if item in ('x', 'y', 'radius'):
+            return self.bin_size*res
+        return res
 
 
 class PeakFilter(MaskFilter):
@@ -518,7 +321,7 @@ class PeakFilter(MaskFilter):
         :param row: A pytables Table row.
         :return: The boolean value returned by valid_edge.
         """
-        peak = LazyRaoPeak(row)
+        peak = LazyEdge(row)
         return self.valid_peak(peak)
 
 
