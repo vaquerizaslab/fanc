@@ -243,14 +243,19 @@ class TestRegionMatrixTable:
                 self.rmt.add_edge(edge, flush=False)
         self.rmt.flush()
 
+    def teardown_method(self, method):
+        self.rmt.close()
+
     def test_create(self):
         rmt1 = RegionMatrixTable()
         assert rmt1.field_names == ['source', 'sink', 'weight']
         assert len(rmt1.edges()) == 0
+        rmt1.close()
 
         rmt2 = RegionMatrixTable(additional_fields={'foo': t.Int32Col(pos=0), 'bar': t.Float32Col(pos=1)})
         assert rmt2.field_names == ['source', 'sink', 'weight', 'foo', 'bar']
         assert len(rmt2.edges()) == 0
+        rmt2.close()
 
         class AdditionalFields(t.IsDescription):
             foo = t.Int32Col(pos=0)
@@ -259,6 +264,7 @@ class TestRegionMatrixTable:
         rmt3 = RegionMatrixTable(additional_fields=AdditionalFields)
         assert rmt3.field_names == ['source', 'sink', 'weight', 'foo', 'bar']
         assert len(rmt3.edges()) == 0
+        rmt3.close()
 
         assert len(self.rmt.edges()) == 55
         assert self.rmt.field_names == ['source', 'sink', 'weight', 'foo', 'bar', 'baz']
@@ -349,6 +355,37 @@ class TestRegionMatrixTable:
         for i, row_region in enumerate(m.row_regions):
             for j, col_region in enumerate(m.col_regions):
                 assert m[i, j] == max(row_region.ix, col_region.ix)
+
+    def test_add_edge(self):
+        rmt = RegionMatrixTable()
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge(Edge(0, 0, 100))
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
+
+        rmt = RegionMatrixTable()
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge([0, 0, 100])
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
+
+        rmt = RegionMatrixTable()
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge({'source': 0, 'sink': 0, 'weight': 100})
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
 
 
 class TestHicBasic:

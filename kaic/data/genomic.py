@@ -2436,8 +2436,9 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         :return: Iterator over :class:`~GenomicRegions`
         """
         return self.regions()
-    
-    def edges(self, lazy=False):
+
+    @property
+    def edges(self):
         """
         Iterate over :class:`~Edge` objects.
 
@@ -2451,12 +2452,29 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         class EdgeIter:
             def __init__(self):
                 self.iter = iter(this._edges)
+                self.lazy = False
+
+            def __getitem__(self, item):
+                res = this._edges[item]
+
+                if isinstance(res, np.ndarray):
+                    edges = []
+                    for edge in res:
+                        edges.append(this._row_to_edge(edge, lazy=self.lazy))
+                    return edges
+                else:
+                    edge = this._row_to_edge(res, lazy=self.lazy)
+                    return edge
                 
             def __iter__(self):
                 return self
+
+            def __call__(self, lazy=False):
+                self.lazy = lazy
+                return iter(self)
             
             def next(self):
-                return this._row_to_edge(self.iter.next(), lazy=lazy)
+                return this._row_to_edge(self.iter.next(), lazy=self.lazy)
 
             def __len__(self):
                 return len(this._edges)
