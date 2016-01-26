@@ -1600,7 +1600,7 @@ class Edge(TableObject):
 
 
 class LazyEdge(Edge):
-    def __init__(self, row, nodes_table, auto_update=True):
+    def __init__(self, row, nodes_table=None, auto_update=True):
         self.reserved = {'_row', '_nodes_table', 'auto_update', '_source_node', '_sink_node'}
         self._row = row
         self._nodes_table = nodes_table
@@ -1642,6 +1642,9 @@ class LazyEdge(Edge):
 
     @property
     def source_node(self):
+        if self._nodes_table is None:
+            raise RuntimeError("Must set the _nodes_table attribute before calling this method!")
+
         if self._source_node is None:
             source_row = self._nodes_table[self.source]
             return LazyNode(source_row)
@@ -1649,6 +1652,9 @@ class LazyEdge(Edge):
 
     @property
     def sink_node(self):
+        if self._nodes_table is None:
+            raise RuntimeError("Must set the _nodes_table attribute before calling this method!")
+
         if self._sink_node is None:
             sink_row = self._nodes_table[self.sink]
             return LazyNode(sink_row)
@@ -2400,7 +2406,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         return self._getitem_nodes(key)
 
-    def _row_to_edge(self, row, lazy=False):
+    def _row_to_edge(self, row, lazy=False, auto_update=True):
         if not lazy:
             source = row["source"]
             sink = row["sink"]
@@ -2415,7 +2421,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             sink_node = self._row_to_node(sink_node_row)
             return Edge(source_node, sink_node, **d)
         else:
-            return LazyEdge(row, self._regions)
+            return LazyEdge(row, self._regions, auto_update=auto_update)
 
     def get_edge(self, ix, lazy=False):
         """
@@ -2452,7 +2458,8 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         class EdgeIter:
             def __init__(self):
                 self.iter = iter(this._edges)
-                self.lazy = False
+                self.row_conversion_args = list()
+                self.row_conversion_kwargs = dict()
 
             def __getitem__(self, item):
                 res = this._edges[item]
@@ -2460,21 +2467,22 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
                 if isinstance(res, np.ndarray):
                     edges = []
                     for edge in res:
-                        edges.append(this._row_to_edge(edge, lazy=self.lazy))
+                        edges.append(this._row_to_edge(edge, *self.row_conversion_args, **self.row_conversion_kwargs))
                     return edges
                 else:
-                    edge = this._row_to_edge(res, lazy=self.lazy)
+                    edge = this._row_to_edge(res, *self.row_conversion_args, **self.row_conversion_kwargs)
                     return edge
                 
             def __iter__(self):
                 return self
 
-            def __call__(self, lazy=False):
-                self.lazy = lazy
+            def __call__(self, *args, **kwargs):
+                self.row_conversion_args = args
+                self.row_conversion_kwargs = kwargs
                 return iter(self)
             
             def next(self):
-                return this._row_to_edge(self.iter.next(), lazy=self.lazy)
+                return this._row_to_edge(self.iter.next(), *self.row_conversion_args, **self.row_conversion_kwargs)
 
             def __len__(self):
                 return len(this._edges)
