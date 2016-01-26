@@ -33,19 +33,21 @@ def insulation_index(hic, d, hic_matrix=None):
     hic_matrix = hic_matrix.masked_matrix
     ins_matrix = np.empty(n)
     log.debug("Starting processing")
+    skipped = 0
     for i, r in enumerate(hic.regions()):
-        import ipdb
-        #ipdb.set_trace()
-        print("{}\t{}".format(np.sum(hic_matrix.mask[i: i + d, i - d:i]), d*d/2))
         if (i - chr_bins[r.chromosome][0] < d or
-            chr_bins[r.chromosome][1] - i < d or
-            np.sum(hic_matrix.mask[i: i + d, i - d:i]) > d*d/2):
+            chr_bins[r.chromosome][1] - i < d):
+            ins_matrix[i] = np.nan
+            continue
+        if np.sum(hic_matrix.mask[i: i + d, i - d:i]) > d*d/2:
             # If too close to the edge of chromosome or
             # if more than half of the entries in this quadrant are masked (unmappable)
             # exclude it from the analysis
+            skipped += 1
             ins_matrix[i] = np.nan
             continue
         ins_matrix[i] = np.ma.mean(hic_matrix[i: i + d, i - d:i])
+    log.info("Skipped {} regions because >50% of matrix positions were masked".format(skipped))
     return ins_matrix
 
 def rel_insulation_index(hic, d, hic_matrix=None):
@@ -57,17 +59,22 @@ def rel_insulation_index(hic, d, hic_matrix=None):
     hic_matrix = hic_matrix.masked_matrix
     rel_ins_matrix = np.empty(n)
     log.debug("Starting processing")
+    skipped = 0
     for i, r in enumerate(hic.regions()):
         if (i - chr_bins[r.chromosome][0] < d or
-            chr_bins[r.chromosome][1] - i < d or
-            np.sum(hic_matrix.mask[i - d: i + d, i - d:i + d]) > 2*d*d):
+            chr_bins[r.chromosome][1] - i < d):
+            rel_ins_matrix[i] = np.nan
+            continue
+        if np.sum(hic_matrix.mask[i - d: i + d, i - d:i + d]) > 2*d*d:
             # If too close to the edge of chromosome or
             # if more than half of the entries in this quadrant are masked (unmappable)
             # exclude it from the analysis
+            skipped += 1
             rel_ins_matrix[i] = np.nan
             continue
         rel_ins_matrix[i] = (np.ma.mean(hic_matrix[i: i + d, i - d:i]) /
             np.ma.mean([hic_matrix[i - d:i, i - d:i], hic_matrix[i:i + d, i:i + d]]))
+    log.info("Skipped {} regions because >50% of matrix positions were masked".format(skipped))
     return rel_ins_matrix
 
 def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
@@ -80,16 +87,21 @@ def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
     if use_oe_ratio:
         raise NotImplementedError("oe not implemented yet :(")
     log.debug("Starting processing")
+    skipped = 0
     for i, r in enumerate(hic.regions()):
         if (i - chr_bins[r.chromosome][0] < d2 or
-            chr_bins[r.chromosome][1] - i < d2 or
-            np.sum(hic_matrix.mask[i - d2:i - d1, i + d1:i + d2]) > ((d2 - d1)**2)/2):
+            chr_bins[r.chromosome][1] - i < d2):
+            band[i] = np.nan
+            continue
+        if np.sum(hic_matrix.mask[i - d2:i - d1, i + d1:i + d2]) > ((d2 - d1)**2)/2:
             # If too close to the edge of chromosome or
             # if more than half of the entries in this quadrant are masked (unmappable)
             # exclude it from the analysis
+            skipped += 1
             band[i] = np.nan
             continue
         band[i] = np.ma.mean(hic_matrix[i - d2:i - d1, i + d1:i + d2])
+    log.info("Skipped {} regions because >50% of matrix positions were masked".format(skipped))
     return band
 
 def observed_expected_ratio(hic, hic_matrix=None, per_chromosome=True):

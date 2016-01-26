@@ -3381,9 +3381,11 @@ class HicMatrix(np.ndarray):
 
     @property
     def masked_matrix(self):
-        row_zero = np.isclose(np.sum(self, axis=0), 0.)
-        col_zero = np.isclose(np.sum(self, axis=1), 0.)
-        mask =  ~(~col_zero*~row_zero[:, None])
+        col_zero = np.isclose(np.sum(self, axis=0), 0.)
+        row_zero = np.isclose(np.sum(self, axis=1), 0.)
+        mask =  np.zeros(self.shape, dtype=np.bool_)
+        mask[:, col_zero] = np.True_
+        mask[row_zero, :] = np.True_
         return np.ma.MaskedArray(self, mask=mask)
 
 class HicXmlFile(object):
