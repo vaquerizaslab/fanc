@@ -24,7 +24,7 @@ class TestRaoPeakCaller:
                    GenomicRegion(2001, 3000, 'chr1', ix=2), GenomicRegion(3001, 4000, 'chr1', ix=3),
                    GenomicRegion(4001, 5000, 'chr1', ix=4), GenomicRegion(5001, 6000, 'chr1', ix=5),
                    GenomicRegion(6001, 7000, 'chr1', ix=6)]
-
+        self.regions_dict = {i: region for i, region in enumerate(regions)}
         self.m = RegionMatrix(np.array(l), col_regions=regions, row_regions=regions)
 
     def test_ll_sum(self):
@@ -321,7 +321,8 @@ class TestRaoPeakCaller:
         peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=2, e_ll_cutoff=None,
                                     e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
         peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info1,
-                                          observed_chunk_distribution, lambda_chunks, w=2, p=0)
+                                          observed_chunk_distribution, lambda_chunks, w=2, p=0,
+                                          regions_dict=self.regions_dict)
 
         assert len(peak_info1) == 5+4+3+2+1
 
@@ -358,7 +359,8 @@ class TestRaoPeakCaller:
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
         peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info2,
-                                          observed_chunk_distribution, lambda_chunks, w=2, p=0)
+                                          observed_chunk_distribution, lambda_chunks, w=2, p=0,
+                                          regions_dict=self.regions_dict)
         cmp_batches(peak_info1, peak_info2)
 
         peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=100, e_ll_cutoff=None,
@@ -366,7 +368,8 @@ class TestRaoPeakCaller:
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
         peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info3,
-                                          observed_chunk_distribution, lambda_chunks, w=2, p=0)
+                                          observed_chunk_distribution, lambda_chunks, w=2, p=0,
+                                          regions_dict=self.regions_dict)
         cmp_batches(peak_info1, peak_info3)
 
     def test_fdr_cutoffs(self):
@@ -399,6 +402,31 @@ class TestRaoPeakCaller:
 
         peak_caller = RaoPeakCaller(process_inter=False, e_ll_cutoff=1.75,
                                     e_d_cutoff=1.75, e_h_cutoff=1.5, e_v_cutoff=1.5)
+        peaks = peak_caller.call_peaks(hic_10kb)
+        peak_info = peaks.peak_table
+
+        assert len(peak_info) == 219
+
+        valid_peaks = []
+
+        has_43_57 = False
+        for peak in peak_info:
+            if peak['fdr_ll'] < 0.1 and peak['fdr_v'] < 0.1 and peak['fdr_h'] < 0.1 and peak['fdr_d'] < 0.1:
+                valid_peaks.append(peak.fetch_all_fields())
+            if peak['source'] == 43 and peak['sink'] == 57:
+                has_43_57 = True
+
+        assert len(valid_peaks) == 6
+        assert has_43_57
+        hic_10kb.close()
+
+    def test_call_peaks_multiprocessing(self):
+        dir = os.path.dirname(os.path.realpath(__file__))
+        hic_10kb = Hic(dir + "/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
+
+        peak_caller = RaoPeakCaller(process_inter=False, e_ll_cutoff=1.75,
+                                    e_d_cutoff=1.75, e_h_cutoff=1.5, e_v_cutoff=1.5,
+                                    cluster=False)
         peaks = peak_caller.call_peaks(hic_10kb)
         peak_info = peaks.peak_table
 

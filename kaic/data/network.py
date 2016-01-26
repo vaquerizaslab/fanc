@@ -7,17 +7,17 @@ from collections import defaultdict
 import tables as t
 from bisect import bisect_left
 from functools import partial
-from kaic.data.genomic import RegionsTable
-from kaic.data.general import FileBased, MaskedTable, MaskFilter
+from kaic.data.genomic import RegionsTable, RegionMatrixTable
+from kaic.data.general import FileBased, MaskedTable, MaskFilter, Maskable
 import msgpack
 import time
 import math
+import multiprocessing
 
 try:
     import gridmap
     _has_gridmap = True
 except ImportError:
-    import multiprocessing
     _has_gridmap = False
 
 
@@ -33,7 +33,7 @@ class PeakCaller(object):
         pass
 
 
-class PeakInfo(RegionsTable, FileBased):
+class PeakInfo(Maskable, RegionsTable, FileBased):
     class MergedPeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
@@ -45,11 +45,11 @@ class PeakInfo(RegionsTable, FileBased):
         radius = t.Float32Col(pos=7)
 
     def __init__(self, file_name, mode='a', regions=None, _table_name_regions='regions',
-                 _group_name='peaks',
-                 _table_name_peaks_intra='peak_info_intra',
+                 _group_name='peaks', _table_name_peaks_intra='peak_info_intra',
                  _table_name_peaks_inter='peak_info_inter'):
         FileBased.__init__(self, file_name, mode=mode)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_regions)
+        Maskable.__init__(self, self.file)
 
         # try to retrieve existing tables
         # Peaks group
@@ -71,18 +71,22 @@ class PeakInfo(RegionsTable, FileBased):
                 self.add_region(region, flush=False)
             self._regions.flush()
 
-    def _row2peak(self, row, lazy=False, auto_update=True):
+    def _row2peak(self, row, distances_in_bp=False, lazy=False, auto_update=True):
         if not lazy:
+            if distances_in_bp:
+                f = self.bin_size
+            else:
+                f = 1
             peak = Peak(row['source'], row['sink'], row['observed'],
                         expected=row['expected'], p_value=row['p_value'],
-                        x=row['x'], y=row['y'], radius=row['radius'])
+                        x=f*row['x'], y=f*row['y'], radius=f*row['radius'])
         else:
-            peak = LazyPeak(row, auto_update=auto_update)
+            peak = LazyPeak(row, auto_update=auto_update, bin_size=self.bin_size)
         return peak
 
-    def peaks(self, lazy=False, auto_update=True):
+    def peaks(self, distances_in_bp=False, lazy=False, auto_update=True):
         it = self.peak_table.iterrows()
-        return (self._row2peak(row, lazy=lazy, auto_update=auto_update) for row in it)
+        return (self._row2peak(row, distances_in_bp=distances_in_bp, lazy=lazy, auto_update=auto_update) for row in it)
 
     def add_peak(self, peak, flush=True):
         source = None
@@ -121,8 +125,10 @@ class PeakInfo(RegionsTable, FileBased):
     def flush(self, update_index=False):
         self.peak_table.flush(update_index=update_index)
 
+    #def peak_info_matrix(self, weight_attribute='')
 
-class RaoPeakInfo(RegionsTable, FileBased):
+
+class RaoPeakInfo(Maskable, RegionsTable, FileBased):
     class PeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
@@ -149,6 +155,7 @@ class RaoPeakInfo(RegionsTable, FileBased):
                  _group_name='rao_peaks'):
         FileBased.__init__(self, file_name, mode=mode)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_regions)
+        Maskable.__init__(self, self.file)
 
         # try to retrieve existing tables
         # Rao Peaks group
@@ -203,6 +210,22 @@ class RaoPeakInfo(RegionsTable, FileBased):
         else:
             self.peak_table.queue_filter(peak_filter)
 
+    def filter_fdr(self, fdr_cutoff, queue=False):
+        """
+        Convenience function that applies a :class:`~FdrPeakFilter`.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
+
+        :param fdr_cutoff: The false-discovery rate of every neighborhood enrichment
+                           must be lower or equal to this threshold
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('mapq', 'Mask peaks with an FDR lower than %d' % fdr_cutoff)
+        fdr_filter = FdrPeakFilter(fdr_cutoff=fdr_cutoff, mask=mask)
+        self.filter(fdr_filter, queue)
+
     @staticmethod
     def _euclidian_distance(x1, y1, x2, y2):
         return math.sqrt((x1-x2)**2+(y1-y2)**2)
@@ -214,12 +237,14 @@ class RaoPeakInfo(RegionsTable, FileBased):
         for peak in peak_list:
             x += peak.source
             y += peak.sink
-        x /= len(peak_list)
-        y /= len(peak_list)
+
+        if len(peak_list) > 0:
+            x /= len(peak_list)
+            y /= len(peak_list)
 
         radius = 0
         for peak in peak_list:
-            distance = RaoPeakInfo._euclidian_distance(x, y, peak.x, peak.y)
+            distance = RaoPeakInfo._euclidian_distance(x, y, peak.source, peak.sink)
             if distance > radius:
                 radius = distance
         return x, y, radius
@@ -230,6 +255,16 @@ class RaoPeakInfo(RegionsTable, FileBased):
         # get region index
         regions_dict = self.regions_dict
         bin_size = self.bin_size
+
+        def _append_merged_peak(peak_list):
+            print peak_list
+            # add merged peak
+            highest_peak = peak_list[0]
+            merged_peak = Peak(source=highest_peak.source, sink=highest_peak.sink,
+                               observed=highest_peak.observed, expected=highest_peak.e_d,
+                               p_value=highest_peak.fdr_d, x=x, y=y,
+                               radius=radius)
+            merged_peaks.add_peak(merged_peak)
 
         chromosome_names = self.chromosomes()
         for i, chromosome_name1 in enumerate(chromosome_names):
@@ -250,14 +285,10 @@ class RaoPeakInfo(RegionsTable, FileBased):
 
                     if len(current_peaks) == last_peak_number:
                         if len(current_peaks) > 0:
-                            # add merged peak
-                            highest_peak = current_peaks[0]
-                            merged_peak = Peak(source=highest_peak.source, sink=highest_peak.sink,
-                                               observed=highest_peak.observed, expected=highest_peak.e_d,
-                                               p_value=highest_peak.fdr_d, x=x, y=y, radius=radius)
-                            merged_peaks.add_peak(merged_peak)
+                            _append_merged_peak(current_peaks)
                             current_peaks = []
                             last_peak_number = 0
+
                         # find highest peak
                         highest_peak = None
                         for peak in remaining_peaks_set:
@@ -275,19 +306,43 @@ class RaoPeakInfo(RegionsTable, FileBased):
                         closest_peak = None
                         closest_distance = None
                         for peak in remaining_peaks_set:
-                            distance = RaoPeakInfo._euclidian_distance(x, y, peak.x, peak.y)
+                            distance = RaoPeakInfo._euclidian_distance(x, y, peak.source, peak.sink)
                             if closest_peak is None or distance < closest_distance:
                                 closest_peak = peak
                                 closest_distance = distance
 
-                        if closest_distance <= euclidian_distance:
+                        if closest_distance*bin_size <= euclidian_distance+(radius*bin_size):
                             current_peaks.append(closest_peak)
                             remaining_peaks_set.remove(closest_peak)
+                if len(current_peaks) > 0:
+                    _append_merged_peak(current_peaks)
         return merged_peaks
 
 
-class Peak(object):
+class BasePeak(object):
+    def __init__(self):
+        self.source = -1
+        self.sink = -1
+        self.observed = 1
+        self.expected = 1.0
+        self.p_value = 1.0
+        self.x = -1
+        self.y = -1
+        self.radius = -1
+
+    def __repr__(self):
+        return "x: %e, y: %e, radius: %e (peak: %d-%d, observed: %e, expected: %e, p_value: %e" % (self.x, self.y,
+                                                                                                   self.radius,
+                                                                                                   self.source,
+                                                                                                   self.sink,
+                                                                                                   self.observed,
+                                                                                                   self.expected,
+                                                                                                   self.p_value)
+
+
+class Peak(BasePeak):
     def __init__(self, source, sink, observed=0, expected=0, p_value=1, x=0, y=0, radius=0):
+        #super(Peak, self).__init__()
         self.source = source
         self.sink = sink
         self.observed = observed
@@ -298,10 +353,11 @@ class Peak(object):
         self.radius = radius
 
 
-class LazyPeak(object):
-    def __init__(self, row, auto_update=True):
+class LazyPeak(BasePeak):
+    def __init__(self, row, auto_update=True, bin_size=1):
         self.row = row
         self.auto_update = auto_update
+        self.bin_size = bin_size
 
     def _set_item(self, item, value):
         self.row[item] = value
@@ -309,12 +365,15 @@ class LazyPeak(object):
             self.row.update()
 
     def __getattr__(self, item):
-        if item == 'row' or item == 'auto_update':
-            return super(LazyPeak, self).__getattr__(item)
+        if item == 'row' or item == 'auto_update' or item == 'bin_size':
+            return object.__getattribute__(self, item)
+
+        if item == 'x' or item == 'y' or item == 'radius':
+            return self.bin_size*self.row[item]
         return self.row[item]
 
     def __setattr__(self, key, value):
-        if key == 'row' or key == 'auto_update':
+        if key == 'row' or key == 'auto_update' or key == 'bin_size':
             super(LazyPeak, self).__setattr__(key, value)
         else:
             self.row[key] = value
@@ -325,10 +384,39 @@ class LazyPeak(object):
         self.row.update()
 
 
-class RaoPeak(object):
+class RaoBasePeak(object):
+    def __init__(self):
+        self.source = -1
+        self.sink = -1
+        self.observed = 1
+        self.e_ll = 1.0
+        self.e_h = 1.0
+        self.e_v = 1.0
+        self.e_d = 1.0
+        self.e_ll_chunk = -1
+        self.e_h_chunk = -1
+        self.e_v_chunk = -1
+        self.e_d_chunk = -1
+        self.fdr_ll = 1
+        self.fdr_h = 1
+        self.fdr_v = 1
+        self.fdr_d = 1
+
+    def __repr__(self):
+        return "%d-%d (obs: %e, e_ll: %e (%e), e_h: %e (%e), e_v: %e (%e), e_d: %e (%e))" % (self.source,
+                                                                                             self.sink,
+                                                                                             self.observed,
+                                                                                             self.e_ll, self.fdr_ll,
+                                                                                             self.e_h, self.fdr_h,
+                                                                                             self.e_v, self.fdr_v,
+                                                                                             self.e_d, self.fdr_d)
+
+
+class RaoPeak(RaoBasePeak):
     def __init__(self, source, sink, observed=0, e_ll=0, e_h=0, e_v=0, e_d=0,
                  e_ll_chunk=0, e_h_chunk=0, e_v_chunk=0, e_d_chunk=0,
                  fdr_ll=1, fdr_h=1, fdr_v=1, fdr_d=1):
+        #super(RaoPeak, self).__init__()
         self.source = source
         self.sink = sink
         self.observed = observed
@@ -346,8 +434,9 @@ class RaoPeak(object):
         self.fdr_d = fdr_d
 
 
-class LazyRaoPeak(object):
+class LazyRaoPeak(RaoBasePeak):
     def __init__(self, row, auto_update=True):
+        #super(LazyRaoPeak, self).__init__()
         self.row = row
         self.auto_update = auto_update
 
@@ -358,7 +447,7 @@ class LazyRaoPeak(object):
 
     def __getattr__(self, item):
         if item == 'row' or item == 'auto_update':
-            return super(LazyRaoPeak, self).__getattr__(item)
+            return object.__getattribute__(self, item)
         return self.row[item]
 
     def __setattr__(self, key, value):
@@ -512,7 +601,7 @@ class RaoPeakCaller(PeakCaller):
     def __init__(self, p=None, w_init=None, min_locus_dist=3, max_w=20, min_ll_reads=16,
                  observed_cutoff=1, e_ll_cutoff=1.0, e_h_cutoff=1.0, e_v_cutoff=1.0,
                  e_d_cutoff=1.0, process_inter=False, n_processes=4,
-                 batch_size=500000):
+                 batch_size=500000, cluster=_has_gridmap):
         """
         Initialize the peak caller with parameters.
 
@@ -544,6 +633,8 @@ class RaoPeakCaller(PeakCaller):
         self.process_inter = process_inter
         self.n_processes = n_processes
         self.batch_size = batch_size
+        self.mpqueue = None
+        self.cluster = cluster
         super(RaoPeakCaller, self).__init__()
 
     @staticmethod
@@ -828,52 +919,65 @@ class RaoPeakCaller(PeakCaller):
 
         return m_sub, ij_converted
 
-    def _process_jobs(self, jobs, peak_info, observed_chunk_distribution):
-        if _has_gridmap:
-            t1 = time.time()
+    def _process_jobs(self, jobs, peak_info, observed_chunk_distribution, regions_dict):
+        t1 = time.time()
+        if self.cluster:
             job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes)
+        else:
+            for p in jobs:
+                p.start()
 
-            t2 = time.time()
+            # Exit the completed processes
+            for p in jobs:
+                p.join()
 
-            row = peak_info.row
-            for output in job_outputs:
-                rv = output
+            # Get process results from the output queue
+            job_outputs = [self.mpqueue.get() for _ in jobs]
+            self.mpqueue = None
 
-                (region_pairs, observed_list, e_ll_list,
-                 e_h_list, e_v_list, e_d_list, observed_chunk_distribution_part) = msgpack.loads(rv)
+        t2 = time.time()
 
-                for ix in xrange(len(region_pairs)):
-                    source = region_pairs[ix][0]
-                    sink = region_pairs[ix][1]
-                    observed, observed_chunk = observed_list[ix]
-                    e_ll, e_ll_chunk = e_ll_list[ix]
-                    e_h, e_h_chunk = e_h_list[ix]
-                    e_v, e_v_chunk = e_v_list[ix]
-                    e_d, e_d_chunk = e_d_list[ix]
+        row = peak_info.row
+        for output in job_outputs:
+            rv = output
 
-                    if (e_ll is not None and e_h is not None and
-                            e_v is not None and e_d is not None):
-                        row['source'] = source
-                        row['sink'] = sink
-                        row['observed'] = observed
-                        row['e_ll'] = e_ll
-                        row['e_h'] = e_h
-                        row['e_v'] = e_v
-                        row['e_d'] = e_d
-                        row['e_ll_chunk'] = e_ll_chunk
-                        row['e_h_chunk'] = e_h_chunk
-                        row['e_v_chunk'] = e_v_chunk
-                        row['e_d_chunk'] = e_d_chunk
-                        row.append()
+            (region_pairs, observed_list, e_ll_list,
+             e_h_list, e_v_list, e_d_list, observed_chunk_distribution_part) = msgpack.loads(rv)
 
+            has_inter = False
+            for ix in xrange(len(region_pairs)):
+                source = region_pairs[ix][0]
+                sink = region_pairs[ix][1]
+                if regions_dict[source].chromosome != regions_dict[sink].chromosome:
+                    has_inter = True
+                observed, observed_chunk = observed_list[ix]
+                e_ll, e_ll_chunk = e_ll_list[ix]
+                e_h, e_h_chunk = e_h_list[ix]
+                e_v, e_v_chunk = e_v_list[ix]
+                e_d, e_d_chunk = e_d_list[ix]
+
+                if (e_ll is not None and e_h is not None and
+                        e_v is not None and e_d is not None):
+                    row['source'] = source
+                    row['sink'] = sink
+                    row['observed'] = observed
+                    row['e_ll'] = e_ll
+                    row['e_h'] = e_h
+                    row['e_v'] = e_v
+                    row['e_d'] = e_d
+                    row['e_ll_chunk'] = e_ll_chunk
+                    row['e_h_chunk'] = e_h_chunk
+                    row['e_v_chunk'] = e_v_chunk
+                    row['e_d_chunk'] = e_d_chunk
+                    row.append()
+
+            if not has_inter:
                 for e_type in observed_chunk_distribution_part.iterkeys():
                     for chunk_ix in xrange(len(observed_chunk_distribution_part[e_type])):
                         for o in observed_chunk_distribution_part[e_type][chunk_ix].iterkeys():
                             observed_chunk_distribution[e_type][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
 
-            t3 = time.time()
-        else:
-            raise RuntimeError("gridmap not installed, multiprocessing not enabled")
+        t3 = time.time()
 
     @staticmethod
     def _get_chunk_distribution_container(lambda_chunks):
@@ -920,27 +1024,34 @@ class RaoPeakCaller(PeakCaller):
                         fdr_cutoffs[e_type][chunk][observed] = 0
         return fdr_cutoffs
 
-    @staticmethod
-    def _create_e_job(m, ij_pairs, ij_region_pairs, e=1, c=None,
+    def _create_e_job(self, m, ij_pairs, ij_region_pairs, e=1, c=None,
                       chunks=None, w=1, p=0, min_locus_dist=3,
                       min_ll_reads=16, max_w=20, observed_cutoff=1,
                       e_ll_cutoff=None, e_h_cutoff=None,
                       e_v_cutoff=None, e_d_cutoff=None):
 
-        if _has_gridmap:
-            ij_pairs_compressed = msgpack.dumps(ij_pairs)
-            ij_region_pairs_compressed = msgpack.dumps(ij_region_pairs)
+        ij_pairs_compressed = msgpack.dumps(ij_pairs)
+        ij_region_pairs_compressed = msgpack.dumps(ij_region_pairs)
+
+        if self.cluster:
             job = gridmap.Job(process_matrix_range, [m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
                               chunks, w, p, min_locus_dist, min_ll_reads,
                               max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
                               e_v_cutoff, e_d_cutoff])
         else:
+            if self.mpqueue is None:
+                self.mpqueue = multiprocessing.Queue(self.n_processes)
             # process with multiprocessing
-            job = None
+            job = multiprocessing.Process(target=multiprocessing_matrix_range,
+                                          args=(m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
+                                                chunks, w, p, min_locus_dist, min_ll_reads,
+                                                max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
+                                                e_v_cutoff, e_d_cutoff, self.mpqueue))
         return job
 
     def _find_peaks_in_matrix(self, m, e, c, inter, mappable, peak_info,
-                              observed_chunk_distribution, lambda_chunks, w, p):
+                              observed_chunk_distribution, lambda_chunks, w, p,
+                              regions_dict):
 
         jobs = []
         ij_pairs = []
@@ -963,15 +1074,15 @@ class RaoPeakCaller(PeakCaller):
                 if len(ij_pairs) > self.batch_size:
                     m_segment, updated_ij_pairs = RaoPeakCaller._submatrix_indices(m, ij_pairs, w_max=self.max_w)
 
-                    job = RaoPeakCaller._create_e_job(m_segment, updated_ij_pairs,
-                                                      ij_region_pairs[:], e, c, lambda_chunks,
-                                                      w, p, self.min_locus_dist, self.min_ll_reads,
-                                                      self.max_w, observed_cutoff=self.observed_cutoff,
-                                                      e_ll_cutoff=self.e_ll_cutoff, e_h_cutoff=self.e_h_cutoff,
-                                                      e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
+                    job = self._create_e_job(m_segment, updated_ij_pairs,
+                                             ij_region_pairs[:], e, c, lambda_chunks,
+                                             w, p, self.min_locus_dist, self.min_ll_reads,
+                                             self.max_w, observed_cutoff=self.observed_cutoff,
+                                             e_ll_cutoff=self.e_ll_cutoff, e_h_cutoff=self.e_h_cutoff,
+                                             e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
                     jobs.append(job)
                     if len(jobs) >= self.n_processes:
-                        self._process_jobs(jobs, peak_info, observed_chunk_distribution)
+                        self._process_jobs(jobs, peak_info, observed_chunk_distribution, regions_dict)
                         jobs = []
                     ij_pairs = []
                     ij_region_pairs = []
@@ -980,16 +1091,16 @@ class RaoPeakCaller(PeakCaller):
             # one last flush
             m_segment, updated_ij_pairs = RaoPeakCaller._submatrix_indices(m, ij_pairs, w_max=self.max_w)
 
-            job = RaoPeakCaller._create_e_job(m_segment, updated_ij_pairs,
-                                              ij_region_pairs[:], e, c, lambda_chunks,
-                                              w, p, self.min_locus_dist, self.min_ll_reads,
-                                              self.max_w, observed_cutoff=self.observed_cutoff,
-                                              e_ll_cutoff=self.e_ll_cutoff, e_h_cutoff=self.e_h_cutoff,
-                                              e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
+            job = self._create_e_job(m_segment, updated_ij_pairs,
+                                     ij_region_pairs[:], e, c, lambda_chunks,
+                                     w, p, self.min_locus_dist, self.min_ll_reads,
+                                     self.max_w, observed_cutoff=self.observed_cutoff,
+                                     e_ll_cutoff=self.e_ll_cutoff, e_h_cutoff=self.e_h_cutoff,
+                                     e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
             jobs.append(job)
 
         if len(jobs) > 0:
-            self._process_jobs(jobs, peak_info, observed_chunk_distribution)
+            self._process_jobs(jobs, peak_info, observed_chunk_distribution, regions_dict)
         peak_info.flush()
 
     def call_peaks(self, hic, chromosomes=None, file_name=None):
@@ -1029,7 +1140,7 @@ class RaoPeakCaller(PeakCaller):
         logging.info("Finding maximum observed value...")
         max_observed = 0
         for edge in hic.edges(lazy=True):
-            max_observed = max(max_observed, edge['weight']/(c[edge['source']]*c[edge['sink']]))
+            max_observed = max(max_observed, edge.weight/(c[edge.source]*c[edge.sink]))
         logging.info("Done.")
 
         logging.info("Calculating lambda-chunk boundaries...")
@@ -1037,6 +1148,8 @@ class RaoPeakCaller(PeakCaller):
         logging.info("Done.")
 
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
+
+        regions_dict = peaks.regions_dict
 
         # start processing chromosome pairs
         if chromosomes is None:
@@ -1051,19 +1164,20 @@ class RaoPeakCaller(PeakCaller):
                 m = hic[chromosome1, chromosome2]
                 if chromosome1 == chromosome2:
                     self._find_peaks_in_matrix(m, intra_expected, c, False, mappable, peak_info,
-                                               observed_chunk_distribution, lambda_chunks, w_init, p)
+                                               observed_chunk_distribution, lambda_chunks, w_init, p,
+                                               regions_dict)
                 elif self.process_inter:
                     self._find_peaks_in_matrix(m, inter_expected, c, True, mappable, peak_info,
-                                               observed_chunk_distribution, lambda_chunks, w_init, p)
+                                               observed_chunk_distribution, lambda_chunks, w_init, p,
+                                               regions_dict)
         peak_info.flush()
 
         # calculate fdrs
         fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
 
-        region_dict = peaks.regions_dict
         for peak in peaks.peaks(lazy=True, auto_update=False):
-            region1 = region_dict[peak.source]
-            region2 = region_dict[peak.sink]
+            region1 = regions_dict[peak.source]
+            region2 = regions_dict[peak.sink]
             if region1.chromosome == region2.chromosome:
                 peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.observed]
                 peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.observed]
@@ -1074,6 +1188,17 @@ class RaoPeakCaller(PeakCaller):
 
         # return peak_info, fdr_cutoffs, observed_chunk_distribution
         return peaks
+
+
+def multiprocessing_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
+                                 min_locus_dist=3, min_ll_reads=16, max_w=20,
+                                 observed_cutoff=0, e_ll_cutoff=None, e_h_cutoff=None,
+                                 e_v_cutoff=None, e_d_cutoff=None, queue=None):
+    output = process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=w, p=p,
+                                  min_locus_dist=min_locus_dist, min_ll_reads=min_ll_reads, max_w=max_w,
+                                  observed_cutoff=observed_cutoff, e_ll_cutoff=e_ll_cutoff, e_h_cutoff=e_h_cutoff,
+                                  e_v_cutoff=e_v_cutoff, e_d_cutoff=e_d_cutoff)
+    queue.put(output)
 
 
 def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
