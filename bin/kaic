@@ -138,7 +138,7 @@ class Kaic(object):
         )
 
         parser.add_argument(
-            '-c', '--copy', dest='copy',
+            '-tmp', '--work-in-tmp', dest='copy',
             action='store_true',
             help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
         )

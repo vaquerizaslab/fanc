@@ -6,6 +6,8 @@ import tempfile
 import shutil
 import logging
 import subprocess
+import multiprocessing as mp
+from functools import partial
 import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
@@ -228,7 +230,7 @@ class Bowtie2Mapper(SequenceMapper):
         return header, alignments
 
 
-def iteratively_map_reads(file_name, mapper, min_read_length=None, step_size=2,
+def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_size=2,
                           work_dir=None, output_file=None, write_header=False):
     """
     Iteratively map reads in a FASTQ or gzipped FASTQ file.
@@ -329,6 +331,7 @@ def iteratively_map_reads(file_name, mapper, min_read_length=None, step_size=2,
                 for fields in fields_array:
                     alignment_line = "\t".join(fields)
                     o.write(alignment_line)
+        return output_file
 
     return header, perfect_alignments
 
@@ -355,8 +358,12 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             working_output_file = output_file
 
         reader = _get_fastq_reader(working_input_file)
-        working_file = open(work_dir + '/full_reads.fastq', 'w')
-        mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=threads)
+        working_file = gzip.open(work_dir + '/full_reads_0.fastq.gz', 'w')
+        working_files = [working_file.name]
+
+        mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=1)
+
+        logging.info("Splitting files...")
         batch_count = 0
         batch_reads_count = 0
         with reader(working_input_file, 'r') as fastq:
@@ -366,29 +373,46 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                     working_file.write(line)
                     batch_reads_count += 1
                 else:
-                    logging.info("Submitting round %d of reads for mapping" % (batch_count+1))
                     # reset
                     batch_reads_count = 0
                     working_file.close()
-
-                    # submit job
-                    write_header = False if batch_count > 0 else True
-                    header, uniquely_aligned_reads = iteratively_map_reads(working_file.name, mapper,
-                                                                           min_size, step_size, work_dir=work_dir,
-                                                                           output_file=working_output_file,
-                                                                           write_header=write_header)
-
-                    # start next batch
                     batch_count += 1
-                    working_file = open(work_dir + '/full_reads.fastq', 'w')
+                    working_file = gzip.open(work_dir + '/full_reads_' + str(batch_count) + '.fastq.gz', 'w')
+                    working_files.append(working_file.name)
 
             working_file.close()
-            if batch_reads_count > 0:
-                write_header = False if batch_count > 0 else True
-                header, alignments = iteratively_map_reads(working_file.name, mapper,
-                                                           min_size, step_size, work_dir=work_dir,
-                                                           output_file=working_output_file,
-                                                           write_header=write_header)
+
+        logging.info("Starting to map...")
+        output_files = []
+        processes = []
+        for i, working_file in enumerate(working_files):
+            partial_output_file = work_dir + '/mapped_reads_' + str(i) + '.sam'
+            output_files.append(partial_output_file)
+            process_work_dir = work_dir + "/mapping_%d/" % i
+            os.makedirs(process_work_dir)
+            processes.append(mp.Process(target=iteratively_map_reads, args=(working_file, mapper,
+                                                                            min_size, step_size, process_work_dir,
+                                                                            partial_output_file, True)))
+        current_processes = []
+        for i, p in enumerate(processes):
+            current_processes.append(p)
+            if len(current_processes) > threads or i == len(processes)-1:
+                for cp in current_processes:
+                    cp.start()
+                for cp in current_processes:
+                    cp.join()
+
+        print output_files
+        print working_files
+
+        # merge files
+        with open(working_output_file, 'w') as o:
+            for i, partial_output_file in enumerate(output_files):
+                with open(partial_output_file, 'r') as p:
+                    for line in p:
+                        if line.startswith("@") and i > 0:
+                            continue
+                        o.write(line)
 
         if os.path.splitext(output_file)[1] == '.bam':
             logging.info("Converting to BAM...")
