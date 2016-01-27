@@ -312,65 +312,75 @@ class TestRaoPeakCaller:
         c = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
         mappable = [True, True, True, True, True, True, True]
 
-        f = t.open_file('test_peaks', 'w', driver="H5FD_CORE", driver_core_backing_store=0)
-        peak_info1 = f.create_table('/', 'peak_info1', RaoPeakInfo.PeakInformation)
+        peaks = RaoPeakInfo(regions=self.m.row_regions)
 
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
 
         peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=2, e_ll_cutoff=None,
                                     e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
-        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info1,
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peaks,
                                           observed_chunk_distribution, lambda_chunks, w=2, p=0,
                                           regions_dict=self.regions_dict)
 
-        assert len(peak_info1) == 5+4+3+2+1
+        assert len(peaks) == 5+4+3+2+1
 
-        for row in peak_info1:
-            i = row['source']
-            j = row['sink']
+        for peak in peaks.peaks():
+            print peak
+            i = peak.source
+            j = peak.sink
             observed = self.m[i, j]
-            assert observed/(c[i]*c[j]) == row['observed']
+            assert observed/(c[i]*c[j]) == peak.observed
             e_ll, e_h, e_v, e_d = RaoPeakCaller.e_all(self.m, i, j, 1, w=2, p=0)
             if j-i <= 1:
-                assert row['e_ll'] is None
-                assert row['e_h'] is None
-                assert row['e_v'] is None
-                assert row['e_d'] is None
+                assert peak.e_ll is None
+                assert peak.e_h is None
+                assert peak.e_v is None
+                assert peak.e_d is None
             else:
-                assert abs(row['e_h']-RaoPeakCaller.e_h(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
-                assert abs(row['e_h']-e_h/(c[i]*c[j])) < 0.01
-                assert abs(row['e_ll']-RaoPeakCaller.e_ll(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
-                assert abs(row['e_ll']-e_ll/(c[i]*c[j])) < 0.01
-                assert abs(row['e_d']-RaoPeakCaller.e_d(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
-                assert abs(row['e_d']-e_d/(c[i]*c[j])) < 0.01
-                assert abs(row['e_v']-RaoPeakCaller.e_v(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
-                assert abs(row['e_v']-e_v/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_h-RaoPeakCaller.e_h(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_h-e_h/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_ll-RaoPeakCaller.e_ll(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_ll-e_ll/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_d-RaoPeakCaller.e_d(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_d-e_d/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_v-RaoPeakCaller.e_v(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_v-e_v/(c[i]*c[j])) < 0.01
 
-        def cmp_batches(peak_info_1, peak_info_2):
-            for row1, row2 in zip(peak_info_1, peak_info_2):
-                assert np.array_equal(row1.fetch_all_fields(), row2.fetch_all_fields())
+        def cmp_batches(peaks1, peaks2):
+            for peak1, peak2 in zip(peaks1, peaks2):
+                assert peak1.source == peak2.source
+                assert peak1.sink == peak2.sink
+                assert peak1.observed == peak2.observed
+                assert peak1.e_ll == peak2.e_ll
+                assert peak1.e_h == peak2.e_h
+                assert peak1.e_v == peak2.e_v
+                assert peak1.e_d == peak2.e_d
+                assert peak1.e_ll_chunk == peak2.e_ll_chunk
+                assert peak1.e_h_chunk == peak2.e_h_chunk
+                assert peak1.e_v_chunk == peak2.e_v_chunk
+                assert peak1.e_d_chunk == peak2.e_d_chunk
 
-        peak_info2 = f.create_table('/', 'peak_info2', RaoPeakInfo.PeakInformation)
-        peak_info3 = f.create_table('/', 'peak_info3', RaoPeakInfo.PeakInformation)
+        peaks2 = RaoPeakInfo(regions=self.m.row_regions)
+        peaks3 = RaoPeakInfo(regions=self.m.row_regions)
 
         peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=1, e_ll_cutoff=None,
                                     e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
-        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info2,
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peaks2,
                                           observed_chunk_distribution, lambda_chunks, w=2, p=0,
                                           regions_dict=self.regions_dict)
-        cmp_batches(peak_info1, peak_info2)
+        cmp_batches(peaks, peaks2)
 
         peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=100, e_ll_cutoff=None,
                                     e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
-        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peak_info3,
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peaks3,
                                           observed_chunk_distribution, lambda_chunks, w=2, p=0,
                                           regions_dict=self.regions_dict)
-        cmp_batches(peak_info1, peak_info3)
+        cmp_batches(peaks, peaks3)
 
     def test_fdr_cutoffs(self):
         lambda_chunks = RaoPeakCaller._lambda_chunks(4)

@@ -44,7 +44,7 @@ class PeakInfo(RegionMatrixTable):
         y = t.Float32Col(pos=6)
         radius = t.Float32Col(pos=7)
 
-    def __init__(self, file_name, mode='a', regions=None, _table_name_regions='regions',
+    def __init__(self, file_name=None, mode='a', regions=None, _table_name_regions='regions',
                  _table_name_peaks='edges'):
 
         RegionMatrixTable.__init__(self, file_name, mode=mode, additional_fields=PeakInfo.MergedPeakInformation,
@@ -104,7 +104,7 @@ class RaoPeakInfo(RegionMatrixTable):
         fdr_v = t.Float32Col(pos=13)
         fdr_d = t.Float32Col(pos=14)
 
-    def __init__(self, file_name, mode='a', regions=None, _table_name_regions='regions',
+    def __init__(self, file_name=None, mode='a', regions=None, _table_name_regions='regions',
                  _table_name_peaks='edges'):
 
         RegionMatrixTable.__init__(self, file_name, mode=mode, additional_fields=RaoPeakInfo.PeakInformation,
@@ -722,11 +722,13 @@ class RaoPeakCaller(PeakCaller):
 
         return m_sub, ij_converted
 
-    def _process_jobs(self, jobs, peak_info, observed_chunk_distribution, regions_dict):
-        t1 = time.time()
+    def _process_jobs(self, jobs, peaks, observed_chunk_distribution, regions_dict):
         if self.cluster:
+            # if the grid does not work for some reason, this will fall back on
+            # multiprocessing itself
             job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes)
         else:
+            # use multiprocessing
             for p in jobs:
                 p.start()
 
@@ -738,9 +740,6 @@ class RaoPeakCaller(PeakCaller):
             job_outputs = [self.mpqueue.get() for _ in jobs]
             self.mpqueue = None
 
-        t2 = time.time()
-
-        row = peak_info.row
         for output in job_outputs:
             rv = output
 
@@ -761,26 +760,16 @@ class RaoPeakCaller(PeakCaller):
 
                 if (e_ll is not None and e_h is not None and
                         e_v is not None and e_d is not None):
-                    row['source'] = source
-                    row['sink'] = sink
-                    row['observed'] = observed
-                    row['e_ll'] = e_ll
-                    row['e_h'] = e_h
-                    row['e_v'] = e_v
-                    row['e_d'] = e_d
-                    row['e_ll_chunk'] = e_ll_chunk
-                    row['e_h_chunk'] = e_h_chunk
-                    row['e_v_chunk'] = e_v_chunk
-                    row['e_d_chunk'] = e_d_chunk
-                    row.append()
+                    peak = Edge(source=source, sink=sink, observed=observed, e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
+                                e_ll_chunk=e_ll_chunk, e_h_chunk=e_h_chunk, e_v_chunk=e_v_chunk, e_d_chunk=e_d_chunk)
+                    peaks.add_edge(peak, flush=False)
 
             if not has_inter:
                 for e_type in observed_chunk_distribution_part.iterkeys():
                     for chunk_ix in xrange(len(observed_chunk_distribution_part[e_type])):
                         for o in observed_chunk_distribution_part[e_type][chunk_ix].iterkeys():
                             observed_chunk_distribution[e_type][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
-
-        t3 = time.time()
+        peaks.flush()
 
     @staticmethod
     def _get_chunk_distribution_container(lambda_chunks):
@@ -909,8 +898,6 @@ class RaoPeakCaller(PeakCaller):
     def call_peaks(self, hic, chromosomes=None, file_name=None):
         peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True))
 
-        peak_info = peaks.peak_table
-
         # mappability
         logging.info("Calculating visibility of regions...")
         mappable = hic.marginals() > 0
@@ -966,14 +953,14 @@ class RaoPeakCaller(PeakCaller):
 
                 m = hic[chromosome1, chromosome2]
                 if chromosome1 == chromosome2:
-                    self._find_peaks_in_matrix(m, intra_expected, c, False, mappable, peak_info,
+                    self._find_peaks_in_matrix(m, intra_expected, c, False, mappable, peaks,
                                                observed_chunk_distribution, lambda_chunks, w_init, p,
                                                regions_dict)
                 elif self.process_inter:
-                    self._find_peaks_in_matrix(m, inter_expected, c, True, mappable, peak_info,
+                    self._find_peaks_in_matrix(m, inter_expected, c, True, mappable, peaks,
                                                observed_chunk_distribution, lambda_chunks, w_init, p,
                                                regions_dict)
-        peak_info.flush()
+        peaks.flush()
 
         # calculate fdrs
         fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
@@ -987,7 +974,7 @@ class RaoPeakCaller(PeakCaller):
                 peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
                 peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
                 peak.update()
-        peak_info.flush()
+        peaks.flush()
 
         # return peak_info, fdr_cutoffs, observed_chunk_distribution
         return peaks
