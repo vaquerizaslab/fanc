@@ -2488,6 +2488,11 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
                 return len(this._edges)
         return EdgeIter()
 
+    def __iter__(self):
+        return self.edges
+
+    def __len__(self):
+        return len(self._edges)
 
 class Hic(RegionMatrixTable):
     """
