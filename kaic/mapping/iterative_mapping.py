@@ -257,13 +257,15 @@ class Bowtie2Mapper(SequenceMapper):
         return header, alignments
 
 
-def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_size=2,
+def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=None, step_size=2,
                           work_dir=None, output_file=None, write_header=False):
     """
     Iteratively map reads in a FASTQ or gzipped FASTQ file.
 
     :param file_name: Location of the FASTQ or gzipped FASTQ file.
     :param mapper: A :class:`~SequenceMapper` instance.
+    :param steps: An iterable of read lengths to map. Overrides
+                  min_read_length and step_size.
     :param min_read_length: Minimum read length to start iterative
                             mapping.
     :param step_size: Base pairs by which to extend unmapped reads
@@ -298,19 +300,28 @@ def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_siz
     if min_read_length is None:
         min_read_length = max_len
 
-    steps = list(xrange(min_read_length, max_len+1, step_size))
-    if len(steps) == 0 or steps[-1] != max_len:
-        steps.append(max_len)
+    if steps is None:
+        steps = list(xrange(min_read_length, max_len+1, step_size))
+        if len(steps) == 0 or steps[-1] != max_len:
+            steps.append(max_len)
 
-    ixs = [0]
-    current = 1
-    for i in xrange(len(steps)-1):
-        if i % 2 == 0:
-            ixs.append(-1*current)
+        ixs = [0]
+        current = 1
+        for i in xrange(len(steps)-1):
+            if i % 2 == 0:
+                ixs.append(-1*current)
+            else:
+                ixs.append(current)
+                current += 1
+        steps = [steps[ix] for ix in ixs]
+    else:
+        if len(steps) <= 1:
+            step_size = 0
         else:
-            ixs.append(current)
-            current += 1
-    steps = [steps[ix] for ix in ixs]
+            step_size = abs(steps[0]-steps[1])
+            for i in xrange(2, len(steps)):
+                step_size = min(step_size, abs(steps[0]-steps[i]))
+            min_read_length = min(steps)
 
     perfect_alignments = {}
     improvable_alignments = {}
@@ -407,6 +418,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         if restriction_enzyme is not None:
             re_pattern = ligation_site_pattern(restriction_enzyme)
 
+        max_length = 0
         trimmed_count = 0
         batch_count = 0
         batch_reads_count = 0
@@ -420,6 +432,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                             seq = m.group(1)
                             qual = qual[:len(seq)]
                             trimmed_count += 1
+                    max_length = max(max_length, len(seq))
                     line = "@%s\n%s\n+\n%s\n" % (title, seq, qual)
                     working_file.write(line)
                     batch_reads_count += 1
@@ -435,6 +448,21 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
         logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
+        steps = list(xrange(min_size, max_length+1, step_size))
+        if len(steps) == 0 or steps[-1] != max_length:
+            steps.append(max_length)
+
+        ixs = [0]
+        current = 1
+        for i in xrange(len(steps)-1):
+            if i % 2 == 0:
+                ixs.append(-1*current)
+            else:
+                ixs.append(current)
+                current += 1
+        steps = [steps[ix] for ix in ixs]
+
+        logging.info("Using read lengths: %s" % str(steps))
         logging.info("Starting to map...")
         output_files = []
         processes = []
@@ -443,8 +471,8 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             output_files.append(partial_output_file)
             process_work_dir = work_dir + "/mapping_%d/" % i
             os.makedirs(process_work_dir)
-            processes.append(mp.Process(target=iteratively_map_reads, args=(working_file, mapper,
-                                                                            min_size, step_size, process_work_dir,
+            processes.append(mp.Process(target=iteratively_map_reads, args=(working_file, mapper, steps,
+                                                                            None, None, process_work_dir,
                                                                             partial_output_file, True)))
         current_processes = []
         for i, p in enumerate(processes):
