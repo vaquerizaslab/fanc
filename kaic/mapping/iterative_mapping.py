@@ -288,19 +288,21 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
     if work_dir is None:
         work_dir = os.path.split(file_name)[0]
 
-    logging.debug("Finding maximum read length...")
     reader = _get_fastq_reader(file_name)
-    max_len = 0
-    with reader(file_name, 'r') as fastq:
-        for title, seq, qual in FastqGeneralIterator(fastq):
-            max_len = max(len(seq), max_len)
-
-    logging.debug("Maximum read length: %d" % max_len)
-
-    if min_read_length is None:
-        min_read_length = max_len
 
     if steps is None:
+        logging.debug("Finding maximum read length...")
+
+        max_len = 0
+        with reader(file_name, 'r') as fastq:
+            for title, seq, qual in FastqGeneralIterator(fastq):
+                max_len = max(len(seq), max_len)
+
+        logging.debug("Maximum read length: %d" % max_len)
+
+        if min_read_length is None:
+            min_read_length = max_len
+
         steps = list(xrange(min_read_length, max_len+1, step_size))
         if len(steps) == 0 or steps[-1] != max_len:
             steps.append(max_len)
