@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
 from kaic.data.genomic import Hic
-
+import itertools as it
 
 def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
     hic_new = None
@@ -46,10 +46,11 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
     else:
         m = hic[:, :]
         m_corrected, bias_vector = correct_matrix(m)
-        logging.info("Adding/replacing edges...")
         if hic_new is None:
+            logging.info("Replacing corrected edges in existing Hic object...")
             hic[:, :] = m_corrected
         else:
+            logging.info("Adding corrected edges in new Hic object ...")
             for i in xrange(m_corrected.shape[0]):
                 for j in xrange(i, m_corrected.shape[1]):
                     weight = m_corrected[i, j]
@@ -94,14 +95,15 @@ def correct_matrix(m, max_attempts=50):
         if iterations > max_attempts:
             raise RuntimeError("Exceeded maximum attempts (%d)" % max_attempts)
 
-    for i in range(0, m_nonzero.shape[0]):
-        for j in range(0, m_nonzero.shape[1]):
-            m_nonzero[i, j] = x[i]*m_nonzero[i, j]*x[j]
-    
+    logging.info("Applying bias vector")
+    m_nonzero *= x*x[:, np.newaxis]
+
+    logging.debug(removed_rows)
+    logging.info("Restoring {} sets ({} total) sparse rows.".format(
+        len(removed_rows), sum(1 for i in it.chain(removed_rows))))
     # restore zero rows
-    for idx in reversed(removed_rows):
-        m_nonzero = restore_sparse_rows(m_nonzero, idx)
-        x = restore_sparse_rows(x, idx)
+    m_nonzero = restore_sparse_rows(m_nonzero, removed_rows)
+    x = restore_sparse_rows(x, removed_rows)
 
     return m_nonzero, x
 
