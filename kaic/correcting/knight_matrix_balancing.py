@@ -45,6 +45,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
             hic_new.bias_vector(np.concatenate(bias_vectors))
         logging.info("Done.")
     else:
+        logging.info("Fetching whole genome matrix")
         m = hic[:, :]
         m_corrected, bias_vector = correct_matrix(m)
         if hic_new is None:
@@ -53,10 +54,10 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
         else:
             logging.info("Adding corrected edges in new Hic object ...")
             for i in xrange(m_corrected.shape[0]):
-                for j in xrange(i, m_corrected.shape[1]):
+                nonzero_idx = np.nonzero(m_corrected[i])[0]
+                for j in nonzero_idx[nonzero_idx >= i]:
                     weight = m_corrected[i, j]
-                    if weight != 0:
-                        hic_new.add_edge([i, j, weight], flush=False)
+                    hic_new.add_edge([i, j, weight], flush=False)
         logging.info("Done.")
         logging.info("Adding bias vector...")
         if hic_new is None:
