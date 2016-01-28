@@ -131,6 +131,11 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-r', '--restriction-enzyme', dest='restriction_enzyme',
+            help='''Working directory, defaults to the system temporary folder'''
+        )
+
+        parser.add_argument(
             '-b', '--batch-size', dest='batch_size',
             type=int,
             default=250000,
@@ -160,8 +165,8 @@ class Kaic(object):
 
         split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
                                     quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
-                                    min_size=min_size, step_size=step_size, copy=args.copy)
-
+                                    min_size=min_size, step_size=step_size, copy=args.copy,
+                                    restriction_enzyme=args.restriction_enzyme)
 
     ##########################################################################
     #

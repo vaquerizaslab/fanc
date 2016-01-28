@@ -1,17 +1,44 @@
 #!/usr/bin/env python
 
-import argparse
 import os.path
 import tempfile
 import shutil
 import logging
 import subprocess
 import multiprocessing as mp
-from functools import partial
+import re
+from Bio import Restriction
 import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
 logging.basicConfig(level=logging.DEBUG)
+
+
+def ligation_site_pattern(restriction_enzyme):
+    if isinstance(restriction_enzyme, str):
+        restriction_enzyme = getattr(Restriction, restriction_enzyme)
+
+    cut_pattern = restriction_enzyme.elucidate()
+
+    left_side = []
+    right_side = []
+    for character in cut_pattern:
+        if not (len(left_side) > 0 and left_side[-1] == '_'):
+            if not character == '^':
+                left_side.append(character)
+
+        if character == '^' or len(right_side) > 0:
+            if not character == '_':
+                right_side.append(character)
+
+    left_side_re = "".join(left_side[:-1])
+    right_side_re = "".join(right_side[1:])
+
+    left_side_re = left_side_re.replace('N', '[ACGT]')
+    right_side_re = right_side_re.replace('N', '[ACGT]')
+
+    pattern = "(^.+?" + left_side_re + ')' + right_side_re
+    return re.compile(pattern)
 
 
 def _get_fastq_reader(file_name):
@@ -196,7 +223,7 @@ class Bowtie2Mapper(SequenceMapper):
             mapping_command += ['-S', output]
         mapping_command += self.options
 
-        logging.info("Mapping command: %s" % " ".join(mapping_command))
+        logging.debug("Mapping command: %s" % " ".join(mapping_command))
 
         if not self.verbose:
             stderr = open(os.devnull, 'w')
@@ -225,7 +252,7 @@ class Bowtie2Mapper(SequenceMapper):
         if not self.verbose:
             stderr.close()
 
-        logging.info("Aligned reads: %d" % len(alignments))
+        logging.debug("Aligned reads: %d" % len(alignments))
 
         return header, alignments
 
@@ -259,14 +286,14 @@ def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_siz
     if work_dir is None:
         work_dir = os.path.split(file_name)[0]
 
+    logging.debug("Finding maximum read length...")
     reader = _get_fastq_reader(file_name)
     max_len = 0
     with reader(file_name, 'r') as fastq:
         for title, seq, qual in FastqGeneralIterator(fastq):
-            max_len = len(seq)
-            break
+            max_len = max(len(seq), max_len)
 
-    logging.info("Maximum read length: %d" % max_len)
+    logging.debug("Maximum read length: %d" % max_len)
 
     if min_read_length is None:
         min_read_length = max_len
@@ -274,6 +301,16 @@ def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_siz
     steps = list(xrange(min_read_length, max_len+1, step_size))
     if steps[-1] != max_len:
         steps.append(max_len)
+
+    ixs = [0]
+    current = 1
+    for i in xrange(len(steps)-1):
+        if i % 2 == 0:
+            ixs.append(-1*current)
+        else:
+            ixs.append(current)
+            current += 1
+    steps = [steps[ix] for ix in ixs]
 
     perfect_alignments = {}
     improvable_alignments = {}
@@ -286,10 +323,11 @@ def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_siz
                 for title, seq, qual in FastqGeneralIterator(fastq):
                     name = title.split(" ")[0]
                     if name not in perfect_alignments or name in improvable_alignments:
-                        trimmed.write("@%s\n%s\n+\n%s\n" % (title, seq[:size], qual[:size]))
-                        fastq_counter += 1
+                        if len(seq)+step_size >= size:
+                            trimmed.write("@%s\n%s\n+\n%s\n" % (title, seq[:size], qual[:size]))
+                            fastq_counter += 1
 
-        logging.info("Sending %d reads to the next iteration (length %d)" % (fastq_counter, size))
+        logging.debug("Sending %d reads to the next iteration (length %d)" % (fastq_counter, size))
 
         header, alignments_trimmed = mapper.map(trimmed_file)
 
@@ -316,7 +354,7 @@ def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_siz
                 else:
                     improvable_alignments[name] = fields_array
 
-        logging.info("Resubmitting %d improvable alignments" % len(improvable_alignments))
+        logging.debug("Resubmitting %d improvable alignments" % len(improvable_alignments))
 
     # merge alignments into one
     perfect_alignments.update(improvable_alignments)
@@ -337,7 +375,8 @@ def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_siz
 
 
 def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=None, quality_cutoff=30,
-                                batch_size=250000, threads=1, min_size=25, step_size=2, copy=False):
+                                batch_size=250000, threads=1, min_size=25, step_size=2, copy=False,
+                                restriction_enzyme=None):
     if work_dir is not None:
         work_dir = tempfile.mkdtemp(dir=os.path.expanduser(work_dir))
     else:
@@ -347,7 +386,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
     working_output_file = None
     working_input_file = None
     try:
-        logging.info("Working directory: %s" % work_dir)
+        logging.debug("Working directory: %s" % work_dir)
 
         if copy:
             working_input_file = work_dir + '/' + os.path.basename(input_file)
@@ -364,11 +403,23 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=1)
 
         logging.info("Splitting files...")
+        re_pattern = None
+        if restriction_enzyme is not None:
+            re_pattern = ligation_site_pattern(restriction_enzyme)
+
+        trimmed_count = 0
         batch_count = 0
         batch_reads_count = 0
         with reader(working_input_file, 'r') as fastq:
             for title, seq, qual in FastqGeneralIterator(fastq):
                 if batch_reads_count <= batch_size:
+                    # check if ligation junction is in this read
+                    if re_pattern is not None:
+                        m = re_pattern.search(seq)
+                        if m is not None:
+                            seq = m.group(1)
+                            qual = qual[:len(seq)]
+                            trimmed_count += 1
                     line = "@%s\n%s\n+\n%s\n" % (title, seq, qual)
                     working_file.write(line)
                     batch_reads_count += 1
@@ -381,6 +432,8 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                     working_files.append(working_file.name)
 
             working_file.close()
+
+        logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
         logging.info("Starting to map...")
         output_files = []
@@ -396,16 +449,17 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         current_processes = []
         for i, p in enumerate(processes):
             current_processes.append(p)
-            if len(current_processes) > threads or i == len(processes)-1:
+            if len(current_processes) >= threads or i == len(processes)-1:
                 for cp in current_processes:
                     cp.start()
                 for cp in current_processes:
                     cp.join()
+                current_processes = []
 
-        print output_files
-        print working_files
+                logging.info("Processed %d/%d" % (i+1, len(processes)))
 
         # merge files
+        logging.info("Merging output files...")
         with open(working_output_file, 'w') as o:
             for i, partial_output_file in enumerate(output_files):
                 with open(partial_output_file, 'r') as p:
