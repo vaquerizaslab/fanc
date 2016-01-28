@@ -131,10 +131,16 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-r', '--restriction-enzyme', dest='restriction_enzyme',
+            help='''Name of restriction enzyme used in experiment.
+                    If provided, will trim reads at resulting ligation junction.'''
+        )
+
+        parser.add_argument(
             '-b', '--batch-size', dest='batch_size',
             type=int,
-            default=250000,
-            help='''Number of reads processed (mapped and merged) in one go. Default: 250000'''
+            default=500000,
+            help='''Number of reads processed (mapped and merged) in one go. Default: 500000'''
         )
 
         parser.add_argument(
@@ -160,8 +166,8 @@ class Kaic(object):
 
         split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
                                     quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
-                                    min_size=min_size, step_size=step_size, copy=args.copy)
-
+                                    min_size=min_size, step_size=step_size, copy=args.copy,
+                                    restriction_enzyme=args.restriction_enzyme)
 
     ##########################################################################
     #
