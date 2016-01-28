@@ -132,14 +132,15 @@ class Kaic(object):
 
         parser.add_argument(
             '-r', '--restriction-enzyme', dest='restriction_enzyme',
-            help='''Working directory, defaults to the system temporary folder'''
+            help='''Name of restriction enzyme used in experiment.
+                    If provided, will trim reads at resulting ligation junction.'''
         )
 
         parser.add_argument(
             '-b', '--batch-size', dest='batch_size',
             type=int,
-            default=250000,
-            help='''Number of reads processed (mapped and merged) in one go. Default: 250000'''
+            default=500000,
+            help='''Number of reads processed (mapped and merged) in one go. Default: 500000'''
         )
 
         parser.add_argument(
