@@ -2764,23 +2764,34 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         diagonal_filter = DiagonalFilter(distance=distance, mask=mask)
         self.filter(diagonal_filter, queue)
 
-    def filter_low_coverage_regions(self, cutoff=None, queue=False):
+    def filter_low_coverage_regions(self, rel_cutoff=None, cutoff=None, queue=False):
         """
         Convenience function that applies a :class:`~LowCoverageFilter`.
 
-        :param cutoff: Cutoff (contact count, float) below which a region
-                       is considered to have low coverage. If not set
-                       explicitly, defaults to 5% of the mean region coverage.
+        The cutoff can be provided in two ways:
+        1. As an absolute threshold. Regions with contact count below this
+        absolute threshold are filtered
+        2. As a fraction relative to the median contact count of all regions.
+
+        If both is supplied, whichever threshold is lower will be selected.
+
+        If no parameter is supplied, rel_cutoff will be chosen as 0.1.
+
+        :param rel_cutoff: A cutoff as a fraction (0-1) of the median contact count of all
+                           regions.
+        :param cutoff: A cutoff in absolute contact counts (can be float) below
+                       which regions are considered "low coverage"
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
         """
-        if cutoff is not None:
-            mask = self.add_mask_description('low_coverage',
-                                             'Mask low coverage regions in the Hic matrix (cutoff %.4f)' % cutoff)
-        else:
-            mask = self.add_mask_description('low_coverage',
-                                             'Mask low coverage regions in the Hic matrix (10%)')
+        if cutoff is None and rel_cutoff is None:
+            rel_cutoff = 0.1
+
+        mask = self.add_mask_description('low_coverage',
+            'Mask low coverage regions in the Hic matrix '
+            '(absolute cutoff {:.4}, relative cutoff {:.1%}'.format(cutoff if cutoff else 0, rel_cutoff if cutoff else 0))
+
         low_coverage_filter = LowCoverageFilter(self, cutoff=cutoff, mask=mask)
         self.filter(low_coverage_filter, queue)
     
@@ -2995,16 +3006,25 @@ class LowCoverageFilter(HicEdgeFilter):
     cutoff.
 
     If the cutoff is not provided, it is automatically
-    chosen at 5% of the mean contact count of all regions.
+    chosen at 10% of the mean contact count of all regions.
     """
-    def __init__(self, hic_object, cutoff=None, mask=None):
+    def __init__(self, hic_object, cutoff=None, rel_cutoff=None, mask=None):
         """
         Initialize filter with these settings.
+
+        The cutoff can be provided in two ways:
+        1. As an absolute threshold. Regions with contact count below this
+        absolute threshold are filtered
+        2. As a fraction relative to the median contact count of all regions.
+
+        If both is supplied, whichever threshold is lower will be selected.
 
         :param hic_object: The :class:`~Hic` object that this
                            filter will be called on. Needed for
                            contact count calculation.
-        :param cutoff: A cutoff in contacts (can be float) below
+        :param rel_cutoff: A cutoff as a fraction (0-1) of the median contact count of all
+                           regions.
+        :param cutoff: A cutoff in absolute contact counts (can be float) below
                        which regions are considered "low coverage"
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered edges.
@@ -3012,13 +3032,18 @@ class LowCoverageFilter(HicEdgeFilter):
         HicEdgeFilter.__init__(self, mask=mask)
 
         self._marginals = hic_object.marginals()
-        if cutoff is None:
-            cutoff, _ = self.calculate_cutoffs(0.1)
+        if cutoff is None and rel_cutoff is None:
+            raise ValueError("Either rel_cutoff or cutoff must be given")
+        cutoff = min(cutoff if cutoff else float("inf"),
+                     self.calculate_cutoffs(rel_cutoff)[0] if rel_cutoff else float("inf"))
+        logging.info("Final absolute cutoff threshold is {}.".format(cutoff))
 
         self._regions_to_mask = set()
         for i, contacts in enumerate(self._marginals):
             if contacts < cutoff:
                 self._regions_to_mask.add(i)
+        logging.info("Selected a total of {} ({:.1%} regions to be masked.".format(
+            len(self._regions_to_mask), len(self._regions_to_mask)/len(hic_object.regions)))
 
     def calculate_cutoffs(self, fraction_threshold=0.05):
         lower = np.median(self._marginals[self._marginals > 0])*fraction_threshold
