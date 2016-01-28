@@ -23,10 +23,11 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
         for chromosome in hic.chromosomes():
             m = hic[chromosome, chromosome]
             m_corrected, bias_vector_chromosome = correct_matrix(m)
-            logging.info("Adding/replacing edges...")
             if hic_new is None:
+                logging.info("Replacing corrected edges in existing Hic object...")
                 hic[chromosome, chromosome] = m_corrected
             else:
+                logging.info("Adding corrected edges in new Hic object ...")
                 chromosome_offset = chromosome_starts[chromosome]
                 for i in xrange(m_corrected.shape[0]):
                     i_region = i + chromosome_offset
@@ -36,7 +37,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
                         if weight != 0:
                             hic_new.add_edge([i_region, j_region, weight], flush=False)
             bias_vectors.append(bias_vector_chromosome)
-            logging.info("Done.")
+        logging.info("Done.")
         logging.info("Adding bias vector...")
         if hic_new is None:
             hic.bias_vector(np.concatenate(bias_vectors))
