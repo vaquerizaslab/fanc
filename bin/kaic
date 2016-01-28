@@ -18,6 +18,8 @@ class Kaic(object):
                 kaic <command> [options]
 
                 Commands:
+                    auto               Automatically process an entire Hi-C data set
+                    dirs               Create default folder structure for kaic
 
                     --- Mapping
                     iterative_mapping  Iteratively map a FASTQ file to a Bowtie 2 index
@@ -70,6 +72,393 @@ class Kaic(object):
             exit(1)
         # use dispatch pattern to invoke method with same name
         getattr(self, args.command)()
+
+    ##########################################################################
+    #
+    #                                   Auto
+    #
+    ##########################################################################
+
+    def dirs(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Automatically process an entire Hi-C data set'
+        )
+
+        parser.add_argument(
+            'root_directory',
+            help='''Root directory in which to create kaic folders'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        root_dir = os.path.expanduser(args.root_directory)
+
+        import errno
+
+        try:
+            os.makedirs(root_dir)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/fastq')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/sam')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/reads/filtered')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/pairs/filtered')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/hic/filtered')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/hic/binned')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/hic/corrected')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/plots/stats')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
+            os.makedirs(root_dir + '/plots/matrix')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+    def auto(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Automatically process an entire Hi-C data set'
+        )
+
+        parser.add_argument(
+            'input',
+            nargs='+',
+            help='''Input files. kaic will try to guess the file by by its extension.'''
+        )
+
+        parser.add_argument(
+            'output_folder',
+            help='''Folder where output files and sub-folders will be generated'''
+        )
+
+        parser.add_argument(
+            '-g', '--genome', dest='genome',
+            help='''Can be an HDF5 Genome object, a FASTA file,
+                    a folder with FASTA files, or a comma-separated
+                    list of FASTA files.'''
+        )
+
+        parser.add_argument(
+            '-r', '--restriction-enzyme', dest='restriction_enzyme',
+            help='''Restriction enzyme used for digestion (e.g. HindIII, case-sensitive)'''
+        )
+
+        parser.add_argument(
+            '-i', '--genome-index', dest='genome_index',
+            help='''Bowtie 2 genome index. Only required when passing FASTQ files as input'''
+        )
+
+        parser.add_argument(
+            '-n', '--basename', dest='basename',
+            help='''Basename for output files. If not provided, will be guessed based on input file names'''
+        )
+
+        parser.add_argument(
+            '-t', '--threads', dest='threads',
+            type=int,
+            default=1,
+            help='''Maximum number of threads to use for the analysis.'''
+        )
+
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
+        )
+        parser.set_defaults(copy=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        def is_fastq_file(file_name):
+            base, extension = os.path.splitext(file_name)
+            if extension in ['.gz', '.gzip']:
+                extension = os.path.splitext(base)
+
+            if extension in ['.fq', '.fastq']:
+                return True
+            return False
+
+        def is_sam_or_bam_file(file_name):
+            _, extension = os.path.splitext(file_name)
+            return extension in ['.sam', '.bam']
+
+        def is_reads_file(file_name):
+            _, extension = os.path.splitext(file_name)
+            return extension in ['.reads']
+
+        def is_pairs_file(file_name):
+            _, extension = os.path.splitext(file_name)
+            return extension in ['.pairs']
+
+        def is_hic_file(file_name):
+            _, extension = os.path.splitext(file_name)
+            return extension in ['.hic']
+
+        def file_type(file_name):
+            if is_fastq_file(file_name):
+                return 'fastq'
+            if is_sam_or_bam_file(file_name):
+                return 'sam'
+            if is_reads_file(file_name):
+                return 'reads'
+            if is_pairs_file(file_name):
+                return 'pairs'
+            if is_hic_file(file_name):
+                return 'hic'
+            return None
+
+        def file_basename(file_name):
+            basename = os.path.basename(os.path.splitext(file_name)[0])
+            if basename.endswith('.gz') or basename.endswith('.gzip'):
+                basename = os.path.splitext(basename)[0]
+            return basename
+
+        file_names = [os.path.expanduser(file_name) for file_name in args.input]
+        file_types = [file_type(file_name) for file_name in file_names]
+        file_basenames = [file_basename(file_name) for file_name in file_names]
+
+        if args.basename is None:
+            basename = []
+            for pair in zip(*file_basenames):
+                if pair[0] == pair[1]:
+                    basename.append(pair[0])
+                else:
+                    break
+            if len(basename) == 0:
+                basename = file_basenames[0]
+            else:
+                if basename[-1] in ['.', '_']:
+                    basename = "".join(basename[:-1])
+                else:
+                    basename = "".join(basename)
+        else:
+            basename = args.basename
+
+        print args.output_folder
+        output_folder = os.path.expanduser(args.output_folder)
+        if not output_folder[-1] == '/':
+            output_folder += '/'
+
+        threads = args.threads
+
+        # 0. Do some sanity checks on required flags
+        if 'fastq' in file_types:
+            if args.genome_index is None:
+                print "Error: Must provide genome index (-i) when mapping FASTQ files!"
+                quit(1)
+
+        if 'pairs' in file_types or 'fastq' in file_types or 'sam' in file_types or 'reads' in file_types:
+            if args.genome is None:
+                print "Error: Must provide genome (-g) to process read pair files!"
+                quit(1)
+
+            if args.restriction_enzyme is None:
+                print "Error: Must provide restriction enzyme (-r) to process read pair files!"
+                quit(1)
+
+        logging.info("Output folder: %s" % output_folder)
+        logging.info("Input files: %s" % str(file_names))
+        logging.info("Input file types: %s" % str(file_types))
+
+        if args.basename:
+            logging.info("Final basename: %s" % basename)
+        else:
+            logging.info("Final basename: %s (you can change this with the -n option!)" % basename)
+
+        import subprocess
+
+        # 1. create default folders in root directory
+        logging.info("Creating output folders...")
+        rc = subprocess.call(['kaic', 'dirs', output_folder])
+        if rc != 0:
+            print "Creating folders failed for some reason, aborting..."
+            quit(rc)
+
+        # 2. If input files are (gzipped) FASTQ, map them iteratively first
+        fastq_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'fastq':
+                continue
+            fastq_files.append(i)
+
+        if len(fastq_files) > 0:
+            max_fastq_threads = int(threads/len(fastq_files))
+            max_fastq_threads = max(1, max_fastq_threads)
+            logging.info("Iteratively mapping FASTQ files with %d threads each..." % max_fastq_threads)
+
+            processes = []
+            bam_files = []
+            for i in fastq_files:
+                bam_file = output_folder + 'sam/' + file_basenames[i] + '.bam'
+                bam_files.append(bam_file)
+
+                index = os.path.expanduser(args.genome_index)
+                iterative_mapping_command = ['kaic', 'iterative_mapping',
+                                             '-m', '25', '-s', '3', '-q', '30', '-t', str(max_fastq_threads)]
+                if args.tmp:
+                    iterative_mapping_command.append('-tmp')
+
+                p = subprocess.Popen(iterative_mapping_command + [file_names[i], index, bam_file])
+                processes.append(p)
+
+                if len(processes)*max_fastq_threads > threads:
+                    for p in processes:
+                        p.wait()
+                    processes = []
+            for p in processes:
+                p.wait()
+
+            for ix, i in enumerate(fastq_files):
+                file_names[i] = bam_files[ix]
+                file_types[i] = 'sam'
+
+        print file_names
+        print file_types
+
+        quit()
+
+
+        bam_file1 = input_file1
+        bam_file2 = input_file2
+        if os.path.splitext(input_file1)[1] in ['.fq', '.fastq', '.fq.gz', '.fastq.gz', '.fq.gzip', '.fastq.gzip']:
+            logging.info("Iteratively mapping FASTQ input files...")
+            bam_file1 = output_folder + 'sam/' + input_file_base1 + '.bam'
+            bam_file2 = output_folder + 'sam/' + input_file_base2 + '.bam'
+            index = os.path.expanduser(args.genome_index)
+            iterative_mapping_command = ['kaic', 'iterative_mapping',
+                                         '-m', '25', '-s', '3', '-q', '30', '-t', str(int(threads/2))]
+            if args.tmp:
+                iterative_mapping_command.append('-tmp')
+
+            p1 = subprocess.Popen(iterative_mapping_command + [input_file1, index, bam_file1])
+            if threads < 2:
+                p1.wait()
+
+            p2 = subprocess.Popen(iterative_mapping_command + [input_file2, index, bam_file2])
+            p1.wait()
+            p2.wait()
+        else:
+            logging.info("Input is assumed to be SAM/BAM.")
+
+        # 3. Read in SAM files to create Reads objects
+        logging.info("Reading in SAM/BAM files...")
+        reads_file1 = output_folder + 'reads/' + input_file_base1 + '.reads'
+        reads_file2 = output_folder + 'reads/' + input_file_base2 + '.reads'
+        load_reads_command = ['kaic', 'load_reads', '-D']
+        if args.tmp:
+            load_reads_command.append('-tmp')
+
+        p1 = subprocess.Popen(load_reads_command + [bam_file1, reads_file1])
+        if threads < 2:
+            p1.wait()
+
+        p2 = subprocess.Popen(load_reads_command + [bam_file2, reads_file2])
+        p1.wait()
+        p2.wait()
+
+        # 4. Filter Reads objects
+        logging.info("Filtering reads...")
+        filtered_reads_file1 = output_folder + 'reads/filtered/' + input_file_base1 + '_filtered.reads'
+        filtered_reads_file2 = output_folder + 'reads/filtered/' + input_file_base2 + '_filtered.reads'
+        reads_statistics_file1 = output_folder + 'plots/stats/' + input_file_base1 + '_filtered.reads.stats.pdf'
+        reads_statistics_file2 = output_folder + 'plots/stats/' + input_file_base2 + '_filtered.reads.stats.pdf'
+        filter_reads_command = ['kaic', 'filter_reads', '-m', '-us', '-q', '30']
+        if args.tmp:
+            filter_reads_command.append('-tmp')
+        filter_reads_command.append('-s')
+
+        p1 = subprocess.Popen(filter_reads_command + [reads_statistics_file1, reads_file1, filtered_reads_file1])
+        if threads < 2:
+            p1.wait()
+
+        p2 = subprocess.Popen(filter_reads_command + [reads_statistics_file2, reads_file2, filtered_reads_file2])
+        p1.wait()
+        p2.wait()
+
+        # 5. Create Pairs object
+        logging.info("Creating Pairs object...")
+        pairs_file = output_folder + 'pairs/' + basename + '.pairs'
+        pairs_command = ['kaic', 'reads_to_pairs', filtered_reads_file1, filtered_reads_file2,
+                         genome, restriction_enzyme, pairs_file]
+        if args.tmp:
+            filter_reads_command.append('-tmp')
+        p1 = subprocess.call(pairs_command)
+
+        # 6. Get unfiltered Pairs statistics
+        logging.info("Creating ligation error and restriction site distance plots...")
+        pairs_ligation_error_file = output_folder + 'plots/stats/' + basename + '.pairs.ligation_error.pdf'
+        pairs_re_dist_file = output_folder + 'plots/stats/' + basename + '.pairs.re_dist.pdf'
+        ligation_err_plot_command = ['kaic', 'plot_ligation_err']
+        re_dist_plot_command = ['kaic', 'plot_re_dist', '-l', '100000', '-m', '20000']
+        p1 = subprocess.Popen(ligation_err_plot_command + [pairs_file, pairs_ligation_error_file])
+        if threads < 2:
+            p1.wait()
+        p2 = subprocess.Popen(re_dist_plot_command + [pairs_file, pairs_re_dist_file])
+        p1.wait()
+        p2.wait()
+
+        # 7. Filter Pairs object
+        logging.info("Filtering pairs...")
+        filtered_pairs_file = output_folder + 'pairs/filtered/' + basename + '_filtered.pairs'
+        pairs_statistics_file = output_folder + 'plots/stats/' + basename + '_filtered.pairs.stats.pdf'
+        filter_pairs_command = ['kaic', 'filter_pairs', '--auto', '-r', '1000', '-l', '-d', '2']
+        if args.tmp:
+            filter_pairs_command.append('-tmp')
+        filter_pairs_command.append('-s')
+
+        p1 = subprocess.call(filter_pairs_command + [pairs_statistics_file, pairs_file, filtered_pairs_file])
+        if p1 != 0:
+            logging.error("Filtering failed for some reason, trying again with fixed thresholds...")
+            filter_pairs_command = ['kaic', 'filter_pairs', '-i', '10000', '-o', '10000', '-r', '5000', '-l', '-d', '2']
+            if args.tmp:
+                filter_pairs_command.append('-tmp')
+            filter_pairs_command.append('-s')
+            p1 = subprocess.call(filter_pairs_command + [pairs_statistics_file, pairs_file, filtered_pairs_file])
+
+
+
 
     ##########################################################################
     #
@@ -139,8 +528,8 @@ class Kaic(object):
         parser.add_argument(
             '-b', '--batch-size', dest='batch_size',
             type=int,
-            default=500000,
-            help='''Number of reads processed (mapped and merged) in one go. Default: 500000'''
+            default=250000,
+            help='''Number of reads processed (mapped and merged) in one go. Default: 250000'''
         )
 
         parser.add_argument(
