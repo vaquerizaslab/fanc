@@ -1602,7 +1602,7 @@ class Maskable(object):
         masks = {mask.name: 0 for mask in self.masks()}
         if include_unmasked:
             masks['unmasked'] = 0
-        for row in table.all():
+        for row in table._iter_visible_and_masked():
             mask_bit = row[table._mask_field]
             row_masks = self.get_masks(mask_bit)
 
