@@ -31,11 +31,11 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
                 chromosome_offset = chromosome_starts[chromosome]
                 for i in xrange(m_corrected.shape[0]):
                     i_region = i + chromosome_offset
-                    for j in xrange(i, m_corrected.shape[1]):
+                    nonzero_idx = np.nonzero(m_corrected[i])[0]
+                    for j in nonzero_idx[nonzero_idx >= i]:
                         j_region = j + chromosome_offset
                         weight = m_corrected[i, j]
-                        if weight != 0:
-                            hic_new.add_edge([i_region, j_region, weight], flush=False)
+                        hic_new.add_edge([i_region, j_region, weight], flush=False)
             bias_vectors.append(bias_vector_chromosome)
         logging.info("Done.")
         logging.info("Adding bias vector...")
