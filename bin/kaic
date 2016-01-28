@@ -2148,15 +2148,28 @@ class Kaic(object):
         )
         parser.add_argument(
             '-s', '--steepness_thresh',
-            type=int,
-            help='Report only peaks where the absolute second derivative is within this quantile. (0-100)'
+            type=float,
+            help='Report only peaks where the absolute second derivative is above this threshold.'
                  'Default None.'
         )
         parser.add_argument(
             '-t', '--height_thresh',
-            type=int,
-            help='Report only peaks where the peak height is within this quantile (0-100)'
+            type=float,
+            help='Report only peaks where the absolute peak height above the surrounding '
+                 'inflection points is more than this threshold.'
                  'Default None.'
+        )
+        parser.add_argument(
+            '-z', '--z_thresh',
+            type=float,
+            help='Report only peaks where the absolute z-score at the peak is above this threshold'
+                 'Default None.'
+        )
+        parser.add_argument(
+            '-zw', '--z_window',
+            type=int,
+            help='Window size used for calculating rolling mean for z-score calculation.'
+                 'Default 50.'
         )
         parser.add_argument(
             '-r', '--as_range',
@@ -2172,7 +2185,8 @@ class Kaic(object):
         metric = METRICS[args.metric](h, d=args.distance, hic_matrix=hic_matrix)
         logging.info("Calling borders using {}, distance {}.".format(args.metric, args.distance))
         peak_caller = PeakCallerDeriv(metric, window_size=args.window_size, poly_order=args.poly_order)
-        peak_caller.filter(steepness_thresh=args.steepness_thresh, height_thresh=args.height_thresh)
+        peak_caller.filter(steepness_thresh=args.steepness_thresh, height_thresh=args.height_thresh,
+                           z_score_thresh=args.z_thresh, z_score_window=args.z_window)
         minima = peak_caller.get_minima(as_range=args.as_range)
         heights = np.ma.abs(peak_caller.heights)
         with open(args.output, "w") as f:

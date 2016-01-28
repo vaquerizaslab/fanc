@@ -137,7 +137,7 @@ def create_gtf_from_region_ix(regions, region_ix):
             regions[s].chromosome, regions[s].start, regions[e].end)
 
 class PeakCallerDeriv(object):
-    def __init__(self, x, window_size=9, poly_order=2):
+    def __init__(self, x, window_size=15, poly_order=2):
         self.x = x
         self.window_size = window_size
         self.poly_order = poly_order
@@ -198,17 +198,33 @@ class PeakCallerDeriv(object):
     def heights(self):
         return self._heights[self._peak_mask]
 
-    def filter(self, steepness_thresh=None, height_thresh=None):
+    def filter(self, z_score_thresh=None, z_score_window=50, steepness_thresh=None, height_thresh=None):
+        def rolling_func_nan(a, window, func=np.mean):
+            out = np.empty(a.shape)
+            for i in range(len(a)):
+                if i < window or i >= len(a) - window:
+                    out[i] = np.nan
+                    continue
+                cur_window = a[i - window:i + window + 1]
+                out[i] = func(cur_window[~np.isnan(cur_window)])
+            return out
+        if z_score_thresh:
+            rolling_mean = rolling_func_nan(self.x, z_score_window, func=np.mean)
+            z_trans = (self.x - rolling_mean)/np.std(self.x[~np.isnan(self.x)])
+            z_pass = np.logical_or(z_trans[self._peaks] < -z_score_thresh, z_trans[self._peaks] > z_score_thresh)
+            self._peak_mask = np.logical_and(self._peak_mask, z_pass)
+            log.info("Discarding {}({:.1%}) of total peaks due to z-score threshold ({}%)".format(np.sum(~z_pass), np.sum(~z_pass)/len(self._peaks), z_score_thresh))
         if steepness_thresh:
             # If threshold is set, only retain peaks where 2nd derivative
             # is above the required percentile for steepness
-            d2_thresh = np.nanpercentile(np.abs(self.d2[self._peaks]), 100 - steepness_thresh)
-            steep_pass = np.abs(self.d2[zc1]) > d2_thresh
+            #d2_thresh = np.nanpercentile(np.abs(self.d2[self._peaks]), 100 - steepness_thresh)
+            steep_pass = np.abs(self.d2[zc1]) > steepness_thresh
             self._peak_mask = np.logical_and([self._peak_mask, steep_pass], axis=0)
             log.info("Discarding {}({:.1%}) of total peaks due to steepness threshold ({}%)".format(np.sum(~steep_pass), np.sum(~steep_pass)/len(self._peaks), steepness_thresh))
         if height_thresh:
-            height_thresh_minima = np.nanpercentile(self._heights[self._min_mask], height_thresh)
-            height_thresh_maxima = np.nanpercentile(self._heights[~self._min_mask], 100 - height_thresh)
-            height_pass = np.where(self._min_mask, self._heights <= height_thresh_minima, self._heights >= height_thresh_maxima)
+            #height_thresh_minima = np.nanpercentile(self._heights[self._min_mask], height_thresh)
+            #height_thresh_maxima = np.nanpercentile(self._heights[~self._min_mask], 100 - height_thresh)
+            #height_pass = np.where(self._min_mask, self._heights <= height_thresh_minima, self._heights >= height_thresh_maxima)
+            height_pass = np.abs(self._heights[self._peaks]) > height_thresh
             self._peak_mask = np.logical_and(self._peak_mask, height_pass)
             log.info("Discarding {}({:.1%}) of total peaks due to peak height threshold ({}%)".format(np.sum(~height_pass), np.sum(~height_pass)/len(self._peaks), height_thresh))
