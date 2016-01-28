@@ -420,6 +420,13 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         if restriction_enzyme is not None:
             re_pattern = ligation_site_pattern(restriction_enzyme)
 
+        with reader(working_input_file, 'r') as fastq:
+            n_lines = sum(1 for _ in fastq)/4
+
+        if n_lines/threads < batch_size*threads:
+            batch_size = int(n_lines/threads)+threads
+            logging.info("Corrected batch size to: %d" % batch_size)
+
         max_length = 0
         trimmed_count = 0
         batch_count = 0
