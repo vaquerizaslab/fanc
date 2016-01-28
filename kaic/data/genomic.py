@@ -2790,9 +2790,9 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         mask = self.add_mask_description('low_coverage',
             'Mask low coverage regions in the Hic matrix '
-            '(absolute cutoff {:.4}, relative cutoff {:.1%}'.format(cutoff if cutoff else 0, rel_cutoff if cutoff else 0))
+            '(absolute cutoff {:.4}, relative cutoff {:.1%}'.format(float(cutoff) if cutoff else 0., float(rel_cutoff) if rel_cutoff else 0.))
 
-        low_coverage_filter = LowCoverageFilter(self, cutoff=cutoff, mask=mask)
+        low_coverage_filter = LowCoverageFilter(self, rel_cutoff=rel_cutoff, cutoff=cutoff, mask=mask)
         self.filter(low_coverage_filter, queue)
     
     def bias_vector(self, vector=None):
@@ -3036,13 +3036,13 @@ class LowCoverageFilter(HicEdgeFilter):
             raise ValueError("Either rel_cutoff or cutoff must be given")
         cutoff = min(cutoff if cutoff else float("inf"),
                      self.calculate_cutoffs(rel_cutoff)[0] if rel_cutoff else float("inf"))
-        logging.info("Final absolute cutoff threshold is {}.".format(cutoff))
+        logging.info("Final absolute cutoff threshold is {:.4}".format(float(cutoff)))
 
         self._regions_to_mask = set()
         for i, contacts in enumerate(self._marginals):
             if contacts < cutoff:
                 self._regions_to_mask.add(i)
-        logging.info("Selected a total of {} ({:.1%} regions to be masked.".format(
+        logging.info("Selected a total of {} ({:.1%}) regions to be masked".format(
             len(self._regions_to_mask), len(self._regions_to_mask)/len(hic_object.regions)))
 
     def calculate_cutoffs(self, fraction_threshold=0.05):
