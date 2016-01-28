@@ -97,7 +97,8 @@ def correct_matrix(m, max_attempts=50):
             raise RuntimeError("Exceeded maximum attempts (%d)" % max_attempts)
 
     logging.info("Applying bias vector")
-    m_nonzero *= x*x[:, np.newaxis]
+    m_nonzero *= x
+    m_nonzero *= x[:, np.newaxis]
 
     logging.debug(removed_rows)
     logging.info("Restoring {} sets ({} total) sparse rows.".format(
