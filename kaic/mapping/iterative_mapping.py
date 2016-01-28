@@ -299,7 +299,7 @@ def iteratively_map_reads(file_name, mapper=None, min_read_length=None, step_siz
         min_read_length = max_len
 
     steps = list(xrange(min_read_length, max_len+1, step_size))
-    if steps[-1] != max_len:
+    if len(steps) == 0 or steps[-1] != max_len:
         steps.append(max_len)
 
     ixs = [0]
