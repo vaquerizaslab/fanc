@@ -2105,13 +2105,16 @@ class Kaic(object):
 
     def boundaries(self):
         import kaic
-        from kaic.analyzing.architecture import PeakCallerDeriv, insulation_index, rel_insulation_index
+        from kaic.analyzing.architecture import PeakCallerDeriv, insulation_index, rel_insulation_index, contact_band
         from kaic.plotting.plotter import GenomicTrack
         from scipy.signal import savgol_filter
         import numpy as np
         METRIC_INSULATION_INDEX = "insulation_index"
         METRIC_REL_INSULATION_INDEX = "rel_insulation_index"
-        METRICS = {METRIC_INSULATION_INDEX: insulation_index, METRIC_REL_INSULATION_INDEX: rel_insulation_index}
+        METRIC_CONTACT_BAND = "contact_band"
+        METRICS = {METRIC_INSULATION_INDEX: insulation_index,
+                   METRIC_REL_INSULATION_INDEX: rel_insulation_index,
+                   METRIC_CONTACT_BAND: contact_band}
         parser = argparse.ArgumentParser(
             prog="kaic " + sys.argv[1],
             description='Determine structural boundaries'
@@ -2127,9 +2130,9 @@ class Kaic(object):
         )
         parser.add_argument(
             'distance',
-            type=int,
             help='Distance in bins used to calculate metric. (In Drosophila for 5kb bins, '
                  '15 bins works well)'
+                 'For "{}" must be in the form "d1-d2"'.format(METRIC_CONTACT_BAND)
         )
         parser.add_argument(
             'output',
@@ -2182,7 +2185,11 @@ class Kaic(object):
         output_path = os.path.expanduser(args.output)
         h = kaic.Hic(input_path)
         hic_matrix = h[:]
-        metric = METRICS[args.metric](h, d=args.distance, hic_matrix=hic_matrix)
+        if args.metric == METRIC_CONTACT_BAND:
+            d1, d2 = args.distance.split("-")
+            metric = METRICS[args.metric](h, d1=d1, d2=d2, hic_matrix=hic_matrix)
+        else:
+            metric = METRICS[args.metric](h, d=int(args.distance), hic_matrix=hic_matrix)
         logging.info("Calling borders using {}, distance {}.".format(args.metric, args.distance))
         peak_caller = PeakCallerDeriv(metric, window_size=args.window_size, poly_order=args.poly_order)
         peak_caller.filter(steepness_thresh=args.steepness_thresh, height_thresh=args.height_thresh,
