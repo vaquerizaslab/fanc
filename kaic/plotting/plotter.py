@@ -14,6 +14,7 @@ import pybedtools as pbt
 import itertools as it
 import tables
 import re
+import tracks
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -66,6 +67,28 @@ def get_typed_array(input_iterable, nan_strings, count=-1):
     except ValueError:
         pass
     return np.fromiter(input_iterable, str, count)
+
+class NewGenomicTrack(object):
+    def __init__(self, file_name, title=None):
+        """
+        Initialize a genomic track.
+
+        :param file_name: Genomic track file. Can be BED, BEDGRAPH, WIG, BIGWIG etc.
+        :param title: The overall title of the track.
+        """
+        self.file_name = file_name
+        self.title = title
+        self.track = tracks.load(file_name)
+
+    def __getitem__(self, key):
+        if isinstance(key, int) or isinstance(key, slice):
+            return {t.name: t[key] for t in self._tracks}
+        if isinstance(key, basestring):
+            region = GenomicRegion.from_string(key)
+        elif isinstance(key, GenomicRegion):
+            region = key
+
+        return self[self.region_bins(region)]
 
 class GenomicTrack(RegionsTable):
     def __init__(self, file_name, title=None, data_dict=None, regions=None, _table_name_tracks='tracks'):
@@ -144,6 +167,8 @@ class GenomicTrack(RegionsTable):
         self.file.create_array(self._tracks, name, values, description if description else "")
 
     def __getitem__(self, key):
+        if key in self._tracks:
+            return self._tracks[key][:]
         if isinstance(key, int) or isinstance(key, slice):
             return {t.name: t[key] for t in self._tracks}
         if isinstance(key, basestring):
@@ -152,6 +177,15 @@ class GenomicTrack(RegionsTable):
 
     @property
     def tracks(self):
+        # this = self
+        # class TrackList(object):
+        #     def __init__(self, track_object):
+        #         self.track_object = track_object
+
+        #     def __str__(self):
+        #         return str(self.track_object._tracks)
+
+        #     def __
         return {t.name: t[:] for t in self._tracks}
 
     @property
@@ -177,18 +211,9 @@ class GenomicFigure(object):
         self.plots = plots
         self.n = len(plots)
 
-        gs = gridspec.GridSpec(self.n, 1, height_ratios=height_ratios, width_ratios=[1] * self.n)
-
         if figsize is None:
             figsize = (8, 4*self.n)
-
-        self.axes = []
-        for i in xrange(self.n):
-            if i > 0:
-                ax = plt.subplot(gs[i], sharex=self.axes[0])
-            else:
-                ax = plt.subplot(gs[i])
-            self.axes.append(ax)
+        _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
         # _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
 
     @property
@@ -198,7 +223,7 @@ class GenomicFigure(object):
     def plot(self, region):
         for p, a in zip(self.plots, self.axes):
             p.plot(region, ax=a)
-        #self.fig.tight_layout()
+        self.fig.tight_layout()
         return self.fig, self.axes
 
     # def add_colorbar(self):
@@ -728,6 +753,13 @@ class GeneModelPlot(BasePlotter1D):
             self.ax.add_patch(gene_patch)
             self.ax.text((g.start + g.end)/2, 0.6, g.attrs[self.id_field], transform=trans,
                          ha="center", size="small")
+            self.ax.spines['right'].set_visible(False)
+            self.ax.spines['top'].set_visible(False)
+            self.ax.spines['left'].set_visible(False)
+            self.ax.spines['bottom'].set_visible(False)
+            self.ax.xaxis.set_ticks_position('bottom')
+            self.ax.yaxis.set_visible(False)
+            self.ax.xaxis.set_visible(False)
 
     def _refresh(self):
         pass
