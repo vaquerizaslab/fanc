@@ -2087,7 +2087,7 @@ class Kaic(object):
         if args.contact_band:
             for d1, d2 in (d.split("-") for d in args.contact_band):
                 logging.info("Calculating contact band between {} and {} bins away.".format(d1, d2))
-                gt.add_data("contact_band_{}_{}".format(d1, d2), contact_band(h, d1, d2, hic_matrix=hic_matrix))
+                gt.add_data("contact_band_{}_{}".format(d1, d2), contact_band(h, int(d1), int(d2), hic_matrix=hic_matrix))
         if args.directionality_index:
             for d in args.directionality_index:
                 logging.info("Calculating directionality index with a window size of {}bp.".format(d))
@@ -2178,9 +2178,9 @@ class Kaic(object):
         open(output_path, "w").close()
         arch = GenomicTrack(input_path)
         metric_list = list(it.chain(k for k in arch.tracks.keys() if any(re.match(r, k) for r in args.metrics)))
-        for m in metric_list:
-            logging.info("Calling borders using {}".format(m))
-            peak_caller = PeakCallerDeriv(arch[m], window_size=args.window_size, poly_order=args.poly_order)
+        for metric in metric_list:
+            logging.info("Calling borders using {}".format(metric))
+            peak_caller = PeakCallerDeriv(arch[metric], window_size=args.window_size, poly_order=args.poly_order)
             peak_caller.filter(steepness_thresh=args.steepness_thresh, height_thresh=args.height_thresh,
                                z_score_thresh=args.z_thresh, z_score_window=args.z_window)
             minima = peak_caller.get_minima(as_range=args.as_range)
@@ -2193,7 +2193,7 @@ class Kaic(object):
                     else:
                         r = arch.regions[m]
                     f.write("{chrm}\t{source}\t{feature}\t{start}\t{end}\t{score}\t.\t{attrs}\n".format(
-                        chrm=r.chromosome, source="kaic", feature="{}_border_region".format(m),
+                        chrm=r.chromosome, source="kaic", feature="{}_border_region".format(metric),
                         start=r.start, end=r.end, score=heights[i], attrs="")
                     )
         logging.info("All done.")
