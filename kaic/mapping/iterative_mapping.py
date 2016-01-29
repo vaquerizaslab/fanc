@@ -11,6 +11,7 @@ from Bio import Restriction
 import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
+import time
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -389,7 +390,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
 
 def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=None, quality_cutoff=30,
                                 batch_size=250000, threads=1, min_size=25, step_size=2, copy=False,
-                                restriction_enzyme=None):
+                                restriction_enzyme=None, sleep_time=10):
     if work_dir is not None:
         work_dir = tempfile.mkdtemp(dir=os.path.expanduser(work_dir))
     else:
@@ -427,10 +428,44 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             batch_size = int(n_lines/threads)+threads
             logging.info("Corrected batch size to: %d" % batch_size)
 
+        def prepare_process(p_number, file_name, mapper, min_size, max_length, step_size, work_dir):
+            steps = list(xrange(min_size, max_length+1, step_size))
+            if len(steps) == 0 or steps[-1] != max_length:
+                steps.append(max_length)
+
+            ixs = [0]
+            current = 1
+            for i in xrange(len(steps)-1):
+                if i % 2 == 0:
+                    ixs.append(-1*current)
+                else:
+                    ixs.append(current)
+                    current += 1
+            steps = [steps[ix] for ix in ixs]
+
+            print steps
+
+            partial_output_file = work_dir + '/mapped_reads_' + str(p_number) + '.sam'
+            process_work_dir = work_dir + "/mapping_%d/" % p_number
+            os.makedirs(process_work_dir)
+
+            p = mp.Process(target=iteratively_map_reads, args=(file_name, mapper, steps,
+                                                               None, None, process_work_dir,
+                                                               partial_output_file, True))
+
+            print partial_output_file
+            print process_work_dir
+            return p, process_work_dir, partial_output_file
+
         max_length = 0
         trimmed_count = 0
         batch_count = 0
         batch_reads_count = 0
+        output_files = []
+        output_dirs = []
+        processes = []
+        process_queue = []
+        current_processes = []
         with reader(working_input_file, 'r') as fastq:
             for title, seq, qual in FastqGeneralIterator(fastq):
                 if batch_reads_count <= batch_size:
@@ -449,51 +484,71 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                     # reset
                     batch_reads_count = 0
                     working_file.close()
+
+                    # prepare process
+                    p, p_work_dir, p_output_file = prepare_process(batch_count, working_file.name, mapper, min_size,
+                                                                   max_length, step_size, work_dir)
+                    processes.append(p)
+                    process_queue.append((batch_count, p))
+                    output_files.append(p_output_file)
+                    output_dirs.append(p_work_dir)
+
+                    # remove finished processes
+                    finished_processes = []
+                    for j in xrange(len(current_processes)):
+                        i, p = current_processes[j]
+                        if not p.is_alive():
+                            p.join()
+                            finished_processes.append((i, j))
+
+                    for i, j in finished_processes:
+                        logging.debug("Cleaning temporary files...")
+                        shutil.rmtree(output_dirs[i])
+                        os.unlink(working_files[i])
+
+                    while len(current_processes) < threads and len(process_queue) > 0:
+                        i, p = process_queue.pop(0)
+                        p.start()
+                        current_processes.append((i, p))
+
+                    max_length = 0
                     batch_count += 1
                     working_file = gzip.open(work_dir + '/full_reads_' + str(batch_count) + '.fastq.gz', 'w')
                     working_files.append(working_file.name)
 
             working_file.close()
 
+            # prepare last process
+            if batch_reads_count > 0:
+                p, p_work_dir, p_output_file = prepare_process(batch_count, working_file.name, mapper, min_size,
+                                                               max_length, step_size, work_dir)
+                processes.append(p)
+                process_queue.append((batch_count, p))
+                output_files.append(p_output_file)
+                output_dirs.append(p_work_dir)
+
         logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
-        steps = list(xrange(min_size, max_length+1, step_size))
-        if len(steps) == 0 or steps[-1] != max_length:
-            steps.append(max_length)
+        while len(process_queue) > 0:
+            # remove finished processes
+            finished_processes = []
+            for j in xrange(len(current_processes)):
+                i, p = current_processes[j]
+                if not p.is_alive():
+                    p.join()
+                    finished_processes.append((i, j))
 
-        ixs = [0]
-        current = 1
-        for i in xrange(len(steps)-1):
-            if i % 2 == 0:
-                ixs.append(-1*current)
-            else:
-                ixs.append(current)
-                current += 1
-        steps = [steps[ix] for ix in ixs]
+            for i, j in finished_processes:
+                logging.debug("Cleaning temporary files...")
+                del current_processes[j]
+                shutil.rmtree(output_dirs[i])
+                os.unlink(working_files[i])
 
-        logging.info("Using read lengths: %s" % str(steps))
-        logging.info("Starting to map...")
-        output_files = []
-        processes = []
-        for i, working_file in enumerate(working_files):
-            partial_output_file = work_dir + '/mapped_reads_' + str(i) + '.sam'
-            output_files.append(partial_output_file)
-            process_work_dir = work_dir + "/mapping_%d/" % i
-            os.makedirs(process_work_dir)
-            processes.append(mp.Process(target=iteratively_map_reads, args=(working_file, mapper, steps,
-                                                                            None, None, process_work_dir,
-                                                                            partial_output_file, True)))
-        current_processes = []
-        for i, p in enumerate(processes):
-            current_processes.append(p)
-            if len(current_processes) >= threads or i == len(processes)-1:
-                for cp in current_processes:
-                    cp.start()
-                for cp in current_processes:
-                    cp.join()
-                current_processes = []
-
-                logging.info("Processed %d/%d" % (i+1, len(processes)))
+            while len(current_processes) < threads and len(process_queue) > 0:
+                i, p = process_queue.pop(0)
+                p.start()
+                current_processes.append((i, p))
+            time.sleep(sleep_time)
 
         # merge files
         logging.info("Merging output files...")
