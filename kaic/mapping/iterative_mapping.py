@@ -453,15 +453,43 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
             return p, process_work_dir, partial_output_file
 
+        def _mapping_process_with_queue(input_queue, output_queue):
+            p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
+            steps = list(xrange(min_size, max_length+1, step_size))
+            if len(steps) == 0 or steps[-1] != max_length:
+                steps.append(max_length)
+
+            ixs = [0]
+            current = 1
+            for i in xrange(len(steps)-1):
+                if i % 2 == 0:
+                    ixs.append(-1*current)
+                else:
+                    ixs.append(current)
+                    current += 1
+            steps = [steps[ix] for ix in ixs]
+
+            partial_output_file = work_dir + '/mapped_reads_' + str(p_number) + '.sam'
+            process_work_dir = work_dir + "/mapping_%d/" % p_number
+            os.makedirs(process_work_dir)
+
+            iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
+                                  partial_output_file, True)
+
+            os.unlink(file_name)
+            shutil.rmtree(process_work_dir)
+
+            print partial_output_file
+            output_queue.put(partial_output_file)
+
+        input_queue = mp.Queue()
+        output_queue = mp.Queue()
+        worker_pool = mp.Pool(threads, _mapping_process_with_queue, (input_queue, output_queue))
+
         max_length = 0
         trimmed_count = 0
         batch_count = 0
         batch_reads_count = 0
-        output_files = []
-        output_dirs = []
-        processes = []
-        process_queue = []
-        current_processes = []
         with reader(working_input_file, 'r') as fastq:
             for title, seq, qual in FastqGeneralIterator(fastq):
                 if batch_reads_count <= batch_size:
@@ -482,30 +510,8 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                     working_file.close()
 
                     # prepare process
-                    p, p_work_dir, p_output_file = prepare_process(batch_count, working_file.name, mapper, min_size,
-                                                                   max_length, step_size, work_dir)
-                    processes.append(p)
-                    process_queue.append((batch_count, p))
-                    output_files.append(p_output_file)
-                    output_dirs.append(p_work_dir)
-
-                    # remove finished processes
-                    finished_processes = []
-                    for j in xrange(len(current_processes)):
-                        i, p = current_processes[j]
-                        if p.exitcode is not None:
-                            p.join()
-                            finished_processes.append((i, j))
-
-                    for i, j in finished_processes:
-                        logging.debug("Cleaning temporary files...")
-                        shutil.rmtree(output_dirs[i])
-                        os.unlink(working_files[i])
-
-                    while len(current_processes) < threads and len(process_queue) > 0:
-                        i, p = process_queue.pop(0)
-                        p.start()
-                        current_processes.append((i, p))
+                    input_queue.put((batch_count, working_file.name, mapper, min_size,
+                                     max_length, step_size, work_dir))
 
                     max_length = 0
                     batch_count += 1
@@ -516,38 +522,15 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
             # prepare last process
             if batch_reads_count > 0:
-                p, p_work_dir, p_output_file = prepare_process(batch_count, working_file.name, mapper, min_size,
-                                                               max_length, step_size, work_dir)
-                processes.append(p)
-                process_queue.append((batch_count, p))
-                output_files.append(p_output_file)
-                output_dirs.append(p_work_dir)
+                # prepare process
+                input_queue.put((batch_count, working_file.name, mapper, min_size,
+                                 max_length, step_size, work_dir))
 
         logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
-        while len(current_processes) > 0:
-            # remove finished processes
-            finished_processes = []
-            finished_current_processes = []
-            for j in xrange(len(current_processes)):
-                i, p = current_processes[j]
-                if p.exitcode is not None:
-                    p.join()
-                    finished_processes.append(i)
-                    finished_current_processes.append(j)
-
-            current_processes = [cp for i, cp in enumerate(current_processes) if i not in finished_current_processes]
-
-            for i in finished_processes:
-                logging.debug("Cleaning temporary files...")
-                shutil.rmtree(output_dirs[i])
-                os.unlink(working_files[i])
-
-            while len(current_processes) < threads and len(process_queue) > 0:
-                i, p = process_queue.pop(0)
-                p.start()
-                current_processes.append((i, p))
-            time.sleep(sleep_time)
+        output_files = []
+        while len(output_files) < batch_count+1:
+            output_files.append(output_queue.get(True))
 
         # merge files
         logging.info("Merging output files...")
