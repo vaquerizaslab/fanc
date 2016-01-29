@@ -15,6 +15,7 @@ import itertools as it
 import tables
 import re
 import track
+import warnings
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -104,8 +105,12 @@ class GenomicTrack(RegionsTable):
                         or String elemnts that describe regions.
         """
         RegionsTable.__init__(self, file_name=file_name)
+        # Check if file already exist, then don't allow to add more
         if regions:
-            self.add_regions(regions)
+            if not len(self._regions) > 0:
+                self.add_regions(regions)
+            else:
+                warnings.warn("Existing GenomicTrack object already contains regions, ignoring regions to be added")
         if _table_name_tracks in self.file.root:
             self._tracks = self.file.get_node('/', _table_name_tracks)
         else:

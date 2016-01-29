@@ -3,7 +3,6 @@ from kaic.data.genomic import Hic
 from kaic.plotting.plotter import GenomicTrack
 import numpy as np
 import logging
-import ipdb
 import itertools as it
 from scipy.signal import savgol_filter
 
