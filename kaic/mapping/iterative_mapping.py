@@ -400,7 +400,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
     working_output_file = None
     working_input_file = None
     try:
-        logging.debug("Working directory: %s" % work_dir)
+        logging.info("Working directory: %s" % work_dir)
 
         if copy:
             working_input_file = work_dir + '/' + os.path.basename(input_file)
@@ -443,8 +443,6 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                     current += 1
             steps = [steps[ix] for ix in ixs]
 
-            print steps
-
             partial_output_file = work_dir + '/mapped_reads_' + str(p_number) + '.sam'
             process_work_dir = work_dir + "/mapping_%d/" % p_number
             os.makedirs(process_work_dir)
@@ -453,8 +451,6 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                                                None, None, process_work_dir,
                                                                partial_output_file, True))
 
-            print partial_output_file
-            print process_work_dir
             return p, process_work_dir, partial_output_file
 
         max_length = 0
@@ -497,7 +493,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                     finished_processes = []
                     for j in xrange(len(current_processes)):
                         i, p = current_processes[j]
-                        if not p.is_alive():
+                        if p.exitcode is not None:
                             p.join()
                             finished_processes.append((i, j))
 
@@ -529,18 +525,21 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
         logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
-        while len(process_queue) > 0:
+        while len(current_processes) > 0:
             # remove finished processes
             finished_processes = []
+            finished_current_processes = []
             for j in xrange(len(current_processes)):
                 i, p = current_processes[j]
-                if not p.is_alive():
+                if p.exitcode is not None:
                     p.join()
-                    finished_processes.append((i, j))
+                    finished_processes.append(i)
+                    finished_current_processes.append(j)
 
-            for i, j in finished_processes:
+            current_processes = [cp for i, cp in enumerate(current_processes) if i not in finished_current_processes]
+
+            for i in finished_processes:
                 logging.debug("Cleaning temporary files...")
-                del current_processes[j]
                 shutil.rmtree(output_dirs[i])
                 os.unlink(working_files[i])
 
