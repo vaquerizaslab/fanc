@@ -172,11 +172,11 @@ class GenomicTrack(RegionsTable):
         self.file.create_array(self._tracks, name, values, description if description else "")
 
     def __getitem__(self, key):
-        if key in self._tracks:
-            return getattr(self._tracks, key)[:]
         if isinstance(key, int) or isinstance(key, slice):
             return {t.name: t[key] for t in self._tracks}
         if isinstance(key, basestring):
+            if key in self._tracks:
+                return getattr(self._tracks, key)[:]
             region = GenomicRegion.from_string(key)
             return self[self.region_bins(region)]
 
