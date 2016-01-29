@@ -260,19 +260,22 @@ class Kaic(object):
         file_basenames = [file_basename(file_name) for file_name in file_names]
 
         if args.basename is None:
-            basename = []
-            for pair in zip(*file_basenames):
-                if pair[0] == pair[1]:
-                    basename.append(pair[0])
-                else:
-                    break
-            if len(basename) == 0:
+            if len(file_basenames) == 1:
                 basename = file_basenames[0]
             else:
-                if basename[-1] in ['.', '_']:
-                    basename = "".join(basename[:-1])
+                basename = []
+                for pair in zip(*file_basenames):
+                    if pair[0] == pair[1]:
+                        basename.append(pair[0])
+                    else:
+                        break
+                if len(basename) == 0:
+                    basename = file_basenames[0]
                 else:
-                    basename = "".join(basename)
+                    if basename[-1] in ['.', '_']:
+                        basename = "".join(basename[:-1])
+                    else:
+                        basename = "".join(basename)
         else:
             basename = args.basename
 
@@ -308,6 +311,8 @@ class Kaic(object):
             logging.info("Final basename: %s (you can change this with the -n option!)" % basename)
 
         import subprocess
+        from kaic.tools.general import distribute_integer
+        from multiprocessing.pool import ThreadPool
 
         # 1. create default folders in root directory
         logging.info("Creating output folders...")
@@ -317,6 +322,14 @@ class Kaic(object):
             quit(rc)
 
         # 2. If input files are (gzipped) FASTQ, map them iteratively first
+        def mapping_worker(file_name, index, bam_file, mapping_threads=1):
+            iterative_mapping_command = ['kaic', 'iterative_mapping',
+                                         '-m', '25', '-s', '3', '-q', '30', '-t', str(mapping_threads)]
+            if args.tmp:
+                iterative_mapping_command.append('-tmp')
+
+            return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
+
         fastq_files = []
         for i in xrange(len(file_names)):
             if file_types[i] != 'fastq':
@@ -324,141 +337,325 @@ class Kaic(object):
             fastq_files.append(i)
 
         if len(fastq_files) > 0:
-            max_fastq_threads = int(threads/len(fastq_files))
-            max_fastq_threads = max(1, max_fastq_threads)
-            logging.info("Iteratively mapping FASTQ files with %d threads each..." % max_fastq_threads)
+            mapping_processes = distribute_integer(threads, len(fastq_files))
+            tp = ThreadPool(len(fastq_files))
 
-            processes = []
+            index = os.path.expanduser(args.genome_index)
+            logging.info("Iteratively mapping FASTQ files...")
+
             bam_files = []
-            for i in fastq_files:
-                bam_file = output_folder + 'sam/' + file_basenames[i] + '.bam'
+            for i, ix in enumerate(fastq_files):
+                bam_file = output_folder + 'sam/' + file_basenames[ix] + '.bam'
                 bam_files.append(bam_file)
 
-                index = os.path.expanduser(args.genome_index)
-                iterative_mapping_command = ['kaic', 'iterative_mapping',
-                                             '-m', '25', '-s', '3', '-q', '30', '-t', str(max_fastq_threads)]
-                if args.tmp:
-                    iterative_mapping_command.append('-tmp')
-
-                p = subprocess.Popen(iterative_mapping_command + [file_names[i], index, bam_file])
-                processes.append(p)
-
-                if len(processes)*max_fastq_threads > threads:
-                    for p in processes:
-                        p.wait()
-                    processes = []
-            for p in processes:
-                p.wait()
+                tp.apply_async(mapping_worker, (file_names[ix], index, bam_file, mapping_processes[i]))
+            tp.close()
+            tp.join()
 
             for ix, i in enumerate(fastq_files):
                 file_names[i] = bam_files[ix]
                 file_types[i] = 'sam'
 
-        print file_names
-        print file_types
-
-        quit()
-
-
-        bam_file1 = input_file1
-        bam_file2 = input_file2
-        if os.path.splitext(input_file1)[1] in ['.fq', '.fastq', '.fq.gz', '.fastq.gz', '.fq.gzip', '.fastq.gzip']:
-            logging.info("Iteratively mapping FASTQ input files...")
-            bam_file1 = output_folder + 'sam/' + input_file_base1 + '.bam'
-            bam_file2 = output_folder + 'sam/' + input_file_base2 + '.bam'
-            index = os.path.expanduser(args.genome_index)
-            iterative_mapping_command = ['kaic', 'iterative_mapping',
-                                         '-m', '25', '-s', '3', '-q', '30', '-t', str(int(threads/2))]
+        # 3. SAM/BAM to Reads object conversion
+        def reads_worker(file_name, reads_file):
+            load_reads_command = ['kaic', 'load_reads', '-D']
             if args.tmp:
-                iterative_mapping_command.append('-tmp')
+                load_reads_command.append('-tmp')
 
-            p1 = subprocess.Popen(iterative_mapping_command + [input_file1, index, bam_file1])
-            if threads < 2:
-                p1.wait()
+            return subprocess.call(load_reads_command + [file_name, reads_file])
 
-            p2 = subprocess.Popen(iterative_mapping_command + [input_file2, index, bam_file2])
-            p1.wait()
-            p2.wait()
-        else:
-            logging.info("Input is assumed to be SAM/BAM.")
+        sam_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'sam':
+                continue
+            sam_files.append(i)
 
-        # 3. Read in SAM files to create Reads objects
-        logging.info("Reading in SAM/BAM files...")
-        reads_file1 = output_folder + 'reads/' + input_file_base1 + '.reads'
-        reads_file2 = output_folder + 'reads/' + input_file_base2 + '.reads'
-        load_reads_command = ['kaic', 'load_reads', '-D']
-        if args.tmp:
-            load_reads_command.append('-tmp')
+        if len(sam_files) > 0:
+            tp = ThreadPool(threads)
 
-        p1 = subprocess.Popen(load_reads_command + [bam_file1, reads_file1])
-        if threads < 2:
-            p1.wait()
+            reads_files = []
+            for ix in sam_files:
+                reads_file = output_folder + 'reads/' + file_basenames[ix] + '.reads'
+                reads_files.append(reads_file)
 
-        p2 = subprocess.Popen(load_reads_command + [bam_file2, reads_file2])
-        p1.wait()
-        p2.wait()
+                tp.apply_async(reads_worker, (file_names[ix], reads_file))
+            tp.close()
+            tp.join()
 
-        # 4. Filter Reads objects
-        logging.info("Filtering reads...")
-        filtered_reads_file1 = output_folder + 'reads/filtered/' + input_file_base1 + '_filtered.reads'
-        filtered_reads_file2 = output_folder + 'reads/filtered/' + input_file_base2 + '_filtered.reads'
-        reads_statistics_file1 = output_folder + 'plots/stats/' + input_file_base1 + '_filtered.reads.stats.pdf'
-        reads_statistics_file2 = output_folder + 'plots/stats/' + input_file_base2 + '_filtered.reads.stats.pdf'
-        filter_reads_command = ['kaic', 'filter_reads', '-m', '-us', '-q', '30']
-        if args.tmp:
-            filter_reads_command.append('-tmp')
-        filter_reads_command.append('-s')
+            for ix, i in enumerate(sam_files):
+                file_names[i] = reads_files[ix]
+                file_types[i] = 'reads'
 
-        p1 = subprocess.Popen(filter_reads_command + [reads_statistics_file1, reads_file1, filtered_reads_file1])
-        if threads < 2:
-            p1.wait()
+        # 4. Filter reads
+        def filtered_reads_worker(reads_file, filtered_reads_file, filtered_reads_stats_file):
+            filter_reads_command = ['kaic', 'filter_reads', '-m', '-us', '-q', '30']
+            if args.tmp:
+                filter_reads_command.append('-tmp')
+            filter_reads_command.append('-s')
 
-        p2 = subprocess.Popen(filter_reads_command + [reads_statistics_file2, reads_file2, filtered_reads_file2])
-        p1.wait()
-        p2.wait()
+            return subprocess.call(filter_reads_command + [filtered_reads_stats_file, reads_file, filtered_reads_file])
 
-        # 5. Create Pairs object
-        logging.info("Creating Pairs object...")
-        pairs_file = output_folder + 'pairs/' + basename + '.pairs'
-        pairs_command = ['kaic', 'reads_to_pairs', filtered_reads_file1, filtered_reads_file2,
-                         genome, restriction_enzyme, pairs_file]
-        if args.tmp:
-            filter_reads_command.append('-tmp')
-        p1 = subprocess.call(pairs_command)
+        reads_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'reads':
+                continue
+            reads_files.append(i)
 
-        # 6. Get unfiltered Pairs statistics
-        logging.info("Creating ligation error and restriction site distance plots...")
-        pairs_ligation_error_file = output_folder + 'plots/stats/' + basename + '.pairs.ligation_error.pdf'
-        pairs_re_dist_file = output_folder + 'plots/stats/' + basename + '.pairs.re_dist.pdf'
-        ligation_err_plot_command = ['kaic', 'plot_ligation_err']
-        re_dist_plot_command = ['kaic', 'plot_re_dist', '-l', '100000', '-m', '20000']
-        p1 = subprocess.Popen(ligation_err_plot_command + [pairs_file, pairs_ligation_error_file])
-        if threads < 2:
-            p1.wait()
-        p2 = subprocess.Popen(re_dist_plot_command + [pairs_file, pairs_re_dist_file])
-        p1.wait()
-        p2.wait()
+        if len(reads_files) > 0:
+            tp = ThreadPool(threads)
 
-        # 7. Filter Pairs object
-        logging.info("Filtering pairs...")
-        filtered_pairs_file = output_folder + 'pairs/filtered/' + basename + '_filtered.pairs'
-        pairs_statistics_file = output_folder + 'plots/stats/' + basename + '_filtered.pairs.stats.pdf'
-        filter_pairs_command = ['kaic', 'filter_pairs', '--auto', '-r', '1000', '-l', '-d', '2']
-        if args.tmp:
-            filter_pairs_command.append('-tmp')
-        filter_pairs_command.append('-s')
+            filtered_reads_files = []
+            for ix in reads_files:
+                filtered_reads_file = output_folder + 'reads/filtered/' + file_basenames[ix] + '_filtered.reads'
+                filtered_reads_stats_file = output_folder + 'plots/stats/' + file_basenames[ix] + '.reads.stats.pdf'
+                filtered_reads_files.append(filtered_reads_file)
 
-        p1 = subprocess.call(filter_pairs_command + [pairs_statistics_file, pairs_file, filtered_pairs_file])
-        if p1 != 0:
-            logging.error("Filtering failed for some reason, trying again with fixed thresholds...")
-            filter_pairs_command = ['kaic', 'filter_pairs', '-i', '10000', '-o', '10000', '-r', '5000', '-l', '-d', '2']
+                tp.apply_async(filtered_reads_worker, (file_names[ix], filtered_reads_file, filtered_reads_stats_file))
+            tp.close()
+            tp.join()
+
+            for ix, i in enumerate(reads_files):
+                file_names[i] = filtered_reads_files[ix]
+
+        # 5. Reads to Pairs
+        def pairs_worker(pairs_file, filtered_reads_file1, filtered_reads_file2, genome, restriction_enzyme):
+            logging.info("Creating Pairs object...")
+            pairs_command = ['kaic', 'reads_to_pairs', filtered_reads_file1, filtered_reads_file2,
+                             genome, restriction_enzyme, pairs_file]
+            if args.tmp:
+                pairs_command.append('-tmp')
+            return subprocess.call(pairs_command)
+
+        reads_file_pairs = []
+        i = 0
+        while i < len(file_names):
+            if file_types[i] == 'reads':
+                if not file_types[i+1] == 'reads':
+                    raise RuntimeError("Cannot create read pairs, because %s is missing a partner file" % file_names[i])
+                reads_file_pairs.append((i, i+1))
+                i += 1
+            i += 1
+
+        print reads_file_pairs
+
+        if len(reads_file_pairs) > 0:
+            tp = ThreadPool(threads)
+            genome = args.genome
+            restriction_enzyme = args.restriction_enzyme
+
+            pairs_files = []
+            for i, j in reads_file_pairs:
+                pairs_file = output_folder + 'pairs/' + basename + '.pairs'
+                tp.apply_async(pairs_worker, (pairs_file, file_names[i], file_names[j], genome, restriction_enzyme))
+                pairs_files.append(pairs_file)
+            tp.close()
+            tp.join()
+
+            for ix, read_pair in enumerate(reversed(reads_file_pairs)):
+                file_names[read_pair[0]] = pairs_files[ix]
+                del file_names[read_pair[1]]
+                file_types[read_pair[0]] = 'pairs'
+                del file_types[read_pair[1]]
+
+        # 7. Pairs stats and filtering
+        def pairs_ligation_error_worker(pairs_file, ligation_error_file):
+            ligation_error_command = ['kaic', 'plot_ligation_err']
+            return subprocess.call(ligation_error_command + [pairs_file, ligation_error_file])
+
+        def pairs_re_dist_worker(pairs_file, re_dist_file):
+            re_dist_command = ['kaic', 'plot_re_dist']
+            return subprocess.call(re_dist_command + [pairs_file, re_dist_file])
+
+        def filtered_pairs_worker(pairs_file, filtered_pairs_file, filtered_pairs_stats_file):
+            filter_pairs_command = ['kaic', 'filter_pairs', '--auto', '-r', '1000', '-l', '-d', '2']
             if args.tmp:
                 filter_pairs_command.append('-tmp')
             filter_pairs_command.append('-s')
-            p1 = subprocess.call(filter_pairs_command + [pairs_statistics_file, pairs_file, filtered_pairs_file])
+
+            p1 = subprocess.call(filter_pairs_command + [filtered_pairs_stats_file, pairs_file,
+                                                         filtered_pairs_file])
+            if p1 != 0:
+                logging.error("Filtering failed for some reason, trying again with fixed thresholds...")
+                filter_pairs_command = ['kaic', 'filter_pairs', '-i', '10000',
+                                        '-o', '10000', '-r', '5000', '-l', '-d', '2']
+                if args.tmp:
+                    filter_pairs_command.append('-tmp')
+                filter_pairs_command.append('-s')
+                p1 = subprocess.call(filter_pairs_command + [filtered_pairs_stats_file, pairs_file,
+                                                             filtered_pairs_file])
+            return p1
+
+        pairs_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'pairs':
+                continue
+            pairs_files.append(i)
+
+        if len(pairs_files) > 0:
+            tp = ThreadPool(threads)
+
+            filtered_pairs_files = []
+            for ix in pairs_files:
+                filtered_pairs_file = output_folder + 'pairs/filtered/' + basename + '_filtered.pairs'
+                filtered_pairs_stats_file = output_folder + 'plots/stats/' + basename + '.pairs.stats.pdf'
+                ligation_error_file = output_folder + 'plots/stats/' + basename + '.pairs.ligation_error.pdf'
+                re_dist_file = output_folder + 'plots/stats/' + basename + '.pairs.re_dist.pdf'
+
+                tp.apply_async(pairs_ligation_error_worker, (file_names[ix], ligation_error_file))
+                tp.apply_async(pairs_re_dist_worker, (file_names[ix], re_dist_file))
+                tp.apply_async(filtered_pairs_worker, (file_names[ix], filtered_pairs_file, filtered_pairs_stats_file))
+
+                filtered_pairs_files.append(filtered_pairs_file)
+            tp.close()
+            tp.join()
+
+            for ix, i in enumerate(pairs_files):
+                file_names[i] = filtered_pairs_files[ix]
+
+        # 8. Pairs to Hic
+        def hic_worker(pairs_file, hic_file):
+            hic_command = ['kaic', 'pairs_to_hic']
+            if args.tmp:
+                hic_command.append('-tmp')
+
+            return subprocess.call(hic_command + [pairs_file, hic_file])
+
+        pairs_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'pairs':
+                continue
+            pairs_files.append(i)
+
+        if len(pairs_files) > 0:
+            tp = ThreadPool(threads)
+
+            hic_files = []
+            for ix in pairs_files:
+                hic_file = output_folder + 'hic/' + basename + '.hic'
+
+                tp.apply_async(hic_worker, (file_names[ix], hic_file))
+
+                hic_files.append(hic_file)
+            tp.close()
+            tp.join()
+
+            for ix, i in enumerate(pairs_files):
+                file_names[i] = hic_files[ix]
+                file_types[i] = 'hic'
+
+        # 9. Merge Hic
+        hic_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'hic':
+                continue
+            hic_files.append(i)
+
+        if len(hic_files) > 1:
+            output_hic = output_folder + 'hic/' + basename + '_merged.hic'
+            logging.info("Merging Hi-C files...")
+            merge_hic_command = ['kaic', 'merge_hic']
+            if args.tmp:
+                merge_hic_command.append('-tmp')
+
+            hics = [file_names[i] for i in hic_files]
+            p = subprocess.call(merge_hic_command + hics + [output_hic])
+
+            file_names[hic_files[0]] = output_hic
+            hic_files.pop(0)
+            for ix, i in enumerate(reversed(hic_files)):
+                del file_names[i]
+                del file_types[i]
+
+        # 10. Bin Hic
+        def bin_hic_worker(hic_file, binned_hic_file, bin_size):
+            logging.info("Binning at %d" % bin_size)
+            bin_hic_command = ['kaic', 'bin_hic']
+            if args.tmp:
+                bin_hic_command.append('-tmp')
+
+            ret = subprocess.call(bin_hic_command + [hic_file, binned_hic_file, str(bin_size)])
+
+            return ret
+
+        hic_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'hic':
+                continue
+            hic_files.append(i)
+
+        if len(hic_files) > 0:
+            tp = ThreadPool(threads)
+
+            binned_hic_files = []
+            for ix in hic_files:
+                binned_hic_file_base = output_folder + 'hic/binned/' + basename + '_'
+
+                for bin_size, bin_size_str in [(5000000, '5mb'), (2000000, '2mb'), (1000000, '1mb'),
+                                               (500000, '500kb'), (250000, '250kb'), (100000, '100kb'),
+                                               (50000, '50kb'), (25000, '25kb'), (10000, '10kb'), (5000, '5kb')]:
+
+                    binned_hic_file = binned_hic_file_base + bin_size_str + '.hic'
+
+                    tp.apply_async(bin_hic_worker, (file_names[ix],
+                                                    binned_hic_file,
+                                                    bin_size))
+
+                    binned_hic_files.append(binned_hic_file)
+            tp.close()
+            tp.join()
+
+            for ix, i in enumerate(reversed(hic_files)):
+                del file_names[i]
+                del file_types[i]
+
+            for binned_hic_file in binned_hic_files:
+                file_names.append(binned_hic_file)
+                file_types.append('hic')
 
 
+        # 11. Correct Hic
+        def correct_hic_worker(hic_file, corrected_hic_file, per_chromosome=False):
+            logging.info("Correcting Hic...")
+            correct_hic_command = ['kaic', 'correct_hic']
+            if args.tmp:
+                correct_hic_command.append('-tmp')
+            if per_chromosome:
+                correct_hic_command.append('-c')
 
+            return subprocess.call(correct_hic_command + [hic_file, corrected_hic_file])
+
+        hic_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'hic':
+                continue
+            hic_files.append(i)
+
+        if len(hic_files) > 0:
+            tp = ThreadPool(threads)
+
+            corrected_hic_files = []
+            for ix in hic_files:
+                hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
+                corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected_pc.hic'
+                tp.apply_async(correct_hic_worker, (file_names[ix], corrected_hic_file, True))
+
+                corrected_hic_files.append(corrected_hic_file)
+
+            import kaic
+            for ix in hic_files:
+                hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
+                corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected.hic'
+
+                hic = kaic.Hic(file_names[ix], mode='r')
+                n_regions = len(hic.regions)
+                hic.close()
+
+                if n_regions <= 50000:
+                    tp.apply_async(correct_hic_worker, (file_names[ix], corrected_hic_file))
+                    corrected_hic_files.append(corrected_hic_file)
+
+            tp.close()
+            tp.join()
 
     ##########################################################################
     #
