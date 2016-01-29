@@ -2192,7 +2192,7 @@ class Kaic(object):
                         r = GenomicRegion(r1.chromosome, r1.start, r2.end)
                     else:
                         r = arch.regions[m]
-                    f.write("{chrm}\t{source}\t{feature}\t{start}\t{end}\t{score}\t.\t{attrs}\n".format(
+                    f.write("{chrm}\t{source}\t{feature}\t{start}\t{end}\t{score}\t.\t.\t{attrs}\n".format(
                         chrm=r.chromosome, source="kaic", feature="{}_border_region".format(metric),
                         start=r.start, end=r.end, score=heights[i], attrs="")
                     )
