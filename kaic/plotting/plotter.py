@@ -14,7 +14,7 @@ import pybedtools as pbt
 import itertools as it
 import tables
 import re
-import tracks
+import track
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -78,7 +78,7 @@ class NewGenomicTrack(object):
         """
         self.file_name = file_name
         self.title = title
-        self.track = tracks.load(file_name)
+        self.track = track.load(file_name)
 
     def __getitem__(self, key):
         if isinstance(key, int) or isinstance(key, slice):
@@ -168,7 +168,7 @@ class GenomicTrack(RegionsTable):
 
     def __getitem__(self, key):
         if key in self._tracks:
-            return self._tracks[key][:]
+            return getattr(self._tracks, key)[:]
         if isinstance(key, int) or isinstance(key, slice):
             return {t.name: t[key] for t in self._tracks}
         if isinstance(key, basestring):
