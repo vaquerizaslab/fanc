@@ -326,11 +326,10 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
                 step_size = min(step_size, abs(steps[0]-steps[i]))
             min_read_length = min(steps)
 
+    trimmed_file = work_dir + '/trimmed.fastq'
     perfect_alignments = {}
     improvable_alignments = {}
     for i, size in enumerate(steps):
-        trimmed_file = work_dir + '/trimmed.fastq'
-
         fastq_counter = 0
         with reader(file_name, 'r') as fastq:
             with open(trimmed_file, 'w') as trimmed:
@@ -369,6 +368,9 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
                     improvable_alignments[name] = fields_array
 
         logging.debug("Resubmitting %d improvable alignments" % len(improvable_alignments))
+
+    # clean
+    os.unlink(trimmed_file)
 
     # merge alignments into one
     perfect_alignments.update(improvable_alignments)
@@ -500,21 +502,24 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                 input_queue.put((batch_count, working_file.name, mapper, min_size,
                                  max_length, step_size, work_dir))
 
+        if copy:
+            os.unlink(working_input_file)
+
         logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
-        output_files = []
-        while len(output_files) < batch_count+1:
-            output_files.append(output_queue.get(True))
-
         # merge files
+        output_count = 0
         logging.info("Merging output files...")
         with open(working_output_file, 'w') as o:
-            for i, partial_output_file in enumerate(output_files):
+            while output_count < batch_count+1:
+                partial_output_file = output_queue.get(True)
                 with open(partial_output_file, 'r') as p:
                     for line in p:
-                        if line.startswith("@") and i > 0:
+                        if line.startswith("@") and output_count > 0:
                             continue
                         o.write(line)
+                output_count += 1
+                os.unlink(partial_output_file)
 
         if os.path.splitext(output_file)[1] == '.bam':
             logging.info("Converting to BAM...")
