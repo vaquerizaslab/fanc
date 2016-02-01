@@ -438,6 +438,9 @@ class Kaic(object):
 
         print reads_file_pairs
 
+        # get reads file pair basenames
+        pair_basenames = [i for i in xrange(len(reads_file_pairs))]
+
         if len(reads_file_pairs) > 0:
             tp = ThreadPool(threads)
             genome = args.genome
@@ -445,7 +448,10 @@ class Kaic(object):
 
             pairs_files = []
             for i, j in reads_file_pairs:
-                pairs_file = output_folder + 'pairs/' + basename + '.pairs'
+                if len(reads_file_pairs) > 1:
+                    pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
+                else:
+                    pairs_file = output_folder + 'pairs/' + basename + '.pairs'
                 tp.apply_async(pairs_worker, (pairs_file, file_names[i], file_names[j], genome, restriction_enzyme))
                 pairs_files.append(pairs_file)
             tp.close()
@@ -496,10 +502,11 @@ class Kaic(object):
 
             filtered_pairs_files = []
             for ix in pairs_files:
-                filtered_pairs_file = output_folder + 'pairs/filtered/' + basename + '_filtered.pairs'
-                filtered_pairs_stats_file = output_folder + 'plots/stats/' + basename + '.pairs.stats.pdf'
-                ligation_error_file = output_folder + 'plots/stats/' + basename + '.pairs.ligation_error.pdf'
-                re_dist_file = output_folder + 'plots/stats/' + basename + '.pairs.re_dist.pdf'
+                pair_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
+                filtered_pairs_file = output_folder + 'pairs/filtered/' + pair_basename + '_filtered.pairs'
+                filtered_pairs_stats_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.stats.pdf'
+                ligation_error_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.ligation_error.pdf'
+                re_dist_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.re_dist.pdf'
 
                 tp.apply_async(pairs_ligation_error_worker, (file_names[ix], ligation_error_file))
                 tp.apply_async(pairs_re_dist_worker, (file_names[ix], re_dist_file))
@@ -531,7 +538,10 @@ class Kaic(object):
 
             hic_files = []
             for ix in pairs_files:
-                hic_file = output_folder + 'hic/' + basename + '.hic'
+                hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
+                if hic_basename.endswith('_filtered'):
+                    hic_basename = hic_basename[:-9]
+                hic_file = output_folder + 'hic/' + hic_basename + '.hic'
 
                 tp.apply_async(hic_worker, (file_names[ix], hic_file))
 
@@ -611,7 +621,6 @@ class Kaic(object):
             for binned_hic_file in binned_hic_files:
                 file_names.append(binned_hic_file)
                 file_types.append('hic')
-
 
         # 11. Correct Hic
         def correct_hic_worker(hic_file, corrected_hic_file, per_chromosome=False):
