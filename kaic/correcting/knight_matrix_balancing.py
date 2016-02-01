@@ -3,7 +3,6 @@ import warnings
 import numpy as np
 from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
 from kaic.data.genomic import Hic
-import itertools as it
 
 def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
     hic_new = None
@@ -103,7 +102,7 @@ def correct_matrix(m, max_attempts=50):
 
     logging.debug(removed_rows)
     logging.info("Restoring {} sets ({} total) sparse rows.".format(
-        len(removed_rows), sum(1 for i in it.chain(removed_rows))))
+        len(removed_rows), sum(len(x) for x in removed_rows)))
     # restore zero rows
     m_nonzero = restore_sparse_rows(m_nonzero, removed_rows)
     x = restore_sparse_rows(x, removed_rows)
