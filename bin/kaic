@@ -439,7 +439,7 @@ class Kaic(object):
         print reads_file_pairs
 
         # get reads file pair basenames
-        pair_basenames = [i for i in xrange(len(reads_file_pairs))]
+        pair_basenames = [basename + '_' + str(i) for i in xrange(len(reads_file_pairs))]
 
         if len(reads_file_pairs) > 0:
             tp = ThreadPool(threads)
