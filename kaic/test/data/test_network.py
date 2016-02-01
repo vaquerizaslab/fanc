@@ -319,9 +319,8 @@ class TestRaoPeakCaller:
 
         peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=2, e_ll_cutoff=None,
                                     e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
-        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peaks,
-                                          observed_chunk_distribution, lambda_chunks, w=2, p=0,
-                                          regions_dict=self.regions_dict)
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, mappable, peaks,
+                                          observed_chunk_distribution, lambda_chunks, w=2, p=0)
 
         assert len(peaks) == 5+4+3+2+1
 
@@ -368,18 +367,16 @@ class TestRaoPeakCaller:
                                     e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
-        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peaks2,
-                                          observed_chunk_distribution, lambda_chunks, w=2, p=0,
-                                          regions_dict=self.regions_dict)
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, mappable, peaks2,
+                                          observed_chunk_distribution, lambda_chunks, w=2, p=0)
         cmp_batches(peaks, peaks2)
 
         peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=100, e_ll_cutoff=None,
                                     e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
         lambda_chunks = RaoPeakCaller._lambda_chunks(36)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
-        peak_caller._find_peaks_in_matrix(self.m, 1, c, False, mappable, peaks3,
-                                          observed_chunk_distribution, lambda_chunks, w=2, p=0,
-                                          regions_dict=self.regions_dict)
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, mappable, peaks3,
+                                          observed_chunk_distribution, lambda_chunks, w=2, p=0)
         cmp_batches(peaks, peaks3)
 
     def test_fdr_cutoffs(self):

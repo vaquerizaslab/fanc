@@ -722,7 +722,7 @@ class RaoPeakCaller(PeakCaller):
 
         return m_sub, ij_converted
 
-    def _process_jobs(self, jobs, peaks, observed_chunk_distribution, regions_dict):
+    def _process_jobs(self, jobs, peaks, observed_chunk_distribution):
         if self.cluster:
             # if the grid does not work for some reason, this will fall back on
             # multiprocessing itself
@@ -746,12 +746,10 @@ class RaoPeakCaller(PeakCaller):
             (region_pairs, observed_list, e_ll_list,
              e_h_list, e_v_list, e_d_list, observed_chunk_distribution_part) = msgpack.loads(rv)
 
-            has_inter = False
             for ix in xrange(len(region_pairs)):
                 source = region_pairs[ix][0]
                 sink = region_pairs[ix][1]
-                if regions_dict[source].chromosome != regions_dict[sink].chromosome:
-                    has_inter = True
+
                 observed, observed_chunk = observed_list[ix]
                 e_ll, e_ll_chunk = e_ll_list[ix]
                 e_h, e_h_chunk = e_h_list[ix]
@@ -764,11 +762,53 @@ class RaoPeakCaller(PeakCaller):
                                 e_ll_chunk=e_ll_chunk, e_h_chunk=e_h_chunk, e_v_chunk=e_v_chunk, e_d_chunk=e_d_chunk)
                     peaks.add_edge(peak, flush=False)
 
-            if not has_inter:
-                for e_type in observed_chunk_distribution_part.iterkeys():
-                    for chunk_ix in xrange(len(observed_chunk_distribution_part[e_type])):
-                        for o in observed_chunk_distribution_part[e_type][chunk_ix].iterkeys():
-                            observed_chunk_distribution[e_type][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
+            for e_type in observed_chunk_distribution_part.iterkeys():
+                for chunk_ix in xrange(len(observed_chunk_distribution_part[e_type])):
+                    for o in observed_chunk_distribution_part[e_type][chunk_ix].iterkeys():
+                        observed_chunk_distribution[e_type][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
+        peaks.flush()
+
+    def _process_inter_jobs(self, jobs, peaks, inter_stats):
+        if self.cluster:
+            # if the grid does not work for some reason, this will fall back on
+            # multiprocessing itself
+            job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes)
+        else:
+            # use multiprocessing
+            for p in jobs:
+                p.start()
+
+            # Exit the completed processes
+            for p in jobs:
+                p.join()
+
+            # Get process results from the output queue
+            job_outputs = [self.mpqueue.get() for _ in jobs]
+            self.mpqueue = None
+
+        for output in job_outputs:
+            rv = output
+
+            (region_pairs, observed_list, e_ll_list,
+             e_h_list, e_v_list, e_d_list, observed_sum, inter_count) = msgpack.loads(rv)
+
+            for ix in xrange(len(region_pairs)):
+                source = region_pairs[ix][0]
+                sink = region_pairs[ix][1]
+
+                observed = observed_list[ix]
+                e_ll = e_ll_list[ix]
+                e_h = e_h_list[ix]
+                e_v = e_v_list[ix]
+                e_d = e_d_list[ix]
+
+                if (e_ll is not None and e_h is not None and
+                        e_v is not None and e_d is not None):
+                    peak = Edge(source=source, sink=sink, observed=observed, e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d)
+                    peaks.add_edge(peak, flush=False)
+
+            inter_stats['total'] += inter_count
+            inter_stats['observed'] += observed_sum
         peaks.flush()
 
     @staticmethod
@@ -841,9 +881,33 @@ class RaoPeakCaller(PeakCaller):
                                                 e_v_cutoff, e_d_cutoff, self.mpqueue))
         return job
 
-    def _find_peaks_in_matrix(self, m, e, c, inter, mappable, peak_info,
-                              observed_chunk_distribution, lambda_chunks, w, p,
-                              regions_dict):
+    def _create_inter_e_job(self, m, ij_pairs, ij_region_pairs, e=1, c=None,
+                            w=1, p=0, min_locus_dist=3,
+                            min_ll_reads=16, max_w=20, observed_cutoff=1,
+                            e_ll_cutoff=None, e_h_cutoff=None,
+                            e_v_cutoff=None, e_d_cutoff=None):
+
+        ij_pairs_compressed = msgpack.dumps(ij_pairs)
+        ij_region_pairs_compressed = msgpack.dumps(ij_region_pairs)
+
+        if self.cluster:
+            job = gridmap.Job(process_inter_matrix_range, [m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
+                              w, p, min_locus_dist, min_ll_reads,
+                              max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
+                              e_v_cutoff, e_d_cutoff])
+        else:
+            if self.mpqueue is None:
+                self.mpqueue = multiprocessing.Queue(self.n_processes)
+            # process with multiprocessing
+            job = multiprocessing.Process(target=multiprocessing_inter_matrix_range,
+                                          args=(m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
+                                                w, p, min_locus_dist, min_ll_reads,
+                                                max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
+                                                e_v_cutoff, e_d_cutoff, self.mpqueue))
+        return job
+
+    def _find_peaks_in_matrix(self, m, e, c, mappable, peak_info,
+                              observed_chunk_distribution, lambda_chunks, w, p):
 
         jobs = []
         ij_pairs = []
@@ -874,7 +938,7 @@ class RaoPeakCaller(PeakCaller):
                                              e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
                     jobs.append(job)
                     if len(jobs) >= self.n_processes:
-                        self._process_jobs(jobs, peak_info, observed_chunk_distribution, regions_dict)
+                        self._process_jobs(jobs, peak_info, observed_chunk_distribution)
                         jobs = []
                     ij_pairs = []
                     ij_region_pairs = []
@@ -892,7 +956,59 @@ class RaoPeakCaller(PeakCaller):
             jobs.append(job)
 
         if len(jobs) > 0:
-            self._process_jobs(jobs, peak_info, observed_chunk_distribution, regions_dict)
+            self._process_jobs(jobs, peak_info, observed_chunk_distribution)
+        peak_info.flush()
+
+    def _find_peaks_in_interchromosomal_matrix(self, m, e, c, mappable, peak_info, w, p, inter_stats):
+
+        jobs = []
+        ij_pairs = []
+        ij_region_pairs = []
+        for i in xrange(m.shape[0]):
+            i_region = m.row_regions[i].ix
+
+            if not mappable[i_region]:
+                continue
+
+            for j in xrange(0, m.shape[1]):
+                j_region = m.col_regions[j].ix
+
+                if not mappable[j_region]:
+                    continue
+
+                ij_pairs.append((i, j))
+                ij_region_pairs.append((i_region, j_region))
+
+                if len(ij_pairs) > self.batch_size:
+                    m_segment, updated_ij_pairs = RaoPeakCaller._submatrix_indices(m, ij_pairs, w_max=self.max_w)
+
+                    job = self._create_inter_e_job(m_segment, updated_ij_pairs,
+                                                   ij_region_pairs[:], e, c,
+                                                   w, p, self.min_locus_dist, self.min_ll_reads,
+                                                   self.max_w, observed_cutoff=self.observed_cutoff,
+                                                   e_ll_cutoff=self.e_ll_cutoff, e_h_cutoff=self.e_h_cutoff,
+                                                   e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
+                    jobs.append(job)
+                    if len(jobs) >= self.n_processes:
+                        self._process_jobs(jobs, peak_info, inter_stats)
+                        jobs = []
+                    ij_pairs = []
+                    ij_region_pairs = []
+
+        if len(ij_pairs) > 0:
+            # one last flush
+            m_segment, updated_ij_pairs = RaoPeakCaller._submatrix_indices(m, ij_pairs, w_max=self.max_w)
+
+            job = self._create_inter_e_job(m_segment, updated_ij_pairs,
+                                           ij_region_pairs[:], e, c,
+                                           w, p, self.min_locus_dist, self.min_ll_reads,
+                                           self.max_w, observed_cutoff=self.observed_cutoff,
+                                           e_ll_cutoff=self.e_ll_cutoff, e_h_cutoff=self.e_h_cutoff,
+                                           e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
+            jobs.append(job)
+
+        if len(jobs) > 0:
+            self._process_inter_jobs(jobs, peak_info, inter_stats)
         peak_info.flush()
 
     def call_peaks(self, hic, chromosomes=None, file_name=None):
@@ -938,8 +1054,7 @@ class RaoPeakCaller(PeakCaller):
         logging.info("Done.")
 
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
-
-        regions_dict = peaks.regions_dict
+        inter_stats = {'total': 0, 'observed': 0}
 
         # start processing chromosome pairs
         if chromosomes is None:
@@ -953,18 +1068,17 @@ class RaoPeakCaller(PeakCaller):
 
                 m = hic[chromosome1, chromosome2]
                 if chromosome1 == chromosome2:
-                    self._find_peaks_in_matrix(m, intra_expected, c, False, mappable, peaks,
-                                               observed_chunk_distribution, lambda_chunks, w_init, p,
-                                               regions_dict)
+                    self._find_peaks_in_matrix(m, intra_expected, c, mappable, peaks,
+                                               observed_chunk_distribution, lambda_chunks, w_init, p)
                 elif self.process_inter:
-                    self._find_peaks_in_matrix(m, inter_expected, c, True, mappable, peaks,
-                                               observed_chunk_distribution, lambda_chunks, w_init, p,
-                                               regions_dict)
+                    self._find_peaks_in_interchromosomal_matrix(m, inter_expected, c, mappable, peaks, w_init, p,
+                                                                inter_stats)
         peaks.flush()
 
         # calculate fdrs
         fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
 
+        regions_dict = peaks.regions_dict
         for peak in peaks.peaks(lazy=True, auto_update=False):
             region1 = regions_dict[peak.source]
             region2 = regions_dict[peak.sink]
@@ -974,6 +1088,8 @@ class RaoPeakCaller(PeakCaller):
                 peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
                 peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
                 peak.update()
+            else:
+                pass
         peaks.flush()
 
         # return peak_info, fdr_cutoffs, observed_chunk_distribution
@@ -1090,4 +1206,106 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
     # speed up information-passing between processes
     rv = msgpack.dumps((region_list, observed_list, e_ll_list,
                         e_h_list, e_v_list, e_d_list, observed_chunk_distribution))
+    return rv
+
+
+def multiprocessing_inter_matrix_range(m, ij_pairs, ij_region_pairs, e, c, w=1, p=0,
+                                       min_locus_dist=3, min_ll_reads=16, max_w=20,
+                                       observed_cutoff=0, e_ll_cutoff=None, e_h_cutoff=None,
+                                       e_v_cutoff=None, e_d_cutoff=None, queue=None):
+    output = process_inter_matrix_range(m, ij_pairs, ij_region_pairs, e, c, w=w, p=p,
+                                        min_locus_dist=min_locus_dist, min_ll_reads=min_ll_reads, max_w=max_w,
+                                        observed_cutoff=observed_cutoff, e_ll_cutoff=e_ll_cutoff,
+                                        e_h_cutoff=e_h_cutoff, e_v_cutoff=e_v_cutoff, e_d_cutoff=e_d_cutoff)
+    queue.put(output)
+
+
+def process_inter_matrix_range(m, ij_pairs, ij_region_pairs, e, c, w=1, p=0,
+                               min_locus_dist=3, min_ll_reads=16, max_w=20,
+                               observed_cutoff=0, e_ll_cutoff=None, e_h_cutoff=None,
+                               e_v_cutoff=None, e_d_cutoff=None):
+
+    t1 = time.time()
+    ij_pairs = msgpack.loads(ij_pairs)
+    ij_region_pairs = msgpack.loads(ij_region_pairs)
+
+    e_all = partial(RaoPeakCaller.e_all, e=e, w=w, p=p)
+
+    c_row_sub = c[m.row_regions[0].ix:m.row_regions[-1].ix+1]
+    c_col_sub = c[m.col_regions[0].ix:m.col_regions[-1].ix+1]
+    m_corr = np.zeros(m.shape)
+
+    for i in xrange(m.shape[0]):
+        for j in xrange(m.shape[1]):
+            m_corr[i, j] = m[i, j]/c_row_sub[i]/c_col_sub[j]
+
+    inter_count = 0
+    observed_sum = 0
+
+    observed_list = []
+    e_ll_list = []
+    e_h_list = []
+    e_v_list = []
+    e_d_list = []
+    region_list = []
+    for ij_pair, ij_region_pair in zip(ij_pairs, ij_region_pairs):
+        i = ij_pair[0]
+        j = ij_pair[1]
+        i_region = ij_region_pair[0]
+        j_region = ij_region_pair[1]
+        cf = c[i_region]*c[j_region]
+        observed = m[i, j]
+        observed_c = int(round(observed/cf))
+
+        # do not examine loci closer than p+3
+        if abs(i_region-j_region) <= p + min_locus_dist:
+            e_ll, e_h, e_v, e_d = None, None, None, None
+        else:
+            # check the lower-left condition
+            # assure minimum number of reads
+            w_corr = w
+            while RaoPeakCaller.ll_sum(m_corr, i, j, w=w_corr, p=p) < min_ll_reads and w_corr <= max_w:
+                w_corr += 1
+
+            if w_corr > max_w:
+                e_ll, e_h, e_v, e_d = None, None, None, None
+            else:
+                e_ll, e_h, e_v, e_d = e_all(m, i, j, w=w_corr)
+        e_ll_c = None if e_ll is None else e_ll/cf
+        e_h_c = None if e_h is None else e_h/cf
+        e_v_c = None if e_v is None else e_v/cf
+        e_d_c = None if e_d is None else e_d/cf
+
+        observed_sum += observed_c
+        inter_count += 1
+
+        # do filtering here to reduce message size
+        # check that we have enough observed reads
+        if not observed_c > observed_cutoff:
+            continue
+        # check that we have a high-enough o/e ratio for ll
+        if e_ll_cutoff is not None and e_ll_c > 0 and observed_c/e_ll_c < e_ll_cutoff:
+            continue
+        # check that we have a high-enough o/e ratio for ll
+        if e_h_cutoff is not None and e_h_c > 0 and observed_c/e_h_c < e_h_cutoff:
+            continue
+        # check that we have a high-enough o/e ratio for ll
+        if e_v_cutoff is not None and e_v_c > 0 and observed_c/e_v_c < e_v_cutoff:
+            continue
+        # check that we have a high-enough o/e ratio for ll
+        if e_d_cutoff is not None and e_d_c > 0 and observed_c/e_d_c < e_d_cutoff:
+            continue
+
+        observed_list.append(observed_c)
+        e_ll_list.append(e_ll_c)
+        e_h_list.append(e_h_c)
+        e_v_list.append(e_v_c)
+        e_d_list.append(e_d_c)
+        region_list.append((i_region, j_region))
+
+    t2 = time.time()
+
+    # speed up information-passing between processes
+    rv = msgpack.dumps((region_list, observed_list, e_ll_list, e_h_list,
+                        e_v_list, e_d_list, observed_sum, inter_count))
     return rv
