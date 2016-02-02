@@ -2494,6 +2494,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
     def __len__(self):
         return len(self._edges)
 
+
 class Hic(RegionMatrixTable):
     """
     Class for working with Hi-C data.
