@@ -6,6 +6,7 @@ import tables as t
 import pickle
 import os.path
 import msgpack
+from scipy.stats import poisson
 
 
 class TestRaoPeakCaller:
@@ -379,6 +380,79 @@ class TestRaoPeakCaller:
                                           observed_chunk_distribution, lambda_chunks, w=2, p=0)
         cmp_batches(peaks, peaks3)
 
+    def test_find_peaks_in_inter_matrix(self):
+        def e(i, j):
+            return 1
+
+        c = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+        mappable = [True, True, True, True, True, True, True]
+
+        peaks = RaoPeakInfo(regions=self.m.row_regions)
+        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=2, e_ll_cutoff=None,
+                                    e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, mappable, peaks,
+                                          None, None, w=2, p=0)
+
+        assert len(peaks) == 18
+
+        seen = set()
+        for peak in peaks.peaks():
+            print peak
+            i = peak.source
+            j = peak.sink
+
+            if (i, j) in seen:
+                continue
+
+            seen.add((i, j))
+
+            observed = self.m[i, j]
+            assert observed/(c[i]*c[j]) == peak.observed
+            e_ll, e_h, e_v, e_d = RaoPeakCaller.e_all(self.m, i, j, 1, w=2, p=0)
+            if j-i <= 1:
+                assert peak.e_ll is None
+                assert peak.e_h is None
+                assert peak.e_v is None
+                assert peak.e_d is None
+            else:
+                assert abs(peak.e_h-RaoPeakCaller.e_h(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_h-e_h/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_ll-RaoPeakCaller.e_ll(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_ll-e_ll/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_d-RaoPeakCaller.e_d(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_d-e_d/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_v-RaoPeakCaller.e_v(self.m, i, j, e, w=2, p=0)/(c[i]*c[j])) < 0.01
+                assert abs(peak.e_v-e_v/(c[i]*c[j])) < 0.01
+
+        def cmp_batches(peaks1, peaks2):
+            for peak1, peak2 in zip(peaks1, peaks2):
+                assert peak1.source == peak2.source
+                assert peak1.sink == peak2.sink
+                assert peak1.observed == peak2.observed
+                assert peak1.e_ll == peak2.e_ll
+                assert peak1.e_h == peak2.e_h
+                assert peak1.e_v == peak2.e_v
+                assert peak1.e_d == peak2.e_d
+                assert peak1.e_ll_chunk == peak2.e_ll_chunk
+                assert peak1.e_h_chunk == peak2.e_h_chunk
+                assert peak1.e_v_chunk == peak2.e_v_chunk
+                assert peak1.e_d_chunk == peak2.e_d_chunk
+
+        peaks2 = RaoPeakInfo(regions=self.m.row_regions)
+        peaks3 = RaoPeakInfo(regions=self.m.row_regions)
+
+        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=1, e_ll_cutoff=None,
+                                    e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, mappable, peaks2,
+                                          None, None, w=2, p=0)
+        cmp_batches(peaks, peaks2)
+
+        peak_caller = RaoPeakCaller(max_w=2, min_ll_reads=2, min_locus_dist=1, batch_size=100, e_ll_cutoff=None,
+                                    e_v_cutoff=None, e_d_cutoff=None, e_h_cutoff=None)
+        peak_caller._find_peaks_in_matrix(self.m, 1, c, mappable, peaks3,
+                                          None, None, w=2, p=0)
+        cmp_batches(peaks, peaks3)
+
     def test_fdr_cutoffs(self):
         lambda_chunks = RaoPeakCaller._lambda_chunks(4)
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
@@ -451,6 +525,14 @@ class TestRaoPeakCaller:
         assert len(valid_peaks) == 6
         assert has_43_57
         hic_10kb.close()
+
+    def test_merge_peaks(self):
+        directory = os.path.dirname(os.path.realpath(__file__))
+        peaks = RaoPeakInfo(directory + "/test_network/rao2014.chr11_77400000_78600000.peaks", mode='r')
+
+        merged_peaks = peaks.merged_peaks()
+        assert len(merged_peaks) < len(peaks)
+        assert len(merged_peaks) == 4
 
     def test_pickle_matrix(self):
         assert hasattr(self.m, 'row_regions')
