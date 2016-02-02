@@ -121,6 +121,9 @@ class RaoPeakInfo(RegionMatrixTable):
     def peaks(self, lazy=False, auto_update=True):
         return self.edges(lazy=lazy, auto_update=auto_update)
 
+    def peaks_sorted(self, sortby, lazy=False, auto_update=True):
+        return self.edges_sorted(sortby, lazy=lazy, auto_update=auto_update)
+
     def filter(self, peak_filter, queue=False, log_progress=False):
         """
         Filter edges in this object by using a :class:`~PeakFilter`.
@@ -420,7 +423,7 @@ class RaoPeakCaller(PeakCaller):
 
     def __init__(self, p=None, w_init=None, min_locus_dist=3, max_w=20, min_ll_reads=16,
                  observed_cutoff=1, e_ll_cutoff=1.0, e_h_cutoff=1.0, e_v_cutoff=1.0,
-                 e_d_cutoff=1.0, process_inter=False, correct_inter=True, n_processes=4,
+                 e_d_cutoff=1.0, process_inter=False, correct_inter='fdr', n_processes=4,
                  batch_size=500000, cluster=_has_gridmap):
         """
         Initialize the peak caller with parameters.
@@ -1050,16 +1053,48 @@ class RaoPeakCaller(PeakCaller):
                 peak.update()
             else:
                 # Bonferroni correction
-                if self.correct_inter:
+                if self.correct_inter == 'bonferroni':
                     peak.fdr_ll *= inter_possible
                     peak.fdr_h *= inter_possible
                     peak.fdr_v *= inter_possible
                     peak.fdr_d *= inter_possible
                     peak.update()
-
         peaks.flush()
 
-        # return peak_info, fdr_cutoffs, observed_chunk_distribution
+        if self.process_inter and self.correct_inter == 'fdr':
+            # fdr_ll
+            for i, peak in enumerate(peaks.peaks_sorted('fdr_ll', lazy=True, auto_update=False)):
+                region1 = regions_dict[peak.source]
+                region2 = regions_dict[peak.sink]
+                if region1.chromosome != region2.chromosome:
+                    peak.fdr_ll *= inter_possible/(i+1)
+                    peak.update()
+            peaks.flush()
+            # fdr_h
+            for i, peak in enumerate(peaks.peaks_sorted('fdr_h', lazy=True, auto_update=False)):
+                region1 = regions_dict[peak.source]
+                region2 = regions_dict[peak.sink]
+                if region1.chromosome != region2.chromosome:
+                    peak.fdr_h *= inter_possible/(i+1)
+                    peak.update()
+            peaks.flush()
+            # fdr_v
+            for i, peak in enumerate(peaks.peaks_sorted('fdr_v', lazy=True, auto_update=False)):
+                region1 = regions_dict[peak.source]
+                region2 = regions_dict[peak.sink]
+                if region1.chromosome != region2.chromosome:
+                    peak.fdr_v *= inter_possible/(i+1)
+                    peak.update()
+            peaks.flush()
+            # fdr_d
+            for i, peak in enumerate(peaks.peaks_sorted('fdr_d', lazy=True, auto_update=False)):
+                region1 = regions_dict[peak.source]
+                region2 = regions_dict[peak.sink]
+                if region1.chromosome != region2.chromosome:
+                    peak.fdr_d *= inter_possible/(i+1)
+                    peak.update()
+            peaks.flush()
+
         return peaks
 
 
