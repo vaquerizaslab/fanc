@@ -2978,12 +2978,18 @@ class Hic(RegionMatrixTable):
             _mappable = self.mappable_regions()
 
         # calculate possible combinations
-        total_mappable = sum(n for n in _mappable.itervalues())
         intra_possible = 0
         inter_possible = 0
-        for chromosome, n in _mappable.iteritems():
-            intra_possible += n**2/2 + n/2
-            inter_possible += (total_mappable - n) * n
+        chromosomes = _mappable.keys()
+        for i in xrange(len(chromosomes)):
+            chromosome1 = chromosomes[i]
+            n1 = _mappable[chromosome1]
+            intra_possible += n1**2/2 + n1/2
+            for j in xrange(i+1, len(chromosomes)):
+                chromosome2 = chromosomes[j]
+                n2 = _mappable[chromosome2]
+                inter_possible += n1*n2
+
         return intra_possible, inter_possible
 
     def _get_boundary_distances(self):
