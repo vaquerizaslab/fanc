@@ -2021,15 +2021,14 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param dists: List of distances in bp.
         :param ratios: List of ratios
         """
-        def movingaverage(interval, window_size):
-            window = np.ones(int(window_size))/float(window_size)
-            return np.convolve(interval, window, 'same')
+        def x_prop(p_obs, p_exp, n):
+            obs = p_obs * n
+            exp = p_exp * n
+            p = (obs+exp) / (n*2)
+            return abs((p_exp-p_obs) / np.sqrt(p*(1-p) * (2/n)))
         ratios = np.clip(ratios, 0.0, 1.0)
-        ratios = movingaverage(ratios, max(1, len(ratios)/30))
-        sample_sizes = movingaverage(sample_sizes, max(1, len(sample_sizes)/30))
-        binom_probs = np.array([binom_test(r*b, b, expected_ratio) \
-                                for r, b in zip(ratios, sample_sizes)])
-        which_valid = binom_probs > p
+        z_scores = np.array([x_prop(r, expected_ratio, b) for r, b in zip(ratios, sample_sizes)])
+        which_valid = z_scores < 1.96
         which_valid_indices = np.argwhere(which_valid).flatten()
         if len(which_valid_indices) > 0:
             return int(dists[which_valid_indices[0]])
