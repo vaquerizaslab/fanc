@@ -2498,7 +2498,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             return False
         return True
 
-    def edges_sorted(self, sortby):
+    def edges_sorted(self, sortby, *args, **kwargs):
         # ensure sorting on qname_ix column
         column = getattr(self._edges.cols, sortby)
 
@@ -2513,7 +2513,8 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
                 raise RuntimeError("This object is not sorted by qname_ix! "
                                    "Cannot sort manually, because file is in read-only mode.")
 
-        return RegionMatrixTable.EdgeIter(self, _iter=self._edges.itersorted(sortby))
+        edge_iter = RegionMatrixTable.EdgeIter(self, _iter=self._edges.itersorted(sortby))
+        return edge_iter(*args, **kwargs)
 
     def __iter__(self):
         return self.edges
