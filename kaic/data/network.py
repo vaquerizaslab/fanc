@@ -7,11 +7,10 @@ from collections import defaultdict
 import tables as t
 from bisect import bisect_left
 from functools import partial
-from kaic.data.genomic import RegionsTable, RegionMatrixTable, Edge, LazyEdge
-from kaic.data.general import FileBased, MaskedTable, MaskFilter, Maskable
+from kaic.data.genomic import RegionMatrixTable, Edge, LazyEdge
+from kaic.data.general import MaskFilter
 import msgpack
 import time
-import math
 import multiprocessing
 import math
 
