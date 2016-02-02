@@ -912,7 +912,13 @@ class RaoPeakCaller(PeakCaller):
             if not mappable[i_region]:
                 continue
 
-            for j in xrange(i, m.shape[1]):
+            # make sure we investigate whole inter-chromosomal matrix
+            if lambda_chunks is None:
+                start_j = 0
+            else:
+                start_j = i
+
+            for j in xrange(start_j, m.shape[1]):
                 j_region = m.col_regions[j].ix
 
                 if not mappable[j_region]:
