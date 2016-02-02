@@ -34,6 +34,18 @@ class PeakCaller(object):
 
 
 class PeakInfo(RegionMatrixTable):
+    """
+    General-purpose class for recording peaks in Hic (and similar) data.
+
+    A peak has the following information:
+    source, sink: coordinates of the highest peak pixel in the Hi-C matrix
+    observed: observed value of the peak in the Hi-C matrix, generally uncorrected
+    expected: expected value of the peak at this position in the Hi-C matrix
+    p_value: a P-value that reflects how likely it is to observe a peak with
+             these properties at random
+    x, y: coordinates of the peak centroid, if it is larger than one pixel
+    radius: radius of the peak, expressed in bins (can be converted to base pairs)
+    """
     class MergedPeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
@@ -46,6 +58,17 @@ class PeakInfo(RegionMatrixTable):
 
     def __init__(self, file_name=None, mode='a', regions=None, _table_name_regions='regions',
                  _table_name_peaks='edges'):
+        """
+        Initialize a PeakInfo object.
+
+        :param file_name: If None, will create a working file in memory. If path to an
+                          existing peak info file, will load its information. If path
+                          to a non-existant file will create the file.
+        :param mode: File mode, use 'a' for append, 'r' for read, and 'w' for write
+        :param regions: Iterable with :class:`~GenomicRegion` objects to be loaded
+        :param _table_name_regions: Internal, controls name of the region PyTables table
+        :param _table_name_peaks: Internal, controls name of the peak PyTables table
+        """
 
         RegionMatrixTable.__init__(self, file_name, mode=mode, additional_fields=PeakInfo.MergedPeakInformation,
                                    _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
@@ -85,8 +108,35 @@ class PeakInfo(RegionMatrixTable):
     def peaks(self, distances_in_bp=False, lazy=False, auto_update=True):
         return self.edges(lazy=lazy, distances_in_bp=distances_in_bp, auto_update=auto_update)
 
+    def __iter__(self):
+        return self.peaks()
+
 
 class RaoPeakInfo(RegionMatrixTable):
+    """
+    Information about peaks called by :class:`~RaoPeakCaller`.
+
+    A peak has the following information:
+
+    source, sink: coordinates of the highest peak pixel in the Hi-C matrix
+    observed: observed value of the peak in the Hi-C matrix, generally uncorrected
+    e_ll: expected value of the peak given its lower-left neighborhood
+    e_h: expected value of the peak given its horizontal neighborhood
+    e_v: expected value of the peak given its vertical neighborhood
+    e_d: expected value of the peak given its surrounding (donut) neighborhood
+    e_ll_chunk: "lambda-chunk" this peak falls into given its 'll' neighborhood
+    e_h_chunk: "lambda-chunk" this peak falls into given its 'h' neighborhood
+    e_v_chunk: "lambda-chunk" this peak falls into given its 'v' neighborhood
+    e_d_chunk: "lambda-chunk" this peak falls into given its 'd' neighborhood
+    fdr_ll: FDR of the peak given its lower-left neighborhood
+    fdr_h: FDR of the peak given its horizontal neighborhood
+    fdr_v: FDR of the peak given its vertical neighborhood
+    fdr_d: FDR of the peak given its surrounding (donut) neighborhood
+
+    For more information about neighborhoods and peak infomration,
+    see :class:`~RaoPeakCaller`.
+    """
+
     class PeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
@@ -106,6 +156,17 @@ class RaoPeakInfo(RegionMatrixTable):
 
     def __init__(self, file_name=None, mode='a', regions=None, _table_name_regions='regions',
                  _table_name_peaks='edges'):
+        """
+        Initialize a RaoPeakInfo object.
+
+        :param file_name: If None, will create a working file in memory. If path to an
+                          existing peak info file, will load its information. If path
+                          to a non-existant file will create the file.
+        :param mode: File mode, use 'a' for append, 'r' for read, and 'w' for write
+        :param regions: Iterable with :class:`~GenomicRegion` objects to be loaded
+        :param _table_name_regions: Internal, controls name of the region PyTables table
+        :param _table_name_peaks: Internal, controls name of the peak PyTables table
+        """
 
         RegionMatrixTable.__init__(self, file_name, mode=mode, additional_fields=RaoPeakInfo.PeakInformation,
                                    _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
@@ -122,6 +183,9 @@ class RaoPeakInfo(RegionMatrixTable):
 
     def peaks_sorted(self, sortby, lazy=False, auto_update=True):
         return self.edges_sorted(sortby, lazy=lazy, auto_update=auto_update)
+
+    def __iter__(self):
+        return self.peaks()
 
     def filter(self, peak_filter, queue=False, log_progress=False):
         """
@@ -175,10 +239,16 @@ class RaoPeakInfo(RegionMatrixTable):
 
     @staticmethod
     def _euclidian_distance(x1, y1, x2, y2):
+        """
+        Determine the 2D euclidian distance between two points.
+        """
         return math.sqrt((x1-x2)**2+(y1-y2)**2)
 
     @staticmethod
     def _centroid_and_radius(peak_list):
+        """
+        Determine the centroid coordinates and radius of list of peaks.
+        """
         x = 0
         y = 0
         for peak in peak_list:
@@ -197,6 +267,14 @@ class RaoPeakInfo(RegionMatrixTable):
         return x, y, radius
 
     def merged_peaks(self, file_name=None, euclidian_distance=20000):
+        """
+        Merge spatially proximal peaks.
+
+        :param file_name: Optional file to save merged peak info to.
+        :param euclidian_distance: Maximal distance in base pairs to still
+                                   consider two peaks to be the same
+        :return: :class:`~PeakInfo`
+        """
         merged_peaks = PeakInfo(file_name=file_name, regions=self.regions(lazy=True))
 
         # get region index
@@ -267,11 +345,20 @@ class RaoPeakInfo(RegionMatrixTable):
 
 
 class Peak(Edge):
+    """
+    Container for a Peak/enriched contact in a Hi-C matrix.
+    """
     def __init__(self, source, sink, *args, **kwargs):
         super(Peak, self).__init__(source, sink, *args, **kwargs)
 
 
 class LazyPeak(LazyEdge):
+    """
+    Container for a Peak/enriched contact in a Hi-C matrix.
+
+    This class implements :class:`~LazyPeak`, which provides lazy
+    loading of attributes from a PyTables table row.
+    """
     def __init__(self, row, nodes_table, auto_update=True, bin_size=1):
         super(LazyPeak, self).__init__(row, nodes_table, auto_update=auto_update)
         self.reserved.append('bin_size')
@@ -294,11 +381,11 @@ class PeakFilter(MaskFilter):
 
     To create custom filters for the :class:`~RapPeakInfo` object, extend this
     class and override the valid_peak(self, peak) method.
-    valid_peak should return False for a specific :class:`~RaoPeak` object
+    valid_peak should return False for a specific :class:`~Edge` object
     if the object is supposed to be filtered/masked and True
     otherwise. See :class:`~DiagonalFilter` for an example.
 
-    Pass a custom filter to the :func:`~Hic.filter` method in :class:`~Hic`
+    Pass a custom filter to the :func:`~RaoPeakInfo.filter` method in :class:`~Hic`
     to apply it.
     """
 
@@ -345,8 +432,22 @@ class PeakFilter(MaskFilter):
 
 
 class FdrPeakFilter(PeakFilter):
+    """
+    Filter for peaks that do not pass a certain FDR cutoff.
+    """
     def __init__(self, mask=None, fdr_cutoff=None, fdr_ll_cutoff=0.1, fdr_v_cutoff=0.1,
                  fdr_h_cutoff=0.1, fdr_d_cutoff=0.1):
+        """
+        Initialize filter object.
+
+        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param fdr_cutoff: Global FDR cutoff. Is overridden by the
+                           neighborhood-specific cutoffs
+        :param fdr_ll_cutoff: FDR cutoff for the lower-left neighborhood
+        :param fdr_v_cutoff: FDR cutoff for the vertical neighborhood
+        :param fdr_h_cutoff: FDR cutoff for the horizontal neighborhood
+        :param fdr_d_cutoff: FDR cutoff for the donut neighborhood
+        """
         super(FdrPeakFilter, self).__init__(mask=mask)
         if fdr_cutoff is not None:
             fdr_ll_cutoff = fdr_cutoff
@@ -360,6 +461,11 @@ class FdrPeakFilter(PeakFilter):
         self.fdr_d_cutoff = fdr_d_cutoff
 
     def valid_peak(self, peak):
+        """
+        Evaluate whether a peak passes FDR cutoffs set in __init__
+        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :return: True if peak passes interal FDR cutoffs, False otherwise
+        """
         if peak.fdr_ll > self.fdr_ll_cutoff:
             return False
         if peak.fdr_h > self.fdr_h_cutoff:
@@ -372,7 +478,21 @@ class FdrPeakFilter(PeakFilter):
 
 
 class ObservedExpectedRatioPeakFilter(PeakFilter):
+    """
+    Filter peaks that do not have a sufficiently strong observed/expected ratio.
+    """
     def __init__(self, ll_ratio=1.0, h_ratio=1.0, v_ratio=1.0, d_ratio=1.0, mask=None):
+        """
+        Initialize filter object.
+
+        :param ll_ratio: Minimum observed/e_ll ratio
+        :param h_ratio: Minimum observed/e_h ratio
+        :param v_ratio: Minimum observed/e_v ratio
+        :param d_ratio: Minimum observed/e_d ratio
+        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :return: True if all observed/expected ratios pass the thresholds,
+                 False otherwise
+        """
         super(ObservedExpectedRatioPeakFilter, self).__init__(mask=mask)
         self.ll_ratio = ll_ratio
         self.h_ratio = h_ratio
@@ -418,6 +538,11 @@ class RaoPeakCaller(PeakCaller):
 
     The :class:`~RaoPeakCaller` is initialized with the peak
     calling parameters and run using :func:`~RaoPeakCaller.call_peaks`.
+
+    FDRs for intra-chromosomal peaks are automatically corrected for multiple
+    testing using the "lamda-chunking" methodology introduced in Rao et al. 2014.
+    FDRs for inter-chromosomal peaks are corrected by default using the Benjamini
+    Hochberg false-discovery rate correction (but 'bonferroni' is also an option)
     """
 
     def __init__(self, p=None, w_init=None, min_locus_dist=3, max_w=20, min_ll_reads=16,
@@ -425,22 +550,28 @@ class RaoPeakCaller(PeakCaller):
                  e_d_cutoff=1.0, process_inter=False, correct_inter='fdr', n_processes=4,
                  batch_size=500000, cluster=_has_gridmap):
         """
-        Initialize the peak caller with parameters.
+        Initialize RaoPeakCaller with peak calling parameters.
 
-        :param p:
-        :param w_init:
-        :param min_locus_dist:
-        :param max_w:
-        :param min_ll_reads:
-        :param observed_cutoff:
-        :param e_ll_cutoff:
-        :param e_h_cutoff:
-        :param e_v_cutoff:
-        :param e_d_cutoff:
-        :param process_inter:
-        :param n_processes:
-        :param batch_size:
-        :return:
+        :param p: (int) "padding" of pixels around invesitgated peak
+        :param w_init: initial width of the area around a pixel to investigate
+        :param min_locus_dist: Minimal distance between two loci to consider peak
+        :param max_w: Maximal width after extending investigated area around peak
+        :param min_ll_reads: Threshold for the number of reads in the lower-left
+                             neighborhood of a pixel to consider it as a peak
+        :param observed_cutoff: Minimum (uncorrected) observed contact count for
+                                a pixel to be reported
+        :param e_ll_cutoff: Only report peaks with an observed/e_ll ratio >= e_ll_cutoff
+        :param e_h_cutoff: Only report peaks with an observed/e_h ratio >= e_h_cutoff
+        :param e_v_cutoff: Only report peaks with an observed/e_v ratio >= e_v_cutoff
+        :param e_d_cutoff: Only report peaks with an observed/e_d ratio >= e_d_cutoff
+        :param process_inter: If False, ignores inter-chromosomal peaks
+        :param correct_inter: If None, does not correct inter-chromosomal peaks for
+                              multiple testing. Other options are 'fdr' for Benjamini-
+                              Hochberg correction of 'bonferroni' for Bonferroni correction
+        :param n_processes: Number of processes to use for peak calling.
+        :param batch_size: Number of pixels to investigate per batch.
+        :param cluster: If True, attempts to call peaks using an SGE cluster. If False,
+                        will use multiprocessing.
         """
         self.p = p
         self.w_init = w_init
@@ -462,7 +593,9 @@ class RaoPeakCaller(PeakCaller):
 
     @staticmethod
     def chromosome_map(hic):
-        # make a quick-lookup chromosome map
+        """
+        Make a quick-lookup chromosome map.
+        """
         chromosome_map = dict()
         for i, chromosome in enumerate(hic.chromosomes()):
             chromosome_map[chromosome] = i
@@ -474,6 +607,21 @@ class RaoPeakCaller(PeakCaller):
 
     @staticmethod
     def get_expected(hic, smooth=True, min_smoothed_reads=400, _mappable=None, _chromosomes=None):
+        """
+        Get intra- and inter-chromosomal expected contact counts.
+
+        :param hic: A :class:`~kaic.data.genomic.Hic` object
+        :param smooth: Smoothe intra-chromosomal expected counts
+        :param min_smoothed_reads: Minimum number of reads/counts per
+                                   expected value
+        :param _mappable: Output of :func:`~kaic.data.genomic.Hic.mappable_regions`
+        :param _chromosomes: Output of :func:`~RaoPeakCaller.chromosome_map`
+        :return: (np.array, float), where the first argument is a numpy
+                 array with expected intra-chromosomal counts at any given
+                 distance from the diagonal of the Hi-C matrix (loci distance)
+                 and float is the average number of inter-chromosomal reads
+                 per contact
+        """
         if _mappable is None:
             _mappable = hic.mappable_regions()
 
@@ -543,6 +691,9 @@ class RaoPeakCaller(PeakCaller):
     # sum of reads in lower-left neighborhood
     @staticmethod
     def ll_sum(m, i, j, w=1, p=0):
+        """
+        Compute the sum of pixels in the lower-left neighborhood of a pixel.
+        """
         i_max, j_max = m.shape
 
         sum1 = np.sum(m[max(0, i+1):min(i_max, i+w+1), max(0, j-w):min(j_max, j)])
@@ -553,6 +704,9 @@ class RaoPeakCaller(PeakCaller):
     # lower-left neighborhood
     @staticmethod
     def e_ll(m, i, j, e, w=1, p=0):
+        """
+        Compute the average value of pixels in the lower-left neighborhood of a pixel.
+        """
         i_max, j_max = m.shape
 
         # dividend
@@ -578,6 +732,9 @@ class RaoPeakCaller(PeakCaller):
     # horizontal neighborhood
     @staticmethod
     def e_h(m, i, j, e, w=1, p=0):
+        """
+        Compute the average value of pixels in the horizontal neighborhood of a pixel.
+        """
         i_max, j_max = m.shape
 
         # dividend
@@ -603,6 +760,9 @@ class RaoPeakCaller(PeakCaller):
     # vertical neighborhood
     @staticmethod
     def e_v(m, i, j, e, w=1, p=0):
+        """
+        Compute the average value of pixels in the vertical neighborhood of a pixel.
+        """
         i_max, j_max = m.shape
 
         # dividend
@@ -628,6 +788,9 @@ class RaoPeakCaller(PeakCaller):
     # donut neighborhood
     @staticmethod
     def e_d(m, i, j, e, w=1, p=0):
+        """
+        Compute the average value of pixels in the "donut" neighborhood of a pixel.
+        """
         i_max, j_max = m.shape
 
         top_sum1 = np.sum(m[max(0, i-w):min(i_max, i+w+1), max(0, j-w):min(j_max, j+w+1)])
@@ -673,7 +836,9 @@ class RaoPeakCaller(PeakCaller):
 
     @staticmethod
     def e_all(m, i, j, e, w=1, p=0):
-
+        """
+        Compute the average value of pixels in all neighborhoods of a pixel.
+        """
         if isinstance(e, int) or isinstance(e, float):
             def e_f(ix, jx):
                 return e
@@ -696,8 +861,9 @@ class RaoPeakCaller(PeakCaller):
 
     @staticmethod
     def _lambda_chunks(max_expected, max_chunk_function=lambda x: 2**(x/3)):
-        logging.info("Finding maximum expected values")
-
+        """
+        Compute the expected value "lambda chunks" to classify pixels.
+        """
         e_max_chunk = 1
         e_exp = 0
         chunks_max_list = []
@@ -713,37 +879,19 @@ class RaoPeakCaller(PeakCaller):
 
     @staticmethod
     def _find_chunk(chunk_list, value):
+        """
+        Use bisection to find a matching lambda chunk for a given expected value.
+        """
         if value is None:
             return None
         return bisect_left(chunk_list, value)
 
     @staticmethod
     def _submatrix_indices(m, ij_pairs, w_max=20):
-        if len(ij_pairs) == 0:
-            return None, None
-
-        # find boundaries including padding through w
-        min_i, min_j, max_i, max_j = ij_pairs[0][0]-w_max, ij_pairs[0][1]-w_max, w_max+1, w_max+1
-        for i, j in ij_pairs:
-            min_i, min_j, max_i, max_j = (min(min_i, i-w_max), min(min_j, j-w_max),
-                                          max(max_i, i+w_max+1), max(max_j, j+w_max+1))
-
-        # ensure that we don't cross matrix boundaries
-        min_i, min_j, max_i, max_j = (max(0, min_i), max(0, min_j),
-                                      min(m.shape[0], max_i), min(m.shape[1], max_j))
-
-        # extract sub-matrix
-        m_sub = m[min_i:max_i, min_j:max_j]
-
-        # convert ij_pairs
-        ij_converted = []
-        for i, j in ij_pairs:
-            ij_converted.append((i-min_i, j-min_j))
-
-        return m_sub, ij_converted
-
-    @staticmethod
-    def _submatrix_indices_inter(m, ij_pairs, w_max=20):
+        """
+        Given a matrix and a list of index pairs, return a submatrix (and matching converted indices)
+        that accommodates all pairs.
+        """
         if len(ij_pairs) == 0:
             return None, None
 
@@ -768,6 +916,9 @@ class RaoPeakCaller(PeakCaller):
         return m_sub, ij_converted
 
     def _process_jobs(self, jobs, peaks, observed_chunk_distribution):
+        """
+        Process the output from :func:`~process_matrix_range` and save in peak table.
+        """
         if self.cluster:
             # if the grid does not work for some reason, this will fall back on
             # multiprocessing itself
@@ -849,6 +1000,10 @@ class RaoPeakCaller(PeakCaller):
 
     @staticmethod
     def _get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution):
+        """
+        For all possible observed values in each lambda chunk, determine the
+        FDR cutoff that denotes the lower significance bound.
+        """
         # determine all possible observed values
 
         fdr_cutoffs = dict()
@@ -904,7 +1059,10 @@ class RaoPeakCaller(PeakCaller):
 
     def _find_peaks_in_matrix(self, m, e, c, mappable, peak_info,
                               observed_chunk_distribution, lambda_chunks, w, p):
-
+        """
+        Given a matrix (strictly inter- OR intra-chromosomal), calculate peak
+        information for all pixels.
+        """
         jobs = []
         ij_pairs = []
         ij_region_pairs = []
@@ -967,6 +1125,27 @@ class RaoPeakCaller(PeakCaller):
         peak_info.flush()
 
     def call_peaks(self, hic, chromosome_pairs=None, file_name=None):
+        """
+        Call peaks in Hi-C matrix.
+
+        This method will determine each pixel's likelihood to
+        be a "true" peak. By default, only pixels with non-zero count and
+        an observed/expected ratio > 1.0 for each neighborhood will be
+        reported, because these can by defninition not be true peaks.
+
+        The peak calling behavior can be influenced by modifying
+        the object attributes set when initializing :class:`~RaoPeakCaller`.
+
+        :param hic: A :class:`~kaic.data.genomic.Hic` object
+        :param chromosome_pairs: If None, all chromosome pairs will be
+                                 investigated for peaks. Otherwise
+                                 specify a list of chromosome name
+                                 tuples (e.g. [('chr1', 'chr1'),
+                                 ('chr1', 'chr3'), ...])
+        :param file_name: An optional filename that backs the returned
+                          :class:`~RaoPeakInfo` object
+        :return: :class:`~RaoPeakInfo` object
+        """
         peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True))
 
         # mappability
