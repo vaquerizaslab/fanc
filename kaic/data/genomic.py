@@ -1715,7 +1715,43 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
         source = t.Int32Col(pos=0)  
         sink = t.Int32Col(pos=1)  
         weight = t.Float64Col(pos=2, dflt=1.0)
-    
+
+    class EdgeIter:
+        def __init__(self, this, _iter=None):
+            self.this = this
+            if _iter is None:
+                self.iter = iter(this._edges)
+            else:
+                self.iter = iter(_iter)
+            self.row_conversion_args = list()
+            self.row_conversion_kwargs = dict()
+
+        def __getitem__(self, item):
+            res = self.this._edges[item]
+
+            if isinstance(res, np.ndarray):
+                edges = []
+                for edge in res:
+                    edges.append(self.this._row_to_edge(edge, *self.row_conversion_args, **self.row_conversion_kwargs))
+                return edges
+            else:
+                edge = self.this._row_to_edge(res, *self.row_conversion_args, **self.row_conversion_kwargs)
+                return edge
+
+        def __iter__(self):
+            return self
+
+        def __call__(self, *args, **kwargs):
+            self.row_conversion_args = args
+            self.row_conversion_kwargs = kwargs
+            return iter(self)
+
+        def next(self):
+            return self.this._row_to_edge(self.iter.next(), *self.row_conversion_args, **self.row_conversion_kwargs)
+
+        def __len__(self):
+            return len(self.this._edges)
+
     def __init__(self, file_name=None, mode='a', additional_fields=None,
                  _table_name_nodes='nodes', _table_name_edges='edges'):
         """
@@ -2453,40 +2489,31 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
                      edge is accessed.
         :return: Iterator over :class:`~Edge`
         """
-        this = self
+        return RegionMatrixTable.EdgeIter(self)
 
-        class EdgeIter:
-            def __init__(self):
-                self.iter = iter(this._edges)
-                self.row_conversion_args = list()
-                self.row_conversion_kwargs = dict()
+    def _is_sorted(self, sortby):
+        column = getattr(self._edges.cols, sortby)
+        if (column.index is None or
+                not column.index.is_csi):
+            return False
+        return True
 
-            def __getitem__(self, item):
-                res = this._edges[item]
+    def edges_sorted(self, sortby):
+        # ensure sorting on qname_ix column
+        column = getattr(self._edges.cols, sortby)
 
-                if isinstance(res, np.ndarray):
-                    edges = []
-                    for edge in res:
-                        edges.append(this._row_to_edge(edge, *self.row_conversion_args, **self.row_conversion_kwargs))
-                    return edges
-                else:
-                    edge = this._row_to_edge(res, *self.row_conversion_args, **self.row_conversion_kwargs)
-                    return edge
-                
-            def __iter__(self):
-                return self
+        if not self._is_sorted(sortby):
+            try:
+                logging.info("Sorting %s..." % sortby)
+                if not column.is_indexed:
+                    column.create_csindex()
+                elif not column.index.is_csi:
+                    column.reindex()
+            except t.exceptions.FileModeError:
+                raise RuntimeError("This object is not sorted by qname_ix! "
+                                   "Cannot sort manually, because file is in read-only mode.")
 
-            def __call__(self, *args, **kwargs):
-                self.row_conversion_args = args
-                self.row_conversion_kwargs = kwargs
-                return iter(self)
-            
-            def next(self):
-                return this._row_to_edge(self.iter.next(), *self.row_conversion_args, **self.row_conversion_kwargs)
-
-            def __len__(self):
-                return len(this._edges)
-        return EdgeIter()
+        return RegionMatrixTable.EdgeIter(self, _iter=self._edges.itersorted(sortby))
 
     def __iter__(self):
         return self.edges

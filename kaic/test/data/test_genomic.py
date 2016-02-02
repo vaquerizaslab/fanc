@@ -289,6 +289,21 @@ class TestRegionMatrixTable:
             else:
                 j += 1
 
+    def test_edges_sorted(self):
+
+        previous_weight = -1
+        for edge in self.rmt.edges_sorted('weight'):
+
+            assert edge.weight == edge.source*edge.sink
+            assert edge.weight >= previous_weight
+            previous_weight = edge.weight
+            assert edge.foo == edge.source
+            assert edge.bar == edge.sink
+            assert edge.baz == 'x' + str(edge.source*edge.sink)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
     def test_lazy_edges(self):
         j = 0
         i = 0
