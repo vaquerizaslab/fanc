@@ -794,11 +794,11 @@ class TestHicBasic:
             # add some nodes (169 to be exact)
             nodes = []
             for i in range(1,5000,1000):
-                nodes.append(HicNode(chromosome="chr1",start=i,end=i+1000-1))
+                nodes.append(Node(chromosome="chr1",start=i,end=i+1000-1))
             for i in range(1,3000,1000):
-                nodes.append(HicNode(chromosome="chr2",start=i,end=i+1000-1))
+                nodes.append(Node(chromosome="chr2",start=i,end=i+1000-1))
             for i in range(1,2000,400):
-                nodes.append(HicNode(chromosome="chr4",start=i,end=i+100-1))
+                nodes.append(Node(chromosome="chr4",start=i,end=i+100-1))
             hic.add_nodes(nodes)
             # add half as many random edges
             edges = []
@@ -808,7 +808,7 @@ class TestHicBasic:
             s_s = random.sample(p, n)
             s_s = set([(max(i), min(i)) for i in s_s])
             for i, j in s_s:
-                edges.append(HicEdge(source=i, sink=j, weight=weight))
+                edges.append(Edge(source=i, sink=j, weight=weight))
                 weight += 1
             hic.add_edges(edges)
 
