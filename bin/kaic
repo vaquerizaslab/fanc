@@ -2146,6 +2146,15 @@ class Kaic(object):
                  'Default None.'
         )
         parser.add_argument(
+            '-a', '--abs_thresh',
+            type=float,
+            nargs=2,
+            help='Report only peaks where the absolute value of the minima is lower than '
+                 'the first value provided and the absolute value of the maxima is higher '
+                 'than the second value provided.'
+                 'Default None.'
+        )
+        parser.add_argument(
             '-z', '--z_thresh',
             type=float,
             help='Report only peaks where the absolute z-score at the peak is above this threshold'
@@ -2182,7 +2191,7 @@ class Kaic(object):
             logging.info("Calling borders using {}".format(metric))
             peak_caller = PeakCallerDeriv(arch[metric], window_size=args.window_size, poly_order=args.poly_order)
             peak_caller.filter(steepness_thresh=args.steepness_thresh, height_thresh=args.height_thresh,
-                               z_score_thresh=args.z_thresh, z_score_window=args.z_window)
+                               z_score_thresh=args.z_thresh, z_score_window=args.z_window, abs_thresh=args.abs_thresh)
             minima = peak_caller.get_minima(as_range=args.as_range)
             heights = np.ma.abs(peak_caller.heights)
             with open(output_path, "a") as f:

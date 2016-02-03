@@ -198,7 +198,7 @@ class PeakCallerDeriv(object):
     def heights(self):
         return self._heights[self._peak_mask]
 
-    def filter(self, z_score_thresh=None, z_score_window=50, steepness_thresh=None, height_thresh=None):
+    def filter(self, z_score_thresh=None, z_score_window=50, steepness_thresh=None, height_thresh=None, abs_thresh=None):
         def rolling_func_nan(a, window, func=np.mean):
             out = np.empty(a.shape)
             for i in range(len(a)):
@@ -208,6 +208,10 @@ class PeakCallerDeriv(object):
                 cur_window = a[i - window:i + window + 1]
                 out[i] = func(cur_window[~np.isnan(cur_window)])
             return out
+        if abs_thresh:
+            abs_pass = np.where(self._min_mask, self.x_smooth < abs_thresh[0], self.x_smooth > abs_thresh[1])
+            self._peak_mask = np.logical_and(self._peak_mask, abs_pass)
+            log.info("Discarding {}({:.1%}) of total peaks due to absolute value threshold ({})".format(np.sum(~abs_pass), np.sum(~abs_pass)/len(self._peaks), abs_thresh))
         if z_score_thresh:
             rolling_mean = rolling_func_nan(self.x, z_score_window, func=np.mean)
             z_trans = (self.x - rolling_mean)/np.std(self.x[~np.isnan(self.x)])
