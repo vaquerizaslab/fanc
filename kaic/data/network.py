@@ -1188,7 +1188,7 @@ class RaoPeakCaller(PeakCaller):
         logging.info("Done.")
 
         logging.info("Calculating lambda-chunk boundaries...")
-        lambda_chunks = RaoPeakCaller._lambda_chunks(max_observed)
+        lambda_chunks = RaoPeakCaller._lambda_chunks(max_observed*2)
         logging.info("Done.")
 
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
@@ -1352,14 +1352,23 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
             e_d_chunk = RaoPeakCaller._find_chunk(chunks, e_d_c)
 
             # update observed distribution
-            if e_ll_chunk is not None:
-                observed_chunk_distribution['ll'][e_ll_chunk][observed_c] += 1
-            if e_h_chunk is not None:
-                observed_chunk_distribution['h'][e_h_chunk][observed_c] += 1
-            if e_v_chunk is not None:
-                observed_chunk_distribution['v'][e_v_chunk][observed_c] += 1
-            if e_d_chunk is not None:
-                observed_chunk_distribution['d'][e_d_chunk][observed_c] += 1
+            try:
+                if e_ll_chunk is not None:
+                    observed_chunk_distribution['ll'][e_ll_chunk][observed_c] += 1
+                if e_h_chunk is not None:
+                    observed_chunk_distribution['h'][e_h_chunk][observed_c] += 1
+                if e_v_chunk is not None:
+                    observed_chunk_distribution['v'][e_v_chunk][observed_c] += 1
+                if e_d_chunk is not None:
+                    observed_chunk_distribution['d'][e_d_chunk][observed_c] += 1
+            except IndexError:
+                logging.error("Chunk distribution index error")
+                logging.error("observed_c: %d" % observed_c)
+                logging.error("e_ll_chunk: %s" % str(e_ll_chunk))
+                logging.error("e_h_chunk: %s" % str(e_h_chunk))
+                logging.error("e_v_chunk: %s" % str(e_v_chunk))
+                logging.error("e_d_chunk: %s" % str(e_d_chunk))
+
         else:
             # calculate fdrs instead
             e_ll_chunk = 1-poisson(e_ll_c).cdf(observed_c)
