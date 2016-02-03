@@ -15,6 +15,7 @@ setup(
         'biopython',
         'pytest',
         'msgpack-python',
+        'gridmap',
         'tables>3.2.2'
     ],
     dependency_links=[

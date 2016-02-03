@@ -74,6 +74,8 @@ import logging
 from kaic.tools.general import ranges, distribute_integer
 from itertools import izip as zip
 from xml.etree import ElementTree as et
+import pickle
+from collections import defaultdict
 logging.basicConfig(level=logging.INFO)
 
 
@@ -517,7 +519,7 @@ class Bedpe(object):
         for label in desc:
             if label not in labels:
                 labels.append(label)
-
+        
         if query != '':
             contacts = [[x[y] for y in labels] for x in self.table.where(query)]
         else:
@@ -1060,7 +1062,10 @@ class LazyGenomicRegion(GenomicRegion):
 
     @property
     def strand(self):
-        return self.row["strand"]
+        try:
+            return self.row["strand"]
+        except KeyError:
+            return None
 
     @property
     def ix(self):
@@ -1264,6 +1269,18 @@ class GenomicRegions(object):
             chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
 
+    @property
+    def regions_dict(self):
+        regions_dict = dict()
+        for r in self.regions:
+            regions_dict[r.ix] = r
+        return regions_dict
+
+    @property
+    def bin_size(self):
+        node = self.regions[0]
+        return node.end - node.start + 1
+
 
 class RegionsTable(GenomicRegions, FileBased):
     """
@@ -1284,7 +1301,7 @@ class RegionsTable(GenomicRegions, FileBased):
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
         strand = t.Int8Col(pos=4)
-
+    
     def __init__(self, data=None, file_name=None, mode='a',
                  _table_name_regions='regions',
                  tmpdir=None):
@@ -1417,7 +1434,7 @@ class RegionsTable(GenomicRegions, FileBased):
         """
         Iterate over genomic regions in this object.
 
-        Will return a :class:`~HicNode` object in every iteration.
+        Will return a :class:`~Node` object in every iteration.
         Can also be used to get the number of regions by calling
         len() on the object returned by this method.
 
@@ -1432,7 +1449,7 @@ class RegionsTable(GenomicRegions, FileBased):
             def __init__(self):
                 self.iter = iter(this._regions)
                 self.lazy = False
-
+                
             def __iter__(self):
                 return self
             
@@ -1456,11 +1473,11 @@ class RegionsTable(GenomicRegions, FileBased):
                     return regions
                 else:
                     return RegionsTable._row_to_region(res, lazy=self.lazy)
-
+            
         return RegionIter()
 
 
-class HicNode(GenomicRegion, TableObject):
+class Node(GenomicRegion, TableObject):
     """
     Class representing a node in a :class:`~Hic` object.
 
@@ -1491,7 +1508,7 @@ class HicNode(GenomicRegion, TableObject):
     """
     def __init__(self, chromosome=None, start=None, end=None, ix=None):
         self.ix = ix
-        super(HicNode, self).__init__(chromosome=chromosome, start=start, end=end, ix=ix)
+        super(Node, self).__init__(chromosome=chromosome, start=start, end=end, ix=ix)
     
     def __repr__(self):
         if self.ix is None:
@@ -1500,12 +1517,12 @@ class HicNode(GenomicRegion, TableObject):
             return "%d: %s, %d-%d" % (self.ix, self.chromosome, self.start, self.end)
 
 
-class LazyHicNode(LazyGenomicRegion, HicNode):
+class LazyNode(LazyGenomicRegion, Node):
     def __init__(self, row, ix=None):
         LazyGenomicRegion.__init__(self, row=row, ix=ix)
 
 
-class HicEdge(TableObject):
+class Edge(TableObject):
     """
     A contact / an Edge between two genomic regions.
 
@@ -1523,17 +1540,30 @@ class HicEdge(TableObject):
         The weight or contact strength of the edge. Can, for
         example, be the number of reads mapping to a contact.
     """
-    def __init__(self, source, sink, weight=1):
+    def __init__(self, source, sink, *args, **kwargs):
         """
         :param source: The index of the "source" genomic region
-                       or :class:`~HicNode` object.
+                       or :class:`~Node` object.
         :param sink: The index of the "sink" genomic region
-                     or :class:`~HicNode` object.
-        :param weight: The weight or contact strength of the edge.
+                     or :class:`~Node` object.
+        :param data: The weight or of the edge or a dictionary with
+                     other fields
         """
         self._source = source
         self._sink = sink
-        self.weight = weight
+        self.weight = 1.
+        self.field_names = []
+
+        if len(args) > 1:
+            raise ValueError("Can only have a single element in args.")
+
+        if len(args) == 1:
+            self.weight = float(args[0])
+            self.field_names.append('weight')
+
+        for key, value in kwargs.iteritems():
+            setattr(self, key, value)
+            self.field_names.append(key)
 
     @property
     def source(self):
@@ -1560,23 +1590,48 @@ class HicEdge(TableObject):
         raise RuntimeError("Sink not not provided during object initialization!")
 
     def __repr__(self):
-        return "%d--%d (%.2f)" % (self.source, self.sink, self.weight)
+        base_info = "%d--%d" % (self.source, self.sink)
+        for field in self.field_names:
+            base_info += "\n\t%s: %s" % (field, str(getattr(self, field)))
+        return base_info
     
     @classmethod
     def from_row(cls, row):
         return cls(source=row['source'], sink=row['sink'], weight=row['weight'])
 
 
-class LazyHicEdge(HicEdge):
-    def __init__(self, row, nodes_table):
+class LazyEdge(Edge):
+    def __init__(self, row, nodes_table=None, auto_update=True):
+        self.reserved = {'_row', '_nodes_table', 'auto_update', '_source_node', '_sink_node'}
         self._row = row
         self._nodes_table = nodes_table
+        self.auto_update = auto_update
         self._source_node = None
         self._sink_node = None
 
-    @property
-    def weight(self):
-        return self._row['weight']
+    def _set_item(self, item, value):
+        self._row[item] = value
+        if self.auto_update:
+            self.update()
+
+    def __getattr__(self, item):
+        if item == 'reserved' or item in self.reserved:
+            return object.__getattribute__(self, item)
+        try:
+            return self._row[item]
+        except KeyError:
+            raise AttributeError
+
+    def __setattr__(self, key, value):
+        if key == 'reserved' or key in self.reserved:
+            super(LazyEdge, self).__setattr__(key, value)
+        else:
+            self._row[key] = value
+            if self.auto_update:
+                self.update()
+
+    def update(self):
+        self._row.update()
 
     @property
     def source(self):
@@ -1588,24 +1643,34 @@ class LazyHicEdge(HicEdge):
 
     @property
     def source_node(self):
+        if self._nodes_table is None:
+            raise RuntimeError("Must set the _nodes_table attribute before calling this method!")
+
         if self._source_node is None:
             source_row = self._nodes_table[self.source]
-            return LazyHicNode(source_row)
+            return LazyNode(source_row)
         return self._source_node
 
     @property
     def sink_node(self):
+        if self._nodes_table is None:
+            raise RuntimeError("Must set the _nodes_table attribute before calling this method!")
+
         if self._sink_node is None:
             sink_row = self._nodes_table[self.sink]
-            return LazyHicNode(sink_row)
+            return LazyNode(sink_row)
         return self._sink_node
 
+    def __repr__(self):
+        base_info = "%d--%d" % (self.source, self.sink)
+        return base_info
 
-class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
+
+class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
     """
-    Class for working with Hi-C data.
+    Class for working with matrix-based data.
 
-    Generally, a Hi-C object has two components:
+    Generally, a RegionMatrix object has two components:
 
     - Nodes or regions: (Non-overlapping) genomic regions
       obtained by splitting the genome into distinct pieces.
@@ -1613,20 +1678,856 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
     - Edges or contacts: Pairs of genomic regions with optionally
       associated weight or contact strength. See also
-      :class:`~HicEdge`
+      :class:`~Edge`
 
-    This is a memory-efficient implementation of a Hi-C data
+    This is a memory-efficient implementation of a matrix data
     container. Internally, this is achieved by saving entries
-    of the Hi-C matrix in sparse notation, i.e. in a list of
+    of the matrix in sparse notation, i.e. in a list of
     non-zero contacts.
 
     Its bracket-notation access behaves like a numpy
     array and handles data retrieval and assignment in matrix-
-    fashion, e.g. hic[1:3] would return rows 1 and 2 of
-    the Hi-C matrix (0-based index). However, the bracket
-    notation can also handle :class:`~GenomicRegion` descriptior
-    strings, i.e. hic['chr1','chr5'] will extract the inter-
+    fashion, e.g. m[1:3] would return rows 1 and 2 of
+    the matrix m (0-based index). However, the bracket
+    notation can also handle :class:`~GenomicRegion` descriptor
+    strings, i.e. m['chr1','chr5'] will extract the inter-
     chromosomal matrix between chromosomes 1 and 5 only.
+
+    Examples:
+
+    .. code:: python
+
+        m = RegionMatrix(file_name="/path/to/save/file")
+
+        # load genomic regions
+        genome = Genome.from_folder("/path/to/fasta/folder")
+        regions = genome.get_regions("HindIII")
+        m.add_regions(regions)
+
+        # load edges
+        edges = []
+        edges.append(Edge(source=10, sink=23, weight=3)
+        edges.append(Edge(source=8, sink=9, weight=57)
+        # ...
+        m.add_edges(edges)
+    """
+
+    class EntryDescription(t.IsDescription):
+        source = t.Int32Col(pos=0)  
+        sink = t.Int32Col(pos=1)  
+        weight = t.Float64Col(pos=2, dflt=1.0)
+
+    class EdgeIter:
+        def __init__(self, this, _iter=None):
+            self.this = this
+            if _iter is None:
+                self.iter = iter(this._edges)
+            else:
+                self.iter = iter(_iter)
+            self.row_conversion_args = list()
+            self.row_conversion_kwargs = dict()
+
+        def __getitem__(self, item):
+            res = self.this._edges[item]
+
+            if isinstance(res, np.ndarray):
+                edges = []
+                for edge in res:
+                    edges.append(self.this._row_to_edge(edge, *self.row_conversion_args, **self.row_conversion_kwargs))
+                return edges
+            else:
+                edge = self.this._row_to_edge(res, *self.row_conversion_args, **self.row_conversion_kwargs)
+                return edge
+
+        def __iter__(self):
+            return self
+
+        def __call__(self, *args, **kwargs):
+            self.row_conversion_args = args
+            self.row_conversion_kwargs = kwargs
+            return iter(self)
+
+        def next(self):
+            return self.this._row_to_edge(self.iter.next(), *self.row_conversion_args, **self.row_conversion_kwargs)
+
+        def __len__(self):
+            return len(self.this._edges)
+    
+    def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
+                 _table_name_nodes='nodes', _table_name_edges='edges'):
+
+        """
+        Initialize a :class:`~RegionMatrixTable` object.
+
+        :param file_name: Path to a save file
+        :param mode: File mode to open underlying file
+        :param _table_name_nodes: (Internal) name of the HDF5 node for regions
+        :param _table_name_edges: (Internal) name of the HDF5 node for edges
+        """
+        
+        # private variables
+        self._max_node_ix = -1
+
+        if file_name is not None:
+            file_name = os.path.expanduser(file_name)
+
+        # initialize inherited objects
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
+        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
+        Maskable.__init__(self, self.file)
+        MetaContainer.__init__(self, self.file)
+
+        # create edge table
+        if _table_name_edges in self.file.root:
+            self._edges = self.file.get_node('/', _table_name_edges)
+        else:
+            basic_fields = RegionMatrixTable.EntryDescription().columns.copy()
+            if additional_fields is not None:
+                if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
+                    # IsDescription subclass case
+                    additional_fields = additional_fields.columns
+
+                current = len(basic_fields)
+                for key, value in sorted(additional_fields.iteritems(), key=lambda x: x[1]._v_pos):
+                    if key not in basic_fields:
+                        if value._v_pos is not None:
+                            value._v_pos = current
+                            current += 1
+                        basic_fields[key] = value
+
+            self._edges = MaskedTable(self.file.root, _table_name_edges, basic_fields)
+        self._edges.flush()
+
+        # index edge table
+        try:
+            self._edges.cols.source.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+        try:
+            self._edges.cols.sink.create_index()
+        except ValueError:
+            # Index exists, no problem!
+            pass
+
+        # update field names
+        self._source_field_ix = 0
+        self._sink_field_ix = 0
+        self.field_names = []
+        for i, name in enumerate(self._edges.colnames):
+            if not name.startswith("_"):
+                self.field_names.append(name)
+            if name == 'source':
+                self._source_field_ix = i
+            if name == 'sink':
+                self._sink_field_ix = i
+
+    def add_node(self, node, flush=True):
+        """
+        Add a :class:`~Node` or :class:`~GenomicRegion`.
+
+        :param node: :class:`~Node` or :class:`~GenomicRegion`,
+                     see :func:`~RegionsTable.add_region` for details
+        :param flush: Write data to file immediately after import.
+        """
+        return self.add_region(node, flush)        
+    
+    def add_edge(self, edge, check_nodes_exist=True, flush=True, replace=False, row=None):
+        """
+        Add an edge to this object.
+
+        :param edge: :class:`~Edge`, dict with at least the
+                     attributes source and sink, optionally weight,
+                     or a list of length 2 (source, sink) or 3
+                     (source, sink, weight).
+        :param check_nodes_exist: Make sure that there are nodes
+                                  that match source and sink indexes
+        :param flush: Write data to file immediately after import
+        """
+        source = None
+        sink = None
+
+        # object
+        is_object = True
+        try:
+            source = edge.source
+            sink = edge.sink
+        except AttributeError:
+            is_object = False
+
+        # dictionary
+        is_dict = False
+        if not is_object:
+            is_dict = True
+            try:
+                source = edge['source']
+                sink = edge['sink']
+            except TypeError:
+                is_dict = False
+
+        # list
+        is_list = False
+        if not is_object and not is_dict:
+            is_list = True
+            try:
+                source = edge[self._source_field_ix]
+                sink = edge[self._sink_field_ix]
+            except TypeError:
+                is_list = False
+
+        if source is None and sink is None:
+            raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+
+        if check_nodes_exist:
+            n_regions = len(self._regions)
+            if source >= n_regions or sink >= n_regions:
+                raise ValueError("Node index exceeds number of nodes in object")
+
+        if is_object:
+            self._edge_from_object(edge, row=row, replace=replace)
+        elif is_dict:
+            self._edge_from_dict(edge, row=row, replace=replace)
+        elif is_list:
+            self._edge_from_list(edge, row=row, replace=replace)
+        else:
+            raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+
+        if flush:
+            self.flush()
+
+    def _edge_from_object(self, edge, row=None, replace=False):
+        source, sink = edge.source, edge.sink
+        if source > sink:
+            source, sink = sink, source
+
+        update = True
+        if row is None:
+            update = False
+            row = self._edges.row
+        row['source'] = source
+        row['sink'] = sink
+        for name in self.field_names:
+            if not name == 'source' and not name == 'sink':
+                try:
+                    value = getattr(edge, name)
+                    if replace or not update:
+                        row[name] = value
+                    else:
+                        row[name] += value
+                except AttributeError:
+                    pass
+        if update:
+            row.update()
+        else:
+            row.append()
+
+    def _edge_from_dict(self, edge, row=None, replace=False):
+        source, sink = edge['source'], edge['sink']
+        if source > sink:
+            source, sink = sink, source
+
+        update = True
+        if row is None:
+            update = False
+            row = self._edges.row
+        row['source'] = source
+        row['sink'] = sink
+        for name, value in edge.iteritems():
+            if not name == 'source' and not name == 'sink':
+                try:
+                    if replace or not update:
+                        row[name] = value
+                    else:
+                        row[name] += value
+                except AttributeError:
+                    pass
+        if update:
+            row.update()
+        else:
+            row.append()
+
+    def _edge_from_list(self, edge, row=None, replace=False):
+        source, sink = edge[self._source_field_ix], edge[self._sink_field_ix]
+        if source > sink:
+            source, sink = sink, source
+
+        update = True
+        if row is None:
+            update = False
+            row = self._edges.row
+        row['source'] = source
+        row['sink'] = sink
+
+        for i, name in enumerate(self.field_names):
+            if not name == 'source' and not name == 'sink':
+                try:
+                    if replace or not update:
+                        row[name] = edge[i]
+                    else:
+                        row[name] += edge[i]
+                except IndexError:
+                    break
+
+        if update:
+            row.update()
+        else:
+            row.append()
+    
+    def add_nodes(self, nodes):
+        """
+        Bulk-add nodes from a list.
+
+        :param nodes: List (or iterator) of nodes. See
+                      :func:`~RegionMatrixTable.add_node`
+                      for details.
+        """
+        self.add_regions(nodes)
+    
+    def add_edges(self, edges):
+        """
+        Bulk-add edges from a list.
+
+        :param edges: List (or iterator) of edges. See
+                      :func:`~RegionMatrixTable.add_edge`
+                      for details
+        """
+        for edge in edges:
+            self.add_edge(edge, flush=False)
+        self.flush(flush_nodes=False)
+
+    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
+                           clean_zero=True, default_column='weight'):
+
+        # update current rows
+        for row in self._edges:
+            key = (row["source"], row["sink"])
+
+            if key in e_buffer:
+                value = e_buffer[key]
+                # it is a weight
+                try:
+                    if replace:
+                        row[default_column] = float(value)
+                    else:
+                        row[default_column] += float(value)
+                    row.update()
+                except TypeError:
+                    self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
+                del e_buffer[key]
+        self._edges.flush()
+
+        # flush remaining buffer
+        for source, sink in e_buffer:
+            key = (source, sink)
+            value = e_buffer[key]
+            try:
+                v = float(value)
+                if v == 0:
+                    continue
+                self._edge_from_dict({'source': source, 'sink': sink, default_column: v})
+            except TypeError:
+                self.add_edge(value, check_nodes_exist=False, flush=False)
+
+        self._edges.flush()
+        if clean_zero:
+            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
+
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+        """
+        Write data to file and flush buffers.
+
+        :param flush_nodes: Flush nodes tables
+        :param flush_edges: Flush edges table
+        :param update_index: Update mask indices in edges table
+        """
+        if flush_nodes:
+            self._regions.flush()
+
+        if flush_edges:
+            self._edges.flush(update_index=update_index)
+
+    def __getitem__(self, key):
+        return self.as_matrix(key)
+
+    def as_matrix(self, key=slice(0, None, None), values_from='weight'):
+        """
+        Get a chunk of the matrix.
+
+        :param key: Possible key types are:
+
+                    Region types
+
+                    - Node: Only the ix of this node will be used for
+                      identification
+                    - GenomicRegion: self-explanatory
+                    - str: key is assumed to describe a genomic region
+                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                      e.g.: 'chr1:1000-54232:+'
+
+                    Node types
+
+                    - int: node index
+                    - slice: node range
+
+                    List types
+
+                    - list: This key type allows for a combination of all
+                      of the above key types - the corresponding matrix
+                      will be concatenated
+
+
+                    If the key is a 2-tuple, each entry will be treated as the
+                    row and column key, respectively,
+                    e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
+                    map of the relevant regions between chromosomes 1 and 4.
+        :param values_from: Determines which column will be used to populate
+                            the matrix. Default is 'weight'.
+        :return: :class:`RegionMatrix`
+        """
+
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+
+        nodes_ix_row = None
+        if nodes_row is not None:
+            if isinstance(nodes_row, list):
+                nodes_ix_row = [node.ix for node in nodes_row]
+            else:
+                nodes_ix_row = nodes_row.ix
+
+        nodes_ix_col = None
+        if nodes_col is not None:
+            if isinstance(nodes_col, list):
+                nodes_ix_col = [node.ix for node in nodes_col]
+            else:
+                nodes_ix_col = nodes_col.ix
+
+        m = self._get_matrix(nodes_ix_row, nodes_ix_col, weight_column=values_from)
+
+        # select the correct output format
+        # empty result: matrix
+        if m.shape[0] == 0 and m.shape[1] == 0:
+            return RegionMatrix(m, col_regions=[], row_regions=[])
+        # both selectors are lists: matrix
+        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            return RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
+        # row selector is list: vector
+        if isinstance(nodes_ix_row, list):
+            return RegionMatrix(m[:, 0], col_regions=[nodes_ix_col], row_regions=nodes_row)
+        # column selector is list: vector
+        if isinstance(nodes_ix_col, list):
+            return RegionMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
+        # both must be indexes
+        return m[0, 0]
+    
+    def _get_nodes_from_key(self, key, as_index=False):
+        if isinstance(key, tuple):
+            nodes_ix_row = self._getitem_nodes(key[0], as_index=as_index)
+            nodes_ix_col = self._getitem_nodes(key[1], as_index=as_index)
+        else:
+            nodes_ix_row = self._getitem_nodes(key, as_index=as_index)
+            nodes_ix_col = []
+            for region in self.regions():
+                if as_index:
+                    nodes_ix_col.append(region.ix)
+                else:
+                    nodes_ix_col.append(region)
+        
+        return nodes_ix_row, nodes_ix_col
+    
+    def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None, weight_column='weight'):
+        # calculate number of rows
+        if nodes_ix_row is None:
+            n_rows = len(self._regions)
+        else:
+            if not isinstance(nodes_ix_row, list):
+                nodes_ix_row = [nodes_ix_row]
+            n_rows = len(nodes_ix_row)
+        
+        # calculate number of columns
+        if nodes_ix_col is None:
+            n_cols = len(self._regions)
+        else:
+            if not isinstance(nodes_ix_col, list):
+                nodes_ix_col = [nodes_ix_col]
+            n_cols = len(nodes_ix_col)
+
+        # create empty matrix
+        m = np.zeros((n_rows, n_cols))
+        
+        # get row range generator
+        row_ranges = ranges(nodes_ix_row)
+
+        # fill matrix with weights
+        row_offset = 0
+        for row_range in row_ranges:
+            n_rows_sub = row_range[1] - row_range[0] + 1
+            col_offset = 0
+            col_ranges = ranges(nodes_ix_col)
+            for col_range in col_ranges:
+                n_cols_sub = col_range[1] - col_range[0] + 1
+                
+                condition = "(source >= %d) & (source <= %d) & (sink >= %d) & (sink <= %d)"
+                condition1 = condition % (row_range[0], row_range[1], col_range[0], col_range[1])
+                condition2 = condition % (col_range[0], col_range[1], row_range[0], row_range[1])
+
+                for condition in condition1, condition2:
+                    for edge_row in self._edges.where(condition):
+                        source = edge_row['source']
+                        sink = edge_row['sink']
+                        weight = edge_row[weight_column]
+
+                        ir = source - row_range[0] + row_offset
+                        jr = sink - col_range[0] + col_offset
+                        if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                            m[ir, jr] = weight
+
+                        ir = sink - row_range[0] + row_offset
+                        jr = source - col_range[0] + col_offset
+                        if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                            m[ir, jr] = weight
+                
+                col_offset += n_cols_sub
+            row_offset += n_rows_sub
+
+        return m
+    
+    def _getitem_nodes(self, key, as_index=False):
+        # 'chr1:1234:56789'
+        if isinstance(key, str):
+            key = GenomicRegion.from_string(key)
+        
+        # Node('chr1', 1234, 56789, ix=0)
+        if isinstance(key, Node):
+            if as_index:
+                return key.ix
+            else:
+                return key
+        
+        # GenomicRegion('chr1', 1234, 56789) 
+        if isinstance(key, GenomicRegion):
+            chromosome = key.chromosome
+            start = key.start
+            end = key.end
+            
+            # check defaults
+            if chromosome is None:
+                raise ValueError("Genomic region must provide chromosome name")
+            if start is None:
+                start = 0
+            if end is None:
+                end = max(row['end'] for row in self._regions.where("(chromosome == '%s')" % chromosome))
+            
+            condition = "(chromosome == '%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
+            if as_index:
+                region_nodes = [row['ix'] for row in self._regions.where(condition)]
+            else:
+                region_nodes = [RegionsTable._row_to_region(row) for row in self._regions.where(condition)]
+            
+            return region_nodes
+        
+        # 1:453
+        if isinstance(key, slice):
+            if as_index:
+                return [row['ix'] for row in self._regions.iterrows(key.start, key.stop, key.step)]
+            else:
+                return [RegionsTable._row_to_region(row) for row in self._regions.iterrows(key.start, key.stop, key.step)]
+        
+        # 432
+        if isinstance(key, int):
+            row = self._regions[key]
+            if as_index:
+                return row['ix']
+            else:
+                return RegionsTable._row_to_region(row)
+        
+        # [item1, item2, item3]
+        all_nodes_ix = []
+        for item in key:
+            nodes_ix = self._getitem_nodes(item, as_index=as_index)
+            if isinstance(nodes_ix, list):
+                all_nodes_ix += nodes_ix
+            else:
+                all_nodes_ix.append(nodes_ix)
+        return all_nodes_ix
+    
+    def as_data_frame(self, key, weight_column='weight'):
+        """
+        Get a pandas data frame by key.
+
+        For key types see :func:`~RegionMatrixTable.__getitem__`.
+
+        :param key: For key types see :func:`~RegionMatrixTable.__getitem__`.
+        :param weight_column: Determines which column populates the DF
+        :return: Pandas data frame, row and column labels are
+                 corresponding node start positions
+        """
+        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+        m = self._get_matrix(nodes_ix_row, nodes_ix_col, weight_column=weight_column)
+        labels_row = []
+        for node in nodes_row:
+            labels_row.append(node.start)
+        labels_col = []
+        for node in nodes_col:
+            labels_col.append(node.start)
+        df = p.DataFrame(m, index=labels_row, columns=labels_col)
+        
+        return df
+    
+    def __setitem__(self, key, item):
+        self.set_matrix(key, item, clean_zero=True)
+
+    def set_matrix(self, key, item, clean_zero=False, values_to='weight'):
+        """
+        Set a chunk of the matrix.
+
+        :param key: Possible key types are:
+
+                    Region types
+
+                    - Node: Only the ix of this node will be used for
+                      identification
+                    - GenomicRegion: self-explanatory
+                    - str: key is assumed to describe a genomic region
+                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                      e.g.: 'chr1:1000-54232:+'
+
+                    Node types
+
+                    - int: node index
+                    - slice: node range
+
+                    List types
+
+                    - list: This key type allows for a combination of all
+                      of the above key types - the corresponding matrix
+                      will be concatenated
+
+                    If the key is a 2-tuple, each entry will be treated as the
+                    row and column key, respectively,
+                    e.g.: 'chr1:0-1000, chr4:2300-3000' will set the entries
+                    of the relevant regions between chromosomes 1 and 4.
+        :param item: matrix to replace existing values
+        :param clean_zero: Remove edges where 'values_to' colum is zero
+        :param values_to: Determines which column is replaced by the provided
+                          item. Default: weight
+        """
+
+        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+        self._set_matrix(item, nodes_ix_row, nodes_ix_col, clean_zero=clean_zero, weight_column=values_to)
+
+    def _set_matrix(self, item, nodes_ix_row=None, nodes_ix_col=None,
+                    clean_zero=False, weight_column='weight'):
+        replacement_edges = {}
+
+        # create new edges with updated weights
+        # select the correct format:
+        def swap(old_source, old_sink):
+            if old_source > old_sink:
+                return old_sink, old_source
+            return old_source, old_sink
+
+        # both selectors are lists: matrix
+        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            n_rows = len(nodes_ix_row)
+            n_cols = len(nodes_ix_col)
+            # check that we have a matrix with the correct dimensions
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows, n_cols]):
+                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows, n_cols))
+            
+            for i in xrange(0, n_rows):
+                for j in xrange(0, n_cols):
+                    source = nodes_ix_row[i]
+                    sink = nodes_ix_col[j]
+                    source, sink = swap(source, sink)
+                    weight = item[i, j]
+                    key = (source, sink)
+                    if key not in replacement_edges:
+                        replacement_edges[key] = weight
+
+        # row selector is list: vector
+        elif isinstance(nodes_ix_row, list):
+            n_rows = len(nodes_ix_row)
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows]):
+                raise ValueError("Item is not a numpy vector of length %d!" % n_rows)
+            
+            for i, my_sink in enumerate(nodes_ix_row):
+                source = nodes_ix_col
+                source, sink = swap(source, my_sink)
+                weight = item[i]
+                key = (source, sink)
+                if key not in replacement_edges:
+                    replacement_edges[key] = weight
+        
+        # column selector is list: vector
+        elif isinstance(nodes_ix_col, list):
+            n_cols = len(nodes_ix_col)
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_cols]):
+                raise ValueError("Item is not a numpy vector of length %d!" % n_cols)
+            
+            for i, my_source in enumerate(nodes_ix_col):
+                sink = nodes_ix_row
+                source, sink = swap(my_source, sink)
+                weight = item[i]
+                key = (source, sink)
+                if key not in replacement_edges:
+                    replacement_edges[key] = weight
+
+        # both must be indexes
+        else:
+            weight = item
+            source, sink = swap(nodes_ix_row, nodes_ix_col)
+            key = (source, sink)
+            if key not in replacement_edges:
+                replacement_edges[key] = weight
+
+        self._flush_edge_buffer(replacement_edges, replace=True, clean_zero=clean_zero, default_column=weight_column)
+
+    def _update_edge_weight(self, source, sink, weight, add=False, flush=True, weight_column='weight'):
+        if source > sink:
+            source, sink = sink, source
+        
+        value_set = False
+        for row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
+            original = 0
+            if add:
+                original = row[weight_column]
+            row[weight_column] = weight + original
+            row.update()
+            value_set = True
+            if flush:
+                self.flush()
+        if not value_set:
+            self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=flush)
+    
+    def _remove_zero_edges(self, flush=True, update_index=True, weight_column='weight'):
+        zero_edge_ix = []
+        ix = 0
+        for row in self._edges.iterrows():
+            if row[weight_column] == 0:
+                zero_edge_ix.append(ix)
+            ix += 1
+        
+        for ix in reversed(zero_edge_ix):
+            self._edges.remove_row(ix)        
+        
+        if flush:
+            self.flush(update_index=update_index)
+
+    def _row_to_node(self, row, lazy=False):
+        if lazy:
+            return LazyNode(row)
+        return Node(chromosome=row["chromosome"], start=row["start"],
+                    end=row["end"], ix=row["ix"])
+
+    def get_node(self, key):
+        """
+        Get a single node by key.
+
+        :param key: For possible key types see :func:`~RegionMatrixTable.__getitem__`
+        :return: A :class:`~Node` matching key
+        """
+        found_nodes = self.get_nodes(key)
+        if isinstance(found_nodes, list):
+            if len(found_nodes) > 1:
+                raise IndexError("More than one node found matching %s" % str(key))
+            if len(found_nodes) == 1:
+                return found_nodes[0]
+        return found_nodes
+
+    def get_nodes(self, key):
+        """
+        Get multiple nodes by key.
+
+        :param key: For possible key types see :func:`~RegionMatrixTable.__getitem__`
+        :return: A list of :class:`~Node` objects matching key
+        """
+        return self._getitem_nodes(key)
+
+    def _row_to_edge(self, row, lazy=False, auto_update=True):
+        if not lazy:
+            source = row["source"]
+            sink = row["sink"]
+            d = dict()
+            for field in self.field_names:
+                if field != 'source' and field != 'sink':
+                    d[field] = row[field]
+
+            source_node_row = self._regions[source]
+            source_node = self._row_to_node(source_node_row)
+            sink_node_row = self._regions[sink]
+            sink_node = self._row_to_node(sink_node_row)
+            return Edge(source_node, sink_node, **d)
+        else:
+            return LazyEdge(row, self._regions, auto_update=auto_update)
+
+    def get_edge(self, ix, lazy=False):
+        """
+        Get an edge from this object's edge list.
+
+        :param ix: integer
+        :param lazy: Use lazy loading of object attributes. Do not
+                     use lazy objects outside of loop iterations!
+        :return:
+        """
+        return self._row_to_edge(self._edges[ix], lazy=lazy)
+    
+    def nodes(self):
+        """
+        Iterator over this object's nodes/regions.
+
+        See :func:`~RegionsTable.regions` for details.
+        :return: Iterator over :class:`~GenomicRegions`
+        """
+        return self.regions()
+
+    @property
+    def edges(self):
+        """
+        Iterate over :class:`~Edge` objects.
+
+        :param lazy: Enable lazy loading of edge attributes,
+                     only works in the loop iteration this
+                     edge is accessed.
+        :return: Iterator over :class:`~Edge`
+        """
+        return RegionMatrixTable.EdgeIter(self)
+
+    def _is_sorted(self, sortby):
+        column = getattr(self._edges.cols, sortby)
+        if (column.index is None or
+                not column.index.is_csi):
+            return False
+        return True
+
+    def edges_sorted(self, sortby, *args, **kwargs):
+        # ensure sorting on qname_ix column
+        column = getattr(self._edges.cols, sortby)
+
+        if not self._is_sorted(sortby):
+            try:
+                logging.info("Sorting %s..." % sortby)
+                if not column.is_indexed:
+                    column.create_csindex()
+                elif not column.index.is_csi:
+                    column.reindex()
+            except t.exceptions.FileModeError:
+                raise RuntimeError("This object is not sorted by qname_ix! "
+                                   "Cannot sort manually, because file is in read-only mode.")
+
+        edge_iter = RegionMatrixTable.EdgeIter(self, _iter=self._edges.itersorted(sortby))
+        return edge_iter(*args, **kwargs)
+
+    def __iter__(self):
+        return self.edges
+
+    def __len__(self):
+        return len(self._edges)
+
+
+class Hic(RegionMatrixTable):
+    """
+    Class for working with Hi-C data.
 
     Examples:
 
@@ -1647,20 +2548,12 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         hic.add_edges(edges)
     """
 
-    class HicEdgeDescription(t.IsDescription):
-        source = t.Int32Col(pos=0)  
-        sink = t.Int32Col(pos=1)  
-        weight = t.Float64Col(pos=2)
-
     class HicRegionAnnotationDescription(t.IsDescription):
         bias = t.Float32Col(pos=0, dflt=1)
-    
-    def __init__(self, data=None, file_name=None,
-                 mode='a',
-                 _table_name_nodes='nodes',
-                 _table_name_edges='edges',
-                 _table_name_node_annotations='node_annot',
-                 tmpdir=None):
+
+    def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
+                 _table_name_nodes='nodes', _table_name_edges='edges',
+                 _table_name_node_annotations='node_annot'):
 
         """
         Initialize a :class:`~Hic` object.
@@ -1674,33 +2567,23 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         :param _table_name_nodes: (Internal) name of the HDF5 node for regions
         :param _table_name_edges: (Internal) name of the HDF5 node for edges
         """
-        
-        # private variables
-        self._max_node_ix = -1
-        
+
         # parse potential unnamed argument
         if data is not None:
             # data is file name
             if type(data) is str:
                 data = os.path.expanduser(data)
-                
+
                 if (not os.path.isfile(data) or not is_hic_xml_file(data)) and file_name is None:
                     file_name = data
                     data = None
-        
+
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
-        
-        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
-        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
 
-        if _table_name_edges in self.file.root:
-            self._edges = self.file.get_node('/', _table_name_edges)
-        else:
-            self._edges = MaskedTable(self.file.root, _table_name_edges,
-                                      Hic.HicEdgeDescription)
-        
-        self._edges.flush()
+        RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
+                                   _table_name_nodes=_table_name_nodes,
+                                   _table_name_edges=_table_name_edges)
 
         if _table_name_node_annotations in self.file.root:
             self._node_annotations = self.file.get_node('/', _table_name_node_annotations)
@@ -1712,22 +2595,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             # compatibility with existing objects
             self._node_annotations = None
 
-        # generate tables from inherited classes
-        Maskable.__init__(self, self.file)
-        MetaContainer.__init__(self, self.file)
-
-        # index edge table
-        try:
-            self._edges.cols.source.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        try:
-            self._edges.cols.sink.create_csindex()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        
         # add data
         if data is not None:
             if type(data) is str:
@@ -1736,13 +2603,13 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     for node in xml.nodes():
                         self.add_node(node, flush=False)
                     self.flush()
-                    
+
                     for edge in xml.edges():
                         self.add_edge(edge, flush=False)
                     self.flush()
                 else:
                     raise ValueError("File is not in Hi-C XML format")
-                    
+
             # data is existing Hic object
             elif isinstance(data, Hic):
                 self.load_from_hic(data)
@@ -1751,10 +2618,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     self.load_read_fragment_pairs(data)
                 except AttributeError:
                     raise ValueError("Input data type not recognized")
-    
-    def __del__(self):
-        self.close()
-    
+
     def load_read_fragment_pairs(self, pairs, excluded_filters=[], _max_buffer_size=5000000):
         """
         Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
@@ -1838,7 +2702,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     edge_buffer = {}
             self._flush_edge_buffer(edge_buffer)
 
-    def bin(self, bin_size, file_name=None, tmpdir=None):
+    def bin(self, bin_size, file_name=None):
         """
         Map edges in this object to equi-distant bins.
 
@@ -1858,7 +2722,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = Hic(file_name=file_name, mode='w', tmpdir=tmpdir)
+        hic = Hic(file_name=file_name, mode='w')
         hic.add_regions(genome.get_regions(bin_size))
 
         hic.load_from_hic(self)
@@ -1879,7 +2743,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         :return: :class:`~Hic`
         """
         hic = cls(file_name=file_name)
-        
+
         # nodes
         chrms = {hl.genome.chrmStartsBinCont[i] : hl.genome.chrmLabels[i] for i in xrange(0,len(hl.genome.chrmLabels))}
         chromosome = ''
@@ -1887,22 +2751,22 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             start = hl.genome.posBinCont[i]+1
             if i in chrms:
                 chromosome = chrms[i]
-            
+
             if i < len(hl.genome.posBinCont)-1:
                 end = hl.genome.posBinCont[i+1]
             else:
                 ix = hl.genome.label2idx[chromosome]
                 end = hl.genome.chrmLens[ix]
-            
+
             hic.add_node([chromosome, start, end], flush=False)
         hic.flush(flush_edges=False)
-        
+
         # edges
         for chr1, chr2 in hl.data:
             data = hl.data[(chr1, chr2)].getData()
             chr1StartBin = hl.genome.chrmStartsBinCont[chr1]
             chr2StartBin = hl.genome.chrmStartsBinCont[chr2]
-            
+
             for i in xrange(0,data.shape[0]):
                 iNode = i+chr1StartBin
                 start = i
@@ -1910,96 +2774,12 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     start = 0
                 for j in xrange(start,data.shape[1]):
                     jNode = j+chr2StartBin
-                    
+
                     if data[i,j] != 0:
                         hic.add_edge([iNode, jNode, data[i,j]], flush=False)
         hic.flush(flush_nodes=False)
-        
+
         return hic
-            
-    def add_node(self, node, flush=True):
-        """
-        Add a :class:`~HicNode` or :class:`~GenomicRegion`.
-
-        :param node: :class:`~HicNode` or :class:`~GenomicRegion`,
-                     see :func:`~RegionsTable.add_region` for details
-        :param flush: Write data to file immediately after import.
-        """
-        return self.add_region(node, flush)        
-    
-    def add_edge(self, edge, check_nodes_exist=True, flush=True):
-        """
-        Add an edge to this object.
-
-        :param edge: :class:`~HicEdge`, dict with at least the
-                     attributes source and sink, optionally weight,
-                     or a list of length 2 (source, sink) or 3
-                     (source, sink, weight).
-        :param check_nodes_exist: Make sure that there are nodes
-                                  that match source and sink indexes
-        :param flush: Write data to file immediately after import
-        """
-        weight = None
-        
-        if isinstance(edge, HicEdge):
-            source = edge.source
-            sink = edge.sink
-            weight = edge.weight
-        elif type(edge) is dict:
-            source = edge['source']
-            sink = edge['sink']
-            if 'weight' in edge:
-                weight = edge['weight']
-        else:
-            try:
-                source = edge[0]
-                sink = edge[1]
-                if len(edge) > 2:
-                    weight = edge[2]
-            except TypeError:
-                raise ValueError("Edge parameter has to be HicEdge, dict, or list")
-        
-        if weight is None:
-            weight = 1.
-        if source > sink:
-            tmp = source
-            source = sink
-            sink = tmp
-        
-        if check_nodes_exist:
-            n_regions = len(self._regions)
-            if source >= n_regions or sink >= n_regions:
-                raise ValueError("Node index exceeds number of nodes in object")
-        
-        if weight != 0:
-            row = self._edges.row
-            row['source'] = source
-            row['sink'] = sink
-            row['weight'] = weight
-            row.append()
-        
-        if flush:
-            self.flush()
-    
-    def add_nodes(self, nodes):
-        """
-        Bulk-add nodes from a list.
-
-        :param nodes: List (or iterator) of nodes. See
-                      :func:`~Hic.add_node` for details.
-        """
-        self.add_regions(nodes)
-    
-    def add_edges(self, edges):
-        """
-        Bulk-add edges from a list.
-
-        :param edges: List (or iterator) of edges. See
-                      :func:`~Hic.add_edge` for details
-        """
-        for edge in edges:
-            self.add_edge(edge, flush=False)
-        self.flush(flush_nodes=False)
 
     def _merge(self, hic, _edge_buffer_size=5000000):
         """
@@ -2111,33 +2891,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         logging.info("Removing zero edges")
         self._remove_zero_edges(update_index=True)
 
-    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True):
-        # update current rows
-        for row in self._edges:
-            key = (row["source"], row["sink"])
-
-            if key in e_buffer:
-                if replace:
-                    row["weight"] = e_buffer[key]
-                else:
-                    row["weight"] += e_buffer[key]
-                row.update()
-                del e_buffer[key]
-        self._edges.flush()
-
-        # flush remaining buffer
-        row = self._edges.row
-        for source, sink in e_buffer:
-            weight = e_buffer[(source, sink)]
-            if weight == 0:
-                continue
-            row["source"] = source
-            row["sink"] = sink
-            row["weight"] = weight
-            row.append()
-        self._edges.flush()
-        self._remove_zero_edges(update_index=update_index)
-
     def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
         """
         Write data to file and flush buffers.
@@ -2146,578 +2899,8 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
         """
-        if flush_nodes:
-            self._regions.flush()
-            # re-indexing not necessary when 'autoindex' is True on table
-            if not self._regions.autoindex:
-                # reindex node table
-                self._regions.flush_rows_to_index()
-        if flush_edges:
-            self._edges.flush(update_index=update_index)
-            if not self._edges.autoindex:
-                # reindex edge table
-                self._edges.flush_rows_to_index()
-
-    def __getitem__(self, key):
-        """
-        Get a chunk of the Hi-C matrix.
-        
-        Possible key types are:
-
-        Region types
-
-        - HicNode: Only the ix of this node will be used for
-          identification
-        - GenomicRegion: self-explanatory
-        - str: key is assumed to describe a genomic region
-          of the form: <chromosome>[:<start>-<end>:[<strand>]],
-          e.g.: 'chr1:1000-54232:+'
-
-        Node types
-
-        - int: node index
-        - slice: node range
-
-        List types
-
-        - list: This key type allows for a combination of all
-          of the above key types - the corresponding matrix
-          will be concatenated
-
-            
-        If the key is a 2-tuple, each entry will be treated as the 
-        row and column key, respectively,
-        e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
-        map of the relevant regions between chromosomes 1 and 4.
-
-        :return: :class:`HicMatrix`
-        """
-        
-        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
-
-        nodes_ix_row = None
-        if nodes_row is not None:
-            if isinstance(nodes_row, list):
-                nodes_ix_row = [node.ix for node in nodes_row]
-            else:
-                nodes_ix_row = nodes_row.ix
-
-        nodes_ix_col = None
-        if nodes_col is not None:
-            if isinstance(nodes_col, list):
-                nodes_ix_col = [node.ix for node in nodes_col]
-            else:
-                nodes_ix_col = nodes_col.ix
-        
-        m = self._get_matrix(nodes_ix_row, nodes_ix_col)
-
-        # select the correct output format
-        # empty result: matrix
-        if m.shape[0] == 0 and m.shape[1] == 0:
-            return HicMatrix(m, col_regions=[], row_regions=[])
-        # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            return HicMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
-            #return m
-        # row selector is list: vector
-        if isinstance(nodes_ix_row, list):
-            return HicMatrix(m[:, 0], col_regions=[nodes_ix_col], row_regions=nodes_row)
-        # column selector is list: vector
-        if isinstance(nodes_ix_col, list):
-            return HicMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
-        # both must be indexes
-        return m[0, 0]
-    
-    def _get_nodes_from_key(self, key, as_index=False):
-        if isinstance(key, tuple):
-            nodes_ix_row = self._getitem_nodes(key[0], as_index=as_index)
-            nodes_ix_col = self._getitem_nodes(key[1], as_index=as_index)
-        else:
-            nodes_ix_row = self._getitem_nodes(key, as_index=as_index)
-            nodes_ix_col = []
-            for region in self.regions():
-                if as_index:
-                    nodes_ix_col.append(region.ix)
-                else:
-                    nodes_ix_col.append(region)
-        
-        return nodes_ix_row, nodes_ix_col
-    
-    def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None):
-        # calculate number of rows
-        if nodes_ix_row is None:
-            n_rows = len(self._regions)
-        else:
-            if not isinstance(nodes_ix_row, list):
-                nodes_ix_row = [nodes_ix_row]
-            n_rows = len(nodes_ix_row)
-        
-        # calculate number of columns
-        if nodes_ix_col is None:
-            n_cols = len(self._regions)
-        else:
-            if not isinstance(nodes_ix_col, list):
-                nodes_ix_col = [nodes_ix_col]
-            n_cols = len(nodes_ix_col)
-
-        # create empty matrix
-        m = np.zeros((n_rows, n_cols))
-        
-        # get row range generator
-        row_ranges = ranges(nodes_ix_row)
-
-        # fill matrix with weights
-        row_offset = 0
-        for row_range in row_ranges:
-            n_rows_sub = row_range[1] - row_range[0] + 1
-            col_offset = 0
-            col_ranges = ranges(nodes_ix_col)
-            for col_range in col_ranges:
-                n_cols_sub = col_range[1] - col_range[0] + 1
-                
-                condition = "(source >= %d) & (source <= %d) & (sink >= %d) & (sink <= %d)"
-                condition1 = condition % (row_range[0], row_range[1], col_range[0], col_range[1])
-                condition2 = condition % (col_range[0], col_range[1], row_range[0], row_range[1])
-
-                for condition in condition1, condition2:
-                    for edge_row in self._edges.where(condition):
-                        source = edge_row['source']
-                        sink = edge_row['sink']
-                        weight = edge_row['weight']
-
-                        ir = source - row_range[0] + row_offset
-                        jr = sink - col_range[0] + col_offset
-                        if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
-                            m[ir, jr] = weight
-
-                        ir = sink - row_range[0] + row_offset
-                        jr = source - col_range[0] + col_offset
-                        if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
-                            m[ir, jr] = weight
-                
-                col_offset += n_cols_sub
-            row_offset += n_rows_sub
-
-        return m
-    
-    def _getitem_nodes(self, key, as_index=False):
-        # 'chr1:1234:56789'
-        if isinstance(key, str):
-            key = GenomicRegion.from_string(key)
-        
-        # HicNode('chr1', 1234, 56789, ix=0)
-        if isinstance(key, HicNode):
-            if as_index:
-                return key.ix
-            else:
-                return key
-        
-        # GenomicRegion('chr1', 1234, 56789) 
-        if isinstance(key, GenomicRegion):
-            chromosome = key.chromosome
-            start = key.start
-            end = key.end
-            
-            # check defaults
-            if chromosome is None:
-                raise ValueError("Genomic region must provide chromosome name")
-            if start is None:
-                start = 0
-            if end is None:
-                end = max(row['end'] for row in self._regions.where("(chromosome == '%s')" % chromosome))
-            
-            condition = "(chromosome == '%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
-            if as_index:
-                region_nodes = [row['ix'] for row in self._regions.where(condition)]
-            else:
-                region_nodes = [RegionsTable._row_to_region(row) for row in self._regions.where(condition)]
-            
-            return region_nodes
-        
-        # 1:453
-        if isinstance(key, slice):
-            if as_index:
-                return [row['ix'] for row in self._regions.iterrows(key.start, key.stop, key.step)]
-            else:
-                return [RegionsTable._row_to_region(row) for row in self._regions.iterrows(key.start, key.stop, key.step)]
-        
-        # 432
-        if isinstance(key, int):
-            row = self._regions[key]
-            if as_index:
-                return row['ix']
-            else:
-                return RegionsTable._row_to_region(row)
-        
-        # [item1, item2, item3]
-        all_nodes_ix = []
-        for item in key:
-            nodes_ix = self._getitem_nodes(item, as_index=as_index)
-            if isinstance(nodes_ix, list):
-                all_nodes_ix += nodes_ix
-            else:
-                all_nodes_ix.append(nodes_ix)
-        return all_nodes_ix
-    
-    def as_data_frame(self, key):
-        """
-        Get a pandas data frame by key.
-
-        For key types see :func:`~Hic.__getitem__`.
-
-        :param key: For key types see :func:`~Hic.__getitem__`.
-        :return: Pandas data frame, row and column labels are
-                 corresponding node start positions
-        """
-        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
-        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
-        m = self._get_matrix(nodes_ix_row, nodes_ix_col)
-        labels_row = []
-        for node in nodes_row:
-            labels_row.append(node.start)
-        labels_col = []
-        for node in nodes_col:
-            labels_col.append(node.start)
-        df = p.DataFrame(m, index=labels_row, columns=labels_col)
-        
-        return df
-    
-    def __setitem__(self, key, item):
-        """
-        Set a chunk of the Hi-C matrix.
-        
-        Possible key types are:
-
-        Region types
-
-        - HicNode: Only the ix of this node will be used for
-          identification
-        - GenomicRegion: self-explanatory
-        - str: key is assumed to describe a genomic region
-          of the form: <chromosome>[:<start>-<end>:[<strand>]],
-          e.g.: 'chr1:1000-54232:+'
-
-        Node types
-
-        - int: node index
-        - slice: node range
-
-        List types
-
-        - list: This key type allows for a combination of all
-          of the above key types - the corresponding matrix
-          will be concatenated
-
-        If the key is a 2-tuple, each entry will be treated as the 
-        row and column key, respectively,
-        e.g.: 'chr1:0-1000, chr4:2300-3000' will set the Hi-C
-        map of the relevant regions between chromosomes 1 and 4.
-            
-        """
-        
-        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
-        self._set_matrix(item, nodes_ix_row, nodes_ix_col)
-
-    def _set_matrix(self, item, nodes_ix_row=None, nodes_ix_col=None):
-        replacement_edges = {}
-
-        # create new edges with updated weights
-        # select the correct format:
-        def swap(old_source, old_sink):
-            if old_source > old_sink:
-                return old_sink, old_source
-            return old_source, old_sink
-
-        # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            n_rows = len(nodes_ix_row)
-            n_cols = len(nodes_ix_col)
-            # check that we have a matrix with the correct dimensions
-            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows, n_cols]):
-                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows, n_cols))
-            
-            for i in xrange(0, n_rows):
-                for j in xrange(0, n_cols):
-                    source = nodes_ix_row[i]
-                    sink = nodes_ix_col[j]
-                    source, sink = swap(source, sink)
-                    weight = item[i, j]
-                    key = (source, sink)
-                    if key not in replacement_edges:
-                        replacement_edges[key] = weight
-
-        # row selector is list: vector
-        elif isinstance(nodes_ix_row, list):
-            n_rows = len(nodes_ix_row)
-            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows]):
-                raise ValueError("Item is not a numpy vector of length %d!" % n_rows)
-            
-            for i, my_sink in enumerate(nodes_ix_row):
-                source = nodes_ix_col
-                source, sink = swap(source, my_sink)
-                weight = item[i]
-                key = (source, sink)
-                if key not in replacement_edges:
-                    replacement_edges[key] = weight
-        
-        # column selector is list: vector
-        elif isinstance(nodes_ix_col, list):
-            n_cols = len(nodes_ix_col)
-            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_cols]):
-                raise ValueError("Item is not a numpy vector of length %d!" % n_cols)
-            
-            for i, my_source in enumerate(nodes_ix_col):
-                sink = nodes_ix_row
-                source, sink = swap(my_source, sink)
-                weight = item[i]
-                key = (source, sink)
-                if key not in replacement_edges:
-                    replacement_edges[key] = weight
-
-        # both must be indexes
-        else:
-            weight = item
-            source, sink = swap(nodes_ix_row, nodes_ix_col)
-            key = (source, sink)
-            if key not in replacement_edges:
-                replacement_edges[key] = weight
-
-        self._flush_edge_buffer(replacement_edges, replace=True)
-
-    def _set_matrix_old(self, item, nodes_ix_row=None, nodes_ix_col=None):
-        # calculate number of rows
-        if (nodes_ix_row is not None
-            and not isinstance(nodes_ix_row, list)):
-            range_nodes_ix_row = [nodes_ix_row]
-        else:
-            range_nodes_ix_row = nodes_ix_row
-
-        # calculate number of columns
-        if (nodes_ix_col is not None
-            and not isinstance(nodes_ix_col, list)):
-            range_nodes_ix_col = [nodes_ix_col]
-        else:
-            range_nodes_ix_col = nodes_ix_col
-
-        # get row range generator
-        row_ranges = ranges(range_nodes_ix_row)
-
-        # set every edge that is to be replaced to 0
-        row_offset = 0
-        for row_range in row_ranges:
-            n_rows_sub = row_range[1] - row_range[0] + 1
-
-            col_ranges = ranges(range_nodes_ix_col)
-            col_offset = 0
-            for col_range in col_ranges:
-                n_cols_sub = col_range[1] - col_range[0] + 1
-
-                condition = "((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
-                condition += "| ((source >= %d) & (source <= %d)) & ((sink >= %d) & (sink <= %d))"
-                condition = condition % (row_range[0], row_range[1], col_range[0], col_range[1],
-                                         col_range[0], col_range[1], row_range[0], row_range[1])
-
-                # actually set weight to zero
-                for edge_row in self._edges.where(condition):
-                    edge_row['weight'] = 0
-                    edge_row.update()
-
-                col_offset += n_cols_sub
-            row_offset += n_rows_sub
-
-        self.flush()
-        self._remove_zero_edges()
-
-        # create new edges with updated weights
-        # select the correct format
-        # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            n_rows = len(nodes_ix_row)
-            n_cols = len(nodes_ix_col)
-            # check that we have a matrix with the correct dimensions
-            if (not isinstance(item, np.ndarray) or
-                not np.array_equal(item.shape, [n_rows,n_cols])):
-                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows,n_cols))
-
-            for i in xrange(0, n_rows):
-                for j in xrange(0,n_cols):
-                    source = nodes_ix_row[i]
-                    sink = nodes_ix_col[j]
-                    weight = item[i,j]
-                    self.add_edge([source, sink, weight], flush=False)
-
-        # row selector is list: vector
-        elif isinstance(nodes_ix_row, list):
-            n_rows = len(nodes_ix_row)
-            if (not isinstance(item, np.ndarray) or
-                not np.array_equal(item.shape, [n_rows])):
-                raise ValueError("Item is not a numpy vector of length %d!" % (n_rows))
-
-            for i, sink in enumerate(nodes_ix_row):
-                source = nodes_ix_col
-                weight = item[i]
-                self.add_edge([source, sink, weight], flush=False)
-
-        # column selector is list: vector
-        elif isinstance(nodes_ix_col, list):
-            n_cols = len(nodes_ix_col)
-            if (not isinstance(item, np.ndarray) or
-                not np.array_equal(item.shape, [n_cols])):
-                raise ValueError("Item is not a numpy vector of length %d!" % (n_cols))
-
-            for i, source in enumerate(nodes_ix_col):
-                sink = nodes_ix_row
-                weight = item[i]
-                self.add_edge([source, sink, weight], flush=False)
-
-        # both must be indexes
-        else:
-            weight = item
-            self.add_edge([nodes_ix_row, nodes_ix_col, weight], flush=False)
-
-        self.flush()
-    
-    def _update_edge_weight(self, source, sink, weight, add=False, flush=True):
-        if source > sink:
-            tmp = source
-            source = sink
-            sink = tmp
-        
-        value_set = False
-        for row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
-            original = 0
-            if add:
-                original = row['weight']
-            row['weight'] = weight + original
-            row.update()
-            value_set = True
-            if flush:
-                self.flush()
-        if not value_set:
-            self.add_edge(HicEdge(source=source, sink=sink, weight=weight), flush=flush)
-    
-    def _remove_zero_edges(self, flush=True, update_index=True):
-        zero_edge_ix = []
-        ix = 0
-        for row in self._edges.iterrows():
-            if row['weight'] == 0:
-                zero_edge_ix.append(ix)
-            ix += 1
-        
-        for ix in reversed(zero_edge_ix):
-            self._edges.remove_row(ix)        
-        
-        if flush:
-            self.flush(update_index=update_index)
-    
-    def autoindex(self, index=None):
-        """
-        Switch on/off autoindexing.
-        """
-        if index is not None:
-            self._regions.autoindex = bool(index)
-            self._edges.autoindex = bool(index)
-            return index
-        return self._regions.autoindex
-
-    def save(self, file_name, _table_name_nodes='nodes', _table_name_edges='edges',
-             _table_name_meta='meta', _table_name_meta_values='meta', _table_name_mask='mask'):
-        """
-        Copy content of this object to a new file.
-
-        :param file_name: Path to new save file
-        """
-        self.file.copy_file(file_name)
-        self.file.close()
-        self.file = create_or_open_pytables_file(file_name)
-        self._regions = self.file.get_node('/' + _table_name_nodes)
-        self._edges = self.file.get_node('/' + _table_name_edges)
-        self._meta = self.file.get_node('/' + _table_name_meta)
-        self._meta_values = self.file.get_node('/' + _table_name_meta_values)
-        self._mask = self.file.get_node('/' + _table_name_mask)
-
-    def _row_to_node(self, row, lazy=False):
-        if lazy:
-            return LazyHicNode(row)
-        return HicNode(chromosome=row["chromosome"], start=row["start"],
-                       end=row["end"], ix=row["ix"])
-
-    def get_node(self, key):
-        """
-        Get a single node by key.
-
-        :param key: For possible key types see :func:`~Hic.__getitem__`
-        :return: A :class:`~HicNode` matching key
-        """
-        found_nodes = self.get_nodes(key)
-        if isinstance(found_nodes, list):
-            if len(found_nodes) > 1:
-                raise IndexError("More than one node found matching %s" % str(key))
-            if len(found_nodes) == 1:
-                return found_nodes[0]
-        return found_nodes
-
-    def get_nodes(self, key):
-        """
-        Get multiple nodes by key.
-
-        :param key: For possible key types see :func:`~Hic.__getitem__`
-        :return: A list of :class:`~HicNode` objects matching key
-        """
-        return self._getitem_nodes(key)
-
-    def _row_to_edge(self, row, lazy=False):
-        if not lazy:
-            source = row["source"]
-            sink = row["sink"]
-            weight = row["weight"]
-            source_node_row = self._regions[source]
-            source_node = self._row_to_node(source_node_row)
-            sink_node_row = self._regions[sink]
-            sink_node = self._row_to_node(sink_node_row)
-            return HicEdge(source_node, sink_node, weight)
-        else:
-            return LazyHicEdge(row, self._regions)
-
-    def get_edge(self, ix, lazy=False):
-        """
-        Get an edge from this object's edge list.
-
-        :param ix: integer
-        :return:
-        """
-        return self._row_to_edge(self._edges[ix], lazy=lazy)
-    
-    def nodes(self):
-        """
-        Iterator over this object's nodes/regions.
-
-        See :func:`~RegionsTable.regions` for details.
-        :return: Iterator over :class:`~GenomicRegions`
-        """
-        return self.regions()
-    
-    def edges(self, lazy=False):
-        """
-        Iterate over :class:`~HicEdge` objects.
-
-        :return: Iterator over :class:`~HicEdge`
-        """
-        hic = self
-
-        class EdgeIter:
-            def __init__(self):
-                self.iter = iter(hic._edges)
-                
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                return hic._row_to_edge(self.iter.next(), lazy=lazy)
-
-            def __len__(self):
-                return len(hic._edges)
-        return EdgeIter()
+        RegionMatrixTable.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges, update_index=update_index)
+        self._node_annotations.flush()
 
     def filter(self, edge_filter, queue=False, log_progress=False):
         """
@@ -2830,6 +3013,33 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 marginals[edge.sink] += edge.weight
 
         return marginals
+
+    def mappable_regions(self):
+        marginals = self.marginals()
+        mappable = defaultdict(int)
+        for i, region in enumerate(self.regions()):
+            if marginals[i] > 0:
+                mappable[region.chromosome] += 1
+        return mappable
+
+    def possible_contacts(self, _mappable=None):
+        if _mappable is None:
+            _mappable = self.mappable_regions()
+
+        # calculate possible combinations
+        intra_possible = 0
+        inter_possible = 0
+        chromosomes = _mappable.keys()
+        for i in xrange(len(chromosomes)):
+            chromosome1 = chromosomes[i]
+            n1 = _mappable[chromosome1]
+            intra_possible += n1**2/2 + n1/2
+            for j in xrange(i+1, len(chromosomes)):
+                chromosome2 = chromosomes[j]
+                n2 = _mappable[chromosome2]
+                inter_possible += n1*n2
+
+        return intra_possible, inter_possible
 
     def _get_boundary_distances(self):
         n_bins = len(self.regions())
@@ -3036,7 +3246,7 @@ class LowCoverageFilter(HicEdgeFilter):
         return True
 
 
-class HicMatrix(np.ndarray):
+class RegionMatrix(np.ndarray):
     def __new__(cls, input_matrix, col_regions=None, row_regions=None):
         obj = np.asarray(input_matrix).view(cls)
         obj.col_regions = col_regions
@@ -3079,15 +3289,11 @@ class HicMatrix(np.ndarray):
             row_regions = self.row_regions[row_key]
         except TypeError:
             row_regions = None
-            #logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(row_key) +
-            #             "Falling back on setting row regions to None")
 
         try:
             col_regions = self.col_regions[col_key]
         except TypeError:
             col_regions = None
-            #logging.warn("Key type %s cannot yet be handeled by HicMatrix." % str(col_key) +
-            #             "Falling back on setting col regions to None")
 
         out.col_regions = col_regions
         out.row_regions = row_regions
@@ -3113,6 +3319,20 @@ class HicMatrix(np.ndarray):
                         stop = i
             return slice(start, stop+1, 1)
         return key
+
+    def __reduce__(self):
+        # Get the parent's __reduce__ tuple
+        pickled_state = super(RegionMatrix, self).__reduce__()
+        # Create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (pickle.dumps(self.row_regions), pickle.dumps(self.col_regions))
+        # Return a tuple that replaces the parent's __setstate__ tuple with our own
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        self.row_regions = pickle.loads(state[-2])
+        self.col_regions = pickle.loads(state[-1])
+        # Call the parent's __setstate__ with the other tuple elements.
+        super(RegionMatrix, self).__setstate__(state[0:-2])
 
 
 class HicXmlFile(object):
@@ -3153,7 +3373,7 @@ class HicXmlFile(object):
                 end = int(a['end'])
                 
                 elem.clear()
-                return HicNode(ix=ix, chromosome=chromosome, start=start, end=end)
+                return Node(ix=ix, chromosome=chromosome, start=start, end=end)
             
         return XmlNodeIter()
     
@@ -3188,7 +3408,7 @@ class HicXmlFile(object):
                 sink = int(a['sink'])
                 
                 elem.clear()
-                return HicEdge(source=source, sink=sink, weight=weight)
+                return Edge(source=source, sink=sink, weight=weight)
             
         return XmlEdgeIter()
 

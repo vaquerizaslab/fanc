@@ -1,19 +1,14 @@
-'''
-Created on Jun 29, 2015
-
-@author: kkruse1
-'''
-
 import numpy as np
-from kaic.data.genomic import Chromosome, Genome, Hic, HicNode, HicEdge,\
+from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
-    HicMatrix, RegionsTable
+    RegionMatrix, RegionsTable, RegionMatrixTable
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.tools.matrix import is_symmetric
 import kaic.correcting.knight_matrix_balancing as knight
 import kaic.correcting.ice_matrix_balancing as ice
+import tables as t
 
 class TestChromosome:
     
@@ -219,6 +214,195 @@ class TestRegionsTable(TestGenomicRegions):
         self.regions = RegionsTable(regions)
 
 
+class TestRegionMatrixTable:
+    def setup_method(self, method):
+        self.rmt = RegionMatrixTable(additional_fields={'foo': t.Int32Col(pos=0),
+                                                        'bar': t.Float32Col(pos=1),
+                                                        'baz': t.StringCol(50, pos=2)})
+
+        for i in xrange(10):
+            if i < 5:
+                chromosome = 'chr1'
+                start = i*1000
+                end = (i+1)*1000
+            elif i < 8:
+                chromosome = 'chr2'
+                start = (i-5)*1000
+                end = (i+1-5)*1000
+            else:
+                chromosome = 'chr3'
+                start = (i-8)*1000
+                end = (i+1-8)*1000
+            node = Node(chromosome=chromosome, start=start, end=end)
+            self.rmt.add_region(node, flush=False)
+        self.rmt.flush()
+
+        for i in xrange(10):
+            for j in xrange(i, 10):
+                edge = Edge(source=i, sink=j, weight=i*j, foo=i, bar=j, baz='x' + str(i*j))
+                self.rmt.add_edge(edge, flush=False)
+        self.rmt.flush()
+
+    def teardown_method(self, method):
+        self.rmt.close()
+
+    def test_create(self):
+        rmt1 = RegionMatrixTable()
+        assert rmt1.field_names == ['source', 'sink', 'weight']
+        assert len(rmt1.edges()) == 0
+        rmt1.close()
+
+        rmt2 = RegionMatrixTable(additional_fields={'foo': t.Int32Col(pos=0), 'bar': t.Float32Col(pos=1)})
+        assert rmt2.field_names == ['source', 'sink', 'weight', 'foo', 'bar']
+        assert len(rmt2.edges()) == 0
+        rmt2.close()
+
+        class AdditionalFields(t.IsDescription):
+            foo = t.Int32Col(pos=0)
+            bar = t.Float32Col(pos=1)
+
+        rmt3 = RegionMatrixTable(additional_fields=AdditionalFields)
+        assert rmt3.field_names == ['source', 'sink', 'weight', 'foo', 'bar']
+        assert len(rmt3.edges()) == 0
+        rmt3.close()
+
+        assert len(self.rmt.edges()) == 55
+        assert self.rmt.field_names == ['source', 'sink', 'weight', 'foo', 'bar', 'baz']
+
+    def test_edges(self):
+        j = 0
+        i = 0
+        for edge in self.rmt.edges():
+            assert edge.source == i
+            assert edge.sink == j
+            assert edge.weight == i*j
+            assert edge.foo == i
+            assert edge.bar == j
+            assert edge.baz == 'x' + str(i*j)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
+            if j == 9:
+                i += 1
+                j = i
+            else:
+                j += 1
+
+    def test_edges_sorted(self):
+
+        previous_weight = -1
+        for edge in self.rmt.edges_sorted('weight'):
+
+            assert edge.weight == edge.source*edge.sink
+            assert edge.weight >= previous_weight
+            previous_weight = edge.weight
+            assert edge.foo == edge.source
+            assert edge.bar == edge.sink
+            assert edge.baz == 'x' + str(edge.source*edge.sink)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
+    def test_lazy_edges(self):
+        j = 0
+        i = 0
+        for edge in self.rmt.edges(lazy=True):
+            assert edge.source == i
+            assert edge.sink == j
+            assert edge.weight == i*j
+            assert edge.foo == i
+            assert edge.bar == j
+            assert edge.baz == 'x' + str(i*j)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
+            if j == 9:
+                i += 1
+                j = i
+            else:
+                j += 1
+
+    def test_edges_set_attribute(self):
+        for edge in self.rmt.edges():
+            edge.foo = 999
+
+        for edge in self.rmt.edges():
+            assert edge.foo != 999
+
+    def test_lazy_edges_set_attribute(self):
+        for edge in self.rmt.edges(lazy=True):
+            edge.foo = 999
+
+        for edge in self.rmt.edges():
+            assert edge.foo == 999
+
+    def test_matrix(self):
+        m = self.rmt.as_matrix()
+        for row_region in m.row_regions:
+            i = row_region.ix
+            for col_region in m.col_regions:
+                j = col_region.ix
+                assert m[i, j] == m[j, i] == i*j
+
+        m = self.rmt.as_matrix(values_from='foo')
+        for row_region in m.row_regions:
+            i = row_region.ix
+            for col_region in m.col_regions:
+                j = col_region.ix
+                assert m[i, j] == m[j, i] == min(i, j)
+
+        m = self.rmt.as_matrix(values_from='bar')
+        for row_region in m.row_regions:
+            i = row_region.ix
+            for col_region in m.col_regions:
+                j = col_region.ix
+                assert m[i, j] == m[j, i] == max(i, j)
+
+    def test_matrix_subset(self):
+        m = self.rmt.as_matrix(key=('chr2', 'chr2'), values_from='bar')
+        for i, row_region in enumerate(m.row_regions):
+            for j, col_region in enumerate(m.col_regions):
+                assert m[i, j] == m[j, i] == max(row_region.ix, col_region.ix)
+
+        m = self.rmt.as_matrix(key=('chr2', 'chr3'), values_from='bar')
+        for i, row_region in enumerate(m.row_regions):
+            for j, col_region in enumerate(m.col_regions):
+                assert m[i, j] == max(row_region.ix, col_region.ix)
+
+    def test_add_edge(self):
+        rmt = RegionMatrixTable()
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge(Edge(0, 0, 100))
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
+
+        rmt = RegionMatrixTable()
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge([0, 0, 100])
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
+
+        rmt = RegionMatrixTable()
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge({'source': 0, 'sink': 0, 'weight': 100})
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
+
+
 class TestHicBasic:
     
     def setup_method(self, method):
@@ -229,11 +413,11 @@ class TestHicBasic:
         # add some nodes (120 to be exact)
         nodes = []
         for i in range(1,5000,1000):
-            nodes.append(HicNode(chromosome="chr1",start=i,end=i+1000-1))
+            nodes.append(Node(chromosome="chr1",start=i,end=i+1000-1))
         for i in range(1,3000,1000):
-            nodes.append(HicNode(chromosome="chr2",start=i,end=i+1000-1))
+            nodes.append(Node(chromosome="chr2",start=i,end=i+1000-1))
         for i in range(1,2000,500):
-            nodes.append(HicNode(chromosome="chr3",start=i,end=i+1000-1))
+            nodes.append(Node(chromosome="chr3",start=i,end=i+1000-1))
         hic.add_nodes(nodes)
         
         # add some edges with increasing weight for testing
@@ -241,7 +425,7 @@ class TestHicBasic:
         weight = 1
         for i in range(0,len(nodes)):
             for j in range(i,len(nodes)):
-                edges.append(HicEdge(source=i,sink=j,weight=weight))
+                edges.append(Edge(source=i,sink=j,weight=weight))
                 weight += 1
 
         hic.add_edges(edges)
@@ -339,7 +523,7 @@ class TestHicBasic:
         assert np.array_equal(node_ix4, [0,1,2,3,4])
         
         # HicNode
-        node_ix5 = self.hic._getitem_nodes(HicNode(ix=1), as_index=True)
+        node_ix5 = self.hic._getitem_nodes(Node(ix=1), as_index=True)
         assert node_ix5 == 1
         
         # list of items
@@ -557,11 +741,11 @@ class TestHicBasic:
         # add some nodes (120 to be exact)
         nodes = []
         for i in range(1,5000,1000):
-            nodes.append(HicNode(chromosome="chr1",start=i,end=i+1000-1))
+            nodes.append(Node(chromosome="chr1",start=i,end=i+1000-1))
         for i in range(1,3000,1000):
-            nodes.append(HicNode(chromosome="chr2",start=i,end=i+1000-1))
+            nodes.append(Node(chromosome="chr2",start=i,end=i+1000-1))
         for i in range(1,2000,400):
-            nodes.append(HicNode(chromosome="chr4",start=i,end=i+100-1))
+            nodes.append(Node(chromosome="chr4",start=i,end=i+100-1))
         hic.add_nodes(nodes)
         
         # add some edges with increasing weight for testing
@@ -569,7 +753,7 @@ class TestHicBasic:
         weight = 1
         for i in range(0,len(nodes)):
             for j in range(i,len(nodes)):
-                edges.append(HicEdge(source=i,sink=j,weight=weight))
+                edges.append(Edge(source=i,sink=j,weight=weight))
                 weight += 1
 
         hic.add_edges(edges)
@@ -687,19 +871,19 @@ class TestHicBasic:
         # ----|----|----|----|---|-----|-| new
         # -------|-------|-------|-------| old
         old_regions = []
-        old_regions.append(HicNode(chromosome='chr1', start=1, end=8))
-        old_regions.append(HicNode(chromosome='chr1', start=9, end=16))
-        old_regions.append(HicNode(chromosome='chr1', start=17, end=24))
-        old_regions.append(HicNode(chromosome='chr1', start=25, end=32))
+        old_regions.append(Node(chromosome='chr1', start=1, end=8))
+        old_regions.append(Node(chromosome='chr1', start=9, end=16))
+        old_regions.append(Node(chromosome='chr1', start=17, end=24))
+        old_regions.append(Node(chromosome='chr1', start=25, end=32))
         
         new_regions = []
-        new_regions.append(HicNode(chromosome='chr1', start=1, end=5))
-        new_regions.append(HicNode(chromosome='chr1', start=6, end=10))
-        new_regions.append(HicNode(chromosome='chr1', start=11, end=15))
-        new_regions.append(HicNode(chromosome='chr1', start=16, end=20))
-        new_regions.append(HicNode(chromosome='chr1', start=21, end=24))
-        new_regions.append(HicNode(chromosome='chr1', start=25, end=30))
-        new_regions.append(HicNode(chromosome='chr1', start=31, end=32))
+        new_regions.append(Node(chromosome='chr1', start=1, end=5))
+        new_regions.append(Node(chromosome='chr1', start=6, end=10))
+        new_regions.append(Node(chromosome='chr1', start=11, end=15))
+        new_regions.append(Node(chromosome='chr1', start=16, end=20))
+        new_regions.append(Node(chromosome='chr1', start=21, end=24))
+        new_regions.append(Node(chromosome='chr1', start=25, end=30))
+        new_regions.append(Node(chromosome='chr1', start=31, end=32))
         
         overlap_map = _get_overlap_map(old_regions, new_regions)
         assert len(overlap_map[0]) == 2
@@ -719,15 +903,15 @@ class TestHicBasic:
         # ----|----|-| new
         # --|--|--|--| old
         old_regions = []
-        old_regions.append(HicNode(chromosome='chr1', start=1, end=3))
-        old_regions.append(HicNode(chromosome='chr1', start=4, end=6))
-        old_regions.append(HicNode(chromosome='chr1', start=7, end=9))
-        old_regions.append(HicNode(chromosome='chr1', start=10, end=12))
+        old_regions.append(Node(chromosome='chr1', start=1, end=3))
+        old_regions.append(Node(chromosome='chr1', start=4, end=6))
+        old_regions.append(Node(chromosome='chr1', start=7, end=9))
+        old_regions.append(Node(chromosome='chr1', start=10, end=12))
         
         new_regions = []
-        new_regions.append(HicNode(chromosome='chr1', start=1, end=5))
-        new_regions.append(HicNode(chromosome='chr1', start=6, end=10))
-        new_regions.append(HicNode(chromosome='chr1', start=11, end=12))
+        new_regions.append(Node(chromosome='chr1', start=1, end=5))
+        new_regions.append(Node(chromosome='chr1', start=6, end=10))
+        new_regions.append(Node(chromosome='chr1', start=11, end=12))
         
         overlap_map = _get_overlap_map(old_regions, new_regions)
         assert len(overlap_map[0]) == 1
@@ -992,26 +1176,26 @@ class TestHicBasic:
         m = np.zeros((20, 20))
         nodes = []
         for i in range(1, 12000, 1000):
-            node = HicNode(chromosome="chr1", start=i, end=i+1000-1)
+            node = Node(chromosome="chr1", start=i, end=i+1000-1)
             nodes.append(node)
         for i in range(1, 4000, 500):
-            node = HicNode(chromosome="chr2", start=i, end=i+500-1)
+            node = Node(chromosome="chr2", start=i, end=i+500-1)
             nodes.append(node)
         hic.add_nodes(nodes)
 
         edges = []
         for i in xrange(0,5):
             for j in xrange(i,5):
-                edges.append(HicEdge(source=i, sink=j, weight=50))
+                edges.append(Edge(source=i, sink=j, weight=50))
         for i in xrange(6,12):
             for j in xrange(i,12):
-                edges.append(HicEdge(source=i, sink=j, weight=75))
+                edges.append(Edge(source=i, sink=j, weight=75))
         for i in xrange(13,18):
             for j in xrange(i,18):
-                edges.append(HicEdge(source=i, sink=j, weight=30))
+                edges.append(Edge(source=i, sink=j, weight=30))
         for i in xrange(18,20):
             for j in xrange(i,20):
-                edges.append(HicEdge(source=i, sink=j, weight=50))
+                edges.append(Edge(source=i, sink=j, weight=50))
 
         hic.add_edges(edges)
 
@@ -1026,7 +1210,7 @@ class TestHicBasic:
         assert d[18] == max(d[13:20])
 
 
-class TestHicMatrix:
+class TestRegionMatrix:
 
     def setup_method(self, method):
         hic = Hic()
@@ -1037,17 +1221,17 @@ class TestHicMatrix:
         # add some nodes (120 to be exact)
         nodes = []
         for i in range(1, 5000, 1000):
-            node = HicNode(chromosome="chr1", start=i, end=i+1000-1)
+            node = Node(chromosome="chr1", start=i, end=i+1000-1)
             nodes.append(node)
             row_regions.append(node)
             col_regions.append(node)
         for i in range(1, 3000, 1000):
-            node = HicNode(chromosome="chr2", start=i, end=i+1000-1)
+            node = Node(chromosome="chr2", start=i, end=i+1000-1)
             nodes.append(node)
             row_regions.append(node)
             col_regions.append(node)
         for i in range(1, 2000, 500):
-            node = HicNode(chromosome="chr3", start=i, end=i+1000-1)
+            node = Node(chromosome="chr3", start=i, end=i+1000-1)
             nodes.append(node)
             row_regions.append(node)
             col_regions.append(node)
@@ -1058,7 +1242,7 @@ class TestHicMatrix:
         weight = 1
         for i in range(0, len(nodes)):
             for j in range(i, len(nodes)):
-                edges.append(HicEdge(source=i, sink=j, weight=weight))
+                edges.append(Edge(source=i, sink=j, weight=weight))
                 m[i, j] = weight
                 m[j, i] = weight
                 weight += 1
@@ -1068,7 +1252,7 @@ class TestHicMatrix:
         print row_regions
 
         self.hic = hic
-        self.m = HicMatrix(m, row_regions=row_regions, col_regions=col_regions)
+        self.m = RegionMatrix(m, row_regions=row_regions, col_regions=col_regions)
 
     def test_create(self):
         hm = self.hic[:, :]
