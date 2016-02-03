@@ -928,6 +928,11 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-c', '--contaminant', dest='contaminant',
+            help='''A Reads file with contaminating reads. Will filter out reads with the same name.'''
+        )
+
+        parser.add_argument(
             '-s', '--stats', dest='stats',
             help='''Path for saving stats pdf'''
         )
@@ -943,6 +948,7 @@ class Kaic(object):
 
         import kaic
         from kaic.tools.files import copy_or_expand, create_temporary_copy
+        from kaic.construct.seq import ContaminantFilter
 
         # copy file if required
         original_input_path = os.path.expanduser(args.input)
@@ -969,6 +975,15 @@ class Kaic(object):
         if args.quality:
             logging.info("Quality filter enabled (%d)" % args.quality)
             reads.filter_quality(args.quality, queue=True)
+
+        if args.contaminant:
+            contaminant_file = os.path.expanduser(args.contaminant)
+            logging.info("Contaminant filter enabled %s" % contaminant_file)
+            contaminant = kaic.Reads(contaminant_file)
+            contaminant_filter = ContaminantFilter(contaminant,
+                                                   reads.add_mask_description("contaminant",
+                                                                              "Filter contaminating reads"))
+            reads.filter(contaminant_filter, queue=True)
 
         logging.info("Running filters...")
         reads.run_queued_filters(log_progress=True)

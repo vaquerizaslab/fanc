@@ -1122,6 +1122,35 @@ class QualityFilter(ReadFilter):
         return read.mapq >= self.cutoff
 
 
+class ContaminantFilter(ReadFilter):
+    """
+    Filter mapped reads based on mapping quality.
+    """
+
+    def __init__(self, contaminant_reads, mask=None):
+        """
+        :param contaminant_reads: A :class:`~Reads` object representing a
+                                  contaminant
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        super(ContaminantFilter, self).__init__(mask)
+
+        self.contaminant_names = set()
+        for read in contaminant_reads.reads(lazy=True):
+            self.contaminant_names.add("%.0f" % read.qname_ix)
+
+        print self.contaminant_names
+
+    def valid_read(self, read):
+        """
+        Check if a read has a mapq >= cutoff.
+        """
+        if "%.0f" % read.qname_ix in self.contaminant_names:
+            return False
+        return True
+
+
 class BwaMemQualityFilter(ReadFilter):
     """
     Filters `bwa mem` generated alignements base on the alignment score

@@ -10,7 +10,7 @@ import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter,\
-    LazyFragmentRead
+    LazyFragmentRead, ContaminantFilter
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
 import numpy as np
 
@@ -23,6 +23,7 @@ class TestReads:
         self.sam1_file = self.dir + "/test_seq/test1.sam"
         self.sam2_file = self.dir + "/test_seq/test2.sam"
         self.lambda_sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
+        self.lambda_sam1_contaminant_file = self.dir + "/test_seq/lambda_reads1_contaminant.sam"
         
     def test_load(self):
         def compare(read, values):
@@ -155,6 +156,20 @@ class TestReads:
         reads.filter(unmapped_filter)
         
         assert len(reads) < l
+
+    def test_contaminant_filter(self):
+        reads = Reads(self.lambda_sam1_file)
+
+        l = len(reads)
+
+        print "c"
+        contaminant = Reads(self.lambda_sam1_contaminant_file)
+        contaminant_filter = ContaminantFilter(contaminant)
+
+        reads.filter(contaminant_filter)
+
+        assert len(reads) == l-9
+        assert 0
 
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)
