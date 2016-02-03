@@ -162,14 +162,12 @@ class TestReads:
 
         l = len(reads)
 
-        print "c"
         contaminant = Reads(self.lambda_sam1_contaminant_file)
         contaminant_filter = ContaminantFilter(contaminant)
 
         reads.filter(contaminant_filter)
 
         assert len(reads) == l-9
-        assert 0
 
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)

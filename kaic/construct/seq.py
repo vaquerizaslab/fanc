@@ -1140,8 +1140,6 @@ class ContaminantFilter(ReadFilter):
         for read in contaminant_reads.reads(lazy=True):
             self.contaminant_names.add("%.0f" % read.qname_ix)
 
-        print self.contaminant_names
-
     def valid_read(self, read):
         """
         Check if a read has a mapq >= cutoff.
