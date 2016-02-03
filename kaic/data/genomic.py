@@ -1497,7 +1497,7 @@ class RegionsTable(GenomicRegions, FileBased):
 
         return RegionIter()
 
-	def chromosomes(self):
+    def chromosomes(self):
         """
         Get a list of chromosome names.
 
