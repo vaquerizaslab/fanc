@@ -1743,10 +1743,21 @@ class Kaic(object):
                               e_d_cutoff=args.d_cutoff, e_h_cutoff=args.h_cutoff, e_v_cutoff=args.v_cutoff)
 
         hic = kaic.Hic(input_path, mode='r')
-        peaks, f = pk.call_peaks(hic, chromosomes=args.chromosomes, file_name=output_path)
+
+        if args.chromosomes is None:
+            chromosome_pairs = None
+        else:
+            chromosome_pairs = []
+            for i in xrange(len(args.chromosomes)):
+                chromosome1 = args.chromosomes[i]
+                for j in xrange(i, len(args.chromosomes)):
+                    chromosome2 = args.chromosomes[j]
+                    chromosome_pairs.append((chromosome1, chromosome2))
+
+        peaks = pk.call_peaks(hic, chromosome_pairs=chromosome_pairs, file_name=output_path)
 
         logging.info("Found %d potential peaks" % len(peaks))
-        f.close()
+        peaks.close()
 
         if args.tmp:
             os.unlink(input_path)
