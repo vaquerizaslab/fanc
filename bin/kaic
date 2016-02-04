@@ -217,7 +217,7 @@ class Kaic(object):
         def is_fastq_file(file_name):
             base, extension = os.path.splitext(file_name)
             if extension in ['.gz', '.gzip']:
-                extension = os.path.splitext(base)
+                base, extension = os.path.splitext(base)
 
             if extension in ['.fq', '.fastq']:
                 return True
