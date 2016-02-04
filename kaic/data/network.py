@@ -1224,11 +1224,17 @@ class RaoPeakCaller(PeakCaller):
             region1 = regions_dict[peak.source]
             region2 = regions_dict[peak.sink]
             if region1.chromosome == region2.chromosome:
-                peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.observed]
-                peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.observed]
-                peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
-                peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
-                peak.update()
+                try:
+                    peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.observed]
+                    peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.observed]
+                    peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
+                    peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
+                    peak.update()
+                except KeyError:
+                    peak.fdr_ll = 0
+                    peak.fdr_h = 0
+                    peak.fdr_v = 0
+                    peak.fdr_d = 0
             else:
                 # Bonferroni correction
                 if self.correct_inter == 'bonferroni':
