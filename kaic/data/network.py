@@ -1146,7 +1146,7 @@ class RaoPeakCaller(PeakCaller):
                           :class:`~RaoPeakInfo` object
         :return: :class:`~RaoPeakInfo` object
         """
-        peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True))
+        peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True), mode='w')
 
         # mappability
         logging.info("Calculating visibility of regions...")
