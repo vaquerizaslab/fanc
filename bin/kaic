@@ -2030,6 +2030,11 @@ class Kaic(object):
             help='Output path for genomic track'
         )
         parser.add_argument(
+            '-oe', '--observed_expected',
+            action='store_true',
+            help='Use observed vs expected matrix to calculate metrics.'
+        )
+        parser.add_argument(
             '-d', '--derivatives',
             type=int,
             nargs='+',
@@ -2072,13 +2077,15 @@ class Kaic(object):
         )
         args = parser.parse_args(sys.argv[2:])
         import kaic
-        from kaic.analyzing.architecture import insulation_index, rel_insulation_index, contact_band
+        from kaic.analyzing.architecture import insulation_index, rel_insulation_index, contact_band, observed_expected_ratio
         from kaic.plotting.plotter import GenomicTrack
         from scipy.signal import savgol_filter
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
         h = kaic.Hic(input_path)
         hic_matrix = h[:]
+        if args.observed_expected:
+            hic_matrix = observed_expected_ratio(hic, per_chromosome=True)
         gt = GenomicTrack(output_path, regions=h.regions())
         if args.insulation_index:
             for d in args.insulation_index:
