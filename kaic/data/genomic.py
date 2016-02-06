@@ -3152,7 +3152,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         :return: numpy array of the same length as bins in the object
         """
-        s = np.zeros(len(hic.regions()))
+        s = np.zeros(len(self.regions()))
         for e in self.edges(lazy=True):
             s[e.sink - e.source] += e.weight
         return s

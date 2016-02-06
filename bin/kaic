@@ -2017,6 +2017,7 @@ class Kaic(object):
         logging.info("All done.")
 
     def structure_tracks(self):
+        import numpy as np
         parser = argparse.ArgumentParser(
             prog="kaic " + sys.argv[1],
             description='Calculate genomic tracks about structural features of the Hi-C map'
@@ -2030,18 +2031,27 @@ class Kaic(object):
             help='Output path for genomic track'
         )
         parser.add_argument(
-            '-oe', '--observed_expected',
-            action='store_true',
-            help='Use observed vs expected matrix to calculate metrics.'
-        )
-        parser.add_argument(
-            '-d', '--derivatives',
+            'bins',
             type=int,
             nargs='+',
-            help='Optionally save derivatives of the specified order (>1).'
+            help='Bin sizes used for directionality index, insulation index and relative insulation index.'
         )
         parser.add_argument(
-            '-w', '--window_size',
+            '-m', '--matrix_bins',
+            type=int,
+            nargs='+', default=np.unique(np.logspace(3, 8, num=50, base=2).astype(int)),
+            help='Bin sizes used for making matrix of directionality index, insulation index and '
+                 'relative insulation indices. Default are 48 values between 8 and 256 bins. '
+                 'np.unique(np.logspace(3, 8, num=50, base=2).astype(int))'
+        )
+        parser.add_argument(
+            '-n', '--normalization_window',
+            type=int, default=300,
+            help='Window size for calculating long-range mean for normalization of insulation_index, relative_insulation_index, contact_band.'
+                 'Default 300 bins.'
+        )
+        parser.add_argument(
+            '-w', '--smoothing_window',
             type=int, default=15,
             help='Window size for smoothing derivatives in Savitzky Golay filter (in bins).'
                  'Default 15. Must be an odd number.'
@@ -2052,62 +2062,93 @@ class Kaic(object):
             help='Order of polynomial used for smoothing derivatives. Default 2.'
         )
         parser.add_argument(
-            '-i', '--insulation_index',
-            nargs='+',
+            '-d', '--derivatives',
             type=int,
+            nargs='+',
+            help='Optionally save derivatives of the specified order (>1).'
+        )
+        parser.add_argument(
+            '--delta',
+            type=int,
+            nargs='+',
+            help='Save delta transformation of metrics according to Crane et al. 2015. '
+                 'Specify window size in bins. Sensible values for 5kb Drosophila 5-10.'
+        )
+        parser.add_argument(
+            '--insulation_index',
+            action='store_true',
             help='Calculate insulation index for the given distances (in bins).'
         )
         parser.add_argument(
-            '-b', '--contact_band',
+            '--directionality_index',
+            action='store_true',
+            help='Calculate the directionality index for the given distances (in bp)'
+        )
+        parser.add_argument(
+            '--relative_insulation_index',
+            action='store_true',
+            help='Calculate the relative insulation indices for the given distances (in bins)'
+        )
+        parser.add_argument(
+            '--contact_band',
             nargs='+',
             type=str,
             help='Calculate the contact band for the given distances. Eg. 5-10 10-15. (in bins)'
         )
-        parser.add_argument(
-            '-di', '--directionality_index',
-            nargs='+',
-            type=int,
-            help='Calculate the directionality index for the given distances (in bp)'
-        )
-        parser.add_argument(
-            '-ri', '--relative_insulation_index',
-            nargs='+',
-            type=int,
-            help='Calculate the relative insulation indices for the given distances (in bins)'
-        )
         args = parser.parse_args(sys.argv[2:])
         import kaic
-        from kaic.analyzing.architecture import insulation_index, rel_insulation_index, contact_band, observed_expected_ratio
+        from kaic.analyzing.architecture import insulation_index, rel_insulation_index, directionality_index, \
+                                                contact_band, delta_window, rolling_func_nan
         from kaic.plotting.plotter import GenomicTrack
         from scipy.signal import savgol_filter
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
         h = kaic.Hic(input_path)
         hic_matrix = h[:]
-        if args.observed_expected:
-            hic_matrix = observed_expected_ratio(hic, per_chromosome=True)
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
         gt = GenomicTrack(output_path, regions=h.regions())
         if args.insulation_index:
-            for d in args.insulation_index:
+            for d in args.bins:
                 logging.info("Calculating insulation index up to {} bins away.".format(d))
-                gt.add_data("insulation_index_{}".format(d), insulation_index(h, d, hic_matrix=hic_matrix))
+                ii = insulation_index(h, d, hic_matrix=hic_matrix)
+                normed_ii = np.ma.log2(ii/rolling_func_nan(ii, args.normalization_window, func=np.ma.mean))
+                gt.add_data("insulation_index_{}".format(d), normed_ii)
+            ii_matrix = [insulation_index(h, d, hic_matrix=hic_matrix) for d in args.matrix_bins]
+            ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
+            gt.add_data("insulation_index_matrix", ii_matrix_normed.T)
         if args.contact_band:
             for d1, d2 in (d.split("-") for d in args.contact_band):
                 logging.info("Calculating contact band between {} and {} bins away.".format(d1, d2))
-                gt.add_data("contact_band_{}_{}".format(d1, d2), contact_band(h, int(d1), int(d2), hic_matrix=hic_matrix))
+                cb = contact_band(h, int(d1), int(d2), hic_matrix=hic_matrix)
+                normed_cb = np.ma.log2(cb/rolling_func_nan(cb, args.normalization_window, func=np.ma.mean))
+                gt.add_data("contact_band_{}_{}".format(d1, d2), normed_cb)
         if args.directionality_index:
-            for d in args.directionality_index:
+            for d in args.bins:
                 logging.info("Calculating directionality index with a window size of {}bp.".format(d))
-                gt.add_data("directionality_index_{}".format(d), h.directionality_index(d))
+                gt.add_data("directionality_index_{}".format(d), directionality_index(h, d, hic_matrix=hic_matrix))
         if args.relative_insulation_index:
-            for d in args.relative_insulation_index:
+            for d in args.bins:
                 logging.info("Calculating relative insulation index up to {} bins away.".format(d))
-                gt.add_data("relative_insulation_index_{}".format(d), rel_insulation_index(h, d, hic_matrix=hic_matrix))
-        if args.derivatives:
+                ii = rel_insulation_index(h, d, hic_matrix=hic_matrix)
+                normed_ii = np.ma.log2(ii/rolling_func_nan(ii, args.normalization_window, func=np.ma.mean))
+                gt.add_data("rel_insulation_index_{}".format(d), normed_ii)
+            ii_matrix = [rel_insulation_index(h, d, hic_matrix=hic_matrix) for d in args.matrix_bins]
+            ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
+            gt.add_data("rel_insulation_index_matrix", ii_matrix_normed.T)
+        if args.derivatives or args.delta:
             for k, v in gt.tracks.iteritems():
-                for i in args.derivatives:
-                    d = savgol_filter(v, window_length=args.window_size, polyorder=args.poly_order, deriv=i)
-                    gt.add_data("{}_d{}".format(k, i), d)
+                if "matrix" in k:
+                    continue
+                if args.derivative:
+                    for i in args.derivatives:
+                        d = savgol_filter(v, window_length=args.window_size, polyorder=args.poly_order, deriv=i)
+                        gt.add_data("{}_d{}".format(k, i), d)
+                if args.delta:
+                    for i in args.delta:
+                        gt.add_data("{}_delta{}".format(k, i), delta_window(v, i))
         logging.info("All done.")
 
     def boundaries(self):

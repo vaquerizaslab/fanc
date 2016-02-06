@@ -14,7 +14,7 @@ import pybedtools as pbt
 import itertools as it
 import tables
 import re
-import track
+import track as track_module
 import warnings
 plt = sns.plt
 log = logging.getLogger(__name__)
@@ -158,6 +158,18 @@ class GenomicTrack(RegionsTable):
             values[k] = get_typed_array(v, nan_strings=nan_strings, count=n)
         return cls(file_name=file_name, data_dict=values, regions=regions)
 
+    def to_bedgraph(self, prefix, tracks=None, skip_nan=True):
+        if tracks is None:
+            tracks = [t.name for t in self._tracks]
+        elif not isinstance(tracks, list) and not isinstance(tracks, tuple):
+            tracks = [tracks]
+        for t in tracks:
+            with open("{}{}.bedgraph".format(prefix, t), "w") as f:
+                for r, v in it.izip(self.regions, self.tracks[t]):
+                    if skip_nan and np.isnan(v):
+                        continue
+                    f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start, r.end, v))
+
     def add_data(self, name, values, description=None):
         """
         Add a single genomic track to the object
@@ -216,10 +228,21 @@ class GenomicFigure(object):
         self.plots = plots
         self.n = len(plots)
 
+        gs = gridspec.GridSpec(self.n, 1, height_ratios=height_ratios, width_ratios=[1] * self.n)
         if figsize is None:
-            figsize = (8, 4*self.n)
-        _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
-        # _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
+            figsize = (8, 8*self.n)
+        self.axes = []
+        for i in xrange(self.n):
+            if i > 0:
+                ax = plt.subplot(gs[i], sharex=self.axes[0])
+            else:
+                ax = plt.subplot(gs[i])
+            self.axes.append(ax)
+
+        #if figsize is None:
+        #    figsize = (8, 4*self.n)
+        #_, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
+
 
     @property
     def fig(self):
@@ -566,7 +589,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
     def _plot(self, x_region=None, y_region=None):
         m = self.hic_buffer.get_matrix(x_region, y_region)
-        self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm,
+        self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm, aspect="equal",
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
         self.last_ylim = self.ax.get_ylim()
@@ -736,6 +759,26 @@ class GenomicTrackPlot(BasePlotter1D):
 
     _STYLES = {_STYLE_STEP: _get_values_per_step,
                _STYLE_MID: _get_values_per_mid}
+
+class GenomicArrayPlot(BasePlotter1D):
+    def __init__(self, track, attribute, plot_kwargs=None, title=''):
+        BasePlotter1D.__init__(self, title=title)
+        self.track = track
+        self.attribute = attribute
+        if plot_kwargs is None:
+            plot_kwargs = {}
+        self.plot_kwargs = plot_kwargs
+
+    def _plot(self, region):
+        bins = self.track.region_bins(region)
+        values = self.track[bins][self.attribute]
+        regions = self.track.regions()[bins]
+        bin_coords = np.r_[[(x.start - 1) for x in regions], (regions[-1].end)]
+        X, Y = np.meshgrid(bin_coords, np.arange(values.shape[1] + 1))
+        self.ax.pcolormesh(X, Y, values.T, **self.plot_kwargs)
+
+    def _refresh(self):
+        pass
 
 class GeneModelPlot(BasePlotter1D):
     def __init__(self, gtf, title="", feature_type="gene", id_field="gene_symbol"):
