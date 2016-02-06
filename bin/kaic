@@ -2062,7 +2062,7 @@ class Kaic(object):
             help='Order of polynomial used for smoothing derivatives. Default 2.'
         )
         parser.add_argument(
-            '-d', '--derivatives',
+            '-d', '--derivative',
             type=int,
             nargs='+',
             help='Optionally save derivatives of the specified order (>1).'
@@ -2138,13 +2138,13 @@ class Kaic(object):
             ii_matrix = [rel_insulation_index(h, d, hic_matrix=hic_matrix) for d in args.matrix_bins]
             ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
             gt.add_data("rel_insulation_index_matrix", ii_matrix_normed.T)
-        if args.derivatives or args.delta:
+        if args.derivative or args.delta:
             for k, v in gt.tracks.iteritems():
                 if "matrix" in k:
                     continue
                 if args.derivative:
-                    for i in args.derivatives:
-                        d = savgol_filter(v, window_length=args.window_size, polyorder=args.poly_order, deriv=i)
+                    for i in args.derivative:
+                        d = savgol_filter(v, window_length=args.smoothing_window, polyorder=args.poly_order, deriv=i)
                         gt.add_data("{}_d{}".format(k, i), d)
                 if args.delta:
                     for i in args.delta:

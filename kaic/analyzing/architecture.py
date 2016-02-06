@@ -46,7 +46,7 @@ def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.ma.me
     skipped = 0
     for i, r in enumerate(hic.regions()):
         if (i - chr_bins[r.chromosome][0] < d or
-            chr_bins[r.chromosome][1] - i <= d - 1):
+            chr_bins[r.chromosome][1] - i <= d + 1):
             ins_matrix[i] = np.nan
             continue
         ins_slice = (slice(i + 1, i + d + 1), slice(i - d, i))
@@ -74,7 +74,7 @@ def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.m
     skipped = 0
     for i, r in enumerate(hic.regions()):
         if (i - chr_bins[r.chromosome][0] < d or
-            chr_bins[r.chromosome][1] - i <= d - 1):
+            chr_bins[r.chromosome][1] - i <= d + 1):
             rel_ins_matrix[i] = np.nan
             continue
         up_rel_slice = (slice(i - d, i), slice(i - d, i))
@@ -90,7 +90,7 @@ def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.m
             rel_ins_matrix[i] = np.nan
             continue
         rel_ins_matrix[i] = (aggr_func(hic_matrix[ins_slice]) /
-            aggr_func([hic_matrix[up_rel_slice], hic_matrix[down_rel_slice]]))
+            aggr_func(np.ma.dstack((hic_matrix[up_rel_slice], hic_matrix[down_rel_slice]))))
     log.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
     return rel_ins_matrix
 
@@ -109,7 +109,7 @@ def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, use_oe_ratio=Fals
     skipped = 0
     for i, r in enumerate(hic.regions()):
         if (i - chr_bins[r.chromosome][0] < d2 or
-            chr_bins[r.chromosome][1] - i <= d2 - 1):
+            chr_bins[r.chromosome][1] - i <= d2 + 1):
             band[i] = np.nan
             continue
         band_slice = (slice(i + d1 + 1, i + d2 + 1), slice(i - d2, i - d1))
@@ -137,14 +137,13 @@ def directionality_index(hic, d, mask_thresh=.5, hic_matrix=None, correct_sum=Fa
     skipped = 0
     for i, r in enumerate(hic.regions()):
         if (i - chr_bins[r.chromosome][0] < d or
-            chr_bins[r.chromosome][1] - i <= d - 1):
+            chr_bins[r.chromosome][1] - i <= d + 1):
             di[i] = np.nan
             continue
         up_slice = (i, slice(i - d, i))
         up_masked = np.sum(hic_matrix.mask[up_slice])
         down_slice = (i, slice(i + 1, i + d + 1))
         down_masked = np.sum(hic_matrix.mask[down_slice])
-        log.info("Up_ratio {} Down_ratio {}".format(1 - (up_masked/d), 1- (down_masked/d)))
         if (up_masked > d*mask_thresh or
             down_masked > d*mask_thresh):
             # If too close to the edge of chromosome or
