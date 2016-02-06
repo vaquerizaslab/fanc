@@ -4,6 +4,7 @@ import kaic
 from kaic.data.genomic import GenomicRegion, RegionsTable, GenomicRegions
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from abc import abstractmethod, ABCMeta
 import numpy as np
 import math
@@ -228,21 +229,20 @@ class GenomicFigure(object):
         self.plots = plots
         self.n = len(plots)
 
-        gs = gridspec.GridSpec(self.n, 1, height_ratios=height_ratios, width_ratios=[1] * self.n)
+        gs = gridspec.GridSpec(self.n, 1, height_ratios=height_ratios, width_ratios=[1])
         if figsize is None:
-            figsize = (8, 8*self.n)
+            figsize = (6, 6*self.n)
         self.axes = []
+        fig = plt.figure(figsize=figsize)
         for i in xrange(self.n):
             if i > 0:
                 ax = plt.subplot(gs[i], sharex=self.axes[0])
             else:
                 ax = plt.subplot(gs[i])
             self.axes.append(ax)
-
         #if figsize is None:
         #    figsize = (8, 4*self.n)
         #_, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
-
 
     @property
     def fig(self):
@@ -251,7 +251,7 @@ class GenomicFigure(object):
     def plot(self, region):
         for p, a in zip(self.plots, self.axes):
             p.plot(region, ax=a)
-        self.fig.tight_layout()
+        #self.fig.tight_layout()
         return self.fig, self.axes
 
     # def add_colorbar(self):
@@ -341,6 +341,7 @@ class BufferedMatrix(object):
         return True
 
     def get_matrix(self, *regions):
+        regions = tuple(reversed([r for r in regions]))
         if not self.is_buffered_region(*regions):
             log.info("Buffering matrix")
             self._BUFFERING_STRATEGIES[self.buffering_strategy](self, *regions)
@@ -488,8 +489,10 @@ class BasePlotterHic(object):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array([self.vmin, self.vmax])
         #self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
-        self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", anchor=(0.5, 1.5),
-                                              aspect=40, shrink=0.6, panchor=False)
+        self.cax, kw = mpl.colorbar.make_axes_gridspec(self.ax, orientation="horizontal",
+                                              aspect=30, shrink=0.6)
+        #divider = make_axes_locatable(self.ax)
+        #self.cax = divider.append_axes("top", "5%", pad="5%")
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, **kw)
 
     def add_adj_slider(self):
@@ -589,7 +592,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
     def _plot(self, x_region=None, y_region=None):
         m = self.hic_buffer.get_matrix(x_region, y_region)
-        self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm, aspect="equal",
+        self.im = self.ax.imshow(m, interpolation='none', cmap=self.colormap, norm=self.norm, origin="upper",
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
         self.last_ylim = self.ax.get_ylim()
