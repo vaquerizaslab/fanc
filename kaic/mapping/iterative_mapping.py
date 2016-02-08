@@ -431,32 +431,38 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             logging.info("Corrected batch size to: %d" % batch_size)
 
         def _mapping_process_with_queue(input_queue, output_queue):
-            p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
-            steps = list(xrange(min_size, max_length+1, step_size))
-            if len(steps) == 0 or steps[-1] != max_length:
-                steps.append(max_length)
+            while True:
+                print "Waiting for input..."
+                p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
+                print "Got %s" % file_name
+                steps = list(xrange(min_size, max_length+1, step_size))
+                if len(steps) == 0 or steps[-1] != max_length:
+                    steps.append(max_length)
 
-            ixs = [0]
-            current = 1
-            for i in xrange(len(steps)-1):
-                if i % 2 == 0:
-                    ixs.append(-1*current)
-                else:
-                    ixs.append(current)
-                    current += 1
-            steps = [steps[ix] for ix in ixs]
+                ixs = [0]
+                current = 1
+                for i in xrange(len(steps)-1):
+                    if i % 2 == 0:
+                        ixs.append(-1*current)
+                    else:
+                        ixs.append(current)
+                        current += 1
+                steps = [steps[ix] for ix in ixs]
 
-            partial_output_file = work_dir + '/mapped_reads_' + str(p_number) + '.sam'
-            process_work_dir = work_dir + "/mapping_%d/" % p_number
-            os.makedirs(process_work_dir)
+                print "Mapping %s" % file_name
+                partial_output_file = work_dir + '/mapped_reads_' + str(p_number) + '.sam'
+                process_work_dir = work_dir + "/mapping_%d/" % p_number
+                os.makedirs(process_work_dir)
 
-            iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
-                                  partial_output_file, True)
+                iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
+                                      partial_output_file, True)
 
-            os.unlink(file_name)
-            shutil.rmtree(process_work_dir)
+                print "Done mapping %s" % file_name
 
-            output_queue.put(partial_output_file)
+                os.unlink(file_name)
+                shutil.rmtree(process_work_dir)
+
+                output_queue.put(partial_output_file)
 
         input_queue = mp.Queue()
         output_queue = mp.Queue()
@@ -513,12 +519,14 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         with open(working_output_file, 'w') as o:
             while output_count < batch_count+1:
                 partial_output_file = output_queue.get(True)
+                logging.info("Processing %s..." % partial_output_file)
                 with open(partial_output_file, 'r') as p:
                     for line in p:
                         if line.startswith("@") and output_count > 0:
                             continue
                         o.write(line)
                 output_count += 1
+                logging.info("%d/%d" % (output_count, batch_count+1))
                 os.unlink(partial_output_file)
 
         if os.path.splitext(output_file)[1] == '.bam':
