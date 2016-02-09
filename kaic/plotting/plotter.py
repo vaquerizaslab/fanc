@@ -165,8 +165,11 @@ class GenomicTrack(RegionsTable):
         elif not isinstance(tracks, list) and not isinstance(tracks, tuple):
             tracks = [tracks]
         for t in tracks:
+            if self[t].ndim > 1:
+                continue
+            log.info("Writing track {}".format(t))
             with open("{}{}.bedgraph".format(prefix, t), "w") as f:
-                for r, v in it.izip(self.regions, self.tracks[t]):
+                for r, v in it.izip(self.regions, self[t]):
                     if skip_nan and np.isnan(v):
                         continue
                     f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start, r.end, v))
