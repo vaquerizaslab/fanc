@@ -481,51 +481,63 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         trimmed_count = 0
         batch_count = 0
         batch_reads_count = 0
-        with reader(working_input_file, 'r') as fastq:
-            for title, seq, qual in FastqGeneralIterator(fastq):
-                if batch_reads_count <= batch_size:
-                    # check if ligation junction is in this read
-                    if re_pattern is not None:
-                        m = re_pattern.search(seq)
-                        if m is not None:
-                            seq = m.group(1)
-                            qual = qual[:len(seq)]
-                            trimmed_count += 1
-                    max_length = max(max_length, len(seq))
-                    line = "@%s\n%s\n+\n%s\n" % (title, seq, qual)
-                    working_file.write(line)
-                    batch_reads_count += 1
-                else:
-                    # reset
-                    batch_reads_count = 0
-                    working_file.close()
+        output_count = 0
+        with open(working_output_file, 'w') as o:
+            with reader(working_input_file, 'r') as fastq:
+                for title, seq, qual in FastqGeneralIterator(fastq):
+                    if batch_reads_count <= batch_size:
+                        # check if ligation junction is in this read
+                        if re_pattern is not None:
+                            m = re_pattern.search(seq)
+                            if m is not None:
+                                seq = m.group(1)
+                                qual = qual[:len(seq)]
+                                trimmed_count += 1
+                        max_length = max(max_length, len(seq))
+                        line = "@%s\n%s\n+\n%s\n" % (title, seq, qual)
+                        working_file.write(line)
+                        batch_reads_count += 1
+                    else:
+                        # reset
+                        batch_reads_count = 0
+                        working_file.close()
 
+                        # prepare process
+                        input_queue.put((batch_count, working_file.name, mapper, min_size,
+                                         max_length, step_size, work_dir))
+
+                        # write output if any
+                        logging.info("Merging output files...")
+                        while not output_queue.empty():
+                            partial_output_file = output_queue.get()
+                            logging.info("Processing %s..." % partial_output_file)
+                            with open(partial_output_file, 'r') as p:
+                                for line in p:
+                                    if line.startswith("@") and output_count > 0:
+                                        continue
+                                    o.write(line)
+                            output_count += 1
+                            os.unlink(partial_output_file)
+
+                        max_length = 0
+                        batch_count += 1
+                        working_file = gzip.open(work_dir + '/full_reads_' + str(batch_count) + '.fastq.gz', 'w')
+                        working_files.append(working_file.name)
+
+                working_file.close()
+
+                # prepare last process
+                if batch_reads_count > 0:
                     # prepare process
                     input_queue.put((batch_count, working_file.name, mapper, min_size,
                                      max_length, step_size, work_dir))
 
-                    max_length = 0
-                    batch_count += 1
-                    working_file = gzip.open(work_dir + '/full_reads_' + str(batch_count) + '.fastq.gz', 'w')
-                    working_files.append(working_file.name)
+            if copy:
+                os.unlink(working_input_file)
 
-            working_file.close()
+            logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
-            # prepare last process
-            if batch_reads_count > 0:
-                # prepare process
-                input_queue.put((batch_count, working_file.name, mapper, min_size,
-                                 max_length, step_size, work_dir))
-
-        if copy:
-            os.unlink(working_input_file)
-
-        logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
-
-        # merge files
-        output_count = 0
-        logging.info("Merging output files...")
-        with open(working_output_file, 'w') as o:
+            # merge files
             while output_count < batch_count+1:
                 partial_output_file = output_queue.get(True)
                 logging.info("Processing %s..." % partial_output_file)
