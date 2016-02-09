@@ -11,7 +11,7 @@ from Bio import Restriction
 import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
-import time
+import glob
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -392,7 +392,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
 
 def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=None, quality_cutoff=30,
                                 batch_size=250000, threads=1, min_size=25, step_size=2, copy=False,
-                                restriction_enzyme=None, sleep_time=10):
+                                restriction_enzyme=None, adjust_batch_size=False):
     if work_dir is not None:
         work_dir = tempfile.mkdtemp(dir=os.path.expanduser(work_dir))
     else:
@@ -404,10 +404,20 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
     try:
         logging.info("Working directory: %s" % work_dir)
 
+        if index_path.endswith('.'):
+            index_path = index_path[:-1]
+
         if copy:
             working_input_file = work_dir + '/' + os.path.basename(input_file)
             shutil.copyfile(input_file, working_input_file)
             working_output_file = work_dir + '/' + os.path.basename(output_file)
+            os.makedirs(work_dir + '/index')
+            index_base = os.path.basename(index_path)
+
+            for file_name in glob.glob(index_path + '*'):
+                print file_name
+                shutil.copy(file_name, work_dir + '/index')
+            index_path = work_dir + '/index/' + index_base
         else:
             working_input_file = input_file
             working_output_file = output_file
@@ -423,12 +433,13 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         if restriction_enzyme is not None:
             re_pattern = ligation_site_pattern(restriction_enzyme)
 
-        with reader(working_input_file, 'r') as fastq:
-            n_lines = sum(1 for _ in fastq)/4
+        if adjust_batch_size:
+            with reader(working_input_file, 'r') as fastq:
+                n_lines = sum(1 for _ in fastq)/4
 
-        if n_lines/threads < batch_size*threads:
-            batch_size = int(n_lines/threads)+threads
-            logging.info("Corrected batch size to: %d" % batch_size)
+            if n_lines/threads < batch_size*threads:
+                batch_size = int(n_lines/threads)+threads
+                logging.info("Adjusted batch size to: %d" % batch_size)
 
         def _mapping_process_with_queue(input_queue, output_queue):
             while True:

@@ -199,6 +199,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-s', '--step-size', dest='step_size',
+            type=int,
+            default=3,
+            help='''Step size for iterative mapping. Default: 3'''
+        )
+
+        parser.add_argument(
             '-t', '--threads', dest='threads',
             type=int,
             default=1,
@@ -327,7 +334,7 @@ class Kaic(object):
         # 2. If input files are (gzipped) FASTQ, map them iteratively first
         def mapping_worker(file_name, index, bam_file, mapping_threads=1):
             iterative_mapping_command = ['kaic', 'iterative_mapping',
-                                         '-m', '25', '-s', '3', '-q', '30', '-t', str(mapping_threads)]
+                                         '-m', '25', '-s', str(args.step_size), '-q', '30', '-t', str(mapping_threads)]
             if args.tmp:
                 iterative_mapping_command.append('-tmp')
 
