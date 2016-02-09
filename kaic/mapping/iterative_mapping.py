@@ -12,6 +12,7 @@ import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
 import glob
+import Queue
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -508,16 +509,21 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
                         # write output if any
                         logging.info("Merging output files...")
-                        while not output_queue.empty():
-                            partial_output_file = output_queue.get(False)
-                            logging.info("Processing %s..." % partial_output_file)
-                            with open(partial_output_file, 'r') as p:
-                                for line in p:
-                                    if line.startswith("@") and output_count > 0:
-                                        continue
-                                    o.write(line)
-                            output_count += 1
-                            os.unlink(partial_output_file)
+                        while True:
+                            logging.info("Trying to collect results")
+                            try:
+                                partial_output_file = output_queue.get(False)
+                                logging.info("Processing %s..." % partial_output_file)
+                                with open(partial_output_file, 'r') as p:
+                                    for line in p:
+                                        if line.startswith("@") and output_count > 0:
+                                            continue
+                                        o.write(line)
+                                output_count += 1
+                                os.unlink(partial_output_file)
+                            except Queue.Empty:
+                                logging.info("No results found")
+                                break
 
                         max_length = 0
                         batch_count += 1
