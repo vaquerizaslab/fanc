@@ -5,7 +5,6 @@ import numpy as np
 import logging
 import itertools as it
 from scipy.signal import savgol_filter
-import ipdb
 
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -198,7 +197,7 @@ def delta_window(x, window):
         if (i < window or n - i <= window - 1):
             delta[i] = np.nan
             continue
-        delta[i] = np.mean(x[i - window:i] - x[i]) - np.mean(x[i + 1:i + window + 1] - x[i])
+        delta[i] = np.mean(x[i + 1:i + window + 1] - x[i]) - np.mean(x[i - window:i] - x[i])
     return delta
 
 def expected(hic, hic_matrix=None, per_chromosome=True, stat=np.ma.mean):
@@ -233,6 +232,62 @@ def create_gtf_from_region_ix(regions, region_ix):
         yield "{}\tkaic\tboundary\t{}\t{}\t.\t.\t.\n".format(
             regions[s].chromosome, regions[s].start, regions[e].end)
 
+class PeakCallerDelta(object):
+    def __init__(self, x, window_size=7):
+        self.x = x
+        self.window_size = window_size
+        self._call_peaks()
+
+    def _call_peaks(self):
+        self.delta = delta_window(self.x, self.window_size)
+        self._peaks = np.nonzero(np.diff(np.signbit(self.delta)))[0]
+        log.info("Found {} raw peaks".format(len(self._peaks)))
+        self.delta_d1 = savgol_filter(self.delta, window_length=self.window_size, polyorder=2, deriv=1)
+        self._delta_peaks = np.nonzero(np.diff(np.signbit(self.delta_d1)))[0]
+        self.delta_d2 = savgol_filter(self.delta, window_length=self.window_size, polyorder=2, deriv=2)
+        # Figure out which delta zero crossings are minima in x
+        self._min_mask = self.delta_d1[self._peaks] > 0
+        # Figure out which delta peaks are minima, have d2 > 0
+        self._delta_min_mask = self.delta_d2[self._delta_peaks] > 0
+        # Find local extrema in delta on left and right side of x extrema
+        self._left_value = np.full(self._peaks.shape, np.nan)
+        self._right_value = np.full(self._peaks.shape, np.nan)
+        self._right_ix = np.searchsorted(self._delta_peaks, self._peaks, side="right")
+        for i, p in enumerate(self._peaks):
+            try:
+                self._left_value[i] = self.delta[self._delta_peaks[self._right_ix[i] - 1]]
+            except IndexError:
+                pass
+            try:
+                self._right_value[i] = self.delta[self._delta_peaks[self._right_ix[i]]]
+            except IndexError:
+                pass
+        #left_ix = np.searchsorted(self._delta_peaks, self._peaks, side="right")
+        #left_peak = self.delta[self._delta_peaks[left_ix]]
+        #right_peak = self.delta[self._delta_peaks[left_ix + 1]]
+        # Score
+        self._scores = np.abs(self._left_value - self._right_value)
+        self._peak_mask = np.full(self._peaks.shape, True, dtype=np.bool_)
+
+    def get_peaks(self):
+        return self._peaks[self._peak_mask]
+
+    def get_minima(self):
+        return self._peaks[np.logical_and(self._peak_mask, self._min_mask)]
+
+    def get_maxima(self):
+        return self._peaks[np.logical_and(self._peak_mask, ~self._min_mask)]
+
+    @property
+    def scores(self):
+        return self._scores[self._peak_mask]
+
+    def filter(self, delta_score_thresh=None):
+        if delta_score_thresh:
+            delta_score_pass = self._scores > delta_score_thresh
+            self._peak_mask = np.logical_and(self._peak_mask, delta_score_pass)
+            log.info("Discarding {}({:.1%}) of total peaks due to delta score threshold ({})".format(np.sum(~delta_score_pass), np.sum(~delta_score_pass)/len(self._peaks), delta_score_thresh))
+
 class PeakCallerDeriv(object):
     def __init__(self, x, window_size=15, poly_order=2):
         self.x = x
@@ -248,7 +303,7 @@ class PeakCallerDeriv(object):
         # Find indices of zero crossings of 1st derivative
         self._peaks = np.nonzero(np.diff(np.signbit(self.d1)))[0]
         log.info("Found {} raw peaks".format(len(self._peaks)))
-        # Minima have negative 2nd order derivative at minimum
+        # Minima have positive 2nd order derivative at minimum
         self._min_mask = self.d2[self._peaks] > 0
         # Boundaries of peaks can be defined as the inflection point up-
         # and downstream of the peak. (zero crossings of 2nd derivative)
