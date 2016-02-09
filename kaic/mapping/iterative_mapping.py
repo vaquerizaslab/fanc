@@ -415,7 +415,6 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             index_base = os.path.basename(index_path)
 
             for file_name in glob.glob(index_path + '*'):
-                print file_name
                 shutil.copy(file_name, work_dir + '/index')
             index_path = work_dir + '/index/' + index_base
         else:
@@ -443,9 +442,8 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
         def _mapping_process_with_queue(input_queue, output_queue):
             while True:
-                print "Waiting for input..."
+                logging.info("Waiting for input...")
                 p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
-                print "Got %s" % file_name
                 steps = list(xrange(min_size, max_length+1, step_size))
                 if len(steps) == 0 or steps[-1] != max_length:
                     steps.append(max_length)
@@ -460,7 +458,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                         current += 1
                 steps = [steps[ix] for ix in ixs]
 
-                print "Mapping %s" % file_name
+                logging.info("Mapping %s" % file_name)
                 partial_output_file = work_dir + '/mapped_reads_' + str(p_number) + '.sam'
                 process_work_dir = work_dir + "/mapping_%d/" % p_number
                 os.makedirs(process_work_dir)
@@ -468,7 +466,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                 iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
                                       partial_output_file, True)
 
-                print "Done mapping %s" % file_name
+                logging.info("Done mapping %s" % file_name)
 
                 os.unlink(file_name)
                 shutil.rmtree(process_work_dir)
