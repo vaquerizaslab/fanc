@@ -509,7 +509,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                         # write output if any
                         logging.info("Merging output files...")
                         while not output_queue.empty():
-                            partial_output_file = output_queue.get()
+                            partial_output_file = output_queue.get(False)
                             logging.info("Processing %s..." % partial_output_file)
                             with open(partial_output_file, 'r') as p:
                                 for line in p:
