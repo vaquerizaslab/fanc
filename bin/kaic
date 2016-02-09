@@ -2182,10 +2182,9 @@ class Kaic(object):
                  'at least this difference in height. Default None.'
         )
         import kaic
-        from kaic.analyzing.architecture import PeakCallerDeriv
+        from kaic.analyzing.architecture import PeakCallerDelta
         from kaic.plotting.plotter import GenomicTrack
         from kaic.data.genomic import GenomicRegion
-        from scipy.signal import savgol_filter
         import numpy as np
         import itertools as it
         import re
