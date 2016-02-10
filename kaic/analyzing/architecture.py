@@ -48,6 +48,9 @@ def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.ma.me
             chr_bins[r.chromosome][1] - i <= d + 1):
             ins_matrix[i] = np.nan
             continue
+        if hic_matrix.mask[i, i]:
+            ins_matrix[i] = np.nan
+            continue
         ins_slice = (slice(i + 1, i + d + 1), slice(i - d, i))
         if np.sum(hic_matrix.mask[ins_slice]) > d*d*mask_thresh:
             # If too close to the edge of chromosome or
@@ -74,6 +77,9 @@ def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.m
     for i, r in enumerate(hic.regions()):
         if (i - chr_bins[r.chromosome][0] < d or
             chr_bins[r.chromosome][1] - i <= d + 1):
+            rel_ins_matrix[i] = np.nan
+            continue
+        if hic_matrix.mask[i, i]:
             rel_ins_matrix[i] = np.nan
             continue
         up_rel_slice = (slice(i - d, i), slice(i - d, i))
@@ -111,6 +117,9 @@ def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, use_oe_ratio=Fals
             chr_bins[r.chromosome][1] - i <= d2 + 1):
             band[i] = np.nan
             continue
+        if hic_matrix.mask[i, i]:
+            band[i] = np.nan
+            continue
         band_slice = (slice(i + d1 + 1, i + d2 + 1), slice(i - d2, i - d1))
         if np.sum(hic_matrix.mask[band_slice]) > ((d2 - d1)**2)*mask_thresh:
             # If too close to the edge of chromosome or
@@ -137,6 +146,9 @@ def directionality_index(hic, d, mask_thresh=.5, hic_matrix=None, correct_sum=Fa
     for i, r in enumerate(hic.regions()):
         if (i - chr_bins[r.chromosome][0] < d or
             chr_bins[r.chromosome][1] - i <= d + 1):
+            di[i] = np.nan
+            continue
+        if hic_matrix.mask[i, i]:
             di[i] = np.nan
             continue
         up_slice = (i, slice(i - d, i))
