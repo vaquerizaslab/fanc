@@ -2190,8 +2190,34 @@ class Kaic(object):
             help='Report only peaks where the two surrounding extrema of the delta vector have '
                  'at least this difference in height. Default None.'
         )
+        parser.add_argument(
+            '--limits',
+            type=int,
+            nargs=2,
+            help='For Matrix peak calling method specifies the start and end indices for which '
+                 'threshold value needs to be reached.'
+        )
+        parser.add_argument(
+            '--seed_ix',
+            type=int, default=5,
+            help='For Matrix peak calling method specifies the matrix index for which the '
+                 'initial seeding of possible extrema is done.'
+        )
+        parser.add_argument(
+            '--matrix_thresholds',
+            type=float,
+            nargs=2,
+            help='For Matrix peak calling method specifies the min and max value. Minima need '
+                 'to be below min and maxima need to be above max.'
+        )
+        parser.add_argument(
+            '--lenience',
+            type=float,
+            help='For Matrix peak calling method specifies what fraction of matrix entries can '
+                 'miss the required thresholds.'
+        )
         import kaic
-        from kaic.analyzing.architecture import PeakCallerDelta
+        from kaic.analyzing.architecture import PeakCallerDelta, PeakCallerMatrix
         from kaic.plotting.plotter import GenomicTrack
         from kaic.data.genomic import GenomicRegion
         import numpy as np
@@ -2206,17 +2232,28 @@ class Kaic(object):
         metric_list = list(it.chain(k for k in arch.tracks.keys() if any(re.match(r, k) for r in args.metrics)))
         for metric in metric_list:
             logging.info("Calling borders using {}".format(metric))
-            peak_caller = PeakCallerDelta(arch[metric], window_size=args.window_size)
-            peak_caller.filter(delta_score_thresh=args.delta_score_thresh)
-            minima = peak_caller.get_minima()
-            scores = peak_caller.scores
-            with open(output_path, "a") as f:
-                for i, m in enumerate(minima):
-                    r = arch.regions[m]
-                    f.write("{chrm}\t{source}\t{feature}\t{start}\t{end}\t{score}\t.\t.\t{attrs}\n".format(
-                        chrm=r.chromosome, source="kaic", feature="{}_border_region".format(metric),
-                        start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
-                    )
+            if arch[metric].ndim == 1:
+                peak_caller = PeakCallerDelta(arch[metric], window_size=args.window_size)
+                peak_caller.filter(delta_score_thresh=args.delta_score_thresh)
+                minima, scores = peak_caller.get_minima()
+                with open(output_path, "a") as f:
+                    for i, m in enumerate(minima):
+                        r = arch.regions[m]
+                        f.write("{chrm}\t{source}\t{feature}\t{start}\t{end}\t{score}\t.\t.\t{attrs}\n".format(
+                            chrm=r.chromosome, source="kaic", feature="{}_border_region".format(metric),
+                            start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
+                        )
+            else:
+                peak_caller = PeakCallerMatrix(arch[metric], seed_delta_ix=args.seed_ix, seed_delta_window=args.window_size)
+                peak_caller.filter(*(args.matrix_thresholds + args.limits), lenience=args.lenience)
+                minima, scores = peak_caller.get_minima()
+                with open(output_path, "a") as f:
+                    for i, m in enumerate(minima):
+                        r = arch.regions[m]
+                        f.write("{chrm}\t{source}\t{feature}\t{start}\t{end}\t{score}\t.\t.\t{attrs}\n".format(
+                            chrm=r.chromosome, source="kaic", feature="{}_border_region".format(metric),
+                            start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
+                        )
         logging.info("All done.")
 
     def hiclib_to_kaic(self):

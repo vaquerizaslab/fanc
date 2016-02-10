@@ -244,24 +244,40 @@ def create_gtf_from_region_ix(regions, region_ix):
         yield "{}\tkaic\tboundary\t{}\t{}\t.\t.\t.\n".format(
             regions[s].chromosome, regions[s].start, regions[e].end)
 
-class PeakCallerMatrix(object):
-    def __init__(self, x, threshold, min=0, max=None, lenience=.1):
+class BasePeakCaller(object):
+    def get_peaks(self):
+        return (self._peaks[self._peak_mask], self._scores[self._peak_mask])
+
+    def get_minima(self):
+        return (self._peaks[np.logical_and(self._min_mask, self._peak_mask)], self._scores[np.logical_and(self._min_mask, self._peak_mask)])
+
+    def get_maxima(self):
+        return (self._peaks[np.logical_and(~self._min_mask, self._peak_mask)], self._scores[np.logical_and(~self._min_mask, self._peak_mask)])
+
+class PeakCallerMatrix(BasePeakCaller):
+    def __init__(self, x, seed_delta_ix=10, seed_delta_window=7):
         self.x = x
-        self.threshold = threshold
-        self.limits = (min, max)
-        self.lenience = lenience
+        self.seed_delta_ix = seed_delta_ix
+        self.seed_delta_window = seed_delta_window
         self._call_peaks()
 
     def _call_peaks(self):
-        below = self.x < self.threshold
-        count = np.sum(below[:, self.limits[0]:self.limits[1]], axis=1)
-        self._peaks = np.nonzero(count > (1 - self.lenience)*(self.limits[1] - self.limits[0]))[0]
-        ipdb.set_trace()
+        self.delta = delta_window(self.x[:, self.seed_delta_ix], self.seed_delta_window)
+        self.delta_d1 = savgol_filter(self.delta, window_length=self.seed_delta_window, polyorder=2, deriv=1)
+        # Figure out which delta zero crossings are minima in x
+        self._peaks = np.nonzero(np.diff(np.signbit(self.delta)))[0]
+        self._min_mask = self.delta_d1[self._peaks] > 0
+        self._peak_mask = np.full(self._peaks.shape, True, dtype=np.bool_)
 
-    def get_minima(self):
-        return self._peaks
+    def filter(self, min_threshold, max_threshold, start=0, end=None, lenience=.1):
+        self._scores = np.ma.abs(np.ma.sum(self.x[self._peaks, start:end], axis=1))
+        self.below = np.where(self._min_mask[:, np.newaxis], self.x[self._peaks] < min_threshold, self.x[self._peaks] > max_threshold)
+        self.count = np.sum(self.below[:, start:end], axis=1)
+        pass_mask = self.count > (1 - lenience)*(end - start)
+        log.info("Discarding {}({:.1%}) of total peaks due to thresholds ({}, {})".format(np.sum(~pass_mask), np.sum(~pass_mask)/len(self._peaks), min_threshold, max_threshold))
+        self._peak_mask = np.logical_and(self._peak_mask, pass_mask)
 
-class PeakCallerDelta(object):
+class PeakCallerDelta(BasePeakCaller):
     def __init__(self, x, window_size=7):
         self.x = x
         self.window_size = window_size
@@ -298,109 +314,8 @@ class PeakCallerDelta(object):
         self._scores = np.abs(self._left_value - self._right_value)
         self._peak_mask = np.full(self._peaks.shape, True, dtype=np.bool_)
 
-    def get_peaks(self):
-        return self._peaks[self._peak_mask]
-
-    def get_minima(self):
-        return self._peaks[np.logical_and(self._peak_mask, self._min_mask)]
-
-    def get_maxima(self):
-        return self._peaks[np.logical_and(self._peak_mask, ~self._min_mask)]
-
-    @property
-    def scores(self):
-        return self._scores[self._peak_mask]
-
     def filter(self, delta_score_thresh=None):
         if delta_score_thresh:
             delta_score_pass = self._scores > delta_score_thresh
             self._peak_mask = np.logical_and(self._peak_mask, delta_score_pass)
             log.info("Discarding {}({:.1%}) of total peaks due to delta score threshold ({})".format(np.sum(~delta_score_pass), np.sum(~delta_score_pass)/len(self._peaks), delta_score_thresh))
-
-class PeakCallerDeriv(object):
-    def __init__(self, x, window_size=15, poly_order=2):
-        self.x = x
-        self.window_size = window_size
-        self.poly_order = poly_order
-        self._call_peaks()
-
-    def _call_peaks(self):
-        # Calculate Savitzky-Golay smoothed x and 1st and 2nd order derivative of input
-        self.x_smooth = savgol_filter(self.x, window_length=self.window_size, polyorder=self.poly_order, deriv=0)
-        self.d1 = savgol_filter(self.x, window_length=self.window_size, polyorder=self.poly_order, deriv=1)
-        self.d2 = savgol_filter(self.x, window_length=self.window_size, polyorder=self.poly_order, deriv=2)
-        # Find indices of zero crossings of 1st derivative
-        self._peaks = np.nonzero(np.diff(np.signbit(self.d1)))[0]
-        log.info("Found {} raw peaks".format(len(self._peaks)))
-        # Minima have positive 2nd order derivative at minimum
-        self._min_mask = self.d2[self._peaks] > 0
-        # Boundaries of peaks can be defined as the inflection point up-
-        # and downstream of the peak. (zero crossings of 2nd derivative)
-        self.infl_points = np.nonzero(np.diff(np.signbit(self.d2)))[0]
-        infl_ix = np.searchsorted(self.infl_points, self._peaks, side="right")
-        self.peak_bounds = np.empty((len(self._peaks), 2), dtype=np.int_)
-        # Have to catch boundary condition if inflection point before first peak
-        # or after last peak is not known
-        try:
-            self.peak_bounds[:, 0] = self.infl_points[infl_ix - 1]
-        except IndexError:
-            infl_ix[0] = 1
-            self.peak_bounds[:, 0] = self.infl_points[infl_ix - 1]
-            self.peak_bounds[0][0] = self._peaks[0]
-        try:
-            self.peak_bounds[:, 1] = self.infl_points[infl_ix]
-        except IndexError:
-            infl_ix[-1] = 1
-            self.peak_bounds[:, 1] = self.infl_points[infl_ix]
-            self.peak_bounds[-1][1] = self._peaks[-1]
-        peak_vals = self.x_smooth[self._peaks]
-        # For each peak get average value of inflection points left and right
-        # Maybe what we want instead is the inflection point that has largest distance to peak summit?
-        ip_means = np.ma.mean([self.x_smooth[self.peak_bounds[:, 0]], self.x_smooth[self.peak_bounds[:, 1]]], axis=0)
-        self._heights = peak_vals - ip_means
-        self._peak_mask = np.full(self._peaks.shape, True, dtype=np.bool_)
-
-    def get_peaks(self, as_range=False):
-        if as_range:
-            return self.peak_bounds[self._peak_mask]
-        return self._peaks[self._peak_mask]
-
-    def get_minima(self, as_range=False):
-        if as_range:
-            return self.peak_bounds[np.logical_and(self._peak_mask, self._min_mask)]
-        return self._peaks[np.logical_and(self._peak_mask, self._min_mask)]
-
-    def get_maxima(self, as_range=False):
-        if as_range:
-            return self.peak_bounds[np.logical_and(self._peak_mask, ~self._min_mask)]
-        return self._peaks[np.logical_and(self._peak_mask, ~self._min_mask)]
-
-    @property
-    def heights(self):
-        return self._heights[self._peak_mask]
-
-    def filter(self, z_score_thresh=None, z_score_window=50, steepness_thresh=None, height_thresh=None, abs_thresh=None):
-        if abs_thresh:
-            abs_pass = np.where(self._min_mask, self.x_smooth[self._peaks] < abs_thresh[0], self.x_smooth[self._peaks] > abs_thresh[1])
-            self._peak_mask = np.logical_and(self._peak_mask, abs_pass)
-            log.info("Discarding {}({:.1%}) of total peaks due to absolute value threshold ({})".format(np.sum(~abs_pass), np.sum(~abs_pass)/len(self._peaks), abs_thresh))
-        if z_score_thresh:
-            rolling_mean = rolling_func_nan(self.x, z_score_window, func=np.mean)
-            z_trans = (self.x - rolling_mean)/np.std(self.x[~np.isnan(self.x)])
-            z_pass = np.logical_or(z_trans[self._peaks] < -z_score_thresh, z_trans[self._peaks] > z_score_thresh)
-            self._peak_mask = np.logical_and(self._peak_mask, z_pass)
-            log.info("Discarding {}({:.1%}) of total peaks due to z-score threshold ({})".format(np.sum(~z_pass), np.sum(~z_pass)/len(self._peaks), z_score_thresh))
-        if steepness_thresh:
-            # If threshold is set, only retain peaks where 2nd derivative
-            # is above the required percentile for steepness
-            #d2_thresh = np.nanpercentile(np.abs(self.d2[self._peaks]), 100 - steepness_thresh)
-            steep_pass = np.abs(self.d2[zc1]) > steepness_thresh
-            self._peak_mask = np.logical_and([self._peak_mask, steep_pass], axis=0)
-            log.info("Discarding {}({:.1%}) of total peaks due to steepness threshold ({})".format(np.sum(~steep_pass), np.sum(~steep_pass)/len(self._peaks), steepness_thresh))
-        if height_thresh:
-            #height_thresh_minima = np.nanpercentile(self._heights[self._min_mask], height_thresh)
-            #height_thresh_maxima = np.nanpercentile(self._heights[~self._min_mask], 100 - height_thresh)
-            #height_pass = np.where(self._min_mask, self._heights <= height_thresh_minima, self._heights >= height_thresh_maxima)
-            height_pass = np.abs(self._heights[self._peaks]) > height_thresh
-            self._peak_mask = np.logical_and(self._peak_mask, height_pass)
-            log.info("Discarding {}({:.1%}) of total peaks due to peak height threshold ({})".format(np.sum(~height_pass), np.sum(~height_pass)/len(self._peaks), height_thresh))
