@@ -2037,6 +2037,11 @@ class Kaic(object):
             help='Bin sizes used for directionality index, insulation index and relative insulation index.'
         )
         parser.add_argument(
+            '-oe', '--observed_expected',
+            action='store_true',
+            help='Use observed over expected heatmap for calculations.'
+        )
+        parser.add_argument(
             '-m', '--matrix_bins',
             type=int,
             nargs='+', default=np.unique(np.logspace(3, 8, num=50, base=2).astype(int)),
@@ -2098,13 +2103,17 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[2:])
         import kaic
         from kaic.analyzing.architecture import insulation_index, rel_insulation_index, directionality_index, \
-                                                contact_band, delta_window, rolling_func_nan
+                                                contact_band, delta_window, rolling_func_nan, observed_expected_ratio
         from kaic.plotting.plotter import GenomicTrack
         from scipy.signal import savgol_filter
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
         h = kaic.Hic(input_path)
+        logging.info("Fetching Hi-C matrix")
         hic_matrix = h[:]
+        if args.observed_expected:
+            logging.info("Calculating observed/expected ratio")
+            hic_matrix = observed_expected_ratio(h, hic_matrix=hic_matrix)
         try:
             os.remove(output_path)
         except OSError:
