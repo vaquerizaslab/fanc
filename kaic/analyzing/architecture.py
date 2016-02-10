@@ -244,6 +244,23 @@ def create_gtf_from_region_ix(regions, region_ix):
         yield "{}\tkaic\tboundary\t{}\t{}\t.\t.\t.\n".format(
             regions[s].chromosome, regions[s].start, regions[e].end)
 
+class PeakCallerMatrix(object):
+    def __init__(self, x, threshold, min=0, max=None, lenience=.1):
+        self.x = x
+        self.threshold = threshold
+        self.limits = (min, max)
+        self.lenience = lenience
+        self._call_peaks()
+
+    def _call_peaks(self):
+        below = self.x < self.threshold
+        count = np.sum(below[:, self.limits[0]:self.limits[1]], axis=1)
+        self._peaks = np.nonzero(count > (1 - self.lenience)*(self.limits[1] - self.limits[0]))[0]
+        ipdb.set_trace()
+
+    def get_minima(self):
+        return self._peaks
+
 class PeakCallerDelta(object):
     def __init__(self, x, window_size=7):
         self.x = x
