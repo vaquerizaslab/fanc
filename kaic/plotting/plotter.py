@@ -17,11 +17,22 @@ import tables
 import re
 import track as track_module
 import warnings
+import copy
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
 
 sns.set_style("ticks")
+
+class SymmetricNorm(mpl.colors.Normalize):
+    def autoscale(self, A):
+        vmin = np.ma.min(A)
+        vmax = np.ma.max(A)
+        abs_max = max(abs(vmin), abs(vmax))
+        self.vmin = -1.*abs_max
+        self.vmax = abs_max
+
+    autoscale_None = autoscale
 
 def millify(n, precision=1):
     """Take input float and return human readable string.
@@ -49,6 +60,10 @@ def millify(n, precision=1):
     return "{:.{prec}f}{}".format(n/10**(3*millidx), millnames[millidx], prec=precision)
 
 def prepare_normalization(norm="lin", vmin=None, vmax=None):
+    if isinstance(norm, mpl.colors.Normalize):
+        norm.vmin = vmin
+        norm.vmax = vmax
+        return norm
     if norm == "log":
         return mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
     elif norm == "lin":
@@ -228,20 +243,22 @@ class GenomicTrack(RegionsTable):
             self.file.create_array("/", "title", value)
 
 class GenomicFigure(object):
-    def __init__(self, plots, height_ratios=None, figsize=None):
+    def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None):
         self.plots = plots
         self.n = len(plots)
-
-        gs = gridspec.GridSpec(self.n, 1, height_ratios=height_ratios, width_ratios=[1])
+        if not gridspec_args:
+            gridspec_args = {}
+        gs = gridspec.GridSpec(self.n, 2, wspace=.1, hspace=.1, height_ratios=height_ratios, width_ratios=[1, .05], **gridspec_args)
         if figsize is None:
             figsize = (6, 6*self.n)
         self.axes = []
         fig = plt.figure(figsize=figsize)
         for i in xrange(self.n):
             if i > 0:
-                ax = plt.subplot(gs[i], sharex=self.axes[0])
+                ax = plt.subplot(gs[i, 0], sharex=self.axes[0])
             else:
-                ax = plt.subplot(gs[i])
+                ax = plt.subplot(gs[i, 0])
+            plots[i].cax = plt.subplot(gs[i, 1])
             self.axes.append(ax)
         #if figsize is None:
         #    figsize = (8, 4*self.n)
@@ -415,6 +432,7 @@ class BasePlotter(object):
 
     def __init__(self, title):
         self._ax = None
+        self.cax = None
         self.title = title
 
     @abstractmethod
@@ -470,7 +488,7 @@ class BasePlotterHic(object):
 
     def __init__(self, hic_data, colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
-                 buffering_strategy="relative", buffering_arg=1):
+                 buffering_strategy="relative", buffering_arg=1, blend_masked=False):
         self.hic_data = hic_data
         if isinstance(hic_data, kaic.Hic):
             self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
@@ -478,11 +496,12 @@ class BasePlotterHic(object):
             self.hic_buffer = BufferedMatrix.from_hic_matrix(hic_data)
         else:
             raise ValueError("Unknown type for hic_data")
-        self.colormap = mpl.cm.get_cmap(colormap)
+        self.colormap = copy.copy(mpl.cm.get_cmap(colormap))
+        if blend_masked:
+            self.colormap.set_bad(self.colormap(0))
         self._vmin = vmin
         self._vmax = vmax
         self.norm = prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
-        self.cax = None
         self.colorbar = None
         self.slider = None
         self.show_colorbar = show_colorbar
@@ -492,11 +511,11 @@ class BasePlotterHic(object):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array([self.vmin, self.vmax])
         #self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
-        self.cax, kw = mpl.colorbar.make_axes_gridspec(self.ax, orientation="horizontal",
-                                              aspect=30, shrink=0.6)
+        #self.cax, kw = mpl.colorbar.make_axes_gridspec(self.ax, orientation="horizontal",
+        #                                      aspect=30, shrink=0.6)
         #divider = make_axes_locatable(self.ax)
         #self.cax = divider.append_axes("top", "5%", pad="5%")
-        self.colorbar = plt.colorbar(cmap_data, cax=self.cax, **kw)
+        self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
 
     def add_adj_slider(self):
         plot_position = self.cax.get_position()
@@ -587,11 +606,13 @@ class BasePlotter2D(BasePlotter):
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True,
-                 adjust_range=True, buffering_strategy="relative", buffering_arg=1):
+                 adjust_range=True, buffering_strategy="relative", buffering_arg=1,
+                 blend_masked=False):
         BasePlotter2D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
                                 norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
-                                adjust_range=adjust_range, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
+                                adjust_range=adjust_range, buffering_strategy=buffering_strategy,
+                                buffering_arg=buffering_arg, blend_masked=blend_masked)
 
     def _plot(self, x_region=None, y_region=None):
         m = self.hic_buffer.get_matrix(x_region, y_region)
@@ -646,12 +667,12 @@ class HicComparisonPlot2D(HicPlot2D):
 class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False,
-                 buffering_strategy="relative", buffering_arg=1):
+                 buffering_strategy="relative", buffering_arg=1, blend_masked=False):
         BasePlotter1D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
                                 buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
-                                norm=norm)
+                                norm=norm, blend_masked=blend_masked)
         self.max_dist = max_dist
 
     def _plot(self, region=None):
@@ -681,7 +702,9 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         X_ -= X_[1, 0] - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         # create plot
-        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
+        artist = self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
+        #import mpldatacursor
+        #mpldatacursor.datacursor(artist)
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
         self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
@@ -781,31 +804,45 @@ class GenomicArrayPlot(BasePlotter1D):
         regions = self.track.regions()[bins]
         bin_coords = np.r_[[(x.start - 1) for x in regions], (regions[-1].end)]
         X, Y = np.meshgrid(bin_coords, np.arange(values.shape[1] + 1))
-        self.ax.pcolormesh(X, Y, values.T, **self.plot_kwargs)
+        mesh = self.ax.pcolormesh(X, Y, values.T, **self.plot_kwargs)
+        self.colorbar = plt.colorbar(mesh, cax=self.cax, orientation="vertical")
+        #import mpldatacursor
+        #mpldatacursor.datacursor(mesh)
 
     def _refresh(self):
         pass
 
 class GeneModelPlot(BasePlotter1D):
-    def __init__(self, gtf, title="", feature_type="gene", id_field="gene_symbol"):
+    def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol"):
         import pybedtools as pbt
         BasePlotter1D.__init__(self, title=title)
         self.gtf = pbt.BedTool(gtf)
-        self.feature_type = feature_type
+        if feature_types is None:
+            feature_types = list(set(f[2] for f in self.gtf))
+        elif isinstance(feature_types, (str, unicode)):
+            feature_types = [feature_types]
+        self.feature_types = feature_types
         self.id_field = id_field
 
     def _plot(self, region):
         interval = region_to_pbt_interval(region)
         genes = self.gtf.all_hits(interval)
         trans = self.ax.get_xaxis_transform()
+        pos = {k: (i + 1)/len(self.feature_types) for i, k in enumerate(self.feature_types.iterkeys())}
         for g in genes:
+            if not g[2]in self.feature_types:
+                continue
+            try:
+                label = g.attrs[self.id_field]
+            except KeyError:
+                label = ""
             gene_patch = patches.Rectangle(
-                (g.start, 0.05),
+                (g.start, pos[g[2]]),
                 width=abs(g.end - g.start), height=0.03,
                 transform=trans, color="black"
             )
             self.ax.add_patch(gene_patch)
-            self.ax.text((g.start + g.end)/2, 0.6, g.attrs[self.id_field], transform=trans,
+            self.ax.text((g.start + g.end)/2, pos[g[2]] + .035, label, transform=trans,
                          ha="center", size="small")
             self.ax.spines['right'].set_visible(False)
             self.ax.spines['top'].set_visible(False)
@@ -813,7 +850,7 @@ class GeneModelPlot(BasePlotter1D):
             self.ax.spines['bottom'].set_visible(False)
             self.ax.xaxis.set_ticks_position('bottom')
             self.ax.yaxis.set_visible(False)
-            self.ax.xaxis.set_visible(False)
+            #self.ax.xaxis.set_visible(False)
 
     def _refresh(self):
         pass
