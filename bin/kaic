@@ -2149,15 +2149,21 @@ class Kaic(object):
             gt.add_data("rel_insulation_index_matrix", ii_matrix_normed.T)
         if args.derivative or args.delta:
             for k, v in gt.tracks.iteritems():
-                if "matrix" in k:
-                    continue
                 if args.derivative:
                     for i in args.derivative:
-                        d = savgol_filter(v, window_length=args.smoothing_window, polyorder=args.poly_order, deriv=i)
-                        gt.add_data("{}_d{}".format(k, i), d)
+                        if "matrix" in k:
+                            deriv_matrix = np.vstack([savgol_filter(x, window_length=args.smoothing_window, polyorder=args.poly_order, deriv=i) for x in v.T]).T
+                            gt.add_data("{}_d{}".format(k, i), deriv_matrix)
+                        else:
+                            d = savgol_filter(v, window_length=args.smoothing_window, polyorder=args.poly_order, deriv=i)
+                            gt.add_data("{}_d{}".format(k, i), d)
                 if args.delta:
                     for i in args.delta:
-                        gt.add_data("{}_delta{}".format(k, i), delta_window(v, i))
+                        if "matrix" in k:
+                            delta_matrix = np.vstack([delta_window(x, i) for x in v.T]).T
+                            gt.add_data("{}_delta{}".format(k, i), delta_matrix)
+                        else:
+                            gt.add_data("{}_delta{}".format(k, i), delta_window(v, i))
         logging.info("All done.")
 
     def boundaries(self):
