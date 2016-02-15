@@ -347,7 +347,7 @@ class FileGroup(FileBased):
         FileBased.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
 
         try:
-            group_node = self.file.get_node(group)
+            group_node = self.file.get_node("/" + group)
             if not isinstance(group, t.group.Group):
                 raise TypeError("%s is not a group, but %s" % (group, str(type(group_node))))
             self._group = group_node
