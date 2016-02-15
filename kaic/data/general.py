@@ -263,7 +263,7 @@ class FileBased(object):
         self.tmp_file = None
         self.file_name = file_name
         self.tmp_file_name = None
-        self.mode = mode
+        self._mode = mode
         if tmpdir is None:
             self.tmp_file_name = None
             self._init_file(file_name, mode)
@@ -330,6 +330,7 @@ class FileBased(object):
     @property
     def mode(self):
         return self._mode
+
     @mode.setter
     def mode(self, mode):
         if mode not in ['r', 'w', 'x', 'w-', 'r+', 'a']:
