@@ -891,7 +891,7 @@ class GenomicRegion(TableObject):
 
     """
 
-    def __init__(self, start, end, chromosome=None, strand=None, ix=None):
+    def __init__(self, start, end, chromosome=None, strand=None, ix=None, **kwargs):
         """
         Initialize this object.
 
@@ -907,6 +907,9 @@ class GenomicRegion(TableObject):
         self.strand = strand
         self.chromosome = chromosome
         self.ix = ix
+
+        for name, value in kwargs.iteritems():
+            setattr(self, name, value)
 
     @classmethod
     def from_row(cls, row):
@@ -1044,33 +1047,42 @@ class BedElement(GenomicRegion):
 
 
 class LazyGenomicRegion(GenomicRegion):
-    def __init__(self, row, ix=None):
-        self.row = row
+    def __init__(self, row, ix=None, auto_update=True):
+        self.reserved = {'_row', 'static_ix', 'strand', 'auto_update'}
+        self._row = row
         self.static_ix = ix
+        self.auto_update = auto_update
 
-    @property
-    def chromosome(self):
-        return self.row["chromosome"]
+    def __getattr__(self, item):
+        if item == 'reserved' or item in self.reserved:
+            return object.__getattribute__(self, item)
+        try:
+            return self._row[item]
+        except KeyError:
+            raise AttributeError
 
-    @property
-    def start(self):
-        return self.row["start"]
+    def __setattr__(self, key, value):
+        if key == 'reserved' or key in self.reserved:
+            super(LazyGenomicRegion, self).__setattr__(key, value)
+        else:
+            self._row[key] = value
+            if self.auto_update:
+                self.update()
 
-    @property
-    def end(self):
-        return self.row["end"]
+    def update(self):
+        self._row.update()
 
     @property
     def strand(self):
         try:
-            return self.row["strand"]
+            return self._row["strand"]
         except KeyError:
             return None
 
     @property
     def ix(self):
         if self.static_ix is None:
-            return self.row["ix"]
+            return self._row["ix"]
         return self.static_ix
 
 
@@ -1302,8 +1314,8 @@ class RegionsTable(GenomicRegions, FileBased):
         end = t.Int64Col(pos=3)
         strand = t.Int8Col(pos=4)
     
-    def __init__(self, data=None, file_name=None, mode='a',
-                 _table_name_regions='regions',
+    def __init__(self, regions=None, file_name=None, mode='a',
+                 additional_fields=None, _table_name_regions='regions',
                  tmpdir=None):
         """
         Initialize region table.
@@ -1319,56 +1331,65 @@ class RegionsTable(GenomicRegions, FileBased):
         """
         
         # parse potential unnamed argument
-        if data is not None:
+        if regions is not None:
             # data is file name
-            if type(data) is str or isinstance(data, t.file.File):                
+            if type(regions) is str or isinstance(regions, t.file.File):
                 if file_name is None:
-                    file_name = data
-                    data = None
-        
-        if file_name is not None and isinstance(file_name, str):
-            file_name = os.path.expanduser(file_name)
-        
+                    file_name = regions
+                    regions = None
+
         FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
-        
-        # check if this is an existing Hi-C file
-        if _table_name_regions in self.file.root:
+
+        # check if this is an existing regions file
+        try:
             self._regions = self.file.get_node('/', _table_name_regions)
             if len(self._regions) > 0:
                 self._max_region_ix = max(row['ix'] for row in self._regions.iterrows())
             else:
                 self._max_region_ix = -1
-        else:
-            self._regions = t.Table(self.file.root, _table_name_regions,
-                                    RegionsTable.RegionDescription)
+        except t.NoSuchNodeError:
+            basic_fields = RegionsTable.RegionDescription().columns.copy()
+            if additional_fields is not None:
+                if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
+                    # IsDescription subclass case
+                    additional_fields = additional_fields.columns
+
+                current = len(basic_fields)
+                for key, value in sorted(additional_fields.iteritems(), key=lambda x: x[1]._v_pos):
+                    if key not in basic_fields:
+                        if value._v_pos is not None:
+                            value._v_pos = current
+                            current += 1
+                        basic_fields[key] = value
+            self._regions = t.Table(self.file.root, _table_name_regions, basic_fields)
             self._max_region_ix = -1
 
-        # index node table
+        # index regions table
         try:
-            self._regions.cols.ix.create_csindex()
+            self._regions.cols.ix.create_index()
         except ValueError:
-            # Index exists, no problem!
             pass
+
         try:
-            self._regions.cols.start.create_csindex()
+            self._regions.cols.start.create_index()
         except ValueError:
-            # Index exists, no problem!
             pass
+
         try:
-            self._regions.cols.end.create_csindex()
+            self._regions.cols.end.create_index()
         except ValueError:
-            # Index exists, no problem!
             pass
 
         self._ix_to_chromosome = dict()
         self._chromosome_to_ix = dict()
 
-        if data is not None:
-            self.add_regions(data)
+        if regions is not None:
+            self.add_regions(regions)
         else:
             self._update_references()
 
     def add_region(self, region, flush=True):
+        # super-method, calls below '_add_region'
         ix = GenomicRegions.add_region(self, region)
         if flush:
             self._regions.flush()
@@ -1416,6 +1437,25 @@ class RegionsTable(GenomicRegions, FileBased):
         self._regions.flush()
         self._update_references()
 
+    def data(self, key, value=None):
+        """
+        Retrieve or add vector-data to this object. If there is exsting data in this
+        object with the same name, it will be replaced
+
+        :param key: Name of the data column
+        :param value: vector with region-based data (one entry per region)
+        """
+        if key not in self._regions.colnames:
+            raise KeyError("%s is unknown region attribute" % key)
+
+        if value is not None:
+            for i, row in enumerate(self._regions):
+                row[key] = value[i]
+                row.update()
+            self._regions.flush()
+
+        return (row[key] for row in self._regions)
+
     def _get_region_ix(self, region):
         """
         Get index from other region properties (chromosome, start, end)
@@ -1426,12 +1466,16 @@ class RegionsTable(GenomicRegions, FileBased):
             return res["ix"]
         return None
 
-    @staticmethod
-    def _row_to_region(row, lazy=False):
+    def _row_to_region(self, row, lazy=False, auto_update=True):
         if lazy:
-            return LazyGenomicRegion(row)
+            return LazyGenomicRegion(row, auto_update=auto_update)
+
+        kwargs = {}
+        for name in self._regions.colnames:
+            if name not in RegionsTable.RegionDescription().columns.keys():
+                kwargs[name] = row[name]
         return GenomicRegion(chromosome=row["chromosome"], start=row["start"],
-                             end=row["end"], ix=row["ix"])
+                             end=row["end"], ix=row["ix"], **kwargs)
 
     @property
     def regions(self):
@@ -1453,18 +1497,20 @@ class RegionsTable(GenomicRegions, FileBased):
             def __init__(self):
                 self.iter = iter(this._regions)
                 self.lazy = False
+                self.auto_update = True
                 
             def __iter__(self):
                 return self
             
             def next(self):
-                return RegionsTable._row_to_region(self.iter.next(), lazy=self.lazy)
+                return this._row_to_region(self.iter.next(), lazy=self.lazy)
             
             def __len__(self):
                 return len(this._regions)
 
-            def __call__(self, lazy=False):
+            def __call__(self, lazy=False, auto_update=True):
                 self.lazy = lazy
+                self.auto_update = auto_update
                 return iter(self)
 
             def __getitem__(self, item):
@@ -1473,10 +1519,12 @@ class RegionsTable(GenomicRegions, FileBased):
                 if isinstance(res, np.ndarray):
                     regions = []
                     for region in res:
-                        regions.append(RegionsTable._row_to_region(region, lazy=self.lazy))
+                        regions.append(this._row_to_region(region, lazy=self.lazy,
+                                                           auto_update=self.auto_update))
                     return regions
                 else:
-                    return RegionsTable._row_to_region(res, lazy=self.lazy)
+                    return this._row_to_region(res, lazy=self.lazy,
+                                               auto_update=self.auto_update)
             
         return RegionIter()
 
@@ -2225,7 +2273,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             if as_index:
                 region_nodes = [row['ix'] for row in self._regions.where(condition)]
             else:
-                region_nodes = [RegionsTable._row_to_region(row) for row in self._regions.where(condition)]
+                region_nodes = [self._row_to_region(row) for row in self._regions.where(condition)]
             
             return region_nodes
         
@@ -2234,7 +2282,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             if as_index:
                 return [row['ix'] for row in self._regions.iterrows(key.start, key.stop, key.step)]
             else:
-                return [RegionsTable._row_to_region(row) for row in self._regions.iterrows(key.start, key.stop, key.step)]
+                return [self._row_to_region(row) for row in self._regions.iterrows(key.start, key.stop, key.step)]
         
         # 432
         if isinstance(key, int):
@@ -2242,7 +2290,7 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             if as_index:
                 return row['ix']
             else:
-                return RegionsTable._row_to_region(row)
+                return self._row_to_region(row)
         
         # [item1, item2, item3]
         all_nodes_ix = []
