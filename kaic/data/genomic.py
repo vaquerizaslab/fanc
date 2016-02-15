@@ -1394,7 +1394,11 @@ class RegionsTable(GenomicRegions, FileBased):
         return ix
 
     def _update_references(self):
-        chromosomes = self.chromosomes()
+        chromosomes = []
+        for region in self.regions(lazy=True):
+            if len(chromosomes) == 0 or chromosomes[-1] != region.chromosome:
+                chromosomes.append(region.chromosome)
+
         for i, chromosome in enumerate(chromosomes):
             self._ix_to_chromosome[i] = chromosome
             self._chromosome_to_ix[chromosome] = i
