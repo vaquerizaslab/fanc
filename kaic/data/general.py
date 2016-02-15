@@ -342,6 +342,19 @@ class FileBased(object):
         self._mode = mode
 
 
+class FileGroup(FileBased):
+    def __init__(self, group, file_name=None, mode='a', tmpdir=None):
+        FileBased.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+
+        try:
+            group_node = self.file.get_node(group)
+            if not isinstance(group, t.group.Group):
+                raise TypeError("%s is not a group, but %s" % (group, str(type(group_node))))
+            self._group = group_node
+        except t.NoSuchNodeError:
+            self._group = self.file.create_group('/', group)
+
+
 class TableRow(tuple):
     """
     In-memory row of a Table.
