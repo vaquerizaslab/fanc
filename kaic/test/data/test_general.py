@@ -890,7 +890,6 @@ class TestMaskedTable:
         self.filtered_table.flush(update_index=True)
         self.filtered_table.filter(TestMaskedTable.ExampleFilter())
         
-        
     def test_initialize(self):
         assert len(self.table) == 50
         for i in range(0,50):
@@ -908,7 +907,6 @@ class TestMaskedTable:
         x = self.filtered_table[1:3]
         assert np.array_equal(tuple(x[0]), ('test_26',26,26.0,0,1))
         assert np.array_equal(tuple(x[1]), ('test_27',27,27.0,0,2))
-    
     
     def test_filter(self):
         self.table.filter(TestMaskedTable.ExampleFilter())
@@ -933,6 +931,9 @@ class TestMaskedTable:
             assert row[self.table._mask_index_field] == masked_ix
             masked_ix -= 1
 
+    def test_exclude_filters(self):
+        t = self.filtered_table
+        assert len(list(t.iterrows(excluded_masks=1))) == 50
 
 class TestMeta:
     def setup_method(self, method):
@@ -979,6 +980,51 @@ class TestFileBased:
             r.file.create_table("/", "test2", {'b': t.Int32Col()})
         r.close()
 
+    def test_tmp(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        f = FileBased(file_name=filename, mode='a', tmpdir='/tmp')
+        assert os.path.isfile(filename) == False
+        assert os.path.isfile(f.tmp_file_name) == True
+        f.close()
+        f.finalize()
+        assert os.path.isfile(filename) == True
+        f.cleanup()
+        assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
+            assert os.path.isfile(filename) == False
+            assert os.path.isfile(f.tmp_file_name) == True
+        assert os.path.isfile(filename) == True
+        assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with_exception(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with pytest.raises(Exception):
+            with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
+                assert os.path.isfile(filename) == False
+                assert os.path.isfile(f.tmp_file_name) == True
+                try:
+                    raise Exception
+                except:
+                    assert os.path.isfile(filename) == False
+                    assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with_existing(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        f = FileBased(str(tmpdir) + "/test.file")
+        f.file.create_table("/", "test1", {'a': t.Int32Col()})
+        f.close()
+        assert os.path.isfile(filename) == True
+        with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
+            f.file.create_table("/", "test2", {'b': t.Int32Col()})
+            assert os.path.isfile(f.tmp_file_name) == True
+        assert os.path.isfile(filename) == True
+        assert os.path.isfile(f.tmp_file_name) == False
+        with FileBased(file_name=filename, mode='r') as f:
+            assert 'test1' in f.file.root
+            assert 'test2' in f.file.root
 
 class TestPytablesInheritance:
     class MinTable(t.Table):

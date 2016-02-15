@@ -4,7 +4,6 @@ import numpy as np
 from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
 from kaic.data.genomic import Hic
 
-
 def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
     hic_new = None
     chromosome_starts = dict()
@@ -23,20 +22,21 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
         for chromosome in hic.chromosomes():
             m = hic[chromosome, chromosome]
             m_corrected, bias_vector_chromosome = correct_matrix(m)
-            logging.info("Adding/replacing edges...")
             if hic_new is None:
+                logging.info("Replacing corrected edges in existing Hic object...")
                 hic[chromosome, chromosome] = m_corrected
             else:
+                logging.info("Adding corrected edges in new Hic object ...")
                 chromosome_offset = chromosome_starts[chromosome]
                 for i in xrange(m_corrected.shape[0]):
                     i_region = i + chromosome_offset
-                    for j in xrange(i, m_corrected.shape[1]):
+                    nonzero_idx = np.nonzero(m_corrected[i])[0]
+                    for j in nonzero_idx[nonzero_idx >= i]:
                         j_region = j + chromosome_offset
                         weight = m_corrected[i, j]
-                        if weight != 0:
-                            hic_new.add_edge([i_region, j_region, weight], flush=False)
+                        hic_new.add_edge([i_region, j_region, weight], flush=False)
             bias_vectors.append(bias_vector_chromosome)
-            logging.info("Done.")
+        logging.info("Done.")
         logging.info("Adding bias vector...")
         if hic_new is None:
             hic.bias_vector(np.concatenate(bias_vectors))
@@ -44,17 +44,19 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
             hic_new.bias_vector(np.concatenate(bias_vectors))
         logging.info("Done.")
     else:
+        logging.info("Fetching whole genome matrix")
         m = hic[:, :]
         m_corrected, bias_vector = correct_matrix(m)
-        logging.info("Adding/replacing edges...")
         if hic_new is None:
+            logging.info("Replacing corrected edges in existing Hic object...")
             hic[:, :] = m_corrected
         else:
+            logging.info("Adding corrected edges in new Hic object ...")
             for i in xrange(m_corrected.shape[0]):
-                for j in xrange(i, m_corrected.shape[1]):
+                nonzero_idx = np.nonzero(m_corrected[i])[0]
+                for j in nonzero_idx[nonzero_idx >= i]:
                     weight = m_corrected[i, j]
-                    if weight != 0:
-                        hic_new.add_edge([i, j, weight], flush=False)
+                    hic_new.add_edge([i, j, weight], flush=False)
         logging.info("Done.")
         logging.info("Adding bias vector...")
         if hic_new is None:
@@ -94,14 +96,16 @@ def correct_matrix(m, max_attempts=50):
         if iterations > max_attempts:
             raise RuntimeError("Exceeded maximum attempts (%d)" % max_attempts)
 
-    for i in range(0, m_nonzero.shape[0]):
-        for j in range(0, m_nonzero.shape[1]):
-            m_nonzero[i, j] = x[i]*m_nonzero[i, j]*x[j]
-    
+    logging.info("Applying bias vector")
+    m_nonzero *= x
+    m_nonzero *= x[:, np.newaxis]
+
+    logging.debug(removed_rows)
+    logging.info("Restoring {} sets ({} total) sparse rows.".format(
+        len(removed_rows), sum(len(x) for x in removed_rows)))
     # restore zero rows
-    for idx in reversed(removed_rows):
-        m_nonzero = restore_sparse_rows(m_nonzero, idx)
-        x = restore_sparse_rows(x, idx)
+    m_nonzero = restore_sparse_rows(m_nonzero, removed_rows)
+    x = restore_sparse_rows(x, removed_rows)
 
     return m_nonzero, x
 

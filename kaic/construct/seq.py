@@ -56,7 +56,7 @@ from __future__ import division
 import tables as t
 import pysam
 from kaic.tools.files import is_sambam_file
-from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, FileBased
+from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, MaskedTableView, FileBased
 import os
 import logging
 from tables.exceptions import NoSuchNodeError
@@ -71,6 +71,7 @@ from scipy.stats import binom_test
 import hashlib
 from functools import partial
 from collections import defaultdict
+
 
 class Reads(Maskable, MetaContainer, FileBased):
     """
@@ -133,7 +134,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         qname_ix = t.Float64Col(pos=13, dflt=-1)
 
     def __init__(self, sambam_file=None, file_name=None, mode='a',
-                 _group_name='reads', mapper=None):
+                 _group_name='reads', mapper=None, tmpdir=None):
         """
         Create Reads object and optionally load SAM file.
 
@@ -169,7 +170,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 file_name = sambam_file
                 sambam_file = None
 
-        FileBased.__init__(self, file_name, mode=mode)
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
 
@@ -269,12 +270,6 @@ class Reads(Maskable, MetaContainer, FileBased):
         count = sum(1 for _ in iter(sambam))
         sambam.close()
         return count
-
-    def close(self):
-        """
-        Close the file backing this object.
-        """
-        self.file.close()
 
     @property
     def mapper(self):
@@ -618,7 +613,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                     pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
                     tags=tags, reference_id=ref_ix, qname_ix=row['qname_ix'])
 
-    def reads(self, lazy=False, sort_by_qname_ix=False, include_masked=False):
+    def reads(self, lazy=False, sort_by_qname_ix=False, excluded_filters=[]):
         """
         Iterate over _reads table and convert each result to Read.
 
@@ -627,32 +622,22 @@ class Reads(Maskable, MetaContainer, FileBased):
         :return: ReadsIter that iterates over visible reads
         """
 
+        excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
+
         # ensure sorting on qname_ix column
-        if sort_by_qname_ix and not self._is_sorted():
-            try:
-                logging.info("Sorting qnames...")
-                self._update_csi()
-            except t.exceptions.FileModeError:
-                raise RuntimeError("This object is not sorted by qname_ix! "
-                                   "Cannot sort manually, because file is in read-only mode.")
+        if sort_by_qname_ix:
+            if not self._is_sorted():
+                try:
+                    logging.info("Sorting qnames...")
+                    self._update_csi()
+                except t.exceptions.FileModeError:
+                    raise RuntimeError("This object is not sorted by qname_ix! "
+                                    "Cannot sort manually, because file is in read-only mode.")
+            it = self._reads.itersorted('qname_ix', excluded_masks=excluded_masks)
+        else:
+            it = self._reads.iterrows(excluded_masks=excluded_masks)
 
-        this = self
-
-        class ReadsIter:
-            def __init__(self):
-                reads_table = this._reads.all() if include_masked else this._reads
-                if sort_by_qname_ix:
-                    self.iter = this._reads.itersorted('qname_ix')
-                else:
-                    self.iter = iter(reads_table)
-
-            def __iter__(self):
-                return self
-
-            def next(self):
-                row = self.iter.next()
-                return this._row2read(row, lazy=lazy)
-        return ReadsIter()
+        return (self._row2read(row, lazy=lazy) for row in it)
 
     def __iter__(self):
         return self.reads()
@@ -1247,7 +1232,7 @@ class PairLoader(object):
             self.flag = row.flag
             self.cigar = row.cigar
 
-    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filters=[]):
         self._pairs = pairs
         self._reads1 = None
         self._reads2 = None
@@ -1257,6 +1242,7 @@ class PairLoader(object):
         self.add_read_pair = self._pairs.add_read_pair
         self._in_memory_index = _in_memory_index
         self.ignore_duplicates = ignore_duplicates
+        self.excluded_filters = excluded_filters
 
     def load(self, reads1, reads2, regions=None):
         self._reads1 = reads1
@@ -1314,10 +1300,11 @@ class PairLoader(object):
 
 
 class Bowtie2PairLoader(PairLoader):
-    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filters=None):
         super(Bowtie2PairLoader, self).__init__(pairs,
                                                 ignore_duplicates=ignore_duplicates,
-                                                _in_memory_index=_in_memory_index)
+                                                _in_memory_index=_in_memory_index,
+                                                excluded_filters=excluded_filters)
 
     @staticmethod
     def get_next_read(iterator):
@@ -1330,8 +1317,8 @@ class Bowtie2PairLoader(PairLoader):
     def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
         self._pairs.log_info("Adding read pairs...")
 
-        iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True)
-        iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True)
+        iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True, excluded_filters=self.excluded_filters)
+        iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True, excluded_filters=self.excluded_filters)
 
         # add and map reads
         i = 0
@@ -1420,12 +1407,13 @@ class Bowtie2PairLoader(PairLoader):
 
 
 class BwaMemPairLoader(PairLoader):
-    def __init__(self, pairs, _in_memory_index=True):
+    def __init__(self, pairs, _in_memory_index=True, excluded_filters=[]):
         self.add_read_single = None
         self.add_read_pair = None
         super(BwaMemPairLoader, self).__init__(pairs,
                                                ignore_duplicates=False,
-                                               _in_memory_index=_in_memory_index)
+                                               _in_memory_index=_in_memory_index,
+                                               excluded_filters=excluded_filters)
 
     @staticmethod
     def get_all_read_alns(it):
@@ -1631,7 +1619,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     def __init__(self, file_name=None,
                  mode='a',
                  group_name='fragment_map',
-                 table_name_fragments='fragments'):
+                 table_name_fragments='fragments',
+                 tmpdir=None):
         """
         Initialize empty FragmentMappedReadPairs object.
 
@@ -1648,7 +1637,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
 
-        FileBased.__init__(self, file_name, mode=mode)
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=table_name_fragments)
 
         # generate tables from inherited classes
@@ -1680,7 +1669,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         self._pairs.flush(update_index=update_index)
         self._single.flush(update_index=update_index)
 
-    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True):
+    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True, excluded_filters=[]):
         """
         Load paired reads and map them to genomic regions (e.g. RE-fragments).
 
@@ -1715,9 +1704,9 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                  for a very long runtime.
         """
         if reads1.mapper == 'bwa' and reads2.mapper == 'bwa':
-            loader = BwaMemPairLoader(self, _in_memory_index)
+            loader = BwaMemPairLoader(self, _in_memory_index, excluded_filters)
         else:
-            loader = Bowtie2PairLoader(self, ignore_duplicates, _in_memory_index)
+            loader = Bowtie2PairLoader(self, ignore_duplicates, _in_memory_index, excluded_filters)
 
         loader.load(reads1, reads2, regions=regions)
 
@@ -2032,15 +2021,14 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         :param dists: List of distances in bp.
         :param ratios: List of ratios
         """
-        def movingaverage(interval, window_size):
-            window = np.ones(int(window_size))/float(window_size)
-            return np.convolve(interval, window, 'same')
+        def x_prop(p_obs, p_exp, n):
+            obs = p_obs * n
+            exp = p_exp * n
+            p = (obs+exp) / (n*2)
+            return abs((p_exp-p_obs) / np.sqrt(p*(1-p) * (2/n)))
         ratios = np.clip(ratios, 0.0, 1.0)
-        ratios = movingaverage(ratios, max(1, len(ratios)/30))
-        sample_sizes = movingaverage(sample_sizes, max(1, len(sample_sizes)/30))
-        binom_probs = np.array([binom_test(r*b, b, expected_ratio) \
-                                for r, b in zip(ratios, sample_sizes)])
-        which_valid = binom_probs > p
+        z_scores = np.array([x_prop(r, expected_ratio, b) for r, b in zip(ratios, sample_sizes)])
+        which_valid = z_scores < 1.96
         which_valid_indices = np.argwhere(which_valid).flatten()
         if len(which_valid_indices) > 0:
             return int(dists[which_valid_indices[0]])
@@ -2161,26 +2149,13 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         """
         return self.pairs(lazy=False)
 
-    def pairs(self, lazy=False):
+    def pairs(self, lazy=False, excluded_filters=[]):
         """
         Iterate over unfiltered fragment-mapped read pairs.
         """
-        this = self
-
-        class FragmentMappedReadPairIter:
-            def __init__(self):
-                self.iter = iter(this._pairs)
-
-            def __iter__(self):
-                return self
-
-            def next(self):
-                return this._pair_from_row(self.iter.next(), lazy=lazy)
-
-            def __len__(self):
-                return len(this._pairs)
-
-        return FragmentMappedReadPairIter()
+        excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
+        it = self._pairs.iterrows(excluded_masks=excluded_masks)
+        return (self._pair_from_row(i, lazy=lazy) for i in it)
     
     def __getitem__(self, key):
         """

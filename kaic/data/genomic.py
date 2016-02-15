@@ -517,7 +517,7 @@ class Bedpe(object):
         for label in desc:
             if label not in labels:
                 labels.append(label)
-        
+
         if query != '':
             contacts = [[x[y] for y in labels] for x in self.table.where(query)]
         else:
@@ -1042,6 +1042,21 @@ class GenomicRegion(TableObject):
             return True
         return False
 
+    def _equals(self, region):
+        if region.chromosome != self.chromosome:
+            return False
+        if region.start != self.start:
+            return False
+        if region.end != self.end:
+            return False
+        return True
+
+    def __eq__(self, other):
+        return self._equals(other)
+
+    def __ne__ (self, other):
+        return not self._equals(other)
+
 
 class BedElement(GenomicRegion):
     def __init__(self, chromosome, start, end, **kwargs):
@@ -1273,6 +1288,20 @@ class GenomicRegions(object):
             chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
 
+    def range(self, range_region):
+        regions = []
+
+        for region in self.regions:
+            if not range_region.chromosome == region.chromosome:
+                if len(regions) == 0:
+                    continue
+                break
+
+            if region.start <= range_region.end and region.end >= range_region.start:
+                regions.append(region)
+
+        return regions
+
 
 class RegionsTable(GenomicRegions, FileBased):
     """
@@ -1293,9 +1322,10 @@ class RegionsTable(GenomicRegions, FileBased):
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
         strand = t.Int8Col(pos=4)
-    
+
     def __init__(self, data=None, file_name=None, mode='a',
-                 _table_name_regions='regions'):
+                 _table_name_regions='regions',
+                 tmpdir=None):
         """
         Initialize region table.
 
@@ -1320,7 +1350,7 @@ class RegionsTable(GenomicRegions, FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name, mode=mode)
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         
         # check if this is an existing Hi-C file
         if _table_name_regions in self.file.root:
@@ -1429,24 +1459,29 @@ class RegionsTable(GenomicRegions, FileBased):
         Can also be used to get the number of regions by calling
         len() on the object returned by this method.
 
+        :param lazy: If True, will only retrieve properties in
+                     a lazy fashion, i.e. on request
+
         :return: RegionIter
         """
         this = self
         class RegionIter:
             def __init__(self):
                 self.iter = iter(this._regions)
-                
+                self.lazy = False
+
             def __iter__(self):
                 return self
             
             def next(self):
-                return RegionsTable._row_to_region(self.iter.next())
+                return RegionsTable._row_to_region(self.iter.next(), lazy=self.lazy)
             
             def __len__(self):
                 return len(this._regions)
 
-            def __call__(self):
-                return this.regions
+            def __call__(self, lazy=False):
+                self.lazy = lazy
+                return iter(self)
 
             def __getitem__(self, item):
                 res = this._regions[item]
@@ -1454,13 +1489,97 @@ class RegionsTable(GenomicRegions, FileBased):
                 if isinstance(res, np.ndarray):
                     regions = []
                     for region in res:
-                        regions.append(RegionsTable._row_to_region(region))
+                        regions.append(RegionsTable._row_to_region(region, lazy=self.lazy))
                     return regions
                 else:
-                    return RegionsTable._row_to_region(res)
-            
+                    return RegionsTable._row_to_region(res, lazy=self.lazy)
+
         return RegionIter()
 
+    def chromosomes(self):
+        """
+        Get a list of chromosome names.
+
+        :return:
+        """
+        chromosomes = []
+        for region in self.regions():
+            if region.chromosome not in chromosomes:
+                chromosomes.append(region.chromosome)
+        return chromosomes
+
+    def region_bins(self, region):
+        """
+        Takes a genomic region and returns a slice of the bin 
+        indices that are covered by the region.
+
+        :param region: String or GenomicRegion
+                       Region for which covered bins will
+                       be returned.
+        """
+        if isinstance(region, basestring):
+            region = GenomicRegion.from_string(region)
+        start_ix = None
+        end_ix = None
+        for r in self.regions():
+            if not (r.chromosome == region.chromosome and r.start < region.end and r.end > region.start):
+                continue
+            if start_ix is None:
+                start_ix = r.ix
+                end_ix = r.ix + 1
+                continue
+            end_ix = r.ix + 1
+        return slice(start_ix, end_ix)
+
+    # def intersect(self, region):
+    #     """
+    #     Takes a genomic region and returns all region that
+    #     overlap with the supplied region.
+    #     """
+    #     if isinstance(region, basestring):
+    #         region = GenomicRegion.from_string(region)
+    #     condition = "(start < %d) & (end > %d) & (chromosome == '%s')"
+    #     condition = condition % (region.end, region.start, region.chromosome)
+    #     return [r for r in self.]
+    def intersect(self, region):
+        """
+        Takes a genomic region and returns all region that
+        overlap with the supplied region.
+        """
+        if isinstance(region, basestring):
+            region = GenomicRegion.from_string(region)
+        condition = "(start < %d) & (end > %d) & (chromosome == '%s')"
+        condition = condition % (region.end, region.start, region.chromosome)
+        return self.regions(selectby=condition)
+
+    @property
+    def chromosome_lens(self):
+        """
+        Returns a dictionary of chromosomes and their length
+        in bp.
+        """
+        chr_lens = {}
+        for r in self.regions():
+            if chr_lens.get(r.chromosome) is None:
+                chr_lens[r.chromosome] = r.end
+                continue
+            if r.end > chr_lens[r.chromosome]:
+                chr_lens[r.chromosome] = r.end
+        return chr_lens
+
+    @property
+    def chromosome_bins(self):
+        """
+        Returns a dictionary of chromosomes and the start
+        and end index of the bins they cover.
+        """
+        chr_bins = {}
+        for r in self.regions():
+            if chr_bins.get(r.chromosome) is None:
+                chr_bins[r.chromosome] = [r.ix, r.ix + 1]
+                continue
+            chr_bins[r.chromosome][1] = r.ix + 1
+        return chr_bins
 
 class HicNode(GenomicRegion, TableObject):
     """
@@ -1661,7 +1780,8 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                  mode='a',
                  _table_name_nodes='nodes',
                  _table_name_edges='edges',
-                 _table_name_node_annotations='node_annot'):
+                 _table_name_node_annotations='node_annot',
+                 tmpdir=None):
 
         """
         Initialize a :class:`~Hic` object.
@@ -1692,7 +1812,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name, mode=mode)
+        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
 
         if _table_name_edges in self.file.root:
@@ -1756,7 +1876,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
     def __del__(self):
         self.close()
     
-    def load_read_fragment_pairs(self, pairs, _max_buffer_size=5000000):
+    def load_read_fragment_pairs(self, pairs, excluded_filters=[], _max_buffer_size=5000000):
         """
         Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
 
@@ -1765,6 +1885,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         :param pairs: A :class:`~kaic.construct.seq.FragmentMappedReadPairs`
                       object.
+        :param excluded_filters: Filters to ignore when loading the data
         :param _max_buffer_size: Number of edges kept in buffer before
                                  writing to Table.
         """
@@ -1774,13 +1895,11 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
         self.add_regions(pairs.regions())
 
         edge_buffer = {}
-        for pair in pairs._pairs:
-            source = pair["left_fragment"]
-            sink = pair["right_fragment"]
+        for pair in pairs.pairs(lazy=True, excluded_filters=excluded_filters):
+            source = pair.left.fragment.ix
+            sink = pair.right.fragment.ix
             if source > sink:
-                tmp = source
-                source = sink
-                sink = tmp
+                source, sink = sink, source
             key = (source, sink)
             if key not in edge_buffer:
                 edge_buffer[key] = 0
@@ -1840,7 +1959,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                     edge_buffer = {}
             self._flush_edge_buffer(edge_buffer)
 
-    def bin(self, bin_size, file_name=None):
+    def bin(self, bin_size, file_name=None, tmpdir=None):
         """
         Map edges in this object to equi-distant bins.
 
@@ -1855,7 +1974,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             chromosome_list.append(Chromosome(name=chromosome,length=self.chromosome_lens[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = Hic(file_name=file_name, mode='w')
+        hic = Hic(file_name=file_name, mode='w', tmpdir=tmpdir)
         hic.add_regions(genome.get_regions(bin_size))
 
         hic.load_from_hic(self)
@@ -1998,7 +2117,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
 
-    def merge(self, hic, _edge_buffer_size=5000000):
+    def _merge(self, hic, _edge_buffer_size=5000000):
         """
         Merge this object with another :class:`~Hic` object.
 
@@ -2010,7 +2129,6 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         :param hic: :class:`~Hic` object to be merged into this one
         """
-
         ix_conversion = {}
 
         # check if regions are identical (saves a lot of time)
@@ -2055,9 +2173,7 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             merge_weight = merge_row["weight"]
 
             if merge_source > merge_sink:
-                tmp = merge_source
-                merge_source = merge_sink
-                merge_sink = tmp
+                merge_source, merge_sink = merge_sink, merge_source
 
             edge_buffer[(merge_source, merge_sink)] = merge_weight
 
@@ -2069,10 +2185,47 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
                 logging.info("Flushing buffer...")
                 self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                 edge_buffer = {}
+        logging.info("Final flush...")
+        self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
 
-        # final flush
-        self.log_info("Final flush")
-        self._flush_edge_buffer(edge_buffer, replace=False)
+    def merge(self, hic_or_hics, _edge_buffer_size=5000000):
+        """
+        Merge this object with other :class:`~Hic` objects.
+
+        First merges genomic regions, then merges edges.
+        It is strongly advised that the genomic regions in
+        both objects are the same, although this method will attempt to
+        "translate" regions from one object to the other if
+        this is not the case.
+
+        :param hic_or_hics: :class:`~Hic` object or a list
+                            of :class:`~Hic` objects to be
+                            merged into this one
+        """
+        import traceback
+        if isinstance(hic_or_hics, Hic):
+            hic = hic_or_hics
+            try:
+                self._merge(hic, _edge_buffer_size=_edge_buffer_size)
+            except Exception as e:
+                hic.__exit__(e, e.message, traceback.format_exc())
+            else:
+                hic.__exit__(None, None, None)
+        else:
+            try:
+                for hic in hic_or_hics:
+                    logging.info("Merging {}".format(hic.file_name))
+                    try:
+                        self._merge(hic, _edge_buffer_size=_edge_buffer_size)
+                    except Exception as e:
+                        hic.__exit__(e, e.message, traceback.format_exc())
+                    else:
+                        hic.__exit__(None, None, None)
+            except TypeError:
+                logging.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
+
+        logging.info("Removing zero edges")
+        self._remove_zero_edges(update_index=True)
 
     def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True):
         # update current rows
@@ -2321,6 +2474,75 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
             else:
                 all_nodes_ix.append(nodes_ix)
         return all_nodes_ix
+
+    def scaling_factor(self, hic):
+        """
+        Compute the scaling factor to another Hic library.
+
+        Calculates the ratio between the number of contacts in
+        this Hic object to the number of contacts in another
+        Hic object.
+
+        :param hic: A :class:`~Hic` object
+        :return: float
+        """
+        logging.info("Calculating scaling factor...")
+        hic1_sum = 0.0
+        for edge in self.edges(lazy=True):
+            hic1_sum += edge['weight']
+        hic2_sum = 0.0
+        for edge in hic.edges(lazy=True):
+            hic2_sum += edge['weight']
+        scaling_factor = hic1_sum/hic2_sum
+        logging.info("Scaling factor: %f" % scaling_factor)
+        return scaling_factor
+
+    def get_combined_matrix(self, hic, key=None, scaling_factor=None):
+        """
+        Return a :class:`~HicMatrix` where values above the diagonal
+        are from this object and values below the diagonal are from
+        another :class:`~Hic` object.
+
+        "Above the diagonal" refers to the diagonal of the complete
+        Hic object, not the diagonal of the returned matrix.
+
+        :param hic: Another :class:`~Hic` object
+        :param key: A matrix selector. Use tuple to selct row and
+                    columns, also see __getitem__
+        :param scaling_factor: Factor to scale the hic values. If None,
+                               will be computed using
+                               :func:`~Hic.scaling_factor`.
+        :return: :class:`~HicMatrix`
+        """
+        if key is None:
+            key = slice(0, None, None)
+
+        if scaling_factor is None:
+            scaling_factor = self.scaling_factor(hic)
+
+        m_top = self[key]
+
+        # find diagonal
+        row_region = m_top.row_regions[0]
+        matching_index = None
+        for i, col_region in enumerate(m_top.col_regions):
+            if col_region == row_region:
+                matching_index = i
+
+        if matching_index is None:
+            col_region = m_top.col_regions[0]
+            for i, row_region in enumerate(m_top.row_regions):
+                if col_region == row_region:
+                    matching_index = -1*i
+
+        if matching_index is None:
+            return m_top
+
+        # replace diagonal
+        m_bottom = hic[key]*scaling_factor
+        top_indices = np.triu_indices(m_top.shape[0], matching_index, m_top.shape[1])
+        m_bottom[top_indices] = m_top[top_indices]
+        return m_bottom
     
     def as_data_frame(self, key):
         """
@@ -2853,6 +3075,86 @@ class Hic(Maskable, MetaContainer, RegionsTable, FileBased):
 
         return directionality_index
 
+    def scaling_factor(self, hic):
+        """
+        Compute the scaling factor to another Hic library.
+
+        Calculates the ratio between the number of contacts in
+        this Hic object to the number of contacts in another
+        Hic object.
+
+        :param hic: A :class:`~Hic` object
+        :return: float
+        """
+        logging.info("Calculating scaling factor...")
+        hic1_sum = 0.0
+        for edge in self.edges(lazy=True):
+            hic1_sum += edge['weight']
+        hic2_sum = 0.0
+        for edge in hic.edges(lazy=True):
+            hic2_sum += edge['weight']
+        scaling_factor = hic1_sum/hic2_sum
+        logging.info("Scaling factor: %f" % scaling_factor)
+        return scaling_factor
+
+    def get_combined_matrix(self, hic, key=None, scaling_factor=None):
+        """
+        Return a :class:`~HicMatrix` where values above the diagonal
+        are from this object and values below the diagonal are from
+        another :class:`~Hic` object.
+
+        "Above the diagonal" refers to the diagonal of the complete
+        Hic object, not the diagonal of the returned matrix.
+
+        :param hic: Another :class:`~Hic` object
+        :param key: A matrix selector. Use tuple to selct row and
+                    columns, also see __getitem__
+        :param scaling_factor: Factor to scale the hic values. If None,
+                               will be computed using
+                               :func:`~Hic.scaling_factor`.
+        :return: :class:`~HicMatrix`
+        """
+        if key is None:
+            key = slice(0, None, None)
+
+        if scaling_factor is None:
+            scaling_factor = self.scaling_factor(hic)
+
+        m_top = self[key]
+
+        # find diagonal
+        row_region = m_top.row_regions[0]
+        matching_index = None
+        for i, col_region in enumerate(m_top.col_regions):
+            if col_region == row_region:
+                matching_index = i
+
+        if matching_index is None:
+            col_region = m_top.col_regions[0]
+            for i, row_region in enumerate(m_top.row_regions):
+                if col_region == row_region:
+                    matching_index = -1*i
+
+        if matching_index is None:
+            return m_top
+
+        # replace diagonal
+        m_bottom = hic[key]*scaling_factor
+        top_indices = np.triu_indices(m_top.shape[0], matching_index, m_top.shape[1])
+        m_bottom[top_indices] = m_top[top_indices]
+        return m_bottom
+
+    def distance_scaling(self):
+        """
+        Return the the distance scaling vector of the Hi-C map. Shows how the
+        distances of contacts are distributed.
+
+        :return: numpy array of the same length as bins in the object
+        """
+        s = np.zeros(len(self.regions()))
+        for e in self.edges(lazy=True):
+            s[e.sink - e.source] += e.weight
+        return s
 
 class HicEdgeFilter(MaskFilter):
     """
@@ -3076,6 +3378,26 @@ class HicMatrix(np.ndarray):
             return slice(start, stop+1, 1)
         return key
 
+    @property
+    def masked_matrix(self):
+        return self.get_masked_matrix(all_zero=False)
+
+    def get_masked_matrix(self, all_zero=False):
+        """
+        Returns masked version of HicMatrix. By default, all entries in zero-count
+        rows and columns are masked.
+
+        :param all_zero: Mask ALL zero-count entries
+        :returns: MaskedArray with zero entries masked
+        """
+        if all_zero:
+            return np.ma.MaskedArray(self, mask=np.isclose(self, 0.))
+        col_zero = np.isclose(np.sum(self, axis=0), 0.)
+        row_zero = np.isclose(np.sum(self, axis=1), 0.)
+        mask =  np.zeros(self.shape, dtype=np.bool_)
+        mask[:, col_zero] = np.True_
+        mask[row_zero, :] = np.True_
+        return np.ma.MaskedArray(self, mask=mask)
 
 class HicXmlFile(object):
     def __init__(self, file_name):

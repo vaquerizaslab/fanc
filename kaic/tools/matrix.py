@@ -55,15 +55,19 @@ def remove_sparse_rows(m, cutoff=None):
     return m_removed, idxs
     
     
-def restore_sparse_rows(m, idxs, rows=None):
-    idxsn = idxs.copy()
-    for i in range(0, len(idxs)):
-        idxsn[i] = idxs[i]-i
-
-    a = np.insert(m, idxsn, 0, axis=0)
+def restore_sparse_rows(m, idx_sets, rows=None):
+    abs_idx = []
+    for idxs in reversed(idx_sets):
+        for i in sorted(idxs):
+            shift = 0
+            for j in sorted(abs_idx):
+                if j + shift < i:
+                    shift += 1
+            abs_idx.append(i - shift)
+    abs_idx.sort()
+    a = np.insert(m, abs_idx, 0, axis=0)
     if len(m.shape) > 1:
-        a = np.insert(a, idxsn, 0, axis=1)
-
+        a = np.insert(a, abs_idx, 0, axis=1)
     return a
 
 def compare(A,M):

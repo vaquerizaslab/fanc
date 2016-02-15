@@ -6,6 +6,7 @@ Created on Jul 15, 2015
 
 import os.path
 import numpy as np
+import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter,\
@@ -122,7 +123,7 @@ class TestReads:
         reads = Reads(self.sam1_file)
         
         reads.filter_quality(30, queue=False)
-        for row in reads._reads.all():
+        for row in reads._reads._iter_visible_and_masked():
             if row['mapq'] < 30:
                 assert row[reads._reads._mask_field] == 2
             else:
@@ -132,7 +133,7 @@ class TestReads:
         reads = Reads(self.sam1_file)
         
         reads.filter_non_unique(strict=True)
-        for row in reads._reads.all():
+        for row in reads._reads._iter_visible_and_masked():
             if row['pos'] > 0:
                 tags = reads._tags[row['ix']]
                 has_xs = False
@@ -176,6 +177,42 @@ class TestReads:
             assert read.qname_ix > previous
             previous = read.qname_ix
         assert previous != 0
+
+    def test_iterate_exclude_filters(self):
+        reads = Reads(self.sam1_file)
+        reads.filter_unmapped(queue=True)
+        reads.filter_quality(35, queue=True)
+        reads.filter_non_unique(strict=True, queue=True)
+        reads.run_queued_filters()
+        assert len(list(reads.reads(excluded_filters=['unmapped', 'mapq', 'uniqueness']))) == 271
+        assert len(list(reads.reads(excluded_filters=['unmapped', 'uniqueness']))) == 246
+        assert len(list(reads.reads(excluded_filters=['unmapped', 'mapq']))) == 153
+        assert len(list(reads.reads(excluded_filters=['mapq', 'uniqueness']))) == 271
+        assert len(list(reads.reads(excluded_filters=['unmapped']))) == 153
+        assert len(list(reads.reads(excluded_filters=['mapq']))) == 153
+        assert len(list(reads.reads(excluded_filters=['uniqueness']))) == 246
+
+
+class TestFileOpsReads:
+    def test_tmp_with(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with Reads(file_name=filename, mode='a', tmpdir='/tmp') as f:
+            assert os.path.isfile(filename) == False
+            assert os.path.isfile(f.tmp_file_name) == True
+        assert os.path.isfile(filename) == True
+        assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with_exception(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with pytest.raises(Exception):
+            with Reads(file_name=filename, mode='a', tmpdir='/tmp') as f:
+                assert os.path.isfile(filename) == False
+                assert os.path.isfile(f.tmp_file_name) == True
+                try:
+                    raise Exception
+                except:
+                    assert os.path.isfile(filename) == False
+                    assert os.path.isfile(f.tmp_file_name) == False
 
 
 class TestBWAReads:
@@ -361,6 +398,28 @@ class TestFragmentMappedReads:
         read2 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=990, strand=-1)
         assert read2.re_distance() == 10
 
+    def test_iterate_exclude_filters(self):
+        mask = self.pairs.add_mask_description('inwards', 'Mask read pairs that inward facing and closer than 100bp')
+        in_filter = InwardPairsFilter(minimum_distance=100, mask=mask)
+        self.pairs.filter(in_filter)
+        mask = self.pairs.add_mask_description('outwards', 'Mask read pairs that outward facing and closer than 100bp')
+        out_filter = OutwardPairsFilter(minimum_distance=100, mask=mask)
+        self.pairs.filter(out_filter)
+        mask = self.pairs.add_mask_description('re-dist', 'Mask read pairs where one half maps more than 100bp away from both RE sites')
+        re_filter = ReDistanceFilter(maximum_distance=300, mask=mask)
+        self.pairs.filter(re_filter)
+        assert len(self.pairs) == 0
+        assert len(list(self.pairs.pairs(excluded_filters=['inwards', 'outwards', 're-dist']))) == 44
+        assert len(list(self.pairs.pairs(excluded_filters=['inwards', 'outwards']))) == 13
+        assert len(list(self.pairs.pairs(excluded_filters=['inwards', 're-dist']))) == 28
+        assert len(list(self.pairs.pairs(excluded_filters=['outwards', 're-dist']))) == 18
+        assert len(list(self.pairs.pairs(excluded_filters=['inwards']))) == 11
+        assert len(list(self.pairs.pairs(excluded_filters=['outwards']))) == 2
+        assert len(list(self.pairs.pairs(excluded_filters=['re-dist']))) == 2
+        assert len(list(self.pairs.pairs(excluded_filters=[in_filter, re_filter]))) == 28
+        assert len(list(self.pairs.pairs(excluded_filters=[in_filter, mask]))) == 28
+        assert len(list(self.pairs.pairs(excluded_filters=[in_filter, 3]))) == 28
+
 
 class TestFragmentRead:
     def setup_method(self, method):
@@ -496,6 +555,28 @@ class TestFragmentReadPair:
         assert pair.is_outward_pair()
         assert not pair.is_same_fragment()
         assert not pair.is_same_pair()
+
+
+class TestFileOpsFragmentMappedReadPairs:
+    def test_tmp_with(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with FragmentMappedReadPairs(file_name=filename, mode='a', tmpdir='/tmp') as f:
+            assert os.path.isfile(filename) == False
+            assert os.path.isfile(f.tmp_file_name) == True
+        assert os.path.isfile(filename) == True
+        assert os.path.isfile(f.tmp_file_name) == False
+
+    def test_tmp_with_exception(self, tmpdir):
+        filename = str(tmpdir) + "/test.file"
+        with pytest.raises(Exception):
+            with FragmentMappedReadPairs(file_name=filename, mode='a', tmpdir='/tmp') as f:
+                assert os.path.isfile(filename) == False
+                assert os.path.isfile(f.tmp_file_name) == True
+                try:
+                    raise Exception
+                except:
+                    assert os.path.isfile(filename) == False
+                    assert os.path.isfile(f.tmp_file_name) == False
 
 
 class TestBWAFragmentMappedReads:

@@ -1,24 +1,38 @@
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from matplotlib.widgets import Slider
 import kaic
-from kaic.data.genomic import GenomicRegion, RegionsTable
+from kaic.data.genomic import GenomicRegion, RegionsTable, GenomicRegions
 import matplotlib.patches as patches
+import matplotlib.gridspec as gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from abc import abstractmethod, ABCMeta
 import numpy as np
 import math
 import matplotlib as mpl
 import logging
 import seaborn as sns
-import ipdb
 import pybedtools as pbt
 import itertools as it
 import tables
 import re
+import track as track_module
+import warnings
+import copy
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
 
 sns.set_style("ticks")
+
+class SymmetricNorm(mpl.colors.Normalize):
+    def autoscale(self, A):
+        vmin = np.ma.min(A)
+        vmax = np.ma.max(A)
+        abs_max = max(abs(vmin), abs(vmax))
+        self.vmin = -1.*abs_max
+        self.vmax = abs_max
+
+    autoscale_None = autoscale
 
 def millify(n, precision=1):
     """Take input float and return human readable string.
@@ -46,6 +60,10 @@ def millify(n, precision=1):
     return "{:.{prec}f}{}".format(n/10**(3*millidx), millnames[millidx], prec=precision)
 
 def prepare_normalization(norm="lin", vmin=None, vmax=None):
+    if isinstance(norm, mpl.colors.Normalize):
+        norm.vmin = vmin
+        norm.vmax = vmax
+        return norm
     if norm == "log":
         return mpl.colors.LogNorm(vmin=vmin, vmax=vmax)
     elif norm == "lin":
@@ -67,6 +85,28 @@ def get_typed_array(input_iterable, nan_strings, count=-1):
         pass
     return np.fromiter(input_iterable, str, count)
 
+class NewGenomicTrack(object):
+    def __init__(self, file_name, title=None):
+        """
+        Initialize a genomic track.
+
+        :param file_name: Genomic track file. Can be BED, BEDGRAPH, WIG, BIGWIG etc.
+        :param title: The overall title of the track.
+        """
+        self.file_name = file_name
+        self.title = title
+        self.track = track.load(file_name)
+
+    def __getitem__(self, key):
+        if isinstance(key, int) or isinstance(key, slice):
+            return {t.name: t[key] for t in self._tracks}
+        if isinstance(key, basestring):
+            region = GenomicRegion.from_string(key)
+        elif isinstance(key, GenomicRegion):
+            region = key
+
+        return self[self.region_bins(region)]
+
 class GenomicTrack(RegionsTable):
     def __init__(self, file_name, title=None, data_dict=None, regions=None, _table_name_tracks='tracks'):
         """
@@ -81,8 +121,12 @@ class GenomicTrack(RegionsTable):
                         or String elemnts that describe regions.
         """
         RegionsTable.__init__(self, file_name=file_name)
+        # Check if file already exist, then don't allow to add more
         if regions:
-            self.add_regions(regions)
+            if not len(self._regions) > 0:
+                self.add_regions(regions)
+            else:
+                warnings.warn("Existing GenomicTrack object already contains regions, ignoring regions to be added")
         if _table_name_tracks in self.file.root:
             self._tracks = self.file.get_node('/', _table_name_tracks)
         else:
@@ -112,6 +156,10 @@ class GenomicTrack(RegionsTable):
         values = {}
         for i, f in enumerate(gtf.sort()):
             regions.append(GenomicRegion(chromosome=f.chrom, start=f.start, end=f.end, strand=f.strand))
+            # If input is a GTF file, also store the type and source fields
+            if f.file_type in ("gff", "gtf"):
+                f.attrs["source"] = a.fields[1]
+                f.attrs["feature"] = a.fields[2]
             # Check if there is a new attribute that hasn't occured before
             for k in f.attrs.keys():
                 if not k in values and (not store_attrs or k in store_attrs):
@@ -125,6 +173,21 @@ class GenomicTrack(RegionsTable):
         for k, v in values.iteritems():
             values[k] = get_typed_array(v, nan_strings=nan_strings, count=n)
         return cls(file_name=file_name, data_dict=values, regions=regions)
+
+    def to_bedgraph(self, prefix, tracks=None, skip_nan=True):
+        if tracks is None:
+            tracks = [t.name for t in self._tracks]
+        elif not isinstance(tracks, list) and not isinstance(tracks, tuple):
+            tracks = [tracks]
+        for t in tracks:
+            if self[t].ndim > 1:
+                continue
+            log.info("Writing track {}".format(t))
+            with open("{}{}.bedgraph".format(prefix, t), "w") as f:
+                for r, v in it.izip(self.regions, self[t]):
+                    if skip_nan and np.isnan(v):
+                        continue
+                    f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start, r.end, v))
 
     def add_data(self, name, values, description=None):
         """
@@ -143,11 +206,22 @@ class GenomicTrack(RegionsTable):
         if isinstance(key, int) or isinstance(key, slice):
             return {t.name: t[key] for t in self._tracks}
         if isinstance(key, basestring):
+            if key in self._tracks:
+                return getattr(self._tracks, key)[:]
             region = GenomicRegion.from_string(key)
             return self[self.region_bins(region)]
 
     @property
     def tracks(self):
+        # this = self
+        # class TrackList(object):
+        #     def __init__(self, track_object):
+        #         self.track_object = track_object
+
+        #     def __str__(self):
+        #         return str(self.track_object._tracks)
+
+        #     def __
         return {t.name: t[:] for t in self._tracks}
 
     @property
@@ -169,12 +243,26 @@ class GenomicTrack(RegionsTable):
             self.file.create_array("/", "title", value)
 
 class GenomicFigure(object):
-    def __init__(self, plots, figsize=None):
+    def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None):
         self.plots = plots
         self.n = len(plots)
+        if not gridspec_args:
+            gridspec_args = {}
+        gs = gridspec.GridSpec(self.n, 2, wspace=.1, hspace=.1, height_ratios=height_ratios, width_ratios=[1, .05], **gridspec_args)
         if figsize is None:
-            figsize = (8, 4*self.n)
-        _, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
+            figsize = (6, 6*self.n)
+        self.axes = []
+        fig = plt.figure(figsize=figsize)
+        for i in xrange(self.n):
+            if i > 0:
+                ax = plt.subplot(gs[i, 0], sharex=self.axes[0])
+            else:
+                ax = plt.subplot(gs[i, 0])
+            plots[i].cax = plt.subplot(gs[i, 1])
+            self.axes.append(ax)
+        #if figsize is None:
+        #    figsize = (8, 4*self.n)
+        #_, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
 
     @property
     def fig(self):
@@ -183,7 +271,7 @@ class GenomicFigure(object):
     def plot(self, region):
         for p, a in zip(self.plots, self.axes):
             p.plot(region, ax=a)
-        self.fig.tight_layout()
+        #self.fig.tight_layout()
         return self.fig, self.axes
 
     # def add_colorbar(self):
@@ -273,6 +361,7 @@ class BufferedMatrix(object):
         return True
 
     def get_matrix(self, *regions):
+        regions = tuple(reversed([r for r in regions]))
         if not self.is_buffered_region(*regions):
             log.info("Buffering matrix")
             self._BUFFERING_STRATEGIES[self.buffering_strategy](self, *regions)
@@ -317,12 +406,33 @@ class BufferedMatrix(object):
                              _STRATEGY_RELATIVE: _buffer_relative,
                              _STRATEGY_FIXED: _buffer_fixed}
 
+
+class BufferedCombinedMatrix(BufferedMatrix):
+    def __init__(self, hic_top, hic_bottom, scale_matrices=True, buffering_strategy="relative", buffering_arg=1):
+        super(BufferedCombinedMatrix, self).__init__(None, buffering_strategy, buffering_arg)
+
+        scaling_factor = 1
+        if scale_matrices:
+            scaling_factor = hic_top.scaling_factor(hic_bottom)
+
+        class CombinedData(object):
+            def __init__(self, hic_top, hic_bottom, scaling_factor=1):
+                self.hic_top = hic_top
+                self.hic_bottom = hic_bottom
+                self.scaling_factor = scaling_factor
+
+            def __getitem__(self, item):
+                return hic_top.get_combined_matrix(self.hic_bottom, key=item, scaling_factor=self.scaling_factor)
+
+        self.data = CombinedData(hic_top, hic_bottom, scaling_factor)
+
 class BasePlotter(object):
 
     __metaclass__ = ABCMeta
 
     def __init__(self, title):
         self._ax = None
+        self.cax = None
         self.title = title
 
     @abstractmethod
@@ -378,7 +488,7 @@ class BasePlotterHic(object):
 
     def __init__(self, hic_data, colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
-                 buffering_strategy="relative", buffering_arg=1):
+                 buffering_strategy="relative", buffering_arg=1, blend_masked=False):
         self.hic_data = hic_data
         if isinstance(hic_data, kaic.Hic):
             self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
@@ -386,11 +496,12 @@ class BasePlotterHic(object):
             self.hic_buffer = BufferedMatrix.from_hic_matrix(hic_data)
         else:
             raise ValueError("Unknown type for hic_data")
-        self.colormap = mpl.cm.get_cmap(colormap)
+        self.colormap = copy.copy(mpl.cm.get_cmap(colormap))
+        if blend_masked:
+            self.colormap.set_bad(self.colormap(0))
         self._vmin = vmin
         self._vmax = vmax
         self.norm = prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
-        self.cax = None
         self.colorbar = None
         self.slider = None
         self.show_colorbar = show_colorbar
@@ -399,16 +510,22 @@ class BasePlotterHic(object):
     def add_colorbar(self):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array([self.vmin, self.vmax])
-        self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
-        self.colorbar = plt.colorbar(cmap_data, cax=self.cax, **kw)
+        #self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
+        #self.cax, kw = mpl.colorbar.make_axes_gridspec(self.ax, orientation="horizontal",
+        #                                      aspect=30, shrink=0.6)
+        #divider = make_axes_locatable(self.ax)
+        #self.cax = divider.append_axes("top", "5%", pad="5%")
+        self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
 
     def add_adj_slider(self):
         plot_position = self.cax.get_position()
         vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
-        self.vmin_slider = Slider(vmin_axs, 'vmin', self.vmin, self.vmax, valinit=self.vmin,
+        self.vmin_slider = Slider(vmin_axs, 'vmin', self.hic_buffer.buffered_min,
+                                  self.hic_buffer.buffered_max, valinit=self.vmin,
                                   facecolor='#dddddd', edgecolor='none')
         vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
-        self.vmax_slider = Slider(vmax_axs, 'vmax', self.vmin, self.vmax, valinit=self.vmax,
+        self.vmax_slider = Slider(vmax_axs, 'vmax', self.hic_buffer.buffered_min,
+                                  self.hic_buffer.buffered_max, valinit=self.vmax,
                                   facecolor='#dddddd', edgecolor='none')
         self.fig.subplots_adjust(top=0.90, bottom=0.15)
         self.vmin_slider.on_changed(self._slider_refresh)
@@ -418,6 +535,8 @@ class BasePlotterHic(object):
         new_vmin = self.vmin_slider.val
         new_vmax = self.vmax_slider.val
         self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
+        self.colorbar.set_clim(vmin=new_vmin, vmax=new_vmax)
+        self.colorbar.draw_all()
 
     @property
     def vmin(self):
@@ -487,15 +606,17 @@ class BasePlotter2D(BasePlotter):
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True,
-                 adjust_range=True, buffering_strategy="relative", buffering_arg=1):
+                 adjust_range=True, buffering_strategy="relative", buffering_arg=1,
+                 blend_masked=False):
         BasePlotter2D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
                                 norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
-                                adjust_range=adjust_range, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
+                                adjust_range=adjust_range, buffering_strategy=buffering_strategy,
+                                buffering_arg=buffering_arg, blend_masked=blend_masked)
 
     def _plot(self, x_region=None, y_region=None):
         m = self.hic_buffer.get_matrix(x_region, y_region)
-        self.im = self.ax.imshow(m, interpolation='nearest', cmap=self.colormap, norm=self.norm,
+        self.im = self.ax.imshow(m, interpolation='none', cmap=self.colormap, norm=self.norm, origin="upper",
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
         self.last_ylim = self.ax.get_ylim()
@@ -534,28 +655,24 @@ class HicSideBySidePlot2D(object):
 
 class HicComparisonPlot2D(HicPlot2D):
     def __init__(self, hic_top, hic_bottom, colormap='viridis', norm='log',
-                 vmin=None, vmax=None, scale_matrices=True):
-        super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+                 vmin=None, vmax=None, scale_matrices=True, show_colorbar=True,
+                 buffering_strategy="relative", buffering_arg=1):
+        super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax,
+                                                  show_colorbar=show_colorbar)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
-        self.scaling_factor = 1
-        if scale_matrices:
-            self.scaling_factor = hic_top.scaling_factor(hic_bottom)
-
-    def _get_matrix(self, x_region, y_region):
-        print x_region, y_region
-        return self.hic_top.get_combined_matrix(self.hic_bottom, key=(y_region, x_region),
-                                                scaling_factor=self.scaling_factor)
+        self.hic_buffer = BufferedCombinedMatrix(hic_top, hic_bottom, scale_matrices, buffering_strategy, buffering_arg)
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False,
-                 buffering_strategy="relative", buffering_arg=1):
+                 buffering_strategy="relative", buffering_arg=1, blend_masked=False):
         BasePlotter1D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
-                                buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
+                                buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
+                                norm=norm, blend_masked=blend_masked)
         self.max_dist = max_dist
 
     def _plot(self, region=None):
@@ -585,7 +702,9 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         X_ -= X_[1, 0] - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         # create plot
-        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
+        artist = self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
+        #import mpldatacursor
+        #mpldatacursor.datacursor(artist)
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
         self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
@@ -593,6 +712,11 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.ax.set_yticks([])
         # hide background patch
         self.ax.patch.set_visible(False)
+
+        if self.show_colorbar:
+            self.add_colorbar()
+            if self.adjust_range:
+                self.add_adj_slider()
 
     def _refresh(self, region=None):
         pass
@@ -665,27 +789,105 @@ class GenomicTrackPlot(BasePlotter1D):
     _STYLES = {_STYLE_STEP: _get_values_per_step,
                _STYLE_MID: _get_values_per_mid}
 
+class GenomicArrayPlot(BasePlotter1D):
+    def __init__(self, track, attribute, plot_kwargs=None, title=''):
+        BasePlotter1D.__init__(self, title=title)
+        self.track = track
+        self.attribute = attribute
+        if plot_kwargs is None:
+            plot_kwargs = {}
+        self.plot_kwargs = plot_kwargs
+
+    def _plot(self, region):
+        bins = self.track.region_bins(region)
+        values = self.track[bins][self.attribute]
+        regions = self.track.regions()[bins]
+        bin_coords = np.r_[[(x.start - 1) for x in regions], (regions[-1].end)]
+        X, Y = np.meshgrid(bin_coords, np.arange(values.shape[1] + 1))
+        mesh = self.ax.pcolormesh(X, Y, values.T, **self.plot_kwargs)
+        self.colorbar = plt.colorbar(mesh, cax=self.cax, orientation="vertical")
+        #import mpldatacursor
+        #mpldatacursor.datacursor(mesh)
+
+    def _refresh(self):
+        pass
+
 class GeneModelPlot(BasePlotter1D):
-    def __init__(self, gtf, title="", feature_type="gene", id_field="gene_symbol"):
+    def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol"):
         import pybedtools as pbt
         BasePlotter1D.__init__(self, title=title)
         self.gtf = pbt.BedTool(gtf)
-        self.feature_type = feature_type
+        if feature_types is None:
+            feature_types = list(set(f[2] for f in self.gtf))
+        elif isinstance(feature_types, (str, unicode)):
+            feature_types = [feature_types]
+        self.feature_types = feature_types
         self.id_field = id_field
 
     def _plot(self, region):
         interval = region_to_pbt_interval(region)
         genes = self.gtf.all_hits(interval)
         trans = self.ax.get_xaxis_transform()
+        pos = {k: (i + 1)/len(self.feature_types) for i, k in enumerate(self.feature_types.iterkeys())}
         for g in genes:
+            if not g[2]in self.feature_types:
+                continue
+            try:
+                label = g.attrs[self.id_field]
+            except KeyError:
+                label = ""
             gene_patch = patches.Rectangle(
-                (g.start, 0.05),
+                (g.start, pos[g[2]]),
                 width=abs(g.end - g.start), height=0.03,
                 transform=trans, color="black"
             )
             self.ax.add_patch(gene_patch)
-            self.ax.text((g.start + g.end)/2, 0.6, g.attrs[self.id_field], transform=trans,
+            self.ax.text((g.start + g.end)/2, pos[g[2]] + .035, label, transform=trans,
                          ha="center", size="small")
+            self.ax.spines['right'].set_visible(False)
+            self.ax.spines['top'].set_visible(False)
+            self.ax.spines['left'].set_visible(False)
+            self.ax.spines['bottom'].set_visible(False)
+            self.ax.xaxis.set_ticks_position('bottom')
+            self.ax.yaxis.set_visible(False)
+            #self.ax.xaxis.set_visible(False)
+
+    def _refresh(self):
+        pass
+
+
+class GenomicFeaturePlot(BasePlotter1D):
+    def __init__(self, regions, labels, title="", color='black'):
+        BasePlotter1D.__init__(self, title=title)
+        sorted_regions = sorted(zip(regions, labels), key=lambda x: (x[0].chromosome, x[0].start))
+        regions, self.labels = zip(*sorted_regions)
+
+        self.color = color
+        self.regions = GenomicRegions(regions=regions)
+
+        for region in regions:
+            print region
+
+    def _plot(self, region):
+        trans = self.ax.get_xaxis_transform()
+        overlap_regions = self.regions.range(region)
+        for r in overlap_regions:
+            region_patch = patches.Rectangle(
+                (r.start, 0.05),
+                width=abs(r.end - r.start), height=0.6,
+                transform=trans, color=self.color
+            )
+            self.ax.add_patch(region_patch)
+            self.ax.text((r.start + r.end)/2, 0.8, self.labels[r.ix], transform=trans,
+                         ha="center", size="small")
+
+        self.ax.spines['right'].set_visible(False)
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['left'].set_visible(False)
+        self.ax.spines['bottom'].set_visible(False)
+        self.ax.xaxis.set_ticks_position('bottom')
+        self.ax.yaxis.set_visible(False)
+        self.ax.xaxis.set_visible(False)
 
     def _refresh(self):
         pass

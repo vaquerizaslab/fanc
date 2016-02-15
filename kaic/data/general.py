@@ -13,12 +13,15 @@ from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
 import numpy as np
 import warnings
 import os.path
+import os
 import time
 import logging
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from kaic.tools.lru import lru_cache
+import shutil
+import binascii
 logging.basicConfig(level=logging.INFO)
 _filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
 
@@ -249,23 +252,93 @@ def _file_to_data(file_name, sep="\t", has_header=None, types=None):
 
 
 class FileBased(object):
-    def __init__(self, file_name=None, mode='a'):
+    def __init__(self, file_name=None, mode='a', tmpdir=None):
         # open file or keep in memory
         if hasattr(self, 'file'):
             if not isinstance(self.file, t.file.File):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
-        else:
-            if file_name is None:
-                self.file = create_or_open_pytables_file()
-            elif type(file_name) == str:
-                self.file = create_or_open_pytables_file(file_name, mode=mode)
-            elif isinstance(file_name, t.file.File):
-                self.file = file_name
             else:
-                raise ValueError("file_name is not a recognisable type")
+                return
+        self.file = None
+        self.tmp_file = None
+        self.file_name = file_name
+        self.tmp_file_name = None
+        self.mode = mode
+        if tmpdir is None:
+            self.tmp_file_name = None
+            self._init_file(file_name, mode)
+        else:
+            logging.info("Working in temporary directory...")
+            self.tmp_file_name = os.path.join(tmpdir, self._generate_tmp_file_name())
+            logging.info("Temporary output file: {}".format(self.tmp_file_name))
+            if mode in ['w', 'x', 'w-']:
+                pass
+            elif mode in ['r+', 'r']:
+                shutil.copyfile(file_name, self.tmp_file_name)
+            elif mode in ['a'] and os.path.isfile(file_name):
+                shutil.copyfile(file_name, self.tmp_file_name)
+            self._init_file(self.tmp_file_name, mode)
+        self.closed = False
     
     def close(self):
         self.file.close()
+        self.closed = True
+
+    def finalize(self):
+        if self.closed:
+            if self.tmp_file_name:
+                logging.info("Moving temporary output file to destination {}".format(self.file_name))
+                shutil.copyfile(self.tmp_file_name, self.file_name)
+        else:
+            raise IOError('The file has to be closed before copying the tmp file. Use close()')
+
+    def cleanup(self):
+        if self.closed:
+            os.remove(self.tmp_file_name)
+        else:
+            raise IOError('The file has to be closed before deleting the tmp file. Use close()')
+
+    def _generate_tmp_file_name(self):
+        rand_str = binascii.b2a_hex(os.urandom(15))
+        return "tmp_{}.h5".format(rand_str)
+
+    def _init_file(self, file_name, mode):
+        if file_name is None:
+            self.file = create_or_open_pytables_file()
+        elif type(file_name) == str:
+            self.file = create_or_open_pytables_file(file_name, mode=mode)
+        elif isinstance(file_name, t.file.File):
+            self.file = file_name
+        else:
+            raise TypeError("file_name is not a recognisable type")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        if exc_type is None:
+            if self.tmp_file_name:
+                self.finalize()
+                self.cleanup()
+            return True
+        else:
+            if self.tmp_file_name:
+                self.cleanup()
+            return False
+
+    @property
+    def mode(self):
+        return self._mode
+    @mode.setter
+    def mode(self, mode):
+        if mode not in ['r', 'w', 'x', 'w-', 'r+', 'a']:
+            raise ValueError('Unknown mode {}'.format(mode))
+        if mode in ['r', 'r+'] and not os.path.isfile(self.file_name):
+            raise OSError('The file {} does not exists'.format(self.file_name))
+        if mode in ['x', 'w-'] and os.path.isfile(self.file_name):
+            raise OSError('The file {} already exists'.format(self.file_name))
+        self._mode = mode
 
 
 class TableRow(tuple):
@@ -1294,6 +1367,7 @@ class Mask(object):
     def __repr__(self):
         return "%d. %s: %s" % (self.ix, self.name, self.description)
 
+
 class Maskable(object):
     """
     Class that adds masking functionality to tables.
@@ -1454,6 +1528,21 @@ class Maskable(object):
     def _row_to_mask(row):
         return Mask(name=row['name'], ix=row['ix'], description=row['description'])
 
+    def get_binary_mask_from_masks(self, masks):
+        o = []
+        for m in masks:
+            if type(m) == type('str'):
+                o.append(2**self.get_mask(m).ix)
+            elif isinstance(m, MaskFilter):
+                o.append(2**m.mask_ix)
+            elif isinstance(m, Mask):
+                o.append(2**m.ix)
+            elif type(m) == type(1):
+                o.append(2**m)
+            else:
+                raise ValueError('Can only get binary mask from mask names, indexes and MaskFilter instances')
+        return sum(o)
+
     @lru_cache(maxsize=1000)
     def get_mask(self, key):
         """
@@ -1513,7 +1602,7 @@ class Maskable(object):
         masks = {mask.name: 0 for mask in self.masks()}
         if include_unmasked:
             masks['unmasked'] = 0
-        for row in table.all():
+        for row in table._iter_visible_and_masked():
             mask_bit = row[table._mask_field]
             row_masks = self.get_masks(mask_bit)
 
@@ -1525,6 +1614,25 @@ class Maskable(object):
             if not found_masks:
                 masks['unmasked'] += 1
         return masks
+
+
+class MaskedTableView(object):
+    def __init__(self, masked_table, it=None, excluded_masks=0):
+        self.masked_table = masked_table
+        self.iter = it if it else self.masked_table._iter_visible_and_masked()
+        self.excluded_mask_ix = excluded_masks
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        row = self.iter.next()
+        # bit-shift magic! Go @alexis!
+        # a is a subset of b if and only if a | b == b.
+        # If this condition is satisfied for each byte, return TRUE. Otherwise return FALSE
+        while row[self.masked_table._mask_field] | self.excluded_mask_ix != self.excluded_mask_ix:
+            row = self.iter.next()
+        return row
 
 
 class MaskedTable(t.Table):
@@ -1636,44 +1744,58 @@ class MaskedTable(t.Table):
                 self.flush_rows_to_index()
             # commit index changes
             super(MaskedTable, self).flush()
-    
-    def iterrows(self, start=None, stop=None, step=None):
-        this = self
 
-        class VisibleIter:
-            def __init__(self):
-                self.iter = t.Table.iterrows(this, start, stop, step)
-                  
-            def __iter__(self):
-                return self
-              
-            def next(self):
-                row = self.iter.next()
-                while row[this._mask_field] > 0:
-                    row = self.iter.next()
-                return row
-        return VisibleIter()
+    def iterrows(self, start=None, stop=None, step=None, excluded_masks=0):
+        it = t.Table.iterrows(self, start, stop, step)
+        return MaskedTableView(self, it, excluded_masks=excluded_masks)
 
     def itersorted(self, sortby, checkCSI=False,
-                   start=None, stop=None, step=None):
+                   start=None, stop=None, step=None, excluded_masks=0):
+        it = t.Table.itersorted(self, sortby, checkCSI=checkCSI,
+                                start=start, stop=stop, step=step)
+        return MaskedTableView(self, it, excluded_masks=excluded_masks)
+
+    def _iter_visible_and_masked(self):
+        """
+        Return an iterator over all rows, including masked ones.
+        """
+        return t.Table.iterrows(self)
+
+    def masked_rows(self):
+        """
+        Return an iterator over masked rows.
+        """
         this = self
+        it = self._iter_visible_and_masked()
 
-        class VisibleSortedIter:
-            def __init__(self):
-                self.iter = t.Table.itersorted(this, sortby, checkCSI=checkCSI,
-                                                    start=start, stop=stop, step=step)
-
-            def __iter__(self):
-                return self
+        class MaskedRows(MaskedTableView):
+            def __init__(self, masked_table, it):
+                super(MaskedRows, self).__init__(masked_table, it)
 
             def next(self):
                 row = self.iter.next()
-
-                while row[this._mask_field] > 0:
+                while row[this._mask_field] == 0:
                     row = self.iter.next()
                 return row
-        return VisibleSortedIter()
-      
+
+            def __getitem__(self, key):
+                if type(key) == int:
+                    if key >= 0:
+                        key = -1*key - 1
+                        res = [x.fetch_all_fields() for x in super(MaskedTable,this).where("%s == %d" % (this._mask_index_field,key))]
+                        if len(res) == 1:
+                            return res[0]
+                        if len(res) == 0:
+                            raise IndexError("Index %d out of bounds" % key)
+                        raise RuntimeError("Duplicate row for key %d" % key)
+                    else:
+                        l = this._visible_len()
+                        return self[l+key]
+                else:
+                    raise KeyError('Cannot retrieve row with key ' + str(key))
+
+        return MaskedRows(self, it)
+
     def __getitem__(self, key):
         return self._get_visible_item(key)
     
@@ -1761,6 +1883,21 @@ class MaskedTable(t.Table):
                 ix += 1
             row.update()
     
+    @lru_cache(maxsize=1000)
+    def _get_masks(self, binary_mask):
+        def bits(n):
+            while n:
+                b = n & (~n+1)
+                yield b
+                n ^= b
+        return list(bits(binary_mask))
+
+    def _row_masks(self, row):
+        return self._get_masks(row[self._mask_field])
+
+    def _has_mask(self, row, mask):
+        return mask in self._row_masks(row)
+
     def filter(self, mask_filter, _logging=False):
         """
         Run a MaskFilter on this table.
@@ -1836,53 +1973,7 @@ class MaskedTable(t.Table):
                 logging.info("%d%%..." % int(last_percent * 100))
                 last_percent += 0.05
         self.flush(update_index=False)
-    
-    def all(self):
-        """
-        Return an iterator over all rows, including masked ones.
-        """
-         
-        return self._iter_visible_and_masked()
-    
-    def _iter_visible_and_masked(self):
-        return t.Table.iterrows(self)
-        
-    def masked_rows(self):
-        """
-        Return an iterator over masked rows.
-        """
-        this = self
 
-        class FilteredIter:
-            def __init__(self):
-                self.iter = this._iter_visible_and_masked()
-                
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                row = self.iter.next()
-                while row[this._mask_field] == 0:
-                    row = self.iter.next()
-                return row
-            
-            def __getitem__(self, key):
-                if type(key) == int:
-                    if key >= 0:
-                        key = -1*key - 1
-                        res = [x.fetch_all_fields() for x in super(MaskedTable,this).where("%s == %d" % (this._mask_index_field,key))]
-                        if len(res) == 1:
-                            return res[0]
-                        if len(res) == 0:
-                            raise IndexError("Index %d out of bounds" % key)
-                        raise RuntimeError("Duplicate row for key %d" % key)
-                    else:
-                        l = this._visible_len()
-                        return self[l+key]
-                else:
-                    raise KeyError('Cannot retrieve row with key ' + str(key))
-        return FilteredIter()
-    
     def where(self, condition, condvars=None,
               start=None, stop=None, step=None):
         condition = "(" + condition + ") & (%s >= 0)" % self._mask_index_field
@@ -1985,7 +2076,7 @@ class MetaContainer(FileBased):
         value = t.Int32Col(pos=5, dflt=-1)
     
     def __init__(self, data=None, file_name=None,
-                 group_name='meta', logger_name="meta"):
+                 group_name='meta', logger_name="meta", tmpdir=None):
         """
         Enable recording of meta-information in pytables-backed object.
         
@@ -2027,7 +2118,7 @@ class MetaContainer(FileBased):
         if file_name is not None and isinstance(file_name, str):
             file_name = os.path.expanduser(file_name)
         
-        FileBased.__init__(self, file_name)
+        FileBased.__init__(self, file_name, tmpdir=tmpdir)
         
         try:
             self._meta = self.file.get_node("/" + group_name + "/main")

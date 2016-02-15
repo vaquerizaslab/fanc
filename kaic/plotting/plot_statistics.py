@@ -36,7 +36,7 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
         sns.plt.show()
 
 
-def hic_ligation_structure_biases_plot(pairs, output=None, *args, **kwargs):
+def hic_ligation_structure_biases_plot(pairs, output=None, log=False, *args, **kwargs):
     """
     Plot the ligation error structure of a dataset.
 
@@ -46,6 +46,9 @@ def hic_ligation_structure_biases_plot(pairs, output=None, *args, **kwargs):
                            to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
     """
     x, inward_ratios, outward_ratios, bins_sizes = pairs.get_ligation_structure_biases(*args, **kwargs)
+    if log:
+        inward_ratios = np.log2(inward_ratios) + 1
+        outward_ratios = np.log2(outward_ratios) + 1
     old_backend = _prepare_backend(output)
     with sns.axes_style("white", {
             "legend.frameon": True,
@@ -60,8 +63,12 @@ def hic_ligation_structure_biases_plot(pairs, output=None, *args, **kwargs):
         sns.plt.plot(x, (inward_ratios), 'b', label="inward/same strand")
         sns.plt.plot(x, (outward_ratios), 'r', label="outward/same strand")
         sns.plt.xscale('log')
-        sns.plt.axhline(y=0.5, color='black', ls='dashed', lw=0.8)
-        sns.plt.ylim(0, 3)
+        if log:
+            sns.plt.axhline(y=0, color='black', ls='dashed', lw=0.8)
+            sns.plt.ylim(-3, 3)
+        else:
+            sns.plt.axhline(y=0.5, color='black', ls='dashed', lw=0.8)
+            sns.plt.ylim(0, 3)
         sns.plt.xlabel('Gap size between fragments')
         sns.plt.ylabel('Read count ratio')
         sns.plt.legend(loc='upper right')
