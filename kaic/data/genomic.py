@@ -76,6 +76,7 @@ from itertools import izip as zip
 from xml.etree import ElementTree as et
 import pickle
 from collections import defaultdict
+import copy
 logging.basicConfig(level=logging.INFO)
 
 
@@ -1112,21 +1113,9 @@ class GenomicRegions(object):
         ix = -1
 
         if isinstance(region, GenomicRegion):
-            if hasattr(region, 'ix') and region.ix is not None:
-                ix = region.ix
-            chromosome = region.chromosome
-            start = region.start
-            end = region.end
-            strand = region.strand
+            return self._add_region(copy.copy(region))
         elif type(region) is dict:
-            if 'ix' in region:
-                ix = region['ix']
-            chromosome = region['chromosome']
-            start = region['start']
-            end = region['end']
-            strand = 1
-            if 'strand' in region:
-                strand = region['strand']
+            return self._add_region(GenomicRegion(**copy.copy(region)))
         else:
             try:
                 offset = 0
@@ -1140,13 +1129,12 @@ class GenomicRegions(object):
             except TypeError:
                 raise ValueError("Node parameter has to be GenomicRegion, dict, or list")
 
-        if ix is None or ix < 0:
-            ix = self._max_region_ix + 1
-
         new_region = GenomicRegion(chromosome=chromosome, start=start, end=end, strand=strand, ix=ix)
         return self._add_region(new_region)
 
     def _add_region(self, region):
+        region.ix = self._max_region_ix + 1
+
         self._regions.append(region)
 
         if region.ix > self._max_region_ix:
@@ -1397,9 +1385,7 @@ class RegionsTable(GenomicRegions, FileBased):
         return ix
 
     def _add_region(self, region):
-        ix = region.ix
-        if ix is None or ix < 0:
-            ix = self._max_region_ix + 1
+        ix = self._max_region_ix + 1
         
         # actually append
         row = self._regions.row
@@ -1407,6 +1393,13 @@ class RegionsTable(GenomicRegions, FileBased):
         row['chromosome'] = region.chromosome
         row['start'] = region.start
         row['end'] = region.end
+        if hasattr(region, 'strand') and region.strand is not None:
+            row['strand'] = region.strand
+
+        for name in self._regions.colnames[5:]:
+            if hasattr(region, name):
+                row[name] = getattr(region, name)
+
         row.append()
         
         if ix > self._max_region_ix:

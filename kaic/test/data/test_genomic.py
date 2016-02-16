@@ -109,6 +109,7 @@ class TestGenomicRegions:
             for start in range(1,chromosome["end"]-1000, 1000):
                 regions.append(GenomicRegion(start,start+999,chromosome=chromosome["name"]))
         self.regions = GenomicRegions(regions)
+        self.empty_regions = GenomicRegions()
     
     def test_get_item(self):
         region = self.regions[0]
@@ -198,6 +199,26 @@ class TestGenomicRegions:
         print intersect
         assert len(intersect) == 6
 
+    def test_add_region(self):
+        # GenomicRegion
+        self.empty_regions.add_region(GenomicRegion(start=1, end=1000, chromosome='chr1'))
+        assert self.empty_regions[0].start == 1
+        assert self.empty_regions[0].end == 1000
+        assert self.empty_regions[0].chromosome == 'chr1'
+
+        # dict
+        self.empty_regions.add_region({'start': 1001, 'end': 2000, 'chromosome': 'chr1'})
+        assert self.empty_regions[1].start == 1001
+        assert self.empty_regions[1].end == 2000
+        assert self.empty_regions[1].chromosome == 'chr1'
+
+        # list
+        self.empty_regions.add_region(['chr1', 2001, 3000])
+        assert self.empty_regions[2].start == 2001
+        assert self.empty_regions[2].end == 3000
+        assert self.empty_regions[2].chromosome == 'chr1'
+
+
 class TestRegionsTable(TestGenomicRegions):
     @classmethod
     def setup_method(self, method):
@@ -209,9 +230,35 @@ class TestRegionsTable(TestGenomicRegions):
 
         regions = []
         for chromosome in chromosomes:
-            for start in range(1,chromosome["end"]-1000, 1000):
+            for start in range(1, chromosome["end"]-1000, 1000):
                 regions.append(GenomicRegion(start, start+999, chromosome=chromosome["name"]))
         self.regions = RegionsTable(regions)
+        self.empty_regions = RegionsTable(additional_fields={'a': t.Int32Col(), 'b': t.StringCol(10)})
+
+    def test_add_additional_fields(self):
+        # GenomicRegion
+        self.empty_regions.add_region(GenomicRegion(start=1, end=1000, chromosome='chr1', a=10, b='ten'))
+        assert self.empty_regions[0].start == 1
+        assert self.empty_regions[0].end == 1000
+        assert self.empty_regions[0].chromosome == 'chr1'
+        assert self.empty_regions[0].a == 10
+        assert self.empty_regions[0].b == 'ten'
+
+        # dict
+        self.empty_regions.add_region({'start': 1001, 'end': 2000, 'chromosome': 'chr1', 'a': 11, 'b': 'eleven'})
+        assert self.empty_regions[1].start == 1001
+        assert self.empty_regions[1].end == 2000
+        assert self.empty_regions[1].chromosome == 'chr1'
+        assert self.empty_regions[1].a == 11
+        assert self.empty_regions[1].b == 'eleven'
+
+        # list
+        self.empty_regions.add_region(['chr1', 2001, 3000])
+        assert self.empty_regions[2].start == 2001
+        assert self.empty_regions[2].end == 3000
+        assert self.empty_regions[2].chromosome == 'chr1'
+        assert self.empty_regions[2].a == 0
+        assert self.empty_regions[2].b == ''
 
 
 class TestRegionMatrixTable:
