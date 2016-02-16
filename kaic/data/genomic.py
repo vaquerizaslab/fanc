@@ -1521,6 +1521,41 @@ class RegionsTable(GenomicRegions, FileBased):
             
         return RegionIter()
 
+    def subset(self, region, lazy=False, auto_update=True):
+        """
+        Iterate over a subset of regions given the specified key.
+
+        :param region: A :class:`~kaic.data.genomic.GenomicRegion` object,
+                       or a list of the former.
+        :param lazy: Load region attributes on demand only.
+        :param auto_update: Auto update regions upon modification
+        :return: Iterator over the specified subset of regions
+        """
+        if isinstance(region, GenomicRegion):
+            regions = [region]
+        else:
+            regions = region
+
+        for r in regions:
+            query = '('
+            if r.chromosome is not None:
+                query += "(chromosome == '%s') & " % r.chromosome
+            if r.end is not None:
+                query += "(start <= %d) & " % r.end
+            if r.start is not None:
+                query += "(end >= %d) & " % r.start
+            if query.endswith(' & '):
+                query = query[:-3]
+            query += ')'
+
+            if len(query) == 2:
+                for region in self.regions(lazy=lazy, auto_update=auto_update):
+                    yield region
+            else:
+                for row in self._regions.where(query):
+                    sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+                    yield sub_region
+
 
 class Node(GenomicRegion, TableObject):
     """
