@@ -1338,13 +1338,9 @@ class RegionsTable(GenomicRegions, FileGroup):
         try:
             group = self.file.get_node('/', _table_name_regions)
 
-            print group
-            print type(group)
             if isinstance(group, t.table.Table):
-                print 'table'
                 self._regions = group
             else:
-                print 'group'
                 self._regions = self._group.regions
 
             if len(self._regions) > 0:
