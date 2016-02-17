@@ -18,22 +18,43 @@ def _get_pytables_data_type(value):
         return t.StringCol
 
 
+def calculateondemand(func):
+    def inner(self, force=False, *args, **kwargs):
+        if force or not self._calculated:
+            self.calculate()
+        res = func(self, *args, **kwargs)
+        return res
+    return inner
+
+
 class ArchitecturalFeature(object):
     __metaclass__ = ABCMeta
 
-    @classmethod
+    def __init__(self):
+        self._calculated = False
+
+    # @classmethod
+    # @abstractmethod
+    # def from_file(cls, file_name, *args, **kwargs):
+    #     pass
+
+    def calculate(self, *args, **kwargs):
+        self._calculate(*args, **kwargs)
+        self._calculated = True
+
     @abstractmethod
-    def from_file(cls, file_name, *args, **kwargs):
+    def _calculate(self, *args, **kwargs):
         pass
 
 
-class VectorArchitecturalRegionFeature(RegionsTable):
+class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     def __init__(self, file_name=None, mode='a', data_fields=None,
                  regions=None, data=None, _table_name_data='region_data',
                  tmpdir=None):
         RegionsTable.__init__(self, regions=regions, file_name=file_name, mode=mode,
                               additional_fields=data_fields, tmpdir=tmpdir,
                               _table_name_regions=_table_name_data)
+        ArchitecturalFeature.__init__(self)
 
         # process data
         if data is not None:
@@ -137,14 +158,22 @@ class VectorArchitecturalRegionFeature(RegionsTable):
             return results_dict
         return results_dict[colnames[0]]
 
+    @abstractmethod
+    def _calculate(self, *args, **kwargs):
+        raise NotImplementedError("This method must be overridden in subclass!")
 
-class TableArchitecturalFeature(FileGroup):
+
+class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
     def __init__(self, group, fields, file_name=None, mode='a',
                  tmpdir=None, _table_name='table_architecture'):
         FileGroup.__init__(self, group, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        ArchitecturalFeature.__init__(self)
 
         try:
-            self.table = getattr(self._group, _table_name)
+            self._table = getattr(self._group, _table_name)
+            # there is data in the table, no need to recalculate
+            if len(self._table) > 0:
+                self._calculated = True
         except t.NoSuchNodeError:
             self._table = t.Table(self._group, _table_name, fields)
 
@@ -272,6 +301,10 @@ class TableArchitecturalFeature(FileGroup):
         if is_list:
             return results_dict
         return results_dict[colnames[0]]
+
+    @abstractmethod
+    def _calculate(self, *args, **kwargs):
+        raise NotImplementedError("This method must be overridden in subclass!")
 
 
 class HicArchitecture(object):
