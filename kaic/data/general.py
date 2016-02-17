@@ -1382,7 +1382,7 @@ class Mask(object):
         return "%d. %s: %s" % (self.ix, self.name, self.description)
 
 
-class Maskable(object):
+class Maskable(FileBased):
     """
     Class that adds masking functionality to tables.
     
@@ -1417,7 +1417,7 @@ class Maskable(object):
         name = t.StringCol(50, pos=1)
         description = t.StringCol(255, pos=2)
 
-    def __init__(self, data=None, table_name="mask"):
+    def __init__(self, data=None, file_name=None, table_name="mask", tmpdir=None):
         """
         Enable recording of masking in pytables-backed object.
         
@@ -1447,38 +1447,26 @@ class Maskable(object):
                                 pytables file, does not usually need to be 
                                 modified
         """
-        # check what we have in data
-        mask_file = None
-        
-        # data is None
-        if data is None:
-            # use default _mask attribute
+        # parse potential unnamed argument
+        if data is not None:
+            # data is file name
+            if type(data) is str or isinstance(data, t.file.File):
+                if file_name is None:
+                    file_name = data
+                    data = None
+            elif type(data) == t.table.Table:
+                self._set_mask_table(data)
+        else:
             if hasattr(self, '_mask'):
                 self._set_mask_table(self._mask)
-            # use file attribute
-            elif hasattr(self, 'file') and isinstance(self.file, t.file.File):
-                mask_file = self.file
-            # do it all in memory
-            else:
-                mask_file = create_or_open_pytables_file()
-                self.file = mask_file
 
-        # data is Table: use as mask table
-        elif type(data) == t.table.Table:
-            self._set_mask_table(data)
-        # data is pytables File: set file attribute
-        elif isinstance(data, t.file.File):
-            mask_file = data
-        # data is string: create file at location
-        elif type(data) == str:
-            mask_file = create_or_open_pytables_file(data)
-            self.file = mask_file
+        FileBased.__init__(self, file_name, tmpdir=tmpdir)
                 
-        if (not hasattr(self, '_mask') or self._mask is None) and mask_file is not None:
+        if (not hasattr(self, '_mask') or self._mask is None) and self.file is not None:
             try:
-                self._mask = mask_file.get_node('/' + table_name)
+                self._mask = self.file.get_node('/' + table_name)
             except NoSuchNodeError:
-                self._mask = mask_file.create_table("/", table_name, Maskable.MaskDescription)
+                self._mask = self.file.create_table("/", table_name, Maskable.MaskDescription)
                 row = self._mask.row
                 row['ix'] = 0
                 row['name'] = 'default'
@@ -1631,10 +1619,6 @@ class Maskable(object):
             if not found_masks:
                 masks['unmasked'] += 1
         return masks
-
-    def close(self):
-        if hasattr(self, 'file'):
-            self.file.close()
 
 
 class MaskedTableView(object):

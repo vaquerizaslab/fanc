@@ -13,6 +13,9 @@ class TestVectorArchitecturalRegionFeature:
                               GenomicRegion(2001, 3000, 'chr1', a=3, b='c'),
                               GenomicRegion(1, 1000, 'chr2', a=4, b='d')])
 
+    def teardown_method(self, method):
+        self.vaf.close()
+
     def test_get_rows(self):
         assert isinstance(self.vaf[0], GenomicRegion)
         assert self.vaf[0].a == 1
