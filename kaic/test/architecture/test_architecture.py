@@ -5,9 +5,25 @@ import types
 import numpy as np
 
 
+class VAF(VectorArchitecturalRegionFeature):
+    """
+    This only exists so we can instantiate a VectorArchitecturalRegionFeature
+    for testing.
+    """
+    def __init__(self, file_name=None, mode='a', data_fields=None,
+                 regions=None, data=None, _table_name_data='region_data',
+                 tmpdir=None):
+        VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, data_fields=data_fields,
+                                                  regions=regions, data=data, _table_name_data=_table_name_data,
+                                                  tmpdir=tmpdir)
+
+    def _calculate(self, *args, **kwargs):
+        pass
+
+
 class TestVectorArchitecturalRegionFeature:
     def setup_method(self, method):
-        self.vaf = VectorArchitecturalRegionFeature(data_fields={'a': t.Int32Col(), 'b': t.StringCol(10)})
+        self.vaf = VAF(data_fields={'a': t.Int32Col(), 'b': t.StringCol(10)})
         self.vaf.add_regions([GenomicRegion(1,1000,'chr1', a=1, b='a'),
                               GenomicRegion(1001, 2000, 'chr1', a=2, b='b'),
                               GenomicRegion(2001, 3000, 'chr1', a=3, b='c'),

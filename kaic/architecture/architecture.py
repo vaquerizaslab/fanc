@@ -311,5 +311,5 @@ class HicArchitecture(object):
     def __init__(self, hic):
         self.hic = hic
 
-    def distance_decay(self, per_chromosome=False):
+    def expected_contacts(self, per_chromosome=False):
         pass
