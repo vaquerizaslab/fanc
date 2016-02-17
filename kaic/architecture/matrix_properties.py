@@ -1,4 +1,5 @@
 from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand
+from kaic.data.genomic import GenomicRegion
 import tables as t
 from collections import defaultdict
 import numpy as np
@@ -137,19 +138,37 @@ class ExpectedContacts(TableArchitecturalFeature):
 
 
 class PossibleContacts(TableArchitecturalFeature):
-    def __init__(self, hic, file_name=None, mode='a', tmpdir=None):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None):
         if isinstance(hic, str):
             file_name = hic
             hic = None
 
-        TableArchitecturalFeature.__init__(self, 'possible_contacts',
+        TableArchitecturalFeature.__init__(self, 'possible_region_contacts',
                                            {'intra': t.Int32Col(), 'inter': t.Int32Col()},
                                            file_name=file_name, mode=mode, tmpdir=tmpdir)
 
         self.hic = hic
+        self.regions = regions
 
     def _calculate(self):
-        mappable = self.hic.mappable_regions()
+        marginals = self.hic.marginals()
+
+        mappable = defaultdict(int)
+        if self.regions is None:
+            for r in self.hic.regions(lazy=True):
+                if marginals[r.ix] > 0:
+                    mappable[r.chromosome] += 1
+        else:
+            if isinstance(self.regions, str) or isinstance(self.regions, GenomicRegion):
+                self.regions = [self.regions]
+
+            for region in self.regions:
+                if isinstance(region, str):
+                    region = GenomicRegion.from_string(region)
+
+                for r in self.hic.subset(region, lazy=True):
+                    if marginals[r.ix] > 0:
+                        mappable[r.chromosome] += 1
 
         # calculate possible combinations
         intra_possible = 0
