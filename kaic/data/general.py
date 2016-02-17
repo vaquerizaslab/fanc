@@ -348,7 +348,7 @@ class FileGroup(FileBased):
 
         try:
             group_node = self.file.get_node("/" + group)
-            if not isinstance(group, t.group.Group):
+            if not isinstance(group_node, t.group.Group):
                 raise TypeError("%s is not a group, but %s" % (group, str(type(group_node))))
             self._group = group_node
         except t.NoSuchNodeError:

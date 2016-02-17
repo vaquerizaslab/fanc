@@ -67,7 +67,7 @@ from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
 from kaic.tools.files import is_bed_file, is_bedpe_file
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import Table, TableRow, TableArray, TableObject,\
-    MetaContainer, Maskable, MaskedTable, FileBased, MaskFilter
+    MetaContainer, Maskable, MaskedTable, FileBased, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
 import os.path
 import logging
@@ -1282,7 +1282,7 @@ class GenomicRegions(object):
         return node.end - node.start + 1
 
 
-class RegionsTable(GenomicRegions, FileBased):
+class RegionsTable(GenomicRegions, FileGroup):
     """
     PyTables Table wrapper for storing genomic regions.
 
@@ -1326,11 +1326,24 @@ class RegionsTable(GenomicRegions, FileBased):
                     file_name = regions
                     regions = None
 
-        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
+        try:
+            FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
+        except TypeError:
+            logging.warn("RegionsTable is now a FileGroup-based object and this object will no longer be compatible in the future")
 
         # check if this is an existing regions file
         try:
-            self._regions = self.file.get_node('/', _table_name_regions)
+            group = self.file.get_node('/', _table_name_regions)
+
+            print group
+            print type(group)
+            if isinstance(group, t.table.Table):
+                print 'table'
+                self._regions = group
+            else:
+                print 'group'
+                self._regions = self._group.regions
+
             if len(self._regions) > 0:
                 self._max_region_ix = max(row['ix'] for row in self._regions.iterrows())
             else:
@@ -1349,7 +1362,7 @@ class RegionsTable(GenomicRegions, FileBased):
                             value._v_pos = current
                             current += 1
                         basic_fields[key] = value
-            self._regions = t.Table(self.file.root, _table_name_regions, basic_fields)
+            self._regions = t.Table(self._group, 'regions', basic_fields)
             self._max_region_ix = -1
 
         # index regions table
@@ -1746,7 +1759,7 @@ class LazyEdge(Edge):
         return base_info
 
 
-class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
+class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
     """
     Class for working with matrix-based data.
 
@@ -1852,8 +1865,8 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable, FileBased):
             file_name = os.path.expanduser(file_name)
 
         # initialize inherited objects
-        FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
-        RegionsTable.__init__(self, file_name=self.file, _table_name_regions=_table_name_nodes)
+        RegionsTable.__init__(self, file_name=file_name, _table_name_regions=_table_name_nodes,
+                              mode=mode, tmpdir=tmpdir)
         Maskable.__init__(self, self.file)
         MetaContainer.__init__(self, self.file)
 

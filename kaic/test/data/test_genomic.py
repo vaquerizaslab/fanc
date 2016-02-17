@@ -478,7 +478,7 @@ class TestHicBasic:
         hic.add_edges(edges)
         
         self.hic = hic
-        
+
         self.hic_cerevisiae = Hic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.hic")
     
     def teardown_method(self, method):
@@ -513,7 +513,7 @@ class TestHicBasic:
 #         from subprocess import check_output
 #         print check_output(["h5dump", dest_file])
 #         print class_id_dict
-        
+
         hic2 = Hic(dest_file)
         nodes2 = hic2.nodes()
         edges2 = hic2.edges()

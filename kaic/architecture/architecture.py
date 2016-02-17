@@ -25,11 +25,11 @@ class ArchitecturalFeature(object):
 
 class VectorArchitecturalRegionFeature(RegionsTable):
     def __init__(self, file_name=None, mode='a', data_fields=None,
-                 regions=None, data=None, _table_name_regions='regions',
+                 regions=None, data=None, _table_name_data='region_data',
                  tmpdir=None):
         RegionsTable.__init__(self, regions=regions, file_name=file_name, mode=mode,
                               additional_fields=data_fields, tmpdir=tmpdir,
-                              _table_name_regions=_table_name_regions)
+                              _table_name_regions=_table_name_data)
 
         # process data
         if data is not None:
