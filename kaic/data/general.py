@@ -1461,6 +1461,8 @@ class Maskable(object):
             # do it all in memory
             else:
                 mask_file = create_or_open_pytables_file()
+                self.file = mask_file
+
         # data is Table: use as mask table
         elif type(data) == t.table.Table:
             self._set_mask_table(data)
@@ -1470,6 +1472,7 @@ class Maskable(object):
         # data is string: create file at location
         elif type(data) == str:
             mask_file = create_or_open_pytables_file(data)
+            self.file = mask_file
                 
         if (not hasattr(self, '_mask') or self._mask is None) and mask_file is not None:
             try:
@@ -1485,9 +1488,9 @@ class Maskable(object):
         
     def _set_mask_table(self, table):
         if type(table) == t.table.Table:
-            if (not 'ix' in table.colnames or
-                not 'name' in table.colnames or
-                not 'description' in table.colnames):
+            if ('ix' not in table.colnames or
+                    'name' not in table.colnames or
+                    'description' not in table.colnames):
                 raise ValueError("Object already has a mask table, \
                                   but it does not have all the necessary \
                                   columns (ix, name, description)")
@@ -1628,6 +1631,10 @@ class Maskable(object):
             if not found_masks:
                 masks['unmasked'] += 1
         return masks
+
+    def close(self):
+        if hasattr(self, 'file'):
+            self.file.close()
 
 
 class MaskedTableView(object):
