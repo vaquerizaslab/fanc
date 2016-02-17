@@ -680,6 +680,9 @@ class Genome(Table):
             else:
                 for chromosome in chromosomes:
                     self.add_chromosome(chromosome)
+
+    def close(self):
+        self.file.close()
             
     @classmethod
     def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
@@ -2816,8 +2819,9 @@ class Hic(RegionMatrixTable):
 
         genome = Genome(chromosomes=chromosome_list)
         hic = Hic(file_name=file_name, mode='w')
-        hic.add_regions(genome.get_regions(bin_size))
-
+        regions = genome.get_regions(bin_size)
+        hic.add_regions(regions)
+        regions.close()
         hic.load_from_hic(self)
 
         return hic
