@@ -3704,7 +3704,7 @@ class BackgroundLigationFilter(HicEdgeFilter):
     Background ligation frequency is estimated as the average
     of all non-zero inter-chromosomal contacts of this Hic object.
     """
-    def __init__(self, hic, fold_change=None, all_contacts=False, mask=None):
+    def __init__(self, hic, fold_change=5, all_contacts=False, mask=None):
         """
         Initialize filter with these settings.
 
@@ -3718,7 +3718,7 @@ class BackgroundLigationFilter(HicEdgeFilter):
         """
         HicEdgeFilter.__init__(self, mask=mask)
 
-        regions_dict = hic.regions_dict()
+        regions_dict = hic.regions_dict
 
         inter_count = 0
         inter_sum = 0
@@ -3741,6 +3741,48 @@ class BackgroundLigationFilter(HicEdgeFilter):
         Check if an edge weight is below background ligation frequency.
         """
         if edge.weight < self.cutoff:
+            return False
+        return True
+
+
+class ExpectedObservedEnrichmentFilter(HicEdgeFilter):
+    """
+    Filter a :class:`~HicEdge` if it does not have a weight
+    larger than fold_change times its expected value.
+    """
+    def __init__(self, hic, fold_change=2, mask=None):
+        """
+        Initialize filter with these settings.
+
+        :param hic: The :class:`~Hic` object that this
+                    filter will be called on. Needed for
+                    expected contact count calculation.
+        :param fold_change: Lowest acceptable edge weight is calculated
+                            as fold_change*expected
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered edges.
+        """
+        HicEdgeFilter.__init__(self, mask=mask)
+
+        with ExpectedContacts(hic) as ex:
+            self.intra_expected = ex.intra_expected()
+            self.inter_expected = ex.inter_expected()
+        self.regions_dict = hic.regions_dict
+        self.fold_change = fold_change
+
+    def valid_edge(self, edge):
+        """
+        Check if an edge weight is at least fold_change above
+        the expected weight for this contact.
+        """
+        source = edge.source
+        sink = edge.sink
+        if self.regions_dict[source].chromosome == self.regions_dict[sink].chromosome:
+            expected = self.intra_expected[abs(sink-source)]
+        else:
+            expected = self.inter_expected
+
+        if edge.weight < self.fold_change*expected:
             return False
         return True
 

@@ -1,7 +1,7 @@
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
-    RegionMatrix, RegionsTable, RegionMatrixTable
+    RegionMatrix, RegionsTable, RegionMatrixTable, BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -1310,6 +1310,23 @@ class TestHicBasic:
         assert d[18] == max(d[13:20])
 
         hic.close()
+
+    def test_filter_background_ligation(self):
+        blf = BackgroundLigationFilter(self.hic, fold_change=2)
+        assert blf.cutoff - (610+405+734)/57 < 0.001
+        for edge in self.hic.edges(lazy=True):
+            if edge.weight < blf.cutoff:
+                assert blf.valid_edge(edge) == False
+            else:
+                assert blf.valid_edge(edge) == True
+
+    def test_filter_expected_observed_enrichment(self):
+        eof = ExpectedObservedEnrichmentFilter(self.hic, fold_change=1)
+        print eof.inter_expected
+        print eof.intra_expected
+        previous = len(self.hic.edges)
+        self.hic.filter(eof)
+        assert len(self.hic.edges) == previous-15-23  # 15 intra, 23 inter filtered
 
 
 class TestRegionMatrix:
