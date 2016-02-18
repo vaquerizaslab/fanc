@@ -1,6 +1,5 @@
 from __future__ import division
-from kaic.architecture.matrix_properties import PossibleContacts, ExpectedContacts
-from kaic.data.genomic import Hic, Node, Edge
+from kaic.data.genomic import Hic, Node, Edge, PossibleContacts, ExpectedContacts
 
 
 class TestPossbibleContacts:

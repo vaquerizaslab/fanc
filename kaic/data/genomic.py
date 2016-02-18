@@ -77,6 +77,8 @@ from xml.etree import ElementTree as et
 import pickle
 from collections import defaultdict
 import copy
+from kaic.architecture.architecture import calculateondemand, ArchitecturalFeature, _get_pytables_data_type,\
+    TableArchitecturalFeature
 logging.basicConfig(level=logging.INFO)
 
 
@@ -3194,6 +3196,361 @@ class Hic(RegionMatrixTable):
         return directionality_index
 
 
+class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
+    def __init__(self, file_name=None, mode='a', data_fields=None,
+                 regions=None, data=None, _table_name_data='region_data',
+                 tmpdir=None):
+        RegionsTable.__init__(self, regions=regions, file_name=file_name, mode=mode,
+                              additional_fields=data_fields, tmpdir=tmpdir,
+                              _table_name_regions=_table_name_data)
+        ArchitecturalFeature.__init__(self)
+
+        # process data
+        if data is not None:
+            self.add_data(data)
+
+    @classmethod
+    def from_regions_and_data(cls, regions, data, file_name=None, mode='a', tmpdir=None, data_name='data'):
+        if not isinstance(data, dict):
+            # assume this is a vector
+            data = {
+                data_name: data
+            }
+
+        data_fields = dict()
+        for data_name, vector in data.iteritems():
+            string_size = 0
+            for value in vector:
+                table_type = _get_pytables_data_type(value)
+                if table_type != t.StringCol:
+                    data_fields[data_name] = table_type(pos=len(data_fields))
+                    break
+                else:
+                    string_size = max(string_size, len(value))
+            if string_size > 0:
+                data_fields[data_name] = t.StringCol(string_size, pos=len(data_fields))
+
+        self = cls(file_name=file_name, mode=mode, data_fields=data_fields,
+                   regions=regions, data=data, tmpdir=tmpdir)
+        return self
+
+    def add_data(self, data, name="data"):
+        """
+        Add vector-data to this object. If there is exsting data in this
+        object with the same name, it will be replaced
+
+        :param data: Either an iterable with the same number of items as
+                     regions in this object, or a dictionary of iterables
+                     if multiple objects should be imported
+        :param name: (optional) name of the data set if data is a single
+                     iterable
+        """
+
+        if not isinstance(data, dict):
+            # assume this is a vector
+            data = {
+                name: data
+            }
+
+        for data_name, vector in data.iteritems():
+            self.data(data_name, vector)
+
+    def __getitem__(self, item):
+        if isinstance(item, tuple):
+            return self._get_columns(item[1], regions=self._get_rows(item[0]))
+        else:
+            return self._get_rows(item)
+
+    @calculateondemand
+    def _get_rows(self, item, lazy=False, auto_update=True):
+        if isinstance(item, int):
+            return self._row_to_region(self._regions[item], lazy=lazy, auto_update=auto_update)
+
+        if isinstance(item, slice):
+            return (self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+                    for row in self._regions.iterrows(item.start, item.stop, item.step))
+
+        if isinstance(item, str):
+            item = GenomicRegion.from_string(item)
+
+        if isinstance(item, GenomicRegion):
+            return self.subset(item, lazy=lazy, auto_update=auto_update)
+
+    @calculateondemand
+    def _get_columns(self, item, regions=None):
+        if regions is None:
+            regions = self._get_rows(slice(0, None, None), lazy=True)
+
+        is_list = True
+        if isinstance(item, int):
+            colnames = [self._regions.colnames[item]]
+            is_list = False
+        elif isinstance(item, slice):
+            colnames = self._regions.colnames[item]
+        elif isinstance(item, str):
+            colnames = [item]
+            is_list = False
+        elif isinstance(item, list):
+            colnames = item
+        else:
+            raise KeyError("Unrecognised key type (%s)" % str(type(item)))
+
+        if not isinstance(regions, GenomicRegion):
+            results_dict = defaultdict(list)
+            for region in regions:
+                for name in colnames:
+                    results_dict[name].append(getattr(region, name, None))
+        else:
+            results_dict = dict()
+            for name in colnames:
+                results_dict[name] = getattr(regions, name, None)
+
+        if is_list:
+            return results_dict
+        return results_dict[colnames[0]]
+
+    @abstractmethod
+    def _calculate(self, *args, **kwargs):
+        raise NotImplementedError("This method must be overridden in subclass!")
+
+
+class HicArchitecture(object):
+    def __init__(self, hic):
+        self.hic = hic
+
+    def expected_contacts(self, per_chromosome=False):
+        pass
+
+
+class ExpectedContacts(TableArchitecturalFeature):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
+                 regions=None, _table_name='expected_contacts'):
+        if isinstance(hic, str):
+            file_name = hic
+            hic = None
+
+        TableArchitecturalFeature.__init__(self, _table_name,
+                                           {'distance': t.Int64Col(), 'intra': t.Float32Col(),
+                                            'contacts': t.Float32Col(), 'pixels': t.Float32Col()},
+                                           file_name=file_name, mode=mode, tmpdir=tmpdir)
+
+        self.hic = hic
+        self.smooth = smooth
+        self.min_reads = min_reads
+        self.regions = regions
+
+    def _calculate(self):
+        """
+        Get intra- and inter-chromosomal expected contact counts.
+        """
+
+        # extract mappable regions from Hic object
+        marginals = self.hic.marginals()
+        regions = []
+        region_ix = set()
+        if self.regions is None:
+            for region in self.hic.regions(lazy=False):
+                if marginals[region.ix] > 0:
+                    regions.append(region)
+                    region_ix.add(region.ix)
+        else:
+            if isinstance(self.regions, str) or isinstance(self.regions, GenomicRegion):
+                self.regions = [self.regions]
+
+            for region in self.regions:
+                if isinstance(region, str):
+                    region = GenomicRegion.from_string(region)
+
+                for r in self.hic.subset(region, lazy=False):
+                    if marginals[r.ix] > 0:
+                        regions.append(r)
+                        region_ix.add(r.ix)
+
+        # count the number of regions per chromosome
+        # and find the first and last region in each chromosome
+        regions_by_chromosome = defaultdict(int)
+        min_region_by_chromosome = dict()
+        max_region_by_chromosome = dict()
+        for region in regions:
+            if (region.chromosome not in max_region_by_chromosome or
+                    max_region_by_chromosome[region.chromosome] < region.ix):
+                max_region_by_chromosome[region.chromosome] = region.ix
+
+            if (region.chromosome not in min_region_by_chromosome or
+                    min_region_by_chromosome[region.chromosome] > region.ix):
+                min_region_by_chromosome[region.chromosome] = region.ix
+
+            regions_by_chromosome[region.chromosome] += 1
+
+        # find the largest distance between two regions
+        # in the entire intra-chromosomal genome
+        max_distance = 0
+        for chromosome in min_region_by_chromosome:
+            max_distance = max(max_distance, max_region_by_chromosome[chromosome]-min_region_by_chromosome[chromosome])
+
+        # get the number of pixels at a given bin distance
+        pixels_by_distance = np.zeros(max_distance + 1)
+        for chromosome, n in regions_by_chromosome.iteritems():
+            for distance in xrange(0, n):
+                pixels_by_distance[distance] += n-distance
+
+        # build a reverse-lookup chromosome map to quickly
+        # determine if an edge is intra-chromosomal
+        chromosome_map = dict()
+        for i, chromosome in enumerate(self.hic.chromosomes()):
+            chromosome_map[chromosome] = i
+
+        chromosomes = np.zeros(len(self.hic.regions), dtype=int)
+        for i, region in enumerate(self.hic.regions(lazy=True)):
+            chromosomes[i] = chromosome_map[region.chromosome]
+
+        # get the number of reads at a given bin distance
+        reads_by_distance = np.zeros(max_distance + 1)
+        inter_observed = 0
+        for edge in self.hic.edges(lazy=True):
+            source = edge.source
+            sink = edge.sink
+            # skip excluded regions
+            if source not in region_ix or sink not in region_ix:
+                continue
+            # only intra-chromosomal distances
+            if chromosomes[edge.source] == chromosomes[edge.sink]:
+                reads_by_distance[edge.sink - edge.source] += edge.weight
+            else:
+                inter_observed += edge.weight
+
+        with PossibleContacts(self.hic, regions=self.regions) as pc:
+            intra_possible, inter_possible = pc.intra_possible(), pc.inter_possible()
+
+        try:
+            inter_expected = inter_observed/inter_possible
+        except ZeroDivisionError:
+            inter_expected = 0
+
+        self.data('distance', np.arange(len(reads_by_distance))*self.hic.bin_size())
+
+        # return here if smoothing not requested
+        if not self.smooth:
+            intra_expected = reads_by_distance/pixels_by_distance
+
+            self.data('intra', intra_expected)
+            self.data('contacts', reads_by_distance)
+            self.data('pixels', pixels_by_distance)
+            self._table.attrs['inter'] = inter_expected
+            return
+
+        # smoothing
+        smoothed_reads_by_distance = np.zeros(max_distance + 1)
+        smoothed_pixels_by_distance = np.zeros(max_distance + 1)
+        for i in xrange(len(reads_by_distance)):
+            smoothed_reads = reads_by_distance[i]
+            smoothed_pixels = pixels_by_distance[i]
+            window_size = 0
+            can_extend = True
+            # smooth to a minimum number of reads per distance
+            while smoothed_reads < self.min_reads and can_extend:
+                window_size += 1
+                can_extend = False
+                # check if we can increase the window to the left
+                if i - window_size >= 0:
+                    smoothed_reads += reads_by_distance[i-window_size]
+                    smoothed_pixels += pixels_by_distance[i-window_size]
+                    can_extend = True
+                # check if we can increase the window to the right
+                if i + window_size < len(reads_by_distance):
+                    smoothed_reads += reads_by_distance[i+window_size]
+                    smoothed_pixels += pixels_by_distance[i+window_size]
+                    can_extend = True
+            smoothed_reads_by_distance[i] = smoothed_reads
+            smoothed_pixels_by_distance[i] = smoothed_pixels
+
+        intra_expected = smoothed_reads_by_distance/smoothed_pixels_by_distance
+
+        self.data('intra', intra_expected)
+        self.data('contacts', smoothed_reads_by_distance)
+        self.data('pixels', smoothed_pixels_by_distance)
+        self._table.attrs['inter'] = inter_expected
+
+    @calculateondemand
+    def intra_expected(self):
+        return self[:, 'intra']
+
+    @calculateondemand
+    def inter_expected(self):
+        return self._table.attrs['inter']
+
+    @calculateondemand
+    def distance(self):
+        return self[:, 'distance']
+
+    @calculateondemand
+    def intra_contacts(self):
+        return self[:, 'contacts']
+
+    @calculateondemand
+    def intra_pixels(self):
+        return self[:, 'pixels']
+
+
+class PossibleContacts(TableArchitecturalFeature):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
+                 _table_name='expected_contacts'):
+        if isinstance(hic, str):
+            file_name = hic
+            hic = None
+
+        TableArchitecturalFeature.__init__(self, _table_name,
+                                           {'intra': t.Int32Col(), 'inter': t.Int32Col()},
+                                           file_name=file_name, mode=mode, tmpdir=tmpdir)
+
+        self.hic = hic
+        self.regions = regions
+
+    def _calculate(self):
+        marginals = self.hic.marginals()
+
+        mappable = defaultdict(int)
+        if self.regions is None:
+            for r in self.hic.regions(lazy=True):
+                if marginals[r.ix] > 0:
+                    mappable[r.chromosome] += 1
+        else:
+            if isinstance(self.regions, str) or isinstance(self.regions, GenomicRegion):
+                self.regions = [self.regions]
+
+            for region in self.regions:
+                if isinstance(region, str):
+                    region = GenomicRegion.from_string(region)
+
+                for r in self.hic.subset(region, lazy=True):
+                    if marginals[r.ix] > 0:
+                        mappable[r.chromosome] += 1
+
+        # calculate possible combinations
+        intra_possible = 0
+        inter_possible = 0
+        chromosomes = mappable.keys()
+        for i in xrange(len(chromosomes)):
+            chromosome1 = chromosomes[i]
+            n1 = mappable[chromosome1]
+            intra_possible += n1**2/2 + n1/2
+            for j in xrange(i+1, len(chromosomes)):
+                chromosome2 = chromosomes[j]
+                n2 = mappable[chromosome2]
+                inter_possible += n1*n2
+
+        self.data('intra', [intra_possible])
+        self.data('inter', [inter_possible])
+
+    @calculateondemand
+    def intra_possible(self):
+        return self[0, 'intra']
+
+    @calculateondemand
+    def inter_possible(self):
+        return self[0, 'inter']
+
+
 class HicEdgeFilter(MaskFilter):
     """
     Abstract class that provides filtering functionality for the
@@ -3335,6 +3692,55 @@ class LowCoverageFilter(HicEdgeFilter):
         if edge.source in self._regions_to_mask:
             return False
         if edge.sink in self._regions_to_mask:
+            return False
+        return True
+
+
+class BackgroundLigationFilter(HicEdgeFilter):
+    """
+    Filter a :class:`~HicEdge` if it does not have a weight
+    larger than  [fold_change*background ligation frequency].
+
+    Background ligation frequency is estimated as the average
+    of all non-zero inter-chromosomal contacts of this Hic object.
+    """
+    def __init__(self, hic, fold_change=None, all_contacts=False, mask=None):
+        """
+        Initialize filter with these settings.
+
+        :param hic: The :class:`~Hic` object that this
+                    filter will be called on. Needed for
+                    contact count calculation.
+        :param fold_change: Lowest acceptable edge weight is calculated
+                            as fold_change*(inter_sum/inter_count)
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered edges.
+        """
+        HicEdgeFilter.__init__(self, mask=mask)
+
+        regions_dict = hic.regions_dict()
+
+        inter_count = 0
+        inter_sum = 0
+        for edge in hic.edges(lazy=True):
+            if regions_dict[edge.source].chromosome != regions_dict[edge.sink].chromosome:
+                inter_count += 1
+                inter_sum += edge.weight
+
+        if all_contacts:
+            with PossibleContacts(hic) as pc:
+                inter_count = pc.inter_possible()
+
+        if inter_count == 0:
+            self.cutoff = 0
+        else:
+            self.cutoff = fold_change*(inter_count/inter_sum)
+
+    def valid_edge(self, edge):
+        """
+        Check if an edge weight is below background ligation frequency.
+        """
+        if edge.weight < self.cutoff:
             return False
         return True
 
