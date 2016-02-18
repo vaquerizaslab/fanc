@@ -3,8 +3,6 @@ from kaic.data.genomic import RegionsTable, GenomicRegion
 from abc import abstractmethod, ABCMeta
 import tables as t
 from collections import defaultdict
-import numpy as np
-from collections import namedtuple
 
 
 def _get_pytables_data_type(value):
@@ -19,11 +17,16 @@ def _get_pytables_data_type(value):
 
 
 def calculateondemand(func):
-    def inner(self, force=False, *args, **kwargs):
+    def inner(self, *args, **kwargs):
+        if 'force' in kwargs and isinstance(kwargs['force'], bool):
+            force = kwargs['force']
+            del kwargs['force']
+        else:
+            force = False
         if force or not self._calculated:
             self.calculate()
-        res = func(self, *args, **kwargs)
-        return res
+
+        return func(self, *args, **kwargs)
     return inner
 
 
@@ -39,8 +42,8 @@ class ArchitecturalFeature(object):
     #     pass
 
     def calculate(self, *args, **kwargs):
-        self._calculate(*args, **kwargs)
         self._calculated = True
+        self._calculate(*args, **kwargs)
 
     @abstractmethod
     def _calculate(self, *args, **kwargs):
@@ -112,6 +115,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         else:
             return self._get_rows(item)
 
+    @calculateondemand
     def _get_rows(self, item, lazy=False, auto_update=True):
         if isinstance(item, int):
             return self._row_to_region(self._regions[item], lazy=lazy, auto_update=auto_update)
@@ -126,6 +130,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         if isinstance(item, GenomicRegion):
             return self.subset(item, lazy=lazy, auto_update=auto_update)
 
+    @calculateondemand
     def _get_columns(self, item, regions=None):
         if regions is None:
             regions = self._get_rows(slice(0, None, None), lazy=True)
@@ -262,6 +267,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             d[colname] = row[colname]
         return d
 
+    @calculateondemand
     def _get_rows(self, item, lazy=False, auto_update=True):
         if isinstance(item, int):
             return self._row_to_entry(self._table[item], lazy=lazy, auto_update=auto_update)
@@ -270,6 +276,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             return (self._row_to_entry(row, lazy=lazy, auto_update=auto_update)
                     for row in self._table.iterrows(item.start, item.stop, item.step))
 
+    @calculateondemand
     def _get_columns(self, item, rows=None):
         if rows is None:
             rows = self._get_rows(slice(0, None, None), lazy=True)
