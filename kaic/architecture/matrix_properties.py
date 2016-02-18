@@ -148,9 +148,6 @@ class ExpectedContacts(TableArchitecturalFeature):
             smoothed_reads_by_distance[i] = smoothed_reads
             smoothed_pixels_by_distance[i] = smoothed_pixels
 
-        print 'smoothed pixels', smoothed_pixels_by_distance
-        print 'smoothed reads', smoothed_reads_by_distance
-
         intra_expected = smoothed_reads_by_distance/smoothed_pixels_by_distance
 
         self.data('intra', intra_expected)
