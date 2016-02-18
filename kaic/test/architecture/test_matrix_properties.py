@@ -28,6 +28,9 @@ class TestPossbibleContacts:
 
         self.hic = hic
 
+    def teardown_method(self, method):
+        self.hic.close()
+
     def test_no_region(self):
         with PossibleContacts(self.hic) as pc:
 
@@ -39,3 +42,8 @@ class TestPossbibleContacts:
 
             assert pc.intra_possible() == 15
             assert pc.inter_possible() == 0
+
+        with PossibleContacts(self.hic, regions=['chr2', 'chr3']) as pc:
+
+            assert pc.intra_possible() == 16
+            assert pc.inter_possible() == 12
