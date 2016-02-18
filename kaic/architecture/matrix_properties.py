@@ -8,12 +8,12 @@ import numpy as np
 
 class ExpectedContacts(TableArchitecturalFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
-                 regions=None):
+                 regions=None, _table_name='expected_contacts'):
         if isinstance(hic, str):
             file_name = hic
             hic = None
 
-        TableArchitecturalFeature.__init__(self, 'expected_contacts',
+        TableArchitecturalFeature.__init__(self, _table_name,
                                            {'distance': t.Int64Col(), 'intra': t.Float32Col(),
                                             'contacts': t.Float32Col(), 'pixels': t.Float32Col()},
                                            file_name=file_name, mode=mode, tmpdir=tmpdir)
@@ -180,12 +180,13 @@ class ExpectedContacts(TableArchitecturalFeature):
 
 
 class PossibleContacts(TableArchitecturalFeature):
-    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
+                 _table_name='expected_contacts'):
         if isinstance(hic, str):
             file_name = hic
             hic = None
 
-        TableArchitecturalFeature.__init__(self, 'possible_region_contacts',
+        TableArchitecturalFeature.__init__(self, _table_name,
                                            {'intra': t.Int32Col(), 'inter': t.Int32Col()},
                                            file_name=file_name, mode=mode, tmpdir=tmpdir)
 
