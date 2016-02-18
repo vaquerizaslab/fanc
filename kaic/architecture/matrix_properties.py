@@ -1,3 +1,4 @@
+from __future__ import division
 from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand
 from kaic.data.genomic import GenomicRegion
 import tables as t
