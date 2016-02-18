@@ -2573,6 +2573,9 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
         See :func:`~RegionsTable.regions` for details.
         :return: Iterator over :class:`~GenomicRegions`
         """
+        return self._nodes_iter()
+
+    def _nodes_iter(self):
         return self.regions()
 
     @property
@@ -2585,6 +2588,9 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
                      edge is accessed.
         :return: Iterator over :class:`~Edge`
         """
+        return self._edges_iter()
+
+    def _edges_iter(self):
         return RegionMatrixTable.EdgeIter(self)
 
     def _is_sorted(self, sortby):
@@ -3194,6 +3200,69 @@ class Hic(RegionMatrixTable):
                 directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
 
         return directionality_index
+
+
+class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
+    def __init__(self, file_name=None, mode='a', data_fields=None,
+                 regions=None, edges=None, _table_name_regions='region_data',
+                 _table_name_edges='edges', tmpdir=None):
+        RegionMatrixTable.__init__(self, file_name, additional_fields=data_fields,
+                                   mode=mode, tmpdir=tmpdir,
+                                   _table_name_nodes=_table_name_regions,
+                                   _table_name_edges=_table_name_edges)
+        ArchitecturalFeature.__init__(self)
+
+        if regions is not None:
+            self.add_regions(regions)
+
+        # process data
+        if edges is not None:
+            self.add_edges(edges)
+
+    @calculateondemand
+    def as_matrix(self, key=slice(0, None, None), values_from='weight'):
+        return RegionMatrixTable.as_matrix(self, key=key, values_from=values_from)
+
+    @calculateondemand
+    def _get_nodes_from_key(self, key, as_index=False):
+        return RegionMatrixTable._get_nodes_from_key(self, key, as_index=as_index)
+
+    @calculateondemand
+    def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None, weight_column='weight'):
+        return RegionMatrixTable._get_matrix(self, nodes_ix_row=nodes_ix_row, nodes_ix_col=nodes_ix_col,
+                                             weight_column=weight_column)
+
+    @calculateondemand
+    def _getitem_nodes(self, key, as_index=False):
+        return RegionMatrixTable._getitem_nodes(self, key, as_index=as_index)
+
+    @calculateondemand
+    def as_data_frame(self, key, weight_column='weight'):
+        return RegionMatrixTable.as_data_frame(self, key, weight_column=weight_column)
+
+    @calculateondemand
+    def get_node(self, key):
+        return RegionMatrixTable.get_node(self, key)
+
+    @calculateondemand
+    def get_edge(self, ix, lazy=False):
+        return RegionMatrixTable.get_edge(self, ix, lazy=lazy)
+
+    @calculateondemand
+    def _nodes_iter(self):
+        return RegionMatrixTable._nodes_iter(self)
+
+    @calculateondemand
+    def edges_sorted(self, sortby, *args, **kwargs):
+        return RegionMatrixTable.edges_sorted(sortby, *args, **kwargs)
+
+    @calculateondemand
+    def _edges_iter(self):
+        return RegionMatrixTable._edges_iter(self)
+
+    @abstractmethod
+    def _calculate(self, *args, **kwargs):
+        raise NotImplementedError("This method must be overridden in subclass!")
 
 
 class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):

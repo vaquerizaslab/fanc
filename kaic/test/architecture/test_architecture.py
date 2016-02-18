@@ -1,5 +1,6 @@
 from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand
-from kaic.data.genomic import GenomicRegion, VectorArchitecturalRegionFeature
+from kaic.data.genomic import GenomicRegion, VectorArchitecturalRegionFeature, MatrixArchitecturalRegionFeature,\
+    Node, Edge
 import tables as t
 import types
 import numpy as np
@@ -190,3 +191,55 @@ class TestTableArchitecturalFeature:
     def test_calculateondemand_decorator(self):
         assert self.taf.a() == [1, 2, 3, 4, 5]
         assert self.taf.a(1) == 2
+
+
+class MAF(MatrixArchitecturalRegionFeature):
+    """
+    This only exists so we can instantiate a MatrixArchitecturalRegionFeature
+    for testing.
+    """
+    def __init__(self, file_name=None, mode='a', data_fields=None,
+                 regions=None, edges=None, tmpdir=None):
+        MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, data_fields=data_fields,
+                                                  regions=regions, edges=edges, tmpdir=tmpdir)
+
+    def _calculate(self, *args, **kwargs):
+        for i in xrange(10):
+            if i < 5:
+                chromosome = 'chr1'
+                start = i*1000
+                end = (i+1)*1000
+            elif i < 8:
+                chromosome = 'chr2'
+                start = (i-5)*1000
+                end = (i+1-5)*1000
+            else:
+                chromosome = 'chr3'
+                start = (i-8)*1000
+                end = (i+1-8)*1000
+            node = Node(chromosome=chromosome, start=start, end=end)
+            self.add_region(node, flush=False)
+        self.flush()
+
+        for i in xrange(10):
+            for j in xrange(i, 10):
+                edge = Edge(source=i, sink=j, weight=i*j, foo=i, bar=j, baz='x' + str(i*j))
+                self.add_edge(edge, flush=False)
+        self.flush()
+
+    @calculateondemand
+    def foo(self, key=None):
+        return self.as_matrix(key, values_from='foo')
+
+
+class TestMatrixArchitecturalRegionFeature:
+    def setup_method(self, method):
+        self.maf = MAF(data_fields={'foo': t.Int32Col(pos=0),
+                                    'bar': t.Float32Col(pos=1),
+                                    'baz': t.StringCol(50, pos=2)})
+
+    def teardown_method(self, method):
+        self.maf.close()
+
+    def test_edges(self):
+        assert len(self.maf.edges()) == 55
