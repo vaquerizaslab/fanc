@@ -67,7 +67,6 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
 
                 for key, d in edges.iteritems():
                     for field, values in d.iteritems():
-                        print values
                         source = key[0]
                         sink = key[1]
 
@@ -79,4 +78,21 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
 
         self.flush()
 
-        # step 2:
+
+class HicWeightVariance(HicEdgeCollection):
+    def __init__(self, hics, file_name=None, mode='a', tmpdir=None):
+        additional_fields = {'var': t.Float32Col()}
+        HicEdgeCollection.__init__(self, hics, additional_fields=additional_fields, file_name=file_name,
+                                   mode=mode, tmpdir=tmpdir)
+
+    def _calculate(self, *args, **kwargs):
+        HicEdgeCollection._calculate(self, *args, **kwargs)
+
+        for edge in self.edges(lazy=True):
+            weights = np.zeros(len(self.hics))
+            for i in xrange(len(self.hics)):
+                weights[i] = getattr(edge, 'weight_' + str(i), 0.0)
+            edge.var = np.var(weights)
+        self.flush()
+
+        self._edges.cols.var.create_csindex()
