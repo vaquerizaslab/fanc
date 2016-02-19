@@ -394,6 +394,15 @@ class TestRegionMatrixTable:
         for edge in self.rmt.edges():
             assert edge.foo == 999
 
+    def test_edge_subset(self):
+        edges = self.rmt.edge_subset(key=('chr2', 'chr2'))
+        for edge in edges:
+            assert edge.bar == max(edge.sink, edge.source)
+
+        edges = self.rmt.edge_subset(key=('chr2', 'chr3'))
+        for edge in edges:
+            assert edge.bar == max(edge.sink, edge.source)
+
     def test_matrix(self):
         m = self.rmt.as_matrix()
         for row_region in m.row_regions:
