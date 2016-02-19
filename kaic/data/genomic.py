@@ -2316,7 +2316,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 elif not column.index.is_csi:
                     column.reindex()
             except t.exceptions.FileModeError:
-                raise RuntimeError("This object is not sorted by qname_ix! "
+                raise RuntimeError("This object is not sorted by requested column! "
                                    "Cannot sort manually, because file is in read-only mode.")
 
         edge_iter = RegionMatrixTable.EdgeIter(self, _iter=self._edges.itersorted(sortby))
