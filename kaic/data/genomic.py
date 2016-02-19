@@ -1634,7 +1634,7 @@ class Edge(TableObject):
         The weight or contact strength of the edge. Can, for
         example, be the number of reads mapping to a contact.
     """
-    def __init__(self, source, sink, *args, **kwargs):
+    def __init__(self, source, sink, **kwargs):
         """
         :param source: The index of the "source" genomic region
                        or :class:`~Node` object.
@@ -1645,15 +1645,7 @@ class Edge(TableObject):
         """
         self._source = source
         self._sink = sink
-        self.weight = 1.
         self.field_names = []
-
-        if len(args) > 1:
-            raise ValueError("Can only have a single element in args.")
-
-        if len(args) == 1:
-            self.weight = float(args[0])
-            self.field_names.append('weight')
 
         for key, value in kwargs.iteritems():
             setattr(self, key, value)
@@ -1688,10 +1680,6 @@ class Edge(TableObject):
         for field in self.field_names:
             base_info += "\n\t%s: %s" % (field, str(getattr(self, field)))
         return base_info
-    
-    @classmethod
-    def from_row(cls, row):
-        return cls(source=row['source'], sink=row['sink'], weight=row['weight'])
 
 
 class LazyEdge(Edge):
@@ -1760,56 +1748,23 @@ class LazyEdge(Edge):
         return base_info
 
 
-class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
+class RegionPairs(Maskable, MetaContainer, RegionsTable):
     """
-    Class for working with matrix-based data.
+    Class for working with data associated with pairs of regions.
 
-    Generally, a RegionMatrix object has two components:
+    Generally, a RegionPairs object has two components:
 
     - Nodes or regions: (Non-overlapping) genomic regions
       obtained by splitting the genome into distinct pieces.
       See also :class:`~GenomicRegion` and :class:`~RegionsTable`
 
-    - Edges or contacts: Pairs of genomic regions with optionally
-      associated weight or contact strength. See also
+    - Edges or contacts: Pairs of genomic regions. See also
       :class:`~Edge`
-
-    This is a memory-efficient implementation of a matrix data
-    container. Internally, this is achieved by saving entries
-    of the matrix in sparse notation, i.e. in a list of
-    non-zero contacts.
-
-    Its bracket-notation access behaves like a numpy
-    array and handles data retrieval and assignment in matrix-
-    fashion, e.g. m[1:3] would return rows 1 and 2 of
-    the matrix m (0-based index). However, the bracket
-    notation can also handle :class:`~GenomicRegion` descriptor
-    strings, i.e. m['chr1','chr5'] will extract the inter-
-    chromosomal matrix between chromosomes 1 and 5 only.
-
-    Examples:
-
-    .. code:: python
-
-        m = RegionMatrix(file_name="/path/to/save/file")
-
-        # load genomic regions
-        genome = Genome.from_folder("/path/to/fasta/folder")
-        regions = genome.get_regions("HindIII")
-        m.add_regions(regions)
-
-        # load edges
-        edges = []
-        edges.append(Edge(source=10, sink=23, weight=3)
-        edges.append(Edge(source=8, sink=9, weight=57)
-        # ...
-        m.add_edges(edges)
     """
 
     class EntryDescription(t.IsDescription):
         source = t.Int32Col(pos=0)  
         sink = t.Int32Col(pos=1)  
-        weight = t.Float64Col(pos=2, dflt=1.0)
 
     class EdgeIter:
         def __init__(self, this, _iter=None):
@@ -1851,10 +1806,12 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
                  _table_name_nodes='nodes', _table_name_edges='edges'):
 
         """
-        Initialize a :class:`~RegionMatrixTable` object.
+        Initialize a :class:`~RegionPairs` object.
 
         :param file_name: Path to a save file
         :param mode: File mode to open underlying file
+        :param additional_fields: Additional fields (in PyTables notation) associated with
+                                  edge data, e.g. {'weight': tables.Float32Col()}
         :param _table_name_nodes: (Internal) name of the HDF5 node for regions
         :param _table_name_edges: (Internal) name of the HDF5 node for edges
         """
@@ -2089,43 +2046,6 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
 
-    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
-                           clean_zero=True, default_column='weight'):
-
-        # update current rows
-        for row in self._edges:
-            key = (row["source"], row["sink"])
-
-            if key in e_buffer:
-                value = e_buffer[key]
-                # it is a weight
-                try:
-                    if replace:
-                        row[default_column] = float(value)
-                    else:
-                        row[default_column] += float(value)
-                    row.update()
-                except TypeError:
-                    self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
-                del e_buffer[key]
-        self._edges.flush()
-
-        # flush remaining buffer
-        for source, sink in e_buffer:
-            key = (source, sink)
-            value = e_buffer[key]
-            try:
-                v = float(value)
-                if v == 0:
-                    continue
-                self._edge_from_dict({'source': source, 'sink': sink, default_column: v})
-            except TypeError:
-                self.add_edge(value, check_nodes_exist=False, flush=False)
-
-        self._edges.flush()
-        if clean_zero:
-            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
-
     def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
         """
         Write data to file and flush buffers.
@@ -2139,82 +2059,6 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
 
         if flush_edges:
             self._edges.flush(update_index=update_index)
-
-    def __getitem__(self, key):
-        return self.as_matrix(key)
-
-    def as_matrix(self, key=slice(0, None, None), values_from='weight'):
-        """
-        Get a chunk of the matrix.
-
-        :param key: Possible key types are:
-
-                    Region types
-
-                    - Node: Only the ix of this node will be used for
-                      identification
-                    - GenomicRegion: self-explanatory
-                    - str: key is assumed to describe a genomic region
-                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
-                      e.g.: 'chr1:1000-54232:+'
-
-                    Node types
-
-                    - int: node index
-                    - slice: node range
-
-                    List types
-
-                    - list: This key type allows for a combination of all
-                      of the above key types - the corresponding matrix
-                      will be concatenated
-
-
-                    If the key is a 2-tuple, each entry will be treated as the
-                    row and column key, respectively,
-                    e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
-                    map of the relevant regions between chromosomes 1 and 4.
-        :param values_from: Determines which column will be used to populate
-                            the matrix. Default is 'weight'.
-        :return: :class:`RegionMatrix`
-        """
-
-        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
-
-        nodes_ix_row = None
-        if nodes_row is not None:
-            if isinstance(nodes_row, list):
-                nodes_ix_row = [node.ix for node in nodes_row]
-            else:
-                nodes_ix_row = nodes_row.ix
-
-        nodes_ix_col = None
-        if nodes_col is not None:
-            if isinstance(nodes_col, list):
-                nodes_ix_col = [node.ix for node in nodes_col]
-            else:
-                nodes_ix_col = nodes_col.ix
-
-        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
-        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
-
-        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from)
-
-        # select the correct output format
-        # empty result: matrix
-        if m.shape[0] == 0 and m.shape[1] == 0:
-            return RegionMatrix(m, col_regions=[], row_regions=[])
-        # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            return RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
-        # row selector is list: vector
-        if isinstance(nodes_ix_row, list):
-            return RegionMatrix(m[:, 0], col_regions=[nodes_col], row_regions=nodes_row)
-        # column selector is list: vector
-        if isinstance(nodes_ix_col, list):
-            return RegionMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
-        # both must be indexes
-        return m[0, 0]
 
     def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True):
         """
@@ -2309,46 +2153,6 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
         # get range generator
         return ranges(nodes_ix)
 
-    def _get_matrix(self, row_ranges, col_ranges, weight_column='weight'):
-        n_rows = 0
-        for row_range in row_ranges:
-            n_rows += row_range[1]-row_range[0]+1
-
-        n_cols = 0
-        for col_range in col_ranges:
-            n_cols += col_range[1]-col_range[0]+1
-
-        # create empty matrix
-        m = np.zeros((n_rows, n_cols))
-
-        # fill matrix with weights
-        row_offset = 0
-        for row_range in row_ranges:
-            n_rows_sub = row_range[1] - row_range[0] + 1
-            col_offset = 0
-            for col_range in col_ranges:
-                n_cols_sub = col_range[1] - col_range[0] + 1
-                
-                for edge_row in self._edge_row_range(row_range[0], row_range[1], col_range[0], col_range[1]):
-                    source = edge_row['source']
-                    sink = edge_row['sink']
-                    weight = edge_row[weight_column]
-
-                    ir = source - row_range[0] + row_offset
-                    jr = sink - col_range[0] + col_offset
-                    if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
-                        m[ir, jr] = weight
-
-                    ir = sink - row_range[0] + row_offset
-                    jr = source - col_range[0] + col_offset
-                    if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
-                        m[ir, jr] = weight
-                
-                col_offset += n_cols_sub
-            row_offset += n_rows_sub
-
-        return m
-    
     def _getitem_nodes(self, key, as_index=False):
         # 'chr1:1234:56789'
         if isinstance(key, str):
@@ -2407,174 +2211,6 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
             else:
                 all_nodes_ix.append(nodes_ix)
         return all_nodes_ix
-    
-    def as_data_frame(self, key, weight_column='weight'):
-        """
-        Get a pandas data frame by key.
-
-        For key types see :func:`~RegionMatrixTable.__getitem__`.
-
-        :param key: For key types see :func:`~RegionMatrixTable.__getitem__`.
-        :param weight_column: Determines which column populates the DF
-        :return: Pandas data frame, row and column labels are
-                 corresponding node start positions
-        """
-        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
-        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
-
-        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
-        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
-
-        m = self._get_matrix(row_ranges, col_ranges, weight_column=weight_column)
-        labels_row = []
-        for node in nodes_row:
-            labels_row.append(node.start)
-        labels_col = []
-        for node in nodes_col:
-            labels_col.append(node.start)
-        df = p.DataFrame(m, index=labels_row, columns=labels_col)
-        
-        return df
-    
-    def __setitem__(self, key, item):
-        self.set_matrix(key, item, clean_zero=True)
-
-    def set_matrix(self, key, item, clean_zero=False, values_to='weight'):
-        """
-        Set a chunk of the matrix.
-
-        :param key: Possible key types are:
-
-                    Region types
-
-                    - Node: Only the ix of this node will be used for
-                      identification
-                    - GenomicRegion: self-explanatory
-                    - str: key is assumed to describe a genomic region
-                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
-                      e.g.: 'chr1:1000-54232:+'
-
-                    Node types
-
-                    - int: node index
-                    - slice: node range
-
-                    List types
-
-                    - list: This key type allows for a combination of all
-                      of the above key types - the corresponding matrix
-                      will be concatenated
-
-                    If the key is a 2-tuple, each entry will be treated as the
-                    row and column key, respectively,
-                    e.g.: 'chr1:0-1000, chr4:2300-3000' will set the entries
-                    of the relevant regions between chromosomes 1 and 4.
-        :param item: matrix to replace existing values
-        :param clean_zero: Remove edges where 'values_to' colum is zero
-        :param values_to: Determines which column is replaced by the provided
-                          item. Default: weight
-        """
-
-        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
-        self._set_matrix(item, nodes_ix_row, nodes_ix_col, clean_zero=clean_zero, weight_column=values_to)
-
-    def _set_matrix(self, item, nodes_ix_row=None, nodes_ix_col=None,
-                    clean_zero=False, weight_column='weight'):
-        replacement_edges = {}
-
-        # create new edges with updated weights
-        # select the correct format:
-        def swap(old_source, old_sink):
-            if old_source > old_sink:
-                return old_sink, old_source
-            return old_source, old_sink
-
-        # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            n_rows = len(nodes_ix_row)
-            n_cols = len(nodes_ix_col)
-            # check that we have a matrix with the correct dimensions
-            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows, n_cols]):
-                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows, n_cols))
-            
-            for i in xrange(0, n_rows):
-                for j in xrange(0, n_cols):
-                    source = nodes_ix_row[i]
-                    sink = nodes_ix_col[j]
-                    source, sink = swap(source, sink)
-                    weight = item[i, j]
-                    key = (source, sink)
-                    if key not in replacement_edges:
-                        replacement_edges[key] = weight
-
-        # row selector is list: vector
-        elif isinstance(nodes_ix_row, list):
-            n_rows = len(nodes_ix_row)
-            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows]):
-                raise ValueError("Item is not a numpy vector of length %d!" % n_rows)
-            
-            for i, my_sink in enumerate(nodes_ix_row):
-                source = nodes_ix_col
-                source, sink = swap(source, my_sink)
-                weight = item[i]
-                key = (source, sink)
-                if key not in replacement_edges:
-                    replacement_edges[key] = weight
-        
-        # column selector is list: vector
-        elif isinstance(nodes_ix_col, list):
-            n_cols = len(nodes_ix_col)
-            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_cols]):
-                raise ValueError("Item is not a numpy vector of length %d!" % n_cols)
-            
-            for i, my_source in enumerate(nodes_ix_col):
-                sink = nodes_ix_row
-                source, sink = swap(my_source, sink)
-                weight = item[i]
-                key = (source, sink)
-                if key not in replacement_edges:
-                    replacement_edges[key] = weight
-
-        # both must be indexes
-        else:
-            weight = item
-            source, sink = swap(nodes_ix_row, nodes_ix_col)
-            key = (source, sink)
-            if key not in replacement_edges:
-                replacement_edges[key] = weight
-
-        self._flush_edge_buffer(replacement_edges, replace=True, clean_zero=clean_zero, default_column=weight_column)
-
-    def _update_edge_weight(self, source, sink, weight, add=False, flush=True, weight_column='weight'):
-        if source > sink:
-            source, sink = sink, source
-        
-        value_set = False
-        for row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
-            original = 0
-            if add:
-                original = row[weight_column]
-            row[weight_column] = weight + original
-            row.update()
-            value_set = True
-            if flush:
-                self.flush()
-        if not value_set:
-            self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=flush)
-    
-    def _remove_zero_edges(self, flush=True, update_index=True, weight_column='weight'):
-        zero_edge_ix = []
-        ix = 0
-        for row in self._edges.iterrows():
-            if row[weight_column] == 0:
-                zero_edge_ix.append(ix)
-            ix += 1
-        
-        for ix in reversed(zero_edge_ix):
-            self._edges.remove_row(ix)        
-        
-        if flush:
-            self.flush(update_index=update_index)
 
     def _row_to_node(self, row, lazy=False):
         if lazy:
@@ -2693,6 +2329,414 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
         return len(self._edges)
 
 
+class RegionMatrixTable(RegionPairs):
+    """
+    Class for working with matrix-based data.
+
+    Generally, a RegionMatrix object has two components:
+
+    - Nodes or regions: (Non-overlapping) genomic regions
+      obtained by splitting the genome into distinct pieces.
+      See also :class:`~GenomicRegion` and :class:`~RegionsTable`
+
+    - Edges or contacts: Pairs of genomic regions with optionally
+      associated weight or contact strength. See also
+      :class:`~Edge`
+
+    This is a memory-efficient implementation of a matrix data
+    container. Internally, this is achieved by saving entries
+    of the matrix in sparse notation, i.e. in a list of
+    non-zero contacts.
+
+    Its bracket-notation access behaves like a numpy
+    array and handles data retrieval and assignment in matrix-
+    fashion, e.g. m[1:3] would return rows 1 and 2 of
+    the matrix m (0-based index). However, the bracket
+    notation can also handle :class:`~GenomicRegion` descriptor
+    strings, i.e. m['chr1','chr5'] will extract the inter-
+    chromosomal matrix between chromosomes 1 and 5 only.
+
+    Examples:
+
+    .. code:: python
+
+        m = RegionMatrix(file_name="/path/to/save/file")
+
+        # load genomic regions
+        genome = Genome.from_folder("/path/to/fasta/folder")
+        regions = genome.get_regions("HindIII")
+        m.add_regions(regions)
+
+        # load edges
+        edges = []
+        edges.append(Edge(source=10, sink=23, weight=3)
+        edges.append(Edge(source=8, sink=9, weight=57)
+        # ...
+        m.add_edges(edges)
+    """
+
+    def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
+                 default_field=None, _table_name_nodes='nodes', _table_name_edges='edges'):
+
+        """
+        Initialize a :class:`~RegionMatrixTable` object.
+
+        :param file_name: Path to a save file
+        :param mode: File mode to open underlying file
+        :param _table_name_nodes: (Internal) name of the HDF5 node for regions
+        :param _table_name_edges: (Internal) name of the HDF5 node for edges
+        """
+
+        # private variables
+        self.default_field = default_field
+        RegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields, tmpdir=tmpdir,
+                             _table_name_nodes=_table_name_nodes, _table_name_edges=_table_name_edges)
+
+        if default_field is None:
+            self.default_field = self._edges.colnames[2]
+
+    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
+                           clean_zero=True, default_column=None):
+        if default_column is None:
+            default_column = self.default_field
+        # update current rows
+        for row in self._edges:
+            key = (row["source"], row["sink"])
+
+            if key in e_buffer:
+                value = e_buffer[key]
+                # it is a weight
+                try:
+                    if replace:
+                        row[default_column] = float(value)
+                    else:
+                        row[default_column] += float(value)
+                    row.update()
+                except TypeError:
+                    self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
+                del e_buffer[key]
+        self._edges.flush()
+
+        # flush remaining buffer
+        for source, sink in e_buffer:
+            key = (source, sink)
+            value = e_buffer[key]
+            try:
+                v = float(value)
+                if v == 0:
+                    continue
+                self._edge_from_dict({'source': source, 'sink': sink, default_column: v})
+            except TypeError:
+                self.add_edge(value, check_nodes_exist=False, flush=False)
+
+        self._edges.flush()
+        if clean_zero:
+            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
+
+    def __getitem__(self, key):
+        return self.as_matrix(key)
+
+    def as_matrix(self, key=slice(0, None, None), values_from=None):
+        """
+        Get a chunk of the matrix.
+
+        :param key: Possible key types are:
+
+                    Region types
+
+                    - Node: Only the ix of this node will be used for
+                      identification
+                    - GenomicRegion: self-explanatory
+                    - str: key is assumed to describe a genomic region
+                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                      e.g.: 'chr1:1000-54232:+'
+
+                    Node types
+
+                    - int: node index
+                    - slice: node range
+
+                    List types
+
+                    - list: This key type allows for a combination of all
+                      of the above key types - the corresponding matrix
+                      will be concatenated
+
+
+                    If the key is a 2-tuple, each entry will be treated as the
+                    row and column key, respectively,
+                    e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
+                    map of the relevant regions between chromosomes 1 and 4.
+        :param values_from: Determines which column will be used to populate
+                            the matrix. Default is 'weight'.
+        :return: :class:`RegionMatrix`
+        """
+        if values_from is None:
+            values_from = self.default_field
+
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+
+        nodes_ix_row = None
+        if nodes_row is not None:
+            if isinstance(nodes_row, list):
+                nodes_ix_row = [node.ix for node in nodes_row]
+            else:
+                nodes_ix_row = nodes_row.ix
+
+        nodes_ix_col = None
+        if nodes_col is not None:
+            if isinstance(nodes_col, list):
+                nodes_ix_col = [node.ix for node in nodes_col]
+            else:
+                nodes_ix_col = nodes_col.ix
+
+        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
+        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
+
+        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from)
+
+        # select the correct output format
+        # empty result: matrix
+        if m.shape[0] == 0 and m.shape[1] == 0:
+            return RegionMatrix(m, col_regions=[], row_regions=[])
+        # both selectors are lists: matrix
+        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            return RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
+        # row selector is list: vector
+        if isinstance(nodes_ix_row, list):
+            return RegionMatrix(m[:, 0], col_regions=[nodes_col], row_regions=nodes_row)
+        # column selector is list: vector
+        if isinstance(nodes_ix_col, list):
+            return RegionMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
+        # both must be indexes
+        return m[0, 0]
+
+    def _get_matrix(self, row_ranges, col_ranges, weight_column=None):
+        if weight_column is None:
+            weight_column = self.default_field
+
+        n_rows = 0
+        for row_range in row_ranges:
+            n_rows += row_range[1]-row_range[0]+1
+
+        n_cols = 0
+        for col_range in col_ranges:
+            n_cols += col_range[1]-col_range[0]+1
+
+        # create empty matrix
+        m = np.zeros((n_rows, n_cols))
+
+        # fill matrix with weights
+        row_offset = 0
+        for row_range in row_ranges:
+            n_rows_sub = row_range[1] - row_range[0] + 1
+            col_offset = 0
+            for col_range in col_ranges:
+                n_cols_sub = col_range[1] - col_range[0] + 1
+
+                for edge_row in self._edge_row_range(row_range[0], row_range[1], col_range[0], col_range[1]):
+                    source = edge_row['source']
+                    sink = edge_row['sink']
+                    weight = edge_row[weight_column]
+
+                    ir = source - row_range[0] + row_offset
+                    jr = sink - col_range[0] + col_offset
+                    if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                        m[ir, jr] = weight
+
+                    ir = sink - row_range[0] + row_offset
+                    jr = source - col_range[0] + col_offset
+                    if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                        m[ir, jr] = weight
+
+                col_offset += n_cols_sub
+            row_offset += n_rows_sub
+
+        return m
+
+    def as_data_frame(self, key, weight_column=None):
+        """
+        Get a pandas data frame by key.
+
+        For key types see :func:`~RegionMatrixTable.__getitem__`.
+
+        :param key: For key types see :func:`~RegionMatrixTable.__getitem__`.
+        :param weight_column: Determines which column populates the DF
+        :return: Pandas data frame, row and column labels are
+                 corresponding node start positions
+        """
+        if weight_column is None:
+            weight_column = self.default_field
+
+        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+
+        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
+        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
+
+        m = self._get_matrix(row_ranges, col_ranges, weight_column=weight_column)
+        labels_row = []
+        for node in nodes_row:
+            labels_row.append(node.start)
+        labels_col = []
+        for node in nodes_col:
+            labels_col.append(node.start)
+        df = p.DataFrame(m, index=labels_row, columns=labels_col)
+
+        return df
+
+    def __setitem__(self, key, item):
+        self.set_matrix(key, item, clean_zero=True)
+
+    def set_matrix(self, key, item, clean_zero=False, values_to=None):
+        """
+        Set a chunk of the matrix.
+
+        :param key: Possible key types are:
+
+                    Region types
+
+                    - Node: Only the ix of this node will be used for
+                      identification
+                    - GenomicRegion: self-explanatory
+                    - str: key is assumed to describe a genomic region
+                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                      e.g.: 'chr1:1000-54232:+'
+
+                    Node types
+
+                    - int: node index
+                    - slice: node range
+
+                    List types
+
+                    - list: This key type allows for a combination of all
+                      of the above key types - the corresponding matrix
+                      will be concatenated
+
+                    If the key is a 2-tuple, each entry will be treated as the
+                    row and column key, respectively,
+                    e.g.: 'chr1:0-1000, chr4:2300-3000' will set the entries
+                    of the relevant regions between chromosomes 1 and 4.
+        :param item: matrix to replace existing values
+        :param clean_zero: Remove edges where 'values_to' colum is zero
+        :param values_to: Determines which column is replaced by the provided
+                          item. Default: weight
+        """
+        if values_to is None:
+            values_to = self.default_field
+
+        nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
+        self._set_matrix(item, nodes_ix_row, nodes_ix_col, clean_zero=clean_zero, weight_column=values_to)
+
+    def _set_matrix(self, item, nodes_ix_row=None, nodes_ix_col=None,
+                    clean_zero=False, weight_column=None):
+        if weight_column is None:
+            weight_column = self.default_field
+
+        replacement_edges = {}
+
+        # create new edges with updated weights
+        # select the correct format:
+        def swap(old_source, old_sink):
+            if old_source > old_sink:
+                return old_sink, old_source
+            return old_source, old_sink
+
+        # both selectors are lists: matrix
+        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            n_rows = len(nodes_ix_row)
+            n_cols = len(nodes_ix_col)
+            # check that we have a matrix with the correct dimensions
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows, n_cols]):
+                raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows, n_cols))
+
+            for i in xrange(0, n_rows):
+                for j in xrange(0, n_cols):
+                    source = nodes_ix_row[i]
+                    sink = nodes_ix_col[j]
+                    source, sink = swap(source, sink)
+                    weight = item[i, j]
+                    key = (source, sink)
+                    if key not in replacement_edges:
+                        replacement_edges[key] = weight
+
+        # row selector is list: vector
+        elif isinstance(nodes_ix_row, list):
+            n_rows = len(nodes_ix_row)
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows]):
+                raise ValueError("Item is not a numpy vector of length %d!" % n_rows)
+
+            for i, my_sink in enumerate(nodes_ix_row):
+                source = nodes_ix_col
+                source, sink = swap(source, my_sink)
+                weight = item[i]
+                key = (source, sink)
+                if key not in replacement_edges:
+                    replacement_edges[key] = weight
+
+        # column selector is list: vector
+        elif isinstance(nodes_ix_col, list):
+            n_cols = len(nodes_ix_col)
+            if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_cols]):
+                raise ValueError("Item is not a numpy vector of length %d!" % n_cols)
+
+            for i, my_source in enumerate(nodes_ix_col):
+                sink = nodes_ix_row
+                source, sink = swap(my_source, sink)
+                weight = item[i]
+                key = (source, sink)
+                if key not in replacement_edges:
+                    replacement_edges[key] = weight
+
+        # both must be indexes
+        else:
+            weight = item
+            source, sink = swap(nodes_ix_row, nodes_ix_col)
+            key = (source, sink)
+            if key not in replacement_edges:
+                replacement_edges[key] = weight
+
+        self._flush_edge_buffer(replacement_edges, replace=True, clean_zero=clean_zero, default_column=weight_column)
+
+    def _update_edge_weight(self, source, sink, weight, add=False, flush=True, weight_column=None):
+        if weight_column is None:
+            weight_column = self.default_field
+
+        if source > sink:
+            source, sink = sink, source
+
+        value_set = False
+        for row in self._edges.where("(source == %d) & (sink == %d)" % (source, sink)):
+            original = 0
+            if add:
+                original = row[weight_column]
+            row[weight_column] = weight + original
+            row.update()
+            value_set = True
+            if flush:
+                self.flush()
+        if not value_set:
+            self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=flush)
+
+    def _remove_zero_edges(self, flush=True, update_index=True, weight_column=None):
+        if weight_column is None:
+            weight_column = self.default_field
+
+        zero_edge_ix = []
+        ix = 0
+        for row in self._edges.iterrows():
+            if row[weight_column] == 0:
+                zero_edge_ix.append(ix)
+            ix += 1
+
+        for ix in reversed(zero_edge_ix):
+            self._edges.remove_row(ix)
+
+        if flush:
+            self.flush(update_index=update_index)
+
+
 class Hic(RegionMatrixTable):
     """
     Class for working with Hi-C data.
@@ -2749,7 +2793,9 @@ class Hic(RegionMatrixTable):
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
 
-        RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
+        RegionMatrixTable.__init__(self, additional_fields= {'weight': t.Float64Col(pos=0)},
+                                   file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                   default_field='weight',
                                    _table_name_nodes=_table_name_nodes,
                                    _table_name_edges=_table_name_edges)
 
@@ -3296,8 +3342,8 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
         return RegionMatrixTable._get_nodes_from_key(self, key, as_index=as_index)
 
     @calculateondemand
-    def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None, weight_column='weight'):
-        return RegionMatrixTable._get_matrix(self, nodes_ix_row=nodes_ix_row, nodes_ix_col=nodes_ix_col,
+    def _get_matrix(self, row_ranges=None, col_ranges=None, weight_column='weight'):
+        return RegionMatrixTable._get_matrix(self, row_ranges=row_ranges, col_ranges=col_ranges,
                                              weight_column=weight_column)
 
     @calculateondemand

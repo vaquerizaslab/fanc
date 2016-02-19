@@ -272,9 +272,10 @@ class TestRegionsTable(TestGenomicRegions):
 
 class TestRegionMatrixTable:
     def setup_method(self, method):
-        self.rmt = RegionMatrixTable(additional_fields={'foo': t.Int32Col(pos=0),
-                                                        'bar': t.Float32Col(pos=1),
-                                                        'baz': t.StringCol(50, pos=2)})
+        self.rmt = RegionMatrixTable(additional_fields={'weight': t.Int32Col(pos=0),
+                                                        'foo': t.Int32Col(pos=1),
+                                                        'bar': t.Float32Col(pos=2),
+                                                        'baz': t.StringCol(50, pos=3)})
 
         for i in xrange(10):
             if i < 5:
@@ -304,12 +305,12 @@ class TestRegionMatrixTable:
 
     def test_create(self):
         rmt1 = RegionMatrixTable()
-        assert rmt1.field_names == ['source', 'sink', 'weight']
+        assert rmt1.field_names == ['source', 'sink']
         assert len(rmt1.edges()) == 0
         rmt1.close()
 
         rmt2 = RegionMatrixTable(additional_fields={'foo': t.Int32Col(pos=0), 'bar': t.Float32Col(pos=1)})
-        assert rmt2.field_names == ['source', 'sink', 'weight', 'foo', 'bar']
+        assert rmt2.field_names == ['source', 'sink', 'foo', 'bar']
         assert len(rmt2.edges()) == 0
         rmt2.close()
 
@@ -318,7 +319,7 @@ class TestRegionMatrixTable:
             bar = t.Float32Col(pos=1)
 
         rmt3 = RegionMatrixTable(additional_fields=AdditionalFields)
-        assert rmt3.field_names == ['source', 'sink', 'weight', 'foo', 'bar']
+        assert rmt3.field_names == ['source', 'sink', 'foo', 'bar']
         assert len(rmt3.edges()) == 0
         rmt3.close()
 
@@ -404,6 +405,7 @@ class TestRegionMatrixTable:
             assert edge.bar == max(edge.sink, edge.source)
 
     def test_matrix(self):
+        print self.rmt.default_field
         m = self.rmt.as_matrix()
         for row_region in m.row_regions:
             i = row_region.ix
@@ -437,9 +439,9 @@ class TestRegionMatrixTable:
                 assert m[i, j] == max(row_region.ix, col_region.ix)
 
     def test_add_edge(self):
-        rmt = RegionMatrixTable()
+        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
         rmt.add_node(Node(chromosome='1', start=1, end=1000))
-        rmt.add_edge(Edge(0, 0, 100))
+        rmt.add_edge(Edge(0, 0, weight=100))
 
         edge = rmt.edges[0]
         assert edge.source == 0
@@ -447,7 +449,7 @@ class TestRegionMatrixTable:
         assert edge.weight == 100
         rmt.close()
 
-        rmt = RegionMatrixTable()
+        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
         rmt.add_node(Node(chromosome='1', start=1, end=1000))
         rmt.add_edge([0, 0, 100])
 
@@ -457,7 +459,7 @@ class TestRegionMatrixTable:
         assert edge.weight == 100
         rmt.close()
 
-        rmt = RegionMatrixTable()
+        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
         rmt.add_node(Node(chromosome='1', start=1, end=1000))
         rmt.add_edge({'source': 0, 'sink': 0, 'weight': 100})
 
