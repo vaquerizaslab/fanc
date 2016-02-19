@@ -2195,7 +2195,10 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
             else:
                 nodes_ix_col = nodes_col.ix
 
-        m = self._get_matrix(nodes_ix_row, nodes_ix_col, weight_column=values_from)
+        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
+        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
+
+        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from)
 
         # select the correct output format
         # empty result: matrix
@@ -2206,13 +2209,74 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
             return RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
         # row selector is list: vector
         if isinstance(nodes_ix_row, list):
-            return RegionMatrix(m[:, 0], col_regions=[nodes_ix_col], row_regions=nodes_row)
+            return RegionMatrix(m[:, 0], col_regions=[nodes_col], row_regions=nodes_row)
         # column selector is list: vector
         if isinstance(nodes_ix_col, list):
             return RegionMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
         # both must be indexes
         return m[0, 0]
-    
+
+    def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True):
+        """
+        Get a subset of edges.
+
+        :param key: Possible key types are:
+
+                    Region types
+
+                    - Node: Only the ix of this node will be used for
+                      identification
+                    - GenomicRegion: self-explanatory
+                    - str: key is assumed to describe a genomic region
+                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
+                      e.g.: 'chr1:1000-54232:+'
+
+                    Node types
+
+                    - int: node index
+                    - slice: node range
+
+                    List types
+
+                    - list: This key type allows for a combination of all
+                      of the above key types - the corresponding matrix
+                      will be concatenated
+
+
+                    If the key is a 2-tuple, each entry will be treated as the
+                    row and column key, respectively,
+                    e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
+                    map of the relevant regions between chromosomes 1 and 4.
+        :param lazy: Enable lazy loading of edge attributes
+        :param auto_update: Automatically update edge attributes on change
+        :return: generator (:class:`~Edge`)
+        """
+
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+
+        nodes_ix_row = None
+        if nodes_row is not None:
+            if isinstance(nodes_row, list):
+                nodes_ix_row = [node.ix for node in nodes_row]
+            else:
+                nodes_ix_row = nodes_row.ix
+
+        nodes_ix_col = None
+        if nodes_col is not None:
+            if isinstance(nodes_col, list):
+                nodes_ix_col = [node.ix for node in nodes_col]
+            else:
+                nodes_ix_col = nodes_col.ix
+
+        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
+        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
+
+        # fill matrix with weights
+        for row_range in row_ranges:
+            for col_range in col_ranges:
+                for edge_row in self._edge_row_range(row_range[0], row_range[1], col_range[0], col_range[1]):
+                    yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update)
+
     def _get_nodes_from_key(self, key, as_index=False):
         if isinstance(key, tuple):
             nodes_ix_row = self._getitem_nodes(key[0], as_index=as_index)
@@ -2227,58 +2291,58 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
                     nodes_ix_col.append(region)
         
         return nodes_ix_row, nodes_ix_col
-    
-    def _get_matrix(self, nodes_ix_row=None, nodes_ix_col=None, weight_column='weight'):
-        # calculate number of rows
-        if nodes_ix_row is None:
-            n_rows = len(self._regions)
-        else:
-            if not isinstance(nodes_ix_row, list):
-                nodes_ix_row = [nodes_ix_row]
-            n_rows = len(nodes_ix_row)
-        
-        # calculate number of columns
-        if nodes_ix_col is None:
-            n_cols = len(self._regions)
-        else:
-            if not isinstance(nodes_ix_col, list):
-                nodes_ix_col = [nodes_ix_col]
-            n_cols = len(nodes_ix_col)
+
+    def _edge_row_range(self, source_start, source_end, sink_start, sink_end):
+
+        condition = "(source >= %d) & (source <= %d) & (sink >= %d) & (sink <= %d)"
+        condition1 = condition % (source_start, source_end, sink_start, sink_end)
+        condition2 = condition % (sink_start, sink_end, source_start, source_end)
+
+        for condition in condition1, condition2:
+            for edge_row in self._edges.where(condition):
+                yield edge_row
+
+    def _get_node_ix_ranges(self, nodes_ix=None):
+        if not isinstance(nodes_ix, list):
+            nodes_ix = [nodes_ix]
+
+        # get range generator
+        return ranges(nodes_ix)
+
+    def _get_matrix(self, row_ranges, col_ranges, weight_column='weight'):
+        n_rows = 0
+        for row_range in row_ranges:
+            n_rows += row_range[1]-row_range[0]+1
+
+        n_cols = 0
+        for col_range in col_ranges:
+            n_cols += col_range[1]-col_range[0]+1
 
         # create empty matrix
         m = np.zeros((n_rows, n_cols))
-        
-        # get row range generator
-        row_ranges = ranges(nodes_ix_row)
 
         # fill matrix with weights
         row_offset = 0
         for row_range in row_ranges:
             n_rows_sub = row_range[1] - row_range[0] + 1
             col_offset = 0
-            col_ranges = ranges(nodes_ix_col)
             for col_range in col_ranges:
                 n_cols_sub = col_range[1] - col_range[0] + 1
                 
-                condition = "(source >= %d) & (source <= %d) & (sink >= %d) & (sink <= %d)"
-                condition1 = condition % (row_range[0], row_range[1], col_range[0], col_range[1])
-                condition2 = condition % (col_range[0], col_range[1], row_range[0], row_range[1])
+                for edge_row in self._edge_row_range(row_range[0], row_range[1], col_range[0], col_range[1]):
+                    source = edge_row['source']
+                    sink = edge_row['sink']
+                    weight = edge_row[weight_column]
 
-                for condition in condition1, condition2:
-                    for edge_row in self._edges.where(condition):
-                        source = edge_row['source']
-                        sink = edge_row['sink']
-                        weight = edge_row[weight_column]
+                    ir = source - row_range[0] + row_offset
+                    jr = sink - col_range[0] + col_offset
+                    if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                        m[ir, jr] = weight
 
-                        ir = source - row_range[0] + row_offset
-                        jr = sink - col_range[0] + col_offset
-                        if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
-                            m[ir, jr] = weight
-
-                        ir = sink - row_range[0] + row_offset
-                        jr = source - col_range[0] + col_offset
-                        if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
-                            m[ir, jr] = weight
+                    ir = sink - row_range[0] + row_offset
+                    jr = source - col_range[0] + col_offset
+                    if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                        m[ir, jr] = weight
                 
                 col_offset += n_cols_sub
             row_offset += n_rows_sub
@@ -2357,7 +2421,11 @@ class RegionMatrixTable(Maskable, MetaContainer, RegionsTable):
         """
         nodes_ix_row, nodes_ix_col = self._get_nodes_from_key(key, as_index=True)
         nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
-        m = self._get_matrix(nodes_ix_row, nodes_ix_col, weight_column=weight_column)
+
+        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
+        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
+
+        m = self._get_matrix(row_ranges, col_ranges, weight_column=weight_column)
         labels_row = []
         for node in nodes_row:
             labels_row.append(node.start)
