@@ -3368,7 +3368,7 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
 
     @calculateondemand
     def edges_sorted(self, sortby, *args, **kwargs):
-        return RegionMatrixTable.edges_sorted(sortby, *args, **kwargs)
+        return RegionMatrixTable.edges_sorted(self, sortby, *args, **kwargs)
 
     @calculateondemand
     def _edges_iter(self):
