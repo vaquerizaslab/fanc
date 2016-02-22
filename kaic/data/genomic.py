@@ -2916,6 +2916,9 @@ class Hic(RegionMatrixTable):
                     edge_buffer = {}
             self._flush_edge_buffer(edge_buffer)
 
+    def copy(self, file_name, tmpdir=None):
+        return Hic(data=self, file_name=file_name, tmpdir=tmpdir, mode='w')
+
     def bin(self, bin_size, file_name=None):
         """
         Map edges in this object to equi-distant bins.
