@@ -1333,8 +1333,6 @@ class TestHicBasic:
 
     def test_filter_expected_observed_enrichment(self):
         eof = ExpectedObservedEnrichmentFilter(self.hic, fold_change=1)
-        print eof.inter_expected
-        print eof.intra_expected
         previous = len(self.hic.edges)
         self.hic.filter(eof)
         assert len(self.hic.edges) == previous-15-23  # 15 intra, 23 inter filtered
