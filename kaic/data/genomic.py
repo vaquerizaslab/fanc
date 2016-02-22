@@ -3337,7 +3337,7 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
             self.add_edges(edges)
 
     @calculateondemand
-    def as_matrix(self, key=slice(0, None, None), values_from='weight'):
+    def as_matrix(self, key=slice(0, None, None), values_from=None):
         return RegionMatrixTable.as_matrix(self, key=key, values_from=values_from)
 
     @calculateondemand
@@ -3345,7 +3345,7 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
         return RegionMatrixTable._get_nodes_from_key(self, key, as_index=as_index)
 
     @calculateondemand
-    def _get_matrix(self, row_ranges=None, col_ranges=None, weight_column='weight'):
+    def _get_matrix(self, row_ranges=None, col_ranges=None, weight_column=None):
         return RegionMatrixTable._get_matrix(self, row_ranges=row_ranges, col_ranges=col_ranges,
                                              weight_column=weight_column)
 
@@ -3354,7 +3354,7 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
         return RegionMatrixTable._getitem_nodes(self, key, as_index=as_index)
 
     @calculateondemand
-    def as_data_frame(self, key, weight_column='weight'):
+    def as_data_frame(self, key, weight_column=None):
         return RegionMatrixTable.as_data_frame(self, key, weight_column=weight_column)
 
     @calculateondemand
