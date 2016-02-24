@@ -2304,7 +2304,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
             return False
         return True
 
-    def edges_sorted(self, sortby, *args, **kwargs):
+    def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
         # ensure sorting on qname_ix column
         column = getattr(self._edges.cols, sortby)
 
@@ -2318,8 +2318,11 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
             except t.exceptions.FileModeError:
                 raise RuntimeError("This object is not sorted by requested column! "
                                    "Cannot sort manually, because file is in read-only mode.")
-
-        edge_iter = RegionMatrixTable.EdgeIter(self, _iter=self._edges.itersorted(sortby))
+        if reverse:
+            step = -1
+        else:
+            step = None
+        edge_iter = RegionMatrixTable.EdgeIter(self, _iter=self._edges.itersorted(sortby, step=step))
         return edge_iter(*args, **kwargs)
 
     def __iter__(self):
@@ -3323,7 +3326,7 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
     def __init__(self, file_name=None, mode='a', data_fields=None,
                  regions=None, edges=None, _table_name_regions='region_data',
                  _table_name_edges='edges', tmpdir=None):
-        RegionMatrixTable.__init__(self, file_name, additional_fields=data_fields,
+        RegionMatrixTable.__init__(self, file_name=file_name, additional_fields=data_fields,
                                    mode=mode, tmpdir=tmpdir,
                                    _table_name_nodes=_table_name_regions,
                                    _table_name_edges=_table_name_edges)
@@ -3380,6 +3383,36 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
     @abstractmethod
     def _calculate(self, *args, **kwargs):
         raise NotImplementedError("This method must be overridden in subclass!")
+
+    @calculateondemand
+    def filter(self, edge_filter, queue=False, log_progress=False):
+        """
+        Filter edges in this object by using a
+        :class:`~MatrixArchitecturalRegionFeatureFilter`.
+
+        :param edge_filter: Class implementing :class:`~MatrixArchitecturalRegionFeatureFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        edge_filter.set_matrix_object(self)
+        if not queue:
+            self._edges.filter(edge_filter, _logging=log_progress)
+        else:
+            self._edges.queue_filter(edge_filter)
+
+    def run_queued_filters(self, log_progress=False):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        self._edges.run_queued_filters(_logging=log_progress)
 
 
 class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
@@ -3510,7 +3543,7 @@ class HicArchitecture(object):
 
 class ExpectedContacts(TableArchitecturalFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
-                 regions=None, _table_name='expected_contacts'):
+                 regions=None, weight_column='weight', _table_name='expected_contacts'):
         if isinstance(hic, str):
             file_name = hic
             hic = None
@@ -3524,6 +3557,7 @@ class ExpectedContacts(TableArchitecturalFeature):
         self.smooth = smooth
         self.min_reads = min_reads
         self.regions = regions
+        self.weight_column = weight_column
 
     def _calculate(self):
         """
@@ -3601,9 +3635,9 @@ class ExpectedContacts(TableArchitecturalFeature):
                 continue
             # only intra-chromosomal distances
             if chromosomes[edge.source] == chromosomes[edge.sink]:
-                reads_by_distance[edge.sink - edge.source] += edge.weight
+                reads_by_distance[edge.sink - edge.source] += getattr(edge, self.weight_column)
             else:
-                inter_observed += edge.weight
+                inter_observed += getattr(edge, self.weight_column)
 
         with PossibleContacts(self.hic, regions=self.regions) as pc:
             intra_possible, inter_possible = pc.intra_possible(), pc.inter_possible()
@@ -3735,6 +3769,107 @@ class PossibleContacts(TableArchitecturalFeature):
     @calculateondemand
     def inter_possible(self):
         return self[0, 'inter']
+
+
+class MatrixArchitecturalRegionFeatureFilter(MaskFilter):
+    """
+    Abstract class that provides filtering functionality for the
+    edges/contacts in a :class:`~MatrixArchitecturalRegionFeature` object.
+
+    Extends MaskFilter and overrides valid(self, row) to make
+    :class:`~Edge` filtering more "natural".
+
+    To create custom filters for the :class:`~MatrixArchitecturalRegionFeature`
+    object, extend this class and override the valid_edge(self, edge) method.
+    valid_edge should return False for a specific :class:`~Edge` object
+    if the object is supposed to be filtered/masked and True
+    otherwise.
+    """
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self, mask=None):
+        """
+        Initialize MatrixArchitecturalRegionFeatureFilter.
+
+        :param mask: The Mask object that should be used to mask
+                     filtered :class:`~Edge` objects. If None the default
+                     Mask will be used.
+        """
+        super(MatrixArchitecturalRegionFeatureFilter, self).__init__(mask)
+        self._hic = None
+
+    @abstractmethod
+    def valid_edge(self, edge):
+        """
+        Determine if an :class:`~Edge` object is valid or should
+        be filtered.
+
+        When implementing custom MatrixArchitecturalRegionFeatureFilter this
+        method must be overridden. It should return False for :class:`~HicEdge`
+        objects that are to be fitered and True otherwise.
+
+        Internally, the :class:`~MatrixArchitecturalRegionFeature` object
+        will iterate over all Edge instances to determine their validity on
+        an individual basis.
+
+        :param edge: A :class:`~Edge` object
+        :return: True if :class:`~Edge` is valid, False otherwise
+        """
+        pass
+
+    def set_matrix_object(self, matrix_object):
+        """
+        Set the :class:`~MatrixArchitecturalRegionFeature` instance to
+        be filtered by this MatrixArchitecturalRegionFeatureFilter.
+
+        Used internally by :class:`~MatrixArchitecturalRegionFeature`
+        instance.
+
+        :param matrix_object: :class:`~MatrixArchitecturalRegionFeature`
+                              object
+        """
+        self._matrix = matrix_object
+
+    def valid(self, row):
+        """
+        Map valid_edge to MaskFilter.valid(self, row).
+
+        :param row: A pytables Table row.
+        :return: The boolean value returned by valid_edge.
+        """
+        edge = self._matrix._row_to_edge(row, lazy=True)
+        return self.valid_edge(edge)
+
+
+class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
+    """
+    Filter edges where every associated weight is 0.
+    """
+    def __init__(self, mask=None):
+        """
+        Initialize filter with chosen parameters.
+
+        :param distance: Distance from the diagonal up to which
+                         contacts will be filtered
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered edges.
+        """
+        MatrixArchitecturalRegionFeatureFilter.__init__(self, mask=mask)
+
+    def valid_edge(self, edge):
+        """
+        Check if an edge is on (or near) the diagonal of the :class:`~Hic` matrix.
+        """
+        i = 0
+        while True:
+            try:
+                weight = getattr(edge, 'weight_' + str(i))
+                if weight == 0:
+                    return False
+                i += 1
+            except AttributeError:
+                return True
 
 
 class HicEdgeFilter(MaskFilter):
@@ -3920,7 +4055,7 @@ class BackgroundLigationFilter(HicEdgeFilter):
         if inter_count == 0:
             self.cutoff = 0
         else:
-            self.cutoff = fold_change*(inter_count/inter_sum)
+            self.cutoff = fold_change*(inter_sum/inter_count)
 
     def valid_edge(self, edge):
         """
