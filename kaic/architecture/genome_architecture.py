@@ -103,8 +103,6 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
         self._edges.run_queued_filters(_logging=log_progress)
 
 
-
-
 class MatrixArchitecturalRegionFeatureFilter(MaskFilter):
     """
     Abstract class that provides filtering functionality for the

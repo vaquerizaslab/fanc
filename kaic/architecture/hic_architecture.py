@@ -339,6 +339,7 @@ class PossibleContacts(TableArchitecturalFeature):
     def inter_possible(self):
         return self[0, 'inter']
 
+
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
     """
     Filter edges where every associated weight is 0.
@@ -347,8 +348,6 @@ class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
         """
         Initialize filter with chosen parameters.
 
-        :param distance: Distance from the diagonal up to which
-                         contacts will be filtered
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered edges.
         """
@@ -377,8 +376,6 @@ class ExpectedObservedCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
         """
         Initialize filter with chosen parameters.
 
-        :param distance: Distance from the diagonal up to which
-                         contacts will be filtered
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered edges.
         """
@@ -438,8 +435,6 @@ class BackgroundLigationCollectionFilter(MatrixArchitecturalRegionFeatureFilter)
         """
         Initialize filter with chosen parameters.
 
-        :param distance: Distance from the diagonal up to which
-                         contacts will be filtered
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered edges.
         """
