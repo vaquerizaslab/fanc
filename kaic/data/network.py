@@ -1166,7 +1166,7 @@ class RaoPeakCaller(PeakCaller):
         # empirically choose p and w_init
         # if not already chosen
         if p is None or w_init is None:
-            bin_size = hic.bin_size()
+            bin_size = hic.bin_size
             if bin_size > 25000:
                 p = 1 if p is None else p
                 w_init = 3 if w_init is None else w_init

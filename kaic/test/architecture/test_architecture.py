@@ -1,6 +1,6 @@
 from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand
-from kaic.data.genomic import GenomicRegion, VectorArchitecturalRegionFeature, MatrixArchitecturalRegionFeature,\
-    Node, Edge
+from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature
+from kaic.data.genomic import GenomicRegion, Node, Edge
 import tables as t
 import types
 import numpy as np

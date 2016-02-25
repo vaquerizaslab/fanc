@@ -42,7 +42,7 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
 
     contact_list = []
     half_window = int(window_size/2)
-    bin_size = hic.bin_size()
+    bin_size = hic.bin_size
     for i, region_string in enumerate(regions):
         feature_region = genomic.GenomicRegion.from_string(region_string)
         center = feature_region.start + int((feature_region.end-feature_region.start)/2)

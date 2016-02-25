@@ -1,5 +1,6 @@
 from __future__ import division
-from kaic.data.genomic import Hic, Node, Edge, PossibleContacts, ExpectedContacts
+from kaic.data.genomic import Hic, Node, Edge
+from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContacts
 
 
 class TestPossbibleContacts:
@@ -32,6 +33,7 @@ class TestPossbibleContacts:
         self.hic.close()
 
     def test_no_region(self):
+        print self.hic[:]
         with PossibleContacts(self.hic) as pc:
 
             assert pc.intra_possible() == 15+6+10

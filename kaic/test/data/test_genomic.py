@@ -1,7 +1,9 @@
+from __future__ import division
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
-    RegionMatrix, RegionsTable, RegionMatrixTable, BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
+    RegionMatrix, RegionsTable, RegionMatrixTable
+from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -877,7 +879,7 @@ class TestHicBasic:
             edges = []
             weight = 1
             p = list(product(range(len(nodes)), range(len(nodes))))
-            n = (len(nodes)**2)/8
+            n = int((len(nodes)**2)/8)
             s_s = random.sample(p, n)
             s_s = set([(max(i), min(i)) for i in s_s])
             for i, j in s_s:
@@ -1324,7 +1326,9 @@ class TestHicBasic:
 
     def test_filter_background_ligation(self):
         blf = BackgroundLigationFilter(self.hic, fold_change=2)
-        assert blf.cutoff - (610+405+734)/57 < 0.001
+        print blf.cutoff
+        print 2*(610+405+734)/47
+        assert blf.cutoff - 2*(610+405+734)/47 < 0.001
         for edge in self.hic.edges(lazy=True):
             if edge.weight < blf.cutoff:
                 assert blf.valid_edge(edge) == False
