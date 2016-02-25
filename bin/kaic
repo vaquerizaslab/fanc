@@ -2050,6 +2050,12 @@ class Kaic(object):
                  'np.unique(np.logspace(3, 8, num=50, base=2).astype(int))'
         )
         parser.add_argument(
+            '--no_imputation',
+            action="store_true",
+            help='Do not use imputation to guess value of unmappable bins. Turning off imputation may lead to artifacts '
+                 'near unmappable bins. The mask threshold should be set to a very low value (.1 or so) in this case.'
+        )
+        parser.add_argument(
             '-n', '--normalization_window',
             type=int, default=300,
             help='Window size for calculating long-range mean for normalization of insulation_index, relative_insulation_index, contact_band.'
@@ -2122,29 +2128,29 @@ class Kaic(object):
         if args.insulation_index:
             for d in args.bins:
                 logging.info("Calculating insulation index up to {} bins away.".format(d))
-                ii = insulation_index(h, d, hic_matrix=hic_matrix)
+                ii = insulation_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation)
                 normed_ii = np.ma.log2(ii/rolling_func_nan(ii, args.normalization_window, func=np.ma.mean))
                 gt.add_data("insulation_index_{}".format(d), normed_ii)
-            ii_matrix = [insulation_index(h, d, hic_matrix=hic_matrix) for d in args.matrix_bins]
+            ii_matrix = [insulation_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation) for d in args.matrix_bins]
             ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
             gt.add_data("insulation_index_matrix", ii_matrix_normed.T)
         if args.contact_band:
             for d1, d2 in (d.split("-") for d in args.contact_band):
                 logging.info("Calculating contact band between {} and {} bins away.".format(d1, d2))
-                cb = contact_band(h, int(d1), int(d2), hic_matrix=hic_matrix)
+                cb = contact_band(h, int(d1), int(d2), hic_matrix=hic_matrix, impute_missing=~args.no_imputation)
                 normed_cb = np.ma.log2(cb/rolling_func_nan(cb, args.normalization_window, func=np.ma.mean))
                 gt.add_data("contact_band_{}_{}".format(d1, d2), normed_cb)
         if args.directionality_index:
             for d in args.bins:
                 logging.info("Calculating directionality index with a window size of {}bp.".format(d))
-                gt.add_data("directionality_index_{}".format(d), directionality_index(h, d, hic_matrix=hic_matrix))
+                gt.add_data("directionality_index_{}".format(d), directionality_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation))
         if args.relative_insulation_index:
             for d in args.bins:
                 logging.info("Calculating relative insulation index up to {} bins away.".format(d))
-                ii = rel_insulation_index(h, d, hic_matrix=hic_matrix)
+                ii = rel_insulation_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation)
                 normed_ii = np.ma.log2(ii/rolling_func_nan(ii, args.normalization_window, func=np.ma.mean))
                 gt.add_data("rel_insulation_index_{}".format(d), normed_ii)
-            ii_matrix = [rel_insulation_index(h, d, hic_matrix=hic_matrix) for d in args.matrix_bins]
+            ii_matrix = [rel_insulation_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation) for d in args.matrix_bins]
             ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
             gt.add_data("rel_insulation_index_matrix", ii_matrix_normed.T)
         if args.derivative or args.delta:
