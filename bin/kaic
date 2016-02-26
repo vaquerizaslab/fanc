@@ -347,8 +347,8 @@ class Kaic(object):
             fastq_files.append(i)
 
         if len(fastq_files) > 0:
-            mapping_processes = distribute_integer(threads, len(fastq_files))
-            tp = ThreadPool(len(fastq_files))
+            mapping_processes = threads
+            tp = ThreadPool(1)
 
             index = os.path.expanduser(args.genome_index)
             logging.info("Iteratively mapping FASTQ files...")
@@ -358,7 +358,7 @@ class Kaic(object):
                 bam_file = output_folder + 'sam/' + file_basenames[ix] + '.bam'
                 bam_files.append(bam_file)
 
-                tp.apply_async(mapping_worker, (file_names[ix], index, bam_file, mapping_processes[i]))
+                tp.apply_async(mapping_worker, (file_names[ix], index, bam_file, mapping_processes))
             tp.close()
             tp.join()
 
