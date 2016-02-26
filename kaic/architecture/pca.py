@@ -152,20 +152,25 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
         tmpdir += '/'
 
     logging.info("Joining objects")
-    coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m',
-                                           only_intra_chromosomal=only_intra_chromosomal,
-                                           scale_libraries=True)
-    coll.calculate()
+    if isinstance(hics, HicCollectionWeightMeanVariance):
+        logging.info("Found collection.")
+        coll = hics
+    else:
+        coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m',
+                                               only_intra_chromosomal=only_intra_chromosomal,
+                                               scale_libraries=True)
+        coll.calculate()
+
+        if eo_cutoff != 0.0:
+            eof = ExpectedObservedCollectionFilter(coll)
+            coll.filter(eof, queue=True)
+
+        if bg_cutoff != 1.0:
+            bgf = BackgroundLigationCollectionFilter(coll)
+            coll.filter(bgf, queue=True)
+        coll.run_queued_filters()
+
     pair_selection.set_collection(coll)
-
-    if eo_cutoff != 0.0:
-        eof = ExpectedObservedCollectionFilter(coll)
-        coll.filter(eof, queue=True)
-
-    if bg_cutoff != 1.0:
-        bgf = BackgroundLigationCollectionFilter(coll)
-        coll.filter(bgf, queue=True)
-    coll.run_queued_filters()
 
     values = []
     for edge in pair_selection.pair_selection(**kwargs):
