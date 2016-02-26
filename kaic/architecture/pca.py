@@ -155,7 +155,11 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
     if isinstance(hics, HicCollectionWeightMeanVariance):
         logging.info("Found collection.")
         coll = hics
+        n_hics = 0
+        while 'weight_' + str(n_hics) in coll.field_names:
+            n_hics += 1
     else:
+        n_hics = len(hics)
         coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m',
                                                only_intra_chromosomal=only_intra_chromosomal,
                                                scale_libraries=True)
@@ -175,11 +179,9 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
     values = []
     for edge in pair_selection.pair_selection(**kwargs):
         weights = []
-        for i in xrange(len(hics)):
+        for i in xrange(n_hics):
             weights.append(getattr(edge, 'weight_' + str(i)))
         values.append(weights)
-
-    print len(values)
 
     if log:
         y = np.array(values)

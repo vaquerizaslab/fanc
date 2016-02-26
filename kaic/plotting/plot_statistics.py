@@ -133,7 +133,6 @@ def pca_plot(pca_res, pca_info=None, markers=None, colors=None):
     ax.set_title('PCA on %d samples' % pca_res.shape[0])
 
     for i in xrange(pca_res.shape[0]):
-        print i
         ax.plot(pca_res[i, 0], pca_res[i, 1], marker=markers.next(), color=colors.next())
 
     return fig, ax
