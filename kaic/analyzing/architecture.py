@@ -38,34 +38,35 @@ def impute_missing_bins(hic, hic_matrix=None, per_chromosome=True, stat=np.ma.me
     if hic_matrix is None:
         log.debug("Fetching matrix")
         hic_matrix = hic[:,:]
-    hic_matrix = hic_matrix.masked_matrix
-    oe = hic_matrix.copy()
+    if not hasattr(hic_matrix, "mask"):
+        hic_matrix = hic_matrix.masked_matrix
+    imputed = hic_matrix.copy()
     log.debug("starting processing")
     if per_chromosome:
         for c_start, c_end in chr_bins.itervalues():
             # Correcting intrachromoc_startmal contacts by mean contact count at each diagonal
             for i in range(c_end - c_start):
                 ind = kth_diag_indices(c_end - c_start, -i)
-                diag = oe[c_start:c_end, c_start:c_end][ind]
+                diag = imputed[c_start:c_end, c_start:c_end][ind]
                 diag[diag.mask] = stat(diag)
-                oe[c_start:c_end, c_start:c_end][ind] = diag
+                imputed[c_start:c_end, c_start:c_end][ind] = diag
             # Correcting interchromoc_startmal contacts by mean of all contact counts between
             # each set of chromoc_startmes
             for other_start, other_end in chr_bins.itervalues():
                 # Only correct upper triangle
                 if other_start <= c_start:
                     continue
-                inter = oe[c_start:c_end, other_start:other_end]
+                inter = imputed[c_start:c_end, other_start:other_end]
                 inter[inter.mask] = stat(inter)
-                oe[c_start:c_end, other_start:other_end] = inter
+                imputed[c_start:c_end, other_start:other_end] = inter
     else:
         for i in range(n):
-            diag = oe[kth_diag_indices(n, -i)]
+            diag = imputed[kth_diag_indices(n, -i)]
             diag[diag.mask] = stat(diag)
-            oe[kth_diag_indices(n, -i)] = diag
+            imputed[kth_diag_indices(n, -i)] = diag
     # Copying upper triangle to lower triangle
-    oe[np.tril_indices(n)] = oe.T[np.tril_indices(n)]
-    return oe
+    imputed[np.tril_indices(n)] = imputed.T[np.tril_indices(n)]
+    return imputed
 
 def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, impute_missing=True, aggr_func=np.ma.mean):
     chr_bins = hic.chromosome_bins
@@ -76,7 +77,7 @@ def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, impute_missing=Tru
     if not hasattr(hic_matrix, "mask"):
         hic_matrix = hic_matrix.masked_matrix
     if impute_missing:
-        hic_matrix = impute_missing_bins(hic, hic_matrix=True)
+        hic_matrix = impute_missing_bins(hic, hic_matrix=hic_matrix)
     ins_matrix = np.empty(n)
     log.debug("Starting processing")
     skipped = 0
@@ -109,7 +110,7 @@ def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, impute_missing
     if not hasattr(hic_matrix, "mask"):
         hic_matrix = hic_matrix.masked_matrix
     if impute_missing:
-        hic_matrix = impute_missing_bins(hic, hic_matrix=True)
+        hic_matrix = impute_missing_bins(hic, hic_matrix=hic_matrix)
     rel_ins_matrix = np.empty(n)
     log.debug("Starting processing")
     skipped = 0
@@ -151,7 +152,7 @@ def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, impute_missing=Tr
     if not hasattr(hic_matrix, "mask"):
         hic_matrix = hic_matrix.masked_matrix
     if impute_missing:
-        hic_matrix = impute_missing_bins(hic, hic_matrix=True)
+        hic_matrix = impute_missing_bins(hic, hic_matrix=hic_matrix)
     band = np.empty(n)
     if use_oe_ratio:
         raise NotImplementedError("oe not implemented yet :(")
@@ -186,7 +187,7 @@ def directionality_index(hic, d, mask_thresh=.5, hic_matrix=None, impute_missing
     if not hasattr(hic_matrix, "mask"):
         hic_matrix = hic_matrix.masked_matrix
     if impute_missing:
-        hic_matrix = impute_missing_bins(hic, hic_matrix=True)
+        hic_matrix = impute_missing_bins(hic, hic_matrix=hic_matrix)
     di = np.empty(n)
     log.debug("Starting processing")
     skipped = 0

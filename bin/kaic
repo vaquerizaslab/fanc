@@ -2109,7 +2109,8 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[2:])
         import kaic
         from kaic.analyzing.architecture import insulation_index, rel_insulation_index, directionality_index, \
-                                                contact_band, delta_window, rolling_func_nan, observed_expected_ratio
+                                                contact_band, delta_window, rolling_func_nan, observed_expected_ratio, \
+                                                impute_missing_bins
         from kaic.plotting.plotter import GenomicTrack
         from scipy.signal import savgol_filter
         input_path = os.path.expanduser(args.hic)
@@ -2120,6 +2121,8 @@ class Kaic(object):
         if args.observed_expected:
             logging.info("Calculating observed/expected ratio")
             hic_matrix = observed_expected_ratio(h, hic_matrix=hic_matrix)
+        if not args.no_imputation:
+            hic_matrix = impute_missing_bins(h, hic_matrix=hic_matrix, per_chromosome=True)
         try:
             os.remove(output_path)
         except OSError:
@@ -2128,29 +2131,29 @@ class Kaic(object):
         if args.insulation_index:
             for d in args.bins:
                 logging.info("Calculating insulation index up to {} bins away.".format(d))
-                ii = insulation_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation)
+                ii = insulation_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation)
                 normed_ii = np.ma.log2(ii/rolling_func_nan(ii, args.normalization_window, func=np.ma.mean))
                 gt.add_data("insulation_index_{}".format(d), normed_ii)
-            ii_matrix = [insulation_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation) for d in args.matrix_bins]
+            ii_matrix = [insulation_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation) for d in args.matrix_bins]
             ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
             gt.add_data("insulation_index_matrix", ii_matrix_normed.T)
         if args.contact_band:
             for d1, d2 in (d.split("-") for d in args.contact_band):
                 logging.info("Calculating contact band between {} and {} bins away.".format(d1, d2))
-                cb = contact_band(h, int(d1), int(d2), hic_matrix=hic_matrix, impute_missing=~args.no_imputation)
+                cb = contact_band(h, int(d1), int(d2), hic_matrix=hic_matrix, masked_imputed=~args.no_imputation)
                 normed_cb = np.ma.log2(cb/rolling_func_nan(cb, args.normalization_window, func=np.ma.mean))
                 gt.add_data("contact_band_{}_{}".format(d1, d2), normed_cb)
         if args.directionality_index:
             for d in args.bins:
                 logging.info("Calculating directionality index with a window size of {}bp.".format(d))
-                gt.add_data("directionality_index_{}".format(d), directionality_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation))
+                gt.add_data("directionality_index_{}".format(d), directionality_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation))
         if args.relative_insulation_index:
             for d in args.bins:
                 logging.info("Calculating relative insulation index up to {} bins away.".format(d))
-                ii = rel_insulation_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation)
+                ii = rel_insulation_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation)
                 normed_ii = np.ma.log2(ii/rolling_func_nan(ii, args.normalization_window, func=np.ma.mean))
                 gt.add_data("rel_insulation_index_{}".format(d), normed_ii)
-            ii_matrix = [rel_insulation_index(h, d, hic_matrix=hic_matrix, impute_missing=~args.no_imputation) for d in args.matrix_bins]
+            ii_matrix = [rel_insulation_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation) for d in args.matrix_bins]
             ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
             gt.add_data("rel_insulation_index_matrix", ii_matrix_normed.T)
         if args.derivative or args.delta:
