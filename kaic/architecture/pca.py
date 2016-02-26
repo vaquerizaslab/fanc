@@ -84,8 +84,63 @@ class LargestVariancePairSelection(PairSelection):
                 break
 
 
+class LargestFoldChangePairSelection(PairSelection):
+    def __init__(self, require_enriched=2, require_nonenriched=2, fold_change=1.5, sample_size=100000, lazy=False):
+        PairSelection.__init__(self)
+        self.sample_size = sample_size
+        self.lazy = lazy
+        self.fold_change = fold_change
+        self.require_enriched = require_enriched
+        self.require_nonenriched = require_nonenriched
+
+    def pair_selection(self, require_enriched=2, require_nonenriched=None,
+                       fold_change=None, sample_size=None, lazy=None):
+        # count weights
+        n_hic = 0
+        while 'weight_' + str(n_hic) in self.collection.field_names:
+            n_hic += 1
+
+        # update parameters
+        if fold_change is None:
+            fold_change = self.fold_change
+        if require_enriched is None:
+            require_enriched = self.require_enriched
+        if require_nonenriched is None:
+            require_nonenriched = min(n_hic-require_enriched, self.require_nonenriched)
+        if lazy is None:
+            lazy = self.lazy
+        if sample_size is None:
+            sample_size = self.sample_size
+
+        # select edges
+        for edge_counter, edge in enumerate(self.collection.edges_sorted('var', reverse=True, lazy=lazy)):
+            if edge_counter >= sample_size:
+                # raise StopIteration
+                break
+
+            weights = []
+            for i in xrange(n_hic):
+                weights.append(getattr(edge, 'weight_' + str(i)))
+
+            # require at least require_enriched weights to be fold_change
+            # higher than each of the remaining require_nonenriched samples
+            n_enriched = 0
+            for i in xrange(len(weights)):
+                local_enriched = 0
+                for j in xrange(len(weights)):
+                    if i == j:
+                        continue
+                    if weights[i] >= fold_change*weights[j]:
+                        local_enriched += 1
+                if local_enriched >= require_nonenriched:
+                    n_enriched += 1
+
+            if n_enriched >= require_enriched:
+                yield edge
+
+
 def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
-           log=True, **kwargs):
+           log=True, only_intra_chromosomal=False, scale_libraries=True, **kwargs):
     if pair_selection is None:
         pair_selection = LargestVariancePairSelection()
 
@@ -97,8 +152,11 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
         tmpdir += '/'
 
     logging.info("Joining objects")
-    coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m')
+    coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m',
+                                           only_intra_chromosomal=only_intra_chromosomal,
+                                           scale_libraries=True)
     coll.calculate()
+    pair_selection.set_collection(coll)
 
     if eo_cutoff != 0.0:
         eof = ExpectedObservedCollectionFilter(coll)
@@ -115,6 +173,8 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
         for i in xrange(len(hics)):
             weights.append(getattr(edge, 'weight_' + str(i)))
         values.append(weights)
+
+    print len(values)
 
     if log:
         y = np.array(values)

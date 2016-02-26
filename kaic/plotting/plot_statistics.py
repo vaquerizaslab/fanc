@@ -1,5 +1,6 @@
 import seaborn as sns
 import numpy as np
+import itertools
 from kaic.plotting.plot_genomic_data import _prepare_backend, _plot_figure
 
 
@@ -107,3 +108,33 @@ def mapq_hist_plot(reads, output=None, include_masked=False):
     mqplot = sns.distplot(mapqs, norm_hist=False, kde=False, bins=np.arange(min(mapqs), max(mapqs)+1.5)-0.5)
     mqplot.set_xlim(left=-1, right=max(mapqs)+2)
     _plot_figure(mqplot.figure, output, old_backend)
+
+
+def pca_plot(pca_res, pca_info=None, markers=None, colors=None):
+    if markers is None:
+        markers = ('^', 'o', '*', 's', 'D', '+', 'x', 'h', 'p', ',')
+    if colors is None:
+        colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black', 'orange', 'pink', 'cyan', 'lawngreen')
+    markers = itertools.cycle(markers)
+    colors = itertools.cycle(colors)
+
+    xlabel = 'PC1'
+    if pca_info is not None:
+        xlabel += ' (%d%%)' % int(pca_info.explained_variance_ratio_[0]*100)
+
+    ylabel = 'PC2'
+    if pca_info is not None:
+        ylabel += ' (%d%%)' % int(pca_info.explained_variance_ratio_[1]*100)
+
+    fig, ax = sns.plt.subplots()
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    ax.set_title('PCA on %d samples' % pca_res.shape[0])
+
+    for i in xrange(pca_res.shape[0]):
+        print i
+        ax.plot(pca_res[i, 0], pca_res[i, 1], marker=markers.next(), color=colors.next())
+
+    return fig, ax
+
