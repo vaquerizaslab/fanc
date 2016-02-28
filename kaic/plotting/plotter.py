@@ -1,4 +1,5 @@
-from matplotlib.ticker import MaxNLocator, ScalarFormatter
+from __future__ import division
+from matplotlib.ticker import MaxNLocator, ScalarFormatter, NullFormatter
 from matplotlib.widgets import Slider
 import kaic
 from kaic.data.genomic import GenomicRegion, RegionsTable, GenomicRegions
@@ -24,15 +25,63 @@ log.setLevel(10)
 
 sns.set_style("ticks")
 
+def append_axes(parent, side, thickness, padding, shrink=1., **kwargs):
+    '''Add an axes on any side of parent ax without resizing the parent ax'''
+    bbox = parent.get_position()
+    if side == "top":
+        hor = bbox.x0 + (1 - shrink)*bbox.width/2
+        vert = bbox.y0 + bbox.height + padding
+        width = bbox.width*shrink
+        height = thickness
+    elif side == "bottom":
+        hor = bbox.x0 + (1 - shrink)*bbox.width/2
+        vert = bbox.y0 - padding - thickness
+        width = bbox.width*shrink
+        height = thickness
+    elif side == "right":
+        hor = bbox.x0 + bbox.width + padding
+        vert = bbox.y0 + (1 - shrink)*bbox.height/2
+        width = thickness
+        height = bbox.height*shrink
+    elif side == "left":
+        hor = bbox.x0 - padding - thickness
+        vert = bbox.y0 + (1 - shrink)*bbox.height/2
+        width = thickness
+        height = bbox.height*shrink
+    else:
+        raise ValueError("Illegal parameter side '{}'".format(side))
+    return parent.figure.add_axes([hor, vert, width, height], **kwargs)
+
 class SymmetricNorm(mpl.colors.Normalize):
+    def __init__(self, vmin=None, vmax=None, clip=False, percentile=None):
+        mpl.colors.Normalize.__init__(self, vmin=vmin, vmax=vmax, clip=clip)
+        self.percentile = percentile
+
+    def _get_min(self, A):
+        if self.percentile:
+            return np.nanpercentile(A, 100 - self.percentile)
+        else:
+            return np.ma.min(A[~np.isnan(A)])
+
+    def _get_max(self, A):
+        if self.percentile:
+            return np.nanpercentile(A, self.percentile)
+        else:
+            return np.ma.max(A[~np.isnan(A)])
+
     def autoscale(self, A):
-        vmin = np.ma.min(A)
-        vmax = np.ma.max(A)
+        vmin = self._get_min(A)
+        vmax = self._get_max(A)
         abs_max = max(abs(vmin), abs(vmax))
         self.vmin = -1.*abs_max
         self.vmax = abs_max
 
-    autoscale_None = autoscale
+    def autoscale_None(self, A):
+        vmin = self.vmin if self.vmin else self._get_min(A)
+        vmax = self.vmax if self.vmax else self._get_max(A)
+        abs_max = max(abs(vmin), abs(vmax))
+        self.vmin = -1.*abs_max
+        self.vmax = abs_max
 
 def millify(n, precision=1):
     """Take input float and return human readable string.
@@ -84,6 +133,17 @@ def get_typed_array(input_iterable, nan_strings, count=-1):
     except ValueError:
         pass
     return np.fromiter(input_iterable, str, count)
+
+def get_region_field(interval, field):
+    '''Take BedTool region and return value stored in the specified field.
+    Will try to fetch field from specific integer index, from Interval attribute and 
+    lastly from the BedTool attributes dictionary present for GTF files'''
+    if isinstance(field, int):
+        return interval[field]
+    try:
+        return getattr(interval, field)
+    except AttributeError:
+        return interval.attrs[field]
 
 class NewGenomicTrack(object):
     def __init__(self, file_name, title=None):
@@ -243,14 +303,15 @@ class GenomicTrack(RegionsTable):
             self.file.create_array("/", "title", value)
 
 class GenomicFigure(object):
-    def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None):
+    def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None, ticks_last=False):
         self.plots = plots
         self.n = len(plots)
+        self.ticks_last = ticks_last
         if not gridspec_args:
             gridspec_args = {}
-        gs = gridspec.GridSpec(self.n, 2, wspace=.1, hspace=.1, height_ratios=height_ratios, width_ratios=[1, .05], **gridspec_args)
+        gs = gridspec.GridSpec(self.n, 2, wspace=.1, hspace=.2, height_ratios=height_ratios, width_ratios=[1, .05], **gridspec_args)
         if figsize is None:
-            figsize = (6, 6*self.n)
+            figsize = (6, 6*self.n if not height_ratios else 6*sum(height_ratios))
         self.axes = []
         fig = plt.figure(figsize=figsize)
         for i in xrange(self.n):
@@ -269,8 +330,10 @@ class GenomicFigure(object):
         return self.axes[0].figure
     
     def plot(self, region):
-        for p, a in zip(self.plots, self.axes):
+        for i, (p, a) in enumerate(zip(self.plots, self.axes)):
             p.plot(region, ax=a)
+            if self.ticks_last and i < len(self.axes) - 1:
+                plt.setp(a.get_xticklabels(), visible=False)
         #self.fig.tight_layout()
         return self.fig, self.axes
 
@@ -326,10 +389,11 @@ class GenomeCoordLocator(MaxNLocator):
         # Make sure that first and last tick are the start
         # and the end of the genomic range plotted. If next
         # ticks are too close, remove them.
-        if ticks[0] - vmin < (vmax - vmin)/(self._nbins*3):
-            ticks = ticks[1:]
-        if vmax - ticks[-1] < (vmax - vmin)/(self._nbins*3):
-            ticks = ticks[:-1]
+        #ipdb.set_trace()
+        if ticks[1] - vmin < (vmax - vmin)/(self._nbins*3):
+            ticks = ticks[2:]
+        if vmax - ticks[-2] < (vmax - vmin)/(self._nbins*3):
+            ticks = ticks[:-2]
         ticks = np.r_[vmin, ticks, vmax]
         return ticks
 
@@ -476,7 +540,7 @@ class BasePlotter1D(BasePlotter):
             self.ax = ax
         # set genome tick formatter
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
-        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=10))
+        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=5))
         self.ax.set_title(self.title)
         self._plot(region)
         self.ax.set_xlim(region.start, region.end)
@@ -776,7 +840,7 @@ class GenomicTrackPlot(BasePlotter1D):
         for track in self.tracks:
             bins = track.region_bins(region)
             values = track[bins]
-            regions = track.regions()[bins]
+            regions = track.regions[bins]
             for k, v in values.iteritems():
                 if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
                     x, y = self._STYLES[self.style](self, v, regions)
@@ -813,7 +877,7 @@ class GenomicArrayPlot(BasePlotter1D):
         pass
 
 class GeneModelPlot(BasePlotter1D):
-    def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol"):
+    def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol", label_format=None, label_cast=None):
         import pybedtools as pbt
         BasePlotter1D.__init__(self, title=title)
         self.gtf = pbt.BedTool(gtf)
@@ -823,27 +887,35 @@ class GeneModelPlot(BasePlotter1D):
             feature_types = [feature_types]
         self.feature_types = feature_types
         self.id_field = id_field
+        self.label_format = label_format
+        self.label_cast = label_cast
 
     def _plot(self, region):
         interval = region_to_pbt_interval(region)
         genes = self.gtf.all_hits(interval)
         trans = self.ax.get_xaxis_transform()
-        pos = {k: (i + 1)/len(self.feature_types) for i, k in enumerate(self.feature_types.iterkeys())}
+        pos = {k: i/(1 + len(self.feature_types)) for i, k in enumerate(self.feature_types)}
+        for k, p in pos.iteritems():
+            self.ax.text(0, p, k, transform=self.ax.transAxes, ha="left", size=5)
         for g in genes:
             if not g[2]in self.feature_types:
                 continue
-            try:
-                label = g.attrs[self.id_field]
-            except KeyError:
-                label = ""
+            if isinstance(self.id_field, int):
+                label = g[self.id_field]
+            else:
+                try:
+                    label = g.attrs[self.id_field]
+                except KeyError:
+                    label = ""
             gene_patch = patches.Rectangle(
                 (g.start, pos[g[2]]),
                 width=abs(g.end - g.start), height=0.03,
                 transform=trans, color="black"
             )
             self.ax.add_patch(gene_patch)
-            self.ax.text((g.start + g.end)/2, pos[g[2]] + .035, label, transform=trans,
-                         ha="center", size="small")
+            self.ax.text((g.start + g.end)/2, pos[g[2]] + .035,
+                self.label_format.format(self.label_cast(label) if self.label_cast else label) if self.label_format else label,
+                transform=trans, ha="center", size="small")
             self.ax.spines['right'].set_visible(False)
             self.ax.spines['top'].set_visible(False)
             self.ax.spines['left'].set_visible(False)
