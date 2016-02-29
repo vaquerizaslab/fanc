@@ -152,12 +152,14 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
         tmpdir += '/'
 
     logging.info("Joining objects")
+    existing_coll = False
     if isinstance(hics, HicCollectionWeightMeanVariance):
         logging.info("Found collection.")
         coll = hics
         n_hics = 0
         while 'weight_' + str(n_hics) in coll.field_names:
             n_hics += 1
+        existing_coll = True
     else:
         n_hics = len(hics)
         coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m',
@@ -192,4 +194,6 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
     pca_res = pca.fit_transform(y.T)
     logging.info("Variance explained: %s" % str(pca.explained_variance_ratio_))
 
+    if not existing_coll:
+        coll.close()
     return pca, pca_res

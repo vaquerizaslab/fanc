@@ -42,6 +42,12 @@ class TestPCA:
         self.hic3 = get_hic(amplify=True)
         self.hic4 = get_hic(amplify=True)
 
+    def teardown_method(self, method):
+        self.hic1.close()
+        self.hic2.close()
+        self.hic3.close()
+        self.hic4.close()
+
     def test_pca(self):
         hics = [self.hic1, self.hic2, self.hic3, self.hic4]
 
