@@ -41,6 +41,7 @@ class Kaic(object):
                     merge_hic          Merge multiple Hic objects
                     bin_hic            Bin a Hic object into same-size regions
                     correct_hic        Correct a Hic object for biases
+                    hic_pca            Do a PCA on multiple Hi-C objects
 
                     --- Network
                     call_peaks         Call enriched peaks in a Hic object
@@ -1618,6 +1619,132 @@ class Kaic(object):
                 shutil.move(output_path, original_output_path)
 
         logging.info("All done.")
+
+    def hic_pca(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Do a PCA on multiple Hi-C objects'
+        )
+
+        parser.add_argument(
+            'input',
+            nargs='+',
+            help='''Input Hic files'''
+        )
+
+        parser.add_argument(
+            'output_folder',
+            help='''Output folder for PCA results.'''
+        )
+
+        parser.add_argument(
+            '-s', '--sample-sizes', dest='sample_sizes',
+            nargs='+',
+            type=int,
+            default=[50000],
+            help='''Sample sizes for contacts to do the PCA on.'''
+        )
+
+        parser.add_argument(
+            '-i', '--intra', dest='intra',
+            action='store_true',
+            help='''Only do PCA on intra-chromosomal contacts'''
+        )
+        parser.set_defaults(intra=False)
+
+        parser.add_argument(
+            '-e', '--expected-filter', dest='expected_filter',
+            type=float,
+            help='''Cutoff for expected/observed ratio of a contact to be considered for PCA. Derfault: no filter.'''
+        )
+
+        parser.add_argument(
+            '-b', '--background-filter', dest='background_filter',
+            type=float,
+            help='''Cutoff for ratio of average inter-chromosomal to
+                    observed contact to be considered for PCA. Default: no filter.'''
+        )
+
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.architecture.pca import do_pca, HicCollectionWeightMeanVariance
+        from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter,\
+            BackgroundLigationCollectionFilter
+        from kaic.plotting.plot_statistics import pca_plot
+        from kaic.tools.files import create_temporary_copy
+        import shutil
+
+        hics = []
+        output_folder = os.path.expanduser(args.output_folder)
+        if args.tmp:
+            tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            tmp_file.close()
+            output_path = tmp_file.name
+        else:
+            output_path = output_folder + '/hics.coll'
+        try:
+            if len(args.input) == 1:
+                coll = HicCollectionWeightMeanVariance(args.input[0])
+            else:
+                for file_name in args.input:
+                    if args.tmp:
+                        input_path = create_temporary_copy(file_name)
+                    else:
+                        input_path = os.path.expanduser(file_name)
+                    hics.append(kaic.Hic(input_path, mode='r'))
+
+                coll = HicCollectionWeightMeanVariance(hics, file_name=output_path, only_intra_chromosomal=args.intra,
+                                                       scale_libraries=True, mode='w')
+                coll.calculate()
+
+            # filtering
+            if args.expected_filter is not None:
+                eof = ExpectedObservedCollectionFilter(coll, fold_change=args.expected_filter)
+                coll.filter(eof, queue=True)
+            if args.background_filter is not None:
+                bgf = BackgroundLigationCollectionFilter(coll, all_contacts=True, fold_change=args.background_filter)
+                coll.filter(bgf, queue=True)
+            coll.run_queued_filters()
+
+            for sample_size in args.sample_sizes:
+                logging.info("Sample size: %d" % sample_size)
+                pca_info, pca_res = do_pca(coll, sample_size=sample_size)
+
+                with open(output_folder + '/explained_variance_%d.txt' % sample_size, 'w') as var:
+                    for i, variance in enumerate(pca_info.explained_variance_ratio_):
+                        var.write(str(variance))
+                        if i == len(pca_info.explained_variance_ratio_)-1:
+                            var.write("\n")
+                        else:
+                            var.write("\t")
+
+                with open(output_folder + '/pca_results_%d.txt' % sample_size, 'w') as res:
+                    for i, row in enumerate(pca_res):
+                        for j, value in enumerate(row):
+                            res.write(str(value))
+                            if j == len(row)-1:
+                                res.write("\n")
+                            else:
+                                res.write("\t")
+
+                fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=['blue', 'blue', 'red', 'red'])
+                ax.set_title("PCA sample size %d" % sample_size)
+                fig.savefig(output_folder + '/pca_plot_%d.pdf' % sample_size)
+        finally:
+            if args.tmp:
+                for hic in hics:
+                    file_name = hic.file.filename
+                    hic.close()
+                    os.unlink(file_name)
+                shutil.move(output_path, output_folder + '/hics.coll')
 
     def call_peaks(self):
         parser = argparse.ArgumentParser(
