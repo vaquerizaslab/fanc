@@ -58,7 +58,7 @@ Example:
 
 """
 
-from __future__ import division
+from __future__ import division, print_function
 import tables as t
 import pandas as p
 import numpy as np
@@ -1301,6 +1301,12 @@ class GenomicRegions(object):
                 regions.append(region)
 
         return regions
+
+    def to_bed(self, file):
+        '''Export regions as BED file'''
+        with open(file, 'w') as f:
+            for i, r in enumerate(self.regions):
+                print(r.chromosome, r.start - 1, r.end, i, sep="\t", file=f)
 
 
 class RegionsTable(GenomicRegions, FileBased):

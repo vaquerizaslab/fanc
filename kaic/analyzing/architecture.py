@@ -32,7 +32,7 @@ def kth_diag_indices(n, k):
 #     def __init__(self, hic):
 #         self.hic = hic
 
-def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.ma.mean):
+def impute_missing_bins(hic, hic_matrix=None, per_chromosome=True, stat=np.ma.mean):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
     if hic_matrix is None:
@@ -40,6 +40,44 @@ def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.ma.me
         hic_matrix = hic[:,:]
     if not hasattr(hic_matrix, "mask"):
         hic_matrix = hic_matrix.masked_matrix
+    imputed = hic_matrix.copy()
+    log.debug("starting processing")
+    if per_chromosome:
+        for c_start, c_end in chr_bins.itervalues():
+            # Correcting intrachromoc_startmal contacts by mean contact count at each diagonal
+            for i in range(c_end - c_start):
+                ind = kth_diag_indices(c_end - c_start, -i)
+                diag = imputed[c_start:c_end, c_start:c_end][ind]
+                diag[diag.mask] = stat(diag)
+                imputed[c_start:c_end, c_start:c_end][ind] = diag
+            # Correcting interchromoc_startmal contacts by mean of all contact counts between
+            # each set of chromoc_startmes
+            for other_start, other_end in chr_bins.itervalues():
+                # Only correct upper triangle
+                if other_start <= c_start:
+                    continue
+                inter = imputed[c_start:c_end, other_start:other_end]
+                inter[inter.mask] = stat(inter)
+                imputed[c_start:c_end, other_start:other_end] = inter
+    else:
+        for i in range(n):
+            diag = imputed[kth_diag_indices(n, -i)]
+            diag[diag.mask] = stat(diag)
+            imputed[kth_diag_indices(n, -i)] = diag
+    # Copying upper triangle to lower triangle
+    imputed[np.tril_indices(n)] = imputed.T[np.tril_indices(n)]
+    return imputed
+
+def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, impute_missing=True, aggr_func=np.ma.mean):
+    chr_bins = hic.chromosome_bins
+    n = len(hic.regions())
+    if hic_matrix is None:
+        log.debug("Fetching matrix")
+        hic_matrix = hic[:,:]
+    if not hasattr(hic_matrix, "mask"):
+        hic_matrix = hic_matrix.masked_matrix
+    if impute_missing:
+        hic_matrix = impute_missing_bins(hic, hic_matrix=hic_matrix)
     ins_matrix = np.empty(n)
     log.debug("Starting processing")
     skipped = 0
@@ -59,11 +97,11 @@ def insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.ma.me
             skipped += 1
             ins_matrix[i] = np.nan
             continue
-        ins_matrix[i] = aggr_func(hic_matrix[ins_slice])
+        ins_matrix[i] = aggr_func(hic_matrix[ins_slice].data if impute_missing else hic_matrix[ins_slice])
     log.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
     return ins_matrix
 
-def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.ma.mean):
+def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, impute_missing=True, aggr_func=np.ma.mean):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
     if hic_matrix is None:
@@ -71,6 +109,8 @@ def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.m
         hic_matrix = hic[:,:]
     if not hasattr(hic_matrix, "mask"):
         hic_matrix = hic_matrix.masked_matrix
+    if impute_missing:
+        hic_matrix = impute_missing_bins(hic, hic_matrix=hic_matrix)
     rel_ins_matrix = np.empty(n)
     log.debug("Starting processing")
     skipped = 0
@@ -94,12 +134,16 @@ def rel_insulation_index(hic, d, mask_thresh=.5, hic_matrix=None, aggr_func=np.m
             skipped += 1
             rel_ins_matrix[i] = np.nan
             continue
-        rel_ins_matrix[i] = (aggr_func(hic_matrix[ins_slice]) /
-            aggr_func(np.ma.dstack((hic_matrix[up_rel_slice], hic_matrix[down_rel_slice]))))
+        if impute_missing:
+            rel_ins_matrix[i] = (aggr_func(hic_matrix[ins_slice]) /
+                aggr_func(np.ma.dstack((hic_matrix[up_rel_slice], hic_matrix[down_rel_slice]))))
+        else:
+            rel_ins_matrix[i] = (aggr_func(hic_matrix[ins_slice].data) /
+                aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data, hic_matrix[down_rel_slice].data))))
     log.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
     return rel_ins_matrix
 
-def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, use_oe_ratio=False, aggr_func=np.ma.mean):
+def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, impute_missing=True, use_oe_ratio=False, aggr_func=np.ma.mean):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
     if hic_matrix is None:
@@ -107,6 +151,8 @@ def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, use_oe_ratio=Fals
         hic_matrix = hic[:,:]
     if not hasattr(hic_matrix, "mask"):
         hic_matrix = hic_matrix.masked_matrix
+    if impute_missing:
+        hic_matrix = impute_missing_bins(hic, hic_matrix=hic_matrix)
     band = np.empty(n)
     if use_oe_ratio:
         raise NotImplementedError("oe not implemented yet :(")
@@ -128,11 +174,11 @@ def contact_band(hic, d1, d2, mask_thresh=.5, hic_matrix=None, use_oe_ratio=Fals
             skipped += 1
             band[i] = np.nan
             continue
-        band[i] = aggr_func(hic_matrix[band_slice])
+        band[i] = aggr_func(hic_matrix[band_slice].data if impute_missing else hic_matrix[band_slice])
     log.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
     return band
 
-def directionality_index(hic, d, mask_thresh=.5, hic_matrix=None, correct_sum=False, stat=np.ma.sum):
+def directionality_index(hic, d, mask_thresh=.5, hic_matrix=None, impute_missing=True, correct_sum=False, stat=np.ma.sum):
     chr_bins = hic.chromosome_bins
     n = len(hic.regions())
     if hic_matrix is None:
@@ -140,6 +186,8 @@ def directionality_index(hic, d, mask_thresh=.5, hic_matrix=None, correct_sum=Fa
         hic_matrix = hic[:,:]
     if not hasattr(hic_matrix, "mask"):
         hic_matrix = hic_matrix.masked_matrix
+    if impute_missing:
+        hic_matrix = impute_missing_bins(hic, hic_matrix=hic_matrix)
     di = np.empty(n)
     log.debug("Starting processing")
     skipped = 0
@@ -163,8 +211,8 @@ def directionality_index(hic, d, mask_thresh=.5, hic_matrix=None, correct_sum=Fa
             skipped += 1
             di[i] = np.nan
             continue
-        up_sum = stat(hic_matrix[up_slice])
-        down_sum = stat(hic_matrix[down_slice])
+        up_sum = stat(hic_matrix[up_slice].data if impute_missing else hic_matrix[up_slice])
+        down_sum = stat(hic_matrix[down_slice].data if impute_missing else hic_matrix[down_slice])
         expected_sum = (up_sum + down_sum)/2
         if correct_sum:
             up_sum /= 1 - (up_masked/d)
