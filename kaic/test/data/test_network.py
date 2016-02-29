@@ -379,6 +379,9 @@ class TestRaoPeakCaller:
         peak_caller._find_peaks_in_matrix(self.m, 1, c, mappable, peaks3,
                                           observed_chunk_distribution, lambda_chunks, w=2, p=0)
         cmp_batches(peaks, peaks3)
+        peaks.close()
+        peaks2.close()
+        peaks3.close()
 
     def test_find_peaks_in_inter_matrix(self):
         def e(i, j):
@@ -452,6 +455,9 @@ class TestRaoPeakCaller:
         peak_caller._find_peaks_in_matrix(self.m, 1, c, mappable, peaks3,
                                           None, None, w=2, p=0)
         cmp_batches(peaks, peaks3)
+        peaks.close()
+        peaks2.close()
+        peaks3.close()
 
     def test_fdr_cutoffs(self):
         lambda_chunks = RaoPeakCaller._lambda_chunks(4)
@@ -500,6 +506,7 @@ class TestRaoPeakCaller:
         assert len(valid_peaks) == 6
         assert has_43_57
         hic_10kb.close()
+        peaks.close()
 
     def test_call_peaks_multiprocessing(self):
         dir = os.path.dirname(os.path.realpath(__file__))
@@ -525,6 +532,7 @@ class TestRaoPeakCaller:
         assert len(valid_peaks) == 6
         assert has_43_57
         hic_10kb.close()
+        peaks.close()
 
     def test_merge_peaks(self):
         directory = os.path.dirname(os.path.realpath(__file__))
@@ -533,6 +541,8 @@ class TestRaoPeakCaller:
         merged_peaks = peaks.merged_peaks()
         assert len(merged_peaks) < len(peaks)
         assert len(merged_peaks) == 4
+        peaks.close()
+        merged_peaks.close()
 
     def test_pickle_matrix(self):
         assert hasattr(self.m, 'row_regions')

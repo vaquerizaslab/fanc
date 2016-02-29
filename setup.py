@@ -16,6 +16,7 @@ setup(
         'pytest',
         'msgpack-python',
         'gridmap',
+        'sklearn',
         'tables>3.2.2'
     ],
     dependency_links=[

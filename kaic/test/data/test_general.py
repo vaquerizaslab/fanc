@@ -341,15 +341,14 @@ class TestTableArray:
 
 class TestTable:
     
-    
-    @classmethod
     def setup_method(self, method):
         x = np.zeros((5,),dtype=('i4,f4,a10'))
         x[:] = [(1,2.,'Hello'),(2,3.,"World"),(3,4.,'this'),(4,5.,"is"),(5,6.,'me')]
-        
-        
+
         self.table = Table(x, rownames=['a','b','c','d','e'], colnames=['A','B','C'])
 
+    def teardown_method(self, method):
+        self.table.close()
     
     def test_intialize(self):
         # from tsv
@@ -363,6 +362,7 @@ class TestTable:
         assert table1[0] == ('a','1','1.')
         assert table1[1] == ('b','2','2.')
         assert table1[0] != ('a',1,1.)
+        table1.close()
         # with rownames
         table2 = Table(current_dir + "/test_general/tsv.test2.txt")
         assert table2.dim()[0] == 2
@@ -371,6 +371,7 @@ class TestTable:
         assert np.array_equal(table2.rownames, ['a','b'])
         assert table2[0] == ('a','1','1.')
         assert table2[1] == ('b','2','2.')
+        table2.close()
         # with rownames and col types
         table3 = Table(current_dir + "/test_general/tsv.test2.txt", col_types=[str,int,float])
         assert table3.dim()[0] == 2
@@ -379,6 +380,7 @@ class TestTable:
         assert np.array_equal(table3.rownames, ['a','b'])
         assert table3[0] == ('a',1,1.)
         assert table3[1] == ('b',2,2.)
+        table3.close()
         
         # from record array
         x = np.zeros((5,),dtype=('i4,f4,a10'))
@@ -388,6 +390,7 @@ class TestTable:
         assert table4.dim()[1] == 3
         assert np.array_equal(table4.colnames, ['A','B','C'])
         assert np.array_equal(table4.rownames, ['a','b','c','d','e'])
+        table4.close()
     
     def test_save_and_load(self, tmpdir):
         current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -404,6 +407,7 @@ class TestTable:
         assert table2[1] == ('b','2','2.')
         
         assert os.path.exists(h5_file_name)
+        table2.close()
         
     def test_create_and_load(self, tmpdir):
         current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -418,6 +422,7 @@ class TestTable:
         assert np.array_equal(table2.rownames, ['0','1'])
         assert table2[0] == ('a','1','1.')
         assert table2[1] == ('b','2','2.')
+        table2.close()
     
     def test_read_and_write_tsv(self, tmpdir):
         current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -450,6 +455,9 @@ class TestTable:
         assert np.array_equal(table3.rownames, ['0','1'])
         assert table3[0] == ('a','1','1.')
         assert table3[1] == ('b','2','2.')
+        table1.close()
+        table2.close()
+        table3.close()
         
     def test_append_row_list(self):
         # default rowname
@@ -546,9 +554,7 @@ class TestTable:
         x = self.table._get_rows(slice(0,10,1))
         assert tuple(x[0]) == (1,2.,'Hello')
         assert tuple(x[4]) == (5,6.,"me")
-        
-        print x
-        
+
     def test_col_selection(self):
         
         # single cols
@@ -641,9 +647,7 @@ class TestTable:
         
         x = self.table[0:1]
         assert x == (1,2.,'Hello')
-        
-        
-        
+
         # single cols
         assert np.array_equal(self.table[:,0],(1,2,3,4,5))
         assert np.array_equal(self.table[:,'A'],(1,2,3,4,5))
@@ -657,8 +661,7 @@ class TestTable:
         x = self.table[:,0]
         assert np.array_equal(x.colname, 'A')
         assert np.array_equal(x.rownames, ['a','b','c','d','e'])
-        
-        
+
         # multiple cols
         x = self.table[:,[1,2]]
         assert x[0][0] == 2.
@@ -689,10 +692,7 @@ class TestTable:
         assert len(x[0]) == 2
         assert np.array_equal(x.colnames, ['B', 'C'])
         assert np.array_equal(x.rownames, ['a','b','c','d','e'])
-        
-        
-        
-        
+
         # select single value
         assert self.table[0,0] == 1
         assert self.table[0,1] == 2.
@@ -714,7 +714,6 @@ class TestTable:
         y = x[:,:]
         assert tuple(y[0]) == (2., 'Hello')
         assert tuple(y[1]) == (4., 'this')
-        
     
     def test_where(self):
         # simple query
@@ -758,21 +757,27 @@ class TestMaskable:
         # no args
         maskable1 = Maskable()
         assert isinstance(maskable1._mask, t.table.Table)
+        maskable1.close()
         
         # string args
         maskable2 = Maskable(str(tmpdir) + "/test1.h5")
         assert isinstance(maskable2._mask, t.table.Table)
+        maskable2.close()
         
         # file args
         h5_file = create_or_open_pytables_file(str(tmpdir) + "/test2.h5")
         maskable3 = Maskable(h5_file)
         assert isinstance(maskable3._mask, t.table.Table)
+        maskable3.close()
+        h5_file.close()
         
         # table args
         h5_file2 = create_or_open_pytables_file(str(tmpdir) + "/test3.h5")
         table = h5_file2.create_table("/", 'mask', Maskable.MaskDescription)
         maskable4 = Maskable(table)
         assert isinstance(maskable4._mask, t.table.Table)
+        maskable4.close()
+        h5_file2.close()
         
         # inherited
         class MaskableContainerTest1(Maskable):
@@ -781,6 +786,7 @@ class TestMaskable:
         
         mc1 = MaskableContainerTest1()
         assert isinstance(mc1._mask, t.table.Table)
+        mc1.close()
         
         class MaskableContainerTest2(Maskable):
             def __init__(self, h5_file):
@@ -790,6 +796,7 @@ class TestMaskable:
         h5_file3 = create_or_open_pytables_file(str(tmpdir) + "/test4.h5")
         mc2 = MaskableContainerTest2(h5_file3)
         assert isinstance(mc2._mask, t.table.Table)
+        mc2.close()
     
     def test_get_default_masks(self):
         maskable = Maskable()
@@ -802,6 +809,7 @@ class TestMaskable:
         assert default.ix == 0
         assert default.name == 'default'
         assert default.description == 'Default mask'
+        maskable.close()
     
     def test_add_description(self):
         maskable = Maskable()
@@ -815,6 +823,7 @@ class TestMaskable:
         assert maskret.ix == mask.ix
         assert maskret.name == mask.name
         assert maskret.description == mask.description
+        maskable.close()
         
     def test_get_masks_by_ix(self):
         
@@ -847,6 +856,7 @@ class TestMaskable:
         ix = -1
         masks = maskable.get_masks(ix)
         assert len(masks) == 0
+        maskable.close()
         
 class TestMaskedTable:
     class ExampleFilter(MaskFilter):
@@ -859,7 +869,6 @@ class TestMaskedTable:
                 return False
             return True
             
-    @classmethod
     def setup_method(self, method):
         f = create_or_open_pytables_file()
         test_description = {
@@ -889,6 +898,10 @@ class TestMaskedTable:
         
         self.filtered_table.flush(update_index=True)
         self.filtered_table.filter(TestMaskedTable.ExampleFilter())
+        self.file = f
+
+    def teardown_method(self, method):
+        self.file.close()
         
     def test_initialize(self):
         assert len(self.table) == 50
@@ -939,6 +952,9 @@ class TestMeta:
     def setup_method(self, method):
         self.meta = MetaContainer()
 
+    def teardown_method(self, method):
+        self.meta.close()
+
     def test_add_and_get(self):
         self.meta.add_meta("test", "test_name", 34, 0, "testing")
         meta_info = self.meta.get_meta(0)
@@ -962,7 +978,6 @@ class RegisteredTable(t.Table):
                  expectedrows=None, chunkshape=None,
                  byteorder=None, _log=True):
 
-        
         # normal Table init
         t.Table.__init__(self, parentnode, name, description,
                          title, filters, expectedrows, chunkshape,
@@ -1047,6 +1062,7 @@ class TestPytablesInheritance:
             row['c1'] = 0
             row.append()
             self.flush()
+            self.file = f
     
         def _enable_index(self):
             self.cols.c1.create_index()
@@ -1057,6 +1073,7 @@ class TestPytablesInheritance:
         m = TestPytablesInheritance.MinTable()
         # next line fails in unpatched code
         [x.fetch_all_fields() for x in m.where('c1 == 0')]
+        m.file.close()
 
     def test_no_wrapper_with_index(self):
         f = t.open_file('bla2', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
@@ -1066,6 +1083,7 @@ class TestPytablesInheritance:
         table.flush()
         table.cols.c1.create_index()
         [x.fetch_all_fields() for x in table.where('c1 == 0')]
+        f.close()
         
     def test_registered_table(self, tmpdir):
         h5_file = create_or_open_pytables_file(str(tmpdir) + "/test.h5")
@@ -1080,4 +1098,4 @@ class TestPytablesInheritance:
         h5_file_ret = create_or_open_pytables_file(str(tmpdir) + "/test.h5")
         table = h5_file_ret.get_node('/','test')
         assert type(table) == RegisteredTable
-        #assert 0
+        h5_file_ret.close()

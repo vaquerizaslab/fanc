@@ -17,7 +17,6 @@ import numpy as np
 
 class TestReads:
     
-    @classmethod
     def setup_method(self, method):
         self.dir = os.path.dirname(os.path.realpath(__file__))
         self.sam1_file = self.dir + "/test_seq/test1.sam"
@@ -63,6 +62,8 @@ class TestReads:
         # SRR038105.1000011    16    chrIV    526796    42    16M    *    0    0    GGTGAATTAGAAGATA    FFFFFFFFFFFFFFFF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000011')
         compare(res, ['SRR038105.1000011',16,'chrIV',526796,42,[(0,16)],-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8,-1])
+
+        reads.close()
         
     def test_ix(self):
         pairs = Reads(self.sam1_file)
@@ -70,6 +71,7 @@ class TestReads:
         for pair in pairs._reads:
             assert pair['ix'] == i
             i += 1
+        pairs.close()
     
     def test_strand(self):
         reads = Reads(self.sam1_file)
@@ -78,6 +80,7 @@ class TestReads:
                 assert read.strand == -1
             if read.flag == 4:
                 assert read.strand == 1
+        reads.close()
     
     def test_iter(self):
         pairs = Reads(self.sam1_file)
@@ -93,6 +96,7 @@ class TestReads:
             after_counter += 1
             
         assert after_counter < counter
+        pairs.close()
     
     def test_select(self):
         reads = Reads(self.sam1_file)
@@ -100,18 +104,21 @@ class TestReads:
         assert reads[0].qname == 'SRR038105.1'
         reads.filter_non_unique()
         assert reads[0].qname == 'SRR038105.10'
+        reads.close()
         
     def test_build_from_scratch(self):
         reads = Reads()
         reads.load(self.sam1_file)
         
         assert len(reads) == 271
+        reads.close()
 
     def test_read_alen(self):
         reads = Reads(self.sam1_file)
         read = reads[0]
         read.cigar = [(4,22), (0,42), (2,1), (0,18), (1,4), (0,5)]
         assert read.alen == 42 + 18 + 5
+        reads.close()
 
     def test_read_get_tag(self):
         reads = Reads(self.sam1_file)
@@ -119,6 +126,7 @@ class TestReads:
         assert read.get_tag('AS') == 0
         assert read.get_tag('MD') == '15'
         assert read.get_tag('X0') == None
+        reads.close()
     
     def test_quality_filter(self):
         reads = Reads(self.sam1_file)
@@ -129,6 +137,7 @@ class TestReads:
                 assert row[reads._reads._mask_field] == 2
             else:
                 assert row[reads._reads._mask_field] == 0
+        reads.close()
         
     def test_uniqueness_filter(self):
         reads = Reads(self.sam1_file)
@@ -146,6 +155,7 @@ class TestReads:
                     assert row[reads._reads._mask_field] == 2
             else:
                 assert row[reads._reads._mask_field] == 0
+        reads.close()
     
     def test_unmapped_filter(self):
         reads = Reads(self.lambda_sam1_file)
@@ -156,6 +166,7 @@ class TestReads:
         reads.filter(unmapped_filter)
         
         assert len(reads) < l
+        reads.close()
 
     def test_contaminant_filter(self):
         reads = Reads(self.lambda_sam1_file)
@@ -168,6 +179,8 @@ class TestReads:
         reads.filter(contaminant_filter)
 
         assert len(reads) == l-9
+        reads.close()
+        contaminant.close()
 
     def test_queue_filters(self):
         reads = Reads(self.sam1_file)
@@ -182,6 +195,7 @@ class TestReads:
         reads.run_queued_filters()
         
         assert len(reads) < l
+        reads.close()
 
     def test_iter_qname_sorted(self):
         reads = Reads(self.sam1_file)
@@ -190,6 +204,7 @@ class TestReads:
             assert read.qname_ix > previous
             previous = read.qname_ix
         assert previous != 0
+        reads.close()
 
     def test_iterate_exclude_filters(self):
         reads = Reads(self.sam1_file)
@@ -204,6 +219,7 @@ class TestReads:
         assert len(list(reads.reads(excluded_filters=['unmapped']))) == 153
         assert len(list(reads.reads(excluded_filters=['mapq']))) == 153
         assert len(list(reads.reads(excluded_filters=['uniqueness']))) == 246
+        reads.close()
 
 
 class TestFileOpsReads:
@@ -236,26 +252,26 @@ class TestBWAReads:
         self.bwamem_sam2_file = self.dir + "/test_seq/test_bwa2.sam"
 
     def test_infer_mapper(self):
-        reads = Reads(self.bwamem_sam1_file)
-        assert reads.mapper == 'bwa'
-        reads = Reads(self.bwamem_sam1_file, mapper='bowtie2')
-        assert reads.mapper == 'bowtie2'
+        with Reads(self.bwamem_sam1_file) as reads:
+            assert reads.mapper == 'bwa'
+        with Reads(self.bwamem_sam1_file, mapper='bowtie2') as reads:
+            assert reads.mapper == 'bowtie2'
 
     def test_bwamem_quality_filter(self):
-        reads = Reads(self.bwamem_sam1_file)
-        assert len(reads) == 995
-        reads.filter_quality(cutoff=0.90, queue=False)
-        assert len(reads) == 927
-        for read in reads:
-            assert float(read.get_tag('AS')) / read.alen >= 0.90
+        with Reads(self.bwamem_sam1_file) as reads:
+            assert len(reads) == 995
+            reads.filter_quality(cutoff=0.90, queue=False)
+            assert len(reads) == 927
+            for read in reads:
+                assert float(read.get_tag('AS')) / read.alen >= 0.90
 
     def test_bwamem_uniqueness_filter(self):
-        reads = Reads(self.bwamem_sam1_file)
-        assert len(reads) == 995
-        reads.filter_non_unique(cutoff=3, queue=False)
-        assert len(reads) == 626
-        for read in reads:
-            assert read.mapq > 3
+        with Reads(self.bwamem_sam1_file) as reads:
+            assert len(reads) == 995
+            reads.filter_non_unique(cutoff=3, queue=False)
+            assert len(reads) == 626
+            for read in reads:
+                assert read.mapq > 3
 
 
 class TestFragmentMappedReads:
@@ -271,7 +287,15 @@ class TestFragmentMappedReads:
         self.genome = Genome.from_folder(self.dir + "/test_seq/lambda_genome/")
         
         self.pairs = FragmentMappedReadPairs()
-        self.pairs.load(self.reads1, self.reads2, regions=self.genome.get_regions(1000))
+        regions = self.genome.get_regions(1000)
+        self.pairs.load(self.reads1, self.reads2, regions=regions)
+        regions.close()
+
+    def teardown_method(self, method):
+        self.reads1.close()
+        self.reads2.close()
+        self.genome.close()
+        self.pairs.close()
         
     def test_select(self):
         pair = self.pairs[0]
@@ -397,13 +421,19 @@ class TestFragmentMappedReads:
         chrI = Chromosome.from_fasta(self.dir + "/../data/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
         pairs = FragmentMappedReadPairs()
-        pairs.load(reads1, reads2, genome.get_regions('HindIII'))
+        regions = genome.get_regions('HindIII')
+        pairs.load(reads1, reads2, regions)
+        reads1.close()
+        reads2.close()
+        genome.close()
+        regions.close()
         x, i, o, b = pairs.get_ligation_structure_biases(sampling=200, skip_self_ligations=False)
         assert len(x) == len(i) == len(o) == len(b) == 3
         assert x.tolist() == [494, 4487, 19399]
         assert i.tolist() == [2.616915422885572, 0.8059701492537313, 0.6417910447761194]
         assert o.tolist() == [0.2537313432835821, 0.24378109452736318, 0.46766169154228854]
         assert b.tolist() == [778, 412, 424]
+        pairs.close()
 
     def test_re_dist(self):
         read1 = FragmentRead(GenomicRegion(chromosome='chr1', start=1, end=1000), position=200, strand=-1)
@@ -593,7 +623,6 @@ class TestFileOpsFragmentMappedReadPairs:
 
 
 class TestBWAFragmentMappedReads:
-    @classmethod
     def setup_method(self, method):
         self.dir = os.path.dirname(os.path.realpath(__file__))
         sam1_file = self.dir + "/test_seq/test_bwa1.sam"
@@ -606,7 +635,15 @@ class TestBWAFragmentMappedReads:
         self.reads2.filter_unmapped()
         self.genome = Genome.from_folder(self.dir + "/test_seq/dmel_genome/")
         self.pairs = FragmentMappedReadPairs()
-        self.pairs.load(self.reads1, self.reads2, regions=self.genome.get_regions('MboI'))
+        regions = self.genome.get_regions('MboI')
+        self.pairs.load(self.reads1, self.reads2, regions=regions)
+        regions.close()
+
+    def teardown_method(self, method):
+        self.reads1.close()
+        self.reads2.close()
+        self.genome.close()
+        self.pairs.close()
         
     def test_loaded_bwamem_pairs(self):
         assert self.pairs._single_count == 896

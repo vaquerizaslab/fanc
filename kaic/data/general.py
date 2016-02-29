@@ -263,7 +263,7 @@ class FileBased(object):
         self.tmp_file = None
         self.file_name = file_name
         self.tmp_file_name = None
-        self.mode = mode
+        self._mode = mode
         if tmpdir is None:
             self.tmp_file_name = None
             self._init_file(file_name, mode)
@@ -330,6 +330,7 @@ class FileBased(object):
     @property
     def mode(self):
         return self._mode
+
     @mode.setter
     def mode(self, mode):
         if mode not in ['r', 'w', 'x', 'w-', 'r+', 'a']:
@@ -339,6 +340,19 @@ class FileBased(object):
         if mode in ['x', 'w-'] and os.path.isfile(self.file_name):
             raise OSError('The file {} already exists'.format(self.file_name))
         self._mode = mode
+
+
+class FileGroup(FileBased):
+    def __init__(self, group, file_name=None, mode='a', tmpdir=None):
+        FileBased.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+
+        try:
+            group_node = self.file.get_node("/" + group)
+            if not isinstance(group_node, t.group.Group):
+                raise TypeError("%s is not a group, but %s" % (group, str(type(group_node))))
+            self._group = group_node
+        except t.NoSuchNodeError:
+            self._group = self.file.create_group('/', group)
 
 
 class TableRow(tuple):
@@ -1368,7 +1382,7 @@ class Mask(object):
         return "%d. %s: %s" % (self.ix, self.name, self.description)
 
 
-class Maskable(object):
+class Maskable(FileBased):
     """
     Class that adds masking functionality to tables.
     
@@ -1403,7 +1417,7 @@ class Maskable(object):
         name = t.StringCol(50, pos=1)
         description = t.StringCol(255, pos=2)
 
-    def __init__(self, data=None, table_name="mask"):
+    def __init__(self, data=None, file_name=None, table_name="mask", tmpdir=None):
         """
         Enable recording of masking in pytables-backed object.
         
@@ -1433,35 +1447,26 @@ class Maskable(object):
                                 pytables file, does not usually need to be 
                                 modified
         """
-        # check what we have in data
-        mask_file = None
-        
-        # data is None
-        if data is None:
-            # use default _mask attribute
+        # parse potential unnamed argument
+        if data is not None:
+            # data is file name
+            if type(data) is str or isinstance(data, t.file.File):
+                if file_name is None:
+                    file_name = data
+                    data = None
+            elif type(data) == t.table.Table:
+                self._set_mask_table(data)
+        else:
             if hasattr(self, '_mask'):
                 self._set_mask_table(self._mask)
-            # use file attribute
-            elif hasattr(self, 'file') and isinstance(self.file, t.file.File):
-                mask_file = self.file
-            # do it all in memory
-            else:
-                mask_file = create_or_open_pytables_file()
-        # data is Table: use as mask table
-        elif type(data) == t.table.Table:
-            self._set_mask_table(data)
-        # data is pytables File: set file attribute
-        elif isinstance(data, t.file.File):
-            mask_file = data
-        # data is string: create file at location
-        elif type(data) == str:
-            mask_file = create_or_open_pytables_file(data)
+
+        FileBased.__init__(self, file_name, tmpdir=tmpdir)
                 
-        if (not hasattr(self, '_mask') or self._mask is None) and mask_file is not None:
+        if (not hasattr(self, '_mask') or self._mask is None) and self.file is not None:
             try:
-                self._mask = mask_file.get_node('/' + table_name)
+                self._mask = self.file.get_node('/' + table_name)
             except NoSuchNodeError:
-                self._mask = mask_file.create_table("/", table_name, Maskable.MaskDescription)
+                self._mask = self.file.create_table("/", table_name, Maskable.MaskDescription)
                 row = self._mask.row
                 row['ix'] = 0
                 row['name'] = 'default'
@@ -1471,9 +1476,9 @@ class Maskable(object):
         
     def _set_mask_table(self, table):
         if type(table) == t.table.Table:
-            if (not 'ix' in table.colnames or
-                not 'name' in table.colnames or
-                not 'description' in table.colnames):
+            if ('ix' not in table.colnames or
+                    'name' not in table.colnames or
+                    'description' not in table.colnames):
                 raise ValueError("Object already has a mask table, \
                                   but it does not have all the necessary \
                                   columns (ix, name, description)")
