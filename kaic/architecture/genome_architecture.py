@@ -8,6 +8,12 @@ from abc import abstractmethod, ABCMeta
 
 
 class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
+    """
+    Process and store matrix-based, genomic region-associated data.
+
+    Behaves similarly to :class:`~Hic`, as they both inherit from
+    :class:`~RegionMatrixTable`.
+    """
     def __init__(self, file_name=None, mode='a', data_fields=None,
                  regions=None, edges=None, _table_name_regions='region_data',
                  _table_name_edges='edges', tmpdir=None):
@@ -175,6 +181,9 @@ class MatrixArchitecturalRegionFeatureFilter(MaskFilter):
 
 
 class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
+    """
+    Process and store vector data associated with genomic regions.
+    """
     def __init__(self, file_name=None, mode='a', data_fields=None,
                  regions=None, data=None, _table_name_data='region_data',
                  tmpdir=None):
@@ -189,6 +198,9 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         # process data
         if data is not None:
             self.add_data(data)
+
+    def flush(self):
+        self._regions.flush()
 
     @classmethod
     def from_regions_and_data(cls, regions, data, file_name=None, mode='a', tmpdir=None, data_name='data'):
@@ -236,6 +248,61 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         for data_name, vector in data.iteritems():
             self.data(data_name, vector)
 
+    @calculateondemand
+    def __setitem__(self, key, value):
+        if isinstance(key, tuple):
+            n_rows = sum(1 for _ in self._get_rows(key[0], lazy=True,
+                                                   auto_update=False, force_iterable=True))
+            rows = self._get_rows(key[0], lazy=True, auto_update=False, force_iterable=True)
+            column_selectors = key[1]
+        else:
+            n_rows = sum(1 for _ in self._get_rows(slice(0, None, None), lazy=True,
+                                                   auto_update=False, force_iterable=True))
+            rows = self._get_rows(slice(0, None, None), lazy=True, auto_update=False, force_iterable=True)
+            column_selectors = key
+
+        if not isinstance(column_selectors, list):
+            column_selectors = [column_selectors]
+
+        colnames = []
+        for column_selector in column_selectors:
+            if isinstance(column_selector, int) or isinstance(column_selector, slice):
+                colnames.append(self._regions.colnames[column_selector])
+            elif isinstance(column_selector, str):
+                colnames.append(column_selector)
+
+        if isinstance(value, list):
+            print len(value), n_rows
+            if len(value) != n_rows:
+                raise ValueError("Number of elements in selection does not "
+                                 "match number of elements to be replaced!")
+            for i, row in enumerate(rows):
+                value_row = value[i]
+                for j, colname in enumerate(colnames):
+                    try:
+                        v = getattr(value_row, colname)
+                    except AttributeError:
+                        if len(colnames) == 1:
+                            v = value_row
+                        else:
+                            try:
+                                v = value_row[j]
+                            except TypeError:
+                                raise ValueError("Bad value format")
+                            except KeyError:
+                                v = value[colname]
+                    setattr(row, colname, v)
+                    row.update()
+        else:
+            if n_rows != 1:
+                raise ValueError("Can only replace selection with elements in a list")
+
+            for row in rows:
+                print value, colnames[0], row
+                setattr(row, colnames[0], value)
+                row.update()
+        self.flush()
+
     def __getitem__(self, item):
         if isinstance(item, tuple):
             return self._get_columns(item[1], regions=self._get_rows(item[0]))
@@ -243,8 +310,11 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
             return self._get_rows(item)
 
     @calculateondemand
-    def _get_rows(self, item, lazy=False, auto_update=True):
+    def _get_rows(self, item, lazy=False, auto_update=True, force_iterable=False):
         if isinstance(item, int):
+            if force_iterable:
+                return (self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+                        for row in self._regions.iterrows(item, item+1, 1))
             return self._row_to_region(self._regions[item], lazy=lazy, auto_update=auto_update)
 
         if isinstance(item, slice):
