@@ -192,6 +192,19 @@ class TestTableArchitecturalFeature:
         assert self.taf.a() == [1, 2, 3, 4, 5]
         assert self.taf.a(1) == 2
 
+    def test_set_item(self):
+        assert self.taf[0, 'a'] == 1
+        self.taf[0, 'a'] = 9
+        assert self.taf[0, 'a'] == 9
+
+        assert self.taf[:, 'a'] == [9, 2, 3, 4, 5]
+        self.taf[:, 'a'] = [5, 6, 7, 8, 9]
+        assert self.taf[:, 'a'] == [5, 6, 7, 8, 9]
+
+        assert self.taf[1:4, 'b'] == ['b', 'c', 'd']
+        self.taf[1:4, 'b'] = ['f', 'ghi', 'h']
+        assert self.taf[1:4, 'b'] == ['f', 'ghi', 'h']
+
 
 class MAF(MatrixArchitecturalRegionFeature):
     """
