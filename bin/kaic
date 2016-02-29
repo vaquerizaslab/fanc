@@ -484,7 +484,7 @@ class Kaic(object):
             return subprocess.call(re_dist_command + [pairs_file, re_dist_file])
 
         def filtered_pairs_worker(pairs_file, filtered_pairs_file, filtered_pairs_stats_file):
-            filter_pairs_command = ['kaic', 'filter_pairs', '--auto', '-r', '1000', '-l', '-d', '2']
+            filter_pairs_command = ['kaic', 'filter_pairs', '--auto', '-r', '5000', '-l', '-d', '2']
             if args.tmp:
                 filter_pairs_command.append('-tmp')
             filter_pairs_command.append('-s')
