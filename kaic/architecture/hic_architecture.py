@@ -14,8 +14,16 @@ class HicArchitecture(object):
     def __init__(self, hic):
         self.hic = hic
 
-    def expected_contacts(self, per_chromosome=False):
-        pass
+    def expected_contacts(self, regions=None):
+        return ExpectedContacts(self.hic, smooth=False, regions=regions)
+
+    def possible_contacts(self, regions=None):
+        return PossibleContacts(self.hic, regions=regions)
+
+    def directionality_index(self, window_sizes=2000000):
+        if isinstance(window_sizes, int):
+            window_sizes = (window_sizes, )
+        return DirectionalityIndex(self.hic, window_sizes=window_sizes)
 
 
 class HicEdgeCollection(MatrixArchitecturalRegionFeature):
@@ -338,6 +346,97 @@ class PossibleContacts(TableArchitecturalFeature):
     @calculateondemand
     def inter_possible(self):
         return self[0, 'inter']
+
+
+class DirectionalityIndex(VectorArchitecturalRegionFeature):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
+                 window_sizes=(2000000,), _table_name='directionality_index'):
+
+        # are we retrieving an existing object?
+        if isinstance(hic, str) and file_name is None:
+            file_name = hic
+            hic = None
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        else:
+            di_fields = {}
+            self.window_sizes = []
+            for i, window_size in enumerate(window_sizes):
+                di_fields['di_%d' % window_size] = t.Float32Col(pos=i)
+                self.window_sizes.append(window_size)
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields=di_fields, regions=hic.regions,
+                                                      _table_name_data=_table_name)
+
+        self.window_sizes = []
+        for colname in self._regions.colnames:
+            if colname.startswith("di_"):
+                window_size = int(colname[3:])
+                self.window_sizes.append(window_size)
+
+        self.hic = hic
+
+    def _get_boundary_distances(self):
+        n_bins = len(self.regions)
+        # find distances to chromosome boundaries in bins
+        boundary_dist = np.zeros(n_bins, dtype=int)
+        last_chromosome = None
+        last_chromosome_index = 0
+        for i, region in enumerate(self.regions(lazy=True)):
+            chromosome = region.chromosome
+            if last_chromosome is not None and chromosome != last_chromosome:
+                chromosome_length = i-last_chromosome_index
+                for j in xrange(chromosome_length):
+                    boundary_dist[last_chromosome_index+j] = min(j, i-last_chromosome_index-1-j)
+                last_chromosome_index = i
+            last_chromosome = chromosome
+        chromosome_length = n_bins-last_chromosome_index
+        for j in xrange(chromosome_length):
+            boundary_dist[last_chromosome_index+j] = min(j, n_bins-last_chromosome_index-1-j)
+
+        return boundary_dist
+
+    def _directionality_index(self, window_size=2000000):
+        bin_size = self.hic.bin_size
+        bin_window_size = int(window_size/bin_size)
+        if window_size % bin_size > 0:
+            bin_window_size += 1
+
+        n_bins = len(self.regions())
+        boundary_dist = self._get_boundary_distances()
+
+        left_sums = np.zeros(n_bins)
+        right_sums = np.zeros(n_bins)
+        directionality_index = np.zeros(n_bins)
+        for edge in self.hic.edges(lazy=True):
+            source = edge.source
+            sink = edge.sink
+            weight = edge.weight
+            if source == sink:
+                continue
+            if sink - source <= bin_window_size:
+                if boundary_dist[sink] >= sink-source:
+                    left_sums[sink] += weight
+                if boundary_dist[source] >= sink-source:
+                    right_sums[source] += weight
+
+        for i in xrange(n_bins):
+            A = left_sums[i]
+            B = right_sums[i]
+            E = (A+B)/2
+            if E != 0 and B-A != 0:
+                directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
+        return directionality_index
+
+    def _calculate(self):
+        for window_size in self.window_sizes:
+            directionality_index = self._directionality_index(window_size)
+            self.data("di_%d" % window_size, directionality_index)
+
+    @calculateondemand
+    def directionality_index(self, window_size=None):
+        if window_size is None:
+            window_size = self.window_sizes[0]
+        return self[:, 'di_%d' % window_size]
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):

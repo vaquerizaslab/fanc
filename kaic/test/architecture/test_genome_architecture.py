@@ -1,12 +1,13 @@
 from __future__ import division
 from kaic.data.genomic import Hic, Node, Edge
 from kaic.architecture.architecture import calculateondemand
-from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContacts
+from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContacts, DirectionalityIndex
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature
 from kaic.data.genomic import GenomicRegion, Node, Edge
 import tables as t
 import types
 import numpy as np
+import pytest
 
 
 class VAF(VectorArchitecturalRegionFeature):
@@ -312,3 +313,67 @@ class TestExpectedContacts:
             assert abs(ec.intra_expected()[1] - (332+469+199)/(7+5+3)) < 0.001
             assert abs(ec.intra_expected()[2] - (199+72+332)/(3+5+1)) < 0.001
             assert abs(ec.intra_expected()[3] - (199+72+332)/(3+5+1)) < 0.001
+
+
+class TestDirectionalityIndex:
+    def setup_method(self, method):
+        # make TAD-like structures for testing
+        hic = Hic()
+
+        nodes = []
+        for i in range(1, 12000, 1000):
+            node = Node(chromosome="chr1", start=i, end=i+1000-1)
+            nodes.append(node)
+        for i in range(1, 4000, 500):
+            node = Node(chromosome="chr2", start=i, end=i+500-1)
+            nodes.append(node)
+        hic.add_nodes(nodes)
+
+        edges = []
+        for i in xrange(0, 5):
+            for j in xrange(i, 5):
+                edges.append(Edge(source=i, sink=j, weight=50))
+        for i in xrange(6, 12):
+            for j in xrange(i, 12):
+                edges.append(Edge(source=i, sink=j, weight=75))
+        for i in xrange(13, 18):
+            for j in xrange(i, 18):
+                edges.append(Edge(source=i, sink=j, weight=30))
+        for i in xrange(18, 20):
+            for j in xrange(i, 20):
+                edges.append(Edge(source=i, sink=j, weight=50))
+
+        hic.add_edges(edges)
+        self.hic = hic
+
+    def teardown_method(self, method):
+        self.hic.close()
+
+    def test_directionality_index(self):
+
+        with DirectionalityIndex(self.hic, window_sizes=(3000, 5000)) as dip:
+            print len(dip.regions)
+            d = dip.directionality_index(window_size=3000)
+
+            assert sum(d) > 0  # juuuuust making sure...
+
+            # beginning of second TAD in chr1
+            assert d[6] == max(d)
+            # declining over TAD till end of chr1
+            assert d[6] >= d[7] >= d[8] >= d[9] >= d[10] >= d[11]
+
+            # beginning of second TAD in chr2
+            assert d[18] == max(d[13:20])
+
+            d5000 = dip.directionality_index(5000)
+            assert len(d5000) == len(self.hic.regions)
+
+            with pytest.raises(AttributeError):
+                dip.directionality_index(10000)
+
+    def test_boundary_distances(self):
+
+        with DirectionalityIndex(self.hic, window_sizes=(3000, 5000)) as dip:
+            boundary_dist = dip._get_boundary_distances()
+            assert len(boundary_dist) == len(self.hic.regions)
+            assert np.array_equal(boundary_dist, [0, 1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0])

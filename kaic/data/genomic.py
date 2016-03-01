@@ -3258,64 +3258,9 @@ class Hic(RegionMatrixTable):
 
         return intra_possible, inter_possible
 
-    def _get_boundary_distances(self):
-        n_bins = len(self.regions())
-        # find distances to chromosome boundaries in bins
-        boundary_dist = np.zeros(n_bins, dtype=int)
-        last_chromosome = None
-        last_chromosome_index = 0
-        for i, node in enumerate(self.nodes()):
-            chromosome = node.chromosome
-            if last_chromosome is not None and chromosome != last_chromosome:
-                chromosome_length = i-last_chromosome_index
-                for j in xrange(chromosome_length):
-                    boundary_dist[last_chromosome_index+j] = min(j, i-last_chromosome_index-1-j)
-                last_chromosome_index = i
-            last_chromosome = chromosome
-        chromosome_length = n_bins-last_chromosome_index
-        for j in xrange(chromosome_length):
-            boundary_dist[last_chromosome_index+j] = min(j, n_bins-last_chromosome_index-1-j)
-
-        return boundary_dist
-
-    def directionality_index(self, window_size=2000000):
-        """
-        Calculate the directionality index according to Dixon 2012 for every bin.
-
-        :param window_size: size of the sliding window in base pairs
-        :return: numpy array same length as bins in the object
-        """
-        bin_size = self.bin_size
-        bin_window_size = int(window_size/bin_size)
-        if window_size % bin_size > 0:
-            bin_window_size += 1
-
-        n_bins = len(self.regions())
-        boundary_dist = self._get_boundary_distances()
-
-        left_sums = np.zeros(n_bins)
-        right_sums = np.zeros(n_bins)
-        directionality_index = np.zeros(n_bins)
-        for edge in self.edges(lazy=True):
-            source = edge.source
-            sink = edge.sink
-            weight = edge.weight
-            if source == sink:
-                continue
-            if sink - source <= bin_window_size:
-                if boundary_dist[sink] >= sink-source:
-                    left_sums[sink] += weight
-                if boundary_dist[source] >= sink-source:
-                    right_sums[source] += weight
-
-        for i in xrange(n_bins):
-            A = left_sums[i]
-            B = right_sums[i]
-            E = (A+B)/2
-            if E != 0 and B-A != 0:
-                directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
-
-        return directionality_index
+    def architecture(self):
+        import kaic.architecture.hic_architecture as ha
+        return ha.HicArchitecture(self)
 
 
 class HicEdgeFilter(MaskFilter):

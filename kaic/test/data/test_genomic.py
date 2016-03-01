@@ -1276,54 +1276,6 @@ class TestHicBasic:
                 else:
                     assert m[i,j] != 0
 
-    def test_boundary_distances(self):
-        hic = self.hic
-
-        boundary_dist = hic._get_boundary_distances()
-        assert np.array_equal(boundary_dist, [0,1,2,1,0,0,1,0,0,1,1,0])
-
-    def test_directionality_index(self):
-        # make TAD-like structures for testing
-        hic = Hic()
-
-        m = np.zeros((20, 20))
-        nodes = []
-        for i in range(1, 12000, 1000):
-            node = Node(chromosome="chr1", start=i, end=i+1000-1)
-            nodes.append(node)
-        for i in range(1, 4000, 500):
-            node = Node(chromosome="chr2", start=i, end=i+500-1)
-            nodes.append(node)
-        hic.add_nodes(nodes)
-
-        edges = []
-        for i in xrange(0,5):
-            for j in xrange(i,5):
-                edges.append(Edge(source=i, sink=j, weight=50))
-        for i in xrange(6,12):
-            for j in xrange(i,12):
-                edges.append(Edge(source=i, sink=j, weight=75))
-        for i in xrange(13,18):
-            for j in xrange(i,18):
-                edges.append(Edge(source=i, sink=j, weight=30))
-        for i in xrange(18,20):
-            for j in xrange(i,20):
-                edges.append(Edge(source=i, sink=j, weight=50))
-
-        hic.add_edges(edges)
-
-        d = hic.directionality_index(window_size=3000)
-
-        # beginning of second TAD in chr1
-        assert d[6] == max(d)
-        # declining over TAD till end of chr1
-        assert d[6] >= d[7] >= d[8] >= d[9] >= d[10] >= d[11]
-
-        # beginning of second TAD in chr2
-        assert d[18] == max(d[13:20])
-
-        hic.close()
-
     def test_filter_background_ligation(self):
         blf = BackgroundLigationFilter(self.hic, fold_change=2)
         print blf.cutoff
