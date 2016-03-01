@@ -187,13 +187,16 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     def __init__(self, file_name=None, mode='a', data_fields=None,
                  regions=None, data=None, _table_name_data='region_data',
                  tmpdir=None):
-        RegionsTable.__init__(self, regions=regions, file_name=file_name, mode=mode,
+        RegionsTable.__init__(self, file_name=file_name, mode=mode,
                               additional_fields=data_fields, tmpdir=tmpdir,
                               _table_name_regions=_table_name_data)
         ArchitecturalFeature.__init__(self)
 
         if len(self._regions) > 0:
             self._calculated = True
+
+        if regions is not None:
+            self.add_regions(regions)
 
         # process data
         if data is not None:
@@ -350,11 +353,11 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
             results_dict = defaultdict(list)
             for region in regions:
                 for name in colnames:
-                    results_dict[name].append(getattr(region, name, None))
+                    results_dict[name].append(getattr(region, name))
         else:
             results_dict = dict()
             for name in colnames:
-                results_dict[name] = getattr(regions, name, None)
+                results_dict[name] = getattr(regions, name)
 
         if is_list:
             return results_dict
