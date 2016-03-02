@@ -3258,6 +3258,7 @@ class Hic(RegionMatrixTable):
 
         return intra_possible, inter_possible
 
+    @property
     def architecture(self):
         import kaic.architecture.hic_architecture as ha
         return ha.HicArchitecture(self)

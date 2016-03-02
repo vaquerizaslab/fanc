@@ -14,12 +14,15 @@ class HicArchitecture(object):
     def __init__(self, hic):
         self.hic = hic
 
+    @property
     def expected_contacts(self, regions=None):
         return ExpectedContacts(self.hic, smooth=False, regions=regions)
 
+    @property
     def possible_contacts(self, regions=None):
         return PossibleContacts(self.hic, regions=regions)
 
+    @property
     def directionality_index(self, window_sizes=2000000):
         if isinstance(window_sizes, int):
             window_sizes = (window_sizes, )
