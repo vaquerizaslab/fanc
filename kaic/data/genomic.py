@@ -2449,7 +2449,7 @@ class RegionMatrixTable(RegionPairs):
     def __getitem__(self, key):
         return self.as_matrix(key)
 
-    def as_matrix(self, key=slice(0, None, None), values_from=None):
+    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False):
         """
         Get a chunk of the matrix.
 
@@ -2482,6 +2482,8 @@ class RegionMatrixTable(RegionPairs):
                     map of the relevant regions between chromosomes 1 and 4.
         :param values_from: Determines which column will be used to populate
                             the matrix. Default is 'weight'.
+        :param mask_missing: if True, will mask missing/unmappable contacts
+        :param impute_missing: if True, will average missing contacts
         :return: :class:`RegionMatrix`
         """
         if values_from is None:
@@ -2510,19 +2512,77 @@ class RegionMatrixTable(RegionPairs):
 
         # select the correct output format
         # empty result: matrix
+        rm = None
         if m.shape[0] == 0 and m.shape[1] == 0:
-            return RegionMatrix(m, col_regions=[], row_regions=[])
+            rm = RegionMatrix(m, col_regions=[], row_regions=[])
         # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            return RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
+        elif isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            rm = RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
         # row selector is list: vector
-        if isinstance(nodes_ix_row, list):
-            return RegionMatrix(m[:, 0], col_regions=[nodes_col], row_regions=nodes_row)
+        elif isinstance(nodes_ix_row, list):
+            rm = RegionMatrix(m[:, 0], col_regions=[nodes_col], row_regions=nodes_row)
         # column selector is list: vector
-        if isinstance(nodes_ix_col, list):
-            return RegionMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
+        elif isinstance(nodes_ix_col, list):
+            rm = RegionMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
+
+        if rm is not None:
+            if mask_missing or impute_missing:
+                mappable = self.marginals() > 0
+                mask = np.zeros(m.shape, dtype=bool)
+                current_row = 0
+                for row_range in row_ranges:
+                    for i in xrange(row_range[0], row_range[1]+1):
+                        if not mappable[i]:
+                            mask[current_row] = True
+                        current_row += 1
+
+                current_col = 0
+                for col_range in col_ranges:
+                    for i in xrange(col_range[0], col_range[1]+1):
+                        if not mappable[i]:
+                            mask[:, current_col] = True
+                        current_col += 1
+                masked_rm = np.ma.MaskedArray(rm, mask=mask)
+
+                if impute_missing:
+                    return self._impute_missing_contacts(masked_rm)
+                return masked_rm
+            else:
+                return rm
+
         # both must be indexes
         return m[0, 0]
+
+    def _impute_missing_contacts(self, hic_matrix=None):
+        """
+        Impute missing contacts in a Hi-C matrix.
+
+        :param hic_matrix: a :class:`~HicMatrix` object
+        :param stat: The statistic to use for missing value imputation (default: mean)
+        :return: the input matrix with imputed values
+        """
+        if not hasattr(hic_matrix, "mask"):
+            raise ValueError("hic_matrix must be a numpy masked array!")
+
+        # here to avoid circular dependency
+        from kaic.architecture.hic_architecture import ExpectedContacts
+
+        with ExpectedContacts(self, smooth=True) as ex:
+            intra_expected = ex.intra_expected()
+            inter_expected = ex.inter_expected()
+
+            for i in xrange(hic_matrix.shape[0]):
+                row_region = hic_matrix.row_regions[i]
+                for j in xrange(hic_matrix.shape[1]):
+                    col_region = hic_matrix.col_regions[j]
+
+                    if hic_matrix.mask[i, j]:
+                        if row_region.chromosome == col_region.chromosome:
+                            d = abs(row_region.ix-col_region.ix)
+                            hic_matrix[i, j] = intra_expected[d]
+                        else:
+                            hic_matrix[i, j] = inter_expected
+        return hic_matrix
 
     def _get_matrix(self, row_ranges, col_ranges, weight_column=None):
         if weight_column is None:
@@ -2749,10 +2809,13 @@ class RegionMatrixTable(RegionPairs):
         if flush:
             self.flush(update_index=update_index)
 
-    def marginals(self, weight_column='weight'):
+    def marginals(self, weight_column=None):
         """
         Get the marginals vector of this Hic matrix.
         """
+        if weight_column is None:
+            weight_column = self.default_field
+
         # prepare marginals dict
         marginals = np.zeros(len(self.regions()), float)
 
