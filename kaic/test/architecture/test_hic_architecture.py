@@ -1,5 +1,6 @@
 from kaic.data.genomic import Hic, Node, Edge
 
+
 class TestHicArchitecture:
     def setup_method(self, method):
         # make TAD-like structures for testing
@@ -35,4 +36,5 @@ class TestHicArchitecture:
         self.hic.close()
 
     def test_call_architecture(self):
-        architecture = self.hic.architecture()
+        with self.hic.architecture.possible_contacts() as pc:
+            pass
