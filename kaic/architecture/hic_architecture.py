@@ -399,10 +399,7 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         return boundary_dist
 
     def _directionality_index(self, window_size=2000000):
-        bin_size = self.hic.bin_size
-        bin_window_size = int(window_size/bin_size)
-        if window_size % bin_size > 0:
-            bin_window_size += 1
+        bin_window_size = self.hic.distance_to_bins(window_size)
 
         n_bins = len(self.regions())
         boundary_dist = self._get_boundary_distances()
@@ -440,6 +437,68 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'di_%d' % window_size]
+
+
+class InsulationIndex(VectorArchitecturalRegionFeature):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
+                 window_sizes=(200000,), _table_name='insulation_index'):
+        # are we retrieving an existing object?
+        if isinstance(hic, str) and file_name is None:
+            file_name = hic
+            hic = None
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        else:
+            ii_fields = {}
+            self.window_sizes = []
+            for i, window_size in enumerate(window_sizes):
+                ii_fields['ii_%d' % window_size] = t.Float32Col(pos=i)
+                self.window_sizes.append(window_size)
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields=ii_fields, regions=hic.regions,
+                                                      _table_name_data=_table_name)
+
+        self.window_sizes = []
+        for colname in self._regions.colnames:
+            if colname.startswith("ii_"):
+                window_size = int(colname[3:])
+                self.window_sizes.append(window_size)
+
+        self.hic = hic
+
+    def _insulation_index(self, d, hic_matrix=None, impute_missing=True, mask_thresh=.5, aggr_func=np.ma.mean):
+        chr_bins = self.hic.chromosome_bins
+        n = len(self.hic.regions)
+        if hic_matrix is None or not hasattr(hic_matrix, "mask"):
+            logging.debug("Fetching matrix")
+            hic_matrix = self.hic.as_matrix(impute_missing=impute_missing)
+
+        ins_matrix = np.empty(n)
+        logging.debug("Starting processing")
+        skipped = 0
+        for r in self.hic.regions:
+            if (r.ix - chr_bins[r.chromosome][0] < d or
+                    chr_bins[r.chromosome][1] - r.ix <= d + 1):
+                ins_matrix[r.ix] = np.nan
+                continue
+            if hic_matrix.mask[r.ix, r.ix]:
+                ins_matrix[r.ix] = np.nan
+                continue
+            ins_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix - d, r.ix))
+            if np.sum(hic_matrix.mask[ins_slice]) > d*d*mask_thresh:
+                # If too close to the edge of chromosome or
+                # if more than half of the entries in this quadrant are masked (unmappable)
+                # exclude it from the analysis
+                skipped += 1
+                ins_matrix[r.ix] = np.nan
+                continue
+            ins_matrix[r.ix] = aggr_func(hic_matrix[ins_slice].data if impute_missing else hic_matrix[ins_slice])
+        logging.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
+        return ins_matrix
+
+    def _calculate(self):
+        for window_size in self.window_sizes:
+            insulation_index = self._insulation_index(window_size)
+            self.data("ii_%d" % window_size, insulation_index)
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
