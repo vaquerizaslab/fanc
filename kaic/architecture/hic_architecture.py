@@ -441,6 +441,7 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
 
 class InsulationIndex(VectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
+                 relative=False, impute_missing=True,
                  window_sizes=(200000,), _table_name='insulation_index'):
         # are we retrieving an existing object?
         if isinstance(hic, str) and file_name is None:
@@ -464,15 +465,16 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                 self.window_sizes.append(window_size)
 
         self.hic = hic
+        self.relative = relative
+        self.impute_missing = impute_missing
 
-    def _insulation_index(self, d, hic_matrix=None, impute_missing=True,
-                          mask_thresh=.5, aggr_func=np.ma.mean,
-                          relative=False):
+    def _insulation_index(self, d, hic_matrix=None, mask_thresh=.5, aggr_func=np.ma.mean):
+
         chr_bins = self.hic.chromosome_bins
         n = len(self.hic.regions)
         if hic_matrix is None or not hasattr(hic_matrix, "mask"):
             logging.debug("Fetching matrix")
-            hic_matrix = self.hic.as_matrix(mask_missing=True, impute_missing=impute_missing)
+            hic_matrix = self.hic.as_matrix(mask_missing=True, impute_missing=self.impute_missing)
 
         ins_matrix = np.empty(n)
         logging.debug("Starting processing")
@@ -490,8 +492,8 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
             down_rel_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix + 1, r.ix + d + 1))
             ins_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix - d, r.ix))
 
-            if ((relative and np.sum(hic_matrix.mask[up_rel_slice]) > d*d*mask_thresh) or
-                    (relative and np.sum(hic_matrix.mask[down_rel_slice]) > d*d*mask_thresh) or
+            if ((self.relative and np.sum(hic_matrix.mask[up_rel_slice]) > d*d*mask_thresh) or
+                    (self.relative and np.sum(hic_matrix.mask[down_rel_slice]) > d*d*mask_thresh) or
                     np.sum(hic_matrix.mask[ins_slice]) > d*d*mask_thresh):
                 # If too close to the edge of chromosome or
                 # if more than half of the entries in this quadrant are masked (unmappable)
@@ -500,10 +502,11 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                 ins_matrix[r.ix] = np.nan
                 continue
 
-            if not relative:
-                ins_matrix[r.ix] = aggr_func(hic_matrix[ins_slice].data if impute_missing else hic_matrix[ins_slice])
+            if not self.relative:
+                ins_matrix[r.ix] = aggr_func(hic_matrix[ins_slice].data
+                                             if self.impute_missing else hic_matrix[ins_slice])
             else:
-                if not impute_missing:
+                if not self.impute_missing:
                     ins_matrix[r.ix] = (aggr_func(hic_matrix[ins_slice]) /
                                         aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
                                                                 hic_matrix[down_rel_slice]))))

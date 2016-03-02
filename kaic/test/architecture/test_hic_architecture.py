@@ -268,3 +268,8 @@ class TestInsulationIndex:
 
             with pytest.raises(AttributeError):
                 ins.directionality_index(10000)
+
+    def test_relative_insulation_index(self):
+
+        with InsulationIndex(self.hic, window_sizes=(2000, 3000), relative=True) as ins:
+            pass
