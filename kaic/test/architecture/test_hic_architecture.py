@@ -1,5 +1,6 @@
+from __future__ import division
 from kaic.data.genomic import Hic, Node, Edge
-from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContacts, DirectionalityIndex
+from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContacts, DirectionalityIndex, InsulationIndex
 import pytest
 import numpy as np
 
@@ -218,3 +219,52 @@ class TestDirectionalityIndex:
             boundary_dist = dip._get_boundary_distances()
             assert len(boundary_dist) == len(self.hic.regions)
             assert np.array_equal(boundary_dist, [0, 1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0])
+
+
+class TestInsulationIndex:
+    def setup_method(self, method):
+        # make TAD-like structures for testing
+        hic = Hic()
+
+        nodes = []
+        for i in range(1, 12000, 1000):
+            node = Node(chromosome="chr1", start=i, end=i+1000-1)
+            nodes.append(node)
+        for i in range(1, 4000, 500):
+            node = Node(chromosome="chr2", start=i, end=i+500-1)
+            nodes.append(node)
+        hic.add_nodes(nodes)
+
+        edges = []
+        for i in xrange(0, 5):
+            for j in xrange(i, 5):
+                edges.append(Edge(source=i, sink=j, weight=50))
+        for i in xrange(6, 12):
+            for j in xrange(i, 12):
+                edges.append(Edge(source=i, sink=j, weight=75))
+        for i in xrange(13, 18):
+            for j in xrange(i, 18):
+                edges.append(Edge(source=i, sink=j, weight=30))
+        for i in xrange(18, 20):
+            for j in xrange(i, 20):
+                edges.append(Edge(source=i, sink=j, weight=50))
+
+        hic.add_edges(edges)
+        self.hic = hic
+
+    def teardown_method(self, method):
+        self.hic.close()
+
+    def test_insulation_index(self):
+
+        with InsulationIndex(self.hic, window_sizes=(2000, 3000)) as ins:
+            print len(ins.regions)
+            d = ins.insulation_index(window_size=2000)
+
+            assert np.isnan(d[0])
+            assert np.isnan(d[1])
+            assert d[2] == 50.0
+            assert d[3] - 38.77083206176758 < 0.00001
+
+            with pytest.raises(AttributeError):
+                ins.directionality_index(10000)

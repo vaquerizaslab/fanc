@@ -465,12 +465,14 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
 
         self.hic = hic
 
-    def _insulation_index(self, d, hic_matrix=None, impute_missing=True, mask_thresh=.5, aggr_func=np.ma.mean):
+    def _insulation_index(self, d, hic_matrix=None, impute_missing=True,
+                          mask_thresh=.5, aggr_func=np.ma.mean,
+                          relative=False):
         chr_bins = self.hic.chromosome_bins
         n = len(self.hic.regions)
         if hic_matrix is None or not hasattr(hic_matrix, "mask"):
             logging.debug("Fetching matrix")
-            hic_matrix = self.hic.as_matrix(impute_missing=impute_missing)
+            hic_matrix = self.hic.as_matrix(mask_missing=True, impute_missing=impute_missing)
 
         ins_matrix = np.empty(n)
         logging.debug("Starting processing")
@@ -483,22 +485,48 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
             if hic_matrix.mask[r.ix, r.ix]:
                 ins_matrix[r.ix] = np.nan
                 continue
+
+            up_rel_slice = (slice(r.ix - d, r.ix), slice(r.ix - d, r.ix))
+            down_rel_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix + 1, r.ix + d + 1))
             ins_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix - d, r.ix))
-            if np.sum(hic_matrix.mask[ins_slice]) > d*d*mask_thresh:
+
+            if ((relative and np.sum(hic_matrix.mask[up_rel_slice]) > d*d*mask_thresh) or
+                    (relative and np.sum(hic_matrix.mask[down_rel_slice]) > d*d*mask_thresh) or
+                    np.sum(hic_matrix.mask[ins_slice]) > d*d*mask_thresh):
                 # If too close to the edge of chromosome or
                 # if more than half of the entries in this quadrant are masked (unmappable)
                 # exclude it from the analysis
                 skipped += 1
                 ins_matrix[r.ix] = np.nan
                 continue
-            ins_matrix[r.ix] = aggr_func(hic_matrix[ins_slice].data if impute_missing else hic_matrix[ins_slice])
+
+            if not relative:
+                ins_matrix[r.ix] = aggr_func(hic_matrix[ins_slice].data if impute_missing else hic_matrix[ins_slice])
+            else:
+                if not impute_missing:
+                    ins_matrix[r.ix] = (aggr_func(hic_matrix[ins_slice]) /
+                                        aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
+                                                                hic_matrix[down_rel_slice]))))
+                else:
+                    ins_matrix[r.ix] = (aggr_func(hic_matrix[ins_slice].data) /
+                                        aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
+                                                                hic_matrix[down_rel_slice].data))))
+
         logging.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
         return ins_matrix
 
     def _calculate(self):
         for window_size in self.window_sizes:
-            insulation_index = self._insulation_index(window_size)
+            bins = self.hic.distance_to_bins(window_size)
+            print bins
+            insulation_index = self._insulation_index(bins)
             self.data("ii_%d" % window_size, insulation_index)
+
+    @calculateondemand
+    def insulation_index(self, window_size):
+        if window_size is None:
+            window_size = self.window_sizes[0]
+        return self[:, 'ii_%d' % window_size]
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
