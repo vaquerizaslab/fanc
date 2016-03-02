@@ -1265,6 +1265,9 @@ class GenomicRegions(object):
         """
         Returns a dictionary of chromosomes and the start
         and end index of the bins they cover.
+
+        Returned list is xrange-compatible, i.e. chromosome
+        bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.
         """
         chr_bins = {}
         for r in self.regions:
