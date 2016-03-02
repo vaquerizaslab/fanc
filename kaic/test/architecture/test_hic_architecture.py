@@ -36,5 +36,5 @@ class TestHicArchitecture:
         self.hic.close()
 
     def test_call_architecture(self):
-        with self.hic.architecture.possible_contacts() as pc:
+        with self.hic.architecture.possible_contacts:
             pass
