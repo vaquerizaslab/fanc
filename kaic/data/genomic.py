@@ -1286,6 +1286,16 @@ class GenomicRegions(object):
         node = self.regions[0]
         return node.end - node.start + 1
 
+    def distance_to_bins(self, distance):
+        bin_size = self.bin_size
+        bin_distance = int(distance/bin_size)
+        if distance % bin_size > 0:
+            bin_distance += 1
+        return bin_distance
+
+    def bins_to_distance(self, bins):
+        return self.bin_size*bins
+
 
 class RegionsTable(GenomicRegions, FileGroup):
     """
