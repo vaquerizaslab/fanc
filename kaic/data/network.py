@@ -52,9 +52,10 @@ class PeakInfo(RegionMatrixTable):
         observed = t.Int32Col(pos=2)
         expected = t.Float32Col(pos=3)
         p_value = t.Float32Col(pos=4)
-        x = t.Float32Col(pos=5)
-        y = t.Float32Col(pos=6)
-        radius = t.Float32Col(pos=7)
+        q_value_sum = t.Float32Col(pos=5)
+        x = t.Float32Col(pos=6)
+        y = t.Float32Col(pos=7)
+        radius = t.Float32Col(pos=8)
 
     def __init__(self, file_name=None, mode='a', regions=None, _table_name_regions='regions',
                  _table_name_peaks='edges'):
@@ -295,10 +296,11 @@ class RaoPeakInfo(RegionMatrixTable):
 
         def _append_merged_peak(peak_list):
             # add merged peak
-            highest_peak = peak_list[0]
-            merged_peak = Peak(source=highest_peak.source, sink=highest_peak.sink,
-                               observed=highest_peak.observed, expected=highest_peak.e_d,
-                               p_value=highest_peak.fdr_d, x=x, y=y,
+            hp = peak_list[0]
+            q_value_sum = hp.fdr_ll + hp.fdr_d + hp.fdr_h + hp.fdr_v
+            merged_peak = Peak(source=hp.source, sink=hp.sink,
+                               observed=hp.observed, expected=hp.e_d,
+                               p_value=hp.fdr_d, q_value_sum=q_value_sum, x=x, y=y,
                                radius=radius)
             merged_peaks.add_edge(merged_peak, flush=False)
 
@@ -558,6 +560,23 @@ class RaoPeakFilter(PeakFilter):
         if peak.fdr_h > .1:
             return False
         if peak.fdr_v > .1:
+            return False
+
+        return True
+
+
+class RaoMergedPeakFilter(PeakFilter):
+    """
+    Filter merged peaks exactly the same way that Rao et al. (2014) do.
+
+    It removes peaks that are singlets and have a q-value sum >.02.
+    """
+    def __init__(self, cutoff=.02, mask=None):
+        PeakFilter.__init__(self, mask=mask)
+        self.cutoff = cutoff
+
+    def valid_peak(self, peak):
+        if peak.q_value_sum > self.cutoff:
             return False
 
         return True
