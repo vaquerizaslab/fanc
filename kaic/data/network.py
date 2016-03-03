@@ -1447,10 +1447,20 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
                 e_ll, e_h, e_v, e_d = None, None, None, None
             else:
                 e_ll, e_h, e_v, e_d = e_all(m, i, j, w=w_corr)
-        e_ll_c = None if e_ll is None else e_ll/cf
-        e_h_c = None if e_h is None else e_h/cf
-        e_v_c = None if e_v is None else e_v/cf
-        e_d_c = None if e_d is None else e_d/cf
+
+        if e_ll is None or e_ll == 0:
+            continue
+        if e_d is None or e_d == 0:
+            continue
+        if e_h is None or e_h == 0:
+            continue
+        if e_v is None or e_v == 0:
+            continue
+
+        e_ll_c = e_ll/cf
+        e_h_c = e_h/cf
+        e_v_c = e_v/cf
+        e_d_c = e_d/cf
 
         if observed_chunk_distribution is not None:
             e_ll_chunk = RaoPeakCaller._find_chunk(chunks, e_ll_c)
@@ -1462,12 +1472,16 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
             try:
                 if e_ll_chunk is not None:
                     observed_chunk_distribution['ll'][e_ll_chunk][observed_c] += 1
+
                 if e_h_chunk is not None:
                     observed_chunk_distribution['h'][e_h_chunk][observed_c] += 1
+
                 if e_v_chunk is not None:
                     observed_chunk_distribution['v'][e_v_chunk][observed_c] += 1
+
                 if e_d_chunk is not None:
                     observed_chunk_distribution['d'][e_d_chunk][observed_c] += 1
+
             except IndexError:
                 logging.error("Chunk distribution index error")
                 logging.error("observed_c: %d" % observed_c)
@@ -1475,6 +1489,7 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
                 logging.error("e_h_chunk: %s" % str(e_h_chunk))
                 logging.error("e_v_chunk: %s" % str(e_v_chunk))
                 logging.error("e_d_chunk: %s" % str(e_d_chunk))
+                #continue
 
         else:
             # calculate fdrs instead
@@ -1487,6 +1502,7 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
         # check that we have enough observed reads
         if not observed_c > observed_cutoff:
             continue
+
         # check that we have a high-enough o/e ratio for ll
         if e_ll_cutoff is not None and e_ll_c > 0 and observed_c/e_ll_c < e_ll_cutoff:
             continue

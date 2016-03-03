@@ -235,8 +235,12 @@ class TestRaoPeakCaller:
          e_v_list, e_d_list,
          observed_counts) = msgpack.loads(rv)
 
-        ix = 0
-        for pair in ij_pairs:
+        print ij_pairs
+        print region_list
+        print observed_list
+
+        for ix, pair in enumerate(region_list):
+            print ix
             i = pair[0]
             j = pair[1]
             observed = self.m[i, j]
@@ -256,7 +260,6 @@ class TestRaoPeakCaller:
                 assert e_h_list[ix][0] == RaoPeakCaller.e_h(self.m, i, j, e, w=2, p=0)/(c[i]*c[j]) == e_h/(c[i]*c[j])
                 assert e_v_list[ix][0] == RaoPeakCaller.e_v(self.m, i, j, e, w=2, p=0)/(c[i]*c[j]) == e_v/(c[i]*c[j])
                 assert e_d_list[ix][0] == RaoPeakCaller.e_d(self.m, i, j, e, w=2, p=0)/(c[i]*c[j]) == e_d/(c[i]*c[j])
-            ix += 1
 
         # lower part of matrix
         ij_region_pairs = [
@@ -283,8 +286,7 @@ class TestRaoPeakCaller:
          e_v_list, e_d_list,
          observed_counts) = msgpack.loads(rv)
 
-        ix = 0
-        for pair in ij_region_pairs:
+        for ix, pair in enumerate(region_list):
             i = pair[0]
             j = pair[1]
             observed = self.m[i, j]
