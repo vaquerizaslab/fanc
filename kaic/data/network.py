@@ -655,7 +655,7 @@ class RaoPeakCaller(PeakCaller):
 
         :param p: (int) "padding" of pixels around invesitgated peak
         :param w_init: initial width of the area around a pixel to investigate
-        :param min_locus_dist: Minimal distance between two loci to consider peak
+        :param min_locus_dist: Minimal distance in bins between two loci to consider peak
         :param max_w: Maximal width after extending investigated area around peak
         :param min_ll_reads: Threshold for the number of reads in the lower-left
                              neighborhood of a pixel to consider it as a peak
