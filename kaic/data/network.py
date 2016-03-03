@@ -350,7 +350,8 @@ class RaoPeakInfo(RegionMatrixTable):
 
                 last_peak_number = 0
                 current_peaks = []
-                with progressbar.ProgressBar(max_value=len(remaining_peaks_set)) as pb:
+                l = len(remaining_peaks_set)
+                with progressbar.ProgressBar(max_value=l) as pb:
                     while len(remaining_peaks_set) > 0:
                         x, y, radius = RaoPeakInfo._centroid_and_radius(current_peaks)
 
@@ -386,7 +387,7 @@ class RaoPeakInfo(RegionMatrixTable):
                                 current_peaks.append(closest_peak)
                                 remaining_peaks_set.remove(closest_peak)
 
-                        pb.update(len(remaining_peaks_set))
+                        pb.update(l-len(remaining_peaks_set))
 
                 if len(current_peaks) > 0:
                     _append_merged_peak(current_peaks)
