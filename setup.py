@@ -17,6 +17,7 @@ setup(
         'msgpack-python',
         'gridmap',
         'sklearn',
+        'progressbar2',
         'tables>3.2.2'
     ],
     dependency_links=[
