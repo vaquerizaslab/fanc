@@ -2172,33 +2172,6 @@ class Kaic(object):
         if args.rao:
             logging.info("Running Rao filter")
             merged_peaks.filter_rao()
-        else:
-            if args.fdr_cutoff is not None:
-                logging.info("Global FDR filter at %.f" % args.fdr_cutoff)
-                peaks.filter_fdr(args.fdr_cutoff, queue=True)
-            else:
-                logging.info("Local FDR filter")
-                fdr_mask = peaks.add_mask_description('fdr', 'FDR cutoff filter')
-                fdr_filter = kn.FdrPeakFilter(fdr_ll_cutoff=args.fdr_lower_left_cutoff,
-                                              fdr_d_cutoff=args.fdr_donut_cutoff,
-                                              fdr_h_cutoff=args.fdr_horizontal_cutoff,
-                                              fdr_v_cutoff=args.fdr_vertical_cutoff,
-                                              mask=fdr_mask)
-                peaks.filter(fdr_filter, queue=True)
-
-            if args.enrichment is not None:
-                logging.info("Global enrichment filter at %.f" % args.enrichment)
-                peaks.filter_observed_expected_ratio(ll_ratio=args.enrichment, d_ratio=args.enrichment,
-                                                     v_ratio=args.enrichment, h_ratio=args.enrichment,
-                                                     queue=True)
-            else:
-                logging.info("Local enrichment filter")
-                peaks.filter_observed_expected_ratio(ll_ratio=args.enrichment_lower_left,
-                                                     d_ratio=args.enrichment_donut,
-                                                     v_ratio=args.enrichment_vertical,
-                                                     h_ratio=args.enrichment_horizontal,
-                                                     queue=True)
-                peaks.run_queued_filters()
 
         if args.tmp:
             output_path = os.path.expanduser(args.output)
