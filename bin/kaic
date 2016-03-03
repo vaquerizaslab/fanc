@@ -18,43 +18,45 @@ class Kaic(object):
                 kaic <command> [options]
 
                 Commands:
-                    auto               Automatically process an entire Hi-C data set
-                    dirs               Create default folder structure for kaic
+                    auto                Automatically process an entire Hi-C data set
+                    dirs                Create default folder structure for kaic
 
                     --- Mapping
-                    iterative_mapping  Iteratively map a FASTQ file to a Bowtie 2 index
+                    iterative_mapping   Iteratively map a FASTQ file to a Bowtie 2 index
 
                     --- Reads
-                    load_reads         Load a SAM/BAM file into a Reads object
-                    filter_reads       Filter a Reads object
+                    load_reads          Load a SAM/BAM file into a Reads object
+                    filter_reads        Filter a Reads object
 
                     -- Genome
-                    build_genome       Convenience command to build a Genome object
+                    build_genome        Convenience command to build a Genome object
 
                     --- Pairs
-                    reads_to_pairs     Convert a Reads object into a Pairs object
-                    filter_pairs       Filter a Pairs object
+                    reads_to_pairs      Convert a Reads object into a Pairs object
+                    filter_pairs        Filter a Pairs object
 
                     --- Hic
-                    pairs_to_hic       Convert a pairs object into a Hic object
-                    filter_hic         Filter a Hic object
-                    merge_hic          Merge multiple Hic objects
-                    bin_hic            Bin a Hic object into same-size regions
-                    correct_hic        Correct a Hic object for biases
-                    hic_pca            Do a PCA on multiple Hi-C objects
+                    pairs_to_hic        Convert a pairs object into a Hic object
+                    filter_hic          Filter a Hic object
+                    merge_hic           Merge multiple Hic objects
+                    bin_hic             Bin a Hic object into same-size regions
+                    correct_hic         Correct a Hic object for biases
+                    hic_pca             Do a PCA on multiple Hi-C objects
 
                     --- Network
-                    call_peaks         Call enriched peaks in a Hic object
-                    filter_peaks       Filter peaks called with 'call_peaks'
+                    call_peaks          Call enriched peaks in a Hic object
+                    filter_peaks        Filter peaks called with 'call_peaks'
+                    merge_peaks         Merge peaks
+                    filter_merged_peaks Filter merged peaks
 
                     --- Plotting
-                    plot_ligation_err  Plot the ligation error of a Pairs object
-                    plot_re_dist       Plot the distance of reads to the nearest RE site
-                    plot_hic_corr      Plot the correlation of two Hic objects
-                    plot_hic_matrix    Plot a Hic matrix
-                    plot_hic_marginals Plot marginals in a Hic object
-                    plot_diff          Plot the difference between two Hic matrices
-                    plot_ratio         Plot the ratio between two Hic matrices
+                    plot_ligation_err   Plot the ligation error of a Pairs object
+                    plot_re_dist        Plot the distance of reads to the nearest RE site
+                    plot_hic_corr       Plot the correlation of two Hic objects
+                    plot_hic_matrix     Plot a Hic matrix
+                    plot_hic_marginals  Plot marginals in a Hic object
+                    plot_diff           Plot the difference between two Hic matrices
+                    plot_ratio          Plot the ratio between two Hic matrices
 
                     --- Other
                     hiclib_to_kaic     Convert a hiclib object to a Hic object
