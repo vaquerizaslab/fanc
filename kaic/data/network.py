@@ -544,13 +544,17 @@ class ObservedExpectedRatioPeakFilter(PeakFilter):
         self.d_ratio = d_ratio
 
     def valid_peak(self, peak):
-        if self.ll_ratio is not None and peak.e_ll > 0 and peak.observed/peak.e_ll < self.ll_ratio:
+        # covering my ass for legacy bug
+        if peak.e_d == 0 or peak.e_ll == 0 or peak.e_h == 0 or peak.e_v == 0:
             return False
-        if self.h_ratio is not None and peak.e_h > 0 and peak.observed/peak.e_h < self.h_ratio:
+
+        if self.ll_ratio is not None and peak.observed/peak.e_ll < self.ll_ratio:
             return False
-        if self.v_ratio is not None and peak.e_v > 0 and peak.observed/peak.e_v < self.v_ratio:
+        if self.h_ratio is not None and peak.observed/peak.e_h < self.h_ratio:
             return False
-        if self.d_ratio is not None and peak.e_d > 0 and peak.observed/peak.e_d < self.d_ratio:
+        if self.v_ratio is not None and peak.observed/peak.e_v < self.v_ratio:
+            return False
+        if self.d_ratio is not None and peak.observed/peak.e_d < self.d_ratio:
             return False
         return True
 
@@ -570,6 +574,10 @@ class RaoPeakFilter(PeakFilter):
         PeakFilter.__init__(self, mask=mask)
 
     def valid_peak(self, peak):
+        # covering my ass for legacy bug
+        if peak.e_d == 0 or peak.e_ll == 0 or peak.e_h == 0 or peak.e_v == 0:
+            return False
+
         # 1.
         if peak.observed/peak.e_d <= peak.observed/peak.e_ll < 2.0:
             return False
