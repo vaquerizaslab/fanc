@@ -13,6 +13,7 @@ import msgpack
 import time
 import multiprocessing
 import math
+import progressbar
 
 try:
     import gridmap
@@ -339,6 +340,7 @@ class RaoPeakInfo(RegionMatrixTable):
             for j in xrange(i, len(chromosome_names)):
                 chromosome_name2 = chromosome_names[j]
 
+                logging.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
                 remaining_peaks_set = set()
                 for peak in self.peaks():
                     region1 = regions_dict[peak.source]
@@ -348,40 +350,44 @@ class RaoPeakInfo(RegionMatrixTable):
 
                 last_peak_number = 0
                 current_peaks = []
-                while len(remaining_peaks_set) > 0:
-                    x, y, radius = RaoPeakInfo._centroid_and_radius(current_peaks)
+                with progressbar.ProgressBar(max_value=len(remaining_peaks_set)) as pb:
+                    while len(remaining_peaks_set) > 0:
+                        x, y, radius = RaoPeakInfo._centroid_and_radius(current_peaks)
 
-                    if len(current_peaks) == last_peak_number:
-                        if len(current_peaks) > 0:
-                            _append_merged_peak(current_peaks)
-                            current_peaks = []
-                            last_peak_number = 0
+                        if len(current_peaks) == last_peak_number:
+                            if len(current_peaks) > 0:
+                                _append_merged_peak(current_peaks)
+                                current_peaks = []
+                                last_peak_number = 0
 
-                        # find highest peak
-                        highest_peak = None
-                        for peak in remaining_peaks_set:
-                            if highest_peak is None:
-                                highest_peak = peak
-                            else:
-                                if highest_peak.observed < peak.observed:
+                            # find highest peak
+                            highest_peak = None
+                            for peak in remaining_peaks_set:
+                                if highest_peak is None:
                                     highest_peak = peak
+                                else:
+                                    if highest_peak.observed < peak.observed:
+                                        highest_peak = peak
 
-                        current_peaks.append(highest_peak)
-                        remaining_peaks_set.remove(highest_peak)
-                    else:
-                        last_peak_number = len(current_peaks)
+                            current_peaks.append(highest_peak)
+                            remaining_peaks_set.remove(highest_peak)
+                        else:
+                            last_peak_number = len(current_peaks)
 
-                        closest_peak = None
-                        closest_distance = None
-                        for peak in remaining_peaks_set:
-                            distance = RaoPeakInfo._euclidian_distance(x, y, peak.source, peak.sink)
-                            if closest_peak is None or distance < closest_distance:
-                                closest_peak = peak
-                                closest_distance = distance
+                            closest_peak = None
+                            closest_distance = None
+                            for peak in remaining_peaks_set:
+                                distance = RaoPeakInfo._euclidian_distance(x, y, peak.source, peak.sink)
+                                if closest_peak is None or distance < closest_distance:
+                                    closest_peak = peak
+                                    closest_distance = distance
 
-                        if closest_distance*bin_size <= euclidian_distance+(radius*bin_size):
-                            current_peaks.append(closest_peak)
-                            remaining_peaks_set.remove(closest_peak)
+                            if closest_distance*bin_size <= euclidian_distance+(radius*bin_size):
+                                current_peaks.append(closest_peak)
+                                remaining_peaks_set.remove(closest_peak)
+
+                        pb.update(len(remaining_peaks_set))
+
                 if len(current_peaks) > 0:
                     _append_merged_peak(current_peaks)
             merged_peaks.flush()
