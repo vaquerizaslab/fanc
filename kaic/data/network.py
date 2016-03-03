@@ -237,6 +237,18 @@ class RaoPeakInfo(RegionMatrixTable):
                                                     mask=mask)
         self.filter(oe_filter, queue)
 
+    def filter_rao(self, queue=False):
+        """
+        Convenience function that applies all filters Rao et al. (2014) do.
+
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('rao', 'Mask peaks that do not pass the RaoPeakFilter')
+        rao_filter = RaoPeakFilter(mask=mask)
+        self.filter(rao_filter, queue)
+
     @staticmethod
     def _euclidian_distance(x1, y1, x2, y2):
         """
@@ -508,6 +520,46 @@ class ObservedExpectedRatioPeakFilter(PeakFilter):
             return False
         if self.d_ratio is not None and peak.e_d > 0 and peak.observed/peak.e_d < self.d_ratio:
             return False
+        return True
+
+
+class RaoPeakFilter(PeakFilter):
+    """
+    Filter peaks exactly the same way that Rao et al. (2014) do.
+
+    It only retains peaks that
+
+    1. are at least 2-fold enriched over either the donut or lower-left neighborhood
+    2. are at least 1.5-fold enriched over the horizontal and vertical neighborhoods
+    3. are at least 1.75-fold enriched over both the donut and lower-left neighborhood
+    4. have an FDR <= 0.1 in every neighborhood
+    """
+    def __init__(self, mask=None):
+        PeakFilter.__init__(self, mask=mask)
+
+    def valid_peak(self, peak):
+        # 1.
+        if peak.observed/peak.e_d <= peak.observed/peak.e_ll < 2.0:
+            return False
+
+        # 2.
+        if peak.observed/peak.e_h < 1.5 and peak.observed/peak.e_v < 1.5:
+            return False
+
+        # 3.
+        if peak.observed/peak.e_d < 1.75 or peak.observed/peak.e_ll < 1.75:
+            return False
+
+        # 4.
+        if peak.fdr_d > .1:
+            return False
+        if peak.fdr_ll > .1:
+            return False
+        if peak.fdr_h > .1:
+            return False
+        if peak.fdr_v > .1:
+            return False
+
         return True
 
 
