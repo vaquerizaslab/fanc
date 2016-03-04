@@ -1605,20 +1605,25 @@ class Maskable(FileBased):
         return list(reversed(masks))
 
     def mask_statistics(self, table, include_unmasked=True):
-        masks = {mask.name: 0 for mask in self.masks()}
+        masks = defaultdict(int)
         if include_unmasked:
             masks['unmasked'] = 0
+
+        stats = defaultdict(int)
+
         for row in table._iter_visible_and_masked():
-            mask_bit = row[table._mask_field]
+            stats[row[table._mask_field]] += 1
+
+        for mask_bit, count in stats.iteritems():
             row_masks = self.get_masks(mask_bit)
 
             found_masks = False
             for mask in row_masks:
                 found_masks = True
-                masks[mask.name] += 1
+                masks[mask.name] += count
 
-            if not found_masks:
-                masks['unmasked'] += 1
+            if not found_masks and include_unmasked:
+                masks['unmasked'] += count
         return masks
 
 
