@@ -55,6 +55,7 @@ and filtering could look like this:
 from __future__ import division
 import tables as t
 import pysam
+import progressbar
 from kaic.tools.files import is_sambam_file
 from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, MaskedTableView, FileBased
 import os
@@ -1914,14 +1915,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         type_inward = 1
         type_outward = 2
 
-        def _log_done(i):
-            last_percent = -1
-            if i % int(l/20) == 0:
-                percent = int(i/int(l/20))
-                if percent != last_percent:
-                    logging.info("Ligation error structure: {}%".format(percent*5))
-                    last_percent = percent
-
         def _init_gaps_and_types():
             same_count = 0
             inward_count = 0
@@ -1930,27 +1923,30 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             inter_chrm_count = 0
             gaps = []
             types = []
-            for i, pair in enumerate(self):
-                _log_done(i)
-                if pair.is_same_fragment():
-                    same_fragment_count += 1
-                    if skip_self_ligations:
-                        continue
-                if pair.is_same_chromosome():
-                    gap_size = pair.get_gap_size()
-                    if gap_size > 0:
-                        gaps.append(gap_size)
-                        if pair.is_outward_pair():
-                            types.append(type_outward)
-                            outward_count += 1
-                        elif pair.is_inward_pair():
-                            types.append(type_inward)
-                            inward_count += 1
-                        else:
-                            types.append(0)
-                            same_count += 1
-                else:
-                    inter_chrm_count += 1
+
+            with progressbar.ProgressBar(max_value=len(self)) as pb:
+                for i, pair in enumerate(self):
+                    if pair.is_same_fragment():
+                        same_fragment_count += 1
+                        if skip_self_ligations:
+                            continue
+                    if pair.is_same_chromosome():
+                        gap_size = pair.get_gap_size()
+                        if gap_size > 0:
+                            gaps.append(gap_size)
+                            if pair.is_outward_pair():
+                                types.append(type_outward)
+                                outward_count += 1
+                            elif pair.is_inward_pair():
+                                types.append(type_inward)
+                                inward_count += 1
+                            else:
+                                types.append(0)
+                                same_count += 1
+                    else:
+                        inter_chrm_count += 1
+                    pb.update(i)
+
             logging.info("Pairs: %d" % l)
             logging.info("Inter-chromosomal: {}".format(inter_chrm_count))
             logging.info("Same fragment: {}".format(same_fragment_count))
