@@ -1366,76 +1366,82 @@ class Bowtie2PairLoader(PairLoader):
         pair_count = 0
         single_count = 0
 
-        while r1 is not None and r2 is not None:
-            i += 1
-            if r1.qname_ix == last_r1_name_ix:
-                if not self.ignore_duplicates:
-                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
-                r1 = self.get_next_read(iter1)
-                r1_count += 1
-            elif r2.qname_ix == last_r2_name_ix:
-                if not self.ignore_duplicates:
-                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
-                r2 = self.get_next_read(iter2)
-                r2_count += 1
-            elif abs(r1.qname_ix-r2.qname_ix) < 0.5:
-                add_read_pair(r1, r2)
-                last_r1_name_ix = r1.qname_ix
-                last_r2_name_ix = r2.qname_ix
-                r1 = self.get_next_read(iter1)
-                r2 = self.get_next_read(iter2)
-                r1_count += 1
-                r2_count += 1
-                pair_count += 1
-            elif r1.qname_ix-r2.qname_ix < 0:
-                add_read_single(r1)
+        total = len(reads1) + len(reads2)
+
+        with progressbar.ProgressBar(max_value=total) as pb:
+            while r1 is not None and r2 is not None:
+                i += 1
+                if r1.qname_ix == last_r1_name_ix:
+                    if not self.ignore_duplicates:
+                        raise ValueError("Duplicate left read QNAME %s" % r1.qname)
+                    r1 = self.get_next_read(iter1)
+                    r1_count += 1
+                elif r2.qname_ix == last_r2_name_ix:
+                    if not self.ignore_duplicates:
+                        raise ValueError("Duplicate right read QNAME %s" % r2.qname)
+                    r2 = self.get_next_read(iter2)
+                    r2_count += 1
+                elif abs(r1.qname_ix-r2.qname_ix) < 0.5:
+                    add_read_pair(r1, r2)
+                    last_r1_name_ix = r1.qname_ix
+                    last_r2_name_ix = r2.qname_ix
+                    r1 = self.get_next_read(iter1)
+                    r2 = self.get_next_read(iter2)
+                    r1_count += 1
+                    r2_count += 1
+                    pair_count += 1
+                elif r1.qname_ix-r2.qname_ix < 0:
+                    add_read_single(r1)
+                    last_r1_name_ix = r1.qname_ix
+                    r1 = self.get_next_read(iter1)
+                    r1_count += 1
+                    single_count += 1
+                else:
+                    add_read_single(r2)
+                    last_r2_name_ix = r2.qname_ix
+                    r2 = self.get_next_read(iter2)
+                    r2_count += 1
+                    single_count += 1
+
+                pb.update(r1_count + r2_count)
+
+                if i % 1000000 == 0:
+                    self._pairs.flush(update_index=False)
+
+            # add remaining unpaired reads
+            while r1 is not None:
+                i += 1
+                if r1.qname_ix == last_r1_name_ix:
+                    if not self.ignore_duplicates:
+                        raise ValueError("Duplicate left read QNAME %s" % r1.qname)
+                else:
+                    add_read_single(r1)
                 last_r1_name_ix = r1.qname_ix
                 r1 = self.get_next_read(iter1)
                 r1_count += 1
                 single_count += 1
-            else:
-                add_read_single(r2)
+
+                pb.update(r1_count + r2_count)
+
+                if i % 1000000 == 0:
+                    self._pairs.flush(update_index=False)
+
+            while r2 is not None:
+                i += 1
+                if r2.qname_ix == last_r2_name_ix:
+                    if not self.ignore_duplicates:
+                        raise ValueError("Duplicate right read QNAME %s" % r2.qname)
+                else:
+                    add_read_single(r2)
                 last_r2_name_ix = r2.qname_ix
                 r2 = self.get_next_read(iter2)
                 r2_count += 1
                 single_count += 1
 
-            if i % 100000 == 0:
-                logging.info("%d reads processed" % i)
+                pb.update(r1_count + r2_count)
 
-            if i % 1000000 == 0:
-                self._pairs.flush(update_index=False)
-
-        # add remaining unpaired reads
-        while r1 is not None:
-            i += 1
-            if r1.qname_ix == last_r1_name_ix:
-                if not self.ignore_duplicates:
-                    raise ValueError("Duplicate left read QNAME %s" % r1.qname)
-            else:
-                add_read_single(r1)
-            last_r1_name_ix = r1.qname_ix
-            r1 = self.get_next_read(iter1)
-            r1_count += 1
-            single_count += 1
-
-            if i % 1000000 == 0:
-                self._pairs.flush(update_index=False)
-
-        while r2 is not None:
-            i += 1
-            if r2.qname_ix == last_r2_name_ix:
-                if not self.ignore_duplicates:
-                    raise ValueError("Duplicate right read QNAME %s" % r2.qname)
-            else:
-                add_read_single(r2)
-            last_r2_name_ix = r2.qname_ix
-            r2 = self.get_next_read(iter2)
-            r2_count += 1
-            single_count += 1
-
-            if i % 1000000 == 0:
-                self._pairs.flush(update_index=False)
+                if i % 1000000 == 0:
+                    self._pairs.flush(update_index=False)
 
         logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
         logging.info("Pairs: %d. Single: %d" % (pair_count, single_count))
@@ -1529,47 +1535,53 @@ class BwaMemPairLoader(PairLoader):
         r1_count = 0
         r2_count = 0
 
-        while r1[0] is not None and r2[0] is not None:
-            i += 1
-            if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.5:
-                self.process_bwa_alns(r1, r2)
-                r1 = self.get_all_read_alns(iter1)
-                r2 = self.get_all_read_alns(iter2)
-                r1_count += 1
-                r2_count += 1
-            elif r1[0].qname_ix-r2[0].qname_ix < 0:
+        total = len(reads1) + len(reads2)
+
+        with progressbar.ProgressBar(max_value=total) as pb:
+            while r1[0] is not None and r2[0] is not None:
+                i += 1
+                if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.5:
+                    self.process_bwa_alns(r1, r2)
+                    r1 = self.get_all_read_alns(iter1)
+                    r2 = self.get_all_read_alns(iter2)
+                    r1_count += 1
+                    r2_count += 1
+                elif r1[0].qname_ix-r2[0].qname_ix < 0:
+                    self.process_bwa_alns(r1)
+                    r1 = self.get_all_read_alns(iter1)
+                    r1_count += 1
+                else:
+                    self.process_bwa_alns(r2)
+                    r2 = self.get_all_read_alns(iter2)
+                    r2_count += 1
+
+                pb.update(r1_count + r2_count)
+
+                if i % 1000000 == 0:
+                    self._pairs.flush(update_index=False)
+
+            # add remaining unpaired reads
+            while r1[0] is not None:
+                i += 1
                 self.process_bwa_alns(r1)
                 r1 = self.get_all_read_alns(iter1)
                 r1_count += 1
-            else:
+
+                pb.update(r1_count + r2_count)
+
+                if i % 1000000 == 0:
+                    self._pairs.flush(update_index=False)
+
+            while r2[0] is not None:
+                i += 1
                 self.process_bwa_alns(r2)
                 r2 = self.get_all_read_alns(iter2)
                 r2_count += 1
 
-            if i % 100000 == 0:
-                logging.info("%d reads processed" % i)
+                pb.update(r1_count + r2_count)
 
-            if i % 1000000 == 0:
-                self._pairs.flush(update_index=False)
-
-        # add remaining unpaired reads
-        while r1[0] is not None:
-            i += 1
-            self.process_bwa_alns(r1)
-            r1 = self.get_all_read_alns(iter1)
-            r1_count += 1
-
-            if i % 1000000 == 0:
-                self._pairs.flush(update_index=False)
-
-        while r2[0] is not None:
-            i += 1
-            self.process_bwa_alns(r2)
-            r2 = self.get_all_read_alns(iter2)
-            r2_count += 1
-
-            if i % 1000000 == 0:
-                self._pairs.flush(update_index=False)
+                if i % 1000000 == 0:
+                    self._pairs.flush(update_index=False)
 
         logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
