@@ -1788,6 +1788,8 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 self.iter = iter(_iter)
             self.row_conversion_args = list()
             self.row_conversion_kwargs = dict()
+            self.only_intrachromosomal = False
+            self.regions_dict = None
 
         def __getitem__(self, item):
             res = self.this._edges[item]
@@ -1802,15 +1804,24 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 return edge
 
         def __iter__(self):
+            if self.only_intrachromosomal:
+                self.regions_dict = self.this.regions_dict
             return self
 
         def __call__(self, *args, **kwargs):
+            if 'only_intrachromosomal' in kwargs:
+                self.only_intrachromosomal = kwargs['only_intrachromosomal']
+                del kwargs['only_intrachromosomal']
             self.row_conversion_args = args
             self.row_conversion_kwargs = kwargs
             return iter(self)
 
         def next(self):
-            return self.this._row_to_edge(self.iter.next(), *self.row_conversion_args, **self.row_conversion_kwargs)
+            row = self.iter.next()
+            if self.only_intrachromosomal:
+                while self.regions_dict[row['source']].chromosome != self.regions_dict[row['sink']].chromosome:
+                    row = self.iter.next()
+            return self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
 
         def __len__(self):
             return len(self.this._edges)

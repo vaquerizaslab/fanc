@@ -552,6 +552,10 @@ class TestHicBasic:
     def test_edges(self):
         edges = self.hic.edges()
         assert len(edges) == 78
+
+    def test_intra_edges(self):
+        edges = self.hic.edges(only_intrachromosomal=True)
+        assert sum(1 for _ in edges) == 31
     
     def test_get_node_x_by_region(self):
         region1 = GenomicRegion.from_string('chr1')
