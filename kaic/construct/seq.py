@@ -413,7 +413,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                        to be loaded or a pysam AlignmentFile.
         :param sample_size: Number of lines to sample to determine field
                             sizes.
-        :return: qname length, sequence length
+        :return: qname length, sequence length, cigar length, tags length
         """
         if type(sambam) == str:
             sambam = pysam.AlignmentFile(sambam, 'rb')
@@ -427,7 +427,7 @@ class Reads(Maskable, MetaContainer, FileBased):
             i += 1
             if store_qname:
                 qname_length = max(qname_length, len(r.qname))
-            if store_seq:
+            if store_seq or store_qual:
                 seq_length = max(seq_length, len(r.seq))
             if store_cigar:
                 cigar = r.cigar
