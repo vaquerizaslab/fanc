@@ -1977,13 +1977,21 @@ class MaskedTable(t.Table):
         
         MaskFilters can be queued using the
         queue_filter function.
+
+        :param _logging: If True, prints log to stderr
         """
-                
         ix = 0
         mask_ix = -1
-        last_percent = 0.00
+        total = 0
+
+        # progress bar
         l = self._original_len()
+        pb = progressbar.ProgressBar(max_value=l)
+        if _logging:
+            pb.start()
+
         for i, row in enumerate(self._iter_visible_and_masked()):
+            total += 1
             for f in self._queued_filters:
                 if not f.valid(row):
                     row[self._mask_field] += 2**f.mask_ix
@@ -1997,9 +2005,13 @@ class MaskedTable(t.Table):
                 ix += 1
             row.update()
             
-            if _logging and (i/l) > last_percent:
-                logging.info("%d%%..." % int(last_percent * 100))
-                last_percent += 0.05
+            if _logging:
+                pb.update(i)
+
+        if _logging:
+            pb.finish()
+            logging.info("Total: %d. Filtered: %d" % (total, mask_ix-1))
+
         self.flush(update_index=False)
 
     def where(self, condition, condvars=None,
