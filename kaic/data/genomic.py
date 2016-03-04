@@ -2902,7 +2902,10 @@ class Hic(RegionMatrixTable):
                     logging.info("Flushing buffer")
                     self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                     edge_buffer = {}
-                pb.update(i)
+                try:
+                    pb.update(i)
+                except ValueError:
+                    pass
         logging.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
 
