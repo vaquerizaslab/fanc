@@ -77,8 +77,7 @@ from xml.etree import ElementTree as et
 import pickle
 from collections import defaultdict
 import copy
-from kaic.architecture.architecture import calculateondemand, ArchitecturalFeature, _get_pytables_data_type,\
-    TableArchitecturalFeature
+import progressbar
 logging.basicConfig(level=logging.INFO)
 
 
@@ -1439,8 +1438,24 @@ class RegionsTable(GenomicRegions, FileGroup):
                         describe a genomic region. See
                         :class:`~RegionsTable.add_region` for options.
         """
-        for region in regions:
+        try:
+            l = len(regions)
+            _log = True
+        except TypeError:
+            l = None
+            _log = False
+
+        pb = progressbar.ProgressBar(max_value=l)
+        if _log:
+            pb.start()
+
+        for i, region in enumerate(regions):
             self.add_region(region, flush=False)
+            if _log:
+                pb.update(i)
+        if _log:
+            pb.finish()
+
         self._regions.flush()
         self._update_references()
 
@@ -2850,7 +2865,7 @@ class Hic(RegionMatrixTable):
                 except AttributeError:
                     raise ValueError("Input data type not recognized")
 
-    def load_read_fragment_pairs(self, pairs, excluded_filters=[], _max_buffer_size=5000000):
+    def load_read_fragment_pairs(self, pairs, excluded_filters=(), _max_buffer_size=5000000):
         """
         Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
 
@@ -2866,23 +2881,28 @@ class Hic(RegionMatrixTable):
         # add regions
         if len(self._regions) != 0:
             raise RuntimeError("When importing from read pairs you MUST start from an empty data set!")
+
         self.add_regions(pairs.regions())
 
-        edge_buffer = {}
-        for pair in pairs.pairs(lazy=True, excluded_filters=excluded_filters):
-            source = pair.left.fragment.ix
-            sink = pair.right.fragment.ix
-            if source > sink:
-                source, sink = sink, source
-            key = (source, sink)
-            if key not in edge_buffer:
-                edge_buffer[key] = 0
-            edge_buffer[key] += 1
+        l = len(pairs)
 
-            if len(edge_buffer) > _max_buffer_size:
-                logging.info("Flushing buffer")
-                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                edge_buffer = {}
+        with progressbar.ProgressBar(max_value=l) as pb:
+            edge_buffer = {}
+            for i, pair in enumerate(pairs.pairs(lazy=True, excluded_filters=excluded_filters)):
+                source = pair.left.fragment.ix
+                sink = pair.right.fragment.ix
+                if source > sink:
+                    source, sink = sink, source
+                key = (source, sink)
+                if key not in edge_buffer:
+                    edge_buffer[key] = 0
+                edge_buffer[key] += 1
+
+                if len(edge_buffer) > _max_buffer_size:
+                    logging.info("Flushing buffer")
+                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+                    edge_buffer = {}
+                pb.update(i)
         logging.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
 
@@ -3050,36 +3070,39 @@ class Hic(RegionMatrixTable):
             ix_conversion = {}
             # merge genomic regions
             self.log_info("Merging genomic regions...")
-            for region in hic.regions():
-                ix = self._get_region_ix(region)
-                if ix is None:
-                    ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
-                ix_conversion[region.ix] = ix
-            self._regions.flush()
+
+            l = len(hic.regions)
+
+            with progressbar.ProgressBar(max_value=l) as pb:
+                for i, region in enumerate(hic.regions):
+                    ix = self._get_region_ix(region)
+                    if ix is None:
+                        ix = self.add_region([region.chromosome, region.start, region.end], flush=False)
+                    ix_conversion[region.ix] = ix
+                    pb.update(i)
+                self._regions.flush()
 
         # merge edges
         self.log_info("Merging contacts...")
         edge_buffer = {}
         l = len(hic._edges)
-        last_percent = 0.0
-        for i, merge_row in enumerate(hic._edges):
-            merge_source = ix_conversion[merge_row["source"]]
-            merge_sink = ix_conversion[merge_row["sink"]]
-            merge_weight = merge_row["weight"]
+        with progressbar.ProgressBar(max_value=l) as pb:
+            for i, merge_row in enumerate(hic._edges):
+                merge_source = ix_conversion[merge_row["source"]]
+                merge_sink = ix_conversion[merge_row["sink"]]
+                merge_weight = merge_row["weight"]
 
-            if merge_source > merge_sink:
-                merge_source, merge_sink = merge_sink, merge_source
+                if merge_source > merge_sink:
+                    merge_source, merge_sink = merge_sink, merge_source
 
-            edge_buffer[(merge_source, merge_sink)] = merge_weight
+                edge_buffer[(merge_source, merge_sink)] = merge_weight
 
-            if i/l > last_percent:
-                logging.info("%d%%" % int(round(last_percent*100)))
-                last_percent += 0.05
+                pb.update(i)
 
-            if len(edge_buffer) > _edge_buffer_size:
-                logging.info("Flushing buffer...")
-                self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                edge_buffer = {}
+                if len(edge_buffer) > _edge_buffer_size:
+                    logging.info("Flushing buffer...")
+                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+                    edge_buffer = {}
         logging.info("Final flush...")
         self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
 
