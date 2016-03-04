@@ -12,7 +12,7 @@ import kaic.fixes.pytables_nrowsinbuf_inheritance_fix
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
 import numpy as np
 import warnings
-import os.path
+import progressbar
 import os
 import time
 import logging
@@ -22,6 +22,7 @@ from datetime import datetime
 from kaic.tools.lru import lru_cache
 import shutil
 import binascii
+from collections import defaultdict
 logging.basicConfig(level=logging.INFO)
 _filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
 
@@ -1787,7 +1788,8 @@ class MaskedTable(t.Table):
                 if type(key) == int:
                     if key >= 0:
                         key = -1*key - 1
-                        res = [x.fetch_all_fields() for x in super(MaskedTable,this).where("%s == %d" % (this._mask_index_field,key))]
+                        res = [x.fetch_all_fields() for x in
+                               super(MaskedTable, this).where("%s == %d" % (this._mask_index_field, key))]
                         if len(res) == 1:
                             return res[0]
                         if len(res) == 0:
@@ -1818,7 +1820,7 @@ class MaskedTable(t.Table):
             if step is None:
                 step = 1
                   
-            for i in range(start,stop,step):
+            for i in range(start, stop, step):
                 res.append(self._get_visible_item(i))
             return res
         else:
@@ -1876,17 +1878,20 @@ class MaskedTable(t.Table):
         """
         
         logging.info("Updating mask indices")
-        
-        ix = 0
-        masked_ix = -1
-        for row in self._iter_visible_and_masked():
-            if row[self._mask_field] > 0:
-                row[self._mask_index_field] = masked_ix
-                masked_ix -= 1
-            else:
-                row[self._mask_index_field] = ix
-                ix += 1
-            row.update()
+
+        l = self._original_len()
+        with progressbar.ProgressBar(max_value=l) as pb:
+            ix = 0
+            masked_ix = -1
+            for i, row in enumerate(self._iter_visible_and_masked()):
+                if row[self._mask_field] > 0:
+                    row[self._mask_index_field] = masked_ix
+                    masked_ix -= 1
+                else:
+                    row[self._mask_index_field] = ix
+                    ix += 1
+                row.update()
+                pb.update(i)
     
     @lru_cache(maxsize=1000)
     def _get_masks(self, binary_mask):
@@ -1911,19 +1916,32 @@ class MaskedTable(t.Table):
         every row and masks them if the function returns False.
         After running the filter, the table index is updated
         to match only unmasked rows.
+
+        :param mask_filter: A :class:`~MaskFilter` object
+        :param _logging: Print progress to stderr
         """
 
         total = 0
         ix = 0
         mask_ix = -1
-        last_percent = 0.00
+
+        # progress bar
         l = self._original_len()
+        pb = progressbar.ProgressBar(max_value=l)
+        if _logging:
+            pb.start()
+
+        # statistics
+        stats = defaultdict(int)
+
         for i, row in enumerate(self._iter_visible_and_masked()):
             total += 1
-            
+
             if not mask_filter.valid(row):
                 row[self._mask_field] += 2**mask_filter.mask_ix
-            
+
+            stats[row[self._mask_field]] += 1
+
             # update index
             if row[self._mask_field] > 0:
                 row[self._mask_index_field] = mask_ix
@@ -1932,12 +1950,17 @@ class MaskedTable(t.Table):
                 row[self._mask_index_field] = ix
                 ix += 1
             row.update()
-            
-            if _logging and (i/l) > last_percent:
-                logging.info("%d%%..." % int(last_percent * 100))
-                last_percent += 0.05
+
+            if _logging:
+                pb.update(i)
+
+        if _logging:
+            pb.finish()
+            logging.info("Total: %d. Filtered: %d" % (total, mask_ix-1))
                     
         self.flush(update_index=False)
+
+        return stats
 
     def queue_filter(self, filter_definition):
         """
