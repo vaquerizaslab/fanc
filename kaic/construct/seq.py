@@ -319,6 +319,13 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         sambam = pysam.AlignmentFile(file_name, 'rb')
 
+        # count number of reads
+        logging.info("Counting number of reads...")
+        n_reads = sum(1 for _ in sambam)
+        sambam.close()
+        sambam = pysam.AlignmentFile(file_name, 'rb')
+        logging.info("Done.")
+
         logging.info("Estimating field sizes")
         qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, sample_size,
                                                                                           store_qname=True,
@@ -369,18 +376,18 @@ class Reads(Maskable, MetaContainer, FileBased):
         self._ref = sambam.references
 
         self.log_info("Loading mapped reads...")
-        last_name = ""
-        for i, read in enumerate(sambam):
-            if i % 10000 == 0:
-                self.log_info("%d" % i, save=False)
-            if i % 1000000 == 0:
-                self.flush(update_index=False, update_csi=False)
-            if ignore_duplicates and read.qname == last_name:
-                continue
-            self.add_read(read, flush=False, store_cigar=store_cigar,
-                          store_seq=store_seq, store_qual=store_qual,
-                          store_qname=store_qname, store_tags=store_tags)
-            last_name = read.qname
+        with progressbar.ProgressBar(max_value=n_reads) as pb:
+            last_name = ""
+            for i, read in enumerate(sambam):
+                if i % 1000000 == 0:
+                    self.flush(update_index=False, update_csi=False)
+                if ignore_duplicates and read.qname == last_name:
+                    continue
+                self.add_read(read, flush=False, store_cigar=store_cigar,
+                              store_seq=store_seq, store_qual=store_qual,
+                              store_qname=store_qname, store_tags=store_tags)
+                last_name = read.qname
+                pb.update(i)
         self.flush()
 
         self.log_info("Done.")
