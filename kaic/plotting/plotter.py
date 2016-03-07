@@ -990,7 +990,6 @@ class GenomicArrayPlot(BasePlotter1D):
 
 class GeneModelPlot(BasePlotter1D):
     def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol", label_format=None, label_cast=None):
-        import pybedtools as pbt
         BasePlotter1D.__init__(self, title=title)
         self.gtf = pbt.BedTool(gtf)
         if feature_types is None:
