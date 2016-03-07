@@ -522,7 +522,7 @@ class Bedpe(object):
         for label in desc:
             if label not in labels:
                 labels.append(label)
-        
+
         if query != '':
             contacts = [[x[y] for y in labels] for x in self.table.where(query)]
         else:
@@ -685,7 +685,7 @@ class Genome(Table):
 
     def close(self):
         self.file.close()
-            
+
     @classmethod
     def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
         """
@@ -910,6 +910,12 @@ class GenomicRegion(TableObject):
         """
         self.start = start
         self.end = end
+        if strand == "+":
+            strand = 1
+        elif strand == "-":
+            strand = -1
+        elif strand == "0":
+            strand = None
         self.strand = strand
         self.chromosome = chromosome
         self.ix = ix
@@ -974,8 +980,11 @@ class GenomicRegion(TableObject):
                 try:
                     end = int(start_end_bp[1])
                 except ValueError:
-                    raise ValueError("End of genomic range must be integer") 
-        
+                    raise ValueError("End of genomic range must be integer")
+
+                if not end > start:
+                    raise ValueError("The end coordinate must be bigger than the start.")
+
         # there is strand information
         if len(fields) > 2:
             if fields[2] == '+' or fields[2] == '+1' or fields[2] == '1':
@@ -1043,6 +1052,21 @@ class GenomicRegion(TableObject):
         if region.start >= self.start and region.end <= self.end:
             return True
         return False
+
+    def _equals(self, region):
+        if region.chromosome != self.chromosome:
+            return False
+        if region.start != self.start:
+            return False
+        if region.end != self.end:
+            return False
+        return True
+
+    def __eq__(self, other):
+        return self._equals(other)
+
+    def __ne__ (self, other):
+        return not self._equals(other)
 
 
 class BedElement(GenomicRegion):
@@ -1277,6 +1301,26 @@ class GenomicRegions(object):
             chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
 
+    def range(self, range_region):
+        regions = []
+
+        for region in self.regions:
+            if not range_region.chromosome == region.chromosome:
+                if len(regions) == 0:
+                    continue
+                break
+
+            if region.start <= range_region.end and region.end >= range_region.start:
+                regions.append(region)
+
+        return regions
+
+    def to_bed(self, file):
+        '''Export regions as BED file'''
+        with open(file, 'w') as f:
+            for i, r in enumerate(self.regions):
+                print(r.chromosome, r.start - 1, r.end, i, sep="\t", file=f)
+
     @property
     def regions_dict(self):
         regions_dict = dict()
@@ -1319,7 +1363,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
         strand = t.Int8Col(pos=4)
-    
+
     def __init__(self, regions=None, file_name=None, mode='a',
                  additional_fields=None, _table_name_regions='regions',
                  tmpdir=None):
@@ -1534,7 +1578,7 @@ class RegionsTable(GenomicRegions, FileGroup):
                 self.iter = iter(this._regions)
                 self.lazy = False
                 self.auto_update = True
-                
+
             def __iter__(self):
                 return self
             
@@ -1561,7 +1605,7 @@ class RegionsTable(GenomicRegions, FileGroup):
                 else:
                     return this._row_to_region(res, lazy=self.lazy,
                                                auto_update=self.auto_update)
-            
+
         return RegionIter()
 
     def subset(self, region, lazy=False, auto_update=True):
@@ -1798,8 +1842,8 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
     """
 
     class EntryDescription(t.IsDescription):
-        source = t.Int32Col(pos=0)  
-        sink = t.Int32Col(pos=1)  
+        source = t.Int32Col(pos=0)
+        sink = t.Int32Col(pos=1)
 
     class EdgeIter:
         def __init__(self, this, _iter=None):
@@ -1847,7 +1891,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
 
         def __len__(self):
             return len(self.this._edges)
-    
+
     def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
                  _table_name_nodes='nodes', _table_name_edges='edges'):
 
@@ -1861,7 +1905,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         :param _table_name_nodes: (Internal) name of the HDF5 node for regions
         :param _table_name_edges: (Internal) name of the HDF5 node for edges
         """
-        
+
         # private variables
         self._max_node_ix = -1
 
@@ -1927,8 +1971,8 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                      see :func:`~RegionsTable.add_region` for details
         :param flush: Write data to file immediately after import.
         """
-        return self.add_region(node, flush)        
-    
+        return self.add_region(node, flush)
+
     def add_edge(self, edge, check_nodes_exist=True, flush=True, replace=False, row=None):
         """
         Add an edge to this object.
@@ -2069,7 +2113,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
             row.update()
         else:
             row.append()
-    
+
     def add_nodes(self, nodes):
         """
         Bulk-add nodes from a list.
@@ -2079,7 +2123,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                       for details.
         """
         self.add_regions(nodes)
-    
+
     def add_edges(self, edges):
         """
         Bulk-add edges from a list.
@@ -2182,7 +2226,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                     nodes_ix_col.append(region.ix)
                 else:
                     nodes_ix_col.append(region)
-        
+
         return nodes_ix_row, nodes_ix_col
 
     def _edge_row_range(self, source_start, source_end, sink_start, sink_end, only_intrachromosomal=False):
@@ -2226,20 +2270,20 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         # 'chr1:1234:56789'
         if isinstance(key, str):
             key = GenomicRegion.from_string(key)
-        
+
         # Node('chr1', 1234, 56789, ix=0)
         if isinstance(key, Node):
             if as_index:
                 return key.ix
             else:
                 return key
-        
-        # GenomicRegion('chr1', 1234, 56789) 
+
+        # GenomicRegion('chr1', 1234, 56789)
         if isinstance(key, GenomicRegion):
             chromosome = key.chromosome
             start = key.start
             end = key.end
-            
+
             # check defaults
             if chromosome is None:
                 raise ValueError("Genomic region must provide chromosome name")
@@ -2247,22 +2291,22 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 start = 0
             if end is None:
                 end = max(row['end'] for row in self._regions.where("(chromosome == '%s')" % chromosome))
-            
+
             condition = "(chromosome == '%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
             if as_index:
                 region_nodes = [row['ix'] for row in self._regions.where(condition)]
             else:
                 region_nodes = [self._row_to_region(row) for row in self._regions.where(condition)]
-            
+
             return region_nodes
-        
+
         # 1:453
         if isinstance(key, slice):
             if as_index:
                 return [row['ix'] for row in self._regions.iterrows(key.start, key.stop, key.step)]
             else:
                 return [self._row_to_region(row) for row in self._regions.iterrows(key.start, key.stop, key.step)]
-        
+
         # 432
         if isinstance(key, int):
             row = self._regions[key]
@@ -2270,7 +2314,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 return row['ix']
             else:
                 return self._row_to_region(row)
-        
+
         # [item1, item2, item3]
         all_nodes_ix = []
         for item in key:
@@ -2338,7 +2382,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         :return:
         """
         return self._row_to_edge(self._edges[ix], lazy=lazy)
-    
+
     def nodes(self):
         """
         Iterator over this object's nodes/regions.
@@ -3093,7 +3137,7 @@ class Hic(RegionMatrixTable):
 
         chromosome_list = []
         for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome,length=chromosome_sizes[chromosome]))
+            chromosome_list.append(Chromosome(name=chromosome,length=self.chromosome_lens[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
         hic = Hic(file_name=file_name, mode='w')
@@ -3405,6 +3449,75 @@ class Hic(RegionMatrixTable):
     def architecture(self):
         import kaic.architecture.hic_architecture as ha
         return ha.HicArchitecture(self)
+
+    def scaling_factor(self, hic):
+        """
+        Compute the scaling factor to another Hic library.
+
+        Calculates the ratio between the number of contacts in
+        this Hic object to the number of contacts in another
+        Hic object.
+
+        :param hic: A :class:`~Hic` object
+        :return: float
+        """
+        logging.info("Calculating scaling factor...")
+        hic1_sum = 0.0
+        for edge in self.edges(lazy=True):
+            hic1_sum += edge['weight']
+        hic2_sum = 0.0
+        for edge in hic.edges(lazy=True):
+            hic2_sum += edge['weight']
+        scaling_factor = hic1_sum/hic2_sum
+        logging.info("Scaling factor: %f" % scaling_factor)
+        return scaling_factor
+
+    def get_combined_matrix(self, hic, key=None, scaling_factor=None):
+        """
+        Return a :class:`~HicMatrix` where values above the diagonal
+        are from this object and values below the diagonal are from
+        another :class:`~Hic` object.
+
+        "Above the diagonal" refers to the diagonal of the complete
+        Hic object, not the diagonal of the returned matrix.
+
+        :param hic: Another :class:`~Hic` object
+        :param key: A matrix selector. Use tuple to selct row and
+                    columns, also see __getitem__
+        :param scaling_factor: Factor to scale the hic values. If None,
+                               will be computed using
+                               :func:`~Hic.scaling_factor`.
+        :return: :class:`~HicMatrix`
+        """
+        if key is None:
+            key = slice(0, None, None)
+
+        if scaling_factor is None:
+            scaling_factor = self.scaling_factor(hic)
+
+        m_top = self[key]
+
+        # find diagonal
+        row_region = m_top.row_regions[0]
+        matching_index = None
+        for i, col_region in enumerate(m_top.col_regions):
+            if col_region == row_region:
+                matching_index = i
+
+        if matching_index is None:
+            col_region = m_top.col_regions[0]
+            for i, row_region in enumerate(m_top.row_regions):
+                if col_region == row_region:
+                    matching_index = -1*i
+
+        if matching_index is None:
+            return m_top
+
+        # replace diagonal
+        m_bottom = hic[key]*scaling_factor
+        top_indices = np.triu_indices(m_top.shape[0], matching_index, m_top.shape[1])
+        m_bottom[top_indices] = m_top[top_indices]
+        return m_bottom
 
 
 class HicEdgeFilter(MaskFilter):
