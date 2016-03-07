@@ -1558,12 +1558,18 @@ class RegionsTable(GenomicRegions, FileGroup):
         :param auto_update: Auto update regions upon modification
         :return: Iterator over the specified subset of regions
         """
+        if isinstance(region, str):
+            region = GenomicRegion.from_string(region)
+
         if isinstance(region, GenomicRegion):
             regions = [region]
         else:
             regions = region
 
         for r in regions:
+            if isinstance(r, str):
+                r = GenomicRegion.from_string(r)
+
             query = '('
             if r.chromosome is not None:
                 query += "(chromosome == '%s') & " % r.chromosome
@@ -2084,7 +2090,8 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         if flush_edges:
             self._edges.flush(update_index=update_index)
 
-    def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True):
+    def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True,
+                    only_intrachromosomal=False):
         """
         Get a subset of edges.
 
@@ -2142,7 +2149,9 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         # fill matrix with weights
         for row_range in row_ranges:
             for col_range in col_ranges:
-                for edge_row in self._edge_row_range(row_range[0], row_range[1], col_range[0], col_range[1]):
+                for edge_row in self._edge_row_range(row_range[0], row_range[1],
+                                                     col_range[0], col_range[1],
+                                                     only_intrachromosomal=only_intrachromosomal):
                     yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update)
 
     def _get_nodes_from_key(self, key, as_index=False):
@@ -2160,15 +2169,25 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         
         return nodes_ix_row, nodes_ix_col
 
-    def _edge_row_range(self, source_start, source_end, sink_start, sink_end):
-
+    def _edge_row_range(self, source_start, source_end, sink_start, sink_end, only_intrachromosomal=False):
         condition = "(source >= %d) & (source <= %d) & (sink >= %d) & (sink <= %d)"
         condition1 = condition % (source_start, source_end, sink_start, sink_end)
         condition2 = condition % (sink_start, sink_end, source_start, source_end)
 
+        regions_dict = None
+        if only_intrachromosomal:
+            regions_dict = self.regions_dict
+
+        covered = set()
         for condition in condition1, condition2:
             for edge_row in self._edges.where(condition):
-                yield edge_row
+                if (only_intrachromosomal and
+                     regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
+                    continue
+                pair = (edge_row['source'], edge_row['sink'])
+                if pair not in covered:
+                    covered.add(pair)
+                    yield edge_row
 
     def _get_node_ix_ranges(self, nodes_ix=None):
         if not isinstance(nodes_ix, list):
