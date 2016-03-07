@@ -1,5 +1,5 @@
 from __future__ import division, print_function
-from matplotlib.ticker import MaxNLocator, ScalarFormatter, NullFormatter, Formatter, AutoMinorLocator, Locator
+from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from matplotlib.widgets import Slider
 import kaic
 from kaic.data.genomic import GenomicRegion, RegionsTable, GenomicRegions
@@ -16,7 +16,6 @@ import pybedtools as pbt
 import itertools as it
 import tables
 import re
-import track as track_module
 import warnings
 import copy
 plt = sns.plt
@@ -25,8 +24,11 @@ log.setLevel(10)
 
 sns.set_style("ticks")
 
+
 def append_axes(parent, side, thickness, padding, length=None, shrink=1., **kwargs):
-    '''Add an axes on any side of parent ax without resizing the parent ax.
+    """
+    Add an axes on any side of parent ax without resizing the parent ax.
+
     :param parent: Parent axes
     :param side: Side on which axes is appended ("top", "bottom", "left" or "right")
     :param thickness: Thickness of newly created axes, in inches. Measured in
@@ -38,7 +40,7 @@ def append_axes(parent, side, thickness, padding, length=None, shrink=1., **kwar
                    if length is set explicitely.
     :param kwargs: Additional keyword args passed to figure.add_axes method
     :return: Axes instance
-    '''
+    """
     figsize = parent.figure.get_size_inches()
     bbox = parent.get_position()
     if side in ("top", "bottom"):
@@ -74,21 +76,27 @@ def append_axes(parent, side, thickness, padding, length=None, shrink=1., **kwar
         raise ValueError("Illegal parameter side '{}'".format(side))
     return parent.figure.add_axes([hor, vert, width, height], **kwargs)
 
+
 def force_aspect(ax, aspect):
-    '''Force aspect ratio of a matplotlib axes
+    """
+    Force aspect ratio of a matplotlib axes
+
     :param ax: axes whose aspect ratio will be forced
     :param aspect: Aspect ratio (width/height)
-    '''
+    """
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
     data_aspect = (xlim[1] - xlim[0])/(ylim[1] - ylim[0])
     aspect = abs(data_aspect/aspect)
     ax.set_aspect(aspect)
 
+
 class SymmetricNorm(mpl.colors.Normalize):
     def __init__(self, vmin=None, vmax=None, clip=False, percentile=None):
         mpl.colors.Normalize.__init__(self, vmin=vmin, vmax=vmax, clip=clip)
         self.percentile = percentile
+        self.vmin = vmin
+        self.vmax = vmax
 
     def _get_min(self, A):
         if self.percentile:
@@ -116,8 +124,10 @@ class SymmetricNorm(mpl.colors.Normalize):
         self.vmin = -1.*abs_max
         self.vmax = abs_max
 
+
 def millify(n, precision=1):
-    """Take input float and return human readable string.
+    """
+    Take input float and return human readable string.
     E.g.:
     millify(1000f0) -> "10k"
     millify(2300000) -> "2M"
@@ -137,9 +147,10 @@ def millify(n, precision=1):
     if n == 0:
         return 0
     n = float(n)
-    millidx = max(0, min(len(millnames) - 1,
-                      int(math.floor(math.log10(abs(n))/3))))
+    millidx = max(0, min(len(millnames) - 1, int(math.floor(math.log10(abs(n))/3))))
+
     return "{:.{prec}f}{}".format(n/10**(3*millidx), millnames[millidx], prec=precision)
+
 
 def prepare_normalization(norm="lin", vmin=None, vmax=None):
     if isinstance(norm, mpl.colors.Normalize):
@@ -153,8 +164,10 @@ def prepare_normalization(norm="lin", vmin=None, vmax=None):
     else:
         raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
+
 def region_to_pbt_interval(region):
     return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
+
 
 def get_typed_array(input_iterable, nan_strings, count=-1):
     try:
@@ -167,12 +180,15 @@ def get_typed_array(input_iterable, nan_strings, count=-1):
         pass
     return np.fromiter(input_iterable, str, count)
 
+
 def get_region_field(interval, field, return_none=False):
-    '''Take BedTool region and return value stored in the specified field.
+    """
+    Take BedTool region and return value stored in the specified field.
     Will try to fetch field from specific integer index, from Interval attribute and 
     lastly from the BedTool attributes dictionary present for GTF files
+
     :param return_none: Instead of raising exception, return none if value can't be found
-    '''
+    """
     try:
         return interval[int(field)]
     except ValueError:
@@ -190,6 +206,7 @@ def get_region_field(interval, field, return_none=False):
         return None
     else:
         raise ValueError("Field {} can't be found in inteval {}".format(field, interval))
+
 
 class GenomicTrack(RegionsTable):
     def __init__(self, file_name, title=None, data_dict=None, regions=None, _table_name_tracks='tracks'):
@@ -222,7 +239,7 @@ class GenomicTrack(RegionsTable):
                 self.add_data(k, v)
 
     @classmethod
-    def from_gtf(cls, file_name, gtf_file, store_attrs=None, nan_strings=[".", ""]):
+    def from_gtf(cls, file_name, gtf_file, store_attrs=None, nan_strings=(".", "")):
         """
         Import a GTF file as GenomicTrack.
 
@@ -242,8 +259,8 @@ class GenomicTrack(RegionsTable):
             regions.append(GenomicRegion(chromosome=f.chrom, start=f.start, end=f.end, strand=f.strand))
             # If input is a GTF file, also store the type and source fields
             if f.file_type in ("gff", "gtf"):
-                f.attrs["source"] = a.fields[1]
-                f.attrs["feature"] = a.fields[2]
+                f.attrs["source"] = f.fields[1]
+                f.attrs["feature"] = f.fields[2]
             # Check if there is a new attribute that hasn't occured before
             for k in f.attrs.keys():
                 if not k in values and (not store_attrs or k in store_attrs):
@@ -297,15 +314,6 @@ class GenomicTrack(RegionsTable):
 
     @property
     def tracks(self):
-        # this = self
-        # class TrackList(object):
-        #     def __init__(self, track_object):
-        #         self.track_object = track_object
-
-        #     def __str__(self):
-        #         return str(self.track_object._tracks)
-
-        #     def __
         return {t.name: t[:] for t in self._tracks}
 
     @property
@@ -319,12 +327,13 @@ class GenomicTrack(RegionsTable):
     def title(self, value):
         if value is None:
             self.file.remove_node("/title")
-            return None
+            return
         try:
             self.file.create_array("/", "title", value)
         except tables.NodeError:
             self.file.remove_node("/title")
             self.file.create_array("/", "title", value)
+
 
 class GenomicFigure(object):
     def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None, ticks_last=False):
@@ -340,7 +349,7 @@ class GenomicFigure(object):
         if figsize is None:
             figsize = (6, 6*self.n if not height_ratios else 6*sum(height_ratios))
         self.axes = []
-        fig = plt.figure(figsize=figsize)
+        plt.figure(figsize=figsize)
         for i in xrange(self.n):
             if i > 0:
                 ax = plt.subplot(gs[i, 0], sharex=self.axes[0])
@@ -348,9 +357,6 @@ class GenomicFigure(object):
                 ax = plt.subplot(gs[i, 0])
             plots[i].cax = plt.subplot(gs[i, 1])
             self.axes.append(ax)
-        #if figsize is None:
-        #    figsize = (8, 4*self.n)
-        #_, self.axes = plt.subplots(self.n, sharex=True, figsize=figsize)
 
     @property
     def fig(self):
@@ -364,35 +370,20 @@ class GenomicFigure(object):
             if self.ticks_last and i < len(self.axes) - 1:
                 plt.setp(a.get_xticklabels(), visible=False)
                 a.xaxis.offsetText.set_visible(False)
-        #self.fig.tight_layout()
         return self.fig, self.axes
 
-    # def add_colorbar(self):
-    #     vmin, vmax = float("inf"), float("-inf")
-    #     for p in self.plots:
-    #         if p.vmin < vmin:
-    #             vmin = p.vmin
-    #         if p.vmax > vmax:
-    #             vmax = p.vmax
-    #     cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
-    #     cmap_data.set_array([self.vmin, self.vmax])
-    #     self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
-    #     self.colorbar = plt.colorbar(cmap_data, cax=self.cax, **kw)
-
-    # @property
-    # def norm(self):
-    #     return self.p
     
 class GenomeCoordFormatter(Formatter):
-    '''Process axis tick labels to give nice reprensations
+    """
+    Process axis tick labels to give nice reprensations
     of genomic coordinates
-    '''
+    """
     def __init__(self, chromosome, display_scale=True):
-        '''
+        """
         :param chromosome: :class:`~kaic.GenomicRegion` or string
         :param display_scale: Boolean
                               Display distance scale at bottom right
-        '''
+        """
         if isinstance(chromosome, GenomicRegion):
             self.chromosome = chromosome.chromosome
         else:
@@ -408,20 +399,22 @@ class GenomeCoordFormatter(Formatter):
         return "{:.0f}b".format(x)
 
     def __call__(self, x, pos=None):
-        '''Return label for tick at coordinate x. Relative position of
+        """
+        Return label for tick at coordinate x. Relative position of
         ticks can be specified with pos. First tick gets chromosome name.
-        '''
+        """
         s = self._format_val(x, prec_offset=1)
         if pos == 0 or x == 0:
             return "{}:{}".format(self.chromosome, s)
         return s
 
     def get_offset(self):
-        '''Return information about the distances between
+        """
+        Return information about the distances between
         tick bars and the size of the view window.
         Is called by matplotlib and displayed in lower right corner
         of plots.
-        '''
+        """
         if not self.display_scale:
             return ""
         view_range = self.axis.axes.get_xlim()
@@ -432,6 +425,7 @@ class GenomeCoordFormatter(Formatter):
         tick_dist_str = self._format_val(tick_dist, prec_offset=1)
         view_dist_str = self._format_val(view_dist)
         return "{}|{}|{}".format(minor_tick_dist_str, tick_dist_str, view_dist_str)
+
 
 class GenomeCoordLocator(MaxNLocator):
     '''Choose locations of genomic coordinate ticks on the plot axis.
@@ -452,12 +446,14 @@ class GenomeCoordLocator(MaxNLocator):
             ticks = np.delete(ticks, -2)
         return self.raise_if_exceeds(np.array(ticks))
 
+
 class MinorGenomeCoordLocator(Locator):
-    '''Choose locations of minor tick marks between major
+    """
+    Choose locations of minor tick marks between major
     tick labels. Modification of the Matplotlib AutoMinorLocator,
     except that it uses the distance between 2nd and 3rd major
     mark as reference, instead of 2nd and 3rd.
-    '''
+    """
     def __init__(self, n):
         self.ndivs = n
 
@@ -498,15 +494,17 @@ class MinorGenomeCoordLocator(Locator):
             locs = []
         return self.raise_if_exceeds(np.array(locs))
 
+
 class BufferedMatrix(object):
-    '''Buffer contents of any :class:`~kaic.Hic` like objects. Matrix is
+    """
+    Buffer contents of any :class:`~kaic.Hic` like objects. Matrix is
     prefetched and stored in memory. Buffer contents can quickly be fetched
     from memory. Different buffering strategies allow buffering of nearby
     regions so that adjacent parts of the matrix can quickly be fetched.
-    '''
+    """
     _STRATEGY_ALL = "all"
     _STRATEGY_FIXED = "fixed"
-    _STRATEGY_RELATIVE ="relative"
+    _STRATEGY_RELATIVE = "relative"
 
     def __init__(self, data, buffering_strategy="relative", buffering_arg=1):
         self.data = data
@@ -526,7 +524,8 @@ class BufferedMatrix(object):
 
     def is_buffered_region(self, *regions):
         if (self.buffered_region is None or self.buffered_matrix is None or
-                (not self.buffered_region == self._STRATEGY_ALL and not all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)))):
+                (not self.buffered_region == self._STRATEGY_ALL and not
+                 all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)))):
             return False
         return True
 
@@ -539,7 +538,7 @@ class BufferedMatrix(object):
 
     def _buffer_all(self, *regions):
         self.buffered_region = self._STRATEGY_ALL
-        self.buffered_matrix = self.data[tuple([slice(None, None)]*len(regions))]
+        self.buffered_matrix = self.data[tuple([slice(0, None, None)]*len(regions))]
 
     def _buffer_relative(self, *regions):
         self.buffered_region = []
@@ -596,6 +595,7 @@ class BufferedCombinedMatrix(BufferedMatrix):
 
         self.data = CombinedData(hic_top, hic_bottom, scaling_factor)
 
+
 class BasePlotter(object):
 
     __metaclass__ = ABCMeta
@@ -632,6 +632,7 @@ class BasePlotter(object):
     def ax(self, value):
         self._ax = value
 
+
 class BasePlotter1D(BasePlotter):
 
     __metaclass__ = ABCMeta
@@ -653,6 +654,7 @@ class BasePlotter1D(BasePlotter):
         self.ax.set_xlim(region.start, region.end)
         return self.fig, self.ax
 
+
 class BasePlotterHic(object):
 
     __metaclass__ = ABCMeta
@@ -662,8 +664,9 @@ class BasePlotterHic(object):
                  buffering_strategy="relative", buffering_arg=1, blend_masked=False):
         self.hic_data = hic_data
         if isinstance(hic_data, kaic.Hic):
-            self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy, buffering_arg=buffering_arg)
-        elif isinstance(hic_data, kaic.data.genomic.HicMatrix):
+            self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
+                                             buffering_arg=buffering_arg)
+        elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
             self.hic_buffer = BufferedMatrix.from_hic_matrix(hic_data)
         else:
             raise ValueError("Unknown type for hic_data")
@@ -681,11 +684,7 @@ class BasePlotterHic(object):
     def add_colorbar(self):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array([self.vmin, self.vmax])
-        #self.cax, kw = mpl.colorbar.make_axes(self.ax, location="top", shrink=0.4)
-        #self.cax, kw = mpl.colorbar.make_axes_gridspec(self.ax, orientation="horizontal",
-        #                                      aspect=30, shrink=0.6)
-        #divider = make_axes_locatable(self.ax)
-        #self.cax = divider.append_axes("top", "5%", pad="5%")
+
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
 
     def add_adj_slider(self):
@@ -716,7 +715,8 @@ class BasePlotterHic(object):
     @property
     def vmax(self):
         return self._vmax if self._vmax else self.hic_buffer.buffered_max
- 
+
+
 class BasePlotter2D(BasePlotter):
 
     __metaclass__ = ABCMeta
@@ -773,6 +773,7 @@ class BasePlotter2D(BasePlotter):
 
         self._plot(x_region, y_region)
         return self.fig, self.ax
+
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', norm="log",
@@ -873,9 +874,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         X_ -= X_[1, 0] - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         # create plot
-        artist = self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
-        #import mpldatacursor
-        #mpldatacursor.datacursor(artist)
+        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
+
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
         self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
@@ -891,6 +891,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
     def _refresh(self, region=None):
         pass
 
+
 class ScalarPlot(BasePlotter1D):
     def __init__(self, values, regions, title=''):
         BasePlotter1D.__init__(self, title=title)
@@ -905,13 +906,14 @@ class ScalarPlot(BasePlotter1D):
             n += r.end - r.start + 1
         return v
 
-    def _plot(self, region):
+    def _plot(self, region=None, ax=None):
         region_list = list(self.regions.intersect(region))
-        v = get_values_per_bp(region_list, self.values)
+        v = self._get_values_per_bp(region_list)
         self.ax.plot(np.arange(region_list[0].start, region_list[-1].end + 1), v)
 
-    def _refresh(self):
+    def _refresh(self, **kwargs):
         pass
+
 
 class GenomicTrackPlot(BasePlotter1D):
     _STYLE_STEP = "step"
@@ -942,7 +944,7 @@ class GenomicTrackPlot(BasePlotter1D):
             x[i] = int(round((r.end + r.start)/2))
         return x, values
 
-    def _plot(self, region):
+    def _plot(self, region=None, ax=None):
         for track in self.tracks:
             bins = track.region_bins(region)
             values = track[bins]
@@ -950,15 +952,19 @@ class GenomicTrackPlot(BasePlotter1D):
             for k, v in values.iteritems():
                 if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
                     x, y = self._STYLES[self.style](self, v, regions)
-                    self.ax.plot(x, y, label="{}{}".format(track.title + "_" if track.title and len(self.tracks) > 1 else "", k))
+                    self.ax.plot(x, y,
+                                 label="{}{}".format(track.title + "_"
+                                                     if track.title and len(self.tracks) > 1
+                                                     else "", k))
         self.ax.legend()
         self.fig.delaxes(self.cax)
 
-    def _refresh(self):
+    def _refresh(self, **kwargs):
         pass
 
     _STYLES = {_STYLE_STEP: _get_values_per_step,
                _STYLE_MID: _get_values_per_mid}
+
 
 class GenomicArrayPlot(BasePlotter1D):
     def __init__(self, track, attribute, plot_kwargs=None, title=''):
@@ -969,7 +975,7 @@ class GenomicArrayPlot(BasePlotter1D):
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
 
-    def _plot(self, region):
+    def _plot(self, region=None, ax=None):
         bins = self.track.region_bins(region)
         values = self.track[bins][self.attribute]
         regions = self.track.regions()[bins]
@@ -977,11 +983,10 @@ class GenomicArrayPlot(BasePlotter1D):
         X, Y = np.meshgrid(bin_coords, np.arange(values.shape[1] + 1))
         mesh = self.ax.pcolormesh(X, Y, values.T, **self.plot_kwargs)
         self.colorbar = plt.colorbar(mesh, cax=self.cax, orientation="vertical")
-        #import mpldatacursor
-        #mpldatacursor.datacursor(mesh)
 
-    def _refresh(self):
+    def _refresh(self, **kwargs):
         pass
+
 
 class GeneModelPlot(BasePlotter1D):
     def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol", label_format=None, label_cast=None):
@@ -997,7 +1002,7 @@ class GeneModelPlot(BasePlotter1D):
         self.label_format = label_format
         self.label_cast = label_cast
 
-    def _plot(self, region):
+    def _plot(self, region=None, ax=None):
         interval = region_to_pbt_interval(region)
         genes = self.gtf.all_hits(interval)
         trans = self.ax.get_xaxis_transform()
@@ -1022,18 +1027,20 @@ class GeneModelPlot(BasePlotter1D):
             )
             self.ax.add_patch(gene_patch)
             self.ax.text((g.start + g.end)/2, pos[g[2]] + stroke_length + .05,
-                self.label_format.format(self.label_cast(label) if self.label_cast else label) if self.label_format else label,
-                transform=trans, ha="center", size="small")
+                         self.label_format.format(self.label_cast(label)
+                                                  if self.label_cast
+                                                  else label)
+                         if self.label_format else label,
+                         transform=trans, ha="center", size="small")
             self.ax.spines['right'].set_visible(False)
             self.ax.spines['top'].set_visible(False)
             self.ax.spines['left'].set_visible(False)
             self.ax.spines['bottom'].set_visible(False)
             self.ax.xaxis.set_ticks_position('bottom')
             self.ax.yaxis.set_visible(False)
-            #self.ax.xaxis.set_visible(False)
         self.fig.delaxes(self.cax)
 
-    def _refresh(self):
+    def _refresh(self, **kwargs):
         pass
 
 
@@ -1049,7 +1056,7 @@ class GenomicFeaturePlot(BasePlotter1D):
         for region in regions:
             print(region)
 
-    def _plot(self, region):
+    def _plot(self, region=None, ax=None):
         trans = self.ax.get_xaxis_transform()
         overlap_regions = self.regions.range(region)
         for r in overlap_regions:
@@ -1070,5 +1077,5 @@ class GenomicFeaturePlot(BasePlotter1D):
         self.ax.yaxis.set_visible(False)
         self.ax.xaxis.set_visible(False)
 
-    def _refresh(self):
+    def _refresh(self, **kwargs):
         pass
