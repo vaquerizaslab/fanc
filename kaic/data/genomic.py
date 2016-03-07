@@ -78,6 +78,7 @@ import pickle
 from collections import defaultdict
 import copy
 import progressbar
+from kaic.tools.general import range_overlap
 logging.basicConfig(level=logging.INFO)
 
 
@@ -1264,6 +1265,9 @@ class GenomicRegions(object):
         """
         Returns a dictionary of chromosomes and the start
         and end index of the bins they cover.
+
+        Returned list is xrange-compatible, i.e. chromosome
+        bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.
         """
         chr_bins = {}
         for r in self.regions:
@@ -1284,6 +1288,16 @@ class GenomicRegions(object):
     def bin_size(self):
         node = self.regions[0]
         return node.end - node.start + 1
+
+    def distance_to_bins(self, distance):
+        bin_size = self.bin_size
+        bin_distance = int(distance/bin_size)
+        if distance % bin_size > 0:
+            bin_distance += 1
+        return bin_distance
+
+    def bins_to_distance(self, bins):
+        return self.bin_size*bins
 
 
 class RegionsTable(GenomicRegions, FileGroup):
@@ -1560,12 +1574,18 @@ class RegionsTable(GenomicRegions, FileGroup):
         :param auto_update: Auto update regions upon modification
         :return: Iterator over the specified subset of regions
         """
+        if isinstance(region, str):
+            region = GenomicRegion.from_string(region)
+
         if isinstance(region, GenomicRegion):
             regions = [region]
         else:
             regions = region
 
         for r in regions:
+            if isinstance(r, str):
+                r = GenomicRegion.from_string(r)
+
             query = '('
             if r.chromosome is not None:
                 query += "(chromosome == '%s') & " % r.chromosome
@@ -1790,6 +1810,8 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 self.iter = iter(_iter)
             self.row_conversion_args = list()
             self.row_conversion_kwargs = dict()
+            self.only_intrachromosomal = False
+            self.regions_dict = None
 
         def __getitem__(self, item):
             res = self.this._edges[item]
@@ -1804,15 +1826,24 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 return edge
 
         def __iter__(self):
+            if self.only_intrachromosomal:
+                self.regions_dict = self.this.regions_dict
             return self
 
         def __call__(self, *args, **kwargs):
+            if 'only_intrachromosomal' in kwargs:
+                self.only_intrachromosomal = kwargs['only_intrachromosomal']
+                del kwargs['only_intrachromosomal']
             self.row_conversion_args = args
             self.row_conversion_kwargs = kwargs
             return iter(self)
 
         def next(self):
-            return self.this._row_to_edge(self.iter.next(), *self.row_conversion_args, **self.row_conversion_kwargs)
+            row = self.iter.next()
+            if self.only_intrachromosomal:
+                while self.regions_dict[row['source']].chromosome != self.regions_dict[row['sink']].chromosome:
+                    row = self.iter.next()
+            return self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
 
         def __len__(self):
             return len(self.this._edges)
@@ -2075,7 +2106,8 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         if flush_edges:
             self._edges.flush(update_index=update_index)
 
-    def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True):
+    def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True,
+                    only_intrachromosomal=False):
         """
         Get a subset of edges.
 
@@ -2133,7 +2165,9 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         # fill matrix with weights
         for row_range in row_ranges:
             for col_range in col_ranges:
-                for edge_row in self._edge_row_range(row_range[0], row_range[1], col_range[0], col_range[1]):
+                for edge_row in self._edge_row_range(row_range[0], row_range[1],
+                                                     col_range[0], col_range[1],
+                                                     only_intrachromosomal=only_intrachromosomal):
                     yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update)
 
     def _get_nodes_from_key(self, key, as_index=False):
@@ -2151,15 +2185,35 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         
         return nodes_ix_row, nodes_ix_col
 
-    def _edge_row_range(self, source_start, source_end, sink_start, sink_end):
+    def _edge_row_range(self, source_start, source_end, sink_start, sink_end, only_intrachromosomal=False):
+        condition = "(source > %d) & (source < %d) & (sink > %d) & (sink < %d)"
+        condition1 = condition % (source_start-1, source_end+1, sink_start-1, sink_end+1)
+        condition2 = condition % (sink_start-1, sink_end+1, source_start-1, source_end+1)
 
-        condition = "(source >= %d) & (source <= %d) & (sink >= %d) & (sink <= %d)"
-        condition1 = condition % (source_start, source_end, sink_start, sink_end)
-        condition2 = condition % (sink_start, sink_end, source_start, source_end)
+        if source_start > sink_start:
+            condition1, condition2 = condition2, condition1
 
-        for condition in condition1, condition2:
-            for edge_row in self._edges.where(condition):
-                yield edge_row
+        regions_dict = None
+        if only_intrachromosomal:
+            regions_dict = self.regions_dict
+
+        overlap = range_overlap(source_start, source_end, sink_start, sink_end)
+
+        for edge_row in self._edges.where(condition1):
+            if (only_intrachromosomal and
+                    regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
+                continue
+            yield edge_row
+
+        for edge_row in self._edges.where(condition2):
+            if overlap is not None:
+                if (overlap[0] <= edge_row['source'] <= overlap[1]) and (overlap[0] <= edge_row['sink'] <= overlap[1]):
+                    continue
+
+            if (only_intrachromosomal and
+                    regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
+                continue
+            yield edge_row
 
     def _get_node_ix_ranges(self, nodes_ix=None):
         if not isinstance(nodes_ix, list):
@@ -2454,7 +2508,7 @@ class RegionMatrixTable(RegionPairs):
     def __getitem__(self, key):
         return self.as_matrix(key)
 
-    def as_matrix(self, key=slice(0, None, None), values_from=None):
+    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False):
         """
         Get a chunk of the matrix.
 
@@ -2487,6 +2541,8 @@ class RegionMatrixTable(RegionPairs):
                     map of the relevant regions between chromosomes 1 and 4.
         :param values_from: Determines which column will be used to populate
                             the matrix. Default is 'weight'.
+        :param mask_missing: if True, will mask missing/unmappable contacts
+        :param impute_missing: if True, will average missing contacts
         :return: :class:`RegionMatrix`
         """
         if values_from is None:
@@ -2515,19 +2571,77 @@ class RegionMatrixTable(RegionPairs):
 
         # select the correct output format
         # empty result: matrix
+        rm = None
         if m.shape[0] == 0 and m.shape[1] == 0:
-            return RegionMatrix(m, col_regions=[], row_regions=[])
+            rm = RegionMatrix(m, col_regions=[], row_regions=[])
         # both selectors are lists: matrix
-        if isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
-            return RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
+        elif isinstance(nodes_ix_row, list) and isinstance(nodes_ix_col, list):
+            rm = RegionMatrix(m, col_regions=nodes_col, row_regions=nodes_row)
         # row selector is list: vector
-        if isinstance(nodes_ix_row, list):
-            return RegionMatrix(m[:, 0], col_regions=[nodes_col], row_regions=nodes_row)
+        elif isinstance(nodes_ix_row, list):
+            rm = RegionMatrix(m[:, 0], col_regions=[nodes_col], row_regions=nodes_row)
         # column selector is list: vector
-        if isinstance(nodes_ix_col, list):
-            return RegionMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
+        elif isinstance(nodes_ix_col, list):
+            rm = RegionMatrix(m[0, :], col_regions=nodes_col, row_regions=[nodes_row])
+
+        if rm is not None:
+            if mask_missing or impute_missing:
+                mappable = self.marginals() > 0
+                mask = np.zeros(m.shape, dtype=bool)
+                current_row = 0
+                for row_range in row_ranges:
+                    for i in xrange(row_range[0], row_range[1]+1):
+                        if not mappable[i]:
+                            mask[current_row] = True
+                        current_row += 1
+
+                current_col = 0
+                for col_range in col_ranges:
+                    for i in xrange(col_range[0], col_range[1]+1):
+                        if not mappable[i]:
+                            mask[:, current_col] = True
+                        current_col += 1
+                masked_rm = np.ma.MaskedArray(rm, mask=mask)
+
+                if impute_missing:
+                    return self._impute_missing_contacts(masked_rm)
+                return masked_rm
+            else:
+                return rm
+
         # both must be indexes
         return m[0, 0]
+
+    def _impute_missing_contacts(self, hic_matrix=None):
+        """
+        Impute missing contacts in a Hi-C matrix.
+
+        :param hic_matrix: a :class:`~HicMatrix` object
+        :param stat: The statistic to use for missing value imputation (default: mean)
+        :return: the input matrix with imputed values
+        """
+        if not hasattr(hic_matrix, "mask"):
+            raise ValueError("hic_matrix must be a numpy masked array!")
+
+        # here to avoid circular dependency
+        from kaic.architecture.hic_architecture import ExpectedContacts
+
+        with ExpectedContacts(self, smooth=True) as ex:
+            intra_expected = ex.intra_expected()
+            inter_expected = ex.inter_expected()
+
+            for i in xrange(hic_matrix.shape[0]):
+                row_region = hic_matrix.row_regions[i]
+                for j in xrange(hic_matrix.shape[1]):
+                    col_region = hic_matrix.col_regions[j]
+
+                    if hic_matrix.mask[i, j]:
+                        if row_region.chromosome == col_region.chromosome:
+                            d = abs(row_region.ix-col_region.ix)
+                            hic_matrix[i, j] = intra_expected[d]
+                        else:
+                            hic_matrix[i, j] = inter_expected
+        return hic_matrix
 
     def _get_matrix(self, row_ranges, col_ranges, weight_column=None):
         if weight_column is None:
@@ -2754,10 +2868,13 @@ class RegionMatrixTable(RegionPairs):
         if flush:
             self.flush(update_index=update_index)
 
-    def marginals(self, weight_column='weight'):
+    def marginals(self, weight_column=None):
         """
         Get the marginals vector of this Hic matrix.
         """
+        if weight_column is None:
+            weight_column = self.default_field
+
         # prepare marginals dict
         marginals = np.zeros(len(self.regions()), float)
 

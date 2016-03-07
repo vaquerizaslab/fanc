@@ -45,7 +45,14 @@ def ranges(i):
     for _, b in itertools.groupby(enumerate(i), lambda (x, y): y - x):
         b = list(b)
         yield b[0][1], b[-1][1]
-        
+
+
+def range_overlap(source_start, source_end, sink_start, sink_end):
+    overlap = (max(source_start, sink_start), min(source_end, sink_end))
+    if overlap[0] <= overlap[1]:
+        return overlap
+    return None
+
 
 def bit_flags_from_int(number, base=2):
     # find largest power of 2

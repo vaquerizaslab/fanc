@@ -348,6 +348,31 @@ class TestRegionMatrixTable:
             else:
                 j += 1
 
+    def test_edges_nodup(self):
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(0, 2), slice(1, 3))):
+            print edge
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(1, 3), slice(0, 2))):
+            print edge
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(0, 3), slice(1, 2))):
+            print edge
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
     def test_edges_sorted(self):
 
         previous_weight = -1
@@ -552,6 +577,10 @@ class TestHicBasic:
     def test_edges(self):
         edges = self.hic.edges()
         assert len(edges) == 78
+
+    def test_intra_edges(self):
+        edges = self.hic.edges(only_intrachromosomal=True)
+        assert sum(1 for _ in edges) == 31
     
     def test_get_node_x_by_region(self):
         region1 = GenomicRegion.from_string('chr1')
@@ -1406,3 +1435,39 @@ class TestRegionMatrix:
             assert col_region.start == self.m.col_regions[i].start
             assert col_region.end == self.m.col_regions[i].end
             assert col_region.chromosome == self.m.col_regions[i].chromosome
+
+    def test_masked_matrix(self):
+        self.hic[1, :] = np.zeros(12)
+        self.hic[5, :] = np.zeros(12)
+
+        m = self.hic.as_matrix(mask_missing=True)
+
+        # check masking
+        for i in xrange(m.shape[0]):
+            assert np.ma.is_masked(m[1, i])
+            assert np.ma.is_masked(m[i, 1])
+            assert np.ma.is_masked(m[5, i])
+            assert np.ma.is_masked(m[i, 5])
+
+        # check not masked
+        not_masked = {0, 2, 3, 4, 6, 7, 8, 9, 10, 11}
+        masked = {1, 5}
+
+        for j in not_masked:
+            for i in xrange(m.shape[0]):
+                if i not in masked:
+                    assert not np.ma.is_masked(m[i, j])
+                    assert not np.ma.is_masked(m[j, i])
+                else:
+                    assert np.ma.is_masked(m[i, j])
+                    assert np.ma.is_masked(m[j, i])
+
+    def test_imputed_matrix(self):
+        self.hic[1, :] = np.zeros(12)
+        self.hic[5, :] = np.zeros(12)
+
+        m = self.hic.as_matrix(impute_missing=True)
+
+        assert is_symmetric(m)
+
+        assert m[1, 1] == 52.0
