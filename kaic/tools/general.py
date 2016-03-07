@@ -10,6 +10,7 @@ import collections
 import progressbar
 from datetime import datetime
 
+
 class CachedIterator:
     def __init__(self, it, cache_size=1):
         self.it = iter(it)
@@ -70,11 +71,12 @@ def bit_flags_from_int(number, base=2):
     while exponent >= 0:
         power = base**exponent
         if number - power >= 0:
-            number = number - power
+            number -= power
             bits.append(exponent)
         exponent -= 1
     
     return set(bits)
+
 
 def distribute_integer(value, divisor, _shuffle=True):
     a = [int(value/divisor)] * divisor
