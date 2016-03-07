@@ -18,6 +18,7 @@ import tables
 import re
 import warnings
 import wWigIO
+import copy
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
