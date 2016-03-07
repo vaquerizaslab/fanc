@@ -77,7 +77,7 @@ from xml.etree import ElementTree as et
 import pickle
 from collections import defaultdict
 import copy
-import progressbar
+from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
 logging.basicConfig(level=logging.INFO)
 
@@ -1459,7 +1459,7 @@ class RegionsTable(GenomicRegions, FileGroup):
             l = None
             _log = False
 
-        pb = progressbar.ProgressBar(max_value=l)
+        pb = RareUpdateProgressBar(max_value=l)
         if _log:
             pb.start()
 
@@ -3003,7 +3003,7 @@ class Hic(RegionMatrixTable):
 
         l = len(pairs)
 
-        with progressbar.ProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l) as pb:
             edge_buffer = {}
             for i, pair in enumerate(pairs.pairs(lazy=True, excluded_filters=excluded_filters)):
                 source = pair.left.fragment.ix
@@ -3193,7 +3193,7 @@ class Hic(RegionMatrixTable):
 
             l = len(hic.regions)
 
-            with progressbar.ProgressBar(max_value=l) as pb:
+            with RareUpdateProgressBar(max_value=l) as pb:
                 for i, region in enumerate(hic.regions):
                     ix = self._get_region_ix(region)
                     if ix is None:
@@ -3206,7 +3206,7 @@ class Hic(RegionMatrixTable):
         self.log_info("Merging contacts...")
         edge_buffer = {}
         l = len(hic._edges)
-        with progressbar.ProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l) as pb:
             for i, merge_row in enumerate(hic._edges):
                 merge_source = ix_conversion[merge_row["source"]]
                 merge_sink = ix_conversion[merge_row["sink"]]

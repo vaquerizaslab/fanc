@@ -7,7 +7,8 @@ Created on Aug 28, 2015
 import itertools
 import random
 import collections
-
+import progressbar
+from datetime import datetime
 
 class CachedIterator:
     def __init__(self, it, cache_size=1):
@@ -86,3 +87,30 @@ def distribute_integer(value, divisor, _shuffle=True):
     if _shuffle:
         random.shuffle(a)
     return a
+
+
+class RareUpdateProgressBar(progressbar.ProgressBar):
+    def __init__(self, min_value=0, max_value=None, widgets=None,
+                 left_justify=True, initial_value=0, poll_interval=None,
+                 percent_update_interval=1,
+                 **kwargs):
+        progressbar.ProgressBar.__init__(self, min_value=min_value, max_value=max_value, widgets=widgets,
+                                         left_justify=left_justify, initial_value=initial_value,
+                                         poll_interval=poll_interval, **kwargs)
+
+        if self.max_value is not None:
+            self.one_percent = self.max_value*(1.0*percent_update_interval)/100
+        else:
+            self.one_percent = 1
+
+    def _needs_update(self):
+        """
+        Returns whether the ProgressBar should redraw the line.
+        """
+        if self.value > self.next_update or self.end_time:
+            self.next_update += self.one_percent
+            return True
+
+        elif self.poll_interval:
+            delta = datetime.now() - self.last_update_time
+            return delta > self.poll_interval

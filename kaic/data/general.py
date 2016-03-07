@@ -12,7 +12,7 @@ import kaic.fixes.pytables_nrowsinbuf_inheritance_fix
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
 import numpy as np
 import warnings
-import progressbar
+from kaic.tools.general import RareUpdateProgressBar
 import os
 import time
 import logging
@@ -1885,7 +1885,7 @@ class MaskedTable(t.Table):
         logging.info("Updating mask indices")
 
         l = self._original_len()
-        with progressbar.ProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l) as pb:
             ix = 0
             masked_ix = -1
             for i, row in enumerate(self._iter_visible_and_masked()):
@@ -1932,7 +1932,7 @@ class MaskedTable(t.Table):
 
         # progress bar
         l = self._original_len()
-        pb = progressbar.ProgressBar(max_value=l)
+        pb = RareUpdateProgressBar(max_value=l)
         if _logging:
             pb.start()
 
@@ -1991,7 +1991,7 @@ class MaskedTable(t.Table):
 
         # progress bar
         l = self._original_len()
-        pb = progressbar.ProgressBar(max_value=l)
+        pb = RareUpdateProgressBar(max_value=l)
         if _logging:
             pb.start()
 

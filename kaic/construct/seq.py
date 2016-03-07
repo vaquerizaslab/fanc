@@ -55,7 +55,7 @@ and filtering could look like this:
 from __future__ import division
 import tables as t
 import pysam
-import progressbar
+from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.files import is_sambam_file
 from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, MaskedTableView, FileBased
 import os
@@ -376,7 +376,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         self._ref = sambam.references
 
         self.log_info("Loading mapped reads...")
-        with progressbar.ProgressBar(max_value=n_reads) as pb:
+        with RareUpdateProgressBar(max_value=n_reads) as pb:
             last_name = ""
             for i, read in enumerate(sambam):
                 if i % 1000000 == 0:
@@ -1368,7 +1368,7 @@ class Bowtie2PairLoader(PairLoader):
 
         total = len(reads1) + len(reads2)
 
-        with progressbar.ProgressBar(max_value=total) as pb:
+        with RareUpdateProgressBar(max_value=total) as pb:
             while r1 is not None and r2 is not None:
                 i += 1
                 if r1.qname_ix == last_r1_name_ix:
@@ -1537,7 +1537,7 @@ class BwaMemPairLoader(PairLoader):
 
         total = len(reads1) + len(reads2)
 
-        with progressbar.ProgressBar(max_value=total) as pb:
+        with RareUpdateProgressBar(max_value=total) as pb:
             while r1[0] is not None and r2[0] is not None:
                 i += 1
                 if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.5:
@@ -1943,7 +1943,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             gaps = []
             types = []
 
-            with progressbar.ProgressBar(max_value=len(self)) as pb:
+            with RareUpdateProgressBar(max_value=len(self)) as pb:
                 for i, pair in enumerate(self):
                     if pair.is_same_fragment():
                         same_fragment_count += 1
