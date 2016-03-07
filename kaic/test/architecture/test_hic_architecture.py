@@ -194,7 +194,6 @@ class TestDirectionalityIndex:
     def test_directionality_index(self):
 
         with DirectionalityIndex(self.hic, window_sizes=(3000, 5000)) as dip:
-            print len(dip.regions)
             d = dip.directionality_index(window_size=3000)
 
             assert sum(d) > 0  # juuuuust making sure...
@@ -212,6 +211,33 @@ class TestDirectionalityIndex:
 
             with pytest.raises(AttributeError):
                 dip.directionality_index(10000)
+
+    def test_directionality_index_regions(self):
+        with DirectionalityIndex(self.hic, window_sizes=(3000, 5000)) as dip:
+            do = dip.directionality_index(window_size=3000)
+
+        with DirectionalityIndex(self.hic, window_sizes=(3000, 5000), regions='chr1') as dip:
+            d = dip.directionality_index(window_size=3000)
+
+            assert d == do[:12]
+
+            assert sum(d) > 0  # juuuuust making sure...
+
+            # beginning of second TAD in chr1
+            assert d[6] == max(d)
+            # declining over TAD till end of chr1
+            assert d[6] >= d[7] >= d[8] >= d[9] >= d[10] >= d[11]
+
+            d5000 = dip.directionality_index(5000)
+            assert len(d5000) == 12
+
+            with pytest.raises(AttributeError):
+                dip.directionality_index(10000)
+
+        with DirectionalityIndex(self.hic, window_sizes=(3000, 5000), regions='chr2') as dip:
+            d = dip.directionality_index(window_size=3000)
+
+            assert d == do[12:]
 
     def test_boundary_distances(self):
 
@@ -256,7 +282,6 @@ class TestInsulationIndex:
         self.hic.close()
 
     def test_insulation_index(self):
-
         with InsulationIndex(self.hic, window_sizes=(2000, 3000)) as ins:
             print len(ins.regions)
             d = ins.insulation_index(window_size=2000)
@@ -265,6 +290,33 @@ class TestInsulationIndex:
             assert np.isnan(d[1])
             assert d[2] == 50.0
             assert d[3] - 38.77083206176758 < 0.00001
+
+            with pytest.raises(AttributeError):
+                ins.directionality_index(10000)
+
+    def test_insulation_index_regions(self):
+        with InsulationIndex(self.hic, window_sizes=(2000, 3000)) as ins:
+            do = ins.insulation_index(window_size=2000)
+
+        with InsulationIndex(self.hic, window_sizes=(2000, 3000), regions='chr1') as ins:
+            d = ins.insulation_index(window_size=2000)
+
+            assert len(d) == len(do[:12])
+            for i in xrange(len(d)):
+                if np.isnan(d[i]):
+                    assert np.isnan(do[i])
+                else:
+                    assert d[i] == do[i]
+
+        with InsulationIndex(self.hic, window_sizes=(2000, 3000), regions='chr2') as ins:
+            d = ins.insulation_index(window_size=2000)
+
+            assert len(d) == len(do[12:])
+            for i in xrange(len(d)):
+                if np.isnan(d[i]):
+                    assert np.isnan(do[i+12])
+                else:
+                    assert d[i] == do[i+12]
 
             with pytest.raises(AttributeError):
                 ins.directionality_index(10000)

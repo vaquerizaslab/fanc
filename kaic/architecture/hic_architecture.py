@@ -4,6 +4,7 @@ from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeatu
     MatrixArchitecturalRegionFeatureFilter
 from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge
 from collections import defaultdict
+from kaic.tools.general import ranges
 import numpy as np
 import tables as t
 import logging
@@ -353,7 +354,10 @@ class PossibleContacts(TableArchitecturalFeature):
 
 class DirectionalityIndex(VectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
-                 window_sizes=(2000000,), _table_name='directionality_index'):
+                 regions=None, window_sizes=(2000000,),
+                 _table_name='directionality_index'):
+
+        self.region_selection = regions
 
         # are we retrieving an existing object?
         if isinstance(hic, str) and file_name is None:
@@ -366,8 +370,13 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
             for i, window_size in enumerate(window_sizes):
                 di_fields['di_%d' % window_size] = t.Float32Col(pos=i)
                 self.window_sizes.append(window_size)
+
+            if regions is None:
+                regions = hic.regions
+            else:
+                regions = hic.subset(regions)
             VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      data_fields=di_fields, regions=hic.regions,
+                                                      data_fields=di_fields, regions=regions,
                                                       _table_name_data=_table_name)
 
         self.window_sizes = []
@@ -379,12 +388,12 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         self.hic = hic
 
     def _get_boundary_distances(self):
-        n_bins = len(self.regions)
+        n_bins = len(self.hic.regions)
         # find distances to chromosome boundaries in bins
         boundary_dist = np.zeros(n_bins, dtype=int)
         last_chromosome = None
         last_chromosome_index = 0
-        for i, region in enumerate(self.regions(lazy=True)):
+        for i, region in enumerate(self.hic.regions(lazy=True)):
             chromosome = region.chromosome
             if last_chromosome is not None and chromosome != last_chromosome:
                 chromosome_length = i-last_chromosome_index
@@ -401,13 +410,19 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
     def _directionality_index(self, window_size=2000000):
         bin_window_size = self.hic.distance_to_bins(window_size)
 
-        n_bins = len(self.regions())
+        n_bins = len(self.hic.regions)
         boundary_dist = self._get_boundary_distances()
+
+        if self.region_selection is not None:
+            edge_iter = self.hic.edge_subset((self.region_selection, self.region_selection),
+                                             only_intrachromosomal=True)
+        else:
+            edge_iter = self.hic.edges(lazy=True, only_intrachromosomal=True)
 
         left_sums = np.zeros(n_bins)
         right_sums = np.zeros(n_bins)
         directionality_index = np.zeros(n_bins)
-        for edge in self.hic.edges(lazy=True):
+        for edge in edge_iter:
             source = edge.source
             sink = edge.sink
             weight = edge.weight
@@ -425,6 +440,18 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
             E = (A+B)/2
             if E != 0 and B-A != 0:
                 directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
+
+        if self.region_selection is not None:
+            nodes_ix = self.hic._getitem_nodes(key=self.region_selection, as_index=True)
+
+            if not isinstance(nodes_ix, list):
+                nodes_ix = [nodes_ix]
+
+            di_sub = []
+            for node_range in ranges(nodes_ix):
+                di_sub += list(directionality_index[node_range[0]:node_range[1]+1])
+
+            return np.array(di_sub)
         return directionality_index
 
     def _calculate(self):
@@ -441,21 +468,28 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
 
 class InsulationIndex(VectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
-                 relative=False, impute_missing=True,
+                 regions=None, relative=False, impute_missing=True,
                  window_sizes=(200000,), _table_name='insulation_index'):
+        self.region_selection = regions
+
         # are we retrieving an existing object?
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
             VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
         else:
+            if regions is None:
+                regions = hic.regions
+            else:
+                regions = hic.subset(regions)
+
             ii_fields = {}
             self.window_sizes = []
             for i, window_size in enumerate(window_sizes):
                 ii_fields['ii_%d' % window_size] = t.Float32Col(pos=i)
                 self.window_sizes.append(window_size)
             VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      data_fields=ii_fields, regions=hic.regions,
+                                                      data_fields=ii_fields, regions=regions,
                                                       _table_name_data=_table_name)
 
         self.window_sizes = []
@@ -469,9 +503,13 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         self.impute_missing = impute_missing
 
     def _insulation_index(self, d, hic_matrix=None, mask_thresh=.5, aggr_func=np.ma.mean):
+        if self.region_selection is not None:
+            regions = self.hic.subset(self.region_selection)
+        else:
+            regions = self.hic.regions
 
         chr_bins = self.hic.chromosome_bins
-        n = len(self.hic.regions)
+        n = len(self.regions)
         if hic_matrix is None or not hasattr(hic_matrix, "mask"):
             logging.debug("Fetching matrix")
             hic_matrix = self.hic.as_matrix(mask_missing=True, impute_missing=self.impute_missing)
@@ -479,13 +517,13 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         ins_matrix = np.empty(n)
         logging.debug("Starting processing")
         skipped = 0
-        for r in self.hic.regions:
+        for i, r in enumerate(regions):
             if (r.ix - chr_bins[r.chromosome][0] < d or
                     chr_bins[r.chromosome][1] - r.ix <= d + 1):
-                ins_matrix[r.ix] = np.nan
+                ins_matrix[i] = np.nan
                 continue
             if hic_matrix.mask[r.ix, r.ix]:
-                ins_matrix[r.ix] = np.nan
+                ins_matrix[i] = np.nan
                 continue
 
             up_rel_slice = (slice(r.ix - d, r.ix), slice(r.ix - d, r.ix))
@@ -503,17 +541,17 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                 continue
 
             if not self.relative:
-                ins_matrix[r.ix] = aggr_func(hic_matrix[ins_slice].data
-                                             if self.impute_missing else hic_matrix[ins_slice])
+                ins_matrix[i] = aggr_func(hic_matrix[ins_slice].data
+                                          if self.impute_missing else hic_matrix[ins_slice])
             else:
                 if not self.impute_missing:
-                    ins_matrix[r.ix] = (aggr_func(hic_matrix[ins_slice]) /
-                                        aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
-                                                                hic_matrix[down_rel_slice]))))
+                    ins_matrix[i] = (aggr_func(hic_matrix[ins_slice]) /
+                                     aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
+                                                             hic_matrix[down_rel_slice]))))
                 else:
-                    ins_matrix[r.ix] = (aggr_func(hic_matrix[ins_slice].data) /
-                                        aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
-                                                                hic_matrix[down_rel_slice].data))))
+                    ins_matrix[i] = (aggr_func(hic_matrix[ins_slice].data) /
+                                     aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
+                                                             hic_matrix[down_rel_slice].data))))
 
         logging.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
         return ins_matrix
@@ -521,7 +559,6 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
     def _calculate(self):
         for window_size in self.window_sizes:
             bins = self.hic.distance_to_bins(window_size)
-            print bins
             insulation_index = self._insulation_index(bins)
             self.data("ii_%d" % window_size, insulation_index)
 
