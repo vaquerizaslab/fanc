@@ -306,7 +306,7 @@ class Kaic(object):
                 print "Error: Must provide genome index (-i) when mapping FASTQ files!"
                 quit(1)
 
-        if 'pairs' in file_types or 'fastq' in file_types or 'sam' in file_types or 'reads' in file_types:
+        if 'fastq' in file_types or 'sam' in file_types or 'reads' in file_types:
             if args.genome is None:
                 print "Error: Must provide genome (-g) to process read pair files!"
                 quit(1)
