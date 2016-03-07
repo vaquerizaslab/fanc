@@ -58,7 +58,7 @@ Example:
 
 """
 
-from __future__ import division
+from __future__ import division, print_function
 import tables as t
 import pandas as p
 import numpy as np
