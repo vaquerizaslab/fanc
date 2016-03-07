@@ -77,6 +77,7 @@ from xml.etree import ElementTree as et
 import pickle
 from collections import defaultdict
 import copy
+from kaic.tools.general import range_overlap
 from kaic.architecture.architecture import calculateondemand, ArchitecturalFeature, _get_pytables_data_type,\
     TableArchitecturalFeature
 logging.basicConfig(level=logging.INFO)
@@ -2170,24 +2171,34 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         return nodes_ix_row, nodes_ix_col
 
     def _edge_row_range(self, source_start, source_end, sink_start, sink_end, only_intrachromosomal=False):
-        condition = "(source >= %d) & (source <= %d) & (sink >= %d) & (sink <= %d)"
-        condition1 = condition % (source_start, source_end, sink_start, sink_end)
-        condition2 = condition % (sink_start, sink_end, source_start, source_end)
+        condition = "(source > %d) & (source < %d) & (sink > %d) & (sink < %d)"
+        condition1 = condition % (source_start-1, source_end+1, sink_start-1, sink_end+1)
+        condition2 = condition % (sink_start-1, sink_end+1, source_start-1, source_end+1)
+
+        if source_start > sink_start:
+            condition1, condition2 = condition2, condition1
 
         regions_dict = None
         if only_intrachromosomal:
             regions_dict = self.regions_dict
 
-        covered = set()
-        for condition in condition1, condition2:
-            for edge_row in self._edges.where(condition):
-                if (only_intrachromosomal and
-                     regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
+        overlap = range_overlap(source_start, source_end, sink_start, sink_end)
+
+        for edge_row in self._edges.where(condition1):
+            if (only_intrachromosomal and
+                    regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
+                continue
+            yield edge_row
+
+        for edge_row in self._edges.where(condition2):
+            if overlap is not None:
+                if (overlap[0] <= edge_row['source'] <= overlap[1]) and (overlap[0] <= edge_row['sink'] <= overlap[1]):
                     continue
-                pair = (edge_row['source'], edge_row['sink'])
-                if pair not in covered:
-                    covered.add(pair)
-                    yield edge_row
+
+            if (only_intrachromosomal and
+                    regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
+                continue
+            yield edge_row
 
     def _get_node_ix_ranges(self, nodes_ix=None):
         if not isinstance(nodes_ix, list):

@@ -348,6 +348,31 @@ class TestRegionMatrixTable:
             else:
                 j += 1
 
+    def test_edges_nodup(self):
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(0, 2), slice(1, 3))):
+            print edge
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(1, 3), slice(0, 2))):
+            print edge
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(0, 3), slice(1, 2))):
+            print edge
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
     def test_edges_sorted(self):
 
         previous_weight = -1
