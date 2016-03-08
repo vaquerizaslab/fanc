@@ -1304,6 +1304,7 @@ class GenomicRegions(object):
     def range(self, range_region):
         regions = []
 
+        print(range_region)
         for region in self.regions:
             if not range_region.chromosome == region.chromosome:
                 if len(regions) == 0:
@@ -1311,7 +1312,7 @@ class GenomicRegions(object):
                 break
 
             if ((range_region.end is None or region.start <= range_region.end) and
-                    (range_region.start is None and region.end >= range_region.start)):
+                    (range_region.start is None or region.end >= range_region.start)):
                 regions.append(region)
 
         return regions
