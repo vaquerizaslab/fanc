@@ -303,7 +303,7 @@ class GenomicTrack(RegionsTable):
                 f.attrs["feature"] = f.fields[2]
             # Check if there is a new attribute that hasn't occured before
             for k in f.attrs.keys():
-                if not k in values and (not store_attrs or k in store_attrs):
+                if k not in values and (not store_attrs or k in store_attrs):
                     if i > 0:
                         # Fill up values for this attribute with nan
                         values[k] = [nan_strings[0]]*i
