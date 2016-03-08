@@ -263,7 +263,7 @@ class GenomicTrack(RegionsTable):
                 f.attrs["feature"] = f.fields[2]
             # Check if there is a new attribute that hasn't occured before
             for k in f.attrs.keys():
-                if not k in values and (not store_attrs or k in store_attrs):
+                if k not in values and (not store_attrs or k in store_attrs):
                     if i > 0:
                         # Fill up values for this attribute with nan
                         values[k] = [nan_strings[0]]*i
@@ -391,6 +391,7 @@ class GenomeCoordFormatter(Formatter):
         self.display_scale = display_scale
 
     def _format_val(self, x, prec_offset=0):
+        print(x)
         oom_loc = int(math.floor(math.log10(abs(x))))
         view_range = self.axis.axes.get_xlim()
         oom_range = int(math.floor(math.log10(abs(view_range[1] - view_range[0]))))
@@ -428,10 +429,11 @@ class GenomeCoordFormatter(Formatter):
 
 
 class GenomeCoordLocator(MaxNLocator):
-    '''Choose locations of genomic coordinate ticks on the plot axis.
+    """
+    Choose locations of genomic coordinate ticks on the plot axis.
     Behaves like default Matplotlib locator, except that it always
     places a tick at the start and the end of the window.
-    '''
+    """
     def __call__(self):
         vmin, vmax = self.axis.get_view_interval()
         ticks = self.tick_values(vmin, vmax)
@@ -1059,22 +1061,24 @@ class GenomicFeaturePlot(BasePlotter1D):
         trans = self.ax.get_xaxis_transform()
         overlap_regions = self.regions.range(region)
         for r in overlap_regions:
+            print(r.ix)
             region_patch = patches.Rectangle(
                 (r.start, 0.05),
                 width=abs(r.end - r.start), height=0.6,
-                transform=trans, color=self.color
+                transform=trans,
+                color=self.color
             )
             self.ax.add_patch(region_patch)
             self.ax.text((r.start + r.end)/2, 0.8, self.labels[r.ix], transform=trans,
                          ha="center", size="small")
 
-        self.ax.spines['right'].set_visible(False)
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['left'].set_visible(False)
-        self.ax.spines['bottom'].set_visible(False)
-        self.ax.xaxis.set_ticks_position('bottom')
-        self.ax.yaxis.set_visible(False)
-        self.ax.xaxis.set_visible(False)
+        # self.ax.spines['right'].set_visible(False)
+        # self.ax.spines['top'].set_visible(False)
+        # self.ax.spines['left'].set_visible(False)
+        # self.ax.spines['bottom'].set_visible(False)
+        # self.ax.xaxis.set_ticks_position('bottom')
+        # self.ax.yaxis.set_visible(False)
+        # self.ax.xaxis.set_visible(False)
 
     def _refresh(self, **kwargs):
         pass
