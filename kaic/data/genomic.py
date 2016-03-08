@@ -1310,13 +1310,16 @@ class GenomicRegions(object):
                     continue
                 break
 
-            if region.start <= range_region.end and region.end >= range_region.start:
+            if ((range_region.end is None or region.start <= range_region.end) and
+                    (range_region.start is None and region.end >= range_region.start)):
                 regions.append(region)
 
         return regions
 
     def to_bed(self, file):
-        '''Export regions as BED file'''
+        """
+        Export regions as BED file
+        """
         with open(file, 'w') as f:
             for i, r in enumerate(self.regions):
                 print(r.chromosome, r.start - 1, r.end, i, sep="\t", file=f)
