@@ -1065,7 +1065,7 @@ class GenomicRegion(TableObject):
     def __eq__(self, other):
         return self._equals(other)
 
-    def __ne__ (self, other):
+    def __ne__(self, other):
         return not self._equals(other)
 
 
