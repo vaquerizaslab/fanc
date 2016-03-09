@@ -874,7 +874,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         X_ -= X_[1, 0] - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         # create plot
-        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm)
+        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm, rasterized=True)
 
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
@@ -981,7 +981,7 @@ class GenomicArrayPlot(BasePlotter1D):
         regions = self.track.regions()[bins]
         bin_coords = np.r_[[(x.start - 1) for x in regions], (regions[-1].end)]
         X, Y = np.meshgrid(bin_coords, np.arange(values.shape[1] + 1))
-        mesh = self.ax.pcolormesh(X, Y, values.T, **self.plot_kwargs)
+        mesh = self.ax.pcolormesh(X, Y, values.T, rasterized=True, **self.plot_kwargs)
         self.colorbar = plt.colorbar(mesh, cax=self.cax, orientation="vertical")
 
     def _refresh(self, **kwargs):
