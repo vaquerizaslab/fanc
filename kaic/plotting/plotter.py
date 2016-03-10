@@ -684,8 +684,8 @@ class BasePlotterHic(object):
     def add_colorbar(self):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array([self.vmin, self.vmax])
-
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
+        self.colorbar.ax.yaxis.set_ticks_position("right")
 
     def add_adj_slider(self):
         plot_position = self.cax.get_position()
@@ -875,11 +875,11 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         # create plot
         self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm, rasterized=True)
-
         # set limits and aspect ratio
         self.ax.set_aspect(aspect="equal")
         self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
-        # remove y ticks
+        # remove outline everywhere except at bottom
+        sns.despine(self.fig, self.ax, top=True, right=True, left=True)
         self.ax.set_yticks([])
         # hide background patch
         self.ax.patch.set_visible(False)
