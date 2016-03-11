@@ -275,7 +275,6 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
                 colnames.append(column_selector)
 
         if isinstance(value, list):
-            print len(value), n_rows
             if len(value) != n_rows:
                 raise ValueError("Number of elements in selection does not "
                                  "match number of elements to be replaced!")
@@ -301,7 +300,6 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
                 raise ValueError("Can only replace selection with elements in a list")
 
             for row in rows:
-                print value, colnames[0], row
                 setattr(row, colnames[0], value)
                 row.update()
         self.flush()
@@ -366,4 +364,45 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     @abstractmethod
     def _calculate(self, *args, **kwargs):
         raise NotImplementedError("This method must be overridden in subclass!")
+
+
+class BasicRegionTable(VectorArchitecturalRegionFeature):
+    def __init__(self, regions, fields=None, types=None, data=None,
+                 file_name=None, mode='a', tmpdir=None,
+                 _string_size=100, _group_name='region_table'):
+        if isinstance(regions, str):
+            if file_name is None:
+                file_name = regions
+                regions = None
+            else:
+                raise ValueError("fields cannot be string unless file_name is None")
+
+        if regions is None and file_name is not None:
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode,
+                                                      _table_name_data=_group_name, tmpdir=tmpdir)
+        else:
+            pt_fields = {}
+            if fields is not None:
+                if isinstance(fields, dict):
+                    for field, field_type in fields.iteritems():
+                        pt_fields[field] = _get_pytables_data_type(field_type)
+                else:
+                    if types is None or not len(fields) == len(types):
+                        raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields), len(types)))
+                    for i, field in enumerate(fields):
+                        pt_fields[field] = _get_pytables_data_type(types[i])
+
+            data_fields = {}
+            for data_name, table_type in pt_fields.iteritems():
+                if table_type != t.StringCol:
+                    data_fields[data_name] = table_type(pos=len(data_fields))
+                else:
+                    data_fields[data_name] = table_type(_string_size, pos=len(data_fields))
+
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, data_fields=data_fields,
+                                                      regions=regions, data=data, _table_name_data=_group_name,
+                                                      tmpdir=tmpdir)
+
+    def _calculate(self, *args, **kwargs):
+        pass
 
