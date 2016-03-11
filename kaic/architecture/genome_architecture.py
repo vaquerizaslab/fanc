@@ -205,6 +205,14 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     def flush(self):
         self._regions.flush()
 
+    @property
+    def data_field_names(self):
+        names = []
+        for name in self._regions.colnames:
+            if name not in ("ix", "chromosome", "start", "end", "strand"):
+                names.append(name)
+        return names
+
     @classmethod
     def from_regions_and_data(cls, regions, data, file_name=None, mode='a', tmpdir=None, data_name='data'):
         if not isinstance(data, dict):
