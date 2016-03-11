@@ -3,6 +3,7 @@ from matplotlib.ticker import MaxNLocator, Formatter, Locator, NullFormatter, Nu
 from matplotlib.widgets import Slider
 import kaic
 from kaic.data.genomic import GenomicRegion, RegionsTable, GenomicRegions
+from kaic.architecture.genome_architecture import BasicRegionTable
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -248,7 +249,107 @@ def get_region_field(interval, field, return_default=False):
         raise ValueError("Field {} can't be found in inteval {}".format(field, interval))
 
 
-class GenomicTrack(RegionsTable):
+class GenomicTrack(BasicRegionTable):
+    def __init__(self, file_name, title=None, data_dict=None, regions=None, _table_name_tracks='tracks',
+                 mode='a', tmpdir=None):
+        """
+        Initialize a genomic track vector.
+
+        :param file_name: Storage location of the genomic track HDF5 file
+        :param data_dict: Dictionary containing data tracks as numpy arrays.
+                          The arrays must have as many elements in the first
+                          dimension as there are regions.
+        :param title: The overall title of the track.
+        :param regions: An iterable of (:class: `~kaic.data.genomic.GenomicRegion`)
+                        or String elemnts that describe regions.
+        """
+        fields = {}
+        for field, values in data_dict.iteritems():
+            fields[field] = type(values[0])
+
+        BasicRegionTable.__init__(self, regions=regions, fields=fields, data=data_dict, file_name=file_name,
+                                  _group_name=_table_name_tracks, mode=mode, tmpdir=tmpdir)
+
+        if title is not None:
+            self.title = title
+
+    @property
+    def title(self):
+        try:
+            return self._regions.attrs['title']
+        except KeyError:
+            return None
+
+    @title.setter
+    def title(self, title):
+        self._regions.attrs['title'] = title
+
+    @property
+    def _tracks(self):
+        return self.data_field_names
+
+    @classmethod
+    def from_gtf(cls, file_name, gtf_file, store_attrs=None, nan_strings=(".", "")):
+        """
+        Import a GTF file as GenomicTrack.
+
+        :param file_name: Storage location of the genomic track HDF5 file
+        :param gtf_file: Location of GTF file_name
+        :param store_attrs: List or listlike
+                            Only store attributes in the list
+        :param nan_strings: These characters will be considered NaN for parsing.
+                            Will become 0 for int arrays, np.nan for float arrays
+                            and left as is for string arrays.
+        """
+        gtf = pbt.BedTool(gtf_file)
+        n = len(gtf)
+        regions = []
+        values = {}
+        for i, f in enumerate(gtf.sort()):
+            regions.append(GenomicRegion(chromosome=f.chrom, start=f.start, end=f.end, strand=f.strand))
+            # If input is a GTF file, also store the type and source fields
+            if f.file_type in ("gff", "gtf"):
+                f.attrs["source"] = f.fields[1]
+                f.attrs["feature"] = f.fields[2]
+            # Check if there is a new attribute that hasn't occured before
+            for k in f.attrs.keys():
+                if k not in values and (not store_attrs or k in store_attrs):
+                    if i > 0:
+                        # Fill up values for this attribute with nan
+                        values[k] = [nan_strings[0]]*i
+                    else:
+                        values[k] = []
+            for k in values.keys():
+                values[k].append(f.attrs.get(k, nan_strings[0]))
+        for k, v in values.iteritems():
+            values[k] = get_typed_array(v, nan_strings=nan_strings, count=n)
+        return cls(file_name=file_name, data_dict=values, regions=regions)
+
+    def to_bedgraph(self, prefix, tracks=None, skip_nan=True):
+        if tracks is None:
+            tracks = self._tracks
+        elif not isinstance(tracks, list) and not isinstance(tracks, tuple):
+            tracks = [tracks]
+        for t in tracks:
+            log.info("Writing track {}".format(t))
+            with open("{}{}.bedgraph".format(prefix, t), "w") as f:
+                for r, v in it.izip(self.regions, self[t]):
+                    if skip_nan and np.isnan(v):
+                        continue
+                    f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start - 1, r.end, v))
+
+    def __getitem__(self, item):
+        if isinstance(item, basestring) and item in self._tracks:
+            return self[:, item]
+        else:
+            return BasicRegionTable.__getitem__(self, item)
+
+    @property
+    def tracks(self):
+        return {t: self[:, t] for t in self._tracks}
+
+
+class OldGenomicTrack(RegionsTable):
     def __init__(self, file_name, title=None, data_dict=None, regions=None, _table_name_tracks='tracks'):
         """
         Initialize a genomic track.
@@ -258,7 +359,7 @@ class GenomicTrack(RegionsTable):
                           The arrays must have as many elements in the first
                           dimension as there are regions.
         :param title: The overall title of the track.
-        :param regions: An iterable of (:class: `~kaic.data.genomic.GenomicRegion~)
+        :param regions: An iterable of (:class:`~kaic.data.genomic.GenomicRegion`)
                         or String elemnts that describe regions.
         """
         RegionsTable.__init__(self, file_name=file_name)
