@@ -2,21 +2,32 @@ from kaic.data.general import FileGroup
 from abc import abstractmethod, ABCMeta
 import tables as t
 from collections import defaultdict
+import inspect
 
 
 def _get_pytables_data_type(value):
     """
-    Convert a value to a PyTables data type.
+    Convert a value or class to a PyTables data type.
     :param value: Primitive value
     :return: PyTables Col object
     """
-    if isinstance(value, float):
+
+    if inspect.isclass(value):
+        compare_method = issubclass
+        if compare_method(value, t.Col):
+            return value
+    else:
+        compare_method = isinstance
+        if compare_method(value, t.Col):
+            return value.__class__
+
+    if compare_method(value, float):
         return t.Float32Col
-    if isinstance(value, int):
+    if compare_method(value, int):
         return t.Int32Col
-    if isinstance(value, bool):
+    if compare_method(value, bool):
         return t.BoolCol
-    if isinstance(value, str):
+    if compare_method(value, str):
         return t.StringCol
 
 
@@ -299,3 +310,11 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
     @abstractmethod
     def _calculate(self, *args, **kwargs):
         raise NotImplementedError("This method must be overridden in subclass!")
+
+
+class BasicTable(TableArchitecturalFeature):
+    def __init__(self, fields, types=None):
+        pt_fields = {}
+        if isinstance(fields, dict):
+            for field, field_type in fields.iteritems():
+                pt_fields[field]
