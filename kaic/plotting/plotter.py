@@ -562,12 +562,12 @@ class GenomicFigure(object):
 
 class GenomeCoordFormatter(Formatter):
     """
-    Process axis tick labels to give nice reprensations
+    Process axis tick labels to give nice representations
     of genomic coordinates
     """
     def __init__(self, chromosome, display_scale=True):
         """
-        :param chromosome: :class:`~kaic.GenomicRegion` or string
+        :param chromosome: :class:`~kaic.data.genomic.GenomicRegion` or string
         :param display_scale: Boolean
                               Display distance scale at bottom right
         """
