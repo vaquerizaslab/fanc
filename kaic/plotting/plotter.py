@@ -992,7 +992,6 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                 self.add_adj_slider()
 
     def _refresh(self, x_region=None, y_region=None):
-        print("refreshing")
         m = self.hic_buffer.get_matrix(x_region, y_region)
         self.im.set_data(self.get_color_matrix(m))
         self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
