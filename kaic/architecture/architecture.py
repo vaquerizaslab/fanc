@@ -324,10 +324,11 @@ class BasicTable(TableArchitecturalFeature):
         if isinstance(fields, str):
             if file_name is None:
                 file_name = fields
+                fields = None
             else:
                 raise ValueError("fields cannot be string unless file_name is None")
 
-        if file_name is not None:
+        if fields is None:
             TableArchitecturalFeature.__init__(self, _group_name, file_name, mode=mode)
         else:
             pt_fields = {}
@@ -335,7 +336,7 @@ class BasicTable(TableArchitecturalFeature):
                 for field, field_type in fields.iteritems():
                     pt_fields[field] = _get_pytables_data_type(field_type)
             else:
-                if not len(fields) == len(types):
+                if types is None or not len(fields) == len(types):
                     raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields), len(types)))
                 for i, field in enumerate(fields):
                     pt_fields[field] = _get_pytables_data_type(types[i])
