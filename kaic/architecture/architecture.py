@@ -103,8 +103,14 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
 
 
     """
-    def __init__(self, group, fields, file_name=None, mode='a',
+    def __init__(self, group, fields=None, file_name=None, mode='a',
                  tmpdir=None, _table_name='table_architecture'):
+        if isinstance(fields, str):
+            if file_name is None:
+                file_name = fields
+            else:
+                raise ValueError("Must provide fields if creating new table!")
+
         FileGroup.__init__(self, group, file_name=file_name, mode=mode, tmpdir=tmpdir)
         ArchitecturalFeature.__init__(self)
 
@@ -313,8 +319,37 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
 
 
 class BasicTable(TableArchitecturalFeature):
-    def __init__(self, fields, types=None):
-        pt_fields = {}
-        if isinstance(fields, dict):
-            for field, field_type in fields.iteritems():
-                pt_fields[field]
+    def __init__(self, fields, types=None, file_name=None, mode='a',
+                 _string_size=100, _group_name='basic_table'):
+        if isinstance(fields, str):
+            if file_name is None:
+                file_name = fields
+            else:
+                raise ValueError("fields cannot be string unless file_name is None")
+
+        if file_name is not None:
+            TableArchitecturalFeature.__init__(self, _group_name, file_name, mode=mode)
+        else:
+            pt_fields = {}
+            if isinstance(fields, dict):
+                for field, field_type in fields.iteritems():
+                    pt_fields[field] = _get_pytables_data_type(field_type)
+            else:
+                if not len(fields) == len(types):
+                    raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields), len(types)))
+                for i, field in enumerate(fields):
+                    pt_fields[field] = _get_pytables_data_type(types[i])
+
+            data_fields = {}
+            for data_name, table_type in pt_fields.iteritems():
+                if table_type != t.StringCol:
+                    data_fields[data_name] = table_type(pos=len(data_fields))
+                else:
+                    data_fields[data_name] = table_type(_string_size, pos=len(data_fields))
+
+            TableArchitecturalFeature.__init__(self, _group_name, fields=data_fields,
+                                               file_name=file_name, mode=mode)
+
+    def _calculate(self, *args, **kwargs):
+        pass
+
