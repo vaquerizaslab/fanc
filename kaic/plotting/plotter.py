@@ -18,6 +18,7 @@ import tables
 import re
 import warnings
 import copy
+import pyBigWig
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -892,39 +893,12 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         pass
 
 
-class ScalarPlot(BasePlotter1D):
-    def __init__(self, values, regions, title=''):
-        BasePlotter1D.__init__(self, title=title)
-        self.values = values
-        self.regions = regions
-
-    def _get_values_per_bp(self, region_list):
-        v = np.empty(region_list[-1].end - region_list[0].start + 1)
-        n = 0
-        for r in region_list:
-            v[n:n + r.end - r.start + 1] = self.values[r.ix]
-            n += r.end - r.start + 1
-        return v
-
-    def _plot(self, region=None, ax=None):
-        region_list = list(self.regions.intersect(region))
-        v = self._get_values_per_bp(region_list)
-        self.ax.plot(np.arange(region_list[0].start, region_list[-1].end + 1), v)
-
-    def _refresh(self, **kwargs):
-        pass
-
-
-class GenomicTrackPlot(BasePlotter1D):
+class ScalarDataPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, tracks, style="step", attributes=None, title=''):
+    def __init__(self, style="step", title=''):
         BasePlotter1D.__init__(self, title=title)
-        if not isinstance(tracks, list):
-            tracks = [tracks]
-        self.tracks = tracks
-        self.attributes = attributes
         self.style = style
         if style not in self._STYLES:
             raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
@@ -944,6 +918,50 @@ class GenomicTrackPlot(BasePlotter1D):
             x[i] = int(round((r.end + r.start)/2))
         return x, values
 
+    def get_plot_values(self, values, region_list):
+        return self._STYLES[self.style](self, values, region_list)
+
+    _STYLES = {_STYLE_STEP: _get_values_per_step,
+    _STYLE_MID: _get_values_per_mid}
+
+
+class BigWigPlot(ScalarDataPlot):
+    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=10):
+        ScalarDataPlot.__init__(self, style=style, title=title)
+        if isinstance(bigwigs, basestring):
+            bigwigs = [bigwigs]
+        self.bigwigs = [pyBigWig.open(p, "r") for p in bigwigs]
+        self.names = names
+        self.bin_size = bin_size
+
+    def _plot(self, region):
+        def pairwise(iterable):
+            "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+            a, b = it.tee(iterable)
+            next(b, None)
+            return it.izip(a, b)
+        for i, b in enumerate(self.bigwigs):
+            region_coords = np.r_[slice(region.start, region.stop, self.bin_size), region.stop]
+            regions = [GenomicRegion(region.chromosome, s, e) for s, e in pairwise(region_coords)]
+            bw_values = b.stats(region.chromosome, region.start - 1, region.stop, type="mean", nBins=len(region_coords) - 1)
+            plot_coords, plot_values = self.get_plot_values(regions, bw_values)
+            self.ax.plot(plot_coords, plot_values, label=self.names[i] if self.names else "")
+        if self.names:
+            self.ax.legend()
+        self.fig.delaxes(self.cax)
+
+    def _refresh(self, region):
+        pass
+
+
+class GenomicTrackPlot(ScalarDataPlot):
+    def __init__(self, tracks, style="step", attributes=None, title=''):
+        ScalarDataPlot.__init__(self, style=style, title=title)
+        if not isinstance(tracks, list):
+            tracks = [tracks]
+        self.tracks = tracks
+        self.attributes = attributes
+
     def _plot(self, region=None, ax=None):
         for track in self.tracks:
             bins = track.region_bins(region)
@@ -951,7 +969,7 @@ class GenomicTrackPlot(BasePlotter1D):
             regions = track.regions[bins]
             for k, v in values.iteritems():
                 if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
-                    x, y = self._STYLES[self.style](self, v, regions)
+                    x, y = self.get_plot_values(v, regions)
                     self.ax.plot(x, y,
                                  label="{}{}".format(track.title + "_"
                                                      if track.title and len(self.tracks) > 1
@@ -962,11 +980,8 @@ class GenomicTrackPlot(BasePlotter1D):
     def _refresh(self, **kwargs):
         pass
 
-    _STYLES = {_STYLE_STEP: _get_values_per_step,
-               _STYLE_MID: _get_values_per_mid}
 
-
-class GenomicArrayPlot(BasePlotter1D):
+class GenomicMatrixPlot(BasePlotter1D):
     def __init__(self, track, attribute, plot_kwargs=None, title=''):
         BasePlotter1D.__init__(self, title=title)
         self.track = track
