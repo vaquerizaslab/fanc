@@ -969,12 +969,22 @@ class BigWigPlot(ScalarDataPlot):
         start_overlap = np.searchsorted(interval_records["start"], bin_coords[:-1], side="right") - 1
         end_overlap = np.searchsorted(interval_records["end"], bin_coords[1:], side="right") - 1
         for i, (s, e) in enumerate(it.izip(start_overlap, end_overlap)):
-            weighted_signal = 0
+            # Have to control for edge cases where first and/or last bin only partially overlap with
+            # interval
+            if s == e:
+                out_values[i] = interval_records["value"][s]
+                continue
             total_range = bin_coords[i + 1] - bin_coords[i]
-            for j in range(s, e + 1):
-                dist = min(interval_records["end"][j], bin_coords[i + 1]) - max(interval_records["start"][j], bin_coords[i])
-                weighted_signal += dist*interval_records["value"][j]/total_range
-            out_values[i] = weighted_signal
+            weighted_value = 0
+            weighted_value += (min(interval_records["end"][s], bin_coords[i + 1]) -
+                               max(interval_records["start"][s], bin_coords[i]))*interval_records["value"][s]
+            weighted_value += (min(interval_records["end"][e], bin_coords[i + 1]) -
+                               max(interval_records["start"][e], bin_coords[i]))*interval_records["value"][e]
+            if e - s > 1:
+                weighted_value += np.sum((interval_records["start"][s + 1:e] - interval_records["end"][s + 1:e])*
+                                          interval_records["value"][s + 1:e])
+            weighted_value /= total_range
+            out_values[i] = weighted_value
         return bin_regions, out_values
 
     def _plot(self, region):
