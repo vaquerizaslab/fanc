@@ -934,11 +934,24 @@ class ScalarDataPlot(BasePlotter1D):
         return self._STYLES[self.style](self, values, region_list)
 
     _STYLES = {_STYLE_STEP: _get_values_per_step,
-    _STYLE_MID: _get_values_per_mid}
+               _STYLE_MID: _get_values_per_mid}
 
 
 class BigWigPlot(ScalarDataPlot):
-    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=10, plot_kwargs=None):
+    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None, plot_kwargs=None,
+                 ylim=None):
+        """
+        Plot data from BigWig files.
+
+        :param bigwigs: Path or list of paths to bigwig files
+        :param names: List of names that will appear in the legend.
+        :param style: 'step' or 'mid'
+        :param title: Title of the plot
+        :param bin_size: Bin BigWig values using fixed size bins of the given size.
+                         If None, will plot values as they are in the BigWig file
+        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
+        :param ylim: Tuple to set y-axis limits
+        """
         ScalarDataPlot.__init__(self, style=style, title=title)
         if isinstance(bigwigs, basestring):
             bigwigs = [bigwigs]
@@ -946,6 +959,23 @@ class BigWigPlot(ScalarDataPlot):
         self.bigwigs = bigwigs
         self.names = names
         self.bin_size = bin_size
+        self.ylim = ylim
+
+    def _bin_intervals(self, region, intervals):
+        bin_coords = np.r_[slice(region.start, region.end, self.bin_size), region.end]
+        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
+        interval_records = np.core.records.fromrecords(intervals, names=["start", "end", "value"])
+        out_values = np.full(len(bin_coords) - 1, np.nan, dtype=np.float_)
+        start_overlap = np.searchsorted(interval_records["start"], bin_coords[:-1], side="right") - 1
+        end_overlap = np.searchsorted(interval_records["end"], bin_coords[1:], side="right") - 1
+        for i, (s, e) in enumerate(it.izip(start_overlap, end_overlap)):
+            weighted_signal = 0
+            total_range = bin_coords[i + 1] - bin_coords[i]
+            for j in range(s, e + 1):
+                dist = min(interval_records["end"][j], bin_coords[i + 1]) - max(interval_records["start"][j], bin_coords[i])
+                weighted_signal += dist*interval_records["value"][j]/total_range
+            out_values[i] = weighted_signal
+        return bin_regions, out_values
 
     def _plot(self, region):
         for i, b in enumerate(self.bigwigs):
@@ -954,13 +984,18 @@ class BigWigPlot(ScalarDataPlot):
                 intervals = wWigIO.getIntervals(b, region.chromosome, region.start, region.end)
             finally:
                 wWigIO.close(b)
-            regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
-            bw_values = [v for s, e, v in intervals]
+            if self.bin_size:
+                regions, bw_values = self._bin_intervals(region, intervals)
+            else:
+                regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
+                bw_values = [v for s, e, v in intervals]
             x, y = self.get_plot_values(bw_values, regions)
             self.ax.plot(x, y, label=self.names[i] if self.names else "", **self.plot_kwargs)
         if self.names:
             self.add_legend()
         self.fig.delaxes(self.cax)
+        if self.ylim:
+            self.ax.set_ylim(self.ylim)
 
     def _refresh(self, region):
         pass
