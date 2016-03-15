@@ -18,7 +18,7 @@ import tables
 import re
 import warnings
 import copy
-import pyBigWig
+import wWigIO
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -605,6 +605,7 @@ class BasePlotter(object):
         self._ax = None
         self.cax = None
         self.title = title
+        self.has_legend = False
 
     @abstractmethod
     def _plot(self, region=None):
@@ -632,6 +633,18 @@ class BasePlotter(object):
     @ax.setter
     def ax(self, value):
         self._ax = value
+
+    def remove_colorbar_ax(self):
+        if self.cax is None:
+            return
+        try:
+            self.fig.delaxes(self.cax)
+        except KeyError:
+            pass
+
+    def add_legend(self, *args, **kwargs):
+        if not self.has_legend:
+            self.ax.legend(*args, **kwargs)
 
 
 class BasePlotter1D(BasePlotter):
@@ -686,7 +699,6 @@ class BasePlotterHic(object):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array([self.vmin, self.vmax])
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
-        self.colorbar.ax.yaxis.set_ticks_position("right")
 
     def add_adj_slider(self):
         plot_position = self.cax.get_position()
@@ -880,7 +892,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.ax.set_aspect(aspect="equal")
         self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
         # remove outline everywhere except at bottom
-        sns.despine(self.fig, self.ax, top=True, right=True, left=True)
+        sns.despine(ax=self.ax, top=True, right=True, left=True)
         self.ax.set_yticks([])
         # hide background patch
         self.ax.patch.set_visible(False)
@@ -926,28 +938,28 @@ class ScalarDataPlot(BasePlotter1D):
 
 
 class BigWigPlot(ScalarDataPlot):
-    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=10):
+    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=10, plot_kwargs=None):
         ScalarDataPlot.__init__(self, style=style, title=title)
         if isinstance(bigwigs, basestring):
             bigwigs = [bigwigs]
-        self.bigwigs = [pyBigWig.open(p, "r") for p in bigwigs]
+        self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
+        self.bigwigs = bigwigs
         self.names = names
         self.bin_size = bin_size
 
     def _plot(self, region):
-        def pairwise(iterable):
-            "s -> (s0,s1), (s1,s2), (s2, s3), ..."
-            a, b = it.tee(iterable)
-            next(b, None)
-            return it.izip(a, b)
         for i, b in enumerate(self.bigwigs):
-            region_coords = np.r_[slice(region.start, region.stop, self.bin_size), region.stop]
-            regions = [GenomicRegion(region.chromosome, s, e) for s, e in pairwise(region_coords)]
-            bw_values = b.stats(region.chromosome, region.start - 1, region.stop, type="mean", nBins=len(region_coords) - 1)
-            plot_coords, plot_values = self.get_plot_values(regions, bw_values)
-            self.ax.plot(plot_coords, plot_values, label=self.names[i] if self.names else "")
+            try:
+                bf = wWigIO.open(b)
+                intervals = wWigIO.getIntervals(b, region.chromosome, region.start, region.end)
+            finally:
+                wWigIO.close(b)
+            regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
+            bw_values = [v for s, e, v in intervals]
+            x, y = self.get_plot_values(bw_values, regions)
+            self.ax.plot(x, y, label=self.names[i] if self.names else "", **self.plot_kwargs)
         if self.names:
-            self.ax.legend()
+            self.add_legend()
         self.fig.delaxes(self.cax)
 
     def _refresh(self, region):
@@ -974,8 +986,8 @@ class GenomicTrackPlot(ScalarDataPlot):
                                  label="{}{}".format(track.title + "_"
                                                      if track.title and len(self.tracks) > 1
                                                      else "", k))
-        self.ax.legend()
-        self.fig.delaxes(self.cax)
+        self.add_legend()
+        self.remove_colorbar_ax()
 
     def _refresh(self, **kwargs):
         pass
@@ -998,6 +1010,7 @@ class GenomicMatrixPlot(BasePlotter1D):
         X, Y = np.meshgrid(bin_coords, np.arange(values.shape[1] + 1))
         mesh = self.ax.pcolormesh(X, Y, values.T, rasterized=True, **self.plot_kwargs)
         self.colorbar = plt.colorbar(mesh, cax=self.cax, orientation="vertical")
+        #sns.despine(ax=self.ax, top=True, right=True)
 
     def _refresh(self, **kwargs):
         pass
@@ -1053,7 +1066,7 @@ class GeneModelPlot(BasePlotter1D):
             self.ax.spines['bottom'].set_visible(False)
             self.ax.xaxis.set_ticks_position('bottom')
             self.ax.yaxis.set_visible(False)
-        self.fig.delaxes(self.cax)
+        self.remove_colorbar_ax()
 
     def _refresh(self, **kwargs):
         pass
