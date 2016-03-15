@@ -578,7 +578,10 @@ class GenomeCoordFormatter(Formatter):
         self.display_scale = display_scale
 
     def _format_val(self, x, prec_offset=0):
-        oom_loc = int(math.floor(math.log10(abs(x))))
+        if x == 0:
+            oom_loc = 0
+        else:
+            oom_loc = int(math.floor(math.log10(abs(x))))
         view_range = self.axis.axes.get_xlim()
         oom_range = int(math.floor(math.log10(abs(view_range[1] - view_range[0]))))
         if oom_loc >= 3:
@@ -963,18 +966,19 @@ class BasePlotterHic(BasePlotterMatrix):
         self.adjust_range = adjust_range
 
     def add_adj_slider(self):
-        plot_position = self.cax.get_position()
-        vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
-        self.vmin_slider = Slider(vmin_axs, 'vmin', self.hic_buffer.buffered_min,
-                                  self.hic_buffer.buffered_max, valinit=self.vmin,
-                                  facecolor='#dddddd', edgecolor='none')
-        vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
-        self.vmax_slider = Slider(vmax_axs, 'vmax', self.hic_buffer.buffered_min,
-                                  self.hic_buffer.buffered_max, valinit=self.vmax,
-                                  facecolor='#dddddd', edgecolor='none')
-        self.fig.subplots_adjust(top=0.90, bottom=0.15)
-        self.vmin_slider.on_changed(self._slider_refresh)
-        self.vmax_slider.on_changed(self._slider_refresh)
+        pass
+        # plot_position = self.cax.get_position()
+        # vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
+        # self.vmin_slider = Slider(vmin_axs, 'vmin', self.hic_buffer.buffered_min,
+        #                           self.hic_buffer.buffered_max, valinit=self.vmin,
+        #                           facecolor='#dddddd', edgecolor='none')
+        # vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
+        # self.vmax_slider = Slider(vmax_axs, 'vmax', self.hic_buffer.buffered_min,
+        #                           self.hic_buffer.buffered_max, valinit=self.vmax,
+        #                           facecolor='#dddddd', edgecolor='none')
+        # self.fig.subplots_adjust(top=0.90, bottom=0.15)
+        # self.vmin_slider.on_changed(self._slider_refresh)
+        # self.vmax_slider.on_changed(self._slider_refresh)
 
     def _slider_refresh(self, val):
         new_vmin = self.vmin_slider.val
@@ -1084,6 +1088,11 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                                  cmap=self.colormap, norm=self.norm, origin="upper",
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
+        self.ax.spines['right'].set_visible(False)
+        self.ax.spines['top'].set_visible(False)
+        self.ax.xaxis.set_ticks_position('bottom')
+        self.ax.yaxis.set_ticks_position('left')
+
         self.last_ylim = self.ax.get_ylim()
         self.last_xlim = self.ax.get_xlim()
 
