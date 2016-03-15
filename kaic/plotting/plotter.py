@@ -889,8 +889,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # create plot
         self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm, rasterized=True)
         # set limits and aspect ratio
-        self.ax.set_aspect(aspect="equal")
-        self.ax.set_ylim(0, self.max_dist if self.max_dist else 0.5*(region.end-region.start))
+        #self.ax.set_aspect(aspect="equal")
+        self.ax.set_ylim(0, self.max_dist/2 if self.max_dist else (region.end-region.start)/2)
         # remove outline everywhere except at bottom
         sns.despine(ax=self.ax, top=True, right=True, left=True)
         self.ax.set_yticks([])
@@ -1004,6 +1004,7 @@ class BigWigPlot(ScalarDataPlot):
         if self.names:
             self.add_legend()
         self.fig.delaxes(self.cax)
+        sns.despine(ax=self.ax, top=True, right=True)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
 
