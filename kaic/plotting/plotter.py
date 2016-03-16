@@ -357,6 +357,7 @@ class GenomicFigure(object):
             else:
                 ax = plt.subplot(gs[i, 0])
             plots[i].cax = plt.subplot(gs[i, 1])
+            plots[i].ax = ax
             self.axes.append(ax)
 
     @property
@@ -1019,7 +1020,7 @@ class BigWigPlot(ScalarDataPlot):
             self.ax.plot(x, y, label=self.names[i] if self.names else "", **self.plot_kwargs)
         if self.names:
             self.add_legend()
-        self.fig.delaxes(self.cax)
+        self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
