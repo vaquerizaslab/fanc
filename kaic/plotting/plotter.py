@@ -1057,20 +1057,21 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 
 class GenomicMatrixPlot(BasePlotter1D):
-    def __init__(self, track, attribute, plot_kwargs=None, title=''):
+    def __init__(self, track, attribute, y_coords=None, plot_kwargs=None, title=''):
         BasePlotter1D.__init__(self, title=title)
         self.track = track
         self.attribute = attribute
         if plot_kwargs is None:
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
+        self.y_coords = y_coords
 
     def _plot(self, region=None, ax=None):
         bins = self.track.region_bins(region)
         values = self.track[bins][self.attribute]
         regions = self.track.regions()[bins]
         bin_coords = np.r_[[(x.start - 1) for x in regions], (regions[-1].end)]
-        X, Y = np.meshgrid(bin_coords, np.arange(values.shape[1] + 1))
+        X, Y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None else np.arange(values.shape[1] + 1)))
         mesh = self.ax.pcolormesh(X, Y, values.T, rasterized=True, **self.plot_kwargs)
         self.colorbar = plt.colorbar(mesh, cax=self.cax, orientation="vertical")
         #sns.despine(ax=self.ax, top=True, right=True)
