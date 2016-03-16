@@ -675,7 +675,8 @@ class BasePlotterHic(object):
 
     def __init__(self, hic_data, colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
-                 buffering_strategy="relative", buffering_arg=1, blend_masked=False):
+                 buffering_strategy="relative", buffering_arg=1, blend_zero=True,
+                 unmappable_color=".9"):
         self.hic_data = hic_data
         if isinstance(hic_data, kaic.Hic):
             self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
@@ -685,8 +686,6 @@ class BasePlotterHic(object):
         else:
             raise ValueError("Unknown type for hic_data")
         self.colormap = copy.copy(mpl.cm.get_cmap(colormap))
-        if blend_masked:
-            self.colormap.set_bad(self.colormap(0))
         self._vmin = vmin
         self._vmax = vmax
         self.norm = prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
@@ -694,10 +693,24 @@ class BasePlotterHic(object):
         self.slider = None
         self.show_colorbar = show_colorbar
         self.adjust_range = adjust_range
+        self.unmappable_color = unmappable_color
+        self.blend_zero = blend_zero
+
+    def get_color_matrix(self, matrix):
+        color_matrix = self.colormap(self.norm(matrix))
+        if self.blend_zero or self.unmappable_color:
+            zero_mask = np.isclose(matrix, 0.)
+        if self.blend_zero:
+            color_matrix[zero_mask] = self.colormap(0)
+        if self.unmappable_color:
+            unmappable = np.all(zero_mask, axis=0)
+            color_matrix[unmappable, :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+            color_matrix[:, unmappable] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+        return color_matrix
 
     def add_colorbar(self):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
-        cmap_data.set_array([self.vmin, self.vmax])
+        cmap_data.set_array([self.norm.vmin, self.norm.vmax])
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
 
     def add_adj_slider(self):
@@ -792,16 +805,18 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True,
                  adjust_range=True, buffering_strategy="relative", buffering_arg=1,
-                 blend_masked=False):
+                 blend_zero=True, unmappable_color=".9"):
         BasePlotter2D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
                                 norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
                                 adjust_range=adjust_range, buffering_strategy=buffering_strategy,
-                                buffering_arg=buffering_arg, blend_masked=blend_masked)
+                                buffering_arg=buffering_arg, blend_zero=blend_zero,
+                                unmappable_color=unmappable_color)
 
     def _plot(self, x_region=None, y_region=None):
         m = self.hic_buffer.get_matrix(x_region, y_region)
-        self.im = self.ax.imshow(m, interpolation='none', cmap=self.colormap, norm=self.norm, origin="upper",
+        self.im = self.ax.imshow(self.get_color_matrix(m), interpolation='none',
+                                 cmap=self.colormap, norm=self.norm, origin="upper",
                                  extent=[m.col_regions[0].start, m.col_regions[-1].end,
                                          m.row_regions[-1].end, m.row_regions[0].start])
         self.last_ylim = self.ax.get_ylim()
@@ -815,8 +830,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def _refresh(self, x_region=None, y_region=None):
         print("refreshing")
         m = self.hic_buffer.get_matrix(x_region, y_region)
-
-        self.im.set_data(m)
+        self.im.set_data(self.get_color_matrix(m))
         self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
                             m.row_regions[-1].end, m.row_regions[0].start])
 
@@ -852,27 +866,22 @@ class HicComparisonPlot2D(HicPlot2D):
 class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False,
-                 buffering_strategy="relative", buffering_arg=1, blend_masked=False):
+                 buffering_strategy="relative", buffering_arg=1, blend_zero=True,
+                 unmappable_color=".9"):
         BasePlotter1D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
                                 buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
-                                norm=norm, blend_masked=blend_masked)
+                                norm=norm, blend_zero=blend_zero, unmappable_color=unmappable_color)
         self.max_dist = max_dist
 
     def _plot(self, region=None):
         log.debug("Generating matrix from hic object")
         if region is None:
             raise ValueError("Cannot plot triangle plot for whole genome.")
+        # Have to copy unfortunately, otherwise modifying matrix in buffer
         hm = self.hic_buffer.get_matrix(region, region)
-        hm[np.tril_indices(hm.shape[0])] = np.nan
-        # Remove part of matrix further away than max_dist
-        if self.max_dist:
-            for i, r in enumerate(hm.row_regions):
-                if r.start - region.start > self.max_dist:
-                    hm[np.triu_indices(hm.shape[0], k=i)] = np.nan
-                    break
-        hm_masked = np.ma.MaskedArray(hm, mask=np.isnan(hm))
+        hm = kaic.data.genomic.RegionMatrix(np.copy(hm), col_regions=hm.col_regions, row_regions=hm.row_regions)
         # prepare an array of the corner coordinates of the Hic-matrix
         # Distances have to be scaled by sqrt(2), because the diagonals of the bins
         # are sqrt(2)*len(bin_size)
@@ -886,8 +895,15 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # x-axis
         X_ -= X_[1, 0] - (hm.row_regions[0].start - 1)
         Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
-        # create plot
-        self.ax.pcolormesh(X_, Y_, hm_masked, cmap=self.colormap, norm=self.norm, rasterized=True)
+        # pcolormesh doesn't support plotting RGB arrays directly like imshow, have to workaround
+        # See https://github.com/matplotlib/matplotlib/issues/4277
+        # http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python/29232668?noredirect=1#comment46710586_29232668
+        color_matrix = self.get_color_matrix(hm)
+        color_tuple = color_matrix.transpose((1,0,2)).reshape(
+            (color_matrix.shape[0]*color_matrix.shape[1],color_matrix.shape[2]))
+        collection = self.ax.pcolormesh(X_, Y_, hm, cmap=self.colormap, norm=self.norm, rasterized=True)
+        collection._A = None
+        collection.set_color(color_tuple)
         # set limits and aspect ratio
         #self.ax.set_aspect(aspect="equal")
         self.ax.set_ylim(0, self.max_dist/2 if self.max_dist else (region.end-region.start)/2)
