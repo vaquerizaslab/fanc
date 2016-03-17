@@ -92,8 +92,21 @@ def force_aspect(ax, aspect):
 
 
 class SymmetricNorm(mpl.colors.Normalize):
-    def __init__(self, vmin=None, vmax=None, clip=False, percentile=None):
-        mpl.colors.Normalize.__init__(self, vmin=vmin, vmax=vmax, clip=clip)
+    """
+    Normalizes data for plotting on a divergent colormap.
+    Automatically chooses vmin and vmax so that the colormap is
+    centered at zero.
+    """
+    def __init__(self, vmin=None, vmax=None, percentile=None):
+        """
+        :param vmin: Choose vmin manually
+        :param vmax: Choose vmax manually
+        :param percentile: Instead of taking the minmum or maximum to
+                           automatically determine vmin/vmax, take the
+                           percentile.
+                           eg. with 5, vmin is 5%-ile, vmax 95%-ile
+        """
+        mpl.colors.Normalize.__init__(self, vmin=vmin, vmax=vmax, clip=False)
         self.percentile = percentile
         self.vmin = vmin
         self.vmax = vmax
@@ -444,10 +457,11 @@ class GenomeCoordFormatter(Formatter):
 
 
 class GenomeCoordLocator(MaxNLocator):
-    '''Choose locations of genomic coordinate ticks on the plot axis.
+    """
+    Choose locations of genomic coordinate ticks on the plot axis.
     Behaves like default Matplotlib locator, except that it always
     places a tick at the start and the end of the window.
-    '''
+    """
     def __call__(self):
         vmin, vmax = self.axis.get_view_interval()
         ticks = self.tick_values(vmin, vmax)
@@ -730,6 +744,10 @@ class BasePlotterHic(object):
         self.blend_zero = blend_zero
 
     def get_color_matrix(self, matrix):
+        """
+        Convert matrix of scalar values to final
+        matrix of RGB values suitable for plotting.
+        """
         color_matrix = self.colormap(self.norm(matrix))
         if self.blend_zero or self.unmappable_color:
             zero_mask = np.isclose(matrix, 0.)
@@ -742,6 +760,9 @@ class BasePlotterHic(object):
         return color_matrix
 
     def add_colorbar(self):
+        """
+        Add colorbar to the plot. Draws on the colorbar axes cax.
+        """
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array(np.array([self.norm.vmin, self.norm.vmax]))
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
@@ -1022,6 +1043,14 @@ class ScalarDataPlot(BasePlotter1D):
         return x, values
 
     def get_plot_values(self, values, region_list):
+        """
+        Convert values and regions to final x- and y-
+        coordinates for plotting, based on the selected style.
+
+        :param values: List or array of scalar values
+        :param region_list: List of class:`~kaic.data.genomic.GenomicRegion`,
+                            one for each value
+        """
         return self._STYLES[self.style](self, values, region_list)
 
     _STYLES = {_STYLE_STEP: _get_values_per_step,
@@ -1055,7 +1084,8 @@ class BigWigPlot(ScalarDataPlot):
 
     def _bin_intervals(self, region, intervals):
         """
-        Bins values retrieved from Bigwig in evenly spaced bins
+        Bin values fearch interval from Bigwig in evenly spaced bins
+        suitable for plotting.
         """
         bin_coords = np.r_[slice(region.start, region.end, self.bin_size), region.end]
         bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
