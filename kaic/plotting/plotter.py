@@ -338,6 +338,21 @@ class GenomicTrack(RegionsTable):
 
 class GenomicFigure(object):
     def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None, ticks_last=False):
+        """
+        Creates a GenomicFigure composed of one or more plots.
+        All plots are arranged in a single column, their genomic coordinates aligned.
+
+        :param plots: List of plot instances, which should inherit
+                      from :class:`~BasePlotter`
+        :param height_ratios: A list of heights, one for each plot. The ratio of these
+                              numbers represents the height ratios of the plots.
+                              Also, the sum of this list is used as the height of
+                              the plot in inches with the width fixed at 6 inches at
+                              the moment
+        :param figsize: Specify figure size directly (width, height) of figure in inches
+        :param gridspec_args: Optional keyword-arguments passed directly to GridSpec constructor
+        :param ticks_last: Only draw genomic coordinate tick labels on last bottom plot
+        """
         self.plots = plots
         self.n = len(plots)
         self.ticks_last = ticks_last
@@ -509,6 +524,22 @@ class BufferedMatrix(object):
     _STRATEGY_RELATIVE = "relative"
 
     def __init__(self, data, buffering_strategy="relative", buffering_arg=1):
+        """
+        Initialize a buffer for Matrix-like objects that support
+        indexing using class:`~GenomicRegion` objects, such as class:`~kaic.Hic`
+        or class:`~kaic.RegionMatrix` objects.
+
+        :param data: Data to be buffered
+        :param buffering_strategy: "all", "fixed" or "relative"
+                                   "all" buffers the whole matrix
+                                   "fixed" buffers a fixed area, specified by buffering_arg
+                                           around the query area
+                                   "relative" buffers a multiple of the query area.
+                                              With buffering_arg=1 the query area plus
+                                              the same amount upstream and downstream
+                                              are buffered
+        :param buffering_arg: Number specifying how much around the query area is buffered
+        """
         self.data = data
         if buffering_strategy not in self._BUFFERING_STRATEGIES:
             raise ValueError("Only support the buffering strategies {}".format(self._BUFFERING_STRATEGIES.keys()))
@@ -807,6 +838,24 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                  vmin=None, vmax=None, show_colorbar=True,
                  adjust_range=True, buffering_strategy="relative", buffering_arg=1,
                  blend_zero=True, unmappable_color=".9"):
+        """
+        Initialize a 2D Hi-C heatmap plot.
+
+        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
+        :param title: Title drawn on top of the figure panel
+        :param colormap: colormap
+        :param norm: Normalizing colormap using "log" or "lin"
+        :param vmin: Clip interactions below this value
+        :param vmax: Clip interactions above this value
+        :param show_colorbar: Draw a colorbar
+        :param adjust_range: Draw a slider to adjust vmin/vmax interactively
+        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
+        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
+        :param blend_zero: If True then zero count bins will be drawn using the minimum
+                           value in the colormap, otherwise transparent
+        :param unmappable_color: Draw unmappable bins using this color. Defaults to
+                                 light gray (".9")
+        """
         BasePlotter2D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
                                 norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
@@ -869,6 +918,25 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
                  unmappable_color=".9"):
+        """
+        Initialize a triangle Hi-C heatmap plot.
+
+        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
+        :param title: Title drawn on top of the figure panel
+        :param colormap: colormap
+        :param max_dist: Only draw interactions up to this distance
+        :param norm: Normalizing colormap using "log" or "lin"
+        :param vmin: Clip interactions below this value
+        :param vmax: Clip interactions above this value
+        :param show_colorbar: Draw a colorbar
+        :param adjust_range: Draw a slider to adjust vmin/vmax interactively
+        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
+        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
+        :param blend_zero: If True then zero count bins will be drawn using the minimum
+                           value in the colormap, otherwise transparent
+        :param unmappable_color: Draw unmappable bins using this color. Defaults to
+                                 light gray (".9")
+        """
         BasePlotter1D.__init__(self, title=title)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
@@ -923,6 +991,11 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
 
 
 class ScalarDataPlot(BasePlotter1D):
+    """
+    Base class for plotting scalar values like ChIP-seq signal.
+    Provides methods for converting lists of values and regions
+    to plotting coordinates.
+    """
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
@@ -958,11 +1031,12 @@ class BigWigPlot(ScalarDataPlot):
     def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None, plot_kwargs=None,
                  ylim=None):
         """
-        Plot data from BigWig files.
+        Plot data from on or more BigWig files.
 
         :param bigwigs: Path or list of paths to bigwig files
-        :param names: List of names that will appear in the legend.
-        :param style: 'step' or 'mid'
+        :param names: List of names for each bigwig. Used as label in the legend.
+        :param style: 'step' Draw values in a step-wise manner for each bin
+                      'mid' Draw values connecting mid-points of bins
         :param title: Title of the plot
         :param bin_size: Bin BigWig values using fixed size bins of the given size.
                          If None, will plot values as they are in the BigWig file
@@ -979,6 +1053,9 @@ class BigWigPlot(ScalarDataPlot):
         self.ylim = ylim
 
     def _bin_intervals(self, region, intervals):
+        """
+        Bins values retrieved from Bigwig in evenly spaced bins
+        """
         bin_coords = np.r_[slice(region.start, region.end, self.bin_size), region.end]
         bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
         interval_records = np.core.records.fromrecords(intervals, names=["start", "end", "value"])
@@ -987,17 +1064,18 @@ class BigWigPlot(ScalarDataPlot):
         end_overlap = np.searchsorted(interval_records["end"], bin_coords[1:], side="left")
         for i, (s, e) in enumerate(it.izip(start_overlap, end_overlap)):
             assert e >= s
-            # Have to control for edge cases where first and/or last bin only partially overlap with
-            # interval
             if s == e:
                 out_values[i] = interval_records["value"][s]
                 continue
             total_range = bin_coords[i + 1] - bin_coords[i]
             weighted_value = 0
+            # Have to control for edge cases where first and/or last bin only partially overlap with
+            # interval
             weighted_value += (min(interval_records["end"][s], bin_coords[i + 1]) -
                                max(interval_records["start"][s], bin_coords[i]))*interval_records["value"][s]
             weighted_value += (min(interval_records["end"][e], bin_coords[i + 1]) -
                                max(interval_records["start"][e], bin_coords[i]))*interval_records["value"][e]
+            # Once edge case is taken care of the rest of the intervals can be binned evenly
             if e - s > 1:
                 weighted_value += np.sum((interval_records["end"][s + 1:e] - interval_records["start"][s + 1:e])*
                                           interval_records["value"][s + 1:e])
@@ -1031,6 +1109,18 @@ class BigWigPlot(ScalarDataPlot):
 
 class GenomicTrackPlot(ScalarDataPlot):
     def __init__(self, tracks, style="step", attributes=None, title=''):
+        """
+        Plot scalar values from one or more class:`~GenomicTrack` objects
+
+        :param tracks: class:`~GenomicTrack`
+        :param style: 'step' Draw values in a step-wise manner for each bin
+              'mid' Draw values connecting mid-points of bins
+        :param attributes: Only draw attributes from the track objects
+                           which match this description.
+                           Should be a list of names. Supports wildcard matching
+                           and regex.
+        :param title: Used as title for plot
+        """
         ScalarDataPlot.__init__(self, style=style, title=title)
         if not isinstance(tracks, list):
             tracks = [tracks]
@@ -1058,6 +1148,18 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 class GenomicMatrixPlot(BasePlotter1D):
     def __init__(self, track, attribute, y_coords=None, plot_kwargs=None, title=''):
+        """
+        Plot matrix from a class:`~GenomicTrack` objects
+
+        :param track: class:`~GenomicTrack` containing the matrix
+        :param attribute: Which matrix from the track object to draw
+        :param y_coords: Matrices in the class:`~GenomicTrack` object are
+                         unitless. Can provide the coordinates for the
+                         y-direction here. Matrix has shape (X, Y) must
+                         have shape Y or Y + 1
+        :param plot_kwargs: Keyword-arguments passed on to pcolormesh
+        :param title: Used as title for plot
+        """
         BasePlotter1D.__init__(self, title=title)
         self.track = track
         self.attribute = attribute
