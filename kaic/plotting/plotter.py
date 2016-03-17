@@ -17,7 +17,6 @@ import itertools as it
 import tables
 import re
 import warnings
-import copy
 import wWigIO
 plt = sns.plt
 log = logging.getLogger(__name__)
@@ -717,7 +716,9 @@ class BasePlotterHic(object):
             self.hic_buffer = BufferedMatrix.from_hic_matrix(hic_data)
         else:
             raise ValueError("Unknown type for hic_data")
-        self.colormap = copy.copy(mpl.cm.get_cmap(colormap))
+        if isinstance(colormap, basestring):
+            colormap = mpl.cm.get_cmap(colormap)
+        self.colormap = colormap
         self._vmin = vmin
         self._vmax = vmax
         self.norm = prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
