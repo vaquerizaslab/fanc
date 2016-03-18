@@ -413,8 +413,7 @@ class GenomicFigure(object):
             # if self.height_ratios is not None:
             #     force_aspect(a, self.height_ratios[i])
             if self.ticks_last and i < len(self.axes) - 1:
-                plt.setp(a.get_xticklabels(), visible=False)
-                a.xaxis.offsetText.set_visible(False)
+                p.remove_genome_ticks()
         return self.fig, self.axes
 
     def __enter__(self):
@@ -466,7 +465,7 @@ class GenomeCoordFormatter(Formatter):
         Is called by matplotlib and displayed in lower right corner
         of plots.
         """
-        if not self.display_scale or not self.locs:
+        if not self.display_scale or self.locs is None or len(self.locs) == 0:
             return ""
         view_range = self.axis.axes.get_xlim()
         view_dist = abs(view_range[1] - view_range[0])
@@ -716,6 +715,10 @@ class BasePlotter(object):
 
     def get_default_aspect(self):
         return self._aspect
+
+    def remove_genome_ticks(self):
+        plt.setp(self.ax.get_xticklabels(), visible=False)
+        self.ax.xaxis.offsetText.set_visible(False)
 
 
 class BasePlotter1D(BasePlotter):
@@ -1325,9 +1328,9 @@ class VerticalSplitPlot(BasePlotter1D):
         if self.parent_ax is not self.ax:
             self.parent_ax = self.ax
             self.top_plot.ax, self.bottom_plot.ax = self._add_split_ax(self.ax, self.gap)
+            sns.despine(ax=self.ax, top=True, left=True, bottom=True, right=True)
             self.ax.xaxis.set_major_locator(NullLocator())
-            self.ax.xaxis.set_minor_locator(NullLocator())
-            self.ax.set_visible(False)
+            self.ax.yaxis.set_major_locator(NullLocator())
         if self.parent_cax is not self.cax:
             self.parent_cax = self.cax
             self.top_plot.cax, self.bottom_plot.cax = self._add_split_ax(self.cax, self.cax_gap)
@@ -1335,14 +1338,16 @@ class VerticalSplitPlot(BasePlotter1D):
         self.top_plot.plot(region)
         self.bottom_plot.plot(region)
         self.bottom_plot.ax.invert_yaxis()
-        self.bottom_plot.ax.xaxis.set_major_formatter(NullFormatter())
-        self.bottom_plot.ax.xaxis.set_minor_formatter(NullFormatter())
         sns.despine(ax=self.top_plot.ax, top=True, left=True, bottom=True, right=True)
         self.top_plot.ax.xaxis.set_major_locator(NullLocator())
         self.top_plot.ax.xaxis.set_minor_locator(NullLocator())
 
     def _refresh(self, region):
         pass
+
+    def remove_genome_ticks(self):
+        plt.setp(self.bottom_plot.ax.get_xticklabels(), visible=False)
+        self.bottom_plot.ax.xaxis.offsetText.set_visible(False)
 
 
 class GeneModelPlot(BasePlotter1D):
