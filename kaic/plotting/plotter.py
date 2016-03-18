@@ -740,34 +740,28 @@ class BasePlotter1D(BasePlotter):
         return self.fig, self.ax
 
 
-class BasePlotterHic(object):
+class BasePlotterMatrix(object):
+    """
+    Mix-in class to provide methods for mapping colorvalues
+    in special areas in the plots etc.
+    """
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, hic_data, colormap='viridis', norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
-                 buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9"):
-        self.hic_data = hic_data
-        if isinstance(hic_data, kaic.Hic):
-            self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
-                                             buffering_arg=buffering_arg)
-        elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
-            self.hic_buffer = BufferedMatrix.from_hic_matrix(hic_data)
-        else:
-            raise ValueError("Unknown type for hic_data")
+    def __init__(self, colormap='viridis', norm="log", vmin=None, vmax=None,
+                 show_colorbar=True, blend_zero=True,
+                 unmappable_color=".9", illegal_color=None):
         if isinstance(colormap, basestring):
             colormap = mpl.cm.get_cmap(colormap)
         self.colormap = colormap
         self._vmin = vmin
         self._vmax = vmax
         self.norm = prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
-        self.colorbar = None
-        self.slider = None
-        self.show_colorbar = show_colorbar
-        self.adjust_range = adjust_range
         self.unmappable_color = unmappable_color
         self.blend_zero = blend_zero
+        self.illegal_color = illegal_color
+        self.show_colorbar = show_colorbar
+        self.colorbar = None
 
     def get_color_matrix(self, matrix):
         """
@@ -779,6 +773,8 @@ class BasePlotterHic(object):
             zero_mask = np.isclose(matrix, 0.)
         if self.blend_zero:
             color_matrix[zero_mask] = self.colormap(0)
+        if self.illegal_color:
+            color_matrix[~np.isfinite(matrix)] = mpl.colors.colorConverter.to_rgba(self.illegal_color)
         if self.unmappable_color:
             unmappable = np.all(zero_mask, axis=0)
             color_matrix[unmappable, :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
@@ -790,8 +786,40 @@ class BasePlotterHic(object):
         Add colorbar to the plot. Draws on the colorbar axes cax.
         """
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
-        cmap_data.set_array(np.array([self.norm.vmin, self.norm.vmax]))
+        cmap_data.set_array(np.array([self.vmin, self.vmax]))
         self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
+
+    @property
+    def vmin(self):
+        return self._vmin if self._vmin else self.norm.vmin
+
+    @property
+    def vmax(self):
+        return self._vmax if self._vmax else self.norm.vmax
+
+
+class BasePlotterHic(BasePlotterMatrix):
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self, hic_data, colormap='viridis', norm="log",
+                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
+                 buffering_strategy="relative", buffering_arg=1, blend_zero=True,
+                 unmappable_color=".9", illegal_color=None):
+        BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm,
+                                   vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
+                                   blend_zero=blend_zero, unmappable_color=unmappable_color,
+                                   illegal_color=illegal_color)
+        self.hic_data = hic_data
+        if isinstance(hic_data, kaic.Hic):
+            self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
+                                             buffering_arg=buffering_arg)
+        elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
+            self.hic_buffer = BufferedMatrix.from_hic_matrix(hic_data)
+        else:
+            raise ValueError("Unknown type for hic_data")
+        self.slider = None
+        self.adjust_range = adjust_range
 
     def add_adj_slider(self):
         plot_position = self.cax.get_position()
@@ -813,14 +841,6 @@ class BasePlotterHic(object):
         self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
         self.colorbar.set_clim(vmin=new_vmin, vmax=new_vmax)
         self.colorbar.draw_all()
-
-    @property
-    def vmin(self):
-        return self._vmin if self._vmin else self.hic_buffer.buffered_min
-
-    @property
-    def vmax(self):
-        return self._vmax if self._vmax else self.hic_buffer.buffered_max
 
 
 class BasePlotter2D(BasePlotter):
@@ -968,7 +988,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9", aspect=.5):
+                 unmappable_color=".9", illegal_color=None, aspect=.5):
         """
         Initialize a triangle Hi-C heatmap plot.
 
@@ -994,7 +1014,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
                                 buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
-                                norm=norm, blend_zero=blend_zero, unmappable_color=unmappable_color)
+                                norm=norm, blend_zero=blend_zero, unmappable_color=unmappable_color,
+                                illegal_color=illegal_color)
         self.max_dist = max_dist
 
     def _plot(self, region=None):
@@ -1023,9 +1044,9 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         color_matrix = self.get_color_matrix(hm)
         color_tuple = color_matrix.transpose((1,0,2)).reshape(
             (color_matrix.shape[0]*color_matrix.shape[1],color_matrix.shape[2]))
-        collection = self.ax.pcolormesh(X_, Y_, hm, cmap=self.colormap, norm=self.norm, rasterized=True)
-        collection._A = None
-        collection.set_color(color_tuple)
+        self.collection = self.ax.pcolormesh(X_, Y_, hm, cmap=self.colormap, norm=self.norm, rasterized=True)
+        self.collection._A = None
+        self.collection.set_color(color_tuple)
         # set limits and aspect ratio
         #self.ax.set_aspect(aspect="equal")
         self.ax.set_ylim(0, self.max_dist/2 if self.max_dist else (region.end-region.start)/2)
@@ -1212,9 +1233,11 @@ class GenomicTrackPlot(ScalarDataPlot):
         pass
 
 
-class GenomicMatrixPlot(BasePlotter1D):
+class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
     def __init__(self, track, attribute, y_coords=None, plot_kwargs=None, title='',
-                 aspect=.3):
+                 colormap='viridis', norm="lin", vmin=None, vmax=None,
+                 show_colorbar=True, blend_zero=False,
+                 unmappable_color=".9", illegal_color=None, aspect=.3):
         """
         Plot matrix from a class:`~GenomicTrack` objects
 
@@ -1227,9 +1250,13 @@ class GenomicMatrixPlot(BasePlotter1D):
         :param plot_kwargs: Keyword-arguments passed on to pcolormesh
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-               the height_ratios in class:`~GenomicFigure`
+                       the height_ratios in class:`~GenomicFigure`
         """
         BasePlotter1D.__init__(self, title=title, aspect=aspect)
+        BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm,
+                           vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
+                           blend_zero=blend_zero, unmappable_color=unmappable_color,
+                           illegal_color=illegal_color)
         self.track = track
         self.attribute = attribute
         if plot_kwargs is None:
@@ -1243,9 +1270,15 @@ class GenomicMatrixPlot(BasePlotter1D):
         regions = self.track.regions()[bins]
         bin_coords = np.r_[[(x.start - 1) for x in regions], (regions[-1].end)]
         X, Y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None else np.arange(values.shape[1] + 1)))
-        mesh = self.ax.pcolormesh(X, Y, values.T, rasterized=True, **self.plot_kwargs)
-        self.colorbar = plt.colorbar(mesh, cax=self.cax, orientation="vertical")
-        #sns.despine(ax=self.ax, top=True, right=True)
+        color_matrix = self.get_color_matrix(values.T)
+        color_tuple = color_matrix.transpose((1,0,2)).reshape(
+            (color_matrix.shape[0]*color_matrix.shape[1],color_matrix.shape[2]))
+        self.collection = self.ax.pcolormesh(X, Y, values.T, rasterized=True, cmap=self.colormap,
+                                             norm=self.norm, **self.plot_kwargs)
+        self.collection._A = None
+        self.collection.set_color(color_tuple)
+        if self.show_colorbar:
+            self.add_colorbar()
 
     def _refresh(self, **kwargs):
         pass
