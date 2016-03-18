@@ -1,5 +1,5 @@
 from __future__ import division, print_function
-from matplotlib.ticker import MaxNLocator, Formatter, Locator
+from matplotlib.ticker import MaxNLocator, Formatter, Locator, NullFormatter, NullLocator
 from matplotlib.widgets import Slider
 import kaic
 from kaic.data.genomic import GenomicRegion, RegionsTable, GenomicRegions
@@ -466,7 +466,7 @@ class GenomeCoordFormatter(Formatter):
         Is called by matplotlib and displayed in lower right corner
         of plots.
         """
-        if not self.display_scale:
+        if not self.display_scale or not self.locs:
             return ""
         view_range = self.axis.axes.get_xlim()
         view_dist = abs(view_range[1] - view_range[0])
@@ -1281,6 +1281,67 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
             self.add_colorbar()
 
     def _refresh(self, **kwargs):
+        pass
+
+
+class VerticalSplitPlot(BasePlotter1D):
+    """
+    Stack two plots on top of each other, bottom plot inverted.
+    Especially suited to stacking two Hic plots (triangles) on top
+    of each other.
+    """
+    def __init__(self, top_plot, bottom_plot, gap=0, cax_gap=.05, title="", aspect=1.):
+        """
+        Create split plot.
+
+        :param top_plot: Plot instance on top
+        :param bottom_plot: Plot instace on bottom
+        :param gap: Gap between plots in inches
+        :param cax_gap: Gap between colorbars in inches
+        :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
+        """
+        BasePlotter1D.__init__(self, title=title, aspect=aspect)
+        self.top_plot = top_plot
+        self.bottom_plot = bottom_plot
+        self.parent_ax = None
+        self.parent_cax = None
+        self.gap = gap
+        self.cax_gap = cax_gap
+
+    def _add_split_ax(self, ax, gap):
+        bbox = ax.get_position()
+        figsize = ax.figure.get_size_inches()
+        gap = gap/figsize[1]
+        top_ax = ax.figure.add_axes([bbox.x0, bbox.y0 + gap/2 + bbox.height/2,
+                                     bbox.width, bbox.height/2 - gap/2])
+        bottom_ax = ax.figure.add_axes([bbox.x0, bbox.y0,
+                                        bbox.width, bbox.height/2 - gap/2])
+        return top_ax, bottom_ax
+
+    def _plot(self, region):
+        # Check if ax has already been split
+        if self.parent_ax is not self.ax:
+            self.parent_ax = self.ax
+            self.top_plot.ax, self.bottom_plot.ax = self._add_split_ax(self.ax, self.gap)
+            self.ax.xaxis.set_major_locator(NullLocator())
+            self.ax.xaxis.set_minor_locator(NullLocator())
+            self.ax.set_visible(False)
+        if self.parent_cax is not self.cax:
+            self.parent_cax = self.cax
+            self.top_plot.cax, self.bottom_plot.cax = self._add_split_ax(self.cax, self.cax_gap)
+            self.cax.set_visible(False)
+        self.top_plot.plot(region)
+        self.bottom_plot.plot(region)
+        self.bottom_plot.ax.invert_yaxis()
+        self.bottom_plot.ax.xaxis.set_major_formatter(NullFormatter())
+        self.bottom_plot.ax.xaxis.set_minor_formatter(NullFormatter())
+        sns.despine(ax=self.top_plot.ax, top=True, left=True, bottom=True, right=True)
+        self.top_plot.ax.xaxis.set_major_locator(NullLocator())
+        self.top_plot.ax.xaxis.set_minor_locator(NullLocator())
+
+    def _refresh(self, region):
         pass
 
 
