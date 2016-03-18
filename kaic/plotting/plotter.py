@@ -417,7 +417,13 @@ class GenomicFigure(object):
                 a.xaxis.offsetText.set_visible(False)
         return self.fig, self.axes
 
-    
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        plt.close(self.fig)
+
+
 class GenomeCoordFormatter(Formatter):
     """
     Process axis tick labels to give nice reprensations
