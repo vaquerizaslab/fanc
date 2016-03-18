@@ -373,11 +373,6 @@ class GenomicFigure(object):
         self.plots = plots
         self.n = len(plots)
         self.ticks_last = ticks_last
-        if not gridspec_args:
-            gridspec_args = {}
-        gridspec_args["wspace"] = gridspec_args.get("wspace", .1)
-        gridspec_args["hspace"] = gridspec_args.get("hspace", .2)
-        gs = gridspec.GridSpec(self.n, 2, height_ratios=height_ratios, width_ratios=[1, .05], **gridspec_args)
         if height_ratios is None:
             height_ratios = [None]*self.n
         for i in range(self.n):
@@ -392,6 +387,11 @@ class GenomicFigure(object):
         if height is None:
             height = width*sum(height_ratios)
         self.figsize = width, height
+        if not gridspec_args:
+            gridspec_args = {}
+        gridspec_args["wspace"] = gridspec_args.get("wspace", .1)
+        gridspec_args["hspace"] = gridspec_args.get("hspace", .2)
+        gs = gridspec.GridSpec(self.n, 2, height_ratios=self.height_ratios, width_ratios=[1, .05], **gridspec_args)
         self.axes = []
         plt.figure(figsize=self.figsize)
         for i in xrange(self.n):
