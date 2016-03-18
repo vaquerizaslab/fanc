@@ -17,7 +17,7 @@ import itertools as it
 import tables
 import re
 import warnings
-import wWigIO
+import pyBigWig
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -359,25 +359,41 @@ class GenomicFigure(object):
         :param height_ratios: A list of heights, one for each plot. The ratio of these
                               numbers represents the height ratios of the plots.
                               Also, the sum of this list is used as the height of
-                              the plot in inches with the width fixed at 6 inches at
-                              the moment
-        :param figsize: Specify figure size directly (width, height) of figure in inches
+                              the plot in inches. The width is fixed at 6 inches at
+                              the moment.
+                              If any or all entries are None the aspect ratio of these
+                              plots defaut to a plot-type specific value.
+        :param figsize: Specify figure size directly (width, height) of figure in inches.
+                        Defaults is (6, sum(height_rations))
+                        None can be used to as a placeholder for the default value, eg.
+                        (8, None) is converted to (8, sum(height_rations))
         :param gridspec_args: Optional keyword-arguments passed directly to GridSpec constructor
         :param ticks_last: Only draw genomic coordinate tick labels on last bottom plot
         """
         self.plots = plots
         self.n = len(plots)
         self.ticks_last = ticks_last
-        self.height_ratios = height_ratios
         if not gridspec_args:
             gridspec_args = {}
         gridspec_args["wspace"] = gridspec_args.get("wspace", .1)
         gridspec_args["hspace"] = gridspec_args.get("hspace", .2)
         gs = gridspec.GridSpec(self.n, 2, height_ratios=height_ratios, width_ratios=[1, .05], **gridspec_args)
+        if height_ratios is None:
+            height_ratios = [None]*self.n
+        for i in range(self.n):
+            if height_ratios[i] is None:
+                height_ratios[i] = self.plots[i].get_default_aspect()
+        self.height_ratios = height_ratios
         if figsize is None:
-            figsize = (6, 6*self.n if not height_ratios else 6*sum(height_ratios))
+            figsize = (None, None)
+        width, height = figsize
+        if width is None:
+            width = 6
+        if height is None:
+            height = width*sum(height_ratios)
+        self.figsize = width, height
         self.axes = []
-        plt.figure(figsize=figsize)
+        plt.figure(figsize=self.figsize)
         for i in xrange(self.n):
             if i > 0:
                 ax = plt.subplot(gs[i, 0], sharex=self.axes[0])
@@ -646,11 +662,12 @@ class BasePlotter(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, title):
+    def __init__(self, title, aspect=1.):
         self._ax = None
         self.cax = None
         self.title = title
         self.has_legend = False
+        self._aspect = aspect
 
     @abstractmethod
     def _plot(self, region=None):
@@ -691,13 +708,16 @@ class BasePlotter(object):
         if not self.has_legend:
             self.ax.legend(*args, **kwargs)
 
+    def get_default_aspect(self):
+        return self._aspect
+
 
 class BasePlotter1D(BasePlotter):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, title):
-        BasePlotter.__init__(self, title=title)
+    def __init__(self, title, aspect=1.):
+        BasePlotter.__init__(self, title=title, aspect=aspect)
 
     def plot(self, region=None, ax=None):
         if isinstance(region, basestring):
@@ -801,8 +821,8 @@ class BasePlotter2D(BasePlotter):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, title):
-        BasePlotter.__init__(self, title=title)
+    def __init__(self, title, aspect=1.):
+        BasePlotter.__init__(self, title=title, aspect=aspect)
         self.cid = None
         self.current_chromosome_x = None
         self.current_chromosome_y = None
@@ -859,14 +879,15 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True,
                  adjust_range=True, buffering_strategy="relative", buffering_arg=1,
-                 blend_zero=True, unmappable_color=".9"):
+                 blend_zero=True, unmappable_color=".9",
+                 aspect=1.):
         """
         Initialize a 2D Hi-C heatmap plot.
 
         :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
         :param title: Title drawn on top of the figure panel
-        :param colormap: colormap
-        :param norm: Normalizing colormap using "log" or "lin"
+        :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
+        :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
         :param vmin: Clip interactions below this value
         :param vmax: Clip interactions above this value
         :param show_colorbar: Draw a colorbar
@@ -877,8 +898,10 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                            value in the colormap, otherwise transparent
         :param unmappable_color: Draw unmappable bins using this color. Defaults to
                                  light gray (".9")
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
         """
-        BasePlotter2D.__init__(self, title=title)
+        BasePlotter2D.__init__(self, title=title, aspect=aspect)
         BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
                                 norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
                                 adjust_range=adjust_range, buffering_strategy=buffering_strategy,
@@ -909,9 +932,9 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
 class HicSideBySidePlot2D(object):
     def __init__(self, hic1, hic2, colormap='viridis', norm="log",
-                 vmin=None, vmax=None):
-        self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
-        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax)
+                 vmin=None, vmax=None, aspect=1.):
+        self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax, aspect=aspect)
+        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax, aspect=aspect)
 
     def plot(self, region):
         fig = plt.figure()
@@ -927,9 +950,9 @@ class HicSideBySidePlot2D(object):
 class HicComparisonPlot2D(HicPlot2D):
     def __init__(self, hic_top, hic_bottom, colormap='viridis', norm='log',
                  vmin=None, vmax=None, scale_matrices=True, show_colorbar=True,
-                 buffering_strategy="relative", buffering_arg=1):
+                 buffering_strategy="relative", buffering_arg=1, aspect=1.):
         super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm, vmin=vmin, vmax=vmax,
-                                                  show_colorbar=show_colorbar)
+                                                  show_colorbar=show_colorbar, aspect=aspect)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
         self.hic_buffer = BufferedCombinedMatrix(hic_top, hic_bottom, scale_matrices, buffering_strategy, buffering_arg)
@@ -939,15 +962,15 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9"):
+                 unmappable_color=".9", aspect=.5):
         """
         Initialize a triangle Hi-C heatmap plot.
 
         :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
         :param title: Title drawn on top of the figure panel
-        :param colormap: colormap
+        :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
+        :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
         :param max_dist: Only draw interactions up to this distance
-        :param norm: Normalizing colormap using "log" or "lin"
         :param vmin: Clip interactions below this value
         :param vmax: Clip interactions above this value
         :param show_colorbar: Draw a colorbar
@@ -958,8 +981,10 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
                            value in the colormap, otherwise transparent
         :param unmappable_color: Draw unmappable bins using this color. Defaults to
                                  light gray (".9")
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
         """
-        BasePlotter1D.__init__(self, title=title)
+        BasePlotter1D.__init__(self, title=title, aspect=aspect)
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
                                 buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
@@ -1021,8 +1046,8 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, style="step", title=''):
-        BasePlotter1D.__init__(self, title=title)
+    def __init__(self, style="step", title='', aspect=.2):
+        BasePlotter1D.__init__(self, title=title, aspect=aspect)
         self.style = style
         if style not in self._STYLES:
             raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
@@ -1058,8 +1083,8 @@ class ScalarDataPlot(BasePlotter1D):
 
 
 class BigWigPlot(ScalarDataPlot):
-    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None, plot_kwargs=None,
-                 ylim=None):
+    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None,
+                 plot_kwargs=None, ylim=None, aspect=.2):
         """
         Plot data from on or more BigWig files.
 
@@ -1072,8 +1097,10 @@ class BigWigPlot(ScalarDataPlot):
                          If None, will plot values as they are in the BigWig file
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
         :param ylim: Tuple to set y-axis limits
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+               the height_ratios in class:`~GenomicFigure`
         """
-        ScalarDataPlot.__init__(self, style=style, title=title)
+        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect)
         if isinstance(bigwigs, basestring):
             bigwigs = [bigwigs]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
@@ -1116,10 +1143,10 @@ class BigWigPlot(ScalarDataPlot):
     def _plot(self, region):
         for i, b in enumerate(self.bigwigs):
             try:
-                bf = wWigIO.open(b)
-                intervals = wWigIO.getIntervals(b, region.chromosome, region.start, region.end)
+                bw = pyBigWig.open(b)
+                intervals = bw.intervals(region.chromosome, region.start, region.end)
             finally:
-                wWigIO.close(b)
+                bw.close()
             if self.bin_size:
                 regions, bw_values = self._bin_intervals(region, intervals)
             else:
@@ -1139,7 +1166,7 @@ class BigWigPlot(ScalarDataPlot):
 
 
 class GenomicTrackPlot(ScalarDataPlot):
-    def __init__(self, tracks, style="step", attributes=None, title=''):
+    def __init__(self, tracks, style="step", attributes=None, title='', aspect=.2):
         """
         Plot scalar values from one or more class:`~GenomicTrack` objects
 
@@ -1151,8 +1178,10 @@ class GenomicTrackPlot(ScalarDataPlot):
                            Should be a list of names. Supports wildcard matching
                            and regex.
         :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+               the height_ratios in class:`~GenomicFigure`
         """
-        ScalarDataPlot.__init__(self, style=style, title=title)
+        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect)
         if not isinstance(tracks, list):
             tracks = [tracks]
         self.tracks = tracks
@@ -1178,7 +1207,8 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 
 class GenomicMatrixPlot(BasePlotter1D):
-    def __init__(self, track, attribute, y_coords=None, plot_kwargs=None, title=''):
+    def __init__(self, track, attribute, y_coords=None, plot_kwargs=None, title='',
+                 aspect=.3):
         """
         Plot matrix from a class:`~GenomicTrack` objects
 
@@ -1190,8 +1220,10 @@ class GenomicMatrixPlot(BasePlotter1D):
                          have shape Y or Y + 1
         :param plot_kwargs: Keyword-arguments passed on to pcolormesh
         :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+               the height_ratios in class:`~GenomicFigure`
         """
-        BasePlotter1D.__init__(self, title=title)
+        BasePlotter1D.__init__(self, title=title, aspect=aspect)
         self.track = track
         self.attribute = attribute
         if plot_kwargs is None:
@@ -1214,9 +1246,10 @@ class GenomicMatrixPlot(BasePlotter1D):
 
 
 class GeneModelPlot(BasePlotter1D):
-    def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol", label_format=None, label_cast=None):
+    def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol",
+                 label_format=None, label_cast=None, aspect=.2):
         import pybedtools as pbt
-        BasePlotter1D.__init__(self, title=title)
+        BasePlotter1D.__init__(self, title=title, aspect=aspect)
         self.gtf = pbt.BedTool(gtf)
         if feature_types is None:
             feature_types = set(f[2] for f in self.gtf)
@@ -1270,8 +1303,8 @@ class GeneModelPlot(BasePlotter1D):
 
 
 class GenomicFeaturePlot(BasePlotter1D):
-    def __init__(self, regions, labels, title="", color='black'):
-        BasePlotter1D.__init__(self, title=title)
+    def __init__(self, regions, labels, title="", color='black', aspect=.2):
+        BasePlotter1D.__init__(self, title=title, aspect=aspect)
         sorted_regions = sorted(zip(regions, labels), key=lambda x: (x[0].chromosome, x[0].start))
         regions, self.labels = zip(*sorted_regions)
 
