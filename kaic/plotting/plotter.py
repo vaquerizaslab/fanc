@@ -23,6 +23,31 @@ log = logging.getLogger(__name__)
 log.setLevel(10)
 
 sns.set_style("ticks")
+style_ticks_whitegrid = {
+    'axes.axisbelow': True,
+    'axes.edgecolor': '.15',
+    'axes.facecolor': 'white',
+    'axes.grid': True,
+    'axes.labelcolor': '.15',
+    'axes.linewidth': 1.25,
+    'figure.facecolor': 'white',
+    'font.family': ['sans-serif'],
+    'grid.color': '.8',
+    'grid.linestyle': '-',
+    'image.cmap': 'Greys',
+    'legend.frameon': False,
+    'legend.numpoints': 1,
+    'legend.scatterpoints': 1,
+    'lines.solid_capstyle': 'round',
+    'text.color': '.15',
+    'xtick.color': '.15',
+    'xtick.direction': 'out',
+    'xtick.major.size': 6,
+    'xtick.minor.size': 3,
+    'ytick.color': '.15',
+    'ytick.direction': 'out',
+    'ytick.major.size': 6,
+    'ytick.minor.size': 3}
 
 
 def append_axes(parent, side, thickness, padding, length=None, shrink=1., **kwargs):
@@ -791,9 +816,8 @@ class BasePlotterMatrix(object):
         if self.illegal_color:
             color_matrix[~np.isfinite(matrix)] = mpl.colors.colorConverter.to_rgba(self.illegal_color)
         if self.unmappable_color:
-            unmappable = np.all(zero_mask, axis=0)
-            color_matrix[unmappable, :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
-            color_matrix[:, unmappable] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+            color_matrix[np.all(zero_mask, axis=0), :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+            color_matrix[:, np.all(zero_mask, axis=1)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
         return color_matrix
 
     def add_colorbar(self):
@@ -1095,7 +1119,7 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, style="step", title='', aspect=.2, axes_style="whitegrid"):
+    def __init__(self, style="step", title='', aspect=.2, axes_style=style_ticks_whitegrid):
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
         self.style = style
         if style not in self._STYLES:
@@ -1133,7 +1157,7 @@ class ScalarDataPlot(BasePlotter1D):
 
 class BigWigPlot(ScalarDataPlot):
     def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None,
-                 plot_kwargs=None, ylim=None, aspect=.2, axes_style="whitegrid"):
+                 plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
         """
         Plot data from on or more BigWig files.
 
@@ -1217,7 +1241,7 @@ class BigWigPlot(ScalarDataPlot):
 
 class GenomicTrackPlot(ScalarDataPlot):
     def __init__(self, tracks, style="step", attributes=None, title='', aspect=.2,
-                 axes_style="whitegrid"):
+                 axes_style=style_ticks_whitegrid):
         """
         Plot scalar values from one or more class:`~GenomicTrack` objects
 
