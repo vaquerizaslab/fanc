@@ -349,7 +349,8 @@ class GenomicTrack(RegionsTable):
 
 
 class GenomicFigure(object):
-    def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None, ticks_last=False):
+    def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None,
+                 ticks_last=False):
         """
         Creates a GenomicFigure composed of one or more plots.
         All plots are arranged in a single column, their genomic coordinates aligned.
@@ -361,14 +362,15 @@ class GenomicFigure(object):
                               Also, the sum of this list is used as the height of
                               the plot in inches. The width is fixed at 6 inches at
                               the moment.
-                              If any or all entries are None the aspect ratio of these
-                              plots defaut to a plot-type specific value.
+                              If any or all entries are None, the aspect ratio of these
+                              plots default to the value specified in the plot instances
+                              using the aspect argument.
         :param figsize: Specify figure size directly (width, height) of figure in inches.
                         Defaults is (6, sum(height_rations))
                         None can be used to as a placeholder for the default value, eg.
                         (8, None) is converted to (8, sum(height_rations))
         :param gridspec_args: Optional keyword-arguments passed directly to GridSpec constructor
-        :param ticks_last: Only draw genomic coordinate tick labels on last bottom plot
+        :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
         """
         self.plots = plots
         self.n = len(plots)
@@ -408,6 +410,12 @@ class GenomicFigure(object):
         return self.axes[0].figure
     
     def plot(self, region):
+        """
+        Make a plot of the specified region.
+        :param region: A string describing a region "2L:10000000-12000000" or
+                       a :class:`~GenomicRegion`
+        :return: A matplotlib Figure instance and a list of figure axes
+        """
         for i, (p, a) in enumerate(zip(self.plots, self.axes)):
             p.plot(region, ax=a)
             # if self.height_ratios is not None:
@@ -1273,7 +1281,7 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
         regions = self.track.regions()[bins]
         bin_coords = np.r_[[(x.start - 1) for x in regions], (regions[-1].end)]
         X, Y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None else np.arange(values.shape[1] + 1)))
-        color_matrix = self.get_color_matrix(values.T)
+        color_matrix = self.get_color_matrix(values)
         color_tuple = color_matrix.transpose((1,0,2)).reshape(
             (color_matrix.shape[0]*color_matrix.shape[1],color_matrix.shape[2]))
         self.collection = self.ax.pcolormesh(X, Y, values.T, rasterized=True, cmap=self.colormap,
