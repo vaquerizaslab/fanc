@@ -219,13 +219,14 @@ def get_typed_array(input_iterable, nan_strings, count=-1):
     return np.fromiter(input_iterable, str, count)
 
 
-def get_region_field(interval, field, return_none=False):
+def get_region_field(interval, field, return_default=False):
     """
     Take BedTool region and return value stored in the specified field.
     Will try to fetch field from specific integer index, from Interval attribute and 
     lastly from the BedTool attributes dictionary present for GTF files
 
-    :param return_none: Instead of raising exception, return none if value can't be found
+    :param return_default: If False, raise ValueError if field cannot be found. If anything
+                           else return this value instead.
     """
     try:
         return interval[int(field)]
@@ -240,8 +241,8 @@ def get_region_field(interval, field, return_none=False):
             return interval.attrs[field]
         except KeyError:
             pass
-    if return_none:
-        return None
+    if return_default != False:
+        return return_default
     else:
         raise ValueError("Field {} can't be found in inteval {}".format(field, interval))
 
@@ -1422,15 +1423,9 @@ class GeneModelPlot(BasePlotter1D):
         for k, p in pos.iteritems():
             self.ax.text(0, p, k, transform=self.ax.transAxes, ha="left", size=5)
         for g in genes:
-            if not g[2]in self.feature_types:
+            if g[2] not in self.feature_types:
                 continue
-            if isinstance(self.id_field, int):
-                label = g[self.id_field]
-            else:
-                try:
-                    label = g.attrs[self.id_field]
-                except KeyError:
-                    label = ""
+            label = get_region_field(g, self.id_field, return_default="")
             gene_patch = patches.Rectangle(
                 (g.start, pos[g[2]]),
                 width=abs(g.end - g.start), height=stroke_length,
@@ -1443,12 +1438,8 @@ class GeneModelPlot(BasePlotter1D):
                                                   else label)
                          if self.label_format else label,
                          transform=trans, ha="center", size="small")
-            self.ax.spines['right'].set_visible(False)
-            self.ax.spines['top'].set_visible(False)
-            self.ax.spines['left'].set_visible(False)
-            self.ax.spines['bottom'].set_visible(False)
-            self.ax.xaxis.set_ticks_position('bottom')
-            self.ax.yaxis.set_visible(False)
+        sns.despine(ax=self.ax, top=True, left=True, right=True)
+        self.ax.yaxis.set_major_locator(NullLocator())
         self.remove_colorbar_ax()
 
     def _refresh(self, **kwargs):
