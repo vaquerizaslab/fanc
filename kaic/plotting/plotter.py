@@ -383,18 +383,19 @@ class GenomicFigure(object):
 
         :param plots: List of plot instances, which should inherit
                       from :class:`~BasePlotter`
-        :param height_ratios: A list of heights, one for each plot. The ratio of these
-                              numbers represents the height ratios of the plots.
-                              Also, the sum of this list is used as the height of
-                              the plot in inches. The width is fixed at 6 inches at
-                              the moment.
+        :param height_ratios: Usually the aspect ratio of all plots is already specified
+                              using the "aspect" argument when constructing the plot instances.
+                              Alternatively, the aspect ratios can be overriden here by supplying
+                              a list of aspect ratios, one for each plot.
+                              The sum of this list is also used to calculate the total height of
+                              the plot in inches height = width*sum(height_ratios).
                               If any or all entries are None, the aspect ratio of these
                               plots default to the value specified in the plot instances
                               using the aspect argument.
         :param figsize: Specify figure size directly (width, height) of figure in inches.
-                        Defaults is (6, sum(height_rations))
+                        Defaults is (6, 6*sum(height_ratios))
                         None can be used to as a placeholder for the default value, eg.
-                        (8, None) is converted to (8, sum(height_rations))
+                        (8, None) is converted to (8, 8*sum(height_rations))
         :param gridspec_args: Optional keyword-arguments passed directly to GridSpec constructor
         :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
         """
@@ -446,8 +447,6 @@ class GenomicFigure(object):
         """
         for i, (p, a) in enumerate(zip(self.plots, self.axes)):
             p.plot(region, ax=a)
-            # if self.height_ratios is not None:
-            #     force_aspect(a, self.height_ratios[i])
             if self.ticks_last and i < len(self.axes) - 1:
                 p.remove_genome_ticks()
         return self.fig, self.axes
@@ -965,6 +964,8 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                            value in the colormap, otherwise transparent
         :param unmappable_color: Draw unmappable bins using this color. Defaults to
                                  light gray (".9")
+        :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+                 None (no special color).
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
         """
@@ -1054,6 +1055,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
                            value in the colormap, otherwise transparent
         :param unmappable_color: Draw unmappable bins using this color. Defaults to
                                  light gray (".9")
+        :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+                                 None (no special color).
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
         """
@@ -1302,6 +1305,12 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
+        :param blend_zero: If True then zero count bins will be drawn using the minimum
+                   value in the colormap, otherwise transparent
+        :param unmappable_color: Draw unmappable bins using this color. Defaults to
+                                 light gray (".9")
+        :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+                         None (no special color).
         """
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
         BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm,
@@ -1416,10 +1425,11 @@ class GenomicFeaturePlot(BasePlotter1D):
                               don't draw the rest.
         :param label_field: Use this field as a label for each feature drawn.
                          Can be an integer to select a specific column or the name of an attribute
-                         in the GTF file. If None or False no label is drawn.
+                         in the GTF file. If None or False no label is drawn. E.g. 2 for the second
+                         column or "score" for the score attribute.
         :param label_format: If a label field is specified, can also supply a python format string
-                             to customize how the label is formatted.
-        :param label_cast: Supply the int or float function to cast the label to a specific type
+                             to customize how the label is formatted. E.g. "{:.2}"
+        :param label_cast: Supply a function to cast the label to a specific type, e.g. int or float
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
