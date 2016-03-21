@@ -1079,15 +1079,11 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # Distances have to be scaled by sqrt(2), because the diagonals of the bins
         # are sqrt(2)*len(bin_size)
         sqrt2 = math.sqrt(2)
-        bin_coords = np.r_[[(x.start - 1) for x in hm.row_regions], (hm.row_regions[-1].end)]/sqrt2
+        bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]/sqrt2
         X, Y = np.meshgrid(bin_coords, bin_coords)
         # rotatate coordinate matrix 45 degrees
         sin45 = math.sin(math.radians(45))
         X_, Y_ = X*sin45 + Y*sin45, X*sin45 - Y*sin45
-        # shift x coords to correct start coordinate and center the diagonal directly on the 
-        # x-axis
-        X_ -= X_[1, 0] - (hm.row_regions[0].start - 1)
-        Y_ -= .5*np.min(Y_) + .5*np.max(Y_)
         # pcolormesh doesn't support plotting RGB arrays directly like imshow, have to workaround
         # See https://github.com/matplotlib/matplotlib/issues/4277
         # http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python/29232668?noredirect=1#comment46710586_29232668
