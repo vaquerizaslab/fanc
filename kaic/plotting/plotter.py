@@ -1399,40 +1399,64 @@ class VerticalSplitPlot(BasePlotter1D):
         self.bottom_plot.ax.xaxis.offsetText.set_visible(False)
 
 
-class GeneModelPlot(BasePlotter1D):
-    def __init__(self, gtf, title="", feature_types=None, id_field="gene_symbol",
+class GenomicFeaturePlot(BasePlotter1D):
+    """
+    Plot discrete genomic regions from BED, GTF files or similar.
+    Just draws a black box where the feature is located.
+    """
+    def __init__(self, regions, title="", feature_types=False, label_field="gene_symbol",
                  label_format=None, label_cast=None, aspect=.2, axes_style="ticks"):
+        """
+        :param regions: Any input that pybedtools can parse. Can be a path to a
+                        GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), ...]
+        :param feature_types: If the input file is a GTF, only draw certain feature types (3rd column)
+                              If False, draw all features on a common track
+                              If None, automatically draw different feature types on separate tracks
+                              If a list, draw only the feature types in the list on separate tracks,
+                              don't draw the rest.
+        :param label_field: Use this field as a label for each feature drawn.
+                         Can be an integer to select a specific column or the name of an attribute
+                         in the GTF file. If None or False no label is drawn.
+        :param label_format: If a label field is specified, can also supply a python format string
+                             to customize how the label is formatted.
+        :param label_cast: Supply the int or float function to cast the label to a specific type
+        :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
+        """
         import pybedtools as pbt
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-        self.gtf = pbt.BedTool(gtf)
-        if feature_types is None:
-            feature_types = set(f[2] for f in self.gtf)
+        self.bedtool = pbt.BedTool(regions)
+        if feature_types is None and self.bedtool.file_type == "gff":
+            feature_types = set(f[2] for f in self.bedtool)
         elif isinstance(feature_types, (str, unicode)):
             feature_types = [feature_types]
         self.feature_types = feature_types
-        self.id_field = id_field
+        self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
+        self.label_field = label_field
         self.label_format = label_format
         self.label_cast = label_cast
 
     def _plot(self, region=None, ax=None):
         interval = region_to_pbt_interval(region)
-        genes = self.gtf.all_hits(interval)
+        genes = self.bedtool.all_hits(interval)
         trans = self.ax.get_xaxis_transform()
-        pos = {k: i/(1 + len(self.feature_types)) for i, k in enumerate(self.feature_types)}
-        stroke_length = max(0.03, 1/len(self.feature_types) - .05)
+        pos = {k: i/(1 + self._n_tracks) for i, k in (enumerate(self.feature_types) if self.feature_types else [(0, "")])}
+        stroke_length = max(0.03, 1/self._n_tracks - .05)
         for k, p in pos.iteritems():
             self.ax.text(0, p, k, transform=self.ax.transAxes, ha="left", size=5)
         for g in genes:
-            if g[2] not in self.feature_types:
+            feature_type = g[2] if self.feature_types else ""
+            if self.feature_types and feature_type not in self.feature_types:
                 continue
-            label = get_region_field(g, self.id_field, return_default="")
+            label = get_region_field(g, self.label_field, return_default="") if self.label_field else ""
             gene_patch = patches.Rectangle(
-                (g.start, pos[g[2]]),
+                (g.start, pos[feature_type]),
                 width=abs(g.end - g.start), height=stroke_length,
                 transform=trans, color="black"
             )
             self.ax.add_patch(gene_patch)
-            self.ax.text((g.start + g.end)/2, pos[g[2]] + stroke_length + .05,
+            self.ax.text((g.start + g.end)/2, pos[feature_type] + stroke_length + .05,
                          self.label_format.format(self.label_cast(label)
                                                   if self.label_cast
                                                   else label)
@@ -1441,43 +1465,6 @@ class GeneModelPlot(BasePlotter1D):
         sns.despine(ax=self.ax, top=True, left=True, right=True)
         self.ax.yaxis.set_major_locator(NullLocator())
         self.remove_colorbar_ax()
-
-    def _refresh(self, **kwargs):
-        pass
-
-
-class GenomicFeaturePlot(BasePlotter1D):
-    def __init__(self, regions, labels, title="", color='black', aspect=.2, axes_style="ticks"):
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-        sorted_regions = sorted(zip(regions, labels), key=lambda x: (x[0].chromosome, x[0].start))
-        regions, self.labels = zip(*sorted_regions)
-
-        self.color = color
-        self.regions = GenomicRegions(regions=regions)
-
-        for region in regions:
-            print(region)
-
-    def _plot(self, region=None, ax=None):
-        trans = self.ax.get_xaxis_transform()
-        overlap_regions = self.regions.range(region)
-        for r in overlap_regions:
-            region_patch = patches.Rectangle(
-                (r.start, 0.05),
-                width=abs(r.end - r.start), height=0.6,
-                transform=trans, color=self.color
-            )
-            self.ax.add_patch(region_patch)
-            self.ax.text((r.start + r.end)/2, 0.8, self.labels[r.ix], transform=trans,
-                         ha="center", size="small")
-
-        self.ax.spines['right'].set_visible(False)
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['left'].set_visible(False)
-        self.ax.spines['bottom'].set_visible(False)
-        self.ax.xaxis.set_ticks_position('bottom')
-        self.ax.yaxis.set_visible(False)
-        self.ax.xaxis.set_visible(False)
 
     def _refresh(self, **kwargs):
         pass
