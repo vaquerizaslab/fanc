@@ -17,7 +17,7 @@ import itertools as it
 import tables
 import re
 import warnings
-import pyBigWig
+import wWigIO
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
@@ -1079,7 +1079,13 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # Distances have to be scaled by sqrt(2), because the diagonals of the bins
         # are sqrt(2)*len(bin_size)
         sqrt2 = math.sqrt(2)
-        bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]/sqrt2
+        bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]
+        # Make sure the matrix is not protruding over the end of the requested plotting region
+        if bin_coords[0] < region.start and bin_coords[1] >= region.start:
+            bin_coords[0] = region.start
+        if bin_coords[-1] > region.end and bin_coords[-2] <= region.end:
+            bin_coords[-1] = region.end
+        bin_coords = np.true_divide(bin_coords, sqrt2)
         X, Y = np.meshgrid(bin_coords, bin_coords)
         # rotatate coordinate matrix 45 degrees
         sin45 = math.sin(math.radians(45))
@@ -1182,6 +1188,8 @@ class BigWigPlot(ScalarDataPlot):
         self.names = names
         self.bin_size = bin_size
         self.ylim = ylim
+        self.x = None
+        self.y = None
 
     def _bin_intervals(self, region, intervals):
         """
@@ -1217,17 +1225,17 @@ class BigWigPlot(ScalarDataPlot):
     def _plot(self, region):
         for i, b in enumerate(self.bigwigs):
             try:
-                bw = pyBigWig.open(b)
-                intervals = bw.intervals(region.chromosome, region.start, region.end)
+                bw = wWigIO.open(b)
+                intervals = wWigIO.getIntervals(b, region.chromosome, region.start - 1, region.end)
             finally:
-                bw.close()
+                wWigIO.close(b)
             if self.bin_size:
                 regions, bw_values = self._bin_intervals(region, intervals)
             else:
                 regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
                 bw_values = [v for s, e, v in intervals]
-            x, y = self.get_plot_values(bw_values, regions)
-            self.ax.plot(x, y, label=self.names[i] if self.names else "", **self.plot_kwargs)
+            self.x, self.y = self.get_plot_values(bw_values, regions)
+            self.ax.plot(self.x, self.y, label=self.names[i] if self.names else "", **self.plot_kwargs)
         if self.names:
             self.add_legend()
         self.remove_colorbar_ax()
