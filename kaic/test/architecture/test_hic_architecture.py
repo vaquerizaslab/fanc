@@ -130,6 +130,19 @@ class TestExpectedContacts:
             assert abs(ec.intra_expected()[3] - (92/3)) < 0.001
             assert abs(ec.intra_expected()[4] - 5) < 0.001
 
+            # find largest distance
+            max_d = 0
+            hic_matrix = self.hic.as_matrix(mask_missing=True)
+            for i in xrange(hic_matrix.shape[0]):
+                row_region = hic_matrix.row_regions[i]
+                for j in xrange(hic_matrix.shape[1]):
+                    col_region = hic_matrix.col_regions[j]
+
+                    if row_region.chromosome == col_region.chromosome:
+                        d = abs(row_region.ix - col_region.ix)
+                        max_d = max(d, max_d)
+            assert len(ec.intra_expected()) == max_d + 1
+
         with ExpectedContacts(self.hic, smooth=False, regions=['chr2', 'chr3']) as ec:
             assert abs(ec.inter_expected() - 734/12) < 0.001
             assert len(ec.intra_expected()) == 4
