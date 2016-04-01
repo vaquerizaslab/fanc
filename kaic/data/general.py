@@ -288,8 +288,9 @@ class FileBased(object):
     def finalize(self):
         if self.closed:
             if self.tmp_file_name:
-                logging.info("Moving temporary output file to destination {}".format(self.file_name))
-                shutil.copyfile(self.tmp_file_name, self.file_name)
+                if self._mode not in ['r']:
+                    logging.info("Moving temporary output file to destination {}".format(self.file_name))
+                    shutil.copyfile(self.tmp_file_name, self.file_name)
         else:
             raise IOError('The file has to be closed before copying the tmp file. Use close()')
 
