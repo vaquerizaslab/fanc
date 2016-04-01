@@ -1404,8 +1404,14 @@ class Kaic(object):
         parser.add_argument(
             '-l', '--low-coverage', dest='low',
             type=float,
-            nargs='?',
-            help='''Filter bins with "low coverage" (lower than specified contact threshold)'''
+            help='''Filter bins with "low coverage" (lower than specified absolute contact threshold)'''
+        )
+
+        parser.add_argument(
+            '-rl', '--relative-low-coverage', dest='rel_low',
+            type=float,
+            help='''Filter bins using a relative "low coverage" threshold 
+                    (lower than the specified fraction of the median contact count)'''
         )
 
         parser.add_argument(
@@ -1449,15 +1455,16 @@ class Kaic(object):
         hic = kaic.Hic(file_name=input_path, mode='a')
 
         if args.low_default:
-            if args.low:
-                logging.info("Already specified an exact cutoff with -l, skipping -ld...")
+            if args.low or args.rel_low:
+                logging.info("Already specified an cutoff with -l or -rl, skipping -ld...")
             else:
                 logging.info("Filtering low-coverage bins at 10%%")
-                hic.filter_low_coverage_regions(queue=True)
+                hic.filter_low_coverage_regions(rel_cutoff=0.1, cutoff=None, queue=True)
 
-        if args.low is not None:
-            logging.info("Filtering low-coverage bins at %d" % args.low)
-            hic.filter_low_coverage_regions(cutoff=args.low, queue=True)
+        if (args.low is not None or args.rel_low is not None) and args.low_default is False:
+            logging.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
+                "relative cutoff {:.1%}".format(float(args.low) if args.low else 0., float(args.rel_low) if args.rel_low else 0.))
+            hic.filter_low_coverage_regions(cutoff=args.low, rel_cutoff=args.rel_low, queue=True)
 
         if args.diagonal is not None:
             logging.info("Filtering diagonal at distance %d" % args.diagonal)
