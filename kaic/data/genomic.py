@@ -79,6 +79,7 @@ from collections import defaultdict
 import copy
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
+from bisect import bisect_right
 logging.basicConfig(level=logging.INFO)
 
 
@@ -1394,7 +1395,8 @@ class RegionsTable(GenomicRegions, FileGroup):
         try:
             FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
         except TypeError:
-            logging.warn("RegionsTable is now a FileGroup-based object and this object will no longer be compatible in the future")
+            logging.warn("RegionsTable is now a FileGroup-based object and "
+                         "this object will no longer be compatible in the future")
 
         # check if this is an existing regions file
         try:
@@ -1450,11 +1452,14 @@ class RegionsTable(GenomicRegions, FileGroup):
         else:
             self._update_references()
 
+    def flush(self):
+        self._regions.flush()
+
     def add_region(self, region, flush=True):
         # super-method, calls below '_add_region'
         ix = GenomicRegions.add_region(self, region)
         if flush:
-            self._regions.flush()
+            self.flush()
             self._update_references()
         return ix
 
@@ -1517,7 +1522,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         if _log:
             pb.finish()
 
-        self._regions.flush()
+        self.flush()
         self._update_references()
 
     def data(self, key, value=None):
@@ -1918,17 +1923,19 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         # initialize inherited objects
         RegionsTable.__init__(self, file_name=file_name, _table_name_regions=_table_name_nodes,
                               mode=mode, tmpdir=tmpdir)
-        Maskable.__init__(self, self.file)
-        MetaContainer.__init__(self, self.file)
+        #Maskable.__init__(self, self.file)
+        #MetaContainer.__init__(self, self.file)
 
         # create edge table
+        print('AAAAAAA')
+        print(self.file)
+
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
         else:
             basic_fields = self._get_field_dict(additional_fields=additional_fields)
 
             self._edges = MaskedTable(self.file.root, _table_name_edges, basic_fields)
-        self._edges.flush()
 
         # index edge table
         try:
@@ -2441,7 +2448,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
             if _iter is None:
                 self.iter = this._edge_row_iter()
 
-        # TODO iterators and selectors
+            # TODO iterators and selectors
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
                  _table_name_nodes='nodes', _table_name_edges='edges'):
@@ -2458,17 +2465,137 @@ class AccessOptimisedRegionPairs(RegionPairs):
         MetaContainer.__init__(self, self.file)
 
         # create edge table
+        self._field_dict = None
+        self.field_names = None
+        self._edge_table_dict = dict()
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
-            # TODO generate field_dict from existing tables
+            for edge_table in self._edges._f_iter_nodes():
+                if self._field_dict is None:
+                    self._field_dict = edge_table.coldescrs
+                    self._update_field_names(edge_table=edge_table)
+                source_partition = edge_table.attrs['source_partition']
+                sink_partition = edge_table.attrs['sink_partition']
+                self._edge_table_dict[(source_partition, sink_partition)] = edge_table
         else:
             self._edges = self.file.create_group('/', _table_name_edges)
+
+        # create edge table definition
+        if self._field_dict is None:
             self._field_dict = self._get_field_dict(additional_fields=additional_fields)
+
+        # update partitions
+        self._update_partitions()
+
+    def _update_field_names(self, edge_table=None):
+        if edge_table is None:
+            for et in self._edges._f_iter_nodes():
+                edge_table = et
+                break
+
+        if edge_table is None:
+            return
+
+        # update field names
+        self._source_field_ix = 0
+        self._sink_field_ix = 0
+        self.field_names = []
+        for i, name in enumerate(edge_table.colnames):
+            if not name.startswith("_"):
+                self.field_names.append(name)
+            if name == 'source':
+                self._source_field_ix = i
+            if name == 'sink':
+                self._sink_field_ix = i
+
+    def _update_partitions(self):
+        logging.debug("Updating partitions...")
+        self.partitions = []
+        previous_chromosome = None
+        for i, region in enumerate(self.regions(lazy=True)):
+            if region.chromosome != previous_chromosome and previous_chromosome is not None:
+                self.partitions.append(i)
+            previous_chromosome = region.chromosome
+
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+        """
+        Write data to file and flush buffers.
+
+        :param flush_nodes: Flush nodes tables
+        :param flush_edges: Flush edges table
+        :param update_index: Update mask indices in edges table
+        """
+        if flush_nodes:
+            self._regions.flush()
+            # update partitions
+            self._update_partitions()
+
+        if flush_edges:
+            for edge_table in self._edges._f_iter_nodes():
+                edge_table.flush(update_index=update_index)
 
     def _get_field_dict(self, additional_fields=None):
         if self._field_dict is not None:
             return self._field_dict
         return RegionPairs._get_field_dict(self, additional_fields=additional_fields)
+
+    def _get_partition_ix(self, region_ix):
+        return bisect_right(self.partitions, region_ix)
+
+    def _get_edge_table(self, source, sink):
+        if source > sink:
+            source, sink = sink, source
+
+        source_partition = self._get_partition_ix(source)
+        sink_partition = self._get_partition_ix(sink)
+
+        if (source_partition, sink_partition) in self._edge_table_dict:
+            return self._edge_table_dict[(source_partition, sink_partition)]
+
+        edge_table = MaskedTable(self._edges,
+                                 'chrpair_' + str(source_partition) + '_' + str(sink_partition),
+                                 self._field_dict)
+        edge_table.attrs['source_partition'] = source_partition
+        edge_table.attrs['sink_partition'] = sink_partition
+
+        # index
+        edge_table.cols.source.create_index()
+        edge_table.cols.sink.create_index()
+
+        self._edge_table_dict[(source_partition, sink_partition)] = edge_table
+
+        # update field names
+        if self.field_names is None:
+            self._update_field_names(edge_table=edge_table)
+
+        return edge_table
+
+    def _add_edge(self, edge, row, replace=False):
+        source, sink = edge.source, edge.sink
+        if source > sink:
+            source, sink = sink, source
+
+        update = True
+        if row is None:
+            update = False
+            table = self._get_edge_table(source, sink)
+            row = table.row
+        row['source'] = source
+        row['sink'] = sink
+        for name in self.field_names:
+            if not name == 'source' and not name == 'sink':
+                try:
+                    value = getattr(edge, name)
+                    if replace or not update:
+                        row[name] = value
+                    else:
+                        row[name] += value
+                except AttributeError:
+                    pass
+        if update:
+            row.update()
+        else:
+            row.append()
 
 
 class RegionMatrixTable(RegionPairs):
@@ -2557,7 +2684,7 @@ class RegionMatrixTable(RegionPairs):
                 except TypeError:
                     self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
                 del e_buffer[key]
-        self._edges.flush()
+        self.flush(update_index=False)
 
         # flush remaining buffer
         for source, sink in e_buffer:
@@ -2572,7 +2699,7 @@ class RegionMatrixTable(RegionPairs):
             except TypeError:
                 self.add_edge(value, check_nodes_exist=False, flush=False)
 
-        self._edges.flush()
+        self.flush(update_index=True)
         if clean_zero:
             self._remove_zero_edges(update_index=update_index, weight_column=default_column)
 
