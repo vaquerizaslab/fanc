@@ -1923,13 +1923,10 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         # initialize inherited objects
         RegionsTable.__init__(self, file_name=file_name, _table_name_regions=_table_name_nodes,
                               mode=mode, tmpdir=tmpdir)
-        #Maskable.__init__(self, self.file)
-        #MetaContainer.__init__(self, self.file)
+        Maskable.__init__(self, self.file)
+        MetaContainer.__init__(self, self.file)
 
         # create edge table
-        print('AAAAAAA')
-        print(self.file)
-
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
         else:
@@ -2401,7 +2398,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         return self._edges_iter()
 
     def _edges_iter(self):
-        return RegionMatrixTable.EdgeIter(self)
+        return RegionPairs.EdgeIter(self)
 
     def _is_sorted(self, sortby):
         column = getattr(self._edges.cols, sortby)
@@ -2443,12 +2440,77 @@ class AccessOptimisedRegionPairs(RegionPairs):
     class EdgeIter(RegionPairs.EdgeIter):
         def __init__(self, this, _iter=None):
             RegionPairs.EdgeIter.__init__(self, this, _iter=_iter)
+            self.iter = _iter
+            self.interchromosomal = True
+            self.intrachromosomal = True
 
-            # prepare iterator
-            if _iter is None:
-                self.iter = this._edge_row_iter()
+        def __getitem__(self, item):
+            if isinstance(item, int):
+                l = 0
+                for edge_table in self.this._edge_table_iter(intrachromosomal=self.intrachromosomal,
+                                                             interchromosomal=self.interchromosomal):
+                    if l <= item < l + len(edge_table):
+                        res = edge_table[item - l]
+                        return self.this._row_to_edge(res, *self.row_conversion_args, **self.row_conversion_kwargs)
+                    l += len(edge_table)
+                raise IndexError("index out of range (%d)" % item)
+            elif isinstance(item, slice):
+                edges = []
+                start = 0 if item.start is None else item.start
+                stop = len(self.this.edges) if item.stop is None else item.stop
+                step = 1 if item.step is None else item.step
+                if step != 1:
+                    raise ValueError("Step sizes != 1 not currently supported in slices. %s" % str(step))
 
-            # TODO iterators and selectors
+                l = 0
+                for edge_table in self.this._edge_table_iter(intrachromosomal=self.intrachromosomal,
+                                                             interchromosomal=self.interchromosomal):
+                    # not yet in range
+                    if start >= l + len(edge_table):
+                        l += len(edge_table)
+                        continue
+                    # over range - can stop here
+                    if stop < l:
+                        break
+
+                    # in range, get edges
+                    r = (max(0, start - l), min(len(edge_table), stop - l))
+                    print(r)
+                    res = edge_table[r[0]:r[1]]
+                    for edge in res:
+                        edges.append(self.this._row_to_edge(edge,
+                                                            *self.row_conversion_args,
+                                                            **self.row_conversion_kwargs))
+                    l += len(edge_table)
+                return edges
+
+        def __iter__(self):
+            return self
+
+        def __call__(self, *args, **kwargs):
+            if 'only_intrachromosomal' in kwargs:
+                self.interchromosomal = False
+                self.intrachromosomal = True
+                del kwargs['only_intrachromosomal']
+            if 'intrachromosomal' in kwargs:
+                self.intrachromosomal = kwargs['intrachromosomal']
+                del kwargs['intrachromosomal']
+            if 'interchromosomal' in kwargs:
+                self.interchromosomal = kwargs['interchromosomal']
+                del kwargs['interchromosomal']
+            self.row_conversion_args = args
+            self.row_conversion_kwargs = kwargs
+            return iter(self)
+
+        def next(self):
+            if self.iter is None:
+                self.iter = self.this._edge_row_iter(intrachromosomal=self.intrachromosomal,
+                                                     interchromosomal=self.interchromosomal)
+            row = self.iter.next()
+            return self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
+
+        def __len__(self):
+            return len(self.this)
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
                  _table_name_nodes='nodes', _table_name_edges='edges'):
@@ -2570,6 +2632,20 @@ class AccessOptimisedRegionPairs(RegionPairs):
 
         return edge_table
 
+    def _edge_table_iter(self, intrachromosomal=True, interchromosomal=True):
+        # intra-chromosomal
+        if intrachromosomal:
+            for i in xrange(len(self.partitions) + 1):
+                if (i, i) in self._edge_table_dict:
+                    yield self._edge_table_dict[(i, i)]
+
+        # inter-chromosomal
+        if interchromosomal:
+            for i in xrange(len(self.partitions) + 1):
+                for j in xrange(i + 1, len(self.partitions) + 1):
+                    if (i, j) in self._edge_table_dict:
+                        yield self._edge_table_dict[(i, j)]
+
     def _add_edge(self, edge, row, replace=False):
         source, sink = edge.source, edge.sink
         if source > sink:
@@ -2596,6 +2672,35 @@ class AccessOptimisedRegionPairs(RegionPairs):
             row.update()
         else:
             row.append()
+
+    @property
+    def edges(self):
+        """
+        Iterate over :class:`~Edge` objects.
+
+        :param lazy: Enable lazy loading of edge attributes,
+                     only works in the loop iteration this
+                     edge is accessed.
+        :return: Iterator over :class:`~Edge`
+        """
+        return self._edges_iter()
+
+    def _edges_iter(self):
+        return AccessOptimisedRegionPairs.EdgeIter(self)
+
+    def _edge_row_iter(self, intrachromosomal=True, interchromosomal=True):
+        """
+        Yield rows in edge tables, ordered by partition.
+        """
+        for edge_table in self._edge_table_iter(intrachromosomal=intrachromosomal, interchromosomal=interchromosomal):
+            for row in edge_table:
+                yield row
+
+    def __len__(self):
+        l = 0
+        for edge_table in self._edge_table_iter():
+            l += len(edge_table)
+        return l
 
 
 class RegionMatrixTable(RegionPairs):
