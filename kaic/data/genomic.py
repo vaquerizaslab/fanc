@@ -1848,7 +1848,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
 
-    class EdgeIter:
+    class EdgeIter(object):
         def __init__(self, this, _iter=None):
             self.this = this
             if _iter is None:
@@ -1925,19 +1925,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
         else:
-            basic_fields = RegionMatrixTable.EntryDescription().columns.copy()
-            if additional_fields is not None:
-                if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
-                    # IsDescription subclass case
-                    additional_fields = additional_fields.columns
-
-                current = len(basic_fields)
-                for key, value in sorted(additional_fields.iteritems(), key=lambda x: x[1]._v_pos):
-                    if key not in basic_fields:
-                        if value._v_pos is not None:
-                            value._v_pos = current
-                            current += 1
-                        basic_fields[key] = value
+            basic_fields = self._get_field_dict(additional_fields=additional_fields)
 
             self._edges = MaskedTable(self.file.root, _table_name_edges, basic_fields)
         self._edges.flush()
@@ -1965,6 +1953,22 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 self._source_field_ix = i
             if name == 'sink':
                 self._sink_field_ix = i
+
+    def _get_field_dict(self, additional_fields=None):
+        basic_fields = RegionMatrixTable.EntryDescription().columns.copy()
+        if additional_fields is not None:
+            if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
+                # IsDescription subclass case
+                additional_fields = additional_fields.columns
+
+            current = len(basic_fields)
+            for key, value in sorted(additional_fields.iteritems(), key=lambda x: x[1]._v_pos):
+                if key not in basic_fields:
+                    if value._v_pos is not None:
+                        value._v_pos = current
+                        current += 1
+                    basic_fields[key] = value
+        return basic_fields
 
     def add_node(self, node, flush=True):
         """
@@ -2028,18 +2032,20 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
                 raise ValueError("Node index exceeds number of nodes in object")
 
         if is_object:
-            self._edge_from_object(edge, row=row, replace=replace)
+            new_edge = self._edge_from_object(edge)
         elif is_dict:
-            self._edge_from_dict(edge, row=row, replace=replace)
+            new_edge = self._edge_from_dict(edge)
         elif is_list:
-            self._edge_from_list(edge, row=row, replace=replace)
+            new_edge = self._edge_from_list(edge)
         else:
             raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+
+        self._add_edge(new_edge, row=row, replace=replace)
 
         if flush:
             self.flush()
 
-    def _edge_from_object(self, edge, row=None, replace=False):
+    def _add_edge(self, edge, row, replace=False):
         source, sink = edge.source, edge.sink
         if source > sink:
             source, sink = sink, source
@@ -2065,57 +2071,31 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         else:
             row.append()
 
-    def _edge_from_dict(self, edge, row=None, replace=False):
-        source, sink = edge['source'], edge['sink']
-        if source > sink:
-            source, sink = sink, source
+    def _edge_from_object(self, edge):
+        return edge
 
-        update = True
-        if row is None:
-            update = False
-            row = self._edges.row
-        row['source'] = source
-        row['sink'] = sink
+    def _edge_from_dict(self, edge):
+        source, sink = edge['source'], edge['sink']
+
+        attributes = dict()
         for name, value in edge.iteritems():
             if not name == 'source' and not name == 'sink':
-                try:
-                    if replace or not update:
-                        row[name] = value
-                    else:
-                        row[name] += value
-                except AttributeError:
-                    pass
-        if update:
-            row.update()
-        else:
-            row.append()
+                 attributes[name] = value
 
-    def _edge_from_list(self, edge, row=None, replace=False):
+        return Edge(source, sink, **attributes)
+
+    def _edge_from_list(self, edge):
         source, sink = edge[self._source_field_ix], edge[self._sink_field_ix]
-        if source > sink:
-            source, sink = sink, source
 
-        update = True
-        if row is None:
-            update = False
-            row = self._edges.row
-        row['source'] = source
-        row['sink'] = sink
-
+        attributes = dict()
         for i, name in enumerate(self.field_names):
             if not name == 'source' and not name == 'sink':
                 try:
-                    if replace or not update:
-                        row[name] = edge[i]
-                    else:
-                        row[name] += edge[i]
+                    attributes[name] = edge[i]
                 except IndexError:
                     break
 
-        if update:
-            row.update()
-        else:
-            row.append()
+        return Edge(source, sink, **attributes)
 
     def add_nodes(self, nodes):
         """
@@ -2544,7 +2524,8 @@ class RegionMatrixTable(RegionPairs):
                 v = float(value)
                 if v == 0:
                     continue
-                self._edge_from_dict({'source': source, 'sink': sink, default_column: v})
+                new_edge = self._edge_from_dict({'source': source, 'sink': sink, default_column: v})
+                self.add_edge(new_edge, check_nodes_exist=False, flush=False)
             except TypeError:
                 self.add_edge(value, check_nodes_exist=False, flush=False)
 
