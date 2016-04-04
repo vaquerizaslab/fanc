@@ -1735,6 +1735,8 @@ class MaskedTable(t.Table):
         if not mask_ix_col.is_indexed:
             mask_ix_col.create_index()
 
+        self.attrs['masked_length'] = -1
+
     def flush(self, update_index=False):
         """
         Flush buffered rows.
@@ -1866,7 +1868,11 @@ class MaskedTable(t.Table):
         return self._visible_len()
     
     def _visible_len(self):
-        return sum(1 for _ in iter(self.where("%s >= 0" % self._mask_index_field)))
+        if 'masked_length' not in self.attrs:
+            return sum(1 for _ in iter(self.where("%s >= 0" % self._mask_index_field)))
+        if self.attrs['masked_length'] == -1:
+            return self._original_len()
+        return self.attrs['masked_length']
     
     def _original_len(self):
         return t.Table.__len__(self)
@@ -1897,6 +1903,7 @@ class MaskedTable(t.Table):
                     ix += 1
                 row.update()
                 pb.update(i)
+            self.attrs['masked_length'] = ix
     
     @lru_cache(maxsize=1000)
     def _get_masks(self, binary_mask):
