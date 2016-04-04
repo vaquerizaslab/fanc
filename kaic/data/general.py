@@ -1735,8 +1735,6 @@ class MaskedTable(t.Table):
         if not mask_ix_col.is_indexed:
             mask_ix_col.create_index()
 
-        self.attrs['masked_length'] = -1
-
     def flush(self, update_index=False):
         """
         Flush buffered rows.
