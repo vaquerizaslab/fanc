@@ -2428,6 +2428,46 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         return len(self._edges)
 
 
+class AccessOptimisedRegionPairs(RegionPairs):
+
+    class EdgeIter(RegionPairs.EdgeIter):
+        def __init__(self, this, _iter=None):
+            RegionPairs.EdgeIter.__init__(self, this, _iter=_iter)
+
+            # prepare iterator
+            if _iter is None:
+                self.iter = this._edge_row_iter()
+
+        # TODO iterators and selectors
+
+    def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
+                 _table_name_nodes='nodes', _table_name_edges='edges'):
+        # private variables
+        self._max_node_ix = -1
+
+        if file_name is not None:
+            file_name = os.path.expanduser(file_name)
+
+        # initialize inherited objects
+        RegionsTable.__init__(self, file_name=file_name, _table_name_regions=_table_name_nodes,
+                              mode=mode, tmpdir=tmpdir)
+        Maskable.__init__(self, self.file)
+        MetaContainer.__init__(self, self.file)
+
+        # create edge table
+        if _table_name_edges in self.file.root:
+            self._edges = self.file.get_node('/', _table_name_edges)
+            # TODO generate field_dict from existing tables
+        else:
+            self._edges = self.file.create_group('/', _table_name_edges)
+            self._field_dict = self._get_field_dict(additional_fields=additional_fields)
+
+    def _get_field_dict(self, additional_fields=None):
+        if self._field_dict is not None:
+            return self._field_dict
+        return RegionPairs._get_field_dict(self, additional_fields=additional_fields)
+
+
 class RegionMatrixTable(RegionPairs):
     """
     Class for working with matrix-based data.
