@@ -32,8 +32,8 @@ def sample_hic():
         # add some edges with increasing weight for testing
         edges = []
         weight = 1
-        for i in range(0,len(nodes)):
-            for j in range(i,len(nodes)):
+        for i in range(0, len(nodes)):
+            for j in range(i, len(nodes)):
                 edges.append(Edge(source=i,sink=j,weight=weight))
                 weight += 1
 
