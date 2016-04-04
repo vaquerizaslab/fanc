@@ -1991,6 +1991,9 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         :param check_nodes_exist: Make sure that there are nodes
                                   that match source and sink indexes
         :param flush: Write data to file immediately after import
+        :param replace: If row is provided, replace values in existing edge with the ones in edge
+        :param row: PyTables row object representing an edge. If provided, edge will be used to
+                    modify existing row.
         """
         source = None
         sink = None
