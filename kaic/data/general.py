@@ -1747,7 +1747,7 @@ class MaskedTable(t.Table):
     
     def _flush(self, update_index=False):
         # commit any previous changes
-        super(MaskedTable, self).flush()
+        t.Table.flush(self)
 
         if update_index:
             self._update_ix()
@@ -1756,7 +1756,7 @@ class MaskedTable(t.Table):
             if not self.autoindex:
                 self.flush_rows_to_index()
             # commit index changes
-            super(MaskedTable, self).flush()
+            t.Table.flush(self)
 
     def iterrows(self, start=None, stop=None, step=None, excluded_masks=0):
         it = t.Table.iterrows(self, start, stop, step)
@@ -1792,7 +1792,7 @@ class MaskedTable(t.Table):
                 return row
 
             def __getitem__(self, key):
-                if type(key) == int:
+                if isinstance(key, int):
                     if key >= 0:
                         key = -1*key - 1
                         res = [x.fetch_all_fields() for x in
@@ -1868,11 +1868,9 @@ class MaskedTable(t.Table):
         return self._visible_len()
     
     def _visible_len(self):
-        if 'masked_length' not in self.attrs:
+        if 'masked_length' not in self.attrs or self.attrs['masked_length'] == -1:
             return sum(1 for _ in iter(self.where("%s >= 0" % self._mask_index_field)))
-        if self.attrs['masked_length'] == -1:
-            return self._original_len()
-        return self.attrs['masked_length']
+        return int(self.attrs['masked_length'])
     
     def _original_len(self):
         return t.Table.__len__(self)
@@ -1965,6 +1963,7 @@ class MaskedTable(t.Table):
 
             if _logging:
                 pb.update(i)
+        self.attrs['masked_length'] = ix
 
         if _logging:
             pb.finish()
@@ -2019,6 +2018,8 @@ class MaskedTable(t.Table):
             
             if _logging:
                 pb.update(i)
+
+        self.attrs['masked_length'] = ix
 
         if _logging:
             pb.finish()
