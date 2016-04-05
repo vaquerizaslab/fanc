@@ -12,13 +12,12 @@ def correct(hic, tolerance=1e-2, max_iterations=500):
         m = hic.marginals()
         bias_vector *= m
         marginal_error = _marginal_error(m)
-        for row in hic._edges._iter_visible_and_masked():
-            source = row['source']
-            sink = row['sink']
-            weight = row['weight']
-            row['weight'] = weight/np.sqrt(m[source])/np.sqrt(m[sink])
-            row.update()
-        hic._edges.flush()
+        for edge in hic.edges(lazy=True):
+            source = edge.source
+            sink = edge.sink
+            weight = edge.weight
+            edge.weight = weight/np.sqrt(m[source])/np.sqrt(m[sink])
+        hic.flush()
         current_iteration += 1
         logging.info("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
     hic.bias_vector(bias_vector)

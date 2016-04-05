@@ -3,7 +3,7 @@ import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
     RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
-    AccessOptimisedRegionMatrixTable
+    AccessOptimisedRegionMatrixTable, AccessOptimisedHic
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
@@ -617,6 +617,7 @@ class TestHicBasic:
         
         self.hic = hic
         self.hic_cerevisiae = Hic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.hic")
+        self.hic_class = Hic
     
     def teardown_method(self, method):
         self.hic_cerevisiae.close()
@@ -626,7 +627,7 @@ class TestHicBasic:
         current_dir = os.path.dirname(os.path.realpath(__file__))
         
         # from XML
-        hic1 = Hic(current_dir + "/test_genomic/hic.example.xml")
+        hic1 = self.hic_class(current_dir + "/test_genomic/hic.example.xml")
         nodes1 = hic1.nodes()
         edges1 = hic1.edges()
         assert len(nodes1) == 2
@@ -634,7 +635,7 @@ class TestHicBasic:
         hic1.close()
     
     def test_initialize_empty(self):
-        hic = Hic()
+        hic = self.hic_class()
         nodes = hic.nodes()
         edges = hic.edges()
         assert len(nodes) == 0
@@ -646,14 +647,14 @@ class TestHicBasic:
         dest_file = str(tmpdir) + "/hic.h5" 
         
         # from XML
-        hic1 = Hic(current_dir + "/test_genomic/hic.example.xml", file_name=dest_file)
+        hic1 = self.hic_class(current_dir + "/test_genomic/hic.example.xml", file_name=dest_file)
         hic1.close()
         
 #         from subprocess import check_output
 #         print check_output(["h5dump", dest_file])
 #         print class_id_dict
 
-        hic2 = Hic(dest_file)
+        hic2 = self.hic_class(dest_file)
         nodes2 = hic2.nodes()
         edges2 = hic2.edges()
         assert len(nodes2) == 2
@@ -839,31 +840,34 @@ class TestHicBasic:
     
     def test_set_matrix(self):
         
-        hic = Hic(self.hic)
+        hic = self.hic_class(self.hic)
 
-        n_edges = len(hic._edges)
+        n_edges = len(hic.edges)
+        #for edge_table in hic._edge_table_iter():
+        #    print edge_table
 
         # whole matrix
-        old = hic[:,:]
+        old = hic[:, :]
         # set diagonal to zero
-        for i in range(0,old.shape[0]):
-            old[i,i] = 0
-        hic[:,:] = old
-        m = hic[:,:]
+        for i in range(0, old.shape[0]):
+            old[i, i] = 0
+        hic[:, :] = old
+        m = hic[:, :]
+
         assert np.array_equal(m.shape, old.shape)
         for i in range(0,m.shape[0]):
             for j in range(0, m.shape[1]):
                 if i == j:
-                    assert m[i,j] == 0
+                    assert m[i, j] == 0
                 else:
-                    assert m[i,j] == old[i,j]
+                    assert m[i, j] == old[i, j]
 
-        assert len(hic._edges) < n_edges
+        assert len(hic.edges) < n_edges
         hic.close()
         
         # central matrix
-        hic = Hic(self.hic)
-        old = hic[2:8,2:10]
+        hic = self.hic_class(self.hic)
+        old = hic[2:8, 2:10]
         # set border elements to zero
         # set checkerboard pattern
         for i in range(0,old.shape[0]):
@@ -874,8 +878,8 @@ class TestHicBasic:
                     old[i,j] = 0
                 elif i % 2 == 1 and j % 2 == 0:
                     old[i,j] = 0
-        hic[2:8,2:10] = old
-        m = hic[2:8,2:10]
+        hic[2:8, 2:10] = old
+        m = hic[2:8, 2:10]
         hic.close()
         
         assert np.array_equal(m.shape, old.shape)
@@ -890,7 +894,7 @@ class TestHicBasic:
                 else:
                     assert m[i,j] == old[i,j]
         
-        hic = Hic(self.hic)
+        hic = self.hic_class(self.hic)
         # row
         old = hic[1,2:10]
         for i in range(0,8,2):
@@ -901,7 +905,7 @@ class TestHicBasic:
         assert np.array_equal(hic[:,1], [2,13,0,15,0,17,0,19,0,21,22,23])
         hic.close()
 
-        hic = Hic(self.hic)
+        hic = self.hic_class(self.hic)
         # col
         old = hic[2:10,1]
         for i in range(0,8,2):
@@ -913,7 +917,7 @@ class TestHicBasic:
         hic.close()
 
         # individual
-        hic = Hic(self.hic)
+        hic = self.hic_class(self.hic)
         hic[2,1] = 0
         assert hic[2,1] == 0
         assert hic[1,2] == 0
@@ -930,7 +934,7 @@ class TestHicBasic:
         pass
     
     def test_merge(self):
-        hic = Hic()
+        hic = self.hic_class()
         
         # add some nodes (120 to be exact)
         nodes = []
@@ -1007,14 +1011,14 @@ class TestHicBasic:
                 weight += 1
             hic.add_edges(edges)
 
-        hic1 = Hic()
+        hic1 = self.hic_class()
         populate_hic(hic1, seed=24)
         assert hic1[:,:].sum() == 411
-        hic2 = Hic()
+        hic2 = self.hic_class()
         populate_hic(hic2, seed=42)
         assert hic2[:,:].sum() == 443
 
-        hic3 = Hic()
+        hic3 = self.hic_class()
         populate_hic(hic3, seed=84)
         assert hic3[:,:].sum() == 331
 
@@ -1040,7 +1044,7 @@ class TestHicBasic:
 
         pl = len(pairs)
         
-        hic = Hic()
+        hic = self.hic_class()
         hic.load_read_fragment_pairs(pairs, _max_buffer_size=1000)
         
         assert len(hic._regions) == len(pairs._regions)
@@ -1070,11 +1074,11 @@ class TestHicBasic:
         regions.close()
         genome.close()
         pairs.filter_ligation_products(inward_threshold=1000, outward_threshold=1000)
-        hic = Hic()
+        hic = self.hic_class()
         hic.load_read_fragment_pairs(pairs, _max_buffer_size=1000)
         hl = len(hic.edges())
         hic.close()
-        hic = Hic()
+        hic = self.hic_class()
         hic.load_read_fragment_pairs(pairs, excluded_filters=['inward', 'outward'], _max_buffer_size=1000)
         assert len(hic.edges()) > hl
         pairs.close()
@@ -1195,7 +1199,7 @@ class TestHicBasic:
             original_reads += edge.weight
         
         def assert_binning(hic, bin_size, buffer_size):
-            binned = Hic()
+            binned = self.hic_class()
             assert len(binned.nodes()) == 0
             regions = genome.get_regions(bin_size)
             binned.add_regions(regions)
@@ -1224,14 +1228,14 @@ class TestHicBasic:
         genome.close()
         
     def test_from_hic_sample(self):
-        hic = Hic()
+        hic = self.hic_class()
         hic.add_region(GenomicRegion(chromosome='chr1',start=1,end=100))
         hic.add_region(GenomicRegion(chromosome='chr1',start=101,end=200))
         hic.add_edge([0,0,12])
         hic.add_edge([0,1,36])
         hic.add_edge([1,1,24])
         
-        binned = Hic()
+        binned = self.hic_class()
         binned.add_region(GenomicRegion(chromosome='chr1', start=1, end=50))
         binned.add_region(GenomicRegion(chromosome='chr1', start=51, end=100))
         binned.add_region(GenomicRegion(chromosome='chr1', start=101, end=150))
@@ -1259,7 +1263,7 @@ class TestHicBasic:
         binned.close()
 
     def test_builtin_bin(self):
-        hic = Hic()
+        hic = self.hic_class()
         hic.add_region(GenomicRegion(chromosome='chr1',start=1,end=100))
         hic.add_region(GenomicRegion(chromosome='chr1',start=101,end=200))
         hic.add_edge([0,0,12])
@@ -1291,7 +1295,7 @@ class TestHicBasic:
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
         
-        hic = Hic()
+        hic = self.hic_class()
         regions = genome.get_regions(10000)
         hic.add_regions(regions)
         regions.close()
@@ -1312,7 +1316,7 @@ class TestHicBasic:
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
 
-        hic = Hic()
+        hic = self.hic_class()
         regions = genome.get_regions(10000)
         hic.add_regions(regions)
         regions.close()
@@ -1350,7 +1354,7 @@ class TestHicBasic:
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
         
-        hic = Hic()
+        hic = self.hic_class()
         regions = genome.get_regions(10000)
         hic.add_regions(regions)
         regions.close()
@@ -1412,6 +1416,41 @@ class TestHicBasic:
         previous = len(self.hic.edges)
         self.hic.filter(eof)
         assert len(self.hic.edges) == previous-15-23  # 15 intra, 23 inter filtered
+
+
+class TestAccessOptimisedHic(TestHicBasic):
+    def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        self.hic_class = AccessOptimisedHic
+
+        hic = self.hic_class()
+
+        # add some nodes (120 to be exact)
+        nodes = []
+        for i in range(1, 5000, 1000):
+            nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+        for i in range(1, 3000, 1000):
+            nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+        for i in range(1, 2000, 500):
+            nodes.append(Node(chromosome="chr3", start=i, end=i + 1000 - 1))
+        hic.add_nodes(nodes)
+
+        # add some edges with increasing weight for testing
+        edges = []
+        weight = 1
+        for i in range(0, len(nodes)):
+            for j in range(i, len(nodes)):
+                edges.append(Edge(source=i, sink=j, weight=weight))
+                weight += 1
+
+        hic.add_edges(edges)
+
+        self.hic = hic
+        self.hic_cerevisiae = Hic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.hic")
+
+    def teardown_method(self, method):
+        self.hic.close()
+        self.hic_cerevisiae.close()
 
 
 class TestRegionMatrix:

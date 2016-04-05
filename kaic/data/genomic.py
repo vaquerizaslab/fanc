@@ -3377,24 +3377,25 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
 
         # update current rows
         for partition_key, e_buffer in partition_e_buffer.iteritems():
-            edge_table = self._edge_table_dict[partition_key]
+            if partition_key in self._edge_table_dict:
+                edge_table = self._edge_table_dict[partition_key]
 
-            for row in edge_table:
-                key = (row["source"], row["sink"])
+                for row in edge_table:
+                    key = (row["source"], row["sink"])
 
-                if key in e_buffer:
-                    value = e_buffer[key]
-                    # it is a weight
-                    try:
-                        if replace:
-                            row[default_column] = float(value)
-                        else:
-                            row[default_column] += float(value)
-                        row.update()
-                    except TypeError:
-                        self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
-                    del e_buffer[key]
-            self.flush(update_index=False)
+                    if key in e_buffer:
+                        value = e_buffer[key]
+                        # it is a weight
+                        try:
+                            if replace:
+                                row[default_column] = float(value)
+                            else:
+                                row[default_column] += float(value)
+                            row.update()
+                        except TypeError:
+                            self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
+                        del e_buffer[key]
+                self.flush(update_index=False)
 
             # flush remaining buffer
             for source, sink in e_buffer.iterkeys():
@@ -3417,9 +3418,9 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
         if weight_column is None:
             weight_column = self.default_field
 
-        zero_edge_ix = []
-        ix = 0
         for edge_table in self._edge_table_iter():
+            zero_edge_ix = []
+            ix = 0
             for row in edge_table.iterrows():
                 if row[weight_column] == 0:
                     zero_edge_ix.append(ix)
@@ -3595,6 +3596,7 @@ class Hic(RegionMatrixTable):
             # ...simply import everything
             for region in hic.regions():
                 self.add_region(region, flush=False)
+            self.flush()
             for edge in hic.edges():
                 self.add_edge(edge, check_nodes_exist=False, flush=False)
             self.flush()
@@ -4023,7 +4025,7 @@ class Hic(RegionMatrixTable):
         return m_bottom
 
 
-class AccessOptimisedHic(Hic):
+class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
     def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
                  _table_name_nodes='nodes', _table_name_edges='edges',
                  _table_name_node_annotations='node_annot'):
@@ -4071,6 +4073,18 @@ class AccessOptimisedHic(Hic):
 
         # add data
         self._add_data(data)
+
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+        """
+        Write data to file and flush buffers.
+
+        :param flush_nodes: Flush nodes tables
+        :param flush_edges: Flush edges table
+        :param update_index: Update mask indices in edges table
+        """
+        AccessOptimisedRegionMatrixTable.flush(self, flush_nodes=flush_nodes,
+                                               flush_edges=flush_edges, update_index=update_index)
+        self._node_annotations.flush()
 
     def filter(self, edge_filter, queue=False, log_progress=False):
         """
