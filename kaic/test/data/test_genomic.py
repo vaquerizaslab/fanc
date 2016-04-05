@@ -2,7 +2,8 @@ from __future__ import division
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
-    RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs
+    RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
+    AccessOptimisedRegionMatrixTable
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
@@ -549,6 +550,36 @@ class TestRegionMatrixTable:
             for j, col_region in enumerate(m.col_regions):
                 assert m[i, j] == max(row_region.ix, col_region.ix)
 
+
+class TestAccessOptimisedRegionMatrixTable(TestRegionMatrixTable):
+    def setup_method(self, method):
+        self.rmt = AccessOptimisedRegionMatrixTable(additional_fields={'weight': t.Int32Col(pos=0),
+                                                                       'foo': t.Int32Col(pos=1),
+                                                                       'bar': t.Float32Col(pos=2),
+                                                                       'baz': t.StringCol(50, pos=3)})
+
+        for i in xrange(10):
+            if i < 5:
+                chromosome = 'chr1'
+                start = i * 1000
+                end = (i + 1) * 1000
+            elif i < 8:
+                chromosome = 'chr2'
+                start = (i - 5) * 1000
+                end = (i + 1 - 5) * 1000
+            else:
+                chromosome = 'chr3'
+                start = (i - 8) * 1000
+                end = (i + 1 - 8) * 1000
+            node = Node(chromosome=chromosome, start=start, end=end)
+            self.rmt.add_region(node, flush=False)
+        self.rmt.flush()
+
+        for i in xrange(10):
+            for j in xrange(i, 10):
+                edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
+                self.rmt.add_edge(edge, flush=False)
+        self.rmt.flush()
 
 class TestHicBasic:
     
