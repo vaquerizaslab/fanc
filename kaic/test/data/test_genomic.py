@@ -418,6 +418,13 @@ class TestRegionPairs:
         for edge in edges:
             assert edge.bar == max(edge.sink, edge.source)
 
+        edges = self.rmt.edge_subset(key=slice(0, None, None))
+        s = 0
+        for edge in edges:
+            s += 1
+            assert edge.bar == max(edge.sink, edge.source)
+        assert s == 55
+
     def test_add_edge(self):
         rmt = self.rp_class(additional_fields={'weight': t.Float64Col()})
         rmt.add_node(Node(chromosome='1', start=1, end=1000))
