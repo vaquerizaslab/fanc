@@ -2538,11 +2538,13 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 sink_partition = edge_table.attrs['sink_partition']
                 self._edge_table_dict[(source_partition, sink_partition)] = edge_table
         else:
-            self._edges = self.file.create_group('/', _table_name_edges)
-
-        # create edge table definition
-        if self._field_dict is None:
+            # create edge table definition
             self._field_dict = self._get_field_dict(additional_fields=additional_fields)
+
+            self._edges = self.file.create_group('/', _table_name_edges)
+            # will always have 0-0 partition
+            edge_table = self._create_edge_table(0, 0)
+            self._update_field_names(edge_table=edge_table)
 
         # update partitions
         self._update_partitions()
@@ -2602,16 +2604,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
     def _get_partition_ix(self, region_ix):
         return bisect_right(self.partitions, region_ix)
 
-    def _get_edge_table(self, source, sink):
-        if source > sink:
-            source, sink = sink, source
-
-        source_partition = self._get_partition_ix(source)
-        sink_partition = self._get_partition_ix(sink)
-
-        if (source_partition, sink_partition) in self._edge_table_dict:
-            return self._edge_table_dict[(source_partition, sink_partition)]
-
+    def _create_edge_table(self, source_partition, sink_partition):
         edge_table = MaskedTable(self._edges,
                                  'chrpair_' + str(source_partition) + '_' + str(sink_partition),
                                  self._field_dict)
@@ -2623,10 +2616,19 @@ class AccessOptimisedRegionPairs(RegionPairs):
         edge_table.cols.sink.create_index()
 
         self._edge_table_dict[(source_partition, sink_partition)] = edge_table
+        return edge_table
 
-        # update field names
-        if self.field_names is None:
-            self._update_field_names(edge_table=edge_table)
+    def _get_edge_table(self, source, sink):
+        if source > sink:
+            source, sink = sink, source
+
+        source_partition = self._get_partition_ix(source)
+        sink_partition = self._get_partition_ix(sink)
+
+        if (source_partition, sink_partition) in self._edge_table_dict:
+            return self._edge_table_dict[(source_partition, sink_partition)]
+
+        edge_table = self._create_edge_table(source_partition, sink_partition)
 
         return edge_table
 
@@ -3336,6 +3338,96 @@ class RegionMatrixTable(RegionPairs):
                 marginals[edge.sink] += getattr(edge, weight_column)
 
         return marginals
+
+
+class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionPairs):
+    def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
+                 default_field=None, _table_name_nodes='nodes', _table_name_edges='edges'):
+        """
+        Initialize a :class:`~AccessOptimisedRegionMatrixTable` object.
+
+        :param file_name: Path to a save file
+        :param mode: File mode to open underlying file
+        :param _table_name_nodes: (Internal) name of the HDF5 node for regions
+        :param _table_name_edges: (Internal) name of the HDF5 node for edges
+        """
+
+        # private variables
+        self.default_field = default_field
+        AccessOptimisedRegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields,
+                                            tmpdir=tmpdir, _table_name_nodes=_table_name_nodes,
+                                            _table_name_edges=_table_name_edges)
+
+        if default_field is None:
+            self.default_field = self.field_names[2]
+
+    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
+                           clean_zero=True, default_column=None):
+        if default_column is None:
+            default_column = self.default_field
+
+        # re-arrange edge buffer
+        partition_e_buffer = defaultdict(dict)
+        for key, edge in e_buffer.iteritems():
+            source_partition = self._get_partition_ix(key[0])
+            sink_partition = self._get_partition_ix(key[1])
+            partition_e_buffer[(source_partition, sink_partition)][key] = e_buffer[key]
+
+        # update current rows
+        for partition_key, e_buffer in partition_e_buffer.iteritems():
+            edge_table = self._edge_table_dict[partition_key]
+
+            for row in edge_table:
+                key = (row["source"], row["sink"])
+
+                if key in e_buffer:
+                    value = e_buffer[key]
+                    # it is a weight
+                    try:
+                        if replace:
+                            row[default_column] = float(value)
+                        else:
+                            row[default_column] += float(value)
+                        row.update()
+                    except TypeError:
+                        self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
+                    del e_buffer[key]
+            self.flush(update_index=False)
+
+            # flush remaining buffer
+            for source, sink in e_buffer.iterkeys():
+                key = (source, sink)
+                value = e_buffer[key]
+                try:
+                    v = float(value)
+                    if v == 0:
+                        continue
+                    new_edge = self._edge_from_dict({'source': source, 'sink': sink, default_column: v})
+                    self.add_edge(new_edge, check_nodes_exist=False, flush=False)
+                except TypeError:
+                    self.add_edge(value, check_nodes_exist=False, flush=False)
+
+        self.flush(update_index=True)
+        if clean_zero:
+            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
+
+    def _remove_zero_edges(self, flush=True, update_index=True, weight_column=None):
+        if weight_column is None:
+            weight_column = self.default_field
+
+        zero_edge_ix = []
+        ix = 0
+        for edge_table in self._edge_table_iter():
+            for row in edge_table.iterrows():
+                if row[weight_column] == 0:
+                    zero_edge_ix.append(ix)
+                ix += 1
+
+            for ix in reversed(zero_edge_ix):
+                edge_table.remove_row(ix)
+
+        if flush:
+            self.flush(update_index=update_index)
 
 
 class Hic(RegionMatrixTable):
