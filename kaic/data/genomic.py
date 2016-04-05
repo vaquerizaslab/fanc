@@ -2446,14 +2446,8 @@ class AccessOptimisedRegionPairs(RegionPairs):
 
         def __getitem__(self, item):
             if isinstance(item, int):
-                l = 0
-                for edge_table in self.this._edge_table_iter(intrachromosomal=self.intrachromosomal,
-                                                             interchromosomal=self.interchromosomal):
-                    if l <= item < l + len(edge_table):
-                        res = edge_table[item - l]
-                        return self.this._row_to_edge(res, *self.row_conversion_args, **self.row_conversion_kwargs)
-                    l += len(edge_table)
-                raise IndexError("index out of range (%d)" % item)
+                return self.this.get_edge(item, intrachromosomal=self.intrachromosomal,
+                                          interchromosomal=self.interchromosomal)
             elif isinstance(item, slice):
                 edges = []
                 start = 0 if item.start is None else item.start
@@ -2673,6 +2667,17 @@ class AccessOptimisedRegionPairs(RegionPairs):
         else:
             row.append()
 
+    def get_edge(self, item, intrachromosomal=True, interchromosomal=True,
+                 *row_conversion_args, **row_conversion_kwargs):
+        l = 0
+        for edge_table in self._edge_table_iter(intrachromosomal=intrachromosomal,
+                                                interchromosomal=interchromosomal):
+            if l <= item < l + len(edge_table):
+                res = edge_table[item - l]
+                return self._row_to_edge(res, *row_conversion_args, **row_conversion_kwargs)
+            l += len(edge_table)
+        raise IndexError("index out of range (%d)" % item)
+
     @property
     def edges(self):
         """
@@ -2696,11 +2701,145 @@ class AccessOptimisedRegionPairs(RegionPairs):
             for row in edge_table:
                 yield row
 
+    def _partition_ix_range(self, start, stop):
+        start_partition = self._get_partition_ix(start)
+        stop_partition = self._get_partition_ix(stop)
+
+        if start_partition == stop_partition:
+            return [(start, stop, start_partition)]
+
+        partition_ranges = []
+        start_range = (start, self.partitions[start_partition] - 1, start_partition)
+        partition_ranges.append(start_range)
+
+        for i in xrange(start_partition + 1, stop_partition):
+            partition_ranges.append((self.partitions[i-1], self.partitions[i]-1, i))
+
+        stop_range = (self.partitions[stop_partition - 1], stop, stop_partition)
+        partition_ranges.append(stop_range)
+        return partition_ranges
+
+    def _edge_row_range(self, source_start, source_end, sink_start, sink_end, only_intrachromosomal=False):
+        source_partition_ranges = self._partition_ix_range(source_start, source_end)
+        sink_partition_ranges = self._partition_ix_range(sink_start, sink_end)
+
+        for source_partition_range in source_partition_ranges:
+            source_start, source_end, source_partition = source_partition_range
+            for sink_partition_range in sink_partition_ranges:
+                sink_start, sink_stop, sink_partition = sink_partition_range
+
+                if sink_partition < source_partition:
+                    source_partition, sink_partition = sink_partition, source_partition
+
+                if (source_partition, sink_partition) in self._edge_table_dict:
+                    table = self._edge_table_dict[(source_partition, sink_partition)]
+
+                    condition = "(source > %d) & (source < %d) & (sink > %d) & (sink < %d)"
+                    condition1 = condition % (source_start - 1, source_end + 1, sink_start - 1, sink_end + 1)
+                    condition2 = condition % (sink_start - 1, sink_end + 1, source_start - 1, source_end + 1)
+
+                    if source_start > sink_start:
+                        condition1, condition2 = condition2, condition1
+
+                    regions_dict = None
+                    if only_intrachromosomal:
+                        regions_dict = self.regions_dict
+
+                    overlap = range_overlap(source_start, source_end, sink_start, sink_end)
+
+                    for edge_row in table.where(condition1):
+                        if (only_intrachromosomal and
+                                    regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
+                            continue
+                        yield edge_row
+
+                    for edge_row in table.where(condition2):
+                        if overlap is not None:
+                            if (overlap[0] <= edge_row['source'] <= overlap[1]) and (overlap[0] <= edge_row['sink'] <= overlap[1]):
+                                continue
+
+                        if (only_intrachromosomal and
+                                    regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
+                            continue
+                        yield edge_row
+
+    def _is_sorted(self, sortby):
+        for edge_table in self._edge_table_iter():
+            column = getattr(edge_table.cols, sortby)
+            if (column.index is None or
+                    not column.index.is_csi):
+                return False
+        return True
+
+    def _edge_row_iter_sorted(self, sortby, step=None, intrachromosomal=True, interchromosomal=True):
+        """
+        Yield rows in edge tables, ordered by partition.
+        """
+        table_iterators = []
+        for edge_table in self._edge_table_iter(intrachromosomal=intrachromosomal, interchromosomal=interchromosomal):
+            table_iterators.append(iter(edge_table.itersorted(sortby, step=step)))
+
+        rows = []
+        for i, table_iterator in enumerate(table_iterators):
+            try:
+                row = table_iterator.next()
+                rows.append(row)
+            except StopIteration:
+                del table_iterators[i]
+
+        while len(table_iterators) > 0:
+            # find current minimum or maximum
+            current = None
+            current_ix = None
+            if step is None or step >= 0:
+                for i, row in enumerate(rows):
+                    if current is None or row[sortby] < current:
+                        current = row[sortby]
+                        current_ix = i
+            else:
+                for i, row in enumerate(rows):
+                    if current is None or row[sortby] > current:
+                        current = row[sortby]
+                        current_ix = i
+
+            yield rows[current_ix]
+
+            try:
+                rows[current_ix] = table_iterators[current_ix].next()
+            except StopIteration:
+                del table_iterators[current_ix]
+                del rows[current_ix]
+
+    def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
+        for edge_table in self._edge_table_iter():
+            # ensure sorting on sortby column
+            column = getattr(edge_table.cols, sortby)
+
+            if not self._is_sorted(sortby):
+                try:
+                    logging.info("Sorting %s..." % sortby)
+                    if not column.is_indexed:
+                        column.create_csindex()
+                    elif not column.index.is_csi:
+                        column.reindex()
+                except t.exceptions.FileModeError:
+                    raise RuntimeError("This object is not sorted by requested column! "
+                                       "Cannot sort manually, because file is in read-only mode.")
+        if reverse:
+            step = -1
+        else:
+            step = None
+        edge_iter = AccessOptimisedRegionPairs.EdgeIter(self, _iter=self._edge_row_iter_sorted(sortby, step=step))
+        return edge_iter(*args, **kwargs)
+
     def __len__(self):
         l = 0
         for edge_table in self._edge_table_iter():
             l += len(edge_table)
         return l
+
+    def __iter__(self):
+        return self.edges
 
 
 class RegionMatrixTable(RegionPairs):
