@@ -302,6 +302,8 @@ class TestRegionPairs:
                 self.rmt.add_edge(edge, flush=False)
         self.rmt.flush()
 
+        self.rp_class = RegionPairs
+
     def teardown_method(self, method):
         self.rmt.close()
 
@@ -416,7 +418,7 @@ class TestRegionPairs:
             assert edge.bar == max(edge.sink, edge.source)
 
     def test_add_edge(self):
-        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
+        rmt = self.rp_class(additional_fields={'weight': t.Float64Col()})
         rmt.add_node(Node(chromosome='1', start=1, end=1000))
         rmt.add_edge(Edge(0, 0, weight=100))
 
@@ -426,7 +428,7 @@ class TestRegionPairs:
         assert edge.weight == 100
         rmt.close()
 
-        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
+        rmt = self.rp_class(additional_fields={'weight': t.Float64Col()})
         rmt.add_node(Node(chromosome='1', start=1, end=1000))
         rmt.add_edge([0, 0, 100])
 
@@ -436,7 +438,7 @@ class TestRegionPairs:
         assert edge.weight == 100
         rmt.close()
 
-        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
+        rmt = self.rp_class(additional_fields={'weight': t.Float64Col()})
         rmt.add_node(Node(chromosome='1', start=1, end=1000))
         rmt.add_edge({'source': 0, 'sink': 0, 'weight': 100})
 
@@ -476,6 +478,8 @@ class TestAccessOptimisedRegionPairs(TestRegionPairs):
                 edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
                 self.rmt.add_edge(edge, flush=False)
         self.rmt.flush()
+
+        self.rp_class = AccessOptimisedRegionPairs
 
 
 class TestRegionMatrixTable:

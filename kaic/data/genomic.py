@@ -2524,6 +2524,10 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._field_dict = None
         self.field_names = None
         self._edge_table_dict = dict()
+        self._source_field_ix = 0
+        self._sink_field_ix = 1
+
+        # existing one
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
             for edge_table in self._edges._f_iter_nodes():
@@ -2639,6 +2643,12 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 for j in xrange(i + 1, len(self.partitions) + 1):
                     if (i, j) in self._edge_table_dict:
                         yield self._edge_table_dict[(i, j)]
+
+    def _edge_from_list(self, edge):
+        source, sink = edge[self._source_field_ix], edge[self._sink_field_ix]
+        self._get_edge_table(source, sink)
+
+        return RegionPairs._edge_from_list(self, edge)
 
     def _add_edge(self, edge, row, replace=False):
         source, sink = edge.source, edge.sink
