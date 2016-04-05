@@ -2,7 +2,7 @@ from __future__ import division
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge,\
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
-    RegionMatrix, RegionsTable, RegionMatrixTable
+    RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
@@ -272,6 +272,212 @@ class TestRegionsTable(TestGenomicRegions):
         assert self.empty_regions[2].b == ''
 
 
+class TestRegionPairs:
+    def setup_method(self, method):
+        self.rmt = RegionPairs(additional_fields={'weight': t.Int32Col(pos=0),
+                                                  'foo': t.Int32Col(pos=1),
+                                                  'bar': t.Float32Col(pos=2),
+                                                  'baz': t.StringCol(50, pos=3)})
+
+        for i in xrange(10):
+            if i < 5:
+                chromosome = 'chr1'
+                start = i * 1000
+                end = (i + 1) * 1000
+            elif i < 8:
+                chromosome = 'chr2'
+                start = (i - 5) * 1000
+                end = (i + 1 - 5) * 1000
+            else:
+                chromosome = 'chr3'
+                start = (i - 8) * 1000
+                end = (i + 1 - 8) * 1000
+            node = Node(chromosome=chromosome, start=start, end=end)
+            self.rmt.add_region(node, flush=False)
+        self.rmt.flush()
+
+        for i in xrange(10):
+            for j in xrange(i, 10):
+                edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
+                self.rmt.add_edge(edge, flush=False)
+        self.rmt.flush()
+
+    def teardown_method(self, method):
+        self.rmt.close()
+
+    def test_create(self):
+        rmt1 = RegionPairs()
+        assert rmt1.field_names == ['source', 'sink']
+        assert len(rmt1.edges()) == 0
+        rmt1.close()
+
+        rmt2 = RegionPairs(additional_fields={'foo': t.Int32Col(pos=0), 'bar': t.Float32Col(pos=1)})
+        assert rmt2.field_names == ['source', 'sink', 'foo', 'bar']
+        assert len(rmt2.edges()) == 0
+        rmt2.close()
+
+        class AdditionalFields(t.IsDescription):
+            foo = t.Int32Col(pos=0)
+            bar = t.Float32Col(pos=1)
+
+        rmt3 = RegionPairs(additional_fields=AdditionalFields)
+        assert rmt3.field_names == ['source', 'sink', 'foo', 'bar']
+        assert len(rmt3.edges()) == 0
+        rmt3.close()
+
+        assert len(self.rmt.edges()) == 55
+        assert self.rmt.field_names == ['source', 'sink', 'weight', 'foo', 'bar', 'baz']
+
+    def test_edges(self):
+
+        for edge in self.rmt.edges():
+            i = edge.source
+            j = edge.sink
+            assert edge.weight == i * j
+            assert edge.foo == i
+            assert edge.bar == j
+            assert edge.baz == 'x' + str(i * j)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
+    def test_edges_nodup(self):
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(0, 2), slice(1, 3))):
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(1, 3), slice(0, 2))):
+            print edge
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
+        covered = set()
+        for edge in self.rmt.edge_subset((slice(0, 3), slice(1, 2))):
+            print edge
+            pair = (edge.source, edge.sink)
+            if pair in covered:
+                assert 0
+            covered.add(pair)
+
+    def test_edges_sorted(self):
+
+        previous_weight = -1
+        for edge in self.rmt.edges_sorted('weight'):
+            print edge
+            assert edge.weight == edge.source * edge.sink
+            assert edge.weight >= previous_weight
+            previous_weight = edge.weight
+            assert edge.foo == edge.source
+            assert edge.bar == edge.sink
+            assert edge.baz == 'x' + str(edge.source * edge.sink)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
+    def test_lazy_edges(self):
+        for edge in self.rmt.edges(lazy=True):
+            i = edge.source
+            j = edge.sink
+            assert edge.weight == i * j
+            assert edge.foo == i
+            assert edge.bar == j
+            assert edge.baz == 'x' + str(i * j)
+
+            with pytest.raises(AttributeError):
+                assert edge.qux is None
+
+    def test_edges_set_attribute(self):
+        for edge in self.rmt.edges():
+            edge.foo = 999
+
+        for edge in self.rmt.edges():
+            assert edge.foo != 999
+
+    def test_lazy_edges_set_attribute(self):
+        for edge in self.rmt.edges(lazy=True):
+            edge.foo = 999
+
+        for edge in self.rmt.edges():
+            assert edge.foo == 999
+
+    def test_edge_subset(self):
+        edges = self.rmt.edge_subset(key=('chr2', 'chr2'))
+        for edge in edges:
+            assert edge.bar == max(edge.sink, edge.source)
+
+        edges = self.rmt.edge_subset(key=('chr2', 'chr3'))
+        for edge in edges:
+            assert edge.bar == max(edge.sink, edge.source)
+
+    def test_add_edge(self):
+        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge(Edge(0, 0, weight=100))
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
+
+        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge([0, 0, 100])
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
+
+        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
+        rmt.add_node(Node(chromosome='1', start=1, end=1000))
+        rmt.add_edge({'source': 0, 'sink': 0, 'weight': 100})
+
+        edge = rmt.edges[0]
+        assert edge.source == 0
+        assert edge.sink == 0
+        assert edge.weight == 100
+        rmt.close()
+
+
+class TestAccessOptimisedRegionPairs(TestRegionPairs):
+    def setup_method(self, method):
+        self.rmt = AccessOptimisedRegionPairs(additional_fields={'weight': t.Int32Col(pos=0),
+                                                                 'foo': t.Int32Col(pos=1),
+                                                                 'bar': t.Float32Col(pos=2),
+                                                                 'baz': t.StringCol(50, pos=3)})
+
+        for i in xrange(10):
+            if i < 5:
+                chromosome = 'chr1'
+                start = i * 1000
+                end = (i + 1) * 1000
+            elif i < 8:
+                chromosome = 'chr2'
+                start = (i - 5) * 1000
+                end = (i + 1 - 5) * 1000
+            else:
+                chromosome = 'chr3'
+                start = (i - 8) * 1000
+                end = (i + 1 - 8) * 1000
+            node = Node(chromosome=chromosome, start=start, end=end)
+            self.rmt.add_region(node, flush=False)
+        self.rmt.flush()
+
+        for i in xrange(10):
+            for j in xrange(i, 10):
+                edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
+                self.rmt.add_edge(edge, flush=False)
+        self.rmt.flush()
+
+
 class TestRegionMatrixTable:
     def setup_method(self, method):
         self.rmt = RegionMatrixTable(additional_fields={'weight': t.Int32Col(pos=0),
@@ -304,132 +510,6 @@ class TestRegionMatrixTable:
 
     def teardown_method(self, method):
         self.rmt.close()
-
-    def test_create(self):
-        rmt1 = RegionMatrixTable()
-        assert rmt1.field_names == ['source', 'sink']
-        assert len(rmt1.edges()) == 0
-        rmt1.close()
-
-        rmt2 = RegionMatrixTable(additional_fields={'foo': t.Int32Col(pos=0), 'bar': t.Float32Col(pos=1)})
-        assert rmt2.field_names == ['source', 'sink', 'foo', 'bar']
-        assert len(rmt2.edges()) == 0
-        rmt2.close()
-
-        class AdditionalFields(t.IsDescription):
-            foo = t.Int32Col(pos=0)
-            bar = t.Float32Col(pos=1)
-
-        rmt3 = RegionMatrixTable(additional_fields=AdditionalFields)
-        assert rmt3.field_names == ['source', 'sink', 'foo', 'bar']
-        assert len(rmt3.edges()) == 0
-        rmt3.close()
-
-        assert len(self.rmt.edges()) == 55
-        assert self.rmt.field_names == ['source', 'sink', 'weight', 'foo', 'bar', 'baz']
-
-    def test_edges(self):
-        j = 0
-        i = 0
-        for edge in self.rmt.edges():
-            assert edge.source == i
-            assert edge.sink == j
-            assert edge.weight == i*j
-            assert edge.foo == i
-            assert edge.bar == j
-            assert edge.baz == 'x' + str(i*j)
-
-            with pytest.raises(AttributeError):
-                assert edge.qux is None
-
-            if j == 9:
-                i += 1
-                j = i
-            else:
-                j += 1
-
-    def test_edges_nodup(self):
-        covered = set()
-        for edge in self.rmt.edge_subset((slice(0, 2), slice(1, 3))):
-            print edge
-            pair = (edge.source, edge.sink)
-            if pair in covered:
-                assert 0
-            covered.add(pair)
-
-        covered = set()
-        for edge in self.rmt.edge_subset((slice(1, 3), slice(0, 2))):
-            print edge
-            pair = (edge.source, edge.sink)
-            if pair in covered:
-                assert 0
-            covered.add(pair)
-
-        covered = set()
-        for edge in self.rmt.edge_subset((slice(0, 3), slice(1, 2))):
-            print edge
-            pair = (edge.source, edge.sink)
-            if pair in covered:
-                assert 0
-            covered.add(pair)
-
-    def test_edges_sorted(self):
-
-        previous_weight = -1
-        for edge in self.rmt.edges_sorted('weight'):
-
-            assert edge.weight == edge.source*edge.sink
-            assert edge.weight >= previous_weight
-            previous_weight = edge.weight
-            assert edge.foo == edge.source
-            assert edge.bar == edge.sink
-            assert edge.baz == 'x' + str(edge.source*edge.sink)
-
-            with pytest.raises(AttributeError):
-                assert edge.qux is None
-
-    def test_lazy_edges(self):
-        j = 0
-        i = 0
-        for edge in self.rmt.edges(lazy=True):
-            assert edge.source == i
-            assert edge.sink == j
-            assert edge.weight == i*j
-            assert edge.foo == i
-            assert edge.bar == j
-            assert edge.baz == 'x' + str(i*j)
-
-            with pytest.raises(AttributeError):
-                assert edge.qux is None
-
-            if j == 9:
-                i += 1
-                j = i
-            else:
-                j += 1
-
-    def test_edges_set_attribute(self):
-        for edge in self.rmt.edges():
-            edge.foo = 999
-
-        for edge in self.rmt.edges():
-            assert edge.foo != 999
-
-    def test_lazy_edges_set_attribute(self):
-        for edge in self.rmt.edges(lazy=True):
-            edge.foo = 999
-
-        for edge in self.rmt.edges():
-            assert edge.foo == 999
-
-    def test_edge_subset(self):
-        edges = self.rmt.edge_subset(key=('chr2', 'chr2'))
-        for edge in edges:
-            assert edge.bar == max(edge.sink, edge.source)
-
-        edges = self.rmt.edge_subset(key=('chr2', 'chr3'))
-        for edge in edges:
-            assert edge.bar == max(edge.sink, edge.source)
 
     def test_matrix(self):
         print self.rmt.default_field
@@ -464,37 +544,6 @@ class TestRegionMatrixTable:
         for i, row_region in enumerate(m.row_regions):
             for j, col_region in enumerate(m.col_regions):
                 assert m[i, j] == max(row_region.ix, col_region.ix)
-
-    def test_add_edge(self):
-        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
-        rmt.add_node(Node(chromosome='1', start=1, end=1000))
-        rmt.add_edge(Edge(0, 0, weight=100))
-
-        edge = rmt.edges[0]
-        assert edge.source == 0
-        assert edge.sink == 0
-        assert edge.weight == 100
-        rmt.close()
-
-        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
-        rmt.add_node(Node(chromosome='1', start=1, end=1000))
-        rmt.add_edge([0, 0, 100])
-
-        edge = rmt.edges[0]
-        assert edge.source == 0
-        assert edge.sink == 0
-        assert edge.weight == 100
-        rmt.close()
-
-        rmt = RegionMatrixTable(additional_fields={'weight': t.Float64Col()})
-        rmt.add_node(Node(chromosome='1', start=1, end=1000))
-        rmt.add_edge({'source': 0, 'sink': 0, 'weight': 100})
-
-        edge = rmt.edges[0]
-        assert edge.source == 0
-        assert edge.sink == 0
-        assert edge.weight == 100
-        rmt.close()
 
 
 class TestHicBasic:
