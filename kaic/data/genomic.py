@@ -3488,7 +3488,7 @@ class Hic(RegionMatrixTable):
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
 
-        RegionMatrixTable.__init__(self, additional_fields= {'weight': t.Float64Col(pos=0)},
+        RegionMatrixTable.__init__(self, additional_fields={'weight': t.Float64Col(pos=0)},
                                    file_name=file_name, mode=mode, tmpdir=tmpdir,
                                    default_field='weight',
                                    _table_name_nodes=_table_name_nodes,
@@ -3505,6 +3505,9 @@ class Hic(RegionMatrixTable):
             self._node_annotations = None
 
         # add data
+        self._add_data(data)
+
+    def _add_data(self, data):
         if data is not None:
             if type(data) is str:
                 if is_hic_xml_file(data):
@@ -3601,22 +3604,20 @@ class Hic(RegionMatrixTable):
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
 
-            edge_buffer = {}
-            for old_edge in hic._edges:
-                old_source = old_edge['source']
-                old_sink = old_edge['sink']
-                old_weight = old_edge['weight']
+            edge_buffer = defaultdict(int)
+            for old_edge in hic.edges():
+                old_source = old_edge.source
+                old_sink = old_edge.sink
+                old_weight = old_edge.weight
                 new_edges = _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map)
 
                 for new_edge in new_edges:
                     key_pair = (new_edge[0], new_edge[1])
-                    if key_pair not in edge_buffer:
-                        edge_buffer[key_pair] = 0
                     edge_buffer[key_pair] += new_edge[2]
 
                 if len(edge_buffer) > _edge_buffer_size:
                     self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                    edge_buffer = {}
+                    edge_buffer = defaultdict(int)
             self._flush_edge_buffer(edge_buffer)
 
     def copy(self, file_name, tmpdir=None):
@@ -3662,9 +3663,9 @@ class Hic(RegionMatrixTable):
         hic = cls(file_name=file_name)
 
         # nodes
-        chrms = {hl.genome.chrmStartsBinCont[i] : hl.genome.chrmLabels[i] for i in xrange(0,len(hl.genome.chrmLabels))}
+        chrms = {hl.genome.chrmStartsBinCont[i]: hl.genome.chrmLabels[i] for i in xrange(0, len(hl.genome.chrmLabels))}
         chromosome = ''
-        for i in xrange(0,len(hl.genome.posBinCont)):
+        for i in xrange(0, len(hl.genome.posBinCont)):
             start = hl.genome.posBinCont[i]+1
             if i in chrms:
                 chromosome = chrms[i]
@@ -3684,16 +3685,16 @@ class Hic(RegionMatrixTable):
             chr1StartBin = hl.genome.chrmStartsBinCont[chr1]
             chr2StartBin = hl.genome.chrmStartsBinCont[chr2]
 
-            for i in xrange(0,data.shape[0]):
+            for i in xrange(0, data.shape[0]):
                 iNode = i+chr1StartBin
                 start = i
                 if chr1 != chr2:
                     start = 0
-                for j in xrange(start,data.shape[1]):
+                for j in xrange(start, data.shape[1]):
                     jNode = j+chr2StartBin
 
-                    if data[i,j] != 0:
-                        hic.add_edge([iNode, jNode, data[i,j]], flush=False)
+                    if data[i, j] != 0:
+                        hic.add_edge([iNode, jNode, data[i, j]], flush=False)
         hic.flush(flush_nodes=False)
 
         return hic
@@ -3751,12 +3752,12 @@ class Hic(RegionMatrixTable):
         # merge edges
         self.log_info("Merging contacts...")
         edge_buffer = {}
-        l = len(hic._edges)
+        l = len(hic.edges)
         with RareUpdateProgressBar(max_value=l) as pb:
-            for i, merge_row in enumerate(hic._edges):
-                merge_source = ix_conversion[merge_row["source"]]
-                merge_sink = ix_conversion[merge_row["sink"]]
-                merge_weight = merge_row["weight"]
+            for i, merge_edge in enumerate(hic.edges):
+                merge_source = ix_conversion[merge_edge.source]
+                merge_sink = ix_conversion[merge_edge.sink]
+                merge_weight = merge_edge.weight
 
                 if merge_source > merge_sink:
                     merge_source, merge_sink = merge_sink, merge_source
@@ -4020,6 +4021,88 @@ class Hic(RegionMatrixTable):
         top_indices = np.triu_indices(m_top.shape[0], matching_index, m_top.shape[1])
         m_bottom[top_indices] = m_top[top_indices]
         return m_bottom
+
+
+class AccessOptimisedHic(Hic):
+    def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
+                 _table_name_nodes='nodes', _table_name_edges='edges',
+                 _table_name_node_annotations='node_annot'):
+        """
+        Initialize a :class:`~Hic` object.
+
+        :param data: Can be the path to an XML file denoting a Hic object,
+                     another Hic object, a :class:`~FragmentMappedReadPairs`
+                     object, or a path to a save file. In the latter case,
+                     this parameter may replace file_name, but only if
+                     file_name is None.
+        :param file_name: Path to a save file
+        :param _table_name_nodes: (Internal) name of the HDF5 node for regions
+        :param _table_name_edges: (Internal) name of the HDF5 node for edges
+        """
+
+        # parse potential unnamed argument
+        if data is not None:
+            # data is file name
+            if type(data) is str:
+                data = os.path.expanduser(data)
+
+                if (not os.path.isfile(data) or not is_hic_xml_file(data)) and file_name is None:
+                    file_name = data
+                    data = None
+
+        if file_name is not None:
+            file_name = os.path.expanduser(file_name)
+
+        AccessOptimisedRegionMatrixTable.__init__(self, additional_fields={'weight': t.Float64Col(pos=0)},
+                                                  file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                  default_field='weight',
+                                                  _table_name_nodes=_table_name_nodes,
+                                                  _table_name_edges=_table_name_edges)
+
+        if _table_name_node_annotations in self.file.root:
+            self._node_annotations = self.file.get_node('/', _table_name_node_annotations)
+        elif mode not in ('r', 'r+'):
+            self._node_annotations = t.Table(self.file.root, _table_name_node_annotations,
+                                             Hic.HicRegionAnnotationDescription)
+            self._node_annotations.flush()
+        else:
+            # compatibility with existing objects
+            self._node_annotations = None
+
+        # add data
+        self._add_data(data)
+
+    def filter(self, edge_filter, queue=False, log_progress=False):
+        """
+        Filter edges in this object by using a
+        :class:`~HicEdgeFilter`.
+
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        edge_filter.set_hic_object(self)
+        if not queue:
+            for edge_table in self._edge_table_iter():
+                edge_table.filter(edge_filter, _logging=log_progress)
+        else:
+            for edge_table in self._edge_table_iter():
+                edge_table.queue_filter(edge_filter)
+
+    def run_queued_filters(self, log_progress=False):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        for edge_table in self._edge_table_iter():
+            edge_table.run_queued_filters(_logging=log_progress)
 
 
 class HicEdgeFilter(MaskFilter):
