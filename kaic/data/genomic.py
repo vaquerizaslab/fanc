@@ -2735,16 +2735,28 @@ class AccessOptimisedRegionPairs(RegionPairs):
         source_partition_ranges = self._partition_ix_range(source_start, source_end)
         sink_partition_ranges = self._partition_ix_range(sink_start, sink_end)
 
+        covered = set()
         for source_partition_range in source_partition_ranges:
             source_start, source_end, source_partition = source_partition_range
+
             for sink_partition_range in sink_partition_ranges:
                 sink_start, sink_stop, sink_partition = sink_partition_range
 
-                if sink_partition < source_partition:
-                    source_partition, sink_partition = sink_partition, source_partition
+                if only_intrachromosomal and source_partition != sink_partition:
+                    continue
 
-                if (source_partition, sink_partition) in self._edge_table_dict:
-                    table = self._edge_table_dict[(source_partition, sink_partition)]
+                if sink_partition < source_partition:
+                    key = (sink_partition, source_partition)
+                else:
+                    key = (source_partition, sink_partition)
+
+                if key in covered:
+                    continue
+                else:
+                    covered.add(key)
+
+                if key in self._edge_table_dict:
+                    table = self._edge_table_dict[key]
 
                     condition = "(source > %d) & (source < %d) & (sink > %d) & (sink < %d)"
                     condition1 = condition % (source_start - 1, source_end + 1, sink_start - 1, sink_end + 1)
@@ -2753,16 +2765,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
                     if source_start > sink_start:
                         condition1, condition2 = condition2, condition1
 
-                    regions_dict = None
-                    if only_intrachromosomal:
-                        regions_dict = self.regions_dict
-
                     overlap = range_overlap(source_start, source_end, sink_start, sink_end)
 
                     for edge_row in table.where(condition1):
-                        if (only_intrachromosomal and
-                                    regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
-                            continue
                         yield edge_row
 
                     for edge_row in table.where(condition2):
@@ -2770,9 +2775,6 @@ class AccessOptimisedRegionPairs(RegionPairs):
                             if (overlap[0] <= edge_row['source'] <= overlap[1]) and (overlap[0] <= edge_row['sink'] <= overlap[1]):
                                 continue
 
-                        if (only_intrachromosomal and
-                                    regions_dict[edge_row['source']].chromosome != regions_dict[edge_row['sink']].chromosome):
-                            continue
                         yield edge_row
 
     def _is_sorted(self, sortby):
