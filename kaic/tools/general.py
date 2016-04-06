@@ -96,6 +96,10 @@ class RareUpdateProgressBar(progressbar.ProgressBar):
                  left_justify=True, initial_value=0, poll_interval=None,
                  percent_update_interval=1,
                  **kwargs):
+        self.manual_poll_interval = True
+        if poll_interval is None:
+            self.manual_poll_interval = False
+
         progressbar.ProgressBar.__init__(self, min_value=min_value, max_value=max_value, widgets=widgets,
                                          left_justify=left_justify, initial_value=initial_value,
                                          poll_interval=poll_interval, **kwargs)
@@ -104,10 +108,6 @@ class RareUpdateProgressBar(progressbar.ProgressBar):
             self.one_percent = self.max_value*(1.0*percent_update_interval)/100
         else:
             self.one_percent = 1
-
-        self.manual_poll_interval = True
-        if poll_interval is None:
-            self.manual_poll_interval = False
 
     def _needs_update(self):
         """
