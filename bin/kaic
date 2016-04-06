@@ -2703,8 +2703,8 @@ class Kaic(object):
         )
         args = parser.parse_args(sys.argv[2:])
         import kaic
-        from kaic.analyzing.architecture import insulation_index, rel_insulation_index, directionality_index, \
-                                                contact_band, delta_window, rolling_func_nan, observed_expected_ratio, \
+        from kaic.architecture.hic_architecture import InsulationIndex, DirectionalityIndex, ObservedExpectedRatio, \
+                                                contact_band, delta_window, rolling_func_nan, \
                                                 impute_missing_bins
         from kaic.plotting.plotter import GenomicTrack
         from scipy.signal import savgol_filter
