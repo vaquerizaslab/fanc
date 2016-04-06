@@ -1297,6 +1297,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-o', '--optimise', dest='optimise',
+            action='store_true',
+            help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
+        )
+        parser.set_defaults(optimise=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1327,7 +1334,10 @@ class Kaic(object):
         logging.info("Done.")
 
         logging.info("Adding pairs to Hic...")
-        hic = kaic.Hic(hic_path, mode='w')
+        if not args.optimise:
+            hic = kaic.Hic(hic_path, mode='w')
+        else:
+            hic = kaic.AccessOptimisedHic(hic_path, mode='w')
         hic.load_read_fragment_pairs(pairs)
         logging.info("Done.")
 
