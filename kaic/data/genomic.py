@@ -3626,6 +3626,7 @@ class Hic(RegionMatrixTable):
             for edge in hic.edges():
                 self.add_edge(edge, check_nodes_exist=False, flush=False)
             self.flush()
+            self.bias_vector(hic.bias_vector())
         # if already have nodes in this HiC object...
         else:
             logging.info("Binning Hi-C contacts")
@@ -4052,11 +4053,14 @@ class Hic(RegionMatrixTable):
 
 
 class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
+    """
+
+    """
     def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
                  _table_name_nodes='nodes', _table_name_edges='edges',
                  _table_name_node_annotations='node_annot'):
         """
-        Initialize a :class:`~Hic` object.
+        Initialize a :class:`~AccessOptimisedHic` object.
 
         :param data: Can be the path to an XML file denoting a Hic object,
                      another Hic object, a :class:`~FragmentMappedReadPairs`
