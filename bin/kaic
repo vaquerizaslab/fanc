@@ -2902,43 +2902,6 @@ class Kaic(object):
                         )
         logging.info("All done.")
 
-    def hiclib_to_kaic(self):
-        parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
-            description='Convert a hiclib object to a Hic object'
-        )
-
-        parser.add_argument(
-            'hic',
-            help='''Hiclib Hi-C object'''
-        )
-
-        parser.add_argument(
-            'genome',
-            help='''Hiclib genome object'''
-        )
-
-        parser.add_argument(
-            'output',
-            help='''Output file'''
-        )
-
-        parser.add_argument(
-            'resolution',
-            type=int,
-            help='''Resolution of the file (e.g. 100000)'''
-        )
-
-        args = parser.parse_args(sys.argv[2:])
-
-        import kaic
-        from kaic.tools.hic import load_mirny_binned_hic
-        mirny = load_mirny_binned_hic(os.path.expanduser(args.hic), os.path.expanduser(args.genome), args.resolution)
-        hic = kaic.Hic.from_hiclib(mirny, file_name=os.path.expanduser(args.output))
-        hic.close()
-
-        logging.info("All done.")
-
 
 if __name__ == '__main__':
     Kaic()
