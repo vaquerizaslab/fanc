@@ -4234,11 +4234,14 @@ def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):
     f = t.open_file(file_name, mode='r')
     n = f.get_node('/' + _edge_table_name)
     if isinstance(n, MaskedTable):
-        return Hic(file_name=file_name, mode=mode, tmpdir=tmpdir)
+        hic_class = Hic
     elif isinstance(n, t.group.Group):
-        return AccessOptimisedHic(file_name=file_name, mode=mode, tmpdir=tmpdir)
+        hic_class = AccessOptimisedHic
     else:
         raise ValueError("%s is not a valid Hi-C object file" % file_name)
+
+    f.close()
+    return hic_class(file_name=file_name, mode=mode, tmpdir=tmpdir)
 
 
 class HicEdgeFilter(MaskFilter):
