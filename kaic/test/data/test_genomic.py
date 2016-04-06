@@ -1446,7 +1446,7 @@ class TestAccessOptimisedHic(TestHicBasic):
         hic.add_edges(edges)
 
         self.hic = hic
-        self.hic_cerevisiae = Hic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.hic")
+        self.hic_cerevisiae = AccessOptimisedHic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.fa.hic")
 
     def teardown_method(self, method):
         self.hic.close()
