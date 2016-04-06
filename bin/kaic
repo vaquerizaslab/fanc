@@ -221,6 +221,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-o', '--optimise', dest='optimise',
+            action='store_true',
+            help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
+        )
+        parser.set_defaults(optimise=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
@@ -539,6 +546,9 @@ class Kaic(object):
             hic_command = ['kaic', 'pairs_to_hic']
             if args.tmp:
                 hic_command.append('-tmp')
+
+            if args.optimise:
+                hic_command.append('-o')
 
             return subprocess.call(hic_command + [pairs_file, hic_file])
 
