@@ -4230,6 +4230,17 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
             edge_table.run_queued_filters(_logging=log_progress)
 
 
+def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):
+    f = t.open_file(file_name, mode='r')
+    n = f.get_node('/' + _edge_table_name)
+    if isinstance(n, MaskedTable):
+        return Hic(file_name=file_name, mode=mode, tmpdir=tmpdir)
+    elif isinstance(n, t.group.Group):
+        return AccessOptimisedHic(file_name=file_name, mode=mode, tmpdir=tmpdir)
+    else:
+        raise ValueError("%s is not a valid Hi-C object file" % file_name)
+
+
 class HicEdgeFilter(MaskFilter):
     """
     Abstract class that provides filtering functionality for the

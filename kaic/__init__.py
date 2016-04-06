@@ -9,7 +9,7 @@ Provides
 
 """
 
-from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic
+from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic
 from kaic.data.general import Table 
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
 import logging
