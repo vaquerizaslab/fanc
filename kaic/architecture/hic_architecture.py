@@ -292,6 +292,50 @@ class ExpectedContacts(TableArchitecturalFeature):
         return self[:, 'pixels']
 
 
+class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
+                 weight_column='weight', _table_name='expected_contacts'):
+        self.region_selection = regions
+
+        # are we retrieving an existing object?
+        if isinstance(hic, str) and file_name is None:
+            file_name = hic
+            hic = None
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        else:
+            if regions is None:
+                regions = hic.regions
+                self.region_conversion = {region.ix: region.ix for region in hic.regions}
+            else:
+                self.region_conversion = {region.ix: i for i, region in enumerate(hic.subset(regions))}
+                regions = hic.subset(regions)
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields={'ratio': t.Float32Col()}, regions=regions,
+                                                      default_field='ratio', _table_name_edges=_table_name)
+        self.hic = hic
+        self.weight_column = weight_column
+
+    def _calculate(self):
+        with ExpectedContacts(self.hic, regions=self.region_selection, weight_column=self.weight_column) as ex:
+            inter_expected = ex.inter_expected()
+            intra_expected = ex.intra_expected()
+
+            regions_dict = self.hic.regions_dict
+            region_selection = self.region_selection if self.region_selection is not None else slice(0, None, None)
+            for edge in self.hic.edge_subset(key=(region_selection, region_selection), lazy=True):
+                source = edge.source
+                new_source = self.region_conversion[source]
+                sink = edge.sink
+                new_sink = self.region_conversion[sink]
+                weight = getattr(edge, self.weight_column)
+                if regions_dict[source].chromosome == regions_dict[sink].chromosome:
+                    expected = intra_expected[new_sink-new_source]
+                else:
+                    expected = inter_expected
+                self.add_edge(Edge(new_source, new_sink, ratio=weight/expected), flush=False)
+            self.flush()
+
+
 class PossibleContacts(TableArchitecturalFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
                  weight_column='weight', _table_name='expected_contacts'):
