@@ -2717,17 +2717,38 @@ class AccessOptimisedRegionPairs(RegionPairs):
         start_partition = self._get_partition_ix(start)
         stop_partition = self._get_partition_ix(stop)
 
+        def _is_start_of_partition(start_ix, partition_ix):
+            if partition_ix == 0:
+                if start_ix == 0:
+                    return True
+            else:
+                if start_ix == self.partitions[partition_ix - 1]:
+                    return True
+            return False
+
+        def _is_end_of_partition(stop_ix, partition_ix):
+            if partition_ix == len(self.partitions):
+                if stop_ix == len(self.regions)-1:
+                    return True
+            else:
+                if stop_ix == self.partitions[partition_ix]-1:
+                    return True
+            return False
+
         if start_partition == stop_partition:
-            return [(start, stop, start_partition)]
+            complete = _is_start_of_partition(start, start_partition) and _is_end_of_partition(stop, stop_partition)
+            return [(start, stop, start_partition, complete)]
 
         partition_ranges = []
-        start_range = (start, self.partitions[start_partition] - 1, start_partition)
+        start_range_complete = _is_start_of_partition(start, start_partition)
+        start_range = (start, self.partitions[start_partition] - 1, start_partition, start_range_complete)
         partition_ranges.append(start_range)
 
         for i in xrange(start_partition + 1, stop_partition):
-            partition_ranges.append((self.partitions[i-1], self.partitions[i]-1, i))
+            partition_ranges.append((self.partitions[i-1], self.partitions[i]-1, i, True))
 
-        stop_range = (self.partitions[stop_partition - 1], stop, stop_partition)
+        stop_range_complete = _is_end_of_partition(stop, stop_partition)
+        stop_range = (self.partitions[stop_partition - 1], stop, stop_partition, stop_range_complete)
         partition_ranges.append(stop_range)
         return partition_ranges
 
@@ -2737,10 +2758,10 @@ class AccessOptimisedRegionPairs(RegionPairs):
 
         covered = set()
         for source_partition_range in source_partition_ranges:
-            source_start, source_end, source_partition = source_partition_range
+            source_start, source_end, source_partition, source_complete = source_partition_range
 
             for sink_partition_range in sink_partition_ranges:
-                sink_start, sink_stop, sink_partition = sink_partition_range
+                sink_start, sink_stop, sink_partition, sink_complete = sink_partition_range
 
                 if only_intrachromosomal and source_partition != sink_partition:
                     continue
@@ -2758,24 +2779,29 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 if key in self._edge_table_dict:
                     table = self._edge_table_dict[key]
 
-                    condition = "(source > %d) & (source < %d) & (sink > %d) & (sink < %d)"
-                    condition1 = condition % (source_start - 1, source_end + 1, sink_start - 1, sink_end + 1)
-                    condition2 = condition % (sink_start - 1, sink_end + 1, source_start - 1, source_end + 1)
+                    # entire partition is requested, no need for where query
+                    if source_complete and sink_complete:
+                        for edge_row in table:
+                            yield edge_row
+                    else:
+                        condition = "(source > %d) & (source < %d) & (sink > %d) & (sink < %d)"
+                        condition1 = condition % (source_start - 1, source_end + 1, sink_start - 1, sink_end + 1)
+                        condition2 = condition % (sink_start - 1, sink_end + 1, source_start - 1, source_end + 1)
 
-                    if source_start > sink_start:
-                        condition1, condition2 = condition2, condition1
+                        if source_start > sink_start:
+                            condition1, condition2 = condition2, condition1
 
-                    overlap = range_overlap(source_start, source_end, sink_start, sink_end)
+                        overlap = range_overlap(source_start, source_end, sink_start, sink_end)
 
-                    for edge_row in table.where(condition1):
-                        yield edge_row
+                        for edge_row in table.where(condition1):
+                            yield edge_row
 
-                    for edge_row in table.where(condition2):
-                        if overlap is not None:
-                            if (overlap[0] <= edge_row['source'] <= overlap[1]) and (overlap[0] <= edge_row['sink'] <= overlap[1]):
-                                continue
+                        for edge_row in table.where(condition2):
+                            if overlap is not None:
+                                if (overlap[0] <= edge_row['source'] <= overlap[1]) and (overlap[0] <= edge_row['sink'] <= overlap[1]):
+                                    continue
 
-                        yield edge_row
+                            yield edge_row
 
     def _is_sorted(self, sortby):
         for edge_table in self._edge_table_iter():
