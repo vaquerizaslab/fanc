@@ -569,6 +569,27 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         return self[:, 'ii_%d' % window_size]
 
 
+def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
+    chr_bins = hic.chromosome_bins
+    n = len(hic.regions())
+    if hic_matrix is None:
+        logging.debug("Fetching matrix")
+        hic_matrix = hic[:]
+    band = np.empty(n)
+    if use_oe_ratio:
+        raise NotImplementedError("oe not implemented yet :(")
+    logging.debug("Starting processing")
+    for i, r in enumerate(hic.regions()):
+        if i - chr_bins[r.chromosome][0] < d2:
+            band[i] = np.nan
+            continue
+        if chr_bins[r.chromosome][1] - i < d2:
+            band[i] = np.nan
+            continue
+        band[i] = np.ma.sum(hic_matrix[i - d2:i - d1, i + d1:i + d2])
+    return band
+
+
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
     """
     Filter edges where every associated weight is 0.
