@@ -3620,11 +3620,16 @@ class Hic(RegionMatrixTable):
         if len(self.regions()) == 0:
             logging.info("Copying Hi-C")
             # ...simply import everything
-            for region in hic.regions():
-                self.add_region(region, flush=False)
+            with RareUpdateProgressBar(max_value=len(hic.regions)) as pb:
+                for i, region in enumerate(hic.regions()):
+                    self.add_region(region, flush=False)
+                    pb.update(i)
             self.flush()
-            for edge in hic.edges():
-                self.add_edge(edge, check_nodes_exist=False, flush=False)
+
+            with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
+                for i, edge in enumerate(hic.edges()):
+                    self.add_edge(edge, check_nodes_exist=False, flush=False)
+                    pb.update(i)
             self.flush()
             self.bias_vector(hic.bias_vector())
         # if already have nodes in this HiC object...
