@@ -105,6 +105,10 @@ class RareUpdateProgressBar(progressbar.ProgressBar):
         else:
             self.one_percent = 1
 
+        self.manual_poll_interval = True
+        if poll_interval is None:
+            self.manual_poll_interval = False
+
     def _needs_update(self):
         """
         Returns whether the ProgressBar should redraw the line.
@@ -113,6 +117,6 @@ class RareUpdateProgressBar(progressbar.ProgressBar):
             self.next_update += self.one_percent
             return True
 
-        elif self.poll_interval:
+        elif self.manual_poll_interval:
             delta = datetime.now() - self.last_update_time
             return delta > self.poll_interval
