@@ -1380,6 +1380,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-o', '--optimise', dest='optimise',
+            action='store_true',
+            help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
+        )
+        parser.set_defaults(optimise=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1397,9 +1404,14 @@ class Kaic(object):
         logging.info("Copying to %s" % output_path)
         base_path = copy_or_expand(args.hic.pop(0), output_path)
 
-        with kaic.Hic(base_path, mode='a', tmpdir=tmpdir) as merged:
+        if args.optimise:
+            hic_class = kaic.AccessOptimisedHic
+        else:
+            hic_class = kaic.Hic
+
+        with hic_class(base_path, mode='a', tmpdir=tmpdir) as merged:
             paths = [os.path.expanduser(path) for path in args.hic]
-            hics = (kaic.Hic(path, mode='r', tmpdir=tmpdir) for path in paths)
+            hics = (kaic.load_hic(path, mode='r', tmpdir=tmpdir) for path in paths)
             merged.merge(hics)
 
         logging.info("All done")
@@ -1466,7 +1478,7 @@ class Kaic(object):
         else:
             input_path = copy_or_expand(args.input, args.output)
 
-        hic = kaic.Hic(file_name=input_path, mode='a')
+        hic = kaic.load_hic(file_name=input_path, mode='a')
 
         if args.low_default:
             if args.low:
@@ -1550,7 +1562,7 @@ class Kaic(object):
             input_path = os.path.expanduser(args.hic)
             output_path = original_output_path
 
-        hic = kaic.Hic(file_name=input_path, mode='r')
+        hic = kaic.load_hic(file_name=input_path, mode='r')
 
         logging.info("Binning at %dbp" % args.bin_size)
         binned = hic.bin(args.bin_size, file_name=output_path)
@@ -1597,6 +1609,13 @@ class Kaic(object):
         parser.set_defaults(chromosome=False)
 
         parser.add_argument(
+            '-o', '--optimise', dest='optimise',
+            action='store_true',
+            help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
+        )
+        parser.set_defaults(optimise=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1625,7 +1644,7 @@ class Kaic(object):
 
         if args.ice:
             import kaic.correcting.ice_matrix_balancing as ice
-            hic = kaic.Hic(file_name=input_path, mode='a')
+            hic = kaic.load_hic(file_name=input_path, mode='a')
             ice.correct(hic)
             hic.close()
             if args.tmp:
@@ -1633,7 +1652,11 @@ class Kaic(object):
                 shutil.move(input_path, original_output_path)
         else:
             import kaic.correcting.knight_matrix_balancing as knight
-            hic = kaic.Hic(file_name=input_path, mode='r')
+            if args.optimise:
+                hic_class = kaic.AccessOptimisedHic
+            else:
+                hic_class = kaic.Hic
+            hic = hic_class(file_name=input_path, mode='r')
             hic_new = knight.correct(hic, only_intra_chromosomal=args.chromosome, copy=True, file_name=output_path)
             hic.close()
             hic_new.close()
@@ -1723,7 +1746,7 @@ class Kaic(object):
                         input_path = create_temporary_copy(file_name)
                     else:
                         input_path = os.path.expanduser(file_name)
-                    hics.append(kaic.Hic(input_path, mode='r'))
+                    hics.append(kaic.load_hic(input_path, mode='r'))
 
                 coll = HicCollectionWeightMeanVariance(hics, file_name=output_path, only_intra_chromosomal=args.intra,
                                                        scale_libraries=True, mode='w')
@@ -1900,7 +1923,7 @@ class Kaic(object):
                               batch_size=args.batch_size, process_inter=args.inter, e_ll_cutoff=args.ll_cutoff,
                               e_d_cutoff=args.d_cutoff, e_h_cutoff=args.h_cutoff, e_v_cutoff=args.v_cutoff)
 
-        hic = kaic.Hic(input_path, mode='r')
+        hic = kaic.load_hic(input_path, mode='r')
 
         if args.chromosomes is None:
             chromosome_pairs = None
@@ -2327,8 +2350,8 @@ class Kaic(object):
         hic1_path = os.path.expanduser(args.hic1)
         hic2_path = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(hic1_path, mode='r')
-        hic2 = kaic.Hic(hic2_path, mode='r')
+        hic1 = kaic.load_hic(hic1_path, mode='r')
+        hic2 = kaic.load_hic(hic2_path, mode='r')
 
         output_path = None
         if args.output:
@@ -2401,7 +2424,7 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.input)
 
-        hic = kaic.Hic(input_path, mode='r')
+        hic = kaic.load_hic(input_path, mode='r')
 
         output_path = None
         if args.output:
@@ -2452,7 +2475,7 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.input)
 
-        hic = kaic.Hic(input_path, mode='r')
+        hic = kaic.load_hic(input_path, mode='r')
 
         output_path = None
         if args.output:
@@ -2529,8 +2552,8 @@ class Kaic(object):
         input_path1 = os.path.expanduser(args.hic1)
         input_path2 = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(input_path1, mode='r')
-        hic2 = kaic.Hic(input_path2, mode='r')
+        hic1 = kaic.load_hic(input_path1, mode='r')
+        hic2 = kaic.load_hic(input_path2, mode='r')
 
         output_path = None
         if args.output:
@@ -2608,8 +2631,8 @@ class Kaic(object):
         input_path1 = os.path.expanduser(args.hic1)
         input_path2 = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(input_path1, mode='r')
-        hic2 = kaic.Hic(input_path2, mode='r')
+        hic1 = kaic.load_hic(input_path1, mode='r')
+        hic2 = kaic.load_hic(input_path2, mode='r')
 
         output_path = None
         if args.output:
