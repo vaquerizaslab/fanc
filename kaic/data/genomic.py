@@ -2390,9 +2390,6 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         """
         Iterate over :class:`~Edge` objects.
 
-        :param lazy: Enable lazy loading of edge attributes,
-                     only works in the loop iteration this
-                     edge is accessed.
         :return: Iterator over :class:`~Edge`
         """
         return self._edges_iter()
@@ -2408,6 +2405,13 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         return True
 
     def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
+        """
+        Iterate over edges sorted by a specific column.
+
+        :param sortby: Name of column to sort over
+        :param reverse: Iterate in reverse order
+        :return: EdgeIter iterator
+        """
         # ensure sorting on qname_ix column
         column = getattr(self._edges.cols, sortby)
 
@@ -2436,8 +2440,19 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
 
 
 class AccessOptimisedRegionPairs(RegionPairs):
+    """
+    Extends :class:`~RegionPairs` with a backend that partitions edges into chromosomes.
 
+    This partitioning should greatly speed up edge and matrix queries for large Hi-C data sets,
+    such as high-resolution (<=10kb) human Hi-C maps.
+
+    Iterating over sorted edges performance is somewhat reduced due to the fact that we have to
+    integrate tens to hundreds of tables in the sorting.
+    """
     class EdgeIter(RegionPairs.EdgeIter):
+        """
+        Class providing iterator functionality to a :class:`~RegionPairs` object.
+        """
         def __init__(self, this, _iter=None):
             RegionPairs.EdgeIter.__init__(self, this, _iter=_iter)
             self.iter = _iter
@@ -2550,6 +2565,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._update_partitions()
 
     def _update_field_names(self, edge_table=None):
+        """
+        Set internal object variables related to edge table field names.
+        """
         if edge_table is None:
             for et in self._edges._f_iter_nodes():
                 edge_table = et
@@ -2571,7 +2589,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 self._sink_field_ix = i
 
     def _update_partitions(self):
-        logging.debug("Updating partitions...")
+        """
+        Update the list of partition break points (split by chromosome)
+        """
         self.partitions = []
         previous_chromosome = None
         for i, region in enumerate(self.regions(lazy=True)):
@@ -2597,14 +2617,25 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 edge_table.flush(update_index=update_index)
 
     def _get_field_dict(self, additional_fields=None):
+        """
+        Generate a dictionary of PyTables fields to create edge table.
+
+        Save fields dict in object variable - we need to generate a lot of tables.
+        """
         if self._field_dict is not None:
             return self._field_dict
         return RegionPairs._get_field_dict(self, additional_fields=additional_fields)
 
     def _get_partition_ix(self, region_ix):
+        """
+        Bisect the partition table to get the partition index for a region index.
+        """
         return bisect_right(self.partitions, region_ix)
 
     def _create_edge_table(self, source_partition, sink_partition):
+        """
+        Create and register an edge table for a partition combination.
+        """
         edge_table = MaskedTable(self._edges,
                                  'chrpair_' + str(source_partition) + '_' + str(sink_partition),
                                  self._field_dict)
@@ -2619,6 +2650,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
         return edge_table
 
     def _get_edge_table(self, source, sink):
+        """
+        Return an edge table for this particular region index combination.
+        """
         if source > sink:
             source, sink = sink, source
 
@@ -2633,6 +2667,13 @@ class AccessOptimisedRegionPairs(RegionPairs):
         return edge_table
 
     def _edge_table_iter(self, intrachromosomal=True, interchromosomal=True):
+        """
+        Iterate over internal edge tables.
+
+        :param intrachromosomal: If true, include intra-chromosomal edge tables
+        :param interchromosomal: If true, include inter-chromosomal edge tables
+        :return: Edge table iterator
+        """
         # intra-chromosomal
         if intrachromosomal:
             for i in xrange(len(self.partitions) + 1):
@@ -2653,6 +2694,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
         return RegionPairs._edge_from_list(self, edge)
 
     def _add_edge(self, edge, row, replace=False):
+        """
+        Add an edge to an internal edge table.
+        """
         source, sink = edge.source, edge.sink
         if source > sink:
             source, sink = sink, source
@@ -2681,6 +2725,15 @@ class AccessOptimisedRegionPairs(RegionPairs):
 
     def get_edge(self, item, intrachromosomal=True, interchromosomal=True,
                  *row_conversion_args, **row_conversion_kwargs):
+        """
+        Get an edge by index.
+
+        :param intrachromosomal: If true, include intra-chromosomal edge tables in index count
+        :param interchromosomal: If true, include inter-chromosomal edge tables in index count
+        :param row_conversion_args: Arguments passed to :func:`RegionPairs._row_to_edge`
+        :param row_conversion_args: Keyword arguments passed to :func:`RegionPairs._row_to_edge`
+        :return: :class:`~Edge`
+        """
         l = 0
         for edge_table in self._edge_table_iter(intrachromosomal=intrachromosomal,
                                                 interchromosomal=interchromosomal):
@@ -2714,6 +2767,13 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 yield row
 
     def _partition_ix_range(self, start, stop):
+        """
+        Get a range of partitions with start and stop indices per partition from global start and stop region indices.
+
+        :param start: Region start index
+        :param stop: Region stop index
+        :return: tuple, where first element is
+        """
         start_partition = self._get_partition_ix(start)
         stop_partition = self._get_partition_ix(stop)
 
@@ -2753,6 +2813,11 @@ class AccessOptimisedRegionPairs(RegionPairs):
         return partition_ranges
 
     def _edge_row_range(self, source_start, source_end, sink_start, sink_end, only_intrachromosomal=False):
+        """
+        Iterate over a range of rows in this object's edge tables.
+
+        Rows are selected based on region indices of interacting regions.
+        """
         source_partition_ranges = self._partition_ix_range(source_start, source_end)
         sink_partition_ranges = self._partition_ix_range(sink_start, sink_end)
 
@@ -2804,6 +2869,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
                             yield edge_row
 
     def _is_sorted(self, sortby):
+        """
+        For each edge table, check if it is sorted.
+        """
         for edge_table in self._edge_table_iter():
             column = getattr(edge_table.cols, sortby)
             if (column.index is None or
@@ -2851,6 +2919,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 del rows[current_ix]
 
     def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
+        """
+        Iterate over edges sorted by *sortby*.
+        """
         for edge_table in self._edge_table_iter():
             # ensure sorting on sortby column
             column = getattr(edge_table.cols, sortby)
@@ -3369,6 +3440,9 @@ class RegionMatrixTable(RegionPairs):
 
 
 class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionPairs):
+    """
+    Class with faster access to matrix data, based on :class:`~AccessOptimisedRegionPairs`.
+    """
     def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
                  default_field=None, _table_name_nodes='nodes', _table_name_edges='edges'):
         """
@@ -4061,7 +4135,7 @@ class Hic(RegionMatrixTable):
 
 class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
     """
-
+    Class with faster access to matrix data, based on :class:`~AccessOptimisedRegionPairs`.
     """
     def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
                  _table_name_nodes='nodes', _table_name_edges='edges',
