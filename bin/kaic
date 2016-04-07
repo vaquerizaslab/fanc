@@ -221,6 +221,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-o', '--optimise', dest='optimise',
+            action='store_true',
+            help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
+        )
+        parser.set_defaults(optimise=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
@@ -328,7 +335,6 @@ class Kaic(object):
             logging.info("Final basename: %s (you can change this with the -n option!)" % basename)
 
         import subprocess
-        from kaic.tools.general import distribute_integer
         from multiprocessing.pool import ThreadPool
 
         # 1. create default folders in root directory
@@ -540,6 +546,9 @@ class Kaic(object):
             if args.tmp:
                 hic_command.append('-tmp')
 
+            if args.optimise:
+                hic_command.append('-o')
+
             return subprocess.call(hic_command + [pairs_file, hic_file])
 
         pairs_files = []
@@ -581,6 +590,9 @@ class Kaic(object):
             merge_hic_command = ['kaic', 'merge_hic']
             if args.tmp:
                 merge_hic_command.append('-tmp')
+
+            if args.optimise:
+                merge_hic_command.append('-o')
 
             hics = [file_names[i] for i in hic_files]
             p = subprocess.call(merge_hic_command + hics + [output_hic])
@@ -645,6 +657,8 @@ class Kaic(object):
                 correct_hic_command.append('-tmp')
             if per_chromosome:
                 correct_hic_command.append('-c')
+            if args.optimise:
+                correct_hic_command.append('-o')
 
             return subprocess.call(correct_hic_command + [hic_file, corrected_hic_file])
 
@@ -670,7 +684,7 @@ class Kaic(object):
                 hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
                 corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected.hic'
 
-                hic = kaic.Hic(file_names[ix], mode='r')
+                hic = kaic.load_hic(file_names[ix], mode='r')
                 n_regions = len(hic.regions)
                 hic.close()
 
@@ -1297,6 +1311,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-o', '--optimise', dest='optimise',
+            action='store_true',
+            help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
+        )
+        parser.set_defaults(optimise=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1327,7 +1348,10 @@ class Kaic(object):
         logging.info("Done.")
 
         logging.info("Adding pairs to Hic...")
-        hic = kaic.Hic(hic_path, mode='w')
+        if not args.optimise:
+            hic = kaic.Hic(hic_path, mode='w')
+        else:
+            hic = kaic.AccessOptimisedHic(hic_path, mode='w')
         hic.load_read_fragment_pairs(pairs)
         logging.info("Done.")
 
@@ -1360,6 +1384,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-o', '--optimise', dest='optimise',
+            action='store_true',
+            help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
+        )
+        parser.set_defaults(optimise=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1377,9 +1408,14 @@ class Kaic(object):
         logging.info("Copying to %s" % output_path)
         base_path = copy_or_expand(args.hic.pop(0), output_path)
 
-        with kaic.Hic(base_path, mode='a', tmpdir=tmpdir) as merged:
+        if args.optimise:
+            hic_class = kaic.AccessOptimisedHic
+        else:
+            hic_class = kaic.Hic
+
+        with hic_class(base_path, mode='a', tmpdir=tmpdir) as merged:
             paths = [os.path.expanduser(path) for path in args.hic]
-            hics = (kaic.Hic(path, mode='r', tmpdir=tmpdir) for path in paths)
+            hics = (kaic.load_hic(path, mode='r', tmpdir=tmpdir) for path in paths)
             merged.merge(hics)
 
         logging.info("All done")
@@ -1410,7 +1446,7 @@ class Kaic(object):
         parser.add_argument(
             '-rl', '--relative-low-coverage', dest='rel_low',
             type=float,
-            help='''Filter bins using a relative "low coverage" threshold 
+            help='''Filter bins using a relative "low coverage" threshold
                     (lower than the specified fraction of the median contact count)'''
         )
 
@@ -1452,7 +1488,7 @@ class Kaic(object):
         else:
             input_path = copy_or_expand(args.input, args.output)
 
-        hic = kaic.Hic(file_name=input_path, mode='a')
+        with kaic.load_hic(file_name=input_path, mode='a') as hic:
 
         if args.low_default:
             if args.low or args.rel_low:
@@ -1466,21 +1502,19 @@ class Kaic(object):
                 "relative cutoff {:.1%}".format(float(args.low) if args.low else 0., float(args.rel_low) if args.rel_low else 0.))
             hic.filter_low_coverage_regions(cutoff=args.low, rel_cutoff=args.rel_low, queue=True)
 
-        if args.diagonal is not None:
-            logging.info("Filtering diagonal at distance %d" % args.diagonal)
-            hic.filter_diagonal(distance=args.diagonal, queue=True)
+            if args.diagonal is not None:
+                logging.info("Filtering diagonal at distance %d" % args.diagonal)
+                hic.filter_diagonal(distance=args.diagonal, queue=True)
 
-        logging.info("Running filters...")
-        hic.run_queued_filters(log_progress=True)
-        logging.info("Done.")
-
-        if args.stats:
-            logging.info("Plotting filter statistics")
-            import kaic.plotting as kaicplt
-            kaicplt.plot_mask_statistics(hic, hic._edges, output=args.stats)
+            logging.info("Running filters...")
+            hic.run_queued_filters(log_progress=True)
             logging.info("Done.")
 
-        hic.close()
+            if args.stats:
+                logging.info("Plotting filter statistics")
+                import kaic.plotting as kaicplt
+                kaicplt.plot_mask_statistics(hic, hic._edges, output=args.stats)
+                logging.info("Done.")
 
         if args.tmp:
             output_path = os.path.expanduser(args.output)
@@ -1537,7 +1571,7 @@ class Kaic(object):
             input_path = os.path.expanduser(args.hic)
             output_path = original_output_path
 
-        hic = kaic.Hic(file_name=input_path, mode='r')
+        hic = kaic.load_hic(file_name=input_path, mode='r')
 
         logging.info("Binning at %dbp" % args.bin_size)
         binned = hic.bin(args.bin_size, file_name=output_path)
@@ -1584,6 +1618,13 @@ class Kaic(object):
         parser.set_defaults(chromosome=False)
 
         parser.add_argument(
+            '-o', '--optimise', dest='optimise',
+            action='store_true',
+            help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
+        )
+        parser.set_defaults(optimise=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1612,7 +1653,7 @@ class Kaic(object):
 
         if args.ice:
             import kaic.correcting.ice_matrix_balancing as ice
-            hic = kaic.Hic(file_name=input_path, mode='a')
+            hic = kaic.load_hic(file_name=input_path, mode='a')
             ice.correct(hic)
             hic.close()
             if args.tmp:
@@ -1620,8 +1661,10 @@ class Kaic(object):
                 shutil.move(input_path, original_output_path)
         else:
             import kaic.correcting.knight_matrix_balancing as knight
-            hic = kaic.Hic(file_name=input_path, mode='r')
-            hic_new = knight.correct(hic, only_intra_chromosomal=args.chromosome, copy=True, file_name=output_path)
+
+            hic = kaic.load_hic(file_name=input_path, mode='r')
+            hic_new = knight.correct(hic, only_intra_chromosomal=args.chromosome,
+                                     copy=True, file_name=output_path, optimise=args.optimise)
             hic.close()
             hic_new.close()
             if args.tmp:
@@ -1710,7 +1753,7 @@ class Kaic(object):
                         input_path = create_temporary_copy(file_name)
                     else:
                         input_path = os.path.expanduser(file_name)
-                    hics.append(kaic.Hic(input_path, mode='r'))
+                    hics.append(kaic.load_hic(input_path, mode='r'))
 
                 coll = HicCollectionWeightMeanVariance(hics, file_name=output_path, only_intra_chromosomal=args.intra,
                                                        scale_libraries=True, mode='w')
@@ -1887,7 +1930,7 @@ class Kaic(object):
                               batch_size=args.batch_size, process_inter=args.inter, e_ll_cutoff=args.ll_cutoff,
                               e_d_cutoff=args.d_cutoff, e_h_cutoff=args.h_cutoff, e_v_cutoff=args.v_cutoff)
 
-        hic = kaic.Hic(input_path, mode='r')
+        hic = kaic.load_hic(input_path, mode='r')
 
         if args.chromosomes is None:
             chromosome_pairs = None
@@ -2314,8 +2357,8 @@ class Kaic(object):
         hic1_path = os.path.expanduser(args.hic1)
         hic2_path = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(hic1_path, mode='r')
-        hic2 = kaic.Hic(hic2_path, mode='r')
+        hic1 = kaic.load_hic(hic1_path, mode='r')
+        hic2 = kaic.load_hic(hic2_path, mode='r')
 
         output_path = None
         if args.output:
@@ -2388,7 +2431,7 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.input)
 
-        hic = kaic.Hic(input_path, mode='r')
+        hic = kaic.load_hic(input_path, mode='r')
 
         output_path = None
         if args.output:
@@ -2439,7 +2482,7 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.input)
 
-        hic = kaic.Hic(input_path, mode='r')
+        hic = kaic.load_hic(input_path, mode='r')
 
         output_path = None
         if args.output:
@@ -2516,8 +2559,8 @@ class Kaic(object):
         input_path1 = os.path.expanduser(args.hic1)
         input_path2 = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(input_path1, mode='r')
-        hic2 = kaic.Hic(input_path2, mode='r')
+        hic1 = kaic.load_hic(input_path1, mode='r')
+        hic2 = kaic.load_hic(input_path2, mode='r')
 
         output_path = None
         if args.output:
@@ -2595,8 +2638,8 @@ class Kaic(object):
         input_path1 = os.path.expanduser(args.hic1)
         input_path2 = os.path.expanduser(args.hic2)
 
-        hic1 = kaic.Hic(input_path1, mode='r')
-        hic2 = kaic.Hic(input_path2, mode='r')
+        hic1 = kaic.load_hic(input_path1, mode='r')
+        hic2 = kaic.load_hic(input_path2, mode='r')
 
         output_path = None
         if args.output:
@@ -2864,43 +2907,6 @@ class Kaic(object):
                             chrm=r.chromosome, source="kaic", feature="{}_border_region".format(metric),
                             start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
                         )
-        logging.info("All done.")
-
-    def hiclib_to_kaic(self):
-        parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
-            description='Convert a hiclib object to a Hic object'
-        )
-
-        parser.add_argument(
-            'hic',
-            help='''Hiclib Hi-C object'''
-        )
-
-        parser.add_argument(
-            'genome',
-            help='''Hiclib genome object'''
-        )
-
-        parser.add_argument(
-            'output',
-            help='''Output file'''
-        )
-
-        parser.add_argument(
-            'resolution',
-            type=int,
-            help='''Resolution of the file (e.g. 100000)'''
-        )
-
-        args = parser.parse_args(sys.argv[2:])
-
-        import kaic
-        from kaic.tools.hic import load_mirny_binned_hic
-        mirny = load_mirny_binned_hic(os.path.expanduser(args.hic), os.path.expanduser(args.genome), args.resolution)
-        hic = kaic.Hic.from_hiclib(mirny, file_name=os.path.expanduser(args.output))
-        hic.close()
-
         logging.info("All done.")
 
 

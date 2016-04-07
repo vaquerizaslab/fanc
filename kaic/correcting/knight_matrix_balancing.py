@@ -2,14 +2,19 @@ import logging
 import warnings
 import numpy as np
 from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
-from kaic.data.genomic import Hic
+from kaic.data.genomic import Hic, AccessOptimisedHic
 
-def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None):
+
+def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optimise=False):
     hic_new = None
     chromosome_starts = dict()
     last_chromosome = None
     if copy:
-        hic_new = Hic(file_name=file_name, mode='w')
+        if optimise:
+            hic_new = AccessOptimisedHic(file_name=file_name, mode='w')
+        else:
+            hic_new = Hic(file_name=file_name, mode='w')
+
         for i, region in enumerate(hic.regions()):
             hic_new.add_region(region, flush=False)
             if region.chromosome != last_chromosome:

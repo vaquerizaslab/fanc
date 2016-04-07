@@ -1284,8 +1284,7 @@ class PairLoader(object):
         self._reads2 = reads2
         reads1, reads2, regions, add_read_single, add_read_pair = self.setup(reads1, reads2, regions)
         self.load_pairs_from_reads(reads1, reads2, regions, add_read_single, add_read_pair)
-        self._pairs._pairs.flush(update_index=True)
-        self._pairs._single.flush(update_index=True)
+        self._pairs.flush(update_index=True)
 
     def setup(self, reads1, reads2, regions):
         if regions is not None:
@@ -1713,6 +1712,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             self._single_count = 0
 
     def flush(self, update_index=True):
+        RegionsTable.flush(self)
         self._pairs.flush(update_index=update_index)
         self._single.flush(update_index=update_index)
 
@@ -1774,6 +1774,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                                 fragment info ([index, chromosome index, start, end])
                                 instead of end positions.
         """
+
         fragment_infos1 = self._find_fragment_info(read1.ref, read1.pos,
                                                    _fragment_ends=_fragment_ends, _fragment_infos=_fragment_infos)
         fragment_infos2 = self._find_fragment_info(read2.ref, read2.pos,
