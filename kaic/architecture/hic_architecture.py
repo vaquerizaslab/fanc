@@ -5,6 +5,7 @@ from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeatu
 from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge
 from collections import defaultdict
 from kaic.tools.general import ranges
+from kaic.tools.matrix import apply_sliding_func
 import numpy as np
 import tables as t
 import logging
@@ -123,7 +124,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
 
 class ExpectedContacts(TableArchitecturalFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
-                 regions=None, weight_column='weight', _table_name='expected_contacts'):
+                 regions=None, weight_column=None, _table_name='expected_contacts'):
         if isinstance(hic, str):
             file_name = hic
             hic = None
@@ -137,7 +138,10 @@ class ExpectedContacts(TableArchitecturalFeature):
         self.smooth = smooth
         self.min_reads = min_reads
         self.regions = regions
-        self.weight_column = weight_column
+        if weight_column is None:
+            self.weight_column = self.hic.default_field
+        else:
+            self.weight_column = weight_column
 
     def _calculate(self):
         """
@@ -292,6 +296,50 @@ class ExpectedContacts(TableArchitecturalFeature):
         return self[:, 'pixels']
 
 
+class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
+                 weight_column='weight', _table_name='expected_contacts'):
+        self.region_selection = regions
+
+        # are we retrieving an existing object?
+        if isinstance(hic, str) and file_name is None:
+            file_name = hic
+            hic = None
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        else:
+            if regions is None:
+                regions = hic.regions
+                self.region_conversion = {region.ix: region.ix for region in hic.regions}
+            else:
+                self.region_conversion = {region.ix: i for i, region in enumerate(hic.subset(regions))}
+                regions = hic.subset(regions)
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields={'ratio': t.Float32Col()}, regions=regions,
+                                                      default_field='ratio', _table_name_edges=_table_name)
+        self.hic = hic
+        self.weight_column = weight_column
+
+    def _calculate(self):
+        with ExpectedContacts(self.hic, regions=self.region_selection, weight_column=self.weight_column) as ex:
+            inter_expected = ex.inter_expected()
+            intra_expected = ex.intra_expected()
+
+            regions_dict = self.hic.regions_dict
+            region_selection = self.region_selection if self.region_selection is not None else slice(0, None, None)
+            for edge in self.hic.edge_subset(key=(region_selection, region_selection), lazy=True):
+                source = edge.source
+                new_source = self.region_conversion[source]
+                sink = edge.sink
+                new_sink = self.region_conversion[sink]
+                weight = getattr(edge, self.weight_column)
+                if regions_dict[source].chromosome == regions_dict[sink].chromosome:
+                    expected = intra_expected[new_sink-new_source]
+                else:
+                    expected = inter_expected
+                self.add_edge(Edge(new_source, new_sink, ratio=weight/expected), flush=False)
+            self.flush()
+
+
 class PossibleContacts(TableArchitecturalFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
                  weight_column='weight', _table_name='expected_contacts'):
@@ -354,7 +402,7 @@ class PossibleContacts(TableArchitecturalFeature):
 
 class DirectionalityIndex(VectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
-                 regions=None, window_sizes=(2000000,),
+                 weight_column=None, regions=None, window_sizes=(2000000,),
                  _table_name='directionality_index'):
 
         self.region_selection = regions
@@ -386,6 +434,10 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
                 self.window_sizes.append(window_size)
 
         self.hic = hic
+        if weight_column is None:
+            self.weight_column = self.hic.default_field
+        else:
+            self.weight_column = weight_column
 
     def _get_boundary_distances(self):
         n_bins = len(self.hic.regions)
@@ -425,7 +477,7 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         for edge in edge_iter:
             source = edge.source
             sink = edge.sink
-            weight = edge.weight
+            weight = getattr(edge, self.weight_column)
             if source == sink:
                 continue
             if sink - source <= bin_window_size:
@@ -468,8 +520,8 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
 
 class InsulationIndex(VectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
-                 regions=None, relative=False, impute_missing=True,
-                 window_sizes=(200000,), _table_name='insulation_index'):
+                 regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
+                 window_sizes=(200000,), _normalisation_window=300, _table_name='insulation_index'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -498,11 +550,14 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                 window_size = int(colname[3:])
                 self.window_sizes.append(window_size)
 
+        self.offset = offset
         self.hic = hic
         self.relative = relative
         self.impute_missing = impute_missing
+        self.normalise = normalise
+        self.normalisation_window = _normalisation_window
 
-    def _insulation_index(self, d, hic_matrix=None, mask_thresh=.5, aggr_func=np.ma.mean):
+    def _insulation_index(self, d1, d2, hic_matrix=None, mask_thresh=.5, aggr_func=np.ma.mean):
         if self.region_selection is not None:
             regions = self.hic.subset(self.region_selection)
         else:
@@ -518,21 +573,21 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         logging.debug("Starting processing")
         skipped = 0
         for i, r in enumerate(regions):
-            if (r.ix - chr_bins[r.chromosome][0] < d or
-                    chr_bins[r.chromosome][1] - r.ix <= d + 1):
+            if (r.ix - chr_bins[r.chromosome][0] < d2 or
+                    chr_bins[r.chromosome][1] - r.ix <= d2 + 1):
                 ins_matrix[i] = np.nan
                 continue
             if hic_matrix.mask[r.ix, r.ix]:
                 ins_matrix[i] = np.nan
                 continue
 
-            up_rel_slice = (slice(r.ix - d, r.ix), slice(r.ix - d, r.ix))
-            down_rel_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix + 1, r.ix + d + 1))
-            ins_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix - d, r.ix))
+            up_rel_slice = (slice(r.ix - d2, r.ix - d1), slice(r.ix - d2, r.ix - d1))
+            down_rel_slice = (slice(r.ix + d1 + 1, r.ix + d2 + 1), slice(r.ix + d1 + 1, r.ix + d2 + 1))
+            ins_slice = (slice(r.ix + d1 + 1, r.ix + d2 + 1), slice(r.ix - d2, r.ix - d1))
 
-            if ((self.relative and np.sum(hic_matrix.mask[up_rel_slice]) > d*d*mask_thresh) or
-                    (self.relative and np.sum(hic_matrix.mask[down_rel_slice]) > d*d*mask_thresh) or
-                    np.sum(hic_matrix.mask[ins_slice]) > d*d*mask_thresh):
+            if ((self.relative and np.sum(hic_matrix.mask[up_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
+                    (self.relative and np.sum(hic_matrix.mask[down_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
+                    np.sum(hic_matrix.mask[ins_slice]) > ((d2-d1)**2)*mask_thresh):
                 # If too close to the edge of chromosome or
                 # if more than half of the entries in this quadrant are masked (unmappable)
                 # exclude it from the analysis
@@ -554,12 +609,16 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                                                              hic_matrix[down_rel_slice].data))))
 
         logging.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
+
+        if self.normalise:
+            return np.ma.log2(ins_matrix / apply_sliding_func(ins_matrix, self.normalisation_window, func=np.ma.mean))
         return ins_matrix
 
     def _calculate(self):
+        offset_bins = self.hic.distance_to_bins(self.offset)
         for window_size in self.window_sizes:
             bins = self.hic.distance_to_bins(window_size)
-            insulation_index = self._insulation_index(bins)
+            insulation_index = self._insulation_index(offset_bins, offset_bins+bins)
             self.data("ii_%d" % window_size, insulation_index)
 
     @calculateondemand

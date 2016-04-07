@@ -2664,58 +2664,76 @@ class Kaic(object):
             'hic',
             help='Input Hic file'
         )
+
         parser.add_argument(
             'output',
             help='Output path for genomic track'
         )
+
         parser.add_argument(
-            'bins',
+            'window_size',
             type=int,
             nargs='+',
-            help='Bin sizes used for directionality index, insulation index and relative insulation index.'
+            help='Window sizes (in base pairs) used for directionality index,'
+                 'insulation index and relative insulation index.'
         )
+
         parser.add_argument(
             '-oe', '--observed_expected',
             action='store_true',
             help='Use observed over expected heatmap for calculations.'
         )
-        parser.add_argument(
-            '-m', '--matrix_bins',
-            type=int,
-            nargs='+', default=np.unique(np.logspace(3, 8, num=50, base=2).astype(int)),
-            help='Bin sizes used for making matrix of directionality index, insulation index and '
-                 'relative insulation indices. Default are 48 values between 8 and 256 bins. '
-                 'np.unique(np.logspace(3, 8, num=50, base=2).astype(int))'
-        )
+
         parser.add_argument(
             '--no_imputation',
             action="store_true",
-            help='Do not use imputation to guess value of unmappable bins. Turning off imputation may lead to artifacts '
-                 'near unmappable bins. The mask threshold should be set to a very low value (.1 or so) in this case.'
+            help='Do not use imputation to guess value of unmappable bins. '
+                 'Turning off imputation may lead to artifacts '
+                 'near unmappable bins. The mask threshold should '
+                 'be set to a very low value (.1 or so) in this case.'
         )
+
         parser.add_argument(
-            '-n', '--normalization_window',
+            '-n', '--normalise', dest='normalise',
+            action='store_true',
+            help='''Normalise index values'''
+        )
+        parser.set_defaults(normalise=False)
+
+        parser.add_argument(
+            '-nw', '--normalisation_window',
             type=int, default=300,
-            help='Window size for calculating long-range mean for normalization of insulation_index, relative_insulation_index, contact_band.'
+            help='Window size for calculating long-range mean for normalization of insulation_index,'
+                 ' relative_insulation_index, contact_band.'
                  'Default 300 bins.'
         )
+
+        parser.add_argument(
+            '-o', '--offset',
+            type=int, default=0,
+            help='Offset of insulation index window from the diagonal in base pairs.'
+        )
+
         parser.add_argument(
             '-w', '--smoothing_window',
             type=int, default=15,
             help='Window size for smoothing derivatives in Savitzky Golay filter (in bins).'
                  'Default 15. Must be an odd number.'
         )
+
         parser.add_argument(
-            '-o', '--poly_order',
+            '-p', '--poly_order',
             type=int, default=2,
             help='Order of polynomial used for smoothing derivatives. Default 2.'
         )
+
         parser.add_argument(
             '-d', '--derivative',
             type=int,
             nargs='+',
             help='Optionally save derivatives of the specified order (>1).'
         )
+
         parser.add_argument(
             '--delta',
             type=int,
@@ -2723,86 +2741,78 @@ class Kaic(object):
             help='Save delta transformation of metrics according to Crane et al. 2015. '
                  'Specify window size in bins. Sensible values for 5kb Drosophila 5-10.'
         )
+
         parser.add_argument(
-            '--insulation_index',
+            '-ii', '--insulation_index',
             action='store_true',
             help='Calculate insulation index for the given distances (in bins).'
         )
+
         parser.add_argument(
-            '--directionality_index',
+            '-di', '--directionality_index',
             action='store_true',
             help='Calculate the directionality index for the given distances (in bp)'
         )
+
         parser.add_argument(
-            '--relative_insulation_index',
+            '-r', '--relative',
             action='store_true',
             help='Calculate the relative insulation indices for the given distances (in bins)'
         )
-        parser.add_argument(
-            '--contact_band',
-            nargs='+',
-            type=str,
-            help='Calculate the contact band for the given distances. Eg. 5-10 10-15. (in bins)'
-        )
+
         args = parser.parse_args(sys.argv[2:])
+
         import kaic
-        from kaic.analyzing.architecture import insulation_index, rel_insulation_index, directionality_index, \
-                                                contact_band, delta_window, rolling_func_nan, observed_expected_ratio, \
-                                                impute_missing_bins
+        from kaic.architecture.hic_architecture import InsulationIndex, DirectionalityIndex, ObservedExpectedRatio
+        from kaic.tools.matrix import delta_window
         from kaic.plotting.plotter import GenomicTrack
         from scipy.signal import savgol_filter
+
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
-        h = kaic.Hic(input_path)
+        hic_matrix = kaic.Hic(input_path)
         logging.info("Fetching Hi-C matrix")
-        hic_matrix = h[:]
+
         if args.observed_expected:
             logging.info("Calculating observed/expected ratio")
-            hic_matrix = observed_expected_ratio(h, hic_matrix=hic_matrix)
-        if not args.no_imputation:
-            hic_matrix = impute_missing_bins(h, hic_matrix=hic_matrix, per_chromosome=True)
+            hic_matrix = ObservedExpectedRatio(hic_matrix)
+
         try:
             os.remove(output_path)
         except OSError:
             pass
-        gt = GenomicTrack(output_path, regions=h.regions())
+
+        # prepare genomic track object
+        gt = GenomicTrack(output_path, regions=hic_matrix.regions)
+
+        # calculate insulation index
         if args.insulation_index:
-            for d in args.bins:
-                logging.info("Calculating insulation index up to {} bins away.".format(d))
-                ii = insulation_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation)
-                normed_ii = np.ma.log2(ii/rolling_func_nan(ii, args.normalization_window, func=np.ma.mean))
-                gt.add_data("insulation_index_{}".format(d), normed_ii)
-            ii_matrix = [insulation_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation) for d in args.matrix_bins]
-            ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
-            gt.add_data("insulation_index_matrix", ii_matrix_normed.T)
-        if args.contact_band:
-            for d1, d2 in (d.split("-") for d in args.contact_band):
-                logging.info("Calculating contact band between {} and {} bins away.".format(d1, d2))
-                cb = contact_band(h, int(d1), int(d2), hic_matrix=hic_matrix, masked_imputed=~args.no_imputation)
-                normed_cb = np.ma.log2(cb/rolling_func_nan(cb, args.normalization_window, func=np.ma.mean))
-                gt.add_data("contact_band_{}_{}".format(d1, d2), normed_cb)
+            with InsulationIndex(hic_matrix, relative=args.relative, offset=args.offset,
+                                 normalise=args.normalise, window_sizes=args.window_size,
+                                 _normalisation_window=args.normalisation_window) as ii:
+                for window_size in args.window_size:
+                    insulation_index = ii.insulation_index(window_size)
+                    gt.add_data("insulation_index_{}".format(window_size), insulation_index)
+
+        # calculate directioality index
         if args.directionality_index:
-            for d in args.bins:
-                logging.info("Calculating directionality index with a window size of {}bp.".format(d))
-                gt.add_data("directionality_index_{}".format(d), directionality_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation))
-        if args.relative_insulation_index:
-            for d in args.bins:
-                logging.info("Calculating relative insulation index up to {} bins away.".format(d))
-                ii = rel_insulation_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation)
-                normed_ii = np.ma.log2(ii/rolling_func_nan(ii, args.normalization_window, func=np.ma.mean))
-                gt.add_data("rel_insulation_index_{}".format(d), normed_ii)
-            ii_matrix = [rel_insulation_index(h, d, hic_matrix=hic_matrix, masked_imputed=~args.no_imputation) for d in args.matrix_bins]
-            ii_matrix_normed = np.vstack([np.ma.log2(i/rolling_func_nan(i, args.normalization_window, func=np.ma.mean)) for i in ii_matrix])
-            gt.add_data("rel_insulation_index_matrix", ii_matrix_normed.T)
+            with DirectionalityIndex(hic_matrix, window_sizes=args.window_size) as di:
+                for window_size in args.window_size:
+                    directionality_index = di.directionality_index(window_size)
+                    gt.add_data("directionality_index_{}".format(window_size), directionality_index)
+
+        # calculate derivatives, if requested
         if args.derivative or args.delta:
             for k, v in gt.tracks.iteritems():
                 if args.derivative:
                     for i in args.derivative:
                         if "matrix" in k:
-                            deriv_matrix = np.vstack([savgol_filter(x, window_length=args.smoothing_window, polyorder=args.poly_order, deriv=i) for x in v.T]).T
+                            deriv_matrix = np.vstack([savgol_filter(x, window_length=args.smoothing_window,
+                                                                    polyorder=args.poly_order, deriv=i) for x in v.T]).T
                             gt.add_data("{}_d{}".format(k, i), deriv_matrix)
                         else:
-                            d = savgol_filter(v, window_length=args.smoothing_window, polyorder=args.poly_order, deriv=i)
+                            d = savgol_filter(v, window_length=args.smoothing_window,
+                                              polyorder=args.poly_order, deriv=i)
                             gt.add_data("{}_d{}".format(k, i), d)
                 if args.delta:
                     for i in args.delta:
@@ -2869,16 +2879,17 @@ class Kaic(object):
             help='For Matrix peak calling method specifies what fraction of matrix entries can '
                  'miss the required thresholds.'
         )
-        import kaic
-        from kaic.analyzing.architecture import PeakCallerDelta, PeakCallerMatrix
+
+        args = parser.parse_args(sys.argv[2:])
+
+        from kaic.architecture.maxima_callers import MaximaCallerDelta, MaximaCallerMatrix
         from kaic.plotting.plotter import GenomicTrack
-        from kaic.data.genomic import GenomicRegion
-        import numpy as np
         import itertools as it
         import re
-        args = parser.parse_args(sys.argv[2:])
+
         input_path = os.path.expanduser(args.architecture)
         output_path = os.path.expanduser(args.output)
+
         # Clear output file content
         open(output_path, "w").close()
         arch = GenomicTrack(input_path)
@@ -2886,7 +2897,7 @@ class Kaic(object):
         for metric in metric_list:
             logging.info("Calling borders using {}".format(metric))
             if arch[metric].ndim == 1:
-                peak_caller = PeakCallerDelta(arch[metric], window_size=args.window_size)
+                peak_caller = MaximaCallerDelta(arch[metric], window_size=args.window_size)
                 peak_caller.filter(delta_score_thresh=args.delta_score_thresh)
                 minima, scores = peak_caller.get_minima()
                 with open(output_path, "a") as f:
@@ -2897,7 +2908,8 @@ class Kaic(object):
                             start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
                         )
             else:
-                peak_caller = PeakCallerMatrix(arch[metric], seed_delta_ix=args.seed_ix, seed_delta_window=args.window_size)
+                peak_caller = MaximaCallerMatrix(arch[metric], seed_delta_ix=args.seed_ix,
+                                                 seed_delta_window=args.window_size)
                 peak_caller.filter(*(args.matrix_thresholds + args.limits), lenience=args.lenience)
                 minima, scores = peak_caller.get_minima()
                 with open(output_path, "a") as f:

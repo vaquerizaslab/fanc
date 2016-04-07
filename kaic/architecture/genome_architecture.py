@@ -14,11 +14,11 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
     Behaves similarly to :class:`~Hic`, as they both inherit from
     :class:`~RegionMatrixTable`.
     """
-    def __init__(self, file_name=None, mode='a', data_fields=None,
+    def __init__(self, file_name=None, mode='a', data_fields=None, default_field=None,
                  regions=None, edges=None, _table_name_regions='region_data',
                  _table_name_edges='edges', tmpdir=None):
         RegionMatrixTable.__init__(self, file_name=file_name, additional_fields=data_fields,
-                                   mode=mode, tmpdir=tmpdir,
+                                   mode=mode, tmpdir=tmpdir, default_field=default_field,
                                    _table_name_nodes=_table_name_regions,
                                    _table_name_edges=_table_name_edges)
         ArchitecturalFeature.__init__(self)
@@ -34,8 +34,9 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
             self.add_edges(edges)
 
     @calculateondemand
-    def as_matrix(self, key=slice(0, None, None), values_from=None):
-        return RegionMatrixTable.as_matrix(self, key=key, values_from=values_from)
+    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False):
+        return RegionMatrixTable.as_matrix(self, key=key, values_from=values_from,
+                                           mask_missing=mask_missing, impute_missing=impute_missing)
 
     @calculateondemand
     def _get_nodes_from_key(self, key, as_index=False):
