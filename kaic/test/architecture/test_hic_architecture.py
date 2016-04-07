@@ -1,6 +1,7 @@
 from __future__ import division
 from kaic.data.genomic import Hic, Node, Edge
-from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContacts, DirectionalityIndex, InsulationIndex
+from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContacts, DirectionalityIndex, \
+    InsulationIndex, ObservedExpectedRatio
 import pytest
 import numpy as np
 
@@ -168,6 +169,82 @@ class TestExpectedContacts:
             assert abs(ec.intra_expected()[1] - (332+469+199)/(7+5+3)) < 0.001
             assert abs(ec.intra_expected()[2] - (199+72+332)/(3+5+1)) < 0.001
             assert abs(ec.intra_expected()[3] - (199+72+332)/(3+5+1)) < 0.001
+
+
+class TestObservedExpectedRatio:
+    def setup_method(self, method):
+        hic = Hic()
+
+        # add some nodes (120 to be exact)
+        nodes = []
+        for i in range(1, 5000, 1000):
+            nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+        for i in range(1, 3000, 1000):
+            nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+        for i in range(1, 2000, 500):
+            nodes.append(Node(chromosome="chr3", start=i, end=i + 1000 - 1))
+        hic.add_nodes(nodes)
+
+        # add some edges with increasing weight for testing
+        edges = []
+        weight = 1
+        for i in range(0, len(nodes)):
+            for j in range(i, len(nodes)):
+                edges.append(Edge(source=i, sink=j, weight=weight))
+                weight += 1
+
+        hic.add_edges(edges)
+
+        self.hic = hic
+
+    def teardown_method(self, method):
+        self.hic.close()
+
+    def test_observed_expected_ratio(self):
+        obs = self.hic[:]
+        with ExpectedContacts(self.hic) as ex:
+            intra_expected = ex.intra_expected()
+            inter_expected = ex.inter_expected()
+
+            ex = np.empty(obs.shape)
+            rd = self.hic.regions_dict
+            for i in xrange(obs.shape[0]):
+                for j in xrange(obs.shape[1]):
+                    if rd[i].chromosome == rd[j].chromosome:
+                        ex[i, j] = intra_expected[abs(i - j)]
+                    else:
+                        ex[i, j] = inter_expected
+
+        with ObservedExpectedRatio(self.hic) as oer:
+            oer_m = oer[:]
+            assert oer_m.shape == obs.shape
+
+            for i in xrange(obs.shape[0]):
+                for j in xrange(obs.shape[1]):
+                    assert oer_m[i, j] - (obs[i, j] / ex[i, j]) < 0.001
+
+    def test_observed_expected_ratio_region(self):
+        obs = self.hic['chr1', 'chr1']
+        with ExpectedContacts(self.hic, regions='chr1') as ex:
+            intra_expected = ex.intra_expected()
+            inter_expected = ex.inter_expected()
+
+            ex = np.empty(obs.shape)
+            rd = self.hic.regions_dict
+            for i in xrange(obs.shape[0]):
+                for j in xrange(obs.shape[1]):
+                    if rd[i].chromosome == rd[j].chromosome:
+                        ex[i, j] = intra_expected[abs(i - j)]
+                    else:
+                        ex[i, j] = inter_expected
+
+        with ObservedExpectedRatio(self.hic, regions='chr1') as oer:
+            oer_m = oer[:]
+            assert oer_m.shape == obs.shape
+
+            for i in xrange(obs.shape[0]):
+                for j in xrange(obs.shape[1]):
+                    assert oer_m[i, j] - (obs[i, j] / ex[i, j]) < 0.001
 
 
 class TestDirectionalityIndex:
