@@ -2837,11 +2837,13 @@ class Kaic(object):
                  'miss the required thresholds.'
         )
 
+        args = parser.parse_args(sys.argv[2:])
+
         from kaic.architecture.maxima_callers import MaximaCallerDelta, MaximaCallerMatrix
         from kaic.plotting.plotter import GenomicTrack
         import itertools as it
         import re
-        args = parser.parse_args(sys.argv[2:])
+
         input_path = os.path.expanduser(args.architecture)
         output_path = os.path.expanduser(args.output)
 
