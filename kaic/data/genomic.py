@@ -1784,7 +1784,7 @@ class LazyEdge(Edge):
         try:
             return self._row[item]
         except KeyError:
-            raise AttributeError
+            raise AttributeError("Attribute not supported (%s)" % str(item))
 
     def __setattr__(self, key, value):
         if key == 'reserved' or key in self.reserved:
