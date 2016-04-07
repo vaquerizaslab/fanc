@@ -684,7 +684,7 @@ class Kaic(object):
                 hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
                 corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected.hic'
 
-                hic = kaic.Hic(file_names[ix], mode='r')
+                hic = kaic.load_hic(file_names[ix], mode='r')
                 n_regions = len(hic.regions)
                 hic.close()
 
@@ -1654,12 +1654,10 @@ class Kaic(object):
                 shutil.move(input_path, original_output_path)
         else:
             import kaic.correcting.knight_matrix_balancing as knight
-            if args.optimise:
-                hic_class = kaic.AccessOptimisedHic
-            else:
-                hic_class = kaic.Hic
-            hic = hic_class(file_name=input_path, mode='r')
-            hic_new = knight.correct(hic, only_intra_chromosomal=args.chromosome, copy=True, file_name=output_path)
+
+            hic = kaic.load_hic(file_name=input_path, mode='r')
+            hic_new = knight.correct(hic, only_intra_chromosomal=args.chromosome,
+                                     copy=True, file_name=output_path, optimise=args.optimise)
             hic.close()
             hic_new.close()
             if args.tmp:
