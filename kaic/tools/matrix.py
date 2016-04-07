@@ -186,11 +186,21 @@ def plot(M, absolute=False, colormap = None, vmin=-3, vmax=3, iStartIndex = None
             c = plt.Circle((i,j),radius=1,fill=False,color='r')
             ax.add_patch(c)
     plt.show()
-            
-            
-            
-            
-            
-            
-            
-            
+
+
+def apply_sliding_func(a, window, func=np.ma.mean):
+    """
+    Apply function on a sliding window over an array, ignoring Numpy NaN values.
+
+    :param a: Numpy array on which function is applied
+    :param window: The sliding window is i - window:i + window + 1
+                   so total window is twice this parameter.
+    :param func: Function to apply
+    """
+    out = np.empty(a.shape)
+    for i in range(len(a)):
+        window_start = max(0, i - window)
+        window_end = min(len(a), i + window + 1)
+        cur_window = a[window_start:window_end]
+        out[i] = func(cur_window[~np.isnan(cur_window)])
+    return out
