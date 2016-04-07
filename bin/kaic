@@ -1498,7 +1498,8 @@ class Kaic(object):
 
             if (args.low is not None or args.rel_low is not None) and args.low_default is False:
                 logging.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
-                    "relative cutoff {:.1%}".format(float(args.low) if args.low else 0., float(args.rel_low) if args.rel_low else 0.))
+                             "relative cutoff {:.1%}".format(float(args.low) if args.low else 0.,
+                                                             float(args.rel_low) if args.rel_low else 0.))
                 hic.filter_low_coverage_regions(cutoff=args.low, rel_cutoff=args.rel_low, queue=True)
 
                 if args.diagonal is not None:
