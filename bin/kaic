@@ -1489,32 +1489,31 @@ class Kaic(object):
             input_path = copy_or_expand(args.input, args.output)
 
         with kaic.load_hic(file_name=input_path, mode='a') as hic:
+            if args.low_default:
+                if args.low or args.rel_low:
+                    logging.info("Already specified an cutoff with -l or -rl, skipping -ld...")
+                else:
+                    logging.info("Filtering low-coverage bins at 10%%")
+                    hic.filter_low_coverage_regions(rel_cutoff=0.1, cutoff=None, queue=True)
 
-        if args.low_default:
-            if args.low or args.rel_low:
-                logging.info("Already specified an cutoff with -l or -rl, skipping -ld...")
-            else:
-                logging.info("Filtering low-coverage bins at 10%%")
-                hic.filter_low_coverage_regions(rel_cutoff=0.1, cutoff=None, queue=True)
+            if (args.low is not None or args.rel_low is not None) and args.low_default is False:
+                logging.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
+                    "relative cutoff {:.1%}".format(float(args.low) if args.low else 0., float(args.rel_low) if args.rel_low else 0.))
+                hic.filter_low_coverage_regions(cutoff=args.low, rel_cutoff=args.rel_low, queue=True)
 
-        if (args.low is not None or args.rel_low is not None) and args.low_default is False:
-            logging.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
-                "relative cutoff {:.1%}".format(float(args.low) if args.low else 0., float(args.rel_low) if args.rel_low else 0.))
-            hic.filter_low_coverage_regions(cutoff=args.low, rel_cutoff=args.rel_low, queue=True)
+                if args.diagonal is not None:
+                    logging.info("Filtering diagonal at distance %d" % args.diagonal)
+                    hic.filter_diagonal(distance=args.diagonal, queue=True)
 
-            if args.diagonal is not None:
-                logging.info("Filtering diagonal at distance %d" % args.diagonal)
-                hic.filter_diagonal(distance=args.diagonal, queue=True)
-
-            logging.info("Running filters...")
-            hic.run_queued_filters(log_progress=True)
-            logging.info("Done.")
-
-            if args.stats:
-                logging.info("Plotting filter statistics")
-                import kaic.plotting as kaicplt
-                kaicplt.plot_mask_statistics(hic, hic._edges, output=args.stats)
+                logging.info("Running filters...")
+                hic.run_queued_filters(log_progress=True)
                 logging.info("Done.")
+
+                if args.stats:
+                    logging.info("Plotting filter statistics")
+                    import kaic.plotting as kaicplt
+                    kaicplt.plot_mask_statistics(hic, hic._edges, output=args.stats)
+                    logging.info("Done.")
 
         if args.tmp:
             output_path = os.path.expanduser(args.output)
