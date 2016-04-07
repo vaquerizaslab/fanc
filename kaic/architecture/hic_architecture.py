@@ -512,7 +512,7 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
 
 class InsulationIndex(VectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
-                 regions=None, relative=False, impute_missing=True,
+                 regions=None, relative=False, offset=0, impute_missing=True,
                  window_sizes=(200000,), _table_name='insulation_index'):
         self.region_selection = regions
 
@@ -542,11 +542,12 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                 window_size = int(colname[3:])
                 self.window_sizes.append(window_size)
 
+        self.offset = offset
         self.hic = hic
         self.relative = relative
         self.impute_missing = impute_missing
 
-    def _insulation_index(self, d, hic_matrix=None, mask_thresh=.5, aggr_func=np.ma.mean):
+    def _insulation_index(self, d1, d2, hic_matrix=None, mask_thresh=.5, aggr_func=np.ma.mean):
         if self.region_selection is not None:
             regions = self.hic.subset(self.region_selection)
         else:
@@ -562,21 +563,21 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         logging.debug("Starting processing")
         skipped = 0
         for i, r in enumerate(regions):
-            if (r.ix - chr_bins[r.chromosome][0] < d or
-                    chr_bins[r.chromosome][1] - r.ix <= d + 1):
+            if (r.ix - chr_bins[r.chromosome][0] < d2 or
+                    chr_bins[r.chromosome][1] - r.ix <= d2 + 1):
                 ins_matrix[i] = np.nan
                 continue
             if hic_matrix.mask[r.ix, r.ix]:
                 ins_matrix[i] = np.nan
                 continue
 
-            up_rel_slice = (slice(r.ix - d, r.ix), slice(r.ix - d, r.ix))
-            down_rel_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix + 1, r.ix + d + 1))
-            ins_slice = (slice(r.ix + 1, r.ix + d + 1), slice(r.ix - d, r.ix))
+            up_rel_slice = (slice(r.ix - d2, r.ix - d1), slice(r.ix - d2, r.ix - d1))
+            down_rel_slice = (slice(r.ix + d1 + 1, r.ix + d2 + 1), slice(r.ix + d1 + 1, r.ix + d2 + 1))
+            ins_slice = (slice(r.ix + d1 + 1, r.ix + d2 + 1), slice(r.ix - d2, r.ix - d1))
 
-            if ((self.relative and np.sum(hic_matrix.mask[up_rel_slice]) > d*d*mask_thresh) or
-                    (self.relative and np.sum(hic_matrix.mask[down_rel_slice]) > d*d*mask_thresh) or
-                    np.sum(hic_matrix.mask[ins_slice]) > d*d*mask_thresh):
+            if ((self.relative and np.sum(hic_matrix.mask[up_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
+                    (self.relative and np.sum(hic_matrix.mask[down_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
+                    np.sum(hic_matrix.mask[ins_slice]) > ((d2-d1)**2)*mask_thresh):
                 # If too close to the edge of chromosome or
                 # if more than half of the entries in this quadrant are masked (unmappable)
                 # exclude it from the analysis
@@ -601,9 +602,10 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         return ins_matrix
 
     def _calculate(self):
+        offset_bins = self.hic.distance_to_bins(self.offset)
         for window_size in self.window_sizes:
             bins = self.hic.distance_to_bins(window_size)
-            insulation_index = self._insulation_index(bins)
+            insulation_index = self._insulation_index(offset_bins, offset_bins+bins)
             self.data("ii_%d" % window_size, insulation_index)
 
     @calculateondemand
@@ -611,27 +613,6 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'ii_%d' % window_size]
-
-
-def contact_band(hic, d1, d2, hic_matrix=None, use_oe_ratio=False):
-    chr_bins = hic.chromosome_bins
-    n = len(hic.regions())
-    if hic_matrix is None:
-        logging.debug("Fetching matrix")
-        hic_matrix = hic[:]
-    band = np.empty(n)
-    if use_oe_ratio:
-        raise NotImplementedError("oe not implemented yet :(")
-    logging.debug("Starting processing")
-    for i, r in enumerate(hic.regions()):
-        if i - chr_bins[r.chromosome][0] < d2:
-            band[i] = np.nan
-            continue
-        if chr_bins[r.chromosome][1] - i < d2:
-            band[i] = np.nan
-            continue
-        band[i] = np.ma.sum(hic_matrix[i - d2:i - d1, i + d1:i + d2])
-    return band
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
