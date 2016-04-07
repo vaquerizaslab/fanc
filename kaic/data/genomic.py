@@ -3750,10 +3750,10 @@ class Hic(RegionMatrixTable):
 
         chromosome_list = []
         for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome,length=self.chromosome_lens[chromosome]))
+            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lens[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = Hic(file_name=file_name, mode='w')
+        hic = self.__class__(file_name=file_name, mode='w')
         regions = genome.get_regions(bin_size)
         hic.add_regions(regions)
         regions.close()
