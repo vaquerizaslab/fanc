@@ -2836,16 +2836,15 @@ class Kaic(object):
             help='For Matrix peak calling method specifies what fraction of matrix entries can '
                  'miss the required thresholds.'
         )
-        import kaic
-        from kaic.analyzing.architecture import PeakCallerDelta, PeakCallerMatrix
+
+        from kaic.architecture.maxima_callers import MaximaCallerDelta, MaximaCallerMatrix
         from kaic.plotting.plotter import GenomicTrack
-        from kaic.data.genomic import GenomicRegion
-        import numpy as np
         import itertools as it
         import re
         args = parser.parse_args(sys.argv[2:])
         input_path = os.path.expanduser(args.architecture)
         output_path = os.path.expanduser(args.output)
+
         # Clear output file content
         open(output_path, "w").close()
         arch = GenomicTrack(input_path)
@@ -2853,7 +2852,7 @@ class Kaic(object):
         for metric in metric_list:
             logging.info("Calling borders using {}".format(metric))
             if arch[metric].ndim == 1:
-                peak_caller = PeakCallerDelta(arch[metric], window_size=args.window_size)
+                peak_caller = MaximaCallerDelta(arch[metric], window_size=args.window_size)
                 peak_caller.filter(delta_score_thresh=args.delta_score_thresh)
                 minima, scores = peak_caller.get_minima()
                 with open(output_path, "a") as f:
@@ -2864,7 +2863,8 @@ class Kaic(object):
                             start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
                         )
             else:
-                peak_caller = PeakCallerMatrix(arch[metric], seed_delta_ix=args.seed_ix, seed_delta_window=args.window_size)
+                peak_caller = MaximaCallerMatrix(arch[metric], seed_delta_ix=args.seed_ix,
+                                                 seed_delta_window=args.window_size)
                 peak_caller.filter(*(args.matrix_thresholds + args.limits), lenience=args.lenience)
                 minima, scores = peak_caller.get_minima()
                 with open(output_path, "a") as f:
