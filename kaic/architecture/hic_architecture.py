@@ -5,6 +5,7 @@ from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeatu
 from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge
 from collections import defaultdict
 from kaic.tools.general import ranges
+from kaic.tools.matrix import apply_sliding_func
 import numpy as np
 import tables as t
 import logging
@@ -512,8 +513,8 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
 
 class InsulationIndex(VectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
-                 regions=None, relative=False, offset=0, impute_missing=True,
-                 window_sizes=(200000,), _table_name='insulation_index'):
+                 regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
+                 window_sizes=(200000,), _normalisation_window=300, _table_name='insulation_index'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -546,6 +547,8 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         self.hic = hic
         self.relative = relative
         self.impute_missing = impute_missing
+        self.normalise = normalise
+        self.normalisation_window = _normalisation_window
 
     def _insulation_index(self, d1, d2, hic_matrix=None, mask_thresh=.5, aggr_func=np.ma.mean):
         if self.region_selection is not None:
@@ -599,6 +602,9 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                                                              hic_matrix[down_rel_slice].data))))
 
         logging.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
+
+        if self.normalise:
+            return np.ma.log2(ins_matrix / apply_sliding_func(ins_matrix, self.normalisation_window, func=np.ma.mean))
         return ins_matrix
 
     def _calculate(self):
