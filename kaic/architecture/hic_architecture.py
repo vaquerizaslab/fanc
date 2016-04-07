@@ -124,7 +124,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
 
 class ExpectedContacts(TableArchitecturalFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
-                 regions=None, weight_column='weight', _table_name='expected_contacts'):
+                 regions=None, weight_column=None, _table_name='expected_contacts'):
         if isinstance(hic, str):
             file_name = hic
             hic = None
@@ -138,7 +138,10 @@ class ExpectedContacts(TableArchitecturalFeature):
         self.smooth = smooth
         self.min_reads = min_reads
         self.regions = regions
-        self.weight_column = weight_column
+        if weight_column is None:
+            self.weight_column = self.hic.default_field
+        else:
+            self.weight_column = weight_column
 
     def _calculate(self):
         """
@@ -399,7 +402,7 @@ class PossibleContacts(TableArchitecturalFeature):
 
 class DirectionalityIndex(VectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
-                 regions=None, window_sizes=(2000000,),
+                 weight_column=None, regions=None, window_sizes=(2000000,),
                  _table_name='directionality_index'):
 
         self.region_selection = regions
@@ -431,6 +434,10 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
                 self.window_sizes.append(window_size)
 
         self.hic = hic
+        if weight_column is None:
+            self.weight_column = self.hic.default_field
+        else:
+            self.weight_column = weight_column
 
     def _get_boundary_distances(self):
         n_bins = len(self.hic.regions)
@@ -470,7 +477,7 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         for edge in edge_iter:
             source = edge.source
             sink = edge.sink
-            weight = edge.weight
+            weight = getattr(edge, self.weight_column)
             if source == sink:
                 continue
             if sink - source <= bin_window_size:
