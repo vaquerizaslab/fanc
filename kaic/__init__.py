@@ -54,5 +54,15 @@ def sample_hic_big():
         for i in range(1,20000,500):
             nodes.append(Node(chromosome="chr3",start=i,end=i+1000-1))
         hic.add_nodes(nodes)
-        
+
+        # add some edges with increasing weight for testing
+        edges = []
+        weight = 1
+        for i in range(0, len(nodes)):
+            for j in range(i, len(nodes)):
+                edges.append(Edge(source=i, sink=j, weight=weight))
+                weight += 1
+
+        hic.add_edges(edges)
+
         return hic
