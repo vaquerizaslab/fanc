@@ -335,7 +335,6 @@ class Kaic(object):
             logging.info("Final basename: %s (you can change this with the -n option!)" % basename)
 
         import subprocess
-        from kaic.tools.general import distribute_integer
         from multiprocessing.pool import ThreadPool
 
         # 1. create default folders in root directory
@@ -592,6 +591,9 @@ class Kaic(object):
             if args.tmp:
                 merge_hic_command.append('-tmp')
 
+            if args.optimise:
+                merge_hic_command.append('-o')
+
             hics = [file_names[i] for i in hic_files]
             p = subprocess.call(merge_hic_command + hics + [output_hic])
 
@@ -655,6 +657,8 @@ class Kaic(object):
                 correct_hic_command.append('-tmp')
             if per_chromosome:
                 correct_hic_command.append('-c')
+            if args.optimise:
+                correct_hic_command.append('-o')
 
             return subprocess.call(correct_hic_command + [hic_file, corrected_hic_file])
 
@@ -1478,34 +1482,32 @@ class Kaic(object):
         else:
             input_path = copy_or_expand(args.input, args.output)
 
-        hic = kaic.load_hic(file_name=input_path, mode='a')
+        with kaic.load_hic(file_name=input_path, mode='a') as hic:
 
-        if args.low_default:
-            if args.low:
-                logging.info("Already specified an exact cutoff with -l, skipping -ld...")
-            else:
-                logging.info("Filtering low-coverage bins at 10%%")
-                hic.filter_low_coverage_regions(queue=True)
+            if args.low_default:
+                if args.low:
+                    logging.info("Already specified an exact cutoff with -l, skipping -ld...")
+                else:
+                    logging.info("Filtering low-coverage bins at 10%%")
+                    hic.filter_low_coverage_regions(queue=True)
 
-        if args.low is not None:
-            logging.info("Filtering low-coverage bins at %d" % args.low)
-            hic.filter_low_coverage_regions(cutoff=args.low, queue=True)
+            if args.low is not None:
+                logging.info("Filtering low-coverage bins at %d" % args.low)
+                hic.filter_low_coverage_regions(cutoff=args.low, queue=True)
 
-        if args.diagonal is not None:
-            logging.info("Filtering diagonal at distance %d" % args.diagonal)
-            hic.filter_diagonal(distance=args.diagonal, queue=True)
+            if args.diagonal is not None:
+                logging.info("Filtering diagonal at distance %d" % args.diagonal)
+                hic.filter_diagonal(distance=args.diagonal, queue=True)
 
-        logging.info("Running filters...")
-        hic.run_queued_filters(log_progress=True)
-        logging.info("Done.")
-
-        if args.stats:
-            logging.info("Plotting filter statistics")
-            import kaic.plotting as kaicplt
-            kaicplt.plot_mask_statistics(hic, hic._edges, output=args.stats)
+            logging.info("Running filters...")
+            hic.run_queued_filters(log_progress=True)
             logging.info("Done.")
 
-        hic.close()
+            if args.stats:
+                logging.info("Plotting filter statistics")
+                import kaic.plotting as kaicplt
+                kaicplt.plot_mask_statistics(hic, hic._edges, output=args.stats)
+                logging.info("Done.")
 
         if args.tmp:
             output_path = os.path.expanduser(args.output)
