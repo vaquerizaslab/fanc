@@ -1068,6 +1068,9 @@ class GenomicRegion(TableObject):
     def __ne__(self, other):
         return not self._equals(other)
 
+    def __len__(self):
+        return self.end - self.start
+
 
 class BedElement(GenomicRegion):
     def __init__(self, chromosome, start, end, **kwargs):
