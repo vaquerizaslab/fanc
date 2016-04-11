@@ -50,12 +50,25 @@ class BufferedMatrix(object):
 
     @classmethod
     def from_hic_matrix(cls, hic_matrix):
+        """
+        Wrap a :class:`~HicMatrix` in a :class:`~BufferedMatrix` container.
+        Default buffering strategy is set to "all" by default.
+
+        :param hic_matrix: :class:`~HicMatrix`
+        :return: :class:`~BufferedMatrix`
+        """
         bm = cls(data=None, buffering_strategy="all")
         bm.buffered_region = bm._STRATEGY_ALL
         bm.buffered_matrix = hic_matrix
         return bm
 
     def is_buffered_region(self, *regions):
+        """
+        Check if set of :class:`~GenomicRegion`s is already buffered in this matrix.
+
+        :param regions: :class:`~GenomicRegion` object(s)
+        :return:
+        """
         if (self.buffered_region is None or self.buffered_matrix is None or
                 (not self.buffered_region == self._STRATEGY_ALL and not
                  all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)))):
@@ -63,6 +76,14 @@ class BufferedMatrix(object):
         return True
 
     def get_matrix(self, *regions):
+        """
+        Retrieve a sub-matrix by the given :class:`~GenomicRegion` object(s).
+
+        Will automatically load data if a non-buffered region is requested.
+
+        :param regions: :class:`~GenomicRegion` object(s)
+        :return: :class:`~HicMatrix`
+        """
         regions = tuple(reversed([r for r in regions]))
         if not self.is_buffered_region(*regions):
             logging.info("Buffering matrix")
@@ -70,10 +91,25 @@ class BufferedMatrix(object):
         return self.buffered_matrix[tuple(regions)]
 
     def _buffer_all(self, *regions):
+        """
+        No buffering, just loads everything in the object into memory.
+
+        Obviously very memory intensive.
+
+        :param regions: :class:`~GenomicRegion` objects
+        :return: :class:`~HicMatrix`
+        """
         self.buffered_region = self._STRATEGY_ALL
         self.buffered_matrix = self.data[tuple([slice(0, None, None)]*len(regions))]
 
     def _buffer_relative(self, *regions):
+        """
+        Load the requested :class:`~GenomicRegion` and buffer an additional fration
+        of the matrix given by buffering_arg*len(region)
+
+        :param regions: :class:`~GenomicRegion` objects
+        :return: :class:`~HicMatrix`
+        """
         self.buffered_region = []
         for rq in regions:
             if rq.start is not None and rq.end is not None:
@@ -86,6 +122,13 @@ class BufferedMatrix(object):
         self.buffered_matrix = self.data[tuple(self.buffered_region)]
 
     def _buffer_fixed(self, *regions):
+        """
+        Load the requested :class:`~GenomicRegion` and buffer an additional
+        fixed part of the matrix given by buffering_arg
+
+        :param regions: :class:`~GenomicRegion` objects
+        :return: :class:`~HicMatrix`
+        """
         self.buffered_region = []
         for rq in regions:
             if rq.start is not None and rq.end is not None:
@@ -98,11 +141,20 @@ class BufferedMatrix(object):
 
     @property
     def buffered_min(self):
+        """
+        Find the smallest non-zero buffered matrix value.
+
+        :return: float or None if nothing is buffered
+        """
         return np.ma.min(self.buffered_matrix[np.ma.nonzero(self.buffered_matrix)])\
             if self.buffered_matrix is not None else None
 
     @property
     def buffered_max(self):
+        """
+        Find the largest buffered matrix value
+        :return: float or None if nothing is buffered
+        """
         return np.ma.max(self.buffered_matrix) if self.buffered_matrix is not None else None
 
     _BUFFERING_STRATEGIES = {_STRATEGY_ALL: _buffer_all,
