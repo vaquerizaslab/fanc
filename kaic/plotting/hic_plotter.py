@@ -1,9 +1,12 @@
 import kaic
-from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D
+from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, append_axes
 from kaic.data.genomic import GenomicRegion
+import matplotlib as mpl
+from matplotlib.widgets import Slider
 from abc import ABCMeta
 import numpy as np
 import itertools as it
+import types
 import logging
 import seaborn as sns
 plt = sns.plt
@@ -95,7 +98,8 @@ class BufferedMatrix(object):
 
     @property
     def buffered_min(self):
-        return np.ma.min(self.buffered_matrix) if self.buffered_matrix is not None else None
+        return np.ma.min(self.buffered_matrix[np.ma.nonzero(self.buffered_matrix)])\
+            if self.buffered_matrix is not None else None
 
     @property
     def buffered_max(self):
@@ -148,28 +152,7 @@ class BasePlotterHic(BasePlotterMatrix):
             raise ValueError("Unknown type for hic_data")
         self.slider = None
         self.adjust_range = adjust_range
-
-    def add_adj_slider(self):
-        pass
-        # plot_position = self.cax.get_position()
-        # vmin_axs = plt.axes([plot_position.x0, 0.05, plot_position.width, 0.03], axisbg='#f3f3f3')
-        # self.vmin_slider = Slider(vmin_axs, 'vmin', self.hic_buffer.buffered_min,
-        #                           self.hic_buffer.buffered_max, valinit=self.vmin,
-        #                           facecolor='#dddddd', edgecolor='none')
-        # vmax_axs = plt.axes([plot_position.x0, 0.02, plot_position.width, 0.03], axisbg='#f3f3f3')
-        # self.vmax_slider = Slider(vmax_axs, 'vmax', self.hic_buffer.buffered_min,
-        #                           self.hic_buffer.buffered_max, valinit=self.vmax,
-        #                           facecolor='#dddddd', edgecolor='none')
-        # self.fig.subplots_adjust(top=0.90, bottom=0.15)
-        # self.vmin_slider.on_changed(self._slider_refresh)
-        # self.vmax_slider.on_changed(self._slider_refresh)
-
-    def _slider_refresh(self, val):
-        new_vmin = self.vmin_slider.val
-        new_vmax = self.vmax_slider.val
-        self.im.set_clim(vmin=new_vmin, vmax=new_vmax)
-        self.colorbar.set_clim(vmin=new_vmin, vmax=new_vmax)
-        self.colorbar.draw_all()
+        self.vmax_slider = None
 
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
@@ -300,38 +283,20 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
                                 norm=norm, blend_zero=blend_zero, unmappable_color=unmappable_color,
                                 illegal_color=illegal_color)
         self.max_dist = max_dist
+        self.hm = None
 
-    def _plot(self, region=None):
+    def _plot(self, region=None, *args, **kwargs):
         logging.debug("Generating matrix from hic object")
         if region is None:
             raise ValueError("Cannot plot triangle plot for whole genome.")
         # Have to copy unfortunately, otherwise modifying matrix in buffer
-        hm = self.hic_buffer.get_matrix(region, region)
-        hm = kaic.data.genomic.RegionMatrix(np.copy(hm), col_regions=hm.col_regions, row_regions=hm.row_regions)
-        # prepare an array of the corner coordinates of the Hic-matrix
-        # Distances have to be scaled by sqrt(2), because the diagonals of the bins
-        # are sqrt(2)*len(bin_size)
-        sqrt2 = np.sqrt(2)
-        bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]
-        # Make sure the matrix is not protruding over the end of the requested plotting region
-        if bin_coords[0] < region.start <= bin_coords[1]:
-            bin_coords[0] = region.start
-        if bin_coords[-1] > region.end >= bin_coords[-2]:
-            bin_coords[-1] = region.end
-        bin_coords = np.true_divide(bin_coords, sqrt2)
-        x, y = np.meshgrid(bin_coords, bin_coords)
-        # rotatate coordinate matrix 45 degrees
-        sin45 = np.sin(np.radians(45))
-        x_, y_ = x*sin45 + y*sin45, x*sin45 - y*sin45
-        # pcolormesh doesn't support plotting RGB arrays directly like imshow, have to workaround
-        # See https://github.com/matplotlib/matplotlib/issues/4277
-        # http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python/29232668?noredirect=1#comment46710586_29232668
-        color_matrix = self.get_color_matrix(hm)
-        color_tuple = color_matrix.transpose((1, 0, 2)).reshape(
-            (color_matrix.shape[0]*color_matrix.shape[1], color_matrix.shape[2]))
+        x_, y_, hm = self._mesh_data(region)
+        self.hm = hm
+
         self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self.norm, rasterized=True)
         self.collection._A = None
-        self.collection.set_color(color_tuple)
+        self._update_mesh_colors()
+
         # set limits and aspect ratio
         # self.ax.set_aspect(aspect="equal")
         self.ax.set_ylim(0, self.max_dist/2 if self.max_dist else (region.end-region.start)/2)
@@ -341,9 +306,69 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # hide background patch
         self.ax.patch.set_visible(False)
         if self.show_colorbar:
-            self.add_colorbar()
-            if self.adjust_range:
-                self.add_adj_slider()
+            cax = None
+            if isinstance(self.show_colorbar, mpl.axes.Axes):
+                cax = self.show_colorbar
+            self.add_colorbar(ax=cax)
+        if self.adjust_range:
+            self.add_adj_slider()
 
-    def _refresh(self, region=None):
-        pass
+        def drag_pan(self, button, key, x, y):
+            mpl.axes.Axes.drag_pan(self, button, 'x', x, y)  # pretend key=='x'
+
+        self.ax.drag_pan = types.MethodType(drag_pan, self.ax)
+
+    def _mesh_data(self, region):
+        hm = self.hic_buffer.get_matrix(region, region)
+        hm_copy = kaic.data.genomic.RegionMatrix(np.copy(hm), col_regions=hm.col_regions,
+                                                 row_regions=hm.row_regions)
+        # update coordinates
+        bin_coords = np.r_[[x.start for x in hm_copy.row_regions], hm_copy.row_regions[-1].end]
+        # Make sure the matrix is not protruding over the end of the requested plotting region
+        if bin_coords[0] < region.start <= bin_coords[1]:
+            bin_coords[0] = region.start
+        if bin_coords[-1] > region.end >= bin_coords[-2]:
+            bin_coords[-1] = region.end
+        bin_coords = np.true_divide(bin_coords, np.sqrt(2))
+        x, y = np.meshgrid(bin_coords, bin_coords)
+        # rotatate coordinate matrix 45 degrees
+        sin45 = np.sin(np.radians(45))
+        x_, y_ = x * sin45 + y * sin45, x * sin45 - y * sin45
+
+        return x_, y_, hm_copy
+
+    def _update_mesh_colors(self):
+        # pcolormesh doesn't support plotting RGB arrays directly like imshow, have to workaround
+        # See https://github.com/matplotlib/matplotlib/issues/4277
+        # http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python/29232668?noredirect=1#comment46710586_29232668
+        color_matrix = self.get_color_matrix(self.hm)
+        color_tuple = color_matrix.transpose((1, 0, 2)).reshape(
+            (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
+        self.collection.set_color(color_tuple)
+
+    def _refresh(self, region=None, *args, **kwargs):
+        x_, y_, hm = self._mesh_data(region)
+        self.hm = hm
+
+        self.collection._coordinates[:, :, 0] = x_
+        # update matrix data
+        self.collection.set_array(self.hm.ravel())
+        self._update_mesh_colors()
+
+    def add_adj_slider(self, ax=None):
+        if ax is None:
+            ax = append_axes(self.ax, 'top', 1, 0.05)
+
+        self.vmax_slider = Slider(ax, 'vmax', self.hic_buffer.buffered_min,
+                                  self.hic_buffer.buffered_max, valinit=self.vmax,
+                                  facecolor='#dddddd', edgecolor='none')
+
+        self.vmax_slider.on_changed(self._slider_refresh)
+
+    def _slider_refresh(self, val):
+        # new_vmin = self.vmin_slider.val
+        new_vmax = self.vmax_slider.val
+        self._update_norm(vmax=new_vmax)
+        self._update_mesh_colors()
+        self.colorbar.set_clim(vmax=new_vmax)
+        self.colorbar.draw_all()
