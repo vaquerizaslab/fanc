@@ -524,6 +524,11 @@ class GenomicTrack(BasicRegionTable):
     def __getitem__(self, item):
         if isinstance(item, basestring) and item in self._tracks:
             return self[:, item]
+        elif isinstance(item, int) or isinstance(item, slice):
+            tracks = dict()
+            for name in self._tracks:
+                tracks[name] = self[item, name]
+            return tracks
         else:
             return BasicRegionTable.__getitem__(self, item)
 
