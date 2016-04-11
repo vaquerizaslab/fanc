@@ -431,7 +431,7 @@ def _get_typed_array(input_iterable, nan_strings, count=-1):
 
 
 class GenomicTrack(BasicRegionTable):
-    def __init__(self, file_name, title=None, data_dict=None, regions=None, _table_name_tracks='tracks',
+    def __init__(self, file_name=None, title=None, data_dict=None, regions=None, _table_name_tracks='tracks',
                  mode='a', tmpdir=None):
         """
         Initialize a genomic track vector.
@@ -445,8 +445,9 @@ class GenomicTrack(BasicRegionTable):
                         or String elemnts that describe regions.
         """
         fields = {}
-        for field, values in data_dict.iteritems():
-            fields[field] = type(values[0])
+        if data_dict is not None:
+            for field, values in data_dict.iteritems():
+                fields[field] = type(values[0])
 
         BasicRegionTable.__init__(self, regions=regions, fields=fields, data=data_dict, file_name=file_name,
                                   _group_name=_table_name_tracks, mode=mode, tmpdir=tmpdir)
