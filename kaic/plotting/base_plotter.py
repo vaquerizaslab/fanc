@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.widgets import Slider
 from abc import abstractmethod, ABCMeta
 import numpy as np
 import matplotlib as mpl
@@ -280,7 +280,7 @@ class MinorGenomeCoordLocator(Locator):
         return self.raise_if_exceeds(np.array(locs))
 
 
-def prepare_normalization(norm="lin", vmin=None, vmax=None):
+def _prepare_normalization(norm="lin", vmin=None, vmax=None):
     if isinstance(norm, mpl.colors.Normalize):
         norm.vmin = vmin
         norm.vmax = vmax
@@ -297,48 +297,44 @@ class BasePlotter(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, title, aspect=1., axes_style="ticks"):
-        self._ax = None
+    def __init__(self, title='', aspect=1., axes_style="ticks"):
+        self.ax = None
         self.cax = None
         self.title = title
         self.has_legend = False
         self._aspect = aspect
         self.axes_style = axes_style
 
+    def _before_plot(self, region=None, *args, **kwargs):
+        self.ax.set_title(self.title)
+
+    def _after_plot(self, region=None, *args, **kwargs):
+        pass
+
     @abstractmethod
-    def _plot(self, region=None):
+    def _plot(self, region=None, *args, **kwargs):
         raise NotImplementedError("Subclasses need to override _plot function")
 
-    @abstractmethod
-    def _refresh(self, region=None):
-        raise NotImplementedError("Subclasses need to override _refresh function")
+    def plot(self, region=None, ax=None, *args, **kwargs):
+        if ax is None:
+            self.ax = plt.gca()
+        else:
+            self.ax = ax
 
-    @abstractmethod
-    def plot(self, region=None):
-        raise NotImplementedError("Subclasses need to override plot function")
+        if isinstance(region, basestring):
+            region = GenomicRegion.from_string(region)
+
+        self._before_plot(region=region, *args, **kwargs)
+        plot_output = self._plot(region=region, *args, **kwargs)
+        self._after_plot(region=region, *args, **kwargs)
+
+        if plot_output is None:
+            return self.fig, self.ax
+        return plot_output
 
     @property
     def fig(self):
-        return self._ax.figure
-
-    @property
-    def ax(self):
-        if not self._ax:
-            log.debug("Creating new figure object.")
-            _, self._ax = plt.subplots()
-        return self._ax
-
-    @ax.setter
-    def ax(self, value):
-        self._ax = value
-
-    def remove_colorbar_ax(self):
-        if self.cax is None:
-            return
-        try:
-            self.fig.delaxes(self.cax)
-        except KeyError:
-            pass
+        return self.ax.figure
 
     def add_legend(self, *args, **kwargs):
         if not self.has_legend:
@@ -356,26 +352,47 @@ class BasePlotter1D(BasePlotter):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, title, aspect=1., axes_style="ticks"):
+    def __init__(self, title='', aspect=1., axes_style="ticks"):
         BasePlotter.__init__(self, title=title, aspect=aspect,
                              axes_style=axes_style)
+        self._mouse_release_handler = None
+        self._last_xlim = None
+        self.current_chromosome = None
 
-    def plot(self, region=None, ax=None):
-        if isinstance(region, basestring):
-            region = GenomicRegion.from_string(region)
-        if ax:
-            self.ax = ax
-        # set genome tick formatter
+    def _before_plot(self, region=None, *args, **kwargs):
+        BasePlotter._before_plot(self, region=region, *args, **kwargs)
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=5))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
-        self.ax.set_title(self.title)
-        self._plot(region)
+        self.current_chromosome = region.chromosome
+
+    def _after_plot(self, region=None, *args, **kwargs):
+        BasePlotter._after_plot(self, region=region, *args, **kwargs)
         self.ax.set_xlim(region.start, region.end)
-        return self.fig, self.ax
+        self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
+
+    def refresh(self, region=None, *args, **kwargs):
+        self._refresh(region, *args, **kwargs)
+
+        # this should take care of any unwanted ylim changes
+        # from custom _refresh methods
+        self.ax.set_xlim(self._last_xlim)
+
+    @abstractmethod
+    def _refresh(self, region=None, *args, **kwargs):
+        raise NotImplementedError("Subclasses need to override _refresh function")
+
+    def _mouse_release_event(self, event):
+        xlim = self.ax.get_xlim()
+
+        if xlim != self._last_xlim:
+            self._last_xlim = xlim
+            x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
+            x_region = GenomicRegion(x_start, x_end, self.current_chromosome)
+            self.refresh(region=x_region)
 
 
-class BasePlotterMatrix(object):
+class BasePlotterMatrix(BasePlotter):
     """
     Mix-in class to provide methods for mapping colorvalues
     in special areas in the plots etc.
@@ -384,14 +401,17 @@ class BasePlotterMatrix(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, colormap='viridis', norm="log", vmin=None, vmax=None,
-                 show_colorbar=True, blend_zero=True,
+                 show_colorbar=True, blend_zero=True, title='',
                  unmappable_color=".9", illegal_color=None):
+        BasePlotter.__init__(self, title=title)
+
         if isinstance(colormap, basestring):
             colormap = mpl.cm.get_cmap(colormap)
+
         self.colormap = colormap
         self._vmin = vmin
         self._vmax = vmax
-        self.norm = prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
+        self.norm = _prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
         self.unmappable_color = unmappable_color
         self.blend_zero = blend_zero
         self.illegal_color = illegal_color
@@ -415,13 +435,21 @@ class BasePlotterMatrix(object):
             color_matrix[:, np.all(zero_mask, axis=1)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
         return color_matrix
 
-    def add_colorbar(self):
+    def add_colorbar(self, ax=None):
         """
-        Add colorbar to the plot. Draws on the colorbar axes cax.
+        Add colorbar to the plot.
+
+        :param ax: Optional axis on which to draw the colorbar
         """
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array(np.array([self.vmin, self.vmax]))
-        self.colorbar = plt.colorbar(cmap_data, cax=self.cax, orientation="vertical")
+        self.colorbar = plt.colorbar(cmap_data, cax=None, orientation="vertical")
+
+    def remove_colorbar_ax(self):
+        try:
+            self.fig.delaxes(self.colorbar.ax)
+        except KeyError:
+            pass
 
     @property
     def vmin(self):
@@ -431,6 +459,23 @@ class BasePlotterMatrix(object):
     def vmax(self):
         return self._vmax if self._vmax else self.norm.vmax
 
+    def _update_norm(self, norm=None, vmin=None, vmax=None):
+        if vmin is None:
+            vmin = self.norm.vmin
+        if vmax is None:
+            vmax = self.norm.vmax
+        if norm is None:
+            norm = self.norm
+        self.norm = _prepare_normalization(norm, vmin, vmax)
+
+#
+# class IntensitySlider(object):
+#     def __init__(self, vmin, vmax, init_value=0):
+#         self.vmin = vmin
+#         self.vmax = vmax
+#         self.init_value = init_value
+#
+#     def show(self, ax):
 
 class BasePlotter2D(BasePlotter):
 
