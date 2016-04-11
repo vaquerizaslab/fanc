@@ -443,7 +443,7 @@ class BasePlotterMatrix(BasePlotter):
         """
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array(np.array([self.vmin, self.vmax]))
-        self.colorbar = plt.colorbar(cmap_data, cax=None, orientation="vertical")
+        self.colorbar = plt.colorbar(cmap_data, cax=ax, orientation="vertical")
 
     def remove_colorbar_ax(self):
         try:
@@ -468,14 +468,6 @@ class BasePlotterMatrix(BasePlotter):
             norm = self.norm
         self.norm = _prepare_normalization(norm, vmin, vmax)
 
-#
-# class IntensitySlider(object):
-#     def __init__(self, vmin, vmax, init_value=0):
-#         self.vmin = vmin
-#         self.vmax = vmax
-#         self.init_value = init_value
-#
-#     def show(self, ax):
 
 class BasePlotter2D(BasePlotter):
 
