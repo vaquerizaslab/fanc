@@ -134,19 +134,6 @@ class GenomicFigure(object):
         plt.close(self.fig)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 class ScalarDataPlot(BasePlotter1D):
     """
     Base class for plotting scalar values like ChIP-seq signal.
@@ -188,6 +175,14 @@ class ScalarDataPlot(BasePlotter1D):
         """
         return self._STYLES[self.style](self, values, region_list)
 
+    def remove_colorbar_ax(self):
+        if self.cax is None:
+            return
+        try:
+            self.fig.delaxes(self.cax)
+        except KeyError:
+            pass
+
     _STYLES = {_STYLE_STEP: _get_values_per_step,
                _STYLE_MID: _get_values_per_mid}
 
@@ -228,7 +223,8 @@ class BigWigPlot(ScalarDataPlot):
         suitable for plotting.
         """
         bin_coords = np.r_[slice(region.start, region.end, self.bin_size), region.end]
-        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
+        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
+                       for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
         interval_records = np.core.records.fromrecords(intervals, names=["start", "end", "value"])
         out_values = np.full(len(bin_coords) - 1, np.nan, dtype=np.float_)
         start_overlap = np.searchsorted(interval_records["start"], bin_coords[:-1], side="right") - 1
@@ -248,12 +244,12 @@ class BigWigPlot(ScalarDataPlot):
                                max(interval_records["start"][e], bin_coords[i]))*interval_records["value"][e]
             # Once edge case is taken care of the rest of the intervals can be binned evenly
             if e - s > 1:
-                weighted_value += np.sum((interval_records["end"][s + 1:e] - interval_records["start"][s + 1:e])*
-                                          interval_records["value"][s + 1:e])
+                weighted_value += np.sum((interval_records["end"][s + 1:e] - interval_records["start"][s + 1:e]) *
+                                         interval_records["value"][s + 1:e])
             out_values[i] = weighted_value/total_range
         return bin_regions, out_values
 
-    def _plot(self, region):
+    def _plot(self, region=None, ax=None, *args, **kwargs):
         import wWigIO
         for i, b in enumerate(self.bigwigs):
             try:
@@ -275,7 +271,7 @@ class BigWigPlot(ScalarDataPlot):
         if self.ylim:
             self.ax.set_ylim(self.ylim)
 
-    def _refresh(self, region):
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
 
 
@@ -302,8 +298,9 @@ class GenomicTrackPlot(ScalarDataPlot):
             tracks = [tracks]
         self.tracks = tracks
         self.attributes = attributes
+        self.lines = []
 
-    def _plot(self, region=None, ax=None):
+    def _plot(self, region=None, ax=None, *args, **kwargs):
         for track in self.tracks:
             bins = track.region_bins(region)
             values = track[bins]
@@ -311,15 +308,26 @@ class GenomicTrackPlot(ScalarDataPlot):
             for k, v in values.iteritems():
                 if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
                     x, y = self.get_plot_values(v, regions)
-                    self.ax.plot(x, y,
-                                 label="{}{}".format(track.title + "_"
-                                                     if track.title and len(self.tracks) > 1
-                                                     else "", k))
+                    l = self.ax.plot(x, y,
+                                     label="{}{}".format(track.title + "_"
+                                                         if track.title and len(self.tracks) > 1
+                                                         else "", k))
+                    self.lines.append(l[0])
         self.add_legend()
         self.remove_colorbar_ax()
 
-    def _refresh(self, **kwargs):
-        pass
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
+        for track in self.tracks:
+            bins = track.region_bins(region)
+            values = track[bins]
+            regions = track.regions[bins]
+            current_line = 0
+            for k, v in values.iteritems():
+                if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
+                    x, y = self.get_plot_values(v, regions)
+                    self.lines[current_line].set_xdata(x)
+                    self.lines[current_line].set_ydata(y)
+                    current_line += 1
 
 
 class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
