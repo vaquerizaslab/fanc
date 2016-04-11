@@ -357,14 +357,14 @@ class BasePlotter1D(BasePlotter):
                              axes_style=axes_style)
         self._mouse_release_handler = None
         self._last_xlim = None
-        self.current_chromosome = None
+        self._current_chromosome = None
 
     def _before_plot(self, region=None, *args, **kwargs):
         BasePlotter._before_plot(self, region=region, *args, **kwargs)
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=5))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
-        self.current_chromosome = region.chromosome
+        self._current_chromosome = region.chromosome
 
     def _after_plot(self, region=None, *args, **kwargs):
         BasePlotter._after_plot(self, region=region, *args, **kwargs)
@@ -388,7 +388,7 @@ class BasePlotter1D(BasePlotter):
         if xlim != self._last_xlim:
             self._last_xlim = xlim
             x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
-            x_region = GenomicRegion(x_start, x_end, self.current_chromosome)
+            x_region = GenomicRegion(x_start, x_end, self._current_chromosome)
             self.refresh(region=x_region)
 
 
@@ -402,8 +402,9 @@ class BasePlotterMatrix(BasePlotter):
 
     def __init__(self, colormap='viridis', norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, title='',
-                 unmappable_color=".9", illegal_color=None):
-        BasePlotter.__init__(self, title=title)
+                 unmappable_color=".9", illegal_color=None,
+                 aspect=1., axes_style='ticks'):
+        BasePlotter.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
 
         if isinstance(colormap, basestring):
             colormap = mpl.cm.get_cmap(colormap)
@@ -469,60 +470,88 @@ class BasePlotterMatrix(BasePlotter):
         self.norm = _prepare_normalization(norm, vmin, vmax)
 
 
-class BasePlotter2D(BasePlotter):
+class BasePlotter2D(BasePlotterMatrix):
 
     __metaclass__ = ABCMeta
 
     def __init__(self, title, aspect=1., axes_style="ticks"):
-        BasePlotter.__init__(self, title=title, aspect=aspect,
-                             axes_style=axes_style)
-        self.cid = None
-        self.current_chromosome_x = None
-        self.current_chromosome_y = None
-        self.last_ylim = None
-        self.last_xlim = None
+        BasePlotterMatrix.__init__(self, title=title, aspect=aspect,
+                                   axes_style=axes_style)
+        self._mouse_release_handler = None
+        self._current_chromosome_x = None
+        self._current_chromosome_y = None
+        self._last_ylim = None
+        self._last_xlim = None
 
-    def mouse_release_refresh(self, _):
+    def _before_plot(self, region=None, *args, **kwargs):
+        x_region, y_region = region
+        BasePlotter._before_plot(self, region=x_region, *args, **kwargs)
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
+        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=5))
+        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
+        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
+        self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=5))
+        self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
+        self._current_chromosome_x = x_region.chromosome
+        self._current_chromosome_y = y_region.chromosome
+
+    def _after_plot(self, region=None, *args, **kwargs):
+        x_region, y_region = region
+        BasePlotter._after_plot(self, region=x_region, *args, **kwargs)
+        self.ax.set_xlim(x_region.start, x_region.end)
+        self.ax.set_ylim(y_region.start, y_region.end)
+        self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
+
+    def refresh(self, region=None, *args, **kwargs):
+        self._refresh(region, *args, **kwargs)
+
+        # this should take care of any unwanted ylim changes
+        # from custom _refresh methods
+        self.ax.set_xlim(self._last_xlim)
+        self.ax.set_ylim(self._last_ylim)
+
+    @abstractmethod
+    def _refresh(self, region=None, *args, **kwargs):
+        raise NotImplementedError("Subclasses need to override _refresh function")
+
+    def _mouse_release_event(self, event):
         xlim = self.ax.get_xlim()
         ylim = self.ax.get_ylim()
 
-        if xlim != self.last_xlim or ylim != self.last_ylim:
-            self.last_xlim = xlim
-            self.last_ylim = ylim
+        if xlim != self._last_xlim or ylim != self._last_ylim:
+            self._last_xlim = xlim
+            self._last_ylim = ylim
             x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
-            x_region = GenomicRegion(x_start, x_end, self.current_chromosome_x)
-
+            x_region = GenomicRegion(x_start, x_end, self._current_chromosome_x)
             y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
-            y_region = GenomicRegion(y_start, y_end, self.current_chromosome_y)
+            y_region = GenomicRegion(y_start, y_end, self._current_chromosome_y)
+            self.refresh(region=(x_region, y_region))
 
-            self._refresh(x_region, y_region)
-
-            # this should take care of any unwanted ylim changes
-            # from custom _refresh methods
-            self.ax.set_ylim(self.last_ylim)
-            self.ax.set_xlim(self.last_xlim)
-
-    def plot(self, x_region=None, y_region=None, ax=None):
-        if isinstance(x_region, basestring):
-            x_region = GenomicRegion.from_string(x_region)
-        if ax:
+    def plot(self, regions=None, ax=None, *args, **kwargs):
+        if ax is None:
+            self.ax = plt.gca()
+        else:
             self.ax = ax
 
-        self.current_chromosome_x = x_region.chromosome
-
-        if y_region is None:
+        if isinstance(regions, tuple):
+            x_region, y_region = regions
+        else:
+            x_region = regions
             y_region = x_region
+
+        if isinstance(x_region, basestring):
+            x_region = GenomicRegion.from_string(x_region)
 
         if isinstance(y_region, basestring):
             y_region = GenomicRegion.from_string(y_region)
 
-        self.current_chromosome_y = y_region.chromosome
+        self._current_chromosome_x = x_region.chromosome
+        self._current_chromosome_y = y_region.chromosome
 
-        # set base-pair formatters
-        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
-        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
-        # set release event callback
-        self.cid = self.fig.canvas.mpl_connect('button_release_event', self.mouse_release_refresh)
+        self._before_plot(region=(x_region, y_region), *args, **kwargs)
+        plot_output = self._plot(region=(x_region, y_region), *args, **kwargs)
+        self._after_plot(region=(x_region, y_region), *args, **kwargs)
 
-        self._plot(x_region, y_region)
-        return self.fig, self.ax
+        if plot_output is None:
+            return self.fig, self.ax
+        return plot_output
