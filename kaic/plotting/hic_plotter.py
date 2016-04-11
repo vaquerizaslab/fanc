@@ -163,12 +163,16 @@ class BufferedMatrix(object):
 
 
 class BufferedCombinedMatrix(BufferedMatrix):
-    def __init__(self, hic_top, hic_bottom, scale_matrices=True, buffering_strategy="relative", buffering_arg=1):
+    """
+    A buffered square matrix where values above and below the diagonal
+    come from different matrices.
+    """
+    def __init__(self, top_matrix, bottom_matrix, scale_matrices=True, buffering_strategy="relative", buffering_arg=1):
         super(BufferedCombinedMatrix, self).__init__(None, buffering_strategy, buffering_arg)
 
         scaling_factor = 1
         if scale_matrices:
-            scaling_factor = hic_top.scaling_factor(hic_bottom)
+            scaling_factor = top_matrix.scaling_factor(bottom_matrix)
 
         class CombinedData(object):
             def __init__(self, hic_top, hic_bottom, scaling_factor=1):
@@ -177,13 +181,17 @@ class BufferedCombinedMatrix(BufferedMatrix):
                 self.scaling_factor = scaling_factor
 
             def __getitem__(self, item):
-                return hic_top.get_combined_matrix(self.hic_bottom, key=item, scaling_factor=self.scaling_factor)
+                return top_matrix.get_combined_matrix(self.hic_bottom, key=item, scaling_factor=self.scaling_factor)
 
-        self.data = CombinedData(hic_top, hic_bottom, scaling_factor)
+        self.data = CombinedData(top_matrix, bottom_matrix, scaling_factor)
 
 
 class BasePlotterHic(BasePlotterMatrix):
+    """
+    Base class for plotting Hi-C data.
 
+    Makes use of matrix buffering by :class:`~BufferedMatrix` internally.
+    """
     __metaclass__ = ABCMeta
 
     def __init__(self, hic_data, colormap='viridis', norm="log",
@@ -239,31 +247,50 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                                 adjust_range=adjust_range, buffering_strategy=buffering_strategy,
                                 buffering_arg=buffering_arg, blend_zero=blend_zero,
                                 unmappable_color=unmappable_color)
+        self.vmax_slider = None
+        self.current_matrix = None
 
-    def _plot(self, x_region=None, y_region=None):
-        m = self.hic_buffer.get_matrix(x_region, y_region)
-        self.im = self.ax.imshow(self.get_color_matrix(m), interpolation='none',
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        self.current_matrix = self.hic_buffer.get_matrix(*region)
+        self.im = self.ax.imshow(self.get_color_matrix(self.current_matrix), interpolation='none',
                                  cmap=self.colormap, norm=self.norm, origin="upper",
-                                 extent=[m.col_regions[0].start, m.col_regions[-1].end,
-                                         m.row_regions[-1].end, m.row_regions[0].start])
+                                 extent=[self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
+                                         self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start])
         self.ax.spines['right'].set_visible(False)
         self.ax.spines['top'].set_visible(False)
         self.ax.xaxis.set_ticks_position('bottom')
         self.ax.yaxis.set_ticks_position('left')
 
-        self.last_ylim = self.ax.get_ylim()
-        self.last_xlim = self.ax.get_xlim()
-
         if self.show_colorbar:
             self.add_colorbar()
-            if self.adjust_range:
-                self.add_adj_slider()
+        if self.adjust_range:
+            self.add_adj_slider()
 
-    def _refresh(self, x_region=None, y_region=None):
-        m = self.hic_buffer.get_matrix(x_region, y_region)
-        self.im.set_data(self.get_color_matrix(m))
-        self.im.set_extent([m.col_regions[0].start, m.col_regions[-1].end,
-                            m.row_regions[-1].end, m.row_regions[0].start])
+    def add_adj_slider(self, ax=None):
+        if ax is None:
+            ax = append_axes(self.ax, 'top', 0.2, 0.25)
+
+        self.vmax_slider = Slider(ax, 'vmax', self.hic_buffer.buffered_min,
+                                  self.hic_buffer.buffered_max, valinit=self.vmax,
+                                  facecolor='#dddddd', edgecolor='none')
+
+        self.vmax_slider.on_changed(self._slider_refresh)
+
+    def _slider_refresh(self, val):
+        # new_vmin = self.vmin_slider.val
+        new_vmax = self.vmax_slider.val
+        self.im.set_clim(vmin=self.hic_buffer.buffered_min, vmax=new_vmax)
+        # Hack to force redraw of image data
+        self.im.set_data(self.current_matrix)
+
+        self.colorbar.set_clim(vmax=new_vmax)
+        self.colorbar.draw_all()
+
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
+        self.current_matrix = self.hic_buffer.get_matrix(*region)
+        self.im.set_data(self.get_color_matrix(self.current_matrix))
+        self.im.set_extent([self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
+                            self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start])
 
 
 class HicSideBySidePlot2D(object):
