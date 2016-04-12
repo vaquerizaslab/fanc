@@ -449,11 +449,17 @@ class GenomicTrack(BasicRegionTable):
             for field, values in data_dict.iteritems():
                 fields[field] = type(values[0])
 
+        self._matrix_tracks = set()
         BasicRegionTable.__init__(self, regions=regions, fields=fields, data=data_dict, file_name=file_name,
                                   _group_name=_table_name_tracks, mode=mode, tmpdir=tmpdir)
 
         if title is not None:
             self.title = title
+
+        for node in self.file.iter_nodes(self._group):
+            if node.name != 'regions' and node.name not in self._matrix_tracks:
+                self._matrix_tracks.add(node.name)
+        print(self._matrix_tracks)
 
     @property
     def title(self):
@@ -522,8 +528,11 @@ class GenomicTrack(BasicRegionTable):
                     f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start - 1, r.end, v))
 
     def __getitem__(self, item):
-        if isinstance(item, basestring) and item in self._tracks:
-            return self[:, item]
+        if isinstance(item, basestring):
+            if item in self._tracks:
+                return self[:, item]
+            if item in self._matrix_tracks:
+                return self.data(item)[:]
         elif isinstance(item, int) or isinstance(item, slice):
             tracks = dict()
             for name in self._tracks:
@@ -535,3 +544,24 @@ class GenomicTrack(BasicRegionTable):
     @property
     def tracks(self):
         return {t: self[:, t] for t in self._tracks}
+
+    def data(self, key, value=None):
+        """
+        Retrieve or add vector-data OR matrix data to this object. If there is exsting data in this
+        object with the same name, it will be replaced
+
+        :param key: Name of the data column
+        :param value: vector with region-based data (one entry per region)
+        """
+        # Hack for matrix-based data
+        if value is not None and isinstance(value, np.ndarray) and len(value.shape) > 1:
+            if value.shape[0] != len(self.regions):
+                raise ValueError("First dimension of values must have as many elements "
+                                 "({}) as there are regions ({})".format(value.shape, len(self._regions)))
+            self.file.create_array(self._group, key, value)
+            self._matrix_tracks.add(key)
+
+        if key in self._matrix_tracks:
+            return getattr(self._group, key)[:]
+
+        return RegionsTable.data(self, key, value=value)
