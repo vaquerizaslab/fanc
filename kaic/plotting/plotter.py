@@ -188,6 +188,7 @@ class ScalarDataPlot(BasePlotter1D):
 
 
 class BigWigPlot(ScalarDataPlot):
+    # TODO make this work - wWigIO just won't install
     def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None,
                  plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
         """
@@ -358,9 +359,9 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
         """
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
         BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm,
-                           vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
-                           blend_zero=blend_zero, unmappable_color=unmappable_color,
-                           illegal_color=illegal_color)
+                                   vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
+                                   blend_zero=blend_zero, unmappable_color=unmappable_color,
+                                   illegal_color=illegal_color)
         self.track = track
         self.attribute = attribute
         if plot_kwargs is None:
@@ -368,7 +369,7 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
         self.plot_kwargs = plot_kwargs
         self.y_coords = y_coords
 
-    def _plot(self, region=None, ax=None):
+    def _plot(self, region=None, ax=None, *args, **kwargs):
         bins = self.track.region_bins(region)
         values = self.track[bins][self.attribute]
         regions = self.track.regions()[bins]
