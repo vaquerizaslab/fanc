@@ -387,10 +387,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # hide background patch
         self.ax.patch.set_visible(False)
         if self.show_colorbar:
-            cax = None
-            if isinstance(self.show_colorbar, mpl.axes.Axes):
-                cax = self.show_colorbar
-            self.add_colorbar(ax=cax)
+            self.add_colorbar(ax=None)
         if self.adjust_range:
             self.add_adj_slider()
 

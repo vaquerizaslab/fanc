@@ -299,7 +299,6 @@ class BasePlotter(object):
 
     def __init__(self, title='', aspect=1., axes_style="ticks"):
         self.ax = None
-        self.cax = None
         self.title = title
         self.has_legend = False
         self._aspect = aspect
@@ -418,6 +417,9 @@ class BasePlotterMatrix(BasePlotter):
         self.illegal_color = illegal_color
         self.show_colorbar = show_colorbar
         self.colorbar = None
+        self.cax = None
+        if isinstance(self.show_colorbar, mpl.axes.Axes):
+            self.cax = self.show_colorbar
 
     def get_color_matrix(self, matrix):
         """
@@ -442,6 +444,8 @@ class BasePlotterMatrix(BasePlotter):
 
         :param ax: Optional axis on which to draw the colorbar
         """
+        if ax is None and self.cax is not None:
+            ax = self.cax
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
         cmap_data.set_array(np.array([self.vmin, self.vmax]))
         self.colorbar = plt.colorbar(cmap_data, cax=ax, orientation="vertical")
