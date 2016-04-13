@@ -187,95 +187,6 @@ class ScalarDataPlot(BasePlotter1D):
                _STYLE_MID: _get_values_per_mid}
 
 
-class BigWigPlot(ScalarDataPlot):
-    # TODO make this work - wWigIO just won't install
-    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None,
-                 plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
-        """
-        Plot data from on or more BigWig files.
-
-        :param bigwigs: Path or list of paths to bigwig files
-        :param names: List of names for each bigwig. Used as label in the legend.
-        :param style: 'step' Draw values in a step-wise manner for each bin
-                      'mid' Draw values connecting mid-points of bins
-        :param title: Title of the plot
-        :param bin_size: Bin BigWig values using fixed size bins of the given size.
-                         If None, will plot values as they are in the BigWig file
-        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
-        :param ylim: Tuple to set y-axis limits
-        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-               the height_ratios in class:`~GenomicFigure`
-        """
-        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
-                                axes_style=axes_style)
-        if isinstance(bigwigs, basestring):
-            bigwigs = [bigwigs]
-        self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
-        self.bigwigs = bigwigs
-        self.names = names
-        self.bin_size = bin_size
-        self.ylim = ylim
-        self.x = None
-        self.y = None
-
-    def _bin_intervals(self, region, intervals):
-        """
-        Bin values fearch interval from Bigwig in evenly spaced bins
-        suitable for plotting.
-        """
-        bin_coords = np.r_[slice(region.start, region.end, self.bin_size), region.end]
-        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
-                       for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
-        interval_records = np.core.records.fromrecords(intervals, names=["start", "end", "value"])
-        out_values = np.full(len(bin_coords) - 1, np.nan, dtype=np.float_)
-        start_overlap = np.searchsorted(interval_records["start"], bin_coords[:-1], side="right") - 1
-        end_overlap = np.searchsorted(interval_records["end"], bin_coords[1:], side="left")
-        for i, (s, e) in enumerate(it.izip(start_overlap, end_overlap)):
-            assert e >= s
-            if s == e:
-                out_values[i] = interval_records["value"][s]
-                continue
-            total_range = bin_coords[i + 1] - bin_coords[i]
-            weighted_value = 0
-            # Have to control for edge cases where first and/or last bin only partially overlap with
-            # interval
-            weighted_value += (min(interval_records["end"][s], bin_coords[i + 1]) -
-                               max(interval_records["start"][s], bin_coords[i]))*interval_records["value"][s]
-            weighted_value += (min(interval_records["end"][e], bin_coords[i + 1]) -
-                               max(interval_records["start"][e], bin_coords[i]))*interval_records["value"][e]
-            # Once edge case is taken care of the rest of the intervals can be binned evenly
-            if e - s > 1:
-                weighted_value += np.sum((interval_records["end"][s + 1:e] - interval_records["start"][s + 1:e]) *
-                                         interval_records["value"][s + 1:e])
-            out_values[i] = weighted_value/total_range
-        return bin_regions, out_values
-
-    def _plot(self, region=None, ax=None, *args, **kwargs):
-        import wWigIO
-        for i, b in enumerate(self.bigwigs):
-            try:
-                bw = wWigIO.open(b)
-                intervals = wWigIO.getIntervals(b, region.chromosome, region.start - 1, region.end)
-            finally:
-                wWigIO.close(b)
-            if self.bin_size:
-                regions, bw_values = self._bin_intervals(region, intervals)
-            else:
-                regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
-                bw_values = [v for s, e, v in intervals]
-            self.x, self.y = self.get_plot_values(bw_values, regions)
-            self.ax.plot(self.x, self.y, label=self.names[i] if self.names else "", **self.plot_kwargs)
-        if self.names:
-            self.add_legend()
-        self.remove_colorbar_ax()
-        sns.despine(ax=self.ax, top=True, right=True)
-        if self.ylim:
-            self.ax.set_ylim(self.ylim)
-
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
-        pass
-
-
 class GenomicTrackPlot(ScalarDataPlot):
     def __init__(self, tracks, style="step", attributes=None, title='', aspect=.2,
                  axes_style=style_ticks_whitegrid):
@@ -522,4 +433,93 @@ class GenomicFeaturePlot(BasePlotter1D):
         self.remove_colorbar_ax()
 
     def _refresh(self, **kwargs):
+        pass
+
+
+class BigWigPlot(ScalarDataPlot):
+    # TODO make this work - wWigIO just won't install
+    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None,
+                 plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
+        """
+        Plot data from on or more BigWig files.
+
+        :param bigwigs: Path or list of paths to bigwig files
+        :param names: List of names for each bigwig. Used as label in the legend.
+        :param style: 'step' Draw values in a step-wise manner for each bin
+                      'mid' Draw values connecting mid-points of bins
+        :param title: Title of the plot
+        :param bin_size: Bin BigWig values using fixed size bins of the given size.
+                         If None, will plot values as they are in the BigWig file
+        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
+        :param ylim: Tuple to set y-axis limits
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+               the height_ratios in class:`~GenomicFigure`
+        """
+        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
+                                axes_style=axes_style)
+        if isinstance(bigwigs, basestring):
+            bigwigs = [bigwigs]
+        self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
+        self.bigwigs = bigwigs
+        self.names = names
+        self.bin_size = bin_size
+        self.ylim = ylim
+        self.x = None
+        self.y = None
+
+    def _bin_intervals(self, region, intervals):
+        """
+        Bin values fearch interval from Bigwig in evenly spaced bins
+        suitable for plotting.
+        """
+        bin_coords = np.r_[slice(region.start, region.end, self.bin_size), region.end]
+        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
+                       for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
+        interval_records = np.core.records.fromrecords(intervals, names=["start", "end", "value"])
+        out_values = np.full(len(bin_coords) - 1, np.nan, dtype=np.float_)
+        start_overlap = np.searchsorted(interval_records["start"], bin_coords[:-1], side="right") - 1
+        end_overlap = np.searchsorted(interval_records["end"], bin_coords[1:], side="left")
+        for i, (s, e) in enumerate(it.izip(start_overlap, end_overlap)):
+            assert e >= s
+            if s == e:
+                out_values[i] = interval_records["value"][s]
+                continue
+            total_range = bin_coords[i + 1] - bin_coords[i]
+            weighted_value = 0
+            # Have to control for edge cases where first and/or last bin only partially overlap with
+            # interval
+            weighted_value += (min(interval_records["end"][s], bin_coords[i + 1]) -
+                               max(interval_records["start"][s], bin_coords[i]))*interval_records["value"][s]
+            weighted_value += (min(interval_records["end"][e], bin_coords[i + 1]) -
+                               max(interval_records["start"][e], bin_coords[i]))*interval_records["value"][e]
+            # Once edge case is taken care of the rest of the intervals can be binned evenly
+            if e - s > 1:
+                weighted_value += np.sum((interval_records["end"][s + 1:e] - interval_records["start"][s + 1:e]) *
+                                         interval_records["value"][s + 1:e])
+            out_values[i] = weighted_value/total_range
+        return bin_regions, out_values
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        import wWigIO
+        for i, b in enumerate(self.bigwigs):
+            try:
+                bw = wWigIO.open(b)
+                intervals = wWigIO.getIntervals(b, region.chromosome, region.start - 1, region.end)
+            finally:
+                wWigIO.close(b)
+            if self.bin_size:
+                regions, bw_values = self._bin_intervals(region, intervals)
+            else:
+                regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
+                bw_values = [v for s, e, v in intervals]
+            self.x, self.y = self.get_plot_values(bw_values, regions)
+            self.ax.plot(self.x, self.y, label=self.names[i] if self.names else "", **self.plot_kwargs)
+        if self.names:
+            self.add_legend()
+        self.remove_colorbar_ax()
+        sns.despine(ax=self.ax, top=True, right=True)
+        if self.ylim:
+            self.ax.set_ylim(self.ylim)
+
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
