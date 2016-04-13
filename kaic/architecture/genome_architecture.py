@@ -430,6 +430,11 @@ def _get_typed_array(input_iterable, nan_strings, count=-1):
     return np.fromiter(input_iterable, str, count)
 
 
+def _is_simple_type(data_type):
+    if data_type in {int, float, bool, str, basestring, long}:
+        return True
+    return False
+
 class GenomicTrack(BasicRegionTable):
     def __init__(self, file_name=None, title=None, data_dict=None, regions=None, _table_name_tracks='tracks',
                  mode='a', tmpdir=None):
@@ -444,14 +449,28 @@ class GenomicTrack(BasicRegionTable):
         :param regions: An iterable of (:class: `~kaic.data.genomic.GenomicRegion`)
                         or String elemnts that describe regions.
         """
+        matrix_data = {}
         fields = {}
         if data_dict is not None:
             for field, values in data_dict.iteritems():
-                fields[field] = type(values[0])
+                data_type = type(values[0])
+                print data_type
+                if _is_simple_type(data_type):
+                    fields[field] = type(values[0])
+                else:
+                    matrix_data[field] = values
+
+        print fields
+
+        for key in matrix_data.iterkeys():
+            del data_dict[key]
 
         self._matrix_tracks = set()
         BasicRegionTable.__init__(self, regions=regions, fields=fields, data=data_dict, file_name=file_name,
                                   _group_name=_table_name_tracks, mode=mode, tmpdir=tmpdir)
+
+        for key, values in matrix_data.iteritems():
+            self.data(key, values)
 
         if title is not None:
             self.title = title
@@ -537,6 +556,8 @@ class GenomicTrack(BasicRegionTable):
             tracks = dict()
             for name in self._tracks:
                 tracks[name] = self[item, name]
+            for name in self._matrix_tracks:
+                tracks[name] = np.array(getattr(self._group, name)[item])
             return tracks
         else:
             return BasicRegionTable.__getitem__(self, item)
@@ -554,8 +575,9 @@ class GenomicTrack(BasicRegionTable):
         :param value: vector with region-based data (one entry per region)
         """
         # Hack for matrix-based data
-        if value is not None and isinstance(value, np.ndarray) and len(value.shape) > 1:
-            if value.shape[0] != len(self.regions):
+        if value is not None and not _is_simple_type(type(value[0])):
+            a = np.array(value)
+            if a.shape[0] != len(self.regions):
                 raise ValueError("First dimension of values must have as many elements "
                                  "({}) as there are regions ({})".format(value.shape, len(self._regions)))
             self.file.create_array(self._group, key, value)
