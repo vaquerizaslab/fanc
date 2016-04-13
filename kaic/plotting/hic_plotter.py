@@ -450,5 +450,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         new_vmax = self.vmax_slider.val
         self._update_norm(vmax=new_vmax)
         self._update_mesh_colors()
-        self.colorbar.set_clim(vmax=new_vmax)
-        self.colorbar.draw_all()
+        if self.colorbar is not None:
+            self.colorbar.set_clim(vmax=new_vmax)
+            self.colorbar.draw_all()
