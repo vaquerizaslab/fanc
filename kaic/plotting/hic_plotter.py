@@ -283,8 +283,9 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
         # Hack to force redraw of image data
         self.im.set_data(self.current_matrix)
 
-        self.colorbar.set_clim(vmax=new_vmax)
-        self.colorbar.draw_all()
+        if self.colorbar is not None:
+            self.colorbar.set_clim(vmax=new_vmax)
+            self.colorbar.draw_all()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
