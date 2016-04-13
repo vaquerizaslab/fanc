@@ -343,6 +343,8 @@ class VerticalSplitPlot(BasePlotter1D):
         self.bottom_plot = bottom_plot
         self.parent_ax = None
         self.parent_cax = None
+        self.top_ax = None
+        self.bottom_ax = None
         self.gap = gap
         self.cax_gap = cax_gap
 
@@ -353,14 +355,14 @@ class VerticalSplitPlot(BasePlotter1D):
         top_ax = ax.figure.add_axes([bbox.x0, bbox.y0 + gap/2 + bbox.height/2,
                                      bbox.width, bbox.height/2 - gap/2])
         bottom_ax = ax.figure.add_axes([bbox.x0, bbox.y0,
-                                        bbox.width, bbox.height/2 - gap/2])
+                                        bbox.width, bbox.height/2 - gap/2], sharex=top_ax)
         return top_ax, bottom_ax
 
-    def _plot(self, region):
+    def _plot(self, region=None, ax=None, *args, **kwargs):
         # Check if ax has already been split
         if self.parent_ax is not self.ax:
             self.parent_ax = self.ax
-            self.top_plot.ax, self.bottom_plot.ax = self._add_split_ax(self.ax, self.gap)
+            self.top_ax, self.bottom_ax = self._add_split_ax(self.ax, self.gap)
             sns.despine(ax=self.ax, top=True, left=True, bottom=True, right=True)
             self.ax.xaxis.set_major_locator(NullLocator())
             self.ax.yaxis.set_major_locator(NullLocator())
@@ -368,19 +370,19 @@ class VerticalSplitPlot(BasePlotter1D):
             self.parent_cax = self.cax
             self.top_plot.cax, self.bottom_plot.cax = self._add_split_ax(self.cax, self.cax_gap)
             self.cax.set_visible(False)
-        self.top_plot.plot(region)
-        self.bottom_plot.plot(region)
+        self.top_plot.plot(region, ax=self.top_ax)
+        self.bottom_plot.plot(region, ax=self.bottom_ax)
         self.bottom_plot.ax.invert_yaxis()
-        sns.despine(ax=self.top_plot.ax, top=True, left=True, bottom=True, right=True)
-        self.top_plot.ax.xaxis.set_major_locator(NullLocator())
-        self.top_plot.ax.xaxis.set_minor_locator(NullLocator())
+        sns.despine(ax=self.top_ax, top=True, left=True, bottom=True, right=True)
+        self.top_ax.xaxis.set_major_locator(NullLocator())
+        self.top_ax.xaxis.set_minor_locator(NullLocator())
 
-    def _refresh(self, region):
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
 
     def remove_genome_ticks(self):
-        plt.setp(self.bottom_plot.ax.get_xticklabels(), visible=False)
-        self.bottom_plot.ax.xaxis.offsetText.set_visible(False)
+        plt.setp(self.bottom_ax.get_xticklabels(), visible=False)
+        self.bottom_ax.xaxis.offsetText.set_visible(False)
 
 
 class GenomicFeaturePlot(BasePlotter1D):
