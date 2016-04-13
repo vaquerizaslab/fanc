@@ -3,8 +3,11 @@ from kaic.data.genomic import RegionMatrixTable, RegionsTable, GenomicRegion
 from kaic.architecture.architecture import ArchitecturalFeature, calculateondemand, _get_pytables_data_type
 from kaic.data.general import Mask, MaskFilter
 import tables as t
+import numpy as np
+import itertools as it
 from collections import defaultdict
 from abc import abstractmethod, ABCMeta
+import logging
 
 
 class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
@@ -206,6 +209,14 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     def flush(self):
         self._regions.flush()
 
+    @property
+    def data_field_names(self):
+        names = []
+        for name in self._regions.colnames:
+            if name not in ("ix", "chromosome", "start", "end", "strand"):
+                names.append(name)
+        return names
+
     @classmethod
     def from_regions_and_data(cls, regions, data, file_name=None, mode='a', tmpdir=None, data_name='data'):
         if not isinstance(data, dict):
@@ -276,7 +287,6 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
                 colnames.append(column_selector)
 
         if isinstance(value, list):
-            print len(value), n_rows
             if len(value) != n_rows:
                 raise ValueError("Number of elements in selection does not "
                                  "match number of elements to be replaced!")
@@ -302,7 +312,6 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
                 raise ValueError("Can only replace selection with elements in a list")
 
             for row in rows:
-                print value, colnames[0], row
                 setattr(row, colnames[0], value)
                 row.update()
         self.flush()
@@ -368,3 +377,214 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     def _calculate(self, *args, **kwargs):
         raise NotImplementedError("This method must be overridden in subclass!")
 
+
+class BasicRegionTable(VectorArchitecturalRegionFeature):
+    def __init__(self, regions, fields=None, types=None, data=None,
+                 file_name=None, mode='a', tmpdir=None,
+                 _string_size=100, _group_name='region_table'):
+        if isinstance(regions, str):
+            if file_name is None:
+                file_name = regions
+                regions = None
+            else:
+                raise ValueError("fields cannot be string unless file_name is None")
+
+        if regions is None and file_name is not None:
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode,
+                                                      _table_name_data=_group_name, tmpdir=tmpdir)
+        else:
+            pt_fields = {}
+            if fields is not None:
+                if isinstance(fields, dict):
+                    for field, field_type in fields.iteritems():
+                        pt_fields[field] = _get_pytables_data_type(field_type)
+                else:
+                    if types is None or not len(fields) == len(types):
+                        raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields), len(types)))
+                    for i, field in enumerate(fields):
+                        pt_fields[field] = _get_pytables_data_type(types[i])
+
+            data_fields = {}
+            for data_name, table_type in pt_fields.iteritems():
+                if table_type != t.StringCol:
+                    data_fields[data_name] = table_type(pos=len(data_fields))
+                else:
+                    data_fields[data_name] = table_type(_string_size, pos=len(data_fields))
+
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, data_fields=data_fields,
+                                                      regions=regions, data=data, _table_name_data=_group_name,
+                                                      tmpdir=tmpdir)
+
+    def _calculate(self, *args, **kwargs):
+        pass
+
+
+def _get_typed_array(input_iterable, nan_strings, count=-1):
+    try:
+        return np.fromiter((0 if x in nan_strings else x for x in input_iterable), int, count)
+    except ValueError:
+        pass
+    try:
+        return np.fromiter((np.nan if x in nan_strings else x for x in input_iterable), float, count)
+    except ValueError:
+        pass
+    return np.fromiter(input_iterable, str, count)
+
+
+def _is_simple_type(data_type):
+    if data_type in {int, float, bool, str, basestring, long}:
+        return True
+    return False
+
+class GenomicTrack(BasicRegionTable):
+    def __init__(self, file_name=None, title=None, data_dict=None, regions=None, _table_name_tracks='tracks',
+                 mode='a', tmpdir=None):
+        """
+        Initialize a genomic track vector.
+
+        :param file_name: Storage location of the genomic track HDF5 file
+        :param data_dict: Dictionary containing data tracks as numpy arrays.
+                          The arrays must have as many elements in the first
+                          dimension as there are regions.
+        :param title: The overall title of the track.
+        :param regions: An iterable of (:class: `~kaic.data.genomic.GenomicRegion`)
+                        or String elemnts that describe regions.
+        """
+        matrix_data = {}
+        fields = {}
+        if data_dict is not None:
+            for field, values in data_dict.iteritems():
+                data_type = type(values[0])
+                print data_type
+                if _is_simple_type(data_type):
+                    fields[field] = type(values[0])
+                else:
+                    matrix_data[field] = values
+
+        print fields
+
+        for key in matrix_data.iterkeys():
+            del data_dict[key]
+
+        self._matrix_tracks = set()
+        BasicRegionTable.__init__(self, regions=regions, fields=fields, data=data_dict, file_name=file_name,
+                                  _group_name=_table_name_tracks, mode=mode, tmpdir=tmpdir)
+
+        for key, values in matrix_data.iteritems():
+            self.data(key, values)
+
+        if title is not None:
+            self.title = title
+
+        for node in self.file.iter_nodes(self._group):
+            if node.name != 'regions' and node.name not in self._matrix_tracks:
+                self._matrix_tracks.add(node.name)
+        print(self._matrix_tracks)
+
+    @property
+    def title(self):
+        try:
+            return self._regions.attrs['title']
+        except KeyError:
+            return None
+
+    @title.setter
+    def title(self, title):
+        self._regions.attrs['title'] = title
+
+    @property
+    def _tracks(self):
+        return self.data_field_names
+
+    @classmethod
+    def from_gtf(cls, file_name, gtf_file, store_attrs=None, nan_strings=(".", "")):
+        """
+        Import a GTF file as GenomicTrack.
+
+        :param file_name: Storage location of the genomic track HDF5 file
+        :param gtf_file: Location of GTF file_name
+        :param store_attrs: List or listlike
+                            Only store attributes in the list
+        :param nan_strings: These characters will be considered NaN for parsing.
+                            Will become 0 for int arrays, np.nan for float arrays
+                            and left as is for string arrays.
+        """
+        import pybedtools as pbt
+        gtf = pbt.BedTool(gtf_file)
+        n = len(gtf)
+        regions = []
+        values = {}
+        for i, f in enumerate(gtf.sort()):
+            regions.append(GenomicRegion(chromosome=f.chrom, start=f.start, end=f.end, strand=f.strand))
+            # If input is a GTF file, also store the type and source fields
+            if f.file_type in ("gff", "gtf"):
+                f.attrs["source"] = f.fields[1]
+                f.attrs["feature"] = f.fields[2]
+            # Check if there is a new attribute that hasn't occured before
+            for k in f.attrs.keys():
+                if k not in values and (not store_attrs or k in store_attrs):
+                    if i > 0:
+                        # Fill up values for this attribute with nan
+                        values[k] = [nan_strings[0]]*i
+                    else:
+                        values[k] = []
+            for k in values.keys():
+                values[k].append(f.attrs.get(k, nan_strings[0]))
+        for k, v in values.iteritems():
+            values[k] = _get_typed_array(v, nan_strings=nan_strings, count=n)
+        return cls(file_name=file_name, data_dict=values, regions=regions)
+
+    def to_bedgraph(self, prefix, tracks=None, skip_nan=True):
+        if tracks is None:
+            tracks = self._tracks
+        elif not isinstance(tracks, list) and not isinstance(tracks, tuple):
+            tracks = [tracks]
+        for t in tracks:
+            logging.info("Writing track {}".format(t))
+            with open("{}{}.bedgraph".format(prefix, t), "w") as f:
+                for r, v in it.izip(self.regions, self[t]):
+                    if skip_nan and np.isnan(v):
+                        continue
+                    f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start - 1, r.end, v))
+
+    def __getitem__(self, item):
+        if isinstance(item, basestring):
+            if item in self._tracks:
+                return self[:, item]
+            if item in self._matrix_tracks:
+                return self.data(item)[:]
+        elif isinstance(item, int) or isinstance(item, slice):
+            tracks = dict()
+            for name in self._tracks:
+                tracks[name] = self[item, name]
+            for name in self._matrix_tracks:
+                tracks[name] = np.array(getattr(self._group, name)[item])
+            return tracks
+        else:
+            return BasicRegionTable.__getitem__(self, item)
+
+    @property
+    def tracks(self):
+        return {t: self[:, t] for t in self._tracks}
+
+    def data(self, key, value=None):
+        """
+        Retrieve or add vector-data OR matrix data to this object. If there is exsting data in this
+        object with the same name, it will be replaced
+
+        :param key: Name of the data column
+        :param value: vector with region-based data (one entry per region)
+        """
+        # Hack for matrix-based data
+        if value is not None and not _is_simple_type(type(value[0])):
+            a = np.array(value)
+            if a.shape[0] != len(self.regions):
+                raise ValueError("First dimension of values must have as many elements "
+                                 "({}) as there are regions ({})".format(value.shape, len(self._regions)))
+            self.file.create_array(self._group, key, value)
+            self._matrix_tracks.add(key)
+
+        if key in self._matrix_tracks:
+            return getattr(self._group, key)[:]
+
+        return RegionsTable.data(self, key, value=value)

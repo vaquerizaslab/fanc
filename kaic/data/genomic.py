@@ -1069,6 +1069,9 @@ class GenomicRegion(TableObject):
     def __ne__(self, other):
         return not self._equals(other)
 
+    def __len__(self):
+        return self.end - self.start
+
 
 class BedElement(GenomicRegion):
     def __init__(self, chromosome, start, end, **kwargs):
@@ -1144,6 +1147,8 @@ class GenomicRegions(object):
 
         if isinstance(region, GenomicRegion):
             return self._add_region(copy.copy(region))
+        elif isinstance(region, str):
+            return self._add_region(GenomicRegion.from_string(region))
         elif type(region) is dict:
             return self._add_region(GenomicRegion(**copy.copy(region)))
         else:
