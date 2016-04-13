@@ -279,25 +279,44 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
         self.y_coords = y_coords
+        self.hm = None
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
-        bins = self.track.region_bins(region)
-        values = self.track[bins][self.attribute]
-        regions = self.track.regions()[bins]
-        bin_coords = np.r_[[(x.start - 1) for x in regions], (regions[-1].end)]
-        X, Y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None else np.arange(values.shape[1] + 1)))
-        color_matrix = self.get_color_matrix(values)
-        color_tuple = color_matrix.transpose((1,0,2)).reshape(
-            (color_matrix.shape[0]*color_matrix.shape[1],color_matrix.shape[2]))
-        self.collection = self.ax.pcolormesh(X, Y, values.T, rasterized=True, cmap=self.colormap,
+
+        x, y, self.hm = self._mesh_data(region=region)
+        self.collection = self.ax.pcolormesh(x, y, self.hm.T, rasterized=True, cmap=self.colormap,
                                              norm=self.norm, **self.plot_kwargs)
         self.collection._A = None
-        self.collection.set_color(color_tuple)
+        self._update_mesh_colors()
+
         if self.show_colorbar:
             self.add_colorbar()
 
-    def _refresh(self, **kwargs):
-        pass
+    def _mesh_data(self, region):
+        bins = self.track.region_bins(region)
+        hm = self.track[bins][self.attribute]
+        regions = self.track.regions()[bins]
+        bin_coords = np.r_[[(x.start - 1) for x in regions], regions[-1].end]
+        x, y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None
+                                        else np.arange(hm.shape[1] + 1)))
+        return x, y, hm
+
+    def _update_mesh_colors(self):
+        # pcolormesh doesn't support plotting RGB arrays directly like imshow, have to workaround
+        # See https://github.com/matplotlib/matplotlib/issues/4277
+        # http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python/29232668?noredirect=1#comment46710586_29232668
+        color_matrix = self.get_color_matrix(self.hm)
+        color_tuple = color_matrix.transpose((1, 0, 2)).reshape(
+            (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
+        self.collection.set_color(color_tuple)
+
+    def _refresh(self, region=None, *args, **kwargs):
+        x, y, self.hm = self._mesh_data(region)
+
+        self.collection._coordinates[:, :, 0] = x
+        # update matrix data
+        self.collection.set_array(self.hm.T.ravel())
+        self._update_mesh_colors()
 
 
 class VerticalSplitPlot(BasePlotter1D):
