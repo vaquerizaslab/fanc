@@ -277,7 +277,7 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 
 class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
-    def __init__(self, track, attribute, y_coords=None, plot_kwargs=None, title='',
+    def __init__(self, track, attribute, y_coords=None, y_scale='linear', plot_kwargs=None, title='',
                  colormap='viridis', norm="lin", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=False,
                  unmappable_color=".9", illegal_color=None, aspect=.3,
@@ -291,6 +291,8 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
                          unitless. Can provide the coordinates for the
                          y-direction here. Matrix has shape (X, Y) must
                          have shape Y or Y + 1
+        :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
+                        valid argument ("linear", "log", etc.) works
         :param plot_kwargs: Keyword-arguments passed on to pcolormesh
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
@@ -314,6 +316,7 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
         self.plot_kwargs = plot_kwargs
         self.y_coords = y_coords
         self.hm = None
+        self.y_scale = y_scale
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
 
@@ -322,6 +325,9 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
                                              norm=self.norm, **self.plot_kwargs)
         self.collection._A = None
         self._update_mesh_colors()
+        self.ax.set_yscale(self.y_scale)
+        if self.y_coords is not None:
+            self.ax.set_ylim(self.y_coords[0], self.y_coords[-1])
 
         if self.show_colorbar:
             self.add_colorbar()
