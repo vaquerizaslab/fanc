@@ -63,7 +63,8 @@ class Kaic(object):
                     boundaries         Call boundaries in an Hic object
 
                     --- Other
-                    hiclib_to_kaic     Convert a hiclib object to a Hic object
+                    optimize           Optimise an existing Hic object for faster access
+                    subset_hic         Create a new Hic object by subsetting
 
                 Run kaic <command> -h for help on a specific command.
                 '''
@@ -2764,8 +2765,8 @@ class Kaic(object):
 
         import kaic
         from kaic.architecture.hic_architecture import InsulationIndex, DirectionalityIndex, ObservedExpectedRatio
+        from kaic.architecture.genome_architecture import GenomicTrack
         from kaic.tools.matrix import delta_window
-        from kaic.plotting.plotter import GenomicTrack
         from scipy.signal import savgol_filter
 
         input_path = os.path.expanduser(args.hic)
@@ -2883,7 +2884,7 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[2:])
 
         from kaic.architecture.maxima_callers import MaximaCallerDelta, MaximaCallerMatrix
-        from kaic.plotting.plotter import GenomicTrack
+        from kaic.architecture.genome_architecture import GenomicTrack
         import itertools as it
         import re
 
@@ -2920,6 +2921,76 @@ class Kaic(object):
                             start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
                         )
         logging.info("All done.")
+
+    def optimise(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Optimise a Hic object for faster access'
+        )
+        parser.add_argument(
+            'input',
+            help='Input Hic file'
+        )
+        parser.add_argument(
+            'output',
+            help='Output AccessOptimisedHic file.'
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        import os.path
+        old_hic = kaic.load_hic(os.path.expanduser(args.input), mode='r')
+        new_hic = kaic.AccessOptimisedHic(old_hic, file_name=os.path.expanduser(args.output))
+        new_hic.close()
+        old_hic.close()
+
+    def subset_hic(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Create a new Hic object by subsetting'
+        )
+        parser.add_argument(
+            'input',
+            help='Input Hic file'
+        )
+        parser.add_argument(
+            'output',
+            help='Output Hic file.'
+        )
+
+        parser.add_argument(
+            'regions',
+            nargs='+'
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import os.path
+        import kaic
+
+        input_file = os.path.expanduser(args.input)
+        output_file = os.path.expanduser(args.output)
+
+        old_hic = kaic.load_hic(input_file, mode='r')
+        new_hic = kaic.AccessOptimisedHic(file_name=output_file, mode='w')
+
+        ix_converter = {}
+        ix = 0
+        for region_string in args.regions:
+            for region in old_hic.subset(region_string):
+                ix_converter[region.ix] = ix
+                ix += 1
+
+                new_hic.add_region(region, flush=False)
+        new_hic.flush()
+
+        for region_string in args.regions:
+            for edge in old_hic.edge_subset(key=(region_string, region_string), lazy=True):
+                source = ix_converter[edge.source]
+                sink = ix_converter[edge.sink]
+                new_hic.add_edge([source, sink, edge.weight], flush=False)
+        new_hic.flush()
 
 
 if __name__ == '__main__':
