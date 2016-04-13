@@ -1394,34 +1394,40 @@ class TestRegionMatrix:
         assert key.stop == 8
 
     def test_select(self):
+        def _equal(regions1, regions2):
+            for i, region in enumerate(regions1):
+                if region != regions2[i]:
+                    return False
+            return True
+
         res_all = self.m[:, :]
-        assert np.array_equal(res_all.shape, (12, 12))
-        assert np.array_equal(res_all.row_regions, self.m.row_regions[0:12])
-        assert np.array_equal(res_all.col_regions, self.m.col_regions[0:12])
+        assert _equal(res_all.shape, (12, 12))
+        assert _equal(res_all.row_regions, self.m.row_regions[0:12])
+        assert _equal(res_all.col_regions, self.m.col_regions[0:12])
         res_square = self.m[2:6, 2:6]
-        assert np.array_equal(res_square.shape, (4, 4))
-        assert np.array_equal(res_square.row_regions, self.m.row_regions[2:6])
-        assert np.array_equal(res_square.col_regions, self.m.col_regions[2:6])
+        assert _equal(res_square.shape, (4, 4))
+        assert _equal(res_square.row_regions, self.m.row_regions[2:6])
+        assert _equal(res_square.col_regions, self.m.col_regions[2:6])
         res_rect = self.m[2:6, 5:7]
-        assert np.array_equal(res_rect.shape, (4, 2))
-        assert np.array_equal(res_rect.row_regions, self.m.row_regions[2:6])
-        assert np.array_equal(res_rect.col_regions, self.m.col_regions[5:7])
+        assert _equal(res_rect.shape, (4, 2))
+        assert _equal(res_rect.row_regions, self.m.row_regions[2:6])
+        assert _equal(res_rect.col_regions, self.m.col_regions[5:7])
         res_row = self.m[1]
-        assert np.array_equal(res_row.shape, (12,))
-        assert np.array_equal(res_row.row_regions, self.m.row_regions[1])
-        assert np.array_equal(res_row.col_regions, self.m.col_regions[:])
+        assert _equal(res_row.shape, (12,))
+        assert res_row.row_regions == self.m.row_regions[1]
+        assert _equal(res_row.col_regions, self.m.col_regions[:])
         res_col = self.m[:, 1]
-        assert np.array_equal(res_col.shape, (12,))
-        assert np.array_equal(res_col.row_regions, self.m.row_regions[:])
-        assert np.array_equal(res_col.col_regions, self.m.col_regions[1])
+        assert _equal(res_col.shape, (12,))
+        assert _equal(res_col.row_regions, self.m.row_regions[:])
+        assert res_col.col_regions == self.m.col_regions[1]
         res_row_sub = self.m[1, 2:6]
-        assert np.array_equal(res_row_sub.shape, (4,))
-        assert np.array_equal(res_row_sub.row_regions, self.m.row_regions[1])
-        assert np.array_equal(res_row_sub.col_regions, self.m.col_regions[2:6])
+        assert _equal(res_row_sub.shape, (4,))
+        assert res_row_sub.row_regions == self.m.row_regions[1]
+        assert _equal(res_row_sub.col_regions, self.m.col_regions[2:6])
         res_col_sub = self.m[2:6, 1]
-        assert np.array_equal(res_col_sub.shape, (4,))
-        assert np.array_equal(res_col_sub.row_regions, self.m.row_regions[2:6])
-        assert np.array_equal(res_col_sub.col_regions, self.m.col_regions[1])
+        assert _equal(res_col_sub.shape, (4,))
+        assert _equal(res_col_sub.row_regions, self.m.row_regions[2:6])
+        assert res_col_sub.col_regions == self.m.col_regions[1]
         res_single = self.m[0, 0]
         assert isinstance(res_single, float)
 
