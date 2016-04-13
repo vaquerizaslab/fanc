@@ -110,7 +110,6 @@ class GenomicFigure(object):
             if hasattr(plots[i], 'cax'):
                 plots[i].cax = plt.subplot(gs[i, 1])
             else:
-                print("no")
                 cax = plt.subplot(gs[i, 1])
                 sns.despine(ax=cax, top=True, left=True, bottom=True, right=True)
                 cax.xaxis.set_visible(False)
