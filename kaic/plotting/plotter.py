@@ -411,7 +411,6 @@ class GenomicFeaturePlot(BasePlotter1D):
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
         """
-        import pybedtools as pbt
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
         self.bedtool = pbt.BedTool(regions)
         if feature_types is None and self.bedtool.file_type == "gff":
@@ -424,11 +423,12 @@ class GenomicFeaturePlot(BasePlotter1D):
         self.label_format = label_format
         self.label_cast = label_cast
 
-    def _plot(self, region=None, ax=None):
+    def _plot(self, region=None, ax=None, *args, **kwargs):
         interval = region_to_pbt_interval(region)
         genes = self.bedtool.all_hits(interval)
         trans = self.ax.get_xaxis_transform()
-        pos = {k: i/(1 + self._n_tracks) for i, k in (enumerate(self.feature_types) if self.feature_types else [(0, "")])}
+        pos = {k: i/(1 + self._n_tracks)
+               for i, k in (enumerate(self.feature_types) if self.feature_types else [(0, "")])}
         stroke_length = max(0.03, 1/self._n_tracks - .05)
         for k, p in pos.iteritems():
             self.ax.text(0, p, k, transform=self.ax.transAxes, ha="left", size=5)
@@ -451,9 +451,9 @@ class GenomicFeaturePlot(BasePlotter1D):
                          transform=trans, ha="center", size="small")
         sns.despine(ax=self.ax, top=True, left=True, right=True)
         self.ax.yaxis.set_major_locator(NullLocator())
-        self.remove_colorbar_ax()
+        # self.remove_colorbar_ax()
 
-    def _refresh(self, **kwargs):
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
 
 
