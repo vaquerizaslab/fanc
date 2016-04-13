@@ -50,6 +50,33 @@ def get_region_field(interval, field, return_default=False):
         raise ValueError("Field {} can't be found in inteval {}".format(field, interval))
 
 
+def absolute_wspace_hspace(fig, gs, wspace, hspace):
+    """
+    Set distance between subplots of a GridSpec instance in inches. Updates the
+    GridSpec instance and returns the calculated relative (as required by GridSpec) as tuple.
+
+    :param fig: Figure instance
+    :param gs: GridSpec instance
+    :param wspace: Distance in inches horizontal
+    :param hspace: Distance in inches vertical
+    :return: (wspace, hspace) as a fraction of axes size
+    """
+    figsize = fig.get_size_inches()
+    sp_params = gs.get_subplot_params(fig)
+    wspace = wspace/figsize[0]
+    hspace = hspace/figsize[1]
+    tot_width = sp_params.right - sp_params.left
+    tot_height = sp_params.top - sp_params.bottom
+    nrows, ncols = gs.get_geometry()
+    wspace = wspace*ncols/(tot_width - wspace*ncols + wspace)
+    hspace = hspace*nrows/(tot_height - hspace*nrows + hspace)
+    if not wspace > 0 or not hspace > 0:
+        raise ValueError("Invalid relative spacing ({}, {}) calculated, "
+                         "Probably distance set too large.".format(wspace, hspace))
+    gs.update(wspace=wspace, hspace=hspace)
+    return wspace, hspace
+
+
 class GenomicFigure(object):
     def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None,
                  ticks_last=False):
