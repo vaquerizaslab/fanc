@@ -47,7 +47,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
 
             self.shared_base_field_names = []
             for i, hic in enumerate(hics):
-                field_descriptions = hic._edges.coldescrs
+                field_descriptions = hic._field_dict
                 for name, description in field_descriptions.iteritems():
 
                     if name.startswith("_") or name in {'source', 'sink'}:

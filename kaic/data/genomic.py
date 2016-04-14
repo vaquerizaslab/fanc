@@ -3612,6 +3612,7 @@ class Hic(RegionMatrixTable):
 
         # add data
         self._add_data(data)
+        self._field_dict = self._edges.coldescrs
 
     def _add_data(self, data):
         if data is not None:
