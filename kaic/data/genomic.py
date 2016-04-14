@@ -1955,6 +1955,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         self._source_field_ix = 0
         self._sink_field_ix = 0
         self.field_names = []
+        self._field_dict = self._edges.coldescrs
         for i, name in enumerate(self._edges.colnames):
             if not name.startswith("_"):
                 self.field_names.append(name)
@@ -3612,7 +3613,6 @@ class Hic(RegionMatrixTable):
 
         # add data
         self._add_data(data)
-        self._field_dict = self._edges.coldescrs
 
     def _add_data(self, data):
         if data is not None:
