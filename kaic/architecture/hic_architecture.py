@@ -9,6 +9,7 @@ from kaic.tools.matrix import apply_sliding_func
 import numpy as np
 import tables as t
 import logging
+from kaic.tools.general import RareUpdateProgressBar
 logging.basicConfig(level=logging.INFO)
 
 
@@ -338,6 +339,69 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
                     expected = inter_expected
                 self.add_edge(Edge(new_source, new_sink, ratio=weight/expected), flush=False)
             self.flush()
+
+
+class ABDomainMatrix(MatrixArchitecturalRegionFeature):
+    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
+                 ratio=True, weight_column='weight', per_chromosome=True, _table_name='ab_domains'):
+        self.region_selection = regions
+
+        # are we retrieving an existing object?
+        if isinstance(hic, str) and file_name is None:
+            file_name = hic
+            hic = None
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        else:
+            if regions is None:
+                regions = hic.regions
+                self.region_conversion = {region.ix: region.ix for region in hic.regions}
+            else:
+                self.region_conversion = {region.ix: i for i, region in enumerate(hic.subset(regions))}
+                regions = hic.subset(regions)
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields={'correlation': t.Float32Col()}, regions=regions,
+                                                      default_field='correlation', _table_name_edges=_table_name)
+        self.hic = hic
+        self.weight_column = weight_column
+        self.ratio = ratio
+        self.per_chromosome = per_chromosome
+
+    def _calculate(self):
+        oer = self.hic
+        if self.ratio:
+            oer = ObservedExpectedRatio(self.hic, weight_column=self.weight_column)
+
+        if self.per_chromosome:
+            chromosomes = self.chromosomes()
+            for chromosome in chromosomes:
+                    m = oer[chromosome, chromosome]
+                    corr_m = np.corrcoef(m)
+                    logging.info("Chromosome {}".format(chromosome))
+                    with RareUpdateProgressBar(max_value=m.shape[0]) as pb:
+                        for i, row_region in enumerate(m.row_regions):
+                            for j, col_region in enumerate(m.col_regions):
+                                if j < i:
+                                    continue
+
+                                source = self.region_conversion[row_region.ix]
+                                sink = self.region_conversion[col_region.ix]
+                                self.add_edge([source, sink, corr_m[i, j]], flush=False)
+                            pb.update(i)
+        else:
+            m = oer[:]
+            corr_m = np.corrcoef(m)
+            with RareUpdateProgressBar(max_value=m.shape[0]) as pb:
+                for i, row_region in enumerate(m.row_regions):
+                    for j in xrange(i, len(m.row_regions)):
+                        col_region = m.row_regions[j]
+                        source = self.region_conversion[row_region.ix]
+                        sink = self.region_conversion[col_region.ix]
+                        self.add_edge([source, sink, corr_m[i, j]], flush=False)
+                    pb.update(i)
+        self.flush()
+
+        if self.ratio:
+            oer.close()
 
 
 class PossibleContacts(TableArchitecturalFeature):
