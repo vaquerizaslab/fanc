@@ -146,7 +146,7 @@ class BufferedMatrix(object):
 
         :return: float or None if nothing is buffered
         """
-        return np.ma.min(self.buffered_matrix[np.ma.nonzero(self.buffered_matrix)])\
+        return float(np.nanmin(self.buffered_matrix[np.ma.nonzero(self.buffered_matrix)]))\
             if self.buffered_matrix is not None else None
 
     @property
@@ -155,7 +155,7 @@ class BufferedMatrix(object):
         Find the largest buffered matrix value
         :return: float or None if nothing is buffered
         """
-        return np.ma.max(self.buffered_matrix) if self.buffered_matrix is not None else None
+        return float(np.nanmax(self.buffered_matrix)) if self.buffered_matrix is not None else None
 
     _BUFFERING_STRATEGIES = {_STRATEGY_ALL: _buffer_all,
                              _STRATEGY_RELATIVE: _buffer_relative,
@@ -203,7 +203,7 @@ class BasePlotterHic(BasePlotterMatrix):
                                    blend_zero=blend_zero, unmappable_color=unmappable_color,
                                    illegal_color=illegal_color)
         self.hic_data = hic_data
-        if isinstance(hic_data, kaic.Hic):
+        if isinstance(hic_data, kaic.data.genomic.RegionMatrixTable):
             self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
                                              buffering_arg=buffering_arg)
         elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
@@ -270,8 +270,10 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
         if ax is None:
             ax = append_axes(self.ax, 'top', 0.2, 0.25)
 
-        self.vmax_slider = Slider(ax, 'vmax', self.hic_buffer.buffered_min,
-                                  self.hic_buffer.buffered_max, valinit=self.vmax,
+        vmin = self.hic_buffer.buffered_min
+        vmax = self.hic_buffer.buffered_max
+        self.vmax_slider = Slider(ax, 'vmax', vmin,
+                                  vmax, valinit=self.vmax,
                                   facecolor='#dddddd', edgecolor='none')
 
         self.vmax_slider.on_changed(self._slider_refresh)
