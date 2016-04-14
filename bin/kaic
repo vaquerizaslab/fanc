@@ -1710,7 +1710,7 @@ class Kaic(object):
         parser.add_argument(
             '-e', '--expected-filter', dest='expected_filter',
             type=float,
-            help='''Cutoff for expected/observed ratio of a contact to be considered for PCA. Derfault: no filter.'''
+            help='''Cutoff for expected/observed ratio of a contact to be considered for PCA. Default: no filter.'''
         )
 
         parser.add_argument(
