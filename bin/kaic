@@ -1402,22 +1402,20 @@ class Kaic(object):
         tmpdir = '/tmp' if args.tmp else None
 
         import kaic
-        from kaic.tools.files import copy_or_expand, create_temporary_copy
 
         output_path = os.path.expanduser(args.output)
-
-        logging.info("Copying to %s" % output_path)
-        base_path = copy_or_expand(args.hic.pop(0), output_path)
+        paths = [os.path.expanduser(path) for path in args.hic]
+        hics = [kaic.load_hic(path, mode='r', tmpdir=tmpdir) for path in paths]
+        first_hic = hics.pop(0)
 
         if args.optimise:
-            hic_class = kaic.AccessOptimisedHic
+            merged = kaic.AccessOptimisedHic(data=first_hic, file_name=output_path, mode='w')
         else:
-            hic_class = kaic.Hic
+            merged = kaic.Hic(data=first_hic, file_name=output_path, mode='w')
 
-        with hic_class(base_path, mode='a', tmpdir=tmpdir) as merged:
-            paths = [os.path.expanduser(path) for path in args.hic]
-            hics = (kaic.load_hic(path, mode='r', tmpdir=tmpdir) for path in paths)
-            merged.merge(hics)
+        merged.merge(hics)
+
+        merged.close()
 
         logging.info("All done")
 
