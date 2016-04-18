@@ -2,7 +2,7 @@ from __future__ import division
 from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
     MatrixArchitecturalRegionFeatureFilter
-from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge
+from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic
 from collections import defaultdict
 from kaic.tools.general import ranges
 from kaic.tools.matrix import apply_sliding_func
@@ -402,6 +402,87 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
 
         if self.ratio:
             oer.close()
+
+
+class ABDomains(VectorArchitecturalRegionFeature):
+    def __init__(self, data, file_name=None, mode='a', tmpdir=None,
+                 per_chromosome=True, regions=None, _table_name='abdomains'):
+        self.region_selection = regions
+
+        # are we retrieving an existing object?
+        if isinstance(data, str) and file_name is None:
+            file_name = data
+            data = None
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        else:
+            if regions is None:
+                regions = data.regions
+            else:
+                regions = data.subset(regions)
+
+            fields = {'ev': t.Float32Col()}
+
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields=fields, regions=regions,
+                                                      _table_name_data=_table_name)
+
+        self.per_chromosome = per_chromosome
+        self.data = data
+
+    def _calculate(self):
+        if isinstance(self.data, Hic):
+            ab_data = ABDomainMatrix(self.data, regions=self.region_selection, per_chromosome=self.per_chromosome)
+        else:
+            ab_data = self.data
+
+        ab_results = dict()
+        if self.per_chromosome:
+            for chromosome in self.chromosomes():
+                m = ab_data[chromosome, chromosome]
+                m[np.isnan(m)] = 0
+                w, v = np.linalg.eig(m)
+                ab_vector = v[:, 1]
+                for i, region in enumerate(m.row_regions):
+                    ab_results[region.ix] = ab_vector[i]
+        else:
+            m = ab_data[:]
+            m[np.isnan(m)] = 0
+            w, v = np.linalg.eig(m)
+            ab_vector = v[:, 1]
+            for i, region in enumerate(m.row_regions):
+                ab_results[region.ix] = ab_vector[i]
+
+        for region in self.regions(lazy=True):
+            region.ev = ab_results[region.ix]
+        self.flush()
+
+    @calculateondemand
+    def ab_domain_eigenvector(self):
+        return self[:, 'ev']
+
+    @calculateondemand
+    def ab_regions(self):
+        domains = []
+        current_domain = None
+        last_region = None
+        for region in self.regions(lazy=False):
+            domain_type = 'A' if region.ev >= 0 else 'B'
+
+            if last_region is not None and region.chromosome != last_region.chromosome:
+                current_domain = None
+
+            if current_domain is None:
+                current_domain = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end,
+                                               type=domain_type)
+            else:
+                if (region.ev < 0 and last_region.ev < 0) or (region.ev >= 0 and last_region.ev >= 0):
+                    current_domain.end = region.end
+                else:
+                    domains.append(current_domain)
+                    current_domain = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end,
+                                                   type=domain_type)
+            last_region = region
+        return domains
 
 
 class PossibleContacts(TableArchitecturalFeature):
