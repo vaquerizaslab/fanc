@@ -110,7 +110,7 @@ def mapq_hist_plot(reads, output=None, include_masked=False):
     _plot_figure(mqplot.figure, output, old_backend)
 
 
-def pca_plot(pca_res, pca_info=None, markers=None, colors=None):
+def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
     if markers is None:
         markers = ('^', 'o', '*', 's', 'D', '+', 'x', 'h', 'p', ',')
     if colors is None:
@@ -126,14 +126,21 @@ def pca_plot(pca_res, pca_info=None, markers=None, colors=None):
     if pca_info is not None:
         ylabel += ' (%d%%)' % int(pca_info.explained_variance_ratio_[1]*100)
 
-    fig, ax = sns.plt.subplots()
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    if names is not None:
+        fig, (ax_main, _) = sns.plt.subplots(1, 2)
+    else:
+        fig, ax_main = sns.plt.subplots()
+    ax_main.set_xlabel(xlabel)
+    ax_main.set_ylabel(ylabel)
 
-    ax.set_title('PCA on %d samples' % pca_res.shape[0])
+    ax_main.set_title('PCA on %d samples' % pca_res.shape[0])
 
     for i in xrange(pca_res.shape[0]):
-        ax.plot(pca_res[i, 0], pca_res[i, 1], marker=markers.next(), color=colors.next())
+        name = names[i] if names is not None else None
+        ax_main.plot(pca_res[i, 0], pca_res[i, 1], marker=markers.next(), color=colors.next(), label=name)
 
-    return fig, ax
+    if names is not None:
+        sns.plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+    return fig, ax_main
 

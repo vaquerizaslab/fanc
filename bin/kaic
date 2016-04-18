@@ -1721,6 +1721,18 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-n', '--names', dest='names',
+            nargs='+',
+            help='''Sample names for plot labelling.'''
+        )
+
+        parser.add_argument(
+            '-c', '--colors', dest='colors',
+            nargs='+',
+            help='''Colors for plotting.'''
+        )
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1730,10 +1742,10 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
+        from kaic.plotting.plot_statistics import pca_plot
         from kaic.architecture.pca import do_pca, HicCollectionWeightMeanVariance
         from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter,\
             BackgroundLigationCollectionFilter
-        from kaic.plotting.plot_statistics import pca_plot
         from kaic.tools.files import create_temporary_copy
         import shutil
 
@@ -1745,11 +1757,17 @@ class Kaic(object):
             output_path = tmp_file.name
         else:
             output_path = output_folder + '/hics.coll'
+
+        sample_names = args.names if args.names is not None else []
         try:
             if len(args.input) == 1:
                 coll = HicCollectionWeightMeanVariance(args.input[0])
             else:
+
                 for file_name in args.input:
+                    if args.names is None:
+                        sample_names.append(os.path.splitext(os.path.basename(file_name))[0])
+
                     if args.tmp:
                         input_path = create_temporary_copy(file_name)
                     else:
@@ -1790,7 +1808,7 @@ class Kaic(object):
                             else:
                                 res.write("\t")
 
-                fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=['blue', 'blue', 'red', 'red'])
+                fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names)
                 ax.set_title("PCA sample size %d" % sample_size)
                 fig.savefig(output_folder + '/pca_plot_%d.pdf' % sample_size)
         finally:
