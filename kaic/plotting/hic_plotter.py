@@ -197,11 +197,11 @@ class BasePlotterHic(BasePlotterMatrix):
     def __init__(self, hic_data, colormap='viridis', norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9", illegal_color=None):
+                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
         BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm,
                                    vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
                                    blend_zero=blend_zero, unmappable_color=unmappable_color,
-                                   illegal_color=illegal_color)
+                                   illegal_color=illegal_color, colorbar_symmetry=colorbar_symmetry)
         self.hic_data = hic_data
         if isinstance(hic_data, kaic.data.genomic.RegionMatrixTable):
             self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
@@ -217,7 +217,7 @@ class BasePlotterHic(BasePlotterMatrix):
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', norm="log",
-                 vmin=None, vmax=None, show_colorbar=True,
+                 vmin=None, vmax=None, show_colorbar=True, colorbar_symmetry=None,
                  adjust_range=True, buffering_strategy="relative", buffering_arg=1,
                  blend_zero=True, unmappable_color=".9",
                  aspect=1., axes_style="ticks"):
@@ -246,7 +246,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                                 norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
                                 adjust_range=adjust_range, buffering_strategy=buffering_strategy,
                                 buffering_arg=buffering_arg, blend_zero=blend_zero,
-                                unmappable_color=unmappable_color)
+                                unmappable_color=unmappable_color, colorbar_symmetry=colorbar_symmetry)
         self.vmax_slider = None
         self.current_matrix = None
 
@@ -281,13 +281,16 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def _slider_refresh(self, val):
         # new_vmin = self.vmin_slider.val
         new_vmax = self.vmax_slider.val
-        self.im.set_clim(vmin=self.hic_buffer.buffered_min, vmax=new_vmax)
+        if self.colorbar_symmetry is not None:
+            diff = abs(self.colorbar_symmetry - new_vmax)
+            self.im.set_clim(vmin=self.colorbar_symmetry - diff, vmax=self.colorbar_symmetry + diff)
+        else:
+            self.im.set_clim(vmin=self.hic_buffer.buffered_min, vmax=new_vmax)
         # Hack to force redraw of image data
         self.im.set_data(self.current_matrix)
 
         if self.colorbar is not None:
-            self.colorbar.set_clim(vmax=new_vmax)
-            self.colorbar.draw_all()
+            self.update_colorbar(vmax=new_vmax)
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
@@ -332,7 +335,7 @@ class HicComparisonPlot2D(HicPlot2D):
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=False,
+                 vmin=None, vmax=None, show_colorbar=True, adjust_range=False, colorbar_symmetry=None,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
                  unmappable_color=".9", illegal_color=None, aspect=.5,
                  axes_style="ticks"):
@@ -364,7 +367,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
                                 buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
                                 norm=norm, blend_zero=blend_zero, unmappable_color=unmappable_color,
-                                illegal_color=illegal_color)
+                                illegal_color=illegal_color, colorbar_symmetry=colorbar_symmetry)
         self.max_dist = max_dist
         self.hm = None
 
@@ -448,8 +451,11 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
     def _slider_refresh(self, val):
         # new_vmin = self.vmin_slider.val
         new_vmax = self.vmax_slider.val
-        self._update_norm(vmax=new_vmax)
+        if self.colorbar_symmetry is not None:
+            diff = abs(self.colorbar_symmetry-new_vmax)
+            self._update_norm(vmin=self.colorbar_symmetry-diff, vmax=self.colorbar_symmetry+diff)
+        else:
+            self._update_norm(vmax=new_vmax)
         self._update_mesh_colors()
         if self.colorbar is not None:
-            self.colorbar.set_clim(vmax=new_vmax)
-            self.colorbar.draw_all()
+            self.update_colorbar(vmax=new_vmax)

@@ -401,7 +401,7 @@ class BasePlotterMatrix(BasePlotter):
 
     def __init__(self, colormap='viridis', norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, title='',
-                 unmappable_color=".9", illegal_color=None,
+                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None,
                  aspect=1., axes_style='ticks'):
         BasePlotter.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
 
@@ -416,6 +416,7 @@ class BasePlotterMatrix(BasePlotter):
         self.blend_zero = blend_zero
         self.illegal_color = illegal_color
         self.show_colorbar = show_colorbar
+        self.colorbar_symmetry = colorbar_symmetry
         self.colorbar = None
         self.cax = None
         if isinstance(self.show_colorbar, mpl.axes.Axes):
@@ -438,17 +439,40 @@ class BasePlotterMatrix(BasePlotter):
             color_matrix[:, np.all(zero_mask, axis=1)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
         return color_matrix
 
-    def add_colorbar(self, ax=None):
+    def add_colorbar(self, ax=None, baseline=None):
         """
         Add colorbar to the plot.
 
         :param ax: Optional axis on which to draw the colorbar
+        :param baseline: symmetric axis around this value. Asymmetric if None.
         """
+        if baseline is None and self.colorbar_symmetry is not None:
+            baseline = self.colorbar_symmetry
+
         if ax is None and self.cax is not None:
             ax = self.cax
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
+
         cmap_data.set_array(np.array([self.vmin, self.vmax]))
         self.colorbar = plt.colorbar(cmap_data, cax=ax, orientation="vertical")
+        self.update_colorbar(vmin=self.vmin, vmax=self.vmax, baseline=baseline)
+
+    def update_colorbar(self, vmin=None, vmax=None, baseline=None):
+        if baseline is None and self.colorbar_symmetry is not None:
+            baseline = self.colorbar_symmetry
+
+        if baseline is None:
+            self.colorbar.set_clim(vmax=vmax)
+        else:
+            old_vmin, old_vmax = self.colorbar.get_clim()
+            if vmin is None:
+                vmin = old_vmin
+            if vmax is None:
+                vmax = old_vmax
+
+            max_diff = max(abs(baseline - vmax), abs(baseline - vmin))
+            self.colorbar.set_clim(vmin=baseline-max_diff, vmax=baseline+max_diff)
+        self.colorbar.draw_all()
 
     def remove_colorbar_ax(self):
         try:
