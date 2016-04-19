@@ -1,8 +1,8 @@
 from __future__ import division, print_function
 from matplotlib.ticker import NullLocator
-from kaic.data.genomic import GenomicRegion
+from kaic.data.genomic import GenomicRegion, GenomicRegions
 from kaic.plotting import style_ticks_whitegrid
-from kaic.plotting.base_plotter import BasePlotter1D
+from kaic.plotting.base_plotter import BasePlotter1D, append_axes
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
@@ -387,6 +387,7 @@ class VerticalSplitPlot(BasePlotter1D):
         self.bottom_ax = None
         self.gap = gap
         self.cax_gap = cax_gap
+        self.cax = None
 
     def _add_split_ax(self, ax, gap):
         bbox = ax.get_position()
@@ -399,6 +400,8 @@ class VerticalSplitPlot(BasePlotter1D):
         return top_ax, bottom_ax
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
+        if self.cax is None:
+            self.cax = append_axes(self.ax, 'right', 0.3, 0.05)
         # Check if ax has already been split
         if self.parent_ax is not self.ax:
             self.parent_ax = self.ax
@@ -416,6 +419,16 @@ class VerticalSplitPlot(BasePlotter1D):
         sns.despine(ax=self.top_ax, top=True, left=True, bottom=True, right=True)
         self.top_ax.xaxis.set_major_locator(NullLocator())
         self.top_ax.xaxis.set_minor_locator(NullLocator())
+
+        if not hasattr(self.top_plot, 'colorbar') or self.top_plot.colorbar is None:
+            sns.despine(ax=self.top_plot.cax, top=True, left=True, bottom=True, right=True)
+            self.top_plot.cax.xaxis.set_visible(False)
+            self.top_plot.cax.yaxis.set_visible(False)
+
+        if not hasattr(self.bottom_plot, 'colorbar') or self.bottom_plot.colorbar is None:
+            sns.despine(ax=self.bottom_plot.cax, top=True, left=True, bottom=True, right=True)
+            self.bottom_plot.cax.xaxis.set_visible(False)
+            self.bottom_plot.cax.yaxis.set_visible(False)
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
@@ -583,43 +596,4 @@ class BigWigPlot(ScalarDataPlot):
             self.ax.set_ylim(self.ylim)
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
-        pass
-
-
-class GenomicFeaturePlot(BasePlotter1D):
-    def __init__(self, regions, labels, title="", color='black'):
-        BasePlotter1D.__init__(self, title=title)
-        sorted_regions = sorted(zip(regions, labels), key=lambda x: (x[0].chromosome, x[0].start))
-        regions, self.labels = zip(*sorted_regions)
-
-        self.color = color
-        self.regions = GenomicRegions(regions=regions)
-
-        for region in regions:
-            print(region)
-
-    def _plot(self, region=None, ax=None):
-        trans = self.ax.get_xaxis_transform()
-        overlap_regions = self.regions.range(region)
-        for r in overlap_regions:
-            print(r.ix)
-            region_patch = patches.Rectangle(
-                (r.start, 0.05),
-                width=abs(r.end - r.start), height=0.6,
-                transform=trans,
-                color=self.color
-            )
-            self.ax.add_patch(region_patch)
-            self.ax.text((r.start + r.end)/2, 0.8, self.labels[r.ix], transform=trans,
-                         ha="center", size="small")
-
-        # self.ax.spines['right'].set_visible(False)
-        # self.ax.spines['top'].set_visible(False)
-        # self.ax.spines['left'].set_visible(False)
-        # self.ax.spines['bottom'].set_visible(False)
-        # self.ax.xaxis.set_ticks_position('bottom')
-        # self.ax.yaxis.set_visible(False)
-        # self.ax.xaxis.set_visible(False)
-
-    def _refresh(self, **kwargs):
         pass
