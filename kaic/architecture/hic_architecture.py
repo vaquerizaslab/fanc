@@ -152,9 +152,11 @@ class ExpectedContacts(TableArchitecturalFeature):
         # extract mappable regions from Hic object
         marginals = self.hic.marginals(weight_column=self.weight_column)
         regions = []
+        all_regions = []
         region_ix = set()
         if self.regions is None:
             for region in self.hic.regions(lazy=False):
+                all_regions.append(region)
                 if marginals[region.ix] > 0:
                     regions.append(region)
                     region_ix.add(region.ix)
@@ -167,6 +169,7 @@ class ExpectedContacts(TableArchitecturalFeature):
                     region = GenomicRegion.from_string(region)
 
                 for r in self.hic.subset(region, lazy=False):
+                    all_regions.append(r)
                     if marginals[r.ix] > 0:
                         regions.append(r)
                         region_ix.add(r.ix)
@@ -176,13 +179,13 @@ class ExpectedContacts(TableArchitecturalFeature):
         regions_by_chromosome = defaultdict(int)
         min_region_by_chromosome = dict()
         max_region_by_chromosome = dict()
-        for region in self.hic.regions:
+        for region in regions:
             if (region.chromosome not in max_region_by_chromosome or
-                    max_region_by_chromosome[region.chromosome] < region.ix):
+                        max_region_by_chromosome[region.chromosome] < region.ix):
                 max_region_by_chromosome[region.chromosome] = region.ix
 
             if (region.chromosome not in min_region_by_chromosome or
-                    min_region_by_chromosome[region.chromosome] > region.ix):
+                        min_region_by_chromosome[region.chromosome] > region.ix):
                 min_region_by_chromosome[region.chromosome] = region.ix
 
             regions_by_chromosome[region.chromosome] += 1
@@ -192,10 +195,29 @@ class ExpectedContacts(TableArchitecturalFeature):
         max_distance = 0
         for chromosome in min_region_by_chromosome:
             max_distance = max(max_distance,
-                               max_region_by_chromosome[chromosome] - min_region_by_chromosome[chromosome] + 1)
+                               max_region_by_chromosome[chromosome] - min_region_by_chromosome[chromosome])
+
+        # find maximum theoretical distance, even if unmappable
+        min_region_by_chromosome_t = dict()
+        max_region_by_chromosome_t = dict()
+        for region in all_regions:
+            if (region.chromosome not in max_region_by_chromosome_t or
+                        max_region_by_chromosome_t[region.chromosome] < region.ix):
+                max_region_by_chromosome_t[region.chromosome] = region.ix
+
+            if (region.chromosome not in min_region_by_chromosome_t or
+                        min_region_by_chromosome_t[region.chromosome] > region.ix):
+                min_region_by_chromosome_t[region.chromosome] = region.ix
+
+        # find the largest distance between two regions
+        # in the entire intra-chromosomal genome
+        max_distance_t = 0
+        for chromosome in min_region_by_chromosome_t:
+            max_distance_t = max(max_distance_t,
+                                 max_region_by_chromosome_t[chromosome] - min_region_by_chromosome_t[chromosome])
 
         # get the number of pixels at a given bin distance
-        pixels_by_distance = np.zeros(max_distance + 1)
+        pixels_by_distance = [0.0] * (max_distance + 1)
         for chromosome, n in regions_by_chromosome.iteritems():
             for distance in xrange(0, n):
                 pixels_by_distance[distance] += n-distance
@@ -211,7 +233,7 @@ class ExpectedContacts(TableArchitecturalFeature):
             chromosomes[i] = chromosome_map[region.chromosome]
 
         # get the number of reads at a given bin distance
-        reads_by_distance = np.zeros(max_distance + 1)
+        reads_by_distance = [0.0] * (max_distance + 1)
         inter_observed = 0
         for edge in self.hic.edges(lazy=True):
             source = edge.source
@@ -233,11 +255,16 @@ class ExpectedContacts(TableArchitecturalFeature):
         except ZeroDivisionError:
             inter_expected = 0
 
-        self.data('distance', np.arange(len(reads_by_distance))*self.hic.bin_size)
+        distance = np.arange(len(reads_by_distance))*self.hic.bin_size
+        self.data('distance', distance)
+
+        while len(reads_by_distance) < max_distance_t+1:
+            reads_by_distance.append(reads_by_distance[-1])
+            pixels_by_distance.append(pixels_by_distance[-1])
 
         # return here if smoothing not requested
         if not self.smooth:
-            intra_expected = reads_by_distance/pixels_by_distance
+            intra_expected = np.array(reads_by_distance)/np.array(pixels_by_distance)
 
             self.data('intra', intra_expected)
             self.data('contacts', reads_by_distance)
@@ -246,8 +273,8 @@ class ExpectedContacts(TableArchitecturalFeature):
             return
 
         # smoothing
-        smoothed_reads_by_distance = np.zeros(max_distance + 1)
-        smoothed_pixels_by_distance = np.zeros(max_distance + 1)
+        smoothed_reads_by_distance = np.zeros(len(reads_by_distance))
+        smoothed_pixels_by_distance = np.zeros(len(pixels_by_distance))
         for i in xrange(len(reads_by_distance)):
             smoothed_reads = reads_by_distance[i]
             smoothed_pixels = pixels_by_distance[i]
