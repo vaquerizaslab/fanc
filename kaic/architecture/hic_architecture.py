@@ -176,7 +176,7 @@ class ExpectedContacts(TableArchitecturalFeature):
         regions_by_chromosome = defaultdict(int)
         min_region_by_chromosome = dict()
         max_region_by_chromosome = dict()
-        for region in regions:
+        for region in self.hic.regions:
             if (region.chromosome not in max_region_by_chromosome or
                     max_region_by_chromosome[region.chromosome] < region.ix):
                 max_region_by_chromosome[region.chromosome] = region.ix
@@ -191,7 +191,8 @@ class ExpectedContacts(TableArchitecturalFeature):
         # in the entire intra-chromosomal genome
         max_distance = 0
         for chromosome in min_region_by_chromosome:
-            max_distance = max(max_distance, max_region_by_chromosome[chromosome]-min_region_by_chromosome[chromosome])
+            max_distance = max(max_distance,
+                               max_region_by_chromosome[chromosome] - min_region_by_chromosome[chromosome] + 1)
 
         # get the number of pixels at a given bin distance
         pixels_by_distance = np.zeros(max_distance + 1)
@@ -339,6 +340,72 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
                     expected = inter_expected
                 self.add_edge(Edge(new_source, new_sink, ratio=weight/expected), flush=False)
             self.flush()
+
+
+class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
+    def __init__(self, matrix1, matrix2, file_name=None, mode='a', tmpdir=None,
+                 regions=None, scale_matrices=False, log2=True,
+                 weight_column='weight', _table_name='expected_contacts'):
+        self.region_selection = regions
+
+        # are we retrieving an existing object?
+        if isinstance(matrix1, str) and matrix2 is None and file_name is None:
+            file_name = matrix1
+            matrix1 = None
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        else:
+            if regions is None:
+                regions = matrix1.regions
+                self.region_conversion = {region.ix: region.ix for region in matrix1.regions}
+            else:
+                self.region_conversion = {region.ix: i for i, region in enumerate(matrix1.subset(regions))}
+                regions = matrix1.subset(regions)
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields={'fc': t.Float32Col()}, regions=regions,
+                                                      default_field='fc', _table_name_edges=_table_name)
+        self.matrix1 = matrix1
+        self.matrix2 = matrix2
+        self.weight_column = weight_column
+        self.scale_matrices = scale_matrices
+        self.log2 = log2
+
+    def _calculate(self):
+        if self.scale_matrices:
+            scaling_factor = self.matrix1.scaling_factor(self.matrix2)
+        else:
+            scaling_factor = 1.
+
+        chromosomes = self.chromosomes()
+
+        for i in xrange(len(chromosomes)):
+            chromosome1 = chromosomes[i]
+            for j in xrange(i, len(chromosomes)):
+                chromosome2 = chromosomes[j]
+
+                edges1 = dict()
+                for edge in self.matrix1.edge_subset(key=(chromosome1, chromosome2), lazy=True):
+                    try:
+                        source = self.region_conversion[edge.source]
+                        sink = self.region_conversion[edge.sink]
+                    except KeyError:
+                        continue
+
+                    edges1[(source, sink)] = getattr(edge, self.weight_column)
+
+                for edge in self.matrix2.edge_subset(key=(chromosome1, chromosome2), lazy=True):
+                    try:
+                        source = self.region_conversion[edge.source]
+                        sink = self.region_conversion[edge.sink]
+                    except KeyError:
+                        continue
+
+                    if (source, sink) in edges1:
+                        weight = edges1[(source, sink)] / (scaling_factor*edge.weight)
+                        if self.log2:
+                            weight = np.log2(weight)
+                        self.add_edge([source, sink, weight], flush=False)
+
+        self.flush()
 
 
 class ABDomainMatrix(MatrixArchitecturalRegionFeature):
@@ -771,6 +838,92 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'ii_%d' % window_size]
+
+
+class RegionContactAverage(VectorArchitecturalRegionFeature):
+    def __init__(self, matrix, file_name=None, mode='a', tmpdir=None,
+                 window_sizes=(200000,), regions=None, offset=0, padding=1, impute_missing=True,
+                 _table_name='contact_average'):
+        self.region_selection = regions
+
+        # are we retrieving an existing object?
+        if isinstance(matrix, str) and file_name is None:
+            file_name = matrix
+            matrix = None
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+        else:
+            if regions is None:
+                regions = matrix.regions
+                self.region_conversion = {region.ix: region.ix for region in matrix.regions}
+            else:
+                self.region_conversion = {region.ix: i for i, region in enumerate(matrix.subset(regions))}
+                regions = matrix.subset(regions)
+
+            av_fields = {}
+            self.window_sizes = []
+            n = 0
+            for i, window_size in enumerate(window_sizes):
+                av_fields['av_%d' % window_size] = t.Float32Col(pos=n)
+                av_fields['avl_%d' % window_size] = t.Float32Col(pos=n+1)
+                av_fields['avr_%d' % window_size] = t.Float32Col(pos=n+2)
+                n += 3
+                self.window_sizes.append(window_size)
+
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields=av_fields, regions=regions,
+                                                      _table_name_data=_table_name)
+
+        self.window_sizes = []
+        for colname in self._regions.colnames:
+            if colname.startswith("av_"):
+                window_size = int(colname[3:])
+                self.window_sizes.append(window_size)
+
+        self.offset = offset
+        self.padding = padding
+        self.matrix = matrix
+        self.impute_missing = impute_missing
+
+    def _contact_average(self, window_size, offset=0, padding=1, _aggr_func=np.ma.mean):
+        av_values = dict()
+        for chromosome in self.chromosomes():
+            matrix = self.matrix.as_matrix(key=(chromosome, chromosome), mask_missing=True,
+                                           impute_missing=self.impute_missing)
+
+            # region index
+            for i, region in enumerate(matrix.row_regions):
+                ix = self.region_conversion[region.ix]
+                slice_left = slice(max(0, i-offset-window_size), max(0, i-offset+1))
+                slice_right = slice(min(i+offset, matrix.shape[0]), min(i+offset+window_size+1, matrix.shape[0]))
+                slice_vertical = slice(max(0, i-padding), min(i+padding, matrix.shape[0]))
+
+                value_left = _aggr_func(matrix[slice_vertical, slice_left])
+                value_right = _aggr_func(matrix[slice_vertical, slice_right])
+
+                av_values[ix] = (value_left, value_right)
+
+        av_left = np.zeros(len(self.regions))
+        av_right = np.zeros(len(self.regions))
+        for region in self.regions(lazy=True):
+            if region.ix in av_values:
+                av_left[region.ix], av_right[region.ix] = av_values[region.ix]
+        return av_left, av_right
+
+    def _calculate(self):
+        offset_bins = self.matrix.distance_to_bins(self.offset)
+        for window_size in self.window_sizes:
+            bins = self.matrix.distance_to_bins(window_size)
+            av_values_left, av_values_right = self._contact_average(bins, offset_bins)
+            av_values = (av_values_left + av_values_right)/2
+            self.data("av_%d" % window_size, av_values)
+            self.data("avl_%d" % window_size, av_values_left)
+            self.data("avr_%d" % window_size, av_values_right)
+
+    @calculateondemand
+    def average_contacts(self, window_size):
+        if window_size is None:
+            window_size = self.window_sizes[0]
+        return self[:, 'av_%d' % window_size]
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
