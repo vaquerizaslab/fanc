@@ -436,6 +436,7 @@ def _is_simple_type(data_type):
         return True
     return False
 
+
 class GenomicTrack(BasicRegionTable):
     def __init__(self, file_name=None, title=None, data_dict=None, regions=None, _table_name_tracks='tracks',
                  mode='a', tmpdir=None):
@@ -455,13 +456,10 @@ class GenomicTrack(BasicRegionTable):
         if data_dict is not None:
             for field, values in data_dict.iteritems():
                 data_type = type(values[0])
-                print data_type
                 if _is_simple_type(data_type):
                     fields[field] = type(values[0])
                 else:
                     matrix_data[field] = values
-
-        print fields
 
         for key in matrix_data.iterkeys():
             del data_dict[key]
@@ -479,7 +477,6 @@ class GenomicTrack(BasicRegionTable):
         for node in self.file.iter_nodes(self._group):
             if node.name != 'regions' and node.name not in self._matrix_tracks:
                 self._matrix_tracks.add(node.name)
-        print(self._matrix_tracks)
 
     @property
     def title(self):
