@@ -164,7 +164,7 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
         n_hics = len(hics)
         coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m',
                                                only_intra_chromosomal=only_intra_chromosomal,
-                                               scale_libraries=True)
+                                               scale_libraries=scale_libraries)
         coll.calculate()
 
         if eo_cutoff != 0.0:
