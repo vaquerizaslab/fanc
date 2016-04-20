@@ -1100,6 +1100,42 @@ class BackgroundLigationCollectionFilter(MatrixArchitecturalRegionFeatureFilter)
         return True
 
 
+class MinMaxDistanceCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
+    """
+    Filter edges where every associated weight is 0.
+    """
+    def __init__(self, collection, min_distance, max_distance, mask=None):
+        """
+        Initialize filter with chosen parameters.
+
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered edges.
+        """
+        MatrixArchitecturalRegionFeatureFilter.__init__(self, mask=mask)
+
+        self.min_distance_bins = collection.bins_to_distance(min_distance)
+        self.max_distance_bins = collection.bins_to_distance(max_distance)
+        self.regions_dict = collection.regions_dict
+
+    def valid_edge(self, edge):
+        """
+        Check if an edge weight is at least fold_change above
+        the expected weight for this contact.
+        """
+        source = edge.source
+        sink = edge.sink
+        distance_bins = sink-source
+
+        # inter-chromosomal are valid by default
+        if self.regions_dict[source].chromosome != self.regions_dict[sink].chromosome:
+            return True
+
+        if self.min_distance_bins <= distance_bins <= self.max_distance_bins:
+            return True
+
+        return False
+
+
 class DiagonalCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
     """
     Filter contacts in the diagonal of a :class:`~Hic` matrix.
