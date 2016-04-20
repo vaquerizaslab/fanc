@@ -64,18 +64,31 @@ def append_axes(parent, side, thickness, padding, length=None, shrink=1., **kwar
     return parent.figure.add_axes([hor, vert, width, height], **kwargs)
 
 
-def force_aspect(ax, aspect):
+def absolute_wspace_hspace(fig, gs, wspace, hspace):
     """
-    Force aspect ratio of a matplotlib axes
+    Set distance between subplots of a GridSpec instance in inches. Updates the
+    GridSpec instance and returns the calculated relative (as required by GridSpec) as tuple.
 
-    :param ax: axes whose aspect ratio will be forced
-    :param aspect: Aspect ratio (width/height)
+    :param fig: Figure instance
+    :param gs: GridSpec instance
+    :param wspace: Distance in inches horizontal
+    :param hspace: Distance in inches vertical
+    :return: (wspace, hspace) as a fraction of axes size
     """
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
-    data_aspect = (xlim[1] - xlim[0])/(ylim[1] - ylim[0])
-    aspect = abs(data_aspect/aspect)
-    ax.set_aspect(aspect)
+    figsize = fig.get_size_inches()
+    sp_params = gs.get_subplot_params(fig)
+    wspace = wspace/figsize[0]
+    hspace = hspace/figsize[1]
+    tot_width = sp_params.right - sp_params.left
+    tot_height = sp_params.top - sp_params.bottom
+    nrows, ncols = gs.get_geometry()
+    wspace = wspace*ncols/(tot_width - wspace*ncols + wspace)
+    hspace = hspace*nrows/(tot_height - hspace*nrows + hspace)
+    if not wspace > 0 or not hspace > 0:
+        raise ValueError("Invalid relative spacing ({}, {}) calculated, "
+                         "Probably distance set too large.".format(wspace, hspace))
+    gs.update(wspace=wspace, hspace=hspace)
+    return wspace, hspace
 
 
 class SymmetricNorm(mpl.colors.Normalize):
@@ -123,33 +136,6 @@ class SymmetricNorm(mpl.colors.Normalize):
         abs_max = max(abs(vmin), abs(vmax))
         self.vmin = -1.*abs_max
         self.vmax = abs_max
-
-
-def millify(n, precision=1):
-    """
-    Take input float and return human readable string.
-    E.g.:
-    millify(1000f0) -> "10k"
-    millify(2300000) -> "2M"
-
-    Parameters
-    ----------
-    n : int, float
-        Number to be converted
-    precision : int
-        Number of decimals displayed in output string
-
-    Returns
-    -------
-    str : Human readable string representation of n
-    """
-    millnames = ["", "k", "M", "B", "T"]
-    if n == 0:
-        return 0
-    n = float(n)
-    millidx = max(0, min(len(millnames) - 1, int(math.floor(math.log10(abs(n))/3))))
-
-    return "{:.{prec}f}{}".format(n/10**(3*millidx), millnames[millidx], prec=precision)
 
 
 class GenomeCoordFormatter(Formatter):
