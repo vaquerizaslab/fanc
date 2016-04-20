@@ -1719,6 +1719,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-w', '--window-filter', dest='window_filter',
+            nargs=2,
+            type=int,
+            help='''Min and max values defining a window of contact distances that are retained for analysis.'''
+        )
+
+        parser.add_argument(
             '-n', '--names', dest='names',
             nargs='+',
             help='''Sample names for plot labelling.'''
@@ -1743,7 +1750,7 @@ class Kaic(object):
         from kaic.plotting.plot_statistics import pca_plot
         from kaic.architecture.pca import do_pca, HicCollectionWeightMeanVariance
         from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter,\
-            BackgroundLigationCollectionFilter
+            BackgroundLigationCollectionFilter, MinMaxDistanceCollectionFilter
         from kaic.tools.files import create_temporary_copy
         import shutil
 
@@ -1783,6 +1790,10 @@ class Kaic(object):
             if args.background_filter is not None:
                 bgf = BackgroundLigationCollectionFilter(coll, all_contacts=True, fold_change=args.background_filter)
                 coll.filter(bgf, queue=True)
+            if args.window_filter is not None:
+                mmdf = MinMaxDistanceCollectionFilter(min_distance=args.window_filter[0],
+                                                      max_distance=args.window_filter[1])
+                coll.filter(mmdf, queue=True)
             coll.run_queued_filters()
 
             for sample_size in args.sample_sizes:
