@@ -1758,6 +1758,7 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import errno
         import matplotlib
         matplotlib.use('pdf')
         import kaic
@@ -1771,6 +1772,13 @@ class Kaic(object):
 
         hics = []
         output_folder = os.path.expanduser(args.output_folder)
+
+        try:
+            os.makedirs(output_folder)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
         if args.tmp:
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
