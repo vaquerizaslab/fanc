@@ -1824,6 +1824,7 @@ class Kaic(object):
                 fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names)
                 ax.set_title("PCA sample size %d" % sample_size)
                 fig.savefig(output_folder + '/pca_plot_%d.pdf' % sample_size)
+                fig.clf()
         finally:
             if args.tmp:
                 for hic in hics:
