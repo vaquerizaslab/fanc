@@ -1733,6 +1733,17 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-p', '--pair-selection', dest='pair_selection',
+            default='variance',
+            help='''Mechanism to select pairs from Hi-C matrix. Default: variance.
+                    Possible values are:
+                    variance: Selects pairs with the largest variance across samples first.
+                    fc: Select pairs with the largest fold-change across samples first.
+                    passthrough: Selects pairs without preference.
+                 '''
+        )
+
+        parser.add_argument(
             '-c', '--colors', dest='colors',
             nargs='+',
             help='''Colors for plotting.'''
@@ -1751,7 +1762,8 @@ class Kaic(object):
         matplotlib.use('pdf')
         import kaic
         from kaic.plotting.plot_statistics import pca_plot
-        from kaic.architecture.pca import do_pca, HicCollectionWeightMeanVariance
+        from kaic.architecture.pca import do_pca, HicCollectionWeightMeanVariance, PassthroughPairSelection, \
+            LargestVariancePairSelection, LargestFoldChangePairSelection
         from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter,\
             BackgroundLigationCollectionFilter, MinMaxDistanceCollectionFilter
         from kaic.tools.files import create_temporary_copy
@@ -1800,9 +1812,18 @@ class Kaic(object):
                 coll.filter(mmdf, queue=True)
             coll.run_queued_filters()
 
+            if args.pair_selection == 'variance':
+                pair_selector = LargestVariancePairSelection()
+            elif args.pair_selection == 'fc':
+                pair_selector = LargestFoldChangePairSelection()
+            elif args.pair_selection == 'passthrough':
+                pair_selector = PassthroughPairSelection()
+            else:
+                raise ValueError("Pair selection mechanism {} is not valid".format(args.pair_selection))
+
             for sample_size in args.sample_sizes:
                 logging.info("Sample size: %d" % sample_size)
-                pca_info, pca_res = do_pca(coll, sample_size=sample_size)
+                pca_info, pca_res = do_pca(coll, pair_selection=pair_selector, sample_size=sample_size)
 
                 with open(output_folder + '/explained_variance_%d.txt' % sample_size, 'w') as var:
                     for i, variance in enumerate(pca_info.explained_variance_ratio_):
