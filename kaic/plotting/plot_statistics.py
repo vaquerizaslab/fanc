@@ -127,9 +127,9 @@ def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
         ylabel += ' (%d%%)' % int(pca_info.explained_variance_ratio_[1]*100)
 
     if names is not None:
-        fig, (ax_main, _) = sns.plt.subplots(1, 2)
+        ax_main = sns.plt.subplot(121)
     else:
-        fig, ax_main = sns.plt.subplots()
+        ax_main = sns.plt.subplot(111)
     ax_main.set_xlabel(xlabel)
     ax_main.set_ylabel(ylabel)
 
@@ -140,7 +140,7 @@ def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
         ax_main.plot(pca_res[i, 0], pca_res[i, 1], marker=markers.next(), color=colors.next(), label=name)
 
     if names is not None:
-        sns.plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        ax_main.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
-    return fig, ax_main
+    return ax_main.figure, ax_main
 
