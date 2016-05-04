@@ -1438,16 +1438,25 @@ class RegionsTable(GenomicRegions, FileGroup):
             self._regions.cols.ix.create_index()
         except ValueError:
             pass
+        except t.NodeError:
+            self._regions.cols.ix.remove_index()
+            self._regions.cols.ix.create_index()
 
         try:
             self._regions.cols.start.create_index()
         except ValueError:
             pass
+        except t.NodeError:
+            self._regions.cols.start.remove_index()
+            self._regions.cols.start.create_index()
 
         try:
             self._regions.cols.end.create_index()
         except ValueError:
             pass
+        except t.NodeError:
+            self._regions.cols.end.remove_index()
+            self._regions.cols.end.create_index()
 
         self._ix_to_chromosome = dict()
         self._chromosome_to_ix = dict()
