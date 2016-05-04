@@ -1722,7 +1722,8 @@ class Kaic(object):
             '-w', '--window-filter', dest='window_filter',
             nargs=2,
             type=int,
-            help='''Min and max values defining a window of contact distances that are retained for analysis.'''
+            help='''Min and max values in base pairs defining a window of
+                    contact distances that are retained for analysis.'''
         )
 
         parser.add_argument(
@@ -1766,7 +1767,8 @@ class Kaic(object):
         sample_names = args.names if args.names is not None else []
         try:
             if len(args.input) == 1:
-                coll = HicCollectionWeightMeanVariance(args.input[0])
+                shutil.copy(args.input[0], output_path)
+                coll = HicCollectionWeightMeanVariance(output_path)
             else:
 
                 for file_name in args.input:
@@ -1791,7 +1793,7 @@ class Kaic(object):
                 bgf = BackgroundLigationCollectionFilter(coll, all_contacts=True, fold_change=args.background_filter)
                 coll.filter(bgf, queue=True)
             if args.window_filter is not None:
-                mmdf = MinMaxDistanceCollectionFilter(min_distance=args.window_filter[0],
+                mmdf = MinMaxDistanceCollectionFilter(coll, min_distance=args.window_filter[0],
                                                       max_distance=args.window_filter[1])
                 coll.filter(mmdf, queue=True)
             coll.run_queued_filters()

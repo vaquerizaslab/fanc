@@ -1113,8 +1113,8 @@ class MinMaxDistanceCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
         """
         MatrixArchitecturalRegionFeatureFilter.__init__(self, mask=mask)
 
-        self.min_distance_bins = collection.bins_to_distance(min_distance)
-        self.max_distance_bins = collection.bins_to_distance(max_distance)
+        self.min_distance_bins = collection.distance_to_bins(min_distance)
+        self.max_distance_bins = collection.distance_to_bins(max_distance)
         self.regions_dict = collection.regions_dict
 
     def valid_edge(self, edge):
