@@ -112,7 +112,7 @@ def mapq_hist_plot(reads, output=None, include_masked=False):
 
 def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
     if markers is None:
-        markers = ('^', 'o', '*', 's', 'D', '+', 'x', 'h', 'p', ',')
+        markers = ('^', 'o', '*', 's', 'D', 'v', 'd', 'H', 'p', '>')
     if colors is None:
         colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black', 'orange', 'pink', 'cyan', 'lawngreen')
     markers = itertools.cycle(markers)
