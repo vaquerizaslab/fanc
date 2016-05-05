@@ -2,8 +2,9 @@ from __future__ import division, print_function
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator
 from kaic.data.genomic import GenomicRegion
-from kaic.plotting.base_plotter import BasePlotter1D, append_axes
+from kaic.plotting.base_plotter import BasePlotter1D
 from kaic.plotting.hic_plotter import BasePlotterMatrix
+from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import types
@@ -18,64 +19,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 plt = sns.plt
-
-style_ticks_whitegrid = {
-    'axes.axisbelow': True,
-    'axes.edgecolor': '.15',
-    'axes.facecolor': 'white',
-    'axes.grid': True,
-    'axes.labelcolor': '.15',
-    'axes.linewidth': 1.25,
-    'figure.facecolor': 'white',
-    'font.family': ['sans-serif'],
-    'grid.color': '.8',
-    'grid.linestyle': '-',
-    'image.cmap': 'Greys',
-    'legend.frameon': False,
-    'legend.numpoints': 1,
-    'legend.scatterpoints': 1,
-    'lines.solid_capstyle': 'round',
-    'text.color': '.15',
-    'xtick.color': '.15',
-    'xtick.direction': 'out',
-    'xtick.major.size': 6,
-    'xtick.minor.size': 3,
-    'ytick.color': '.15',
-    'ytick.direction': 'out',
-    'ytick.major.size': 6,
-    'ytick.minor.size': 3}
-
-
-def region_to_pbt_interval(region):
-    return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
-
-
-def get_region_field(interval, field, return_default=False):
-    """
-    Take BedTool region and return value stored in the specified field.
-    Will try to fetch field from specific integer index, from Interval attribute and 
-    lastly from the BedTool attributes dictionary present for GTF files
-
-    :param return_default: If False, raise ValueError if field cannot be found. If anything
-                           else return this value instead.
-    """
-    try:
-        return interval[int(field)]
-    except ValueError:
-        pass
-    try:
-        return getattr(interval, field)
-    except AttributeError:
-        pass
-    if interval.file_type == "gff":
-        try:
-            return interval.attrs[field]
-        except KeyError:
-            pass
-    if return_default != False:
-        return return_default
-    else:
-        raise ValueError("Field {} can't be found in inteval {}".format(field, interval))
 
 
 def hide_axis(ax):
@@ -105,39 +48,6 @@ def hide_axis(ax):
     ax.yaxis.set_visible(False)
     ax.xaxis.offsetText.set_visible(False)
     ax.yaxis.offsetText.set_visible(False)
-
-
-def absolute_wspace_hspace(fig, gs, wspace=None, hspace=None):
-    """
-    Set distance between subplots of a GridSpec instance in inches. Updates the
-    GridSpec instance and returns the calculated relative (as required by GridSpec) as tuple.
-
-    :param fig: Figure instance
-    :param gs: GridSpec instance
-    :param wspace: Distance in inches horizontal
-    :param hspace: Distance in inches vertical
-    :return: (wspace, hspace) as a fraction of axes size
-    """
-    figsize = fig.get_size_inches()
-    sp_params = gs.get_subplot_params(fig)
-    tot_width = sp_params.right - sp_params.left
-    tot_height = sp_params.top - sp_params.bottom
-    nrows, ncols = gs.get_geometry()
-    if wspace is not None:
-        wspace = wspace/figsize[0]
-        wspace = wspace*ncols/(tot_width - wspace*ncols + wspace)
-    else:
-        wspace = gs.wspace
-    if hspace is not None:
-        hspace = hspace/figsize[1]
-        hspace = hspace*nrows/(tot_height - hspace*nrows + hspace)
-    else:
-        hspace = gs.hspace
-    if not wspace > 0 or not hspace > 0:
-        raise ValueError("Invalid relative spacing ({}, {}) calculated, "
-                         "Probably distance set too large.".format(wspace, hspace))
-    gs.update(wspace=wspace, hspace=hspace)
-    return wspace, hspace
 
 
 class GenomicFigure(object):
@@ -343,7 +253,7 @@ class GenomicTrackPlot(ScalarDataPlot):
                                                          else "", k))
                     self.lines.append(l[0])
         self.add_legend()
-        self.remove_colorbar_ax()
+        #self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         for track in self.tracks:
@@ -531,19 +441,21 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
                          None (no special color).
         """
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
         BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm, colorbar_symmetry=colorbar_symmetry,
                                    vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
                                    blend_zero=blend_zero, unmappable_color=unmappable_color,
                                    illegal_color=illegal_color, replacement_color=replacement_color)
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-
         self.array = array
         self.keys = keys
         if plot_kwargs is None:
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
-
-        self.y_coords = y_coords
+        if y_coords is None:
+            if self.array.y_values is not None:
+                self.y_coords = self.array.y_values
+            else:
+                self.y_coords = None
         self.hm = None
         self.y_scale = y_scale
 
@@ -555,8 +467,8 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         self.collection._A = None
         self._update_mesh_colors()
         self.ax.set_yscale(self.y_scale)
-
-        self.ax.set_ylim(self.hm.y_values[0], self.hm.y_values[-1])
+        if self.y_coords is not None:
+            self.ax.set_ylim(self.y_coords[0], self.y_coords[-1])
 
         if self.show_colorbar:
             self.add_colorbar()
@@ -571,7 +483,7 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         regions = hm.regions
         bin_coords = np.r_[[(x.start - 1) for x in regions], regions[-1].end]
         x, y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None
-                                        else hm.y_values))
+                                        else np.arange(hm.shape[1] + 1)))
         return x, y, hm
 
     def _update_mesh_colors(self):
@@ -696,7 +608,10 @@ class GenomicFeaturePlot(BasePlotter1D):
                        the height_ratios in class:`~GenomicFigure`
         """
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-        self.bedtool = pbt.BedTool(regions)
+        if isinstance(regions, pbt.BedTool):
+            self.bedtool = regions
+        else:
+            self.bedtool = pbt.BedTool(regions)
         if feature_types is None and self.bedtool.file_type == "gff":
             feature_types = set(f[2] for f in self.bedtool)
         elif isinstance(feature_types, (str, unicode)):
@@ -720,15 +635,18 @@ class GenomicFeaturePlot(BasePlotter1D):
             if self.feature_types and feature_type not in self.feature_types:
                 continue
             label = get_region_field(g, self.label_field, return_default="") if self.label_field else ""
-            gene_patch = patches.Rectangle(
+            gene_patch = patches.FancyArrowPatch(
                 (g.start, pos[feature_type]),
-                width=abs(g.end - g.start), height=stroke_length,
+                (g.end, pos[feature_type]),
+                arrowstyle="|-|",
+                mutation_scale=40,
                 transform=trans, color="black"
             )
             self.ax.add_patch(gene_patch)
             self.ax.text((g.start + g.end)/2, pos[feature_type] + stroke_length + .05,
                          label if not self.label_func else self.label_func(g),
                          transform=trans, ha="center", size="small")
+            #import ipdb; ipdb.set_trace()
         sns.despine(ax=self.ax, top=True, left=True, right=True)
         self.ax.yaxis.set_major_locator(NullLocator())
         # self.remove_colorbar_ax()
@@ -921,7 +839,7 @@ class BigWigPlot(ScalarDataPlot):
             self.ax.plot(self.x, self.y, label=self.names[i] if self.names else "", **self.plot_kwargs)
         if self.names:
             self.add_legend()
-        self.remove_colorbar_ax()
+        #self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
         if self.ylim:
             self.ax.set_ylim(self.ylim)

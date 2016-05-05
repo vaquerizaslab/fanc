@@ -1,5 +1,6 @@
 import kaic
-from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, append_axes
+from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D
+from kaic.plotting.helpers import append_axes
 from kaic.data.genomic import GenomicRegion
 import matplotlib as mpl
 from matplotlib.widgets import Slider
