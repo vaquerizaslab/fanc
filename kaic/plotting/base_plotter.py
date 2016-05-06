@@ -156,6 +156,7 @@ class BasePlotter(object):
 
     def __init__(self, title='', aspect=1., axes_style="ticks"):
         self.ax = None
+        self.cax = None
         self.title = title
         self.has_legend = False
         self._aspect = aspect
@@ -202,6 +203,15 @@ class BasePlotter(object):
     def remove_genome_ticks(self):
         plt.setp(self.ax.get_xticklabels(), visible=False)
         self.ax.xaxis.offsetText.set_visible(False)
+
+    def remove_colorbar_ax(self):
+        if self.cax is None:
+            return
+        try:
+            self.fig.delaxes(self.cax)
+            self.cax = None
+        except KeyError:
+            pass
 
 
 class BasePlotter1D(BasePlotter):
@@ -344,12 +354,6 @@ class BasePlotterMatrix(object):
             max_diff = max(abs(baseline - vmax), abs(baseline - vmin))
             self.colorbar.set_clim(vmin=baseline-max_diff, vmax=baseline+max_diff)
         self.colorbar.draw_all()
-
-    def remove_colorbar_ax(self):
-        try:
-            self.fig.delaxes(self.colorbar.ax)
-        except KeyError:
-            pass
 
     @property
     def vmin(self):

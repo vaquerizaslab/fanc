@@ -99,7 +99,6 @@ class GenomicFigure(object):
         gridspec_args["wspace"] = gridspec_args.get("wspace", .1)
         gridspec_args["hspace"] = gridspec_args.get("hspace", .2)
         gs = gridspec.GridSpec(self.n, 2, height_ratios=self.height_ratios, width_ratios=[1, .05], **gridspec_args)
-        self.axes = []
         plt.figure(figsize=self.figsize)
         for i in xrange(self.n):
             with sns.axes_style("ticks" if plots[i].axes_style is None else
@@ -108,16 +107,8 @@ class GenomicFigure(object):
                     ax = plt.subplot(gs[i, 0], sharex=self.axes[0])
                 else:
                     ax = plt.subplot(gs[i, 0])
-
-            if hasattr(plots[i], 'cax'):
-                plots[i].cax = plt.subplot(gs[i, 1])
-            else:
-                cax = plt.subplot(gs[i, 1])
-                sns.despine(ax=cax, top=True, left=True, bottom=True, right=True)
-                cax.xaxis.set_visible(False)
-                cax.yaxis.set_visible(False)
             plots[i].ax = ax
-            self.axes.append(ax)
+            plots[i].cax = plt.subplot(gs[i, 1])
 
         if fix_chromosome is None:
             self.fix_chromosome = [False] * self.n
@@ -160,6 +151,14 @@ class GenomicFigure(object):
     def __exit__(self, exc_type, exc_value, traceback):
         plt.close(self.fig)
 
+    @property
+    def axes(self):
+        return [p.ax for p in self.plots]
+
+    @property
+    def caxes(self):
+        return [p.cax for p in self.plots]
+
 
 class ScalarDataPlot(BasePlotter1D):
     """
@@ -201,14 +200,6 @@ class ScalarDataPlot(BasePlotter1D):
                             one for each value
         """
         return self._STYLES[self.style](self, values, region_list)
-
-    def remove_colorbar_ax(self):
-        if not hasattr(self, 'cax') or self.cax is None:
-            return
-        try:
-            self.fig.delaxes(self.cax)
-        except KeyError:
-            pass
 
     _STYLES = {_STYLE_STEP: _get_values_per_step,
                _STYLE_MID: _get_values_per_mid}
@@ -253,7 +244,7 @@ class GenomicTrackPlot(ScalarDataPlot):
                                                          else "", k))
                     self.lines.append(l[0])
         self.add_legend()
-        #self.remove_colorbar_ax()
+        self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         for track in self.tracks:
@@ -649,7 +640,7 @@ class GenomicFeaturePlot(BasePlotter1D):
             #import ipdb; ipdb.set_trace()
         sns.despine(ax=self.ax, top=True, left=True, right=True)
         self.ax.yaxis.set_major_locator(NullLocator())
-        # self.remove_colorbar_ax()
+        self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
@@ -839,7 +830,7 @@ class BigWigPlot(ScalarDataPlot):
             self.ax.plot(self.x, self.y, label=self.names[i] if self.names else "", **self.plot_kwargs)
         if self.names:
             self.add_legend()
-        #self.remove_colorbar_ax()
+        self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
