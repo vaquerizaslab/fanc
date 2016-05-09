@@ -3851,6 +3851,57 @@ class Hic(RegionMatrixTable):
         return hic
 
     @classmethod
+    def from_hic(cls, hics, file_name=None, tmpdir=None):
+        if isinstance(hics, Hic):
+            hics = [hics]
+
+        logging.info("Checking if regions are identical")
+        identical = True
+        for i in xrange(1, len(hics)):
+            if len(hics[i].regions) != len(hics[0].regions):
+                identical = False
+                break
+
+            for self_region, hic_region in zip(hics[0].regions, hics[i].regions):
+                if self_region.chromosome != hic_region.chromosome:
+                    identical = False
+                    break
+                if self_region.start != hic_region.start:
+                    identical = False
+                    break
+                if self_region.end != hic_region.end:
+                    identical = False
+                    break
+
+        if not identical:
+            raise ValueError("Regions must be identical in both Hic objects to merge!")
+
+        merged_hic = cls(file_name=file_name, tmpdir=tmpdir)
+        for region in hics[0].regions:
+            merged_hic.add_region(region, flush=False)
+        merged_hic.flush()
+
+        chromosomes = hics[0].chromosomes()
+        for i in xrange(len(chromosomes)):
+            for j in xrange(i, len(chromosomes)):
+                logging.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                edges = dict()
+                for hic in hics:
+                    for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j])):
+                        key = (edge.source, edge.sink)
+                        if key not in edges:
+                            edges[key] = edge
+                        else:
+                            edges[key].weight += edge.weight
+
+                for edge in edges.itervalues():
+                    merged_hic.add_edge(edge, flush=False)
+        merged_hic.flush()
+
+        return merged_hic
+
+
+    @classmethod
     def from_hiclib(cls, hl, file_name=None):
         """
         Create :class:`~Hic` object from hiclib object.

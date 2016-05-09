@@ -932,58 +932,58 @@ class TestHicBasic:
     def test_from_mirny(self):
         # TODO
         pass
-    
+
     def test_merge(self):
         hic = self.hic_class()
-        
+
         # add some nodes (120 to be exact)
         nodes = []
-        for i in range(1,5000,1000):
-            nodes.append(Node(chromosome="chr1",start=i,end=i+1000-1))
-        for i in range(1,3000,1000):
-            nodes.append(Node(chromosome="chr2",start=i,end=i+1000-1))
-        for i in range(1,2000,400):
-            nodes.append(Node(chromosome="chr4",start=i,end=i+100-1))
+        for i in range(1, 5000, 1000):
+            nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+        for i in range(1, 3000, 1000):
+            nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+        for i in range(1, 2000, 400):
+            nodes.append(Node(chromosome="chr4", start=i, end=i + 100 - 1))
         hic.add_nodes(nodes)
-        
+
         # add some edges with increasing weight for testing
         edges = []
         weight = 1
-        for i in range(0,len(nodes)):
-            for j in range(i,len(nodes)):
-                edges.append(Edge(source=i,sink=j,weight=weight))
+        for i in range(0, len(nodes)):
+            for j in range(i, len(nodes)):
+                edges.append(Edge(source=i, sink=j, weight=weight))
                 weight += 1
 
         hic.add_edges(edges)
-        
-        left = self.hic[:,:]
-        right = hic[:,:]
-        
+
+        left = self.hic[:, :]
+        right = hic[:, :]
+
         # check length
         original_length = len(self.hic.nodes())
         self.hic.merge(hic, _edge_buffer_size=5)
         assert len(self.hic.nodes()) == original_length + 5
         hic.close()
 
-        merged = self.hic[:,:]
-        double = [0,1,2,3,4,5,6,7]
+        merged = self.hic[:, :]
+        double = [0, 1, 2, 3, 4, 5, 6, 7]
         for i in double:
             for j in double:
-                assert merged[i,j] == left[i,j] + right[i,j]
-        
-        three = [8,9,10,11]
+                assert merged[i, j] == left[i, j] + right[i, j]
+
+        three = [8, 9, 10, 11]
         for i in double:
             for j in three:
-                assert merged[i,j] == left[i,j]
-        
-        four = [12,13,14,15,16]
+                assert merged[i, j] == left[i, j]
+
+        four = [12, 13, 14, 15, 16]
         for i in three:
             for j in four:
-                assert merged[i,j] == 0
-        
+                assert merged[i, j] == 0
+
         for i in double:
             for j in four:
-                assert merged[i,j] == right[i,j-4]
+                assert merged[i, j] == right[i, j - 4]
 
     def test_multi_merge(self):
         def populate_hic(hic, seed=0):
@@ -992,18 +992,18 @@ class TestHicBasic:
             random.seed(seed)
             # add some nodes (169 to be exact)
             nodes = []
-            for i in range(1,5000,1000):
-                nodes.append(Node(chromosome="chr1",start=i,end=i+1000-1))
-            for i in range(1,3000,1000):
-                nodes.append(Node(chromosome="chr2",start=i,end=i+1000-1))
-            for i in range(1,2000,400):
-                nodes.append(Node(chromosome="chr4",start=i,end=i+100-1))
+            for i in range(1, 5000, 1000):
+                nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+            for i in range(1, 3000, 1000):
+                nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+            for i in range(1, 2000, 400):
+                nodes.append(Node(chromosome="chr4", start=i, end=i + 100 - 1))
             hic.add_nodes(nodes)
             # add half as many random edges
             edges = []
             weight = 1
             p = list(product(range(len(nodes)), range(len(nodes))))
-            n = int((len(nodes)**2)/8)
+            n = int((len(nodes) ** 2) / 8)
             s_s = random.sample(p, n)
             s_s = set([(max(i), min(i)) for i in s_s])
             for i, j in s_s:
@@ -1013,21 +1013,70 @@ class TestHicBasic:
 
         hic1 = self.hic_class()
         populate_hic(hic1, seed=24)
-        assert hic1[:,:].sum() == 411
+        assert hic1[:, :].sum() == 411
         hic2 = self.hic_class()
         populate_hic(hic2, seed=42)
-        assert hic2[:,:].sum() == 443
+        assert hic2[:, :].sum() == 443
 
         hic3 = self.hic_class()
         populate_hic(hic3, seed=84)
-        assert hic3[:,:].sum() == 331
+        assert hic3[:, :].sum() == 331
 
-        hic_sum = hic1[:,:] + hic2[:,:] + hic3[:,:]
+        hic_sum = hic1[:, :] + hic2[:, :] + hic3[:, :]
         hic1.merge([hic2, hic3], _edge_buffer_size=5)
-        assert (hic1[:,:] == hic_sum).all()
+        assert (hic1[:, :] == hic_sum).all()
         hic1.close()
         hic2.close()
         hic3.close()
+
+    def test_merge_into(self):
+        hic1 = self.hic_class()
+        hic2 = self.hic_class()
+
+        # add some nodes (120 to be exact)
+        nodes = []
+        for i in range(1, 5000, 1000):
+            nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+        for i in range(1, 3000, 1000):
+            nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+        for i in range(1, 2000, 500):
+            nodes.append(Node(chromosome="chr3", start=i, end=i + 1000 - 1))
+        hic1.add_nodes(nodes)
+        hic2.add_nodes(nodes)
+
+        # add some edges with increasing weight for testing
+        edges = []
+        weight = 1
+        for i in range(0, len(nodes)):
+            for j in range(i, len(nodes)):
+                edges.append(Edge(source=i, sink=j, weight=weight))
+                weight += 1
+
+        hic1.add_edges(edges)
+        hic2.add_edges(edges)
+
+        merged_hic = self.hic_class.from_hic([hic1, hic2])
+
+        left = hic1[:, :]
+        right = hic2[:, :]
+
+        # check length
+        original_length = len(hic1.regions)
+        assert len(merged_hic.regions) == original_length
+        hic1.close()
+        hic2.close()
+
+        merged = merged_hic[:, :]
+        merged_hic.close()
+
+        for i in xrange(merged.shape[0]):
+            for j in xrange(merged.shape[1]):
+                assert merged[i, j] == left[i, j] + right[i, j]
+
+        double = [0, 1, 2, 3, 4, 5, 6, 7]
+        for i in double:
+            for j in double:
+                assert merged[i, j] == left[i, j] + right[i, j]
 
     def test_from_pairs(self):
         reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
