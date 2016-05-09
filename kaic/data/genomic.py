@@ -3876,7 +3876,7 @@ class Hic(RegionMatrixTable):
         if not identical:
             raise ValueError("Regions must be identical in both Hic objects to merge!")
 
-        merged_hic = cls(file_name=file_name, tmpdir=tmpdir)
+        merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
         for region in hics[0].regions:
             merged_hic.add_region(region, flush=False)
         merged_hic.flush()
