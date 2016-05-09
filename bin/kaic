@@ -1406,16 +1406,26 @@ class Kaic(object):
         output_path = os.path.expanduser(args.output)
         paths = [os.path.expanduser(path) for path in args.hic]
         hics = [kaic.load_hic(path, mode='r', tmpdir=tmpdir) for path in paths]
-        first_hic = hics.pop(0)
 
-        if args.optimise:
-            merged = kaic.AccessOptimisedHic(data=first_hic, file_name=output_path, mode='w')
-        else:
-            merged = kaic.Hic(data=first_hic, file_name=output_path, mode='w')
+        # try fast, basic loading first:
+        try:
+            if args.optimise:
+                merged = kaic.AccessOptimisedHic.from_hic(hics, file_name=output_path, tmpdir=tmpdir)
+            else:
+                merged = kaic.Hic.from_hic(hics, file_name=output_path, tmpdir=tmpdir)
 
-        merged.merge(hics)
+            merged.close()
+        except ValueError:
+            first_hic = hics.pop(0)
 
-        merged.close()
+            if args.optimise:
+                merged = kaic.AccessOptimisedHic(data=first_hic, file_name=output_path, mode='w')
+            else:
+                merged = kaic.Hic(data=first_hic, file_name=output_path, mode='w')
+
+            merged.merge(hics)
+
+            merged.close()
 
         logging.info("All done")
 
