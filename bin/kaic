@@ -1392,6 +1392,13 @@ class Kaic(object):
         parser.set_defaults(optimise=False)
 
         parser.add_argument(
+            '--intra', dest='intra',
+            action='store_true',
+            help='''Only merge intra-chromosomal contacts and set inter-chromosomal to 0.'''
+        )
+        parser.set_defaults(intra=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1410,9 +1417,11 @@ class Kaic(object):
         # try fast, basic loading first:
         try:
             if args.optimise:
-                merged = kaic.AccessOptimisedHic.from_hic(hics, file_name=output_path, tmpdir=tmpdir)
+                merged = kaic.AccessOptimisedHic.from_hic(hics, file_name=output_path, tmpdir=tmpdir,
+                                                          only_intrachromosomal=args.intra)
             else:
-                merged = kaic.Hic.from_hic(hics, file_name=output_path, tmpdir=tmpdir)
+                merged = kaic.Hic.from_hic(hics, file_name=output_path, tmpdir=tmpdir,
+                                           only_intrachromosomal=args.intra)
 
             merged.close()
         except ValueError:

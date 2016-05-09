@@ -3851,7 +3851,7 @@ class Hic(RegionMatrixTable):
         return hic
 
     @classmethod
-    def from_hic(cls, hics, file_name=None, tmpdir=None):
+    def from_hic(cls, hics, file_name=None, tmpdir=None, only_intrachromosomal=False):
         if isinstance(hics, Hic):
             hics = [hics]
 
@@ -3883,7 +3883,8 @@ class Hic(RegionMatrixTable):
 
         chromosomes = hics[0].chromosomes()
         for i in xrange(len(chromosomes)):
-            for j in xrange(i, len(chromosomes)):
+            r2 = xrange(i, i + 1) if only_intrachromosomal else xrange(i, len(chromosomes))
+            for j in r2:
                 logging.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
                 edges = dict()
                 for hic in hics:
