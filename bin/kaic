@@ -1729,9 +1729,28 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-w', '--window-filter', dest='window_filter',
+            nargs=2,
+            type=int,
+            help='''Min and max values in base pairs defining a window of
+                    contact distances that are retained for analysis.'''
+        )
+
+        parser.add_argument(
             '-n', '--names', dest='names',
             nargs='+',
             help='''Sample names for plot labelling.'''
+        )
+
+        parser.add_argument(
+            '-p', '--pair-selection', dest='pair_selection',
+            default='variance',
+            help='''Mechanism to select pairs from Hi-C matrix. Default: variance.
+                    Possible values are:
+                    variance: Selects pairs with the largest variance across samples first.
+                    fc: Select pairs with the largest fold-change across samples first.
+                    passthrough: Selects pairs without preference.
+                 '''
         )
 
         parser.add_argument(
@@ -1749,16 +1768,27 @@ class Kaic(object):
 
         args = parser.parse_args(sys.argv[2:])
 
+        import errno
+        import matplotlib
+        matplotlib.use('pdf')
         import kaic
         from kaic.plotting.plot_statistics import pca_plot
-        from kaic.architecture.pca import do_pca, HicCollectionWeightMeanVariance
+        from kaic.architecture.pca import do_pca, HicCollectionWeightMeanVariance, PassthroughPairSelection, \
+            LargestVariancePairSelection, LargestFoldChangePairSelection
         from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter,\
-            BackgroundLigationCollectionFilter
+            BackgroundLigationCollectionFilter, MinMaxDistanceCollectionFilter
         from kaic.tools.files import create_temporary_copy
         import shutil
 
         hics = []
         output_folder = os.path.expanduser(args.output_folder)
+
+        try:
+            os.makedirs(output_folder)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
         if args.tmp:
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
@@ -1769,7 +1799,8 @@ class Kaic(object):
         sample_names = args.names if args.names is not None else []
         try:
             if len(args.input) == 1:
-                coll = HicCollectionWeightMeanVariance(args.input[0])
+                shutil.copy(args.input[0], output_path)
+                coll = HicCollectionWeightMeanVariance(output_path)
             else:
 
                 for file_name in args.input:
@@ -1793,11 +1824,24 @@ class Kaic(object):
             if args.background_filter is not None:
                 bgf = BackgroundLigationCollectionFilter(coll, all_contacts=True, fold_change=args.background_filter)
                 coll.filter(bgf, queue=True)
+            if args.window_filter is not None:
+                mmdf = MinMaxDistanceCollectionFilter(coll, min_distance=args.window_filter[0],
+                                                      max_distance=args.window_filter[1])
+                coll.filter(mmdf, queue=True)
             coll.run_queued_filters()
+
+            if args.pair_selection == 'variance':
+                pair_selector = LargestVariancePairSelection()
+            elif args.pair_selection == 'fc':
+                pair_selector = LargestFoldChangePairSelection()
+            elif args.pair_selection == 'passthrough':
+                pair_selector = PassthroughPairSelection()
+            else:
+                raise ValueError("Pair selection mechanism {} is not valid".format(args.pair_selection))
 
             for sample_size in args.sample_sizes:
                 logging.info("Sample size: %d" % sample_size)
-                pca_info, pca_res = do_pca(coll, sample_size=sample_size)
+                pca_info, pca_res = do_pca(coll, pair_selection=pair_selector, sample_size=sample_size)
 
                 with open(output_folder + '/explained_variance_%d.txt' % sample_size, 'w') as var:
                     for i, variance in enumerate(pca_info.explained_variance_ratio_):
@@ -1819,6 +1863,7 @@ class Kaic(object):
                 fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names)
                 ax.set_title("PCA sample size %d" % sample_size)
                 fig.savefig(output_folder + '/pca_plot_%d.pdf' % sample_size)
+                fig.clf()
         finally:
             if args.tmp:
                 for hic in hics:

@@ -84,6 +84,26 @@ class LargestVariancePairSelection(PairSelection):
                 break
 
 
+class PassthroughPairSelection(PairSelection):
+    def __init__(self, sample_size=None, lazy=False):
+        PairSelection.__init__(self)
+        self.sample_size = sample_size
+        self.lazy = lazy
+
+    def pair_selection(self, sample_size=None, lazy=None):
+        if lazy is None:
+            lazy = self.lazy
+        if sample_size is None:
+            sample_size = self.sample_size
+
+        for j, edge in enumerate(self.collection.edges(lazy=lazy)):
+            yield edge
+
+            if sample_size is not None and j >= sample_size:
+                # raise StopIteration
+                break
+
+
 class LargestFoldChangePairSelection(PairSelection):
     def __init__(self, require_enriched=2, require_nonenriched=2, fold_change=1.5, sample_size=100000, lazy=False):
         PairSelection.__init__(self)
@@ -164,7 +184,7 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
         n_hics = len(hics)
         coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m',
                                                only_intra_chromosomal=only_intra_chromosomal,
-                                               scale_libraries=True)
+                                               scale_libraries=scale_libraries)
         coll.calculate()
 
         if eo_cutoff != 0.0:
