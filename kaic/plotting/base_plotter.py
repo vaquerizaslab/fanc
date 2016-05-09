@@ -373,12 +373,12 @@ class BasePlotterMatrix(object):
         self.norm = _prepare_normalization(norm, vmin, vmax)
 
 
-class BasePlotter2D(BasePlotterMatrix):
+class BasePlotter2D(BasePlotter):
 
     __metaclass__ = ABCMeta
 
     def __init__(self, title, aspect=1., axes_style="ticks"):
-        BasePlotterMatrix.__init__(self, title=title, aspect=aspect,
+        BasePlotter.__init__(self, title=title, aspect=aspect,
                                    axes_style=axes_style)
         self._mouse_release_handler = None
         self._current_chromosome_x = None
