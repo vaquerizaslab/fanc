@@ -301,13 +301,11 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.lines = []
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
-        sub_regions = self.regions.subset(region)
-
         for name in self.regions.data_field_names:
             if not self.attributes or any(re.match(a.replace("*", ".*"), name) for a in self.attributes):
                 regions = []
                 values = []
-                for r in sub_regions:
+                for r in self.regions.subset(region):
                     regions.append(r)
                     values.append(getattr(r, name))
                 x, y = self.get_plot_values(values, regions)
