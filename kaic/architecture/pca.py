@@ -3,6 +3,7 @@ from kaic.architecture.hic_architecture import BackgroundLigationFilter, \
     ExpectedObservedEnrichmentFilter, ZeroWeightFilter, \
     ExpectedObservedCollectionFilter, BackgroundLigationCollectionFilter, \
     HicEdgeCollection
+from kaic.data.genomic import GenomicRegion
 from sklearn.decomposition import PCA
 from abc import ABCMeta, abstractmethod
 import tables as t
@@ -65,19 +66,35 @@ class PairSelection(object):
 
 
 class LargestVariancePairSelection(PairSelection):
-    def __init__(self, sample_size=100000, lazy=False):
+    def __init__(self, sample_size=100000, regions=None, lazy=False):
         PairSelection.__init__(self)
         self.sample_size = sample_size
+        self.regions = regions
         self.lazy = lazy
 
-    def pair_selection(self, sample_size=None, lazy=None):
+    def pair_selection(self, sample_size=None, lazy=None, regions=None):
         if lazy is None:
             lazy = self.lazy
         if sample_size is None:
             sample_size = self.sample_size
+        if regions is None:
+            regions = self.regions
+
+        if isinstance(regions, str):
+            regions = GenomicRegion.from_string(regions)
+
+        regions_dict = None
+        if regions is not None:
+            regions_dict = self.collection.regions_dict
 
         for j, edge in enumerate(self.collection.edges_sorted('var', reverse=True, lazy=lazy)):
-            yield edge
+            if regions is None:
+                yield edge
+            else:
+                source_region = regions_dict[edge.source]
+                sink_region = regions_dict[edge.sink]
+                if source_region.overlaps(regions) and sink_region.overlaps(regions):
+                    yield edge
 
             if j >= sample_size:
                 # raise StopIteration
@@ -85,18 +102,26 @@ class LargestVariancePairSelection(PairSelection):
 
 
 class PassthroughPairSelection(PairSelection):
-    def __init__(self, sample_size=None, lazy=False):
+    def __init__(self, sample_size=None, regions=None, lazy=False):
         PairSelection.__init__(self)
         self.sample_size = sample_size
+        self.regions = regions
         self.lazy = lazy
 
-    def pair_selection(self, sample_size=None, lazy=None):
+    def pair_selection(self, sample_size=None, lazy=None, regions=None):
         if lazy is None:
             lazy = self.lazy
         if sample_size is None:
             sample_size = self.sample_size
+        if regions is None:
+            regions = self.regions
 
-        for j, edge in enumerate(self.collection.edges(lazy=lazy)):
+        if regions is None:
+            edge_iterator = self.collection.edges(lazy=lazy)
+        else:
+            edge_iterator = self.collection.edge_subset(key=regions, lazy=lazy)
+
+        for j, edge in enumerate(edge_iterator):
             yield edge
 
             if sample_size is not None and j >= sample_size:
@@ -105,16 +130,18 @@ class PassthroughPairSelection(PairSelection):
 
 
 class LargestFoldChangePairSelection(PairSelection):
-    def __init__(self, require_enriched=2, require_nonenriched=2, fold_change=1.5, sample_size=100000, lazy=False):
+    def __init__(self, require_enriched=2, require_nonenriched=2, fold_change=1.5, sample_size=100000, regions=None,
+                 lazy=False):
         PairSelection.__init__(self)
         self.sample_size = sample_size
         self.lazy = lazy
         self.fold_change = fold_change
         self.require_enriched = require_enriched
         self.require_nonenriched = require_nonenriched
+        self.regions = regions
 
     def pair_selection(self, require_enriched=2, require_nonenriched=None,
-                       fold_change=None, sample_size=None, lazy=None):
+                       fold_change=None, sample_size=None, lazy=None, regions=None):
         # count weights
         n_hic = 0
         while 'weight_' + str(n_hic) in self.collection.field_names:
@@ -131,6 +158,15 @@ class LargestFoldChangePairSelection(PairSelection):
             lazy = self.lazy
         if sample_size is None:
             sample_size = self.sample_size
+        if regions is None:
+            regions = self.regions
+
+        if isinstance(regions, str):
+            regions = GenomicRegion.from_string(regions)
+
+        regions_dict = None
+        if regions is not None:
+            regions_dict = self.collection.regions_dict
 
         # select edges
         for edge_counter, edge in enumerate(self.collection.edges_sorted('var', reverse=True, lazy=lazy)):
@@ -156,13 +192,22 @@ class LargestFoldChangePairSelection(PairSelection):
                     n_enriched += 1
 
             if n_enriched >= require_enriched:
-                yield edge
+                if regions is None:
+                    yield edge
+                else:
+                    source_region = regions_dict[edge.source]
+                    sink_region = regions_dict[edge.sink]
+                    if source_region.overlaps(regions) and sink_region.overlaps(regions):
+                        yield edge
 
 
 def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
-           log=True, only_intra_chromosomal=False, scale_libraries=True, **kwargs):
+           log=True, only_intra_chromosomal=False, scale_libraries=True,
+           regions=None, **kwargs):
     if pair_selection is None:
         pair_selection = LargestVariancePairSelection()
+
+    pair_selection.regions = regions
 
     if tmpdir is not None:
         tmpdir = tempfile.mkdtemp(dir=os.path.expanduser(tmpdir))
