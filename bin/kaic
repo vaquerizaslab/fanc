@@ -1725,6 +1725,13 @@ class Kaic(object):
         parser.set_defaults(intra=False)
 
         parser.add_argument(
+            '-d', '--divide', dest='divide',
+            action='store_true',
+            help='''Divide PCAs into individual chromosomes'''
+        )
+        parser.set_defaults(divide=False)
+
+        parser.add_argument(
             '-e', '--expected-filter', dest='expected_filter',
             type=float,
             help='''Cutoff for expected/observed ratio of a contact to be considered for PCA. Default: no filter.'''
@@ -1848,31 +1855,38 @@ class Kaic(object):
             else:
                 raise ValueError("Pair selection mechanism {} is not valid".format(args.pair_selection))
 
+            if args.divide:
+                regions = coll.chromosomes()
+            else:
+                regions = [None]
+
             for sample_size in args.sample_sizes:
-                logging.info("Sample size: %d" % sample_size)
-                pca_info, pca_res = do_pca(coll, pair_selection=pair_selector, sample_size=sample_size)
+                for region in regions:
+                    logging.info("Sample size: %d" % sample_size)
+                    pca_info, pca_res = do_pca(coll, pair_selection=pair_selector, sample_size=sample_size,
+                                               regions=region)
 
-                with open(output_folder + '/explained_variance_%d.txt' % sample_size, 'w') as var:
-                    for i, variance in enumerate(pca_info.explained_variance_ratio_):
-                        var.write(str(variance))
-                        if i == len(pca_info.explained_variance_ratio_)-1:
-                            var.write("\n")
-                        else:
-                            var.write("\t")
-
-                with open(output_folder + '/pca_results_%d.txt' % sample_size, 'w') as res:
-                    for i, row in enumerate(pca_res):
-                        for j, value in enumerate(row):
-                            res.write(str(value))
-                            if j == len(row)-1:
-                                res.write("\n")
+                    with open(output_folder + '/explained_variance_%d.txt' % sample_size, 'w') as var:
+                        for i, variance in enumerate(pca_info.explained_variance_ratio_):
+                            var.write(str(variance))
+                            if i == len(pca_info.explained_variance_ratio_)-1:
+                                var.write("\n")
                             else:
-                                res.write("\t")
+                                var.write("\t")
 
-                fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names)
-                ax.set_title("PCA sample size %d" % sample_size)
-                fig.savefig(output_folder + '/pca_plot_%d.pdf' % sample_size)
-                fig.clf()
+                    with open(output_folder + '/pca_results_%d.txt' % sample_size, 'w') as res:
+                        for i, row in enumerate(pca_res):
+                            for j, value in enumerate(row):
+                                res.write(str(value))
+                                if j == len(row)-1:
+                                    res.write("\n")
+                                else:
+                                    res.write("\t")
+
+                    fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names)
+                    ax.set_title("PCA sample size %d" % sample_size)
+                    fig.savefig(output_folder + '/pca_plot_%d.pdf' % sample_size)
+                    fig.clf()
         finally:
             if args.tmp:
                 for hic in hics:
