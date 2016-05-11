@@ -210,7 +210,7 @@ class ScalarDataPlot(BasePlotter1D):
         return self._STYLES[self.style](self, values, region_list)
 
     def remove_colorbar_ax(self):
-        if self.cax is None:
+        if not hasattr(self, 'cax') or self.cax is None:
             return
         try:
             self.fig.delaxes(self.cax)
@@ -274,6 +274,64 @@ class GenomicTrackPlot(ScalarDataPlot):
                     self.lines[current_line].set_xdata(x)
                     self.lines[current_line].set_ydata(y)
                     current_line += 1
+
+
+class GenomicRegionsPlot(ScalarDataPlot):
+    def __init__(self, regions, style="step", attributes=None, title='', aspect=.2,
+                 axes_style=style_ticks_whitegrid):
+        """
+        Plot scalar values from one or more class:`~GenomicTrack` objects
+
+        :param regions: class:`~GenomicRegions`
+        :param style: 'step' Draw values in a step-wise manner for each bin
+              'mid' Draw values connecting mid-points of bins
+        :param attributes: Only draw attributes from the track objects
+                           which match this description.
+                           Should be a list of names. Supports wildcard matching
+                           and regex.
+        :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+               the height_ratios in class:`~GenomicFigure`
+        """
+        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
+                                axes_style=axes_style)
+
+        self.regions = regions
+        self.attributes = attributes
+        self.lines = []
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        sub_regions = self.regions.subset(region)
+
+        for name in self.regions.data_field_names:
+            if not self.attributes or any(re.match(a.replace("*", ".*"), name) for a in self.attributes):
+                regions = []
+                values = []
+                for r in sub_regions:
+                    regions.append(r)
+                    values.append(getattr(r, name))
+                x, y = self.get_plot_values(values, regions)
+                l = self.ax.plot(x, y, label="{}".format(name))
+                self.lines.append(l[0])
+
+        self.add_legend()
+        self.remove_colorbar_ax()
+
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
+        sub_regions = self.regions.subset(region)
+
+        current_line = 0
+        for name in self.regions.data_field_names:
+            if not self.attributes or any(re.match(a.replace("*", ".*"), name) for a in self.attributes):
+                regions = []
+                values = []
+                for r in sub_regions:
+                    regions.append(r)
+                    values.append(getattr(r, name))
+                x, y = self.get_plot_values(values, regions)
+                self.lines[current_line].set_xdata(x)
+                self.lines[current_line].set_ydata(y)
+                current_line += 1
 
 
 class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
