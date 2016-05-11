@@ -1862,11 +1862,13 @@ class Kaic(object):
 
             for sample_size in args.sample_sizes:
                 for region in regions:
+                    if region is None:
+                        region = ""
                     logging.info("Sample size: %d" % sample_size)
                     pca_info, pca_res = do_pca(coll, pair_selection=pair_selector, sample_size=sample_size,
                                                regions=region)
 
-                    with open(output_folder + '/explained_variance_%d.txt' % sample_size, 'w') as var:
+                    with open(output_folder + "/explained_variance_{}_{}.txt".format(region, sample_size), 'w') as var:
                         for i, variance in enumerate(pca_info.explained_variance_ratio_):
                             var.write(str(variance))
                             if i == len(pca_info.explained_variance_ratio_)-1:
@@ -1874,7 +1876,7 @@ class Kaic(object):
                             else:
                                 var.write("\t")
 
-                    with open(output_folder + '/pca_results_%d.txt' % sample_size, 'w') as res:
+                    with open(output_folder + "/pca_results_{}_{}.txt".format(region, sample_size), 'w') as res:
                         for i, row in enumerate(pca_res):
                             for j, value in enumerate(row):
                                 res.write(str(value))
@@ -1885,7 +1887,7 @@ class Kaic(object):
 
                     fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names)
                     ax.set_title("PCA sample size %d" % sample_size)
-                    fig.savefig(output_folder + '/pca_plot_%d.pdf' % sample_size)
+                    fig.savefig(output_folder + "/pca_plot_{}_{}.pdf".format(region, sample_size))
                     fig.clf()
         finally:
             if args.tmp:
