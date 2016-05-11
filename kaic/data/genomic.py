@@ -1034,8 +1034,9 @@ class GenomicRegion(TableObject):
         if region.chromosome != self.chromosome:
             return False
 
-        if region.start <= self.end and region.end >= self.start:
-            return True
+        if region.start <= self.end or self.end is None or region.start is None:
+            if region.end >= self.start or self.start is None or region.end is None:
+                return True
         return False
 
     def contains(self, region):
