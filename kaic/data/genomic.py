@@ -3472,10 +3472,10 @@ class RegionMatrixTable(RegionPairs):
         logging.info("Calculating scaling factor...")
         m1_sum = 0.0
         for edge in self.edges(lazy=True):
-            m1_sum += edge[weight_column]
+            m1_sum += getattr(edge, weight_column)
         m2_sum = 0.0
         for edge in matrix.edges(lazy=True):
-            m2_sum += edge[weight_column]
+            m2_sum += getattr(edge, weight_column)
         scaling_factor = m1_sum / m2_sum
         logging.debug("Scaling factor: %f" % scaling_factor)
         return scaling_factor
