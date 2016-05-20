@@ -278,7 +278,7 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 class GenomicRegionsPlot(ScalarDataPlot):
     def __init__(self, regions, style="step", attributes=None, title='', aspect=.2,
-                 axes_style=style_ticks_whitegrid):
+                 axes_style=style_ticks_whitegrid, ylim=None):
         """
         Plot scalar values from one or more class:`~GenomicTrack` objects
 
@@ -299,6 +299,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.regions = regions
         self.attributes = attributes
         self.lines = []
+        self.ylim = ylim
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
         for name in self.regions.data_field_names:
@@ -311,6 +312,9 @@ class GenomicRegionsPlot(ScalarDataPlot):
                 x, y = self.get_plot_values(values, regions)
                 l = self.ax.plot(x, y, label="{}".format(name))
                 self.lines.append(l[0])
+
+        if self.ylim is not None:
+            self.ax.set_ylim(self.ylim)
 
         self.add_legend()
         self.remove_colorbar_ax()
