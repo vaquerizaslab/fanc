@@ -61,6 +61,7 @@ class Kaic(object):
                     --- Architecture
                     structure_tracks   Calculate structural features of an Hic object
                     boundaries         Call boundaries in an Hic object
+                    fold_change        Create pairwise fold-change Hi-C comparison maps
 
                     --- Other
                     optimize           Optimise an existing Hic object for faster access
@@ -3017,6 +3018,61 @@ class Kaic(object):
                             start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
                         )
         logging.info("All done.")
+
+    def fold_change(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Create pairwise fold-change Hi-C comparison maps'
+        )
+        parser.add_argument(
+            'input',
+            nargs=2,
+            help='Input Hic files'
+        )
+        parser.add_argument(
+            'output',
+            help='Output FoldChangeMatrix file.'
+        )
+
+        parser.add_argument(
+            '-S', '--no-scale', dest='scale',
+            action='store_false',
+            help='''Do not scale input matrices'''
+        )
+        parser.set_defaults(scale=True)
+
+        parser.add_argument(
+            '-l', '--log2', dest='log',
+            action='store_true',
+            help='''Log2-convert fold-change values'''
+        )
+        parser.set_defaults(log=False)
+
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.architecture.hic_architecture import FoldChangeMatrix
+        import os.path
+
+        tmpdir = None
+        if args.tmp:
+            import tempfile
+            tmpdir = tempfile.gettempdir()
+
+        hic1 = kaic.load_hic(os.path.expanduser(args.input[0]), mode='r')
+        hic2 = kaic.load_hic(os.path.expanduser(args.input[1]), mode='r')
+
+        output_file = os.path.expanduser(args.output)
+        with FoldChangeMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
+                              scale_matrices=args.scale, log2=args.log) as fcm:
+            fcm.calculate()
 
     def optimise(self):
         parser = argparse.ArgumentParser(
