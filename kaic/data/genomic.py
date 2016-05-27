@@ -3036,6 +3036,7 @@ class RegionMatrixTable(RegionPairs):
             for field_name in self._edges.colnames:
                 if not field_name.startswith("_") and field_name != "source" and field_name != "sink":
                     self.default_field = field_name
+                    break
 
     def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
                            clean_zero=True, default_column=None):
