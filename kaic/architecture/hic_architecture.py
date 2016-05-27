@@ -370,7 +370,7 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
 
 
 class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
-    def __init__(self, matrix1, matrix2, file_name=None, mode='a', tmpdir=None,
+    def __init__(self, matrix1, matrix2=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, scale_matrices=False, log2=True,
                  weight_column='weight', _table_name='expected_contacts'):
         self.region_selection = regions
@@ -379,7 +379,8 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
         if isinstance(matrix1, str) and matrix2 is None and file_name is None:
             file_name = matrix1
             matrix1 = None
-            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      default_field='fc', _table_name_edges=_table_name)
         else:
             if regions is None:
                 regions = matrix1.regions
