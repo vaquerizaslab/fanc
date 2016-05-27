@@ -62,6 +62,7 @@ class Kaic(object):
                     structure_tracks   Calculate structural features of an Hic object
                     boundaries         Call boundaries in an Hic object
                     fold_change        Create pairwise fold-change Hi-C comparison maps
+                    average_tracks     Calculate average Hi-C contact profiles per region
 
                     --- Other
                     optimize           Optimise an existing Hic object for faster access
@@ -3073,6 +3074,101 @@ class Kaic(object):
         with FoldChangeMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
                               scale_matrices=args.scale, log2=args.log) as fcm:
             fcm.calculate()
+
+    def average_tracks(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Calculate average Hi-C contact profiles per region'
+        )
+        parser.add_argument(
+            'input',
+            help='Input matrix (Hi-C, fold-change map, ...)'
+        )
+        parser.add_argument(
+            'output',
+            help='Output RegionContactAverage file.'
+        )
+
+        parser.add_argument(
+            '-w', '--window-sizes', dest='window_sizes',
+            nargs='+',
+            type=int,
+            default=[200000, 400000, 600000, 1000000],
+            help='''Window sizes in base pairs to calculate region average in.
+                    The total window size is composed of the left window plus the right window, i.e. 2x this value.'''
+        )
+
+        parser.add_argument(
+            '-o', '--offset', dest='offset',
+            type=int,
+            default=0,
+            help='''Window offset in base pairs from the diagonal.'''
+        )
+
+        parser.add_argument(
+            '-p', '--padding', dest='padding',
+            type=int,
+            default=1,
+            help='''Padding (in number of regions) to calculate average on larger regions.
+                    Acts similarly to curve smooting'''
+        )
+
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
+        parser.add_argument(
+            '-i', '--impute', dest='impute',
+            action='store_true',
+            help='''Impute missing values in matrix'''
+        )
+        parser.set_defaults(impute=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.data.genomic import RegionMatrixTable
+        from kaic.architecture.hic_architecture import RegionContactAverage
+        import os.path
+        import tempfile
+        import tables
+
+        input_file = os.path.expanduser(args.input)
+        output_file = os.path.expanduser(args.output)
+        tmpdir = None
+        if args.tmp:
+            tmpdir = tempfile.gettempdir()
+
+        matrix = None
+        try:
+            # Hi-C file
+            matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
+                                       _table_name_nodes='nodes')
+        except tables.FileModeError:
+            pass
+
+        if matrix is None:
+            try:
+                # Hi-C file with group structure
+                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
+                                           _table_name_nodes='region_data')
+            except tables.FileModeError:
+                pass
+
+        if matrix is None:
+            try:
+                # fold-change file
+                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='expected_contacts',
+                                           _table_name_nodes='region_data')
+            except tables.FileModeError:
+                pass
+
+        with RegionContactAverage(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
+                                  offset=args.offset, padding=args.padding, impute_missing=args.impute) as rca:
+            rca.calculate()
 
     def optimise(self):
         parser = argparse.ArgumentParser(
