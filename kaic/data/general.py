@@ -1633,7 +1633,7 @@ class Maskable(FileBased):
             masks['unmasked'] = 0
 
         for table in group:
-            for mask, count in self._mask_statistics_table(table, include_unmasked=include_unmasked):
+            for mask, count in self._mask_statistics_table(table, include_unmasked=include_unmasked).iteritems():
                 masks[mask] += count
 
         return masks
