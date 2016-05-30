@@ -1966,7 +1966,7 @@ class MaskedTable(t.Table):
 
         if _logging:
             pb.finish()
-            logging.info("Total: %d. Filtered: %d" % (total, mask_ix-1))
+            logging.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
                     
         self.flush(update_index=False)
 
