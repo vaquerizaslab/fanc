@@ -1605,7 +1605,7 @@ class Maskable(FileBased):
         
         return list(reversed(masks))
 
-    def mask_statistics(self, table, include_unmasked=True):
+    def _mask_statistics_table(self, table, include_unmasked=True):
         masks = defaultdict(int)
         if include_unmasked:
             masks['unmasked'] = 0
@@ -1626,6 +1626,23 @@ class Maskable(FileBased):
             if not found_masks and include_unmasked:
                 masks['unmasked'] += count
         return masks
+
+    def _mask_statistics_group(self, group, include_unmasked=True):
+        masks = defaultdict(int)
+        if include_unmasked:
+            masks['unmasked'] = 0
+
+        for table in group:
+            for mask, count in self._mask_statistics_table(table, include_unmasked=include_unmasked):
+                masks[mask] += count
+
+        return masks
+
+    def mask_statistics(self, table, include_unmasked=True):
+        if isinstance(table, t.Group):
+            return self._mask_statistics_group(table, include_unmasked=include_unmasked)
+        elif isinstance(table, MaskedTable):
+            return self._mask_statistics_table(table, include_unmasked=include_unmasked)
 
 
 class MaskedTableView(object):
