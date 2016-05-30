@@ -1643,6 +1643,8 @@ class Maskable(FileBased):
             return self._mask_statistics_group(table, include_unmasked=include_unmasked)
         elif isinstance(table, MaskedTable):
             return self._mask_statistics_table(table, include_unmasked=include_unmasked)
+        else:
+            raise ValueError("Fisrt arg must be PyTable Group or MaskedTable!")
 
 
 class MaskedTableView(object):
