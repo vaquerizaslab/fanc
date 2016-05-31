@@ -782,30 +782,19 @@ class BigWigPlot(ScalarDataPlot):
         suitable for plotting.
         """
         bin_coords = np.r_[slice(region.start, region.end, self.bin_size), region.end]
-        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
-                       for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
         interval_records = np.core.records.fromrecords(intervals, names=["start", "end", "value"])
         out_values = np.full(len(bin_coords) - 1, np.nan, dtype=np.float_)
-        start_overlap = np.searchsorted(interval_records["start"], bin_coords[:-1], side="right") - 1
-        end_overlap = np.searchsorted(interval_records["end"], bin_coords[1:], side="left")
+        start_overlap = np.searchsorted(interval_records["end"], bin_coords[:-1], side="right")
+        end_overlap = np.searchsorted(interval_records["start"], bin_coords[1:], side="left")
         for i, (s, e) in enumerate(it.izip(start_overlap, end_overlap)):
             assert e >= s
             if s == e:
-                out_values[i] = interval_records["value"][s]
+                # In this case no suitable values found in bigwig, leave nan
                 continue
-            total_range = bin_coords[i + 1] - bin_coords[i]
-            weighted_value = 0
-            # Have to control for edge cases where first and/or last bin only partially overlap with
-            # interval
-            weighted_value += (min(interval_records["end"][s], bin_coords[i + 1]) -
-                               max(interval_records["start"][s], bin_coords[i]))*interval_records["value"][s]
-            weighted_value += (min(interval_records["end"][e], bin_coords[i + 1]) -
-                               max(interval_records["start"][e], bin_coords[i]))*interval_records["value"][e]
-            # Once edge case is taken care of the rest of the intervals can be binned evenly
-            if e - s > 1:
-                weighted_value += np.sum((interval_records["end"][s + 1:e] - interval_records["start"][s + 1:e]) *
-                                         interval_records["value"][s + 1:e])
-            out_values[i] = weighted_value/total_range
+            weights = interval_records["end"][s:e] - interval_records["start"][s:e]
+            out_values[i] = np.average(interval_records["value"][s:e], weights=weights)
+        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
+                       for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
         return bin_regions, out_values
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
