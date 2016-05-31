@@ -315,9 +315,9 @@ class BasePlotterMatrix(object):
         if self.illegal_color:
             color_matrix[~np.isfinite(matrix)] = mpl.colors.colorConverter.to_rgba(self.illegal_color)
         if self.unmappable_color:
-            color_matrix[np.all(zero_mask, axis=0), :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+            color_matrix[np.all(zero_mask, axis=1), :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
             if matrix.shape[0] == matrix.shape[1]:
-                color_matrix[:, np.all(zero_mask, axis=1)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+                color_matrix[:, np.all(zero_mask, axis=0)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
         return color_matrix
 
     def add_colorbar(self, ax=None, baseline=None):
