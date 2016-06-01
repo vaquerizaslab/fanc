@@ -1778,6 +1778,13 @@ class Kaic(object):
         )
 
         parser.add_argument(
+            '-m', '--markers', dest='markers',
+            nargs='+',
+            help='''Markers for plotting. Follows Matplotlib marker
+                    definitions: http://matplotlib.org/api/markers_api.html'''
+        )
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -1887,7 +1894,8 @@ class Kaic(object):
                                 else:
                                     res.write("\t")
 
-                    fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names)
+                    fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names,
+                                       markers=args.markers)
                     ax.set_title("PCA sample size %d" % sample_size)
                     fig.savefig(output_folder + "/pca_plot_{}_{}.pdf".format(region, sample_size))
                     fig.clf()
