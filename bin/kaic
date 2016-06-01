@@ -147,6 +147,12 @@ class Kaic(object):
                 raise
 
         try:
+            os.makedirs(root_dir + '/hic/filtered/corrected')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        try:
             os.makedirs(root_dir + '/hic/binned')
         except OSError as exception:
             if exception.errno != errno.EEXIST:
@@ -652,7 +658,48 @@ class Kaic(object):
                 file_names.append(binned_hic_file)
                 file_types.append('hic')
 
-        # 11. Correct Hic
+        # 11.a. Filter Hic
+        def filter_hic_worker(hic_file, filtered_hic_file, filtered_hic_stats_file):
+            logging.info("Filtering Hic...")
+            filter_hic_command = ['kaic', 'filter_hic']
+            if args.tmp:
+                filter_hic_command.append('-tmp')
+            filter_hic_command.append('-rl')
+            filter_hic_command.append('0.1')
+            filter_hic_command.append('-s')
+
+            return subprocess.call(filter_hic_command + [filtered_hic_stats_file, hic_file, filtered_hic_file])
+
+        hic_files = []
+        for i in xrange(len(file_names)):
+            if file_types[i] != 'hic':
+                continue
+            hic_files.append(i)
+
+        if len(hic_files) > 0:
+            tp = ThreadPool(threads)
+
+            filtered_hic_files = []
+            for ix in hic_files:
+                hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
+                filtered_hic_file = output_folder + 'hic/filtered/' + hic_basename + '_filtered.hic'
+                filtered_hic_stats_file = output_folder + 'plots/stats/' + hic_basename + '_filtered.stats.pdf'
+                tp.apply_async(filter_hic_worker, (filtered_hic_stats_file, file_names[ix], filtered_hic_file, True))
+
+                filtered_hic_files.append(filtered_hic_file)
+
+            tp.close()
+            tp.join()
+
+        for ix, i in enumerate(reversed(hic_files)):
+            del file_names[i]
+            del file_types[i]
+
+        for filtered_hic_file in filtered_hic_files:
+            file_names.append(filtered_hic_file)
+            file_types.append('hic')
+
+        # 11.b. Correct Hic
         def correct_hic_worker(hic_file, corrected_hic_file, per_chromosome=False):
             logging.info("Correcting Hic...")
             correct_hic_command = ['kaic', 'correct_hic']
