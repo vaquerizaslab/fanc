@@ -1871,8 +1871,6 @@ class Kaic(object):
 
             for sample_size in args.sample_sizes:
                 for region in regions:
-                    if region is None:
-                        region = ""
                     logging.info("Sample size: %d" % sample_size)
                     pca_info, pca_res = do_pca(coll, pair_selection=pair_selector, sample_size=sample_size,
                                                regions=region)
