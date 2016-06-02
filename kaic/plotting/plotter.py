@@ -568,6 +568,105 @@ class GenomicFeaturePlot(BasePlotter1D):
         pass
 
 
+class GenomicFeatureScorePlot(BasePlotter1D):
+    """
+    Plot discrete genomic regions from BED, GTF files or similar.
+
+    Regions will be plotted as bars with the height equal to the score provided in the file.
+    """
+    def __init__(self, regions, title="", feature_types=None, aspect=.2, axes_style="ticks",
+                 color_neutral='grey', color_forward='red', color_reverse='blue'):
+        """
+        :param regions: Any input that pybedtools can parse. Can be a path to a
+                        GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), ...]
+        :param feature_types: If the input file is a GTF, only draw certain feature types (3rd column)
+                              If False, draw all features on a common track
+                              If None, automatically draw different feature types on separate tracks
+                              If a list, draw only the feature types in the list on separate tracks,
+                              don't draw the rest.
+        :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
+        """
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+        if not isinstance(regions, pbt.BedTool):
+            self.bedtool = pbt.BedTool(regions)
+        else:
+            self.bedtool = regions
+        if feature_types is None and self.bedtool.file_type == "gff":
+            feature_types = set(f[2] for f in self.bedtool)
+        elif isinstance(feature_types, (str, unicode)):
+            feature_types = [feature_types]
+        self.feature_types = feature_types
+        self.color_forward = color_forward
+        self.color_reverse = color_reverse
+        self.color_neutral = color_neutral
+
+        self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        interval = region_to_pbt_interval(region)
+        features = self.bedtool.all_hits(interval)
+        # trans = self.ax.get_xaxis_transform()
+
+        x = []
+        y = []
+        width = []
+        colors = []
+        annotations = []
+        for f in features:
+            if self.feature_types is not None:
+                try:
+                    if not f[2] in self.feature_types:
+                        continue
+                except ValueError:
+                    pass
+
+            x.append(f.start)
+            width.append(f.end-f.start)
+            try:
+                score = float(f.score)
+            except ValueError:
+                score = 1
+            y.append(score)
+
+            try:
+                if f.name != '.':
+                    annotation = f.name
+                else:
+                    annotation = ''
+            except ValueError:
+                annotation = ''
+
+            if f.strand == '+':
+                colors.append(self.color_forward)
+                annotation += ' (+)' if annotation != '' else '+'
+            elif f.strand == '-':
+                colors.append(self.color_reverse)
+                annotation += ' (-)' if annotation != '' else '-'
+            else:
+                colors.append(self.color_neutral)
+
+            annotations.append(annotation)
+
+        rects = self.ax.bar(x, y, width=width, color=colors)
+
+        for i, rect in enumerate(rects):
+            if i % 2 == 0:
+                offset = 1.05
+            else:
+                offset = 1.25
+            self.ax.text(rect.get_x() + rect.get_width() / 2., offset * rect.get_height(),
+                         annotations[i], ha='center', va='bottom')
+
+        sns.despine(ax=self.ax, top=True, right=True)
+        # self.ax.yaxis.set_major_locator(NullLocator())
+        # self.remove_colorbar_ax()
+
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
+        pass
+
+
 class BigWigPlot(ScalarDataPlot):
     # TODO make this work - wWigIO just won't install
     def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None,
