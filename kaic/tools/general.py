@@ -8,6 +8,7 @@ import itertools
 import random
 import collections
 import progressbar
+import tables as t
 from datetime import datetime
 
 
@@ -89,6 +90,23 @@ def distribute_integer(value, divisor, _shuffle=True):
     if _shuffle:
         random.shuffle(a)
     return a
+
+
+def create_col_index(col):
+    """
+    Create index for Pytables column in a
+    safe manner.
+    If index already exists, does nothing.
+    If index is corrupt, recreates index.
+    """
+    try:
+        col.create_index()
+    except ValueError:
+        # Index exists
+        pass
+    except t.NodeError:
+        col.remove_index()
+        col.create_index()
 
 
 class RareUpdateProgressBar(progressbar.ProgressBar):

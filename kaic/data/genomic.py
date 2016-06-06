@@ -71,7 +71,7 @@ from kaic.data.general import Table, TableRow, TableArray, TableObject,\
 from abc import abstractmethod, ABCMeta
 import os.path
 import logging
-from kaic.tools.general import ranges, distribute_integer
+from kaic.tools.general import ranges, distribute_integer, create_col_index
 from itertools import izip as zip
 from xml.etree import ElementTree as et
 import pickle
@@ -1435,29 +1435,9 @@ class RegionsTable(GenomicRegions, FileGroup):
             self._max_region_ix = -1
 
         # index regions table
-        try:
-            self._regions.cols.ix.create_index()
-        except ValueError:
-            pass
-        except t.NodeError:
-            self._regions.cols.ix.remove_index()
-            self._regions.cols.ix.create_index()
-
-        try:
-            self._regions.cols.start.create_index()
-        except ValueError:
-            pass
-        except t.NodeError:
-            self._regions.cols.start.remove_index()
-            self._regions.cols.start.create_index()
-
-        try:
-            self._regions.cols.end.create_index()
-        except ValueError:
-            pass
-        except t.NodeError:
-            self._regions.cols.end.remove_index()
-            self._regions.cols.end.create_index()
+        create_col_index(self._regions.cols.ix)
+        create_col_index(self._regions.cols.start)
+        create_col_index(self._regions.cols.end)
 
         self._ix_to_chromosome = dict()
         self._chromosome_to_ix = dict()
@@ -1950,16 +1930,8 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
             self._edges = MaskedTable(self.file.root, _table_name_edges, basic_fields)
 
         # index edge table
-        try:
-            self._edges.cols.source.create_index()
-        except ValueError:
-            # Index exists, no problem!
-            pass
-        try:
-            self._edges.cols.sink.create_index()
-        except ValueError:
-            # Index exists, no problem!
-            pass
+        create_col_index(self._edges.cols.source)
+        create_col_index(self._edges.cols.sink)
 
         # update field names
         self._source_field_ix = 0
@@ -2659,8 +2631,8 @@ class AccessOptimisedRegionPairs(RegionPairs):
         edge_table.attrs['sink_partition'] = sink_partition
 
         # index
-        edge_table.cols.source.create_index()
-        edge_table.cols.sink.create_index()
+        create_col_index(edge_table.cols.source)
+        create_col_index(edge_table.cols.sink)
 
         self._edge_table_dict[(source_partition, sink_partition)] = edge_table
         return edge_table
