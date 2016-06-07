@@ -12,7 +12,7 @@ import kaic.fixes.pytables_nrowsinbuf_inheritance_fix
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
 import numpy as np
 import warnings
-from kaic.tools.general import RareUpdateProgressBar
+from kaic.tools.general import RareUpdateProgressBar, create_col_index
 import os
 import time
 import logging
@@ -1752,8 +1752,7 @@ class MaskedTable(t.Table):
                          byteorder=byteorder)
         
         mask_ix_col = getattr(self.cols, self._mask_index_field)
-        if not mask_ix_col.is_indexed:
-            mask_ix_col.create_index()
+        create_col_index(mask_ix_col)
 
     def flush(self, update_index=False):
         """
