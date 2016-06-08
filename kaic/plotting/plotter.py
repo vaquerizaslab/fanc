@@ -4,7 +4,8 @@ from matplotlib.ticker import NullLocator
 from kaic.data.genomic import GenomicRegion
 from kaic.plotting.base_plotter import BasePlotter1D
 from kaic.plotting.hic_plotter import BasePlotterMatrix
-from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field
+from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
+                                  region_to_pbt_interval
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import types

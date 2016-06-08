@@ -30,6 +30,7 @@ style_ticks_whitegrid = {
 
 
 def region_to_pbt_interval(region):
+    import pybedtools as pbt
     return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
 
 
