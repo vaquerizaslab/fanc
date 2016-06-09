@@ -627,11 +627,9 @@ class GenomicFeaturePlot(BasePlotter1D):
             if self.feature_types and feature_type not in self.feature_types:
                 continue
             label = get_region_field(g, self.label_field, return_default="") if self.label_field else ""
-            gene_patch = patches.FancyArrowPatch(
+            gene_patch = patches.Rectangle(
                 (g.start, pos[feature_type]),
-                (g.end, pos[feature_type]),
-                arrowstyle="|-|",
-                mutation_scale=40,
+                width=abs(g.end - g.start), height=stroke_length,
                 transform=trans, color="black"
             )
             self.ax.add_patch(gene_patch)
