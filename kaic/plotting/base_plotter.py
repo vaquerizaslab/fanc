@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+from kaic.plotting.helpers import style_ticks_whitegrid
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, ABCMeta
@@ -256,6 +257,51 @@ class BasePlotter1D(BasePlotter):
             x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
             x_region = GenomicRegion(x_start, x_end, self._current_chromosome)
             self.refresh(region=x_region)
+
+
+class ScalarDataPlot(BasePlotter1D):
+    """
+    Base class for plotting scalar values like ChIP-seq signal.
+    Provides methods for converting lists of values and regions
+    to plotting coordinates.
+    """
+    _STYLE_STEP = "step"
+    _STYLE_MID = "mid"
+
+    def __init__(self, style="step", title='', aspect=.2, axes_style=style_ticks_whitegrid):
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+        self.style = style
+        if style not in self._STYLES:
+            raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
+
+    def _get_values_per_step(self, values, region_list):
+        x = np.empty(len(region_list)*2)
+        y = np.empty(len(region_list)*2)
+        for i, r in enumerate(region_list):
+            j = i*2
+            x[j], x[j + 1] = r.start, r.end
+            y[j:j + 2] = values[i]
+        return x, y
+
+    def _get_values_per_mid(self, values, region_list):
+        x = np.empty(len(values), dtype=np.int_)
+        for i, r in enumerate(region_list):
+            x[i] = int(round((r.end + r.start)/2))
+        return x, values
+
+    def get_plot_values(self, values, region_list):
+        """
+        Convert values and regions to final x- and y-
+        coordinates for plotting, based on the selected style.
+
+        :param values: List or array of scalar values
+        :param region_list: List of class:`~kaic.data.genomic.GenomicRegion`,
+                            one for each value
+        """
+        return self._STYLES[self.style](self, values, region_list)
+
+    _STYLES = {_STYLE_STEP: _get_values_per_step,
+               _STYLE_MID: _get_values_per_mid}
 
 
 class BasePlotterMatrix(object):
