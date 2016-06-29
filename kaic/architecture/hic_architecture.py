@@ -651,7 +651,8 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      _table_name_data=_table_name)
         else:
             di_fields = {}
             self.window_sizes = []
@@ -768,7 +769,8 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      _table_name_data=_table_name)
         else:
             if regions is None:
                 regions = hic.regions
@@ -878,7 +880,8 @@ class RegionContactAverage(VectorArchitecturalRegionFeature):
         if isinstance(matrix, str) and file_name is None:
             file_name = matrix
             matrix = None
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      _table_name_data=_table_name)
         else:
             if regions is None:
                 regions = matrix.regions
