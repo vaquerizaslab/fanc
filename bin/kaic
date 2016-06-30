@@ -63,6 +63,8 @@ class Kaic(object):
                     boundaries         Call boundaries in an Hic object
                     fold_change        Create pairwise fold-change Hi-C comparison maps
                     average_tracks     Calculate average Hi-C contact profiles per region
+                    directionality     Calculate directionality index for Hic object
+                    insulation         Calculate insulation index for Hic object
 
                     --- Other
                     optimize           Optimise an existing Hic object for faster access
@@ -3222,6 +3224,197 @@ class Kaic(object):
         with RegionContactAverage(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                                   offset=args.offset, padding=args.padding, impute_missing=args.impute) as rca:
             rca.calculate()
+
+    def directionality(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Calculate directionality index for Hic object'
+        )
+        parser.add_argument(
+            'input',
+            help='Input matrix (Hi-C, fold-change map, ...)'
+        )
+        parser.add_argument(
+            'output',
+            help='Output DirectionalityIndex file.'
+        )
+
+        parser.add_argument(
+            '-w', '--window-sizes', dest='window_sizes',
+            nargs='+',
+            type=int,
+            default=[200000, 400000, 600000, 1000000],
+            help='''Window sizes in base pairs to calculate directionality index on.
+                    The total window size is composed of the left window plus the right window, i.e. 2x this value.'''
+        )
+
+        parser.add_argument(
+            '-r', '--region', dest='region',
+            help='''Region selector (<chr>:<start>-<end>) to only calculate DI for this region.'''
+        )
+
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
+        parser.add_argument(
+            '-i', '--impute', dest='impute',
+            action='store_true',
+            help='''Impute missing values in matrix'''
+        )
+        parser.set_defaults(impute=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.data.genomic import RegionMatrixTable
+        from kaic.architecture.hic_architecture import DirectionalityIndex
+        import os.path
+        import tempfile
+        import tables
+
+        input_file = os.path.expanduser(args.input)
+        output_file = os.path.expanduser(args.output)
+        tmpdir = None
+        if args.tmp:
+            tmpdir = tempfile.gettempdir()
+
+        matrix = None
+        try:
+            # Hi-C file
+            matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
+                                       _table_name_nodes='nodes')
+        except tables.FileModeError:
+            pass
+
+        if matrix is None:
+            try:
+                # Hi-C file with group structure
+                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
+                                           _table_name_nodes='region_data')
+            except tables.FileModeError:
+                pass
+
+        if matrix is None:
+            try:
+                # fold-change file
+                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='expected_contacts',
+                                           _table_name_nodes='region_data')
+            except tables.FileModeError:
+                pass
+
+        with DirectionalityIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes) as di:
+            di.calculate()
+
+    def insulation(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Calculate insulation index for Hic object'
+        )
+        parser.add_argument(
+            'input',
+            help='Input matrix (Hi-C, fold-change map, ...)'
+        )
+        parser.add_argument(
+            'output',
+            help='Output InsulationIndex file.'
+        )
+
+        parser.add_argument(
+            '-w', '--window-sizes', dest='window_sizes',
+            nargs='+',
+            type=int,
+            default=[200000, 400000, 600000, 1000000],
+            help='''Window sizes in base pairs to calculate insulation index on.
+                    The total window size is composed of the left window plus the right window, i.e. 2x this value.'''
+        )
+
+        parser.add_argument(
+            '-r', '--region', dest='region',
+            help='''Region selector (<chr>:<start>-<end>) to only calculate DI for this region.'''
+        )
+
+        parser.add_argument(
+            '-tmp', '--work-in-tmp', dest='tmp',
+            action='store_true',
+            help='''Work in temporary directory'''
+        )
+        parser.set_defaults(tmp=False)
+
+        parser.add_argument(
+            '-i', '--impute', dest='impute',
+            action='store_true',
+            help='''Impute missing values in matrix'''
+        )
+        parser.set_defaults(impute=False)
+
+        parser.add_argument(
+            '-o', '--offset', dest='offset',
+            type=int,
+            default=0,
+            help='''Window offset in base pairs from the diagonal.'''
+        )
+
+        parser.add_argument(
+            '-l', '--relative', dest='relative',
+            action='store_true',
+            help='''Calculate II relative to surrounding region'''
+        )
+        parser.set_defaults(relative=False)
+
+        parser.add_argument(
+            '-n', '--normalise', dest='normalise',
+            action='store_true',
+            help='''Normalise index to 300 bin window.'''
+        )
+        parser.set_defaults(normalise=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.data.genomic import RegionMatrixTable
+        from kaic.architecture.hic_architecture import InsulationIndex
+        import os.path
+        import tempfile
+        import tables
+
+        input_file = os.path.expanduser(args.input)
+        output_file = os.path.expanduser(args.output)
+        tmpdir = None
+        if args.tmp:
+            tmpdir = tempfile.gettempdir()
+
+        matrix = None
+        try:
+            # Hi-C file
+            matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
+                                       _table_name_nodes='nodes')
+        except tables.FileModeError:
+            pass
+
+        if matrix is None:
+            try:
+                # Hi-C file with group structure
+                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
+                                           _table_name_nodes='region_data')
+            except tables.FileModeError:
+                pass
+
+        if matrix is None:
+            try:
+                # fold-change file
+                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='expected_contacts',
+                                           _table_name_nodes='region_data')
+            except tables.FileModeError:
+                pass
+
+        with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
+                             impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
+                             relative=args.relative) as ii:
+            ii.calculate()
 
     def optimise(self):
         parser = argparse.ArgumentParser(
