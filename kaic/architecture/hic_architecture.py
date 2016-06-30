@@ -749,6 +749,7 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
 
     def _calculate(self):
         for window_size in self.window_sizes:
+            logging.info("Calculating directionality index for window size {}".format(window_size))
             directionality_index = self._directionality_index(window_size)
             self.data("di_%d" % window_size, directionality_index)
 
@@ -877,6 +878,7 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
     def _calculate(self):
         offset_bins = self.hic.distance_to_bins(self.offset)
         for window_size in self.window_sizes:
+            logging.info("Calculating insulation index for window size {}".format(window_size))
             bins = self.hic.distance_to_bins(window_size)
             insulation_index = self._insulation_index(offset_bins, offset_bins+bins)
             self.data("ii_%d" % window_size, insulation_index)
