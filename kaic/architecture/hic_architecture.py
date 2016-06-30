@@ -650,7 +650,6 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         # are we retrieving an existing object?
         if isinstance(hic, str) and file_name is None:
             file_name = hic
-            hic = None
             VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                       _table_name_data=_table_name)
         else:
@@ -668,17 +667,17 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
                                                       data_fields=di_fields, regions=regions,
                                                       _table_name_data=_table_name)
 
+            self.hic = hic
+            if weight_column is None:
+                self.weight_column = self.hic.default_field
+            else:
+                self.weight_column = weight_column
+
         self.window_sizes = []
         for colname in self._regions.colnames:
             if colname.startswith("di_"):
                 window_size = int(colname[3:])
                 self.window_sizes.append(window_size)
-
-        self.hic = hic
-        if weight_column is None:
-            self.weight_column = self.hic.default_field
-        else:
-            self.weight_column = weight_column
 
     def _get_boundary_distances(self):
         n_bins = len(self.hic.regions)
