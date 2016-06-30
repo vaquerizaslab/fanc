@@ -8,6 +8,7 @@ from kaic.tools.general import ranges
 from kaic.tools.matrix import apply_sliding_func
 import numpy as np
 import tables as t
+import itertools
 import logging
 from kaic.tools.general import RareUpdateProgressBar
 logging.basicConfig(level=logging.INFO)
@@ -798,33 +799,40 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         self.normalise = normalise
         self.normalisation_window = _normalisation_window
 
-    def _insulation_index(self, d1, d2, hic_matrix=None, mask_thresh=.5, aggr_func=np.ma.mean):
+    def _insulation_index(self, d1, d2, mask_thresh=.5, aggr_func=np.ma.mean):
         if self.region_selection is not None:
             regions = self.hic.subset(self.region_selection)
         else:
             regions = self.hic.regions
 
         chr_bins = self.hic.chromosome_bins
-        n = len(self.regions)
-        if hic_matrix is None or not hasattr(hic_matrix, "mask"):
-            logging.debug("Fetching matrix")
-            hic_matrix = self.hic.as_matrix(mask_missing=True, impute_missing=self.impute_missing)
 
-        ins_matrix = np.empty(n)
         logging.debug("Starting processing")
         skipped = 0
+        last_chromosome = None
+        ins_by_chromosome = []
         for i, r in enumerate(regions):
+            if r.chromosome != last_chromosome:
+                logging.info("Processing chromosome {}".format(r.chromosome))
+                last_chromosome = r.chromosome
+                ins_by_chromosome.append(list())
+                hic_matrix = self.hic.as_matrix(key=(r.chromosome, r.chromosome),
+                                                mask_missing=True, impute_missing=self.impute_missing)
+
+            rix = len(ins_by_chromosome[-1])
+
             if (r.ix - chr_bins[r.chromosome][0] < d2 or
                     chr_bins[r.chromosome][1] - r.ix <= d2 + 1):
-                ins_matrix[i] = np.nan
-                continue
-            if hic_matrix.mask[r.ix, r.ix]:
-                ins_matrix[i] = np.nan
+                ins_by_chromosome[-1].append(np.nan)
                 continue
 
-            up_rel_slice = (slice(r.ix - d2, r.ix - d1), slice(r.ix - d2, r.ix - d1))
-            down_rel_slice = (slice(r.ix + d1 + 1, r.ix + d2 + 1), slice(r.ix + d1 + 1, r.ix + d2 + 1))
-            ins_slice = (slice(r.ix + d1 + 1, r.ix + d2 + 1), slice(r.ix - d2, r.ix - d1))
+            if hic_matrix.mask[rix, rix]:
+                ins_by_chromosome[-1].append(np.nan)
+                continue
+
+            up_rel_slice = (slice(rix - d2, rix - d1), slice(rix - d2, rix - d1))
+            down_rel_slice = (slice(rix + d1 + 1, rix + d2 + 1), slice(rix + d1 + 1, rix + d2 + 1))
+            ins_slice = (slice(rix + d1 + 1, rix + d2 + 1), slice(rix - d2, rix - d1))
 
             if ((self.relative and np.sum(hic_matrix.mask[up_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
                     (self.relative and np.sum(hic_matrix.mask[down_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
@@ -833,26 +841,37 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                 # if more than half of the entries in this quadrant are masked (unmappable)
                 # exclude it from the analysis
                 skipped += 1
-                ins_matrix[r.ix] = np.nan
+                ins_by_chromosome[-1].append(np.nan)
                 continue
 
             if not self.relative:
-                ins_matrix[i] = aggr_func(hic_matrix[ins_slice].data
-                                          if self.impute_missing else hic_matrix[ins_slice])
+                s = aggr_func(hic_matrix[ins_slice].data
+                              if self.impute_missing else hic_matrix[ins_slice])
+                ins_by_chromosome[-1].append(s)
             else:
                 if not self.impute_missing:
-                    ins_matrix[i] = (aggr_func(hic_matrix[ins_slice]) /
-                                     aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
-                                                             hic_matrix[down_rel_slice]))))
+                    s = (aggr_func(hic_matrix[ins_slice]) /
+                                   aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
+                                                           hic_matrix[down_rel_slice]))))
+                    ins_by_chromosome[-1].append(s)
                 else:
-                    ins_matrix[i] = (aggr_func(hic_matrix[ins_slice].data) /
-                                     aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
-                                                             hic_matrix[down_rel_slice].data))))
+                    s = (aggr_func(hic_matrix[ins_slice].data) /
+                                   aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
+                                                           hic_matrix[down_rel_slice].data))))
+                    ins_by_chromosome[-1].append(s)
 
         logging.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
 
-        if self.normalise:
-            return np.ma.log2(ins_matrix / apply_sliding_func(ins_matrix, self.normalisation_window, func=np.ma.mean))
+        for i in xrange(len(ins_by_chromosome)):
+            ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
+            print len(ins_by_chromosome[i])
+            if self.normalisation_window is not None:
+                ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / apply_sliding_func(
+                    ins_by_chromosome[i], self.normalisation_window, func=np.nanmean))
+            else:
+                ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / np.nanmean(ins_by_chromosome[i]))
+
+        ins_matrix = np.array(list(itertools.chain.from_iterable(ins_by_chromosome)))
         return ins_matrix
 
     def _calculate(self):
