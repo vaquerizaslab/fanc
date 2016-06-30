@@ -851,13 +851,13 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
             else:
                 if not self.impute_missing:
                     s = (aggr_func(hic_matrix[ins_slice]) /
-                                   aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
-                                                           hic_matrix[down_rel_slice]))))
+                         aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
+                                                 hic_matrix[down_rel_slice]))))
                     ins_by_chromosome[-1].append(s)
                 else:
                     s = (aggr_func(hic_matrix[ins_slice].data) /
-                                   aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
-                                                           hic_matrix[down_rel_slice].data))))
+                         aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
+                                                 hic_matrix[down_rel_slice].data))))
                     ins_by_chromosome[-1].append(s)
 
         logging.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
@@ -865,11 +865,12 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         for i in xrange(len(ins_by_chromosome)):
             ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
             print len(ins_by_chromosome[i])
-            if self.normalisation_window is not None:
-                ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / apply_sliding_func(
-                    ins_by_chromosome[i], self.normalisation_window, func=np.nanmean))
-            else:
-                ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / np.nanmean(ins_by_chromosome[i]))
+            if self.normalise:
+                if self.normalisation_window is not None:
+                    ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / apply_sliding_func(
+                        ins_by_chromosome[i], self.normalisation_window, func=np.nanmean))
+                else:
+                    ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / np.nanmean(ins_by_chromosome[i]))
 
         ins_matrix = np.array(list(itertools.chain.from_iterable(ins_by_chromosome)))
         return ins_matrix
