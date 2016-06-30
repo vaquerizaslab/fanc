@@ -821,8 +821,7 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
 
             rix = len(ins_by_chromosome[-1])
 
-            if (r.ix - chr_bins[r.chromosome][0] < d2 or
-                    chr_bins[r.chromosome][1] - r.ix <= d2 + 1):
+            if rix < d2 or hic_matrix.shape[0] - rix <= d2 + 1:
                 ins_by_chromosome[-1].append(np.nan)
                 continue
 
