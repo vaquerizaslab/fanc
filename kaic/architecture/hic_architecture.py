@@ -827,9 +827,6 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                         mask[z, :] = True
                         mask[:, z] = True
                 hic_matrix = np.ma.MaskedArray(unmasked, mask=mask)
-                print np.sum(mask)
-                print len(mask)
-
                 logging.info("Matrix loaded.")
 
             rix = len(ins_by_chromosome[-1])
