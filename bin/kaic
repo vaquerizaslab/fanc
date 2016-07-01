@@ -3285,18 +3285,9 @@ class Kaic(object):
         matrix = None
         try:
             # Hi-C file
-            matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
-                                       _table_name_nodes='nodes')
-        except tables.FileModeError:
+            matrix = kaic.load_hic(input_file, mode='r')
+        except (tables.FileModeError, tables.NoSuchNodeError):
             pass
-
-        if matrix is None:
-            try:
-                # Hi-C file with group structure
-                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
-                                           _table_name_nodes='region_data')
-            except tables.FileModeError:
-                pass
 
         if matrix is None:
             try:
