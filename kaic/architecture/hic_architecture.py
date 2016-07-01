@@ -799,6 +799,7 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         self.impute_missing = impute_missing
         self.normalise = normalise
         self.normalisation_window = _normalisation_window
+        self.mappable = None
 
     def _insulation_index(self, d1, d2, mask_thresh=.5, aggr_func=np.ma.mean):
         if self.region_selection is not None:
@@ -806,7 +807,8 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         else:
             regions = self.hic.regions
 
-        chr_bins = self.hic.chromosome_bins
+        if self.mappable is None:
+            self.mappable = self.hic.marginals() > 0
 
         logging.debug("Starting processing")
         skipped = 0
@@ -817,8 +819,18 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
                 logging.info("Processing chromosome {}".format(r.chromosome))
                 last_chromosome = r.chromosome
                 ins_by_chromosome.append(list())
-                hic_matrix = self.hic.as_matrix(key=(r.chromosome, r.chromosome),
-                                                mask_missing=True, impute_missing=self.impute_missing)
+                unmasked = self.hic.as_matrix(key=(r.chromosome, r.chromosome),
+                                              mask_missing=False, impute_missing=self.impute_missing)
+                mask = np.zeros(unmasked.shape, dtype=bool)
+                for z, ix in enumerate(xrange(r.ix, r.ix + unmasked.shape[0])):
+                    if not self.mappable[ix]:
+                        mask[z, :] = True
+                        mask[:, z] = True
+                hic_matrix = np.ma.MaskedArray(unmasked, mask=mask)
+                print np.sum(mask)
+                print len(mask)
+
+                logging.info("Matrix loaded.")
 
             rix = len(ins_by_chromosome[-1])
 
@@ -864,7 +876,6 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
 
         for i in xrange(len(ins_by_chromosome)):
             ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
-            print len(ins_by_chromosome[i])
             if self.normalise:
                 if self.normalisation_window is not None:
                     ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / apply_sliding_func(
