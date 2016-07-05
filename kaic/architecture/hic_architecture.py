@@ -641,7 +641,149 @@ class PossibleContacts(TableArchitecturalFeature):
         return self[0, 'inter']
 
 
-class DirectionalityIndex(VectorArchitecturalRegionFeature):
+class RowRegionMatrix(np.ndarray):
+    def __new__(cls, input_matrix, regions=None, fields=None):
+        obj = np.asarray(input_matrix).view(cls)
+        obj.regions = regions
+        obj.fields = fields
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+
+        self.regions = getattr(obj, 'regions', None)
+        self.fields = getattr(obj, 'fields', None)
+
+    def __getitem__(self, index):
+        self._getitem = True
+
+        # convert string types into region indexes
+        if isinstance(index, tuple):
+            row_key = self._convert_region_key(index[0])
+            col_key = self._convert_field_key(index[1])
+            index = (row_key, col_key)
+        else:
+            row_key = self._convert_region_key(index)
+            try:
+                col_key = slice(0, len(self.fields), 1)
+            except TypeError:
+                col_key = None
+            index = row_key
+
+        try:
+            out = np.ndarray.__getitem__(self, index)
+        finally:
+            self._getitem = False
+
+        if not isinstance(out, np.ndarray):
+            return out
+
+        # get regions
+        try:
+            row_regions = self.regions[row_key]
+        except TypeError:
+            row_regions = None
+
+        if not isinstance(col_key, list):
+            try:
+                col_fields = self.fields[col_key]
+            except TypeError:
+                col_fields = None
+        else:
+            try:
+                col_fields = [self.fields[key] for key in col_key]
+            except TypeError:
+                col_fields = None
+
+        out.fields = col_fields
+        out.regions = row_regions
+
+        return out
+
+    def __getslice__(self, start, stop):
+        return self.__getitem__(slice(start, stop))
+
+    def _convert_region_key(self, key):
+        if isinstance(key, str):
+            key = GenomicRegion.from_string(key)
+        if isinstance(key, GenomicRegion):
+            key_start = max(0, key.start)
+            key_end = key.end
+            start = None
+            stop = None
+            for i, region in enumerate(self.regions):
+                if region.chromosome == key.chromosome:
+                    if (key_end is None or region.start <= key_end) and region.end >= key_start:
+                        if start is None:
+                            start = i
+                        stop = i
+            return slice(start, stop+1, 1)
+        return key
+
+    def _convert_field_key(self, key):
+        if isinstance(key, str):
+            return self.fields.index(key)
+
+        if isinstance(key, list):
+            if len(key) == 0:
+                raise ValueError("Length of supplied list is 0.")
+            l = []
+            for k in key:
+                if isinstance(k, str):
+                    k = self.fields.index(k)
+                l.append(k)
+            return l
+
+        return key
+
+
+class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
+    def __init__(self, file_name=None, mode='a', data_fields=None,
+                 regions=None, data=None, _table_name_data='region_data',
+                 tmpdir=None):
+        VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, data_fields=data_fields,
+                                                  regions=regions, data=data, _table_name_data=_table_name_data,
+                                                  tmpdir=tmpdir)
+        self._y_values = None
+
+    def as_matrix(self, regions=None, keys=None):
+        if regions is None:
+            region_iter = self.regions(lazy=False)
+        else:
+            region_iter = self.subset(regions, lazy=False)
+
+        if keys is None:
+            keys = self.data_field_names
+        elif isinstance(keys, slice) or isinstance(keys, int):
+            keys = self.data_field_names[keys]
+
+        array = []
+        array_regions = []
+        array_keys = [key for key in keys]
+        for region in region_iter:
+            array_regions.append(region)
+            row = []
+            for key in array_keys:
+                row.append(getattr(region, key))
+            array.append(row)
+
+        return RowRegionMatrix(np.array(array), regions=array_regions, fields=array_keys)
+
+    @property
+    def y_values(self):
+        return self._y_values
+
+    @y_values.setter
+    def y_values(self, values):
+        if len(values) != len(self.data_field_names):
+            raise ValueError("Length of y-values "
+                             "({}) must be the same as length of data fields ({})".format(len(values),
+                                                                                          len(self.data_field_names)))
+        self._y_values = values
+
+
+class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
                  weight_column=None, regions=None, window_sizes=(2000000,),
                  _table_name='directionality_index'):
@@ -651,8 +793,8 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         # are we retrieving an existing object?
         if isinstance(hic, str) and file_name is None:
             file_name = hic
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      _table_name_data=_table_name)
+            MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                           _table_name_data=_table_name)
         else:
             di_fields = {}
             self.window_sizes = []
@@ -664,9 +806,9 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
                 regions = hic.regions
             else:
                 regions = hic.subset(regions)
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      data_fields=di_fields, regions=regions,
-                                                      _table_name_data=_table_name)
+                MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                               data_fields=di_fields, regions=regions,
+                                                               _table_name_data=_table_name)
 
             self.hic = hic
             if weight_column is None:
@@ -679,6 +821,7 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
             if colname.startswith("di_"):
                 window_size = int(colname[3:])
                 self.window_sizes.append(window_size)
+        self.y_values = self.window_sizes
 
     def _get_boundary_distances(self):
         n_bins = len(self.hic.regions)
@@ -760,7 +903,7 @@ class DirectionalityIndex(VectorArchitecturalRegionFeature):
         return self[:, 'di_%d' % window_size]
 
 
-class InsulationIndex(VectorArchitecturalRegionFeature):
+class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
                  regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
                  window_sizes=(200000,), _normalisation_window=300, _table_name='insulation_index'):
@@ -770,8 +913,8 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      _table_name_data=_table_name)
+            MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                           _table_name_data=_table_name)
         else:
             if regions is None:
                 regions = hic.regions
@@ -783,15 +926,16 @@ class InsulationIndex(VectorArchitecturalRegionFeature):
             for i, window_size in enumerate(window_sizes):
                 ii_fields['ii_%d' % window_size] = t.Float32Col(pos=i)
                 self.window_sizes.append(window_size)
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      data_fields=ii_fields, regions=regions,
-                                                      _table_name_data=_table_name)
+                MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                               data_fields=ii_fields, regions=regions,
+                                                               _table_name_data=_table_name)
 
         self.window_sizes = []
         for colname in self._regions.colnames:
             if colname.startswith("ii_"):
                 window_size = int(colname[3:])
                 self.window_sizes.append(window_size)
+        self.y_values = self.window_sizes
 
         self.offset = offset
         self.hic = hic
@@ -908,8 +1052,8 @@ class RegionContactAverage(VectorArchitecturalRegionFeature):
         if isinstance(matrix, str) and file_name is None:
             file_name = matrix
             matrix = None
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      _table_name_data=_table_name)
+            MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                           _table_name_data=_table_name)
         else:
             if regions is None:
                 regions = matrix.regions
@@ -928,9 +1072,9 @@ class RegionContactAverage(VectorArchitecturalRegionFeature):
                 n += 3
                 self.window_sizes.append(window_size)
 
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      data_fields=av_fields, regions=regions,
-                                                      _table_name_data=_table_name)
+                MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                               data_fields=av_fields, regions=regions,
+                                                               _table_name_data=_table_name)
 
         self.window_sizes = []
         for colname in self._regions.colnames:
