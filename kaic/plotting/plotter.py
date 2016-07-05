@@ -417,6 +417,88 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
         self._update_mesh_colors()
 
 
+class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
+    def __init__(self, array, keys=None, y_coords=None, y_scale='linear', plot_kwargs=None, title='',
+                 colormap='viridis', colorbar_symmetry=None, norm="lin", vmin=None, vmax=None,
+                 show_colorbar=True, blend_zero=True, replacement_color=None,
+                 unmappable_color=".9", illegal_color=None, aspect=.3,
+                 axes_style="ticks"):
+        """
+        Plot matrix from a class:`~GenomicTrack` objects
+
+        :param array: class:`~MultiVectorArchitecturalRegionFeature`
+        :param keys: keys for which vectors to use for array. None indicates all vectors will be used.
+        :param y_coords: Matrices in the class:`~GenomicTrack` object are
+                         unitless. Can provide the coordinates for the
+                         y-direction here. Matrix has shape (X, Y) must
+                         have shape Y or Y + 1
+        :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
+                        valid argument ("linear", "log", etc.) works
+        :param plot_kwargs: Keyword-arguments passed on to pcolormesh
+        :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
+        :param blend_zero: If True then zero count bins will be drawn using the minimum
+                   value in the colormap, otherwise transparent
+        :param unmappable_color: Draw unmappable bins using this color. Defaults to
+                                 light gray (".9")
+        :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+                         None (no special color).
+        """
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+        BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm, colorbar_symmetry=colorbar_symmetry,
+                                   vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
+                                   blend_zero=blend_zero, unmappable_color=unmappable_color,
+                                   illegal_color=illegal_color, replacement_color=replacement_color)
+        self.array = array
+        self.keys = keys
+        if plot_kwargs is None:
+            plot_kwargs = {}
+        self.plot_kwargs = plot_kwargs
+        self.y_coords = y_coords
+        self.hm = None
+        self.y_scale = y_scale
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        x, y, self.hm = self._mesh_data(region=region)
+        self.collection = self.ax.pcolormesh(x, y, np.ma.masked_invalid(self.hm.T), rasterized=True, cmap=self.colormap,
+                                             norm=self.norm, **self.plot_kwargs)
+
+        self.collection._A = None
+        self._update_mesh_colors()
+        self.ax.set_yscale(self.y_scale)
+        if self.y_coords is not None:
+            self.ax.set_ylim(self.y_coords[0], self.y_coords[-1])
+
+        if self.show_colorbar:
+            self.add_colorbar()
+
+    def _mesh_data(self, region):
+        hm = self.array.as_matrix(regions=region, keys=self.keys)
+        regions = hm.regions
+        bin_coords = np.r_[[(x.start - 1) for x in regions], regions[-1].end]
+        x, y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None
+                                        else np.arange(hm.shape[1] + 1)))
+        return x, y, hm
+
+    def _update_mesh_colors(self):
+        # pcolormesh doesn't support plotting RGB arrays directly like imshow, have to workaround
+        # See https://github.com/matplotlib/matplotlib/issues/4277
+        # http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python/29232668?noredirect=1#comment46710586_29232668
+        color_matrix = self.get_color_matrix(np.ma.masked_invalid(self.hm))
+        color_tuple = color_matrix.transpose((1, 0, 2)).reshape(
+            (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
+        self.collection.set_color(color_tuple)
+
+    def _refresh(self, region=None, *args, **kwargs):
+        x, y, self.hm = self._mesh_data(region)
+
+        self.collection._coordinates[:, :, 0] = x
+        # update matrix data
+        self.collection.set_array(self.hm.T.ravel())
+        self._update_mesh_colors()
+
+
 class VerticalSplitPlot(BasePlotter1D):
     """
     Stack two plots on top of each other, bottom plot inverted.
