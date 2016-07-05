@@ -926,9 +926,10 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             for i, window_size in enumerate(window_sizes):
                 ii_fields['ii_%d' % window_size] = t.Float32Col(pos=i)
                 self.window_sizes.append(window_size)
-                MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                               data_fields=ii_fields, regions=regions,
-                                                               _table_name_data=_table_name)
+
+            MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                           data_fields=ii_fields, regions=regions,
+                                                           _table_name_data=_table_name)
 
         self.window_sizes = []
         for colname in self._regions.colnames:
@@ -974,9 +975,11 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                 logging.info("Matrix loaded.")
 
             rix = len(ins_by_chromosome[-1])
+            print(rix)
 
             if rix < d2 or hic_matrix.shape[0] - rix <= d2 + 1:
                 ins_by_chromosome[-1].append(np.nan)
+                print('nan')
                 continue
 
             if hic_matrix.mask[rix, rix]:
