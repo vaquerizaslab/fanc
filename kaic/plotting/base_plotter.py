@@ -400,7 +400,7 @@ class BasePlotterMatrix(BasePlotter):
     __metaclass__ = ABCMeta
 
     def __init__(self, colormap='viridis', norm="log", vmin=None, vmax=None,
-                 show_colorbar=True, blend_zero=True, title='',
+                 show_colorbar=True, blend_zero=True, title='', replacement_color=None,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None,
                  aspect=1., axes_style='ticks'):
         BasePlotter.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
@@ -418,6 +418,7 @@ class BasePlotterMatrix(BasePlotter):
         self.show_colorbar = show_colorbar
         self.colorbar_symmetry = colorbar_symmetry
         self.colorbar = None
+        self.replacement_color = replacement_color
         self.cax = None
         if isinstance(self.show_colorbar, mpl.axes.Axes):
             self.cax = self.show_colorbar
@@ -426,17 +427,30 @@ class BasePlotterMatrix(BasePlotter):
         """
         Convert matrix of scalar values to final
         matrix of RGB values suitable for plotting.
+
+        :param matrix: Data matrix with values to be plotted
         """
+        if self.replacement_color is not None:
+            cv = mpl.colors.ColorConverter()
+            replacement_color = cv.to_rgba(self.replacement_color)
+        else:
+            replacement_color = self.colormap(0)
+
         color_matrix = self.colormap(self.norm(matrix))
         if self.blend_zero or self.unmappable_color:
-            zero_mask = np.isclose(matrix, 0.)
-        if self.blend_zero:
-            color_matrix[zero_mask] = self.colormap(0)
+            if not hasattr(matrix, 'mask'):
+                zero_mask = np.isclose(matrix, 0.)
+            else:
+                zero_mask = np.ma.getmaskarray(matrix)
+
+            if self.blend_zero:
+                color_matrix[zero_mask] = replacement_color
         if self.illegal_color:
             color_matrix[~np.isfinite(matrix)] = mpl.colors.colorConverter.to_rgba(self.illegal_color)
         if self.unmappable_color:
             color_matrix[np.all(zero_mask, axis=0), :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
-            color_matrix[:, np.all(zero_mask, axis=1)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+            if matrix.shape[0] == matrix.shape[1]:
+                color_matrix[:, np.all(zero_mask, axis=1)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
         return color_matrix
 
     def add_colorbar(self, ax=None, baseline=None):
