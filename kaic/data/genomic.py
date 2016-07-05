@@ -1621,36 +1621,48 @@ class RegionsTable(GenomicRegions, FileGroup):
         :param auto_update: Auto update regions upon modification
         :return: Iterator over the specified subset of regions
         """
-        if isinstance(region, str):
-            region = GenomicRegion.from_string(region)
-
-        if isinstance(region, GenomicRegion):
-            regions = [region]
+        if isinstance(region, slice):
+            for row in self._regions.where("(ix >= {}) & (ix < {})".format(region.start, region.stop)):
+                sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+                yield sub_region
+        elif isinstance(region, int):
+            sub_region = self._row_to_region(self._regions[region], lazy=lazy, auto_update=auto_update)
+            yield sub_region
+        elif isinstance(region, list) and len(region) > 0 and isinstance(region[0], int):
+            for ix in region:
+                sub_region = self._row_to_region(self._regions[ix], lazy=lazy, auto_update=auto_update)
+                yield sub_region
         else:
-            regions = region
+            if isinstance(region, str):
+                region = GenomicRegion.from_string(region)
 
-        for r in regions:
-            if isinstance(r, str):
-                r = GenomicRegion.from_string(r)
-
-            query = '('
-            if r.chromosome is not None:
-                query += "(chromosome == '%s') & " % r.chromosome
-            if r.end is not None:
-                query += "(start <= %d) & " % r.end
-            if r.start is not None:
-                query += "(end >= %d) & " % r.start
-            if query.endswith(' & '):
-                query = query[:-3]
-            query += ')'
-
-            if len(query) == 2:
-                for region in self.regions(lazy=lazy, auto_update=auto_update):
-                    yield region
+            if isinstance(region, GenomicRegion):
+                regions = [region]
             else:
-                for row in self._regions.where(query):
-                    sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
-                    yield sub_region
+                regions = region
+
+            for r in regions:
+                if isinstance(r, str):
+                    r = GenomicRegion.from_string(r)
+
+                query = '('
+                if r.chromosome is not None:
+                    query += "(chromosome == '%s') & " % r.chromosome
+                if r.end is not None:
+                    query += "(start <= %d) & " % r.end
+                if r.start is not None:
+                    query += "(end >= %d) & " % r.start
+                if query.endswith(' & '):
+                    query = query[:-3]
+                query += ')'
+
+                if len(query) == 2:
+                    for region in self.regions(lazy=lazy, auto_update=auto_update):
+                        yield region
+                else:
+                    for row in self._regions.where(query):
+                        sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+                        yield sub_region
 
 
 class Node(GenomicRegion, TableObject):
@@ -3156,12 +3168,13 @@ class RegionMatrixTable(RegionPairs):
         # both must be indexes
         return m[0, 0]
 
-    def _impute_missing_contacts(self, hic_matrix=None):
+    def _impute_missing_contacts(self, hic_matrix=None, _expected_contacts=None, _stat=np.mean):
         """
         Impute missing contacts in a Hi-C matrix.
 
         :param hic_matrix: a :class:`~HicMatrix` object
-        :param stat: The statistic to use for missing value imputation (default: mean)
+        :param _expected_contacts: An ExpectedContacts object for this matrix
+        :param _stat: The statistic to use for missing value imputation (default: mean)
         :return: the input matrix with imputed values
         """
         if not hasattr(hic_matrix, "mask"):
