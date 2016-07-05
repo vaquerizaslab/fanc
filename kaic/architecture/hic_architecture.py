@@ -806,9 +806,10 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
                 regions = hic.regions
             else:
                 regions = hic.subset(regions)
-                MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                               data_fields=di_fields, regions=regions,
-                                                               _table_name_data=_table_name)
+
+            MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                           data_fields=di_fields, regions=regions,
+                                                           _table_name_data=_table_name)
 
             self.hic = hic
             if weight_column is None:
