@@ -945,16 +945,18 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         self.impute_missing = impute_missing
         self.normalise = normalise
         self.normalisation_window = _normalisation_window
-        self.mappable = None
 
-    def _insulation_index(self, d1, d2, mask_thresh=.5, aggr_func=np.ma.mean):
+    def _insulation_index(self, d1, d2, mask_thresh=.5, aggr_func=np.ma.mean, _mappable=None, _expected=None):
         if self.region_selection is not None:
             regions = self.hic.subset(self.region_selection)
         else:
             regions = self.hic.regions
 
-        if self.mappable is None:
-            self.mappable = self.hic.marginals() > 0
+        if _mappable is None:
+            _mappable = self.hic.marginals() > 0
+
+        if self.impute_missing and _expected is None:
+            _expected = ExpectedContacts(self.hic, smooth=True)
 
         logging.debug("Starting processing")
         skipped = 0
@@ -966,13 +968,16 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                 last_chromosome = r.chromosome
                 ins_by_chromosome.append(list())
                 unmasked = self.hic.as_matrix(key=(r.chromosome, r.chromosome),
-                                              mask_missing=False, impute_missing=self.impute_missing)
+                                              mask_missing=False, impute_missing=False)
                 mask = np.zeros(unmasked.shape, dtype=bool)
                 for z, ix in enumerate(xrange(r.ix, r.ix + unmasked.shape[0])):
-                    if not self.mappable[ix]:
+                    if not _mappable[ix]:
                         mask[z, :] = True
                         mask[:, z] = True
                 hic_matrix = np.ma.MaskedArray(unmasked, mask=mask)
+                if self.impute_missing:
+                    hic_matrix = self.hic._impute_missing_contacts(hic_matrix=hic_matrix,
+                                                                   _expected_contacts=_expected)
                 logging.info("Matrix loaded.")
 
             rix = len(ins_by_chromosome[-1])
@@ -1032,12 +1037,20 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         return ins_matrix
 
     def _calculate(self):
+        mappable = self.hic.marginals() > 0
+        if self.impute_missing:
+            ex = ExpectedContacts(self.hic, smooth=True)
+        else:
+            ex = None
         offset_bins = self.hic.distance_to_bins(self.offset)
         for window_size in self.window_sizes:
             logging.info("Calculating insulation index for window size {}".format(window_size))
             bins = self.hic.distance_to_bins(window_size)
-            insulation_index = self._insulation_index(offset_bins, offset_bins+bins)
+            insulation_index = self._insulation_index(offset_bins, offset_bins+bins,
+                                                      _mappable=mappable, _expected=ex)
             self.data("ii_%d" % window_size, insulation_index)
+        if ex is not None:
+            ex.close()
 
     @calculateondemand
     def insulation_index(self, window_size):
