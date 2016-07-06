@@ -3168,13 +3168,12 @@ class RegionMatrixTable(RegionPairs):
         # both must be indexes
         return m[0, 0]
 
-    def _impute_missing_contacts(self, hic_matrix=None, _expected_contacts=None, _stat=np.mean):
+    def _impute_missing_contacts(self, hic_matrix=None, _expected_contacts=None):
         """
         Impute missing contacts in a Hi-C matrix.
 
         :param hic_matrix: a :class:`~HicMatrix` object
         :param _expected_contacts: An ExpectedContacts object for this matrix
-        :param _stat: The statistic to use for missing value imputation (default: mean)
         :return: the input matrix with imputed values
         """
         if not hasattr(hic_matrix, "mask"):
@@ -3183,21 +3182,31 @@ class RegionMatrixTable(RegionPairs):
         # here to avoid circular dependency
         from kaic.architecture.hic_architecture import ExpectedContacts
 
-        with ExpectedContacts(self, smooth=True) as ex:
-            intra_expected = ex.intra_expected()
-            inter_expected = ex.inter_expected()
+        if _expected_contacts is not None:
+            ex = _expected_contacts
+            close_ex = False
+        else:
+            ex = ExpectedContacts(self, smooth=True)
+            close_ex = True
 
-            for i in xrange(hic_matrix.shape[0]):
-                row_region = hic_matrix.row_regions[i]
-                for j in xrange(hic_matrix.shape[1]):
-                    col_region = hic_matrix.col_regions[j]
+        intra_expected = ex.intra_expected()
+        inter_expected = ex.inter_expected()
 
-                    if hic_matrix.mask[i, j]:
-                        if row_region.chromosome == col_region.chromosome:
-                            d = abs(row_region.ix-col_region.ix)
-                            hic_matrix[i, j] = intra_expected[d]
-                        else:
-                            hic_matrix[i, j] = inter_expected
+        for i in xrange(hic_matrix.shape[0]):
+            row_region = hic_matrix.row_regions[i]
+            for j in xrange(hic_matrix.shape[1]):
+                col_region = hic_matrix.col_regions[j]
+
+                if hic_matrix.mask[i, j]:
+                    if row_region.chromosome == col_region.chromosome:
+                        d = abs(row_region.ix-col_region.ix)
+                        hic_matrix[i, j] = intra_expected[d]
+                    else:
+                        hic_matrix[i, j] = inter_expected
+
+        if close_ex:
+            ex.close()
+
         return hic_matrix
 
     def _get_matrix(self, row_ranges, col_ranges, weight_column=None):
