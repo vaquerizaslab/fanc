@@ -953,11 +953,14 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             regions = self.hic.regions
 
         if _mappable is None:
-            _mappable = self.hic.marginals() > 0
+            _mappable = self.hic.mappable()
 
         if self.impute_missing and _expected is None:
             _expected = ExpectedContacts(self.hic, smooth=True)
 
+        nan_chromosome_counter = 0
+        nan_mask_counter = 0
+        nan_invalid_counter = 0
         logging.debug("Starting processing")
         skipped = 0
         last_chromosome = None
@@ -981,15 +984,15 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                 logging.info("Matrix loaded.")
 
             rix = len(ins_by_chromosome[-1])
-            print(rix)
 
             if rix < d2 or hic_matrix.shape[0] - rix <= d2 + 1:
                 ins_by_chromosome[-1].append(np.nan)
-                print('nan')
+                nan_chromosome_counter += 1
                 continue
 
-            if hic_matrix.mask[rix, rix]:
+            if not _mappable[i]:
                 ins_by_chromosome[-1].append(np.nan)
+                nan_mask_counter += 1
                 continue
 
             up_rel_slice = (slice(rix - d2, rix - d1), slice(rix - d2, rix - d1))
@@ -1004,6 +1007,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                 # exclude it from the analysis
                 skipped += 1
                 ins_by_chromosome[-1].append(np.nan)
+                nan_invalid_counter += 1
                 continue
 
             if not self.relative:
@@ -1034,10 +1038,15 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                     ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / np.nanmean(ins_by_chromosome[i]))
 
         ins_matrix = np.array(list(itertools.chain.from_iterable(ins_by_chromosome)))
+
+        logging.info("__nans__\nchromosome boundary: {}\nmasked region: {}\ninvalid balance: {}\n total: {}/{}".format(
+            nan_chromosome_counter, nan_mask_counter, nan_invalid_counter, np.sum(np.isnan(ins_matrix)), len(ins_matrix)
+        ))
+
         return ins_matrix
 
     def _calculate(self):
-        mappable = self.hic.marginals() > 0
+        mappable = self.hic.mappable()
         if self.impute_missing:
             ex = ExpectedContacts(self.hic, smooth=True)
         else:

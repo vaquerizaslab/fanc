@@ -1266,7 +1266,7 @@ class RaoPeakCaller(PeakCaller):
 
         # mappability
         logging.info("Calculating visibility of regions...")
-        mappable = hic.marginals() > 0
+        mappable = hic.mappable()
         logging.info("Done.")
 
         logging.info("Calculating expected values...")
