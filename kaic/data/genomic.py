@@ -3142,7 +3142,7 @@ class RegionMatrixTable(RegionPairs):
 
         if rm is not None:
             if mask_missing or impute_missing:
-                mappable = self.marginals() > 0
+                mappable = self.mappable()
                 mask = np.zeros(m.shape, dtype=bool)
                 current_row = 0
                 for row_range in row_ranges:
@@ -3450,6 +3450,20 @@ class RegionMatrixTable(RegionPairs):
                 marginals[edge.sink] += getattr(edge, weight_column)
 
         return marginals
+
+    def mappable(self):
+        """
+        Get the mappability vector of this matrix.
+        """
+        # prepare marginals dict
+        mappable = np.zeros(len(self.regions()), dtype=bool)
+
+        for edge in self.edges(lazy=True):
+            mappable[edge.source] = True
+            if edge.source != edge.sink:
+                mappable[edge.sink] = True
+
+        return mappable
 
     def scaling_factor(self, matrix, weight_column=None):
         """
