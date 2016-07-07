@@ -455,7 +455,11 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         if plot_kwargs is None:
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
-        self.y_coords = y_coords
+        if y_coords is None:
+            if self.array.y_values is not None:
+                self.y_coords = self.array.y_values
+            else:
+                self.y_coords = None
         self.hm = None
         self.y_scale = y_scale
 
