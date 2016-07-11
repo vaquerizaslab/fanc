@@ -9,6 +9,8 @@ import random
 import collections
 import progressbar
 import tables as t
+import os
+import errno
 from datetime import datetime
 
 
@@ -107,6 +109,33 @@ def create_col_index(col):
     except t.NodeError:
         col.remove_index()
         col.create_index()
+
+
+def to_slice(l):
+    if len(l) == 0:
+        return slice(0, 0)
+    if len(l) == 1:
+        return slice(l[0], l[0]+1)
+    if len(l) == 2:
+        return slice(l[0], l[1]+1, l[1]-l[0])
+
+    d = l[1] - l[0]
+    for i in xrange(len(l)-1):
+        if l[i+1] - l[i] != d:
+            raise ValueError("Step size between elements varies, cannot make slice")
+    return slice(l[0], l[-1]+1, d)
+
+
+def mkdir(dir_name):
+    dir_name = os.path.expanduser(dir_name)
+
+    try:
+        os.makedirs(dir_name)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
+    return dir_name
 
 
 class RareUpdateProgressBar(progressbar.ProgressBar):
