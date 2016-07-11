@@ -1,15 +1,17 @@
 from __future__ import division
-from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand
+from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand, ArchitecturalFeature
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
     MatrixArchitecturalRegionFeatureFilter
 from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic
 from collections import defaultdict
 from kaic.tools.general import ranges
 from kaic.tools.matrix import apply_sliding_func
+from kaic.data.general import FileGroup
 import numpy as np
 import tables as t
 import itertools
 import logging
+from bisect import bisect_left
 from kaic.tools.general import RareUpdateProgressBar
 logging.basicConfig(level=logging.INFO)
 
@@ -646,6 +648,8 @@ class RowRegionMatrix(np.ndarray):
         obj = np.asarray(input_matrix).view(cls)
         obj.regions = regions
         obj.fields = fields
+        obj._chromosome_index = None
+        obj._region_index = None
         return obj
 
     def __array_finalize__(self, obj):
@@ -654,6 +658,26 @@ class RowRegionMatrix(np.ndarray):
 
         self.regions = getattr(obj, 'regions', None)
         self.fields = getattr(obj, 'fields', None)
+        self._chromosome_index = None
+        self._region_index = None
+
+    def _build_region_index(self):
+        self._chromosome_index = defaultdict(list)
+        self._region_index = defaultdict(list)
+        for i, region in enumerate(self.regions):
+            self._region_index[region.chromosome].append(i)
+            self._chromosome_index[region.chromosome].append(region.end)
+
+    def region_bins(self, region):
+        if self._region_index is None or self._chromosome_index is None:
+            self._build_region_index()
+        if isinstance(region, str):
+            region = GenomicRegion(region)
+        start_ix = bisect_left(self._chromosome_index[region.chromosome], region.start)
+        end_ix = bisect_left(self._chromosome_index[region.chromosome], region.end)
+        start_region_ix = self._region_index[region.chromosome][start_ix]
+        end_region_ix = self._region_index[region.chromosome][end_ix]
+        return slice(start_region_ix, end_region_ix + 1)
 
     def __getitem__(self, index):
         self._getitem = True
@@ -708,17 +732,7 @@ class RowRegionMatrix(np.ndarray):
         if isinstance(key, str):
             key = GenomicRegion.from_string(key)
         if isinstance(key, GenomicRegion):
-            key_start = max(0, key.start)
-            key_end = key.end
-            start = None
-            stop = None
-            for i, region in enumerate(self.regions):
-                if region.chromosome == key.chromosome:
-                    if (key_end is None or region.start <= key_end) and region.end >= key_start:
-                        if start is None:
-                            start = i
-                        stop = i
-            return slice(start, stop+1, 1)
+            return self.region_bins(key)
         return key
 
     def _convert_field_key(self, key):
@@ -781,6 +795,28 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
                              "({}) must be the same as length of data fields ({})".format(len(values),
                                                                                           len(self.data_field_names)))
         self._y_values = values
+
+
+def load_array(file_name, mode='a', tmpdir=None):
+    try:
+        array = DirectionalityIndex(file_name, mode=mode, tmpdir=tmpdir)
+        return array
+    except t.FileModeError:
+        pass
+
+    try:
+        array = RegionContactAverage(file_name, mode=mode, tmpdir=tmpdir)
+        return array
+    except t.FileModeError:
+        pass
+
+    try:
+        array = InsulationIndex(file_name, mode=mode, tmpdir=tmpdir)
+        return array
+    except t.FileModeError:
+        pass
+
+    raise ValueError("Cannot recognise {} as array".format(file_name))
 
 
 class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
@@ -1068,7 +1104,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         return self[:, 'ii_%d' % window_size]
 
 
-class RegionContactAverage(VectorArchitecturalRegionFeature):
+class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
     def __init__(self, matrix, file_name=None, mode='a', tmpdir=None,
                  window_sizes=(200000,), regions=None, offset=0, padding=1, impute_missing=True,
                  _table_name='contact_average'):
@@ -1098,9 +1134,9 @@ class RegionContactAverage(VectorArchitecturalRegionFeature):
                 n += 3
                 self.window_sizes.append(window_size)
 
-                MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                               data_fields=av_fields, regions=regions,
-                                                               _table_name_data=_table_name)
+            MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                           data_fields=av_fields, regions=regions,
+                                                           _table_name_data=_table_name)
 
         self.window_sizes = []
         for colname in self._regions.colnames:
@@ -1153,6 +1189,74 @@ class RegionContactAverage(VectorArchitecturalRegionFeature):
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'av_%d' % window_size]
+
+
+class MetaArray(ArchitecturalFeature, FileGroup):
+    def __init__(self, array=None, regions=None, window_width=50, window_height=None,
+                 file_name=None, mode='a', tmpdir=None,
+                 _group_name='meta_matrix'):
+        ArchitecturalFeature.__init__(self)
+
+        if isinstance(array, str) and file_name is None:
+            file_name = array
+            array = None
+
+        FileGroup.__init__(self, _group_name, file_name, mode=mode, tmpdir=tmpdir)
+
+        try:
+            self.meta_matrix = self.file.get_node(self._group, 'meta_matrix')
+            self._calculated = True
+        except t.NoSuchNodeError:
+            self.meta_matrix = None
+
+        self.array = array
+        self.window_width = window_width
+        self.window_height = window_height
+        if self.window_height is None:
+            self.window_height = len(self.array.data_field_names)
+        self.regions = regions
+
+    def _calculate(self):
+        chromosome_regions = defaultdict(list)
+
+        for region in self.regions:
+            chromosome_regions[region.chromosome].append((region.start+region.end)/2)
+
+        avg_shape = (self.window_width * 2 + 1, self.window_height)
+        avg_matrices = dict()
+        for chromosome in self.array.chromosomes():
+            avg_matrix = np.zeros(avg_shape)
+            count_matrix = np.zeros(avg_shape)
+            matrix = self.array.as_matrix(chromosome)
+            for pos in chromosome_regions[chromosome]:
+                bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
+                for region_ix in xrange(bin_range.start, bin_range.stop):
+                    print region_ix
+                    m_sub = matrix[region_ix-self.window_width:region_ix+self.window_width+1, 0:self.window_height]
+                    print m_sub
+                    if m_sub.shape == avg_shape:
+                        count_matrix += np.isnan(m_sub) == False
+                        m_sub[np.isnan(m_sub)] = 0
+                        avg_matrix += m_sub
+                        print count_matrix
+                        print m_sub
+
+
+            avg_matrices[chromosome] = avg_matrix/count_matrix
+
+        print avg_matrices['chr1']
+
+        avg_matrix = np.zeros(avg_shape)
+        count_matrix = np.zeros(avg_shape)
+        for chromosome, matrix in avg_matrices.iteritems():
+            count_matrix += np.isnan(matrix) == False
+            matrix[np.isnan(matrix)] = 0
+            avg_matrix += matrix
+        avg_matrix /= count_matrix
+
+        self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
+                                                   tuple(reversed(avg_shape)))
+        self.meta_matrix[:] = avg_matrix.T
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
