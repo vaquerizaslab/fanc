@@ -4,7 +4,7 @@ from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeatu
     MatrixArchitecturalRegionFeatureFilter
 from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic
 from collections import defaultdict
-from kaic.tools.general import ranges
+from kaic.tools.general import ranges, to_slice
 from kaic.tools.matrix import apply_sliding_func
 from kaic.data.general import FileGroup
 import numpy as np
@@ -797,7 +797,13 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
         self._y_values = values
 
 
-def load_array(file_name, mode='a', tmpdir=None):
+def load_array(file_name, mode='r', tmpdir=None):
+    try:
+        array = InsulationIndex(file_name, mode=mode, tmpdir=tmpdir)
+        return array
+    except t.FileModeError:
+        pass
+
     try:
         array = DirectionalityIndex(file_name, mode=mode, tmpdir=tmpdir)
         return array
@@ -806,12 +812,6 @@ def load_array(file_name, mode='a', tmpdir=None):
 
     try:
         array = RegionContactAverage(file_name, mode=mode, tmpdir=tmpdir)
-        return array
-    except t.FileModeError:
-        pass
-
-    try:
-        array = InsulationIndex(file_name, mode=mode, tmpdir=tmpdir)
         return array
     except t.FileModeError:
         pass
@@ -1210,7 +1210,7 @@ class MetaArray(ArchitecturalFeature, FileGroup):
             self.meta_matrix = None
 
         self.array = array
-        self.window_width = window_width
+        self.window_width = self.array.distance_to_bins(window_width)
         self._data_selection = None
         self._matrix_shape = None
         self.data_selection = data_selection
@@ -1224,10 +1224,11 @@ class MetaArray(ArchitecturalFeature, FileGroup):
     def data_selection(self, selection):
         matrix_shape = [self.window_width * 2 + 1, 0]
         if selection is None:
-            self._data_selection = slice(0, len(self.array.data_field_names))
-            matrix_shape[1] = len(self.array.data_field_names)
+            selection = range(0, len(self.array.data_field_names))
+
         if isinstance(selection, xrange):
             selection = list(selection)
+
         if isinstance(selection, list) or isinstance(selection, tuple):
             new_list = []
             for i in selection:
@@ -1237,8 +1238,9 @@ class MetaArray(ArchitecturalFeature, FileGroup):
                 if ix <= len(self.array.data_field_names):
                     new_list.append(ix)
 
-            self.data_selection = new_list
             matrix_shape[1] = len(new_list)
+            self._data_selection = new_list
+
         self._matrix_shape = tuple(matrix_shape)
 
     def _calculate(self):
@@ -1255,7 +1257,12 @@ class MetaArray(ArchitecturalFeature, FileGroup):
             for pos in chromosome_regions[chromosome]:
                 bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
                 for region_ix in xrange(bin_range.start, bin_range.stop):
-                    m_sub = matrix[region_ix-self.window_width:region_ix + self.window_width+1, self.data_selection]
+                    ds = self.data_selection
+                    try:
+                        ds = to_slice(ds)
+                    except ValueError:
+                        pass
+                    m_sub = matrix[region_ix-self.window_width:region_ix + self.window_width+1, ds]
                     if m_sub.shape == self._matrix_shape:
                         count_matrix += np.isnan(m_sub) == False
                         m_sub[np.isnan(m_sub)] = 0
@@ -1274,6 +1281,23 @@ class MetaArray(ArchitecturalFeature, FileGroup):
         self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
                                                    tuple(reversed(self._matrix_shape)))
         self.meta_matrix[:] = avg_matrix.T
+
+    @calculateondemand
+    def matrix(self):
+        return self.meta_matrix[:]
+
+    def x(self):
+        x = []
+        for i in xrange(-1*self.window_width, self.window_width + 1):
+            d = self.array.bins_to_distance(i)
+            x.append(d)
+        return x
+
+    def y(self):
+        y = []
+        for i in self.data_selection:
+            y.append(self.array.y_values[i])
+        return y
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
