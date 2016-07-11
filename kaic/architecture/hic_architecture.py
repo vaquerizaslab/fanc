@@ -1192,7 +1192,7 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
 
 
 class MetaArray(ArchitecturalFeature, FileGroup):
-    def __init__(self, array=None, regions=None, window_width=50, window_height=None,
+    def __init__(self, array=None, regions=None, window_width=50, data_selection=None,
                  file_name=None, mode='a', tmpdir=None,
                  _group_name='meta_matrix'):
         ArchitecturalFeature.__init__(self)
@@ -1211,10 +1211,35 @@ class MetaArray(ArchitecturalFeature, FileGroup):
 
         self.array = array
         self.window_width = window_width
-        self.window_height = window_height
-        if self.window_height is None:
-            self.window_height = len(self.array.data_field_names)
+        self._data_selection = None
+        self._matrix_shape = None
+        self.data_selection = data_selection
         self.regions = regions
+
+    @property
+    def data_selection(self):
+        return self._data_selection
+
+    @data_selection.setter
+    def data_selection(self, selection):
+        matrix_shape = [self.window_width * 2 + 1, 0]
+        if selection is None:
+            self._data_selection = slice(0, len(self.array.data_field_names))
+            matrix_shape[1] = len(self.array.data_field_names)
+        if isinstance(selection, xrange):
+            selection = list(selection)
+        if isinstance(selection, list) or isinstance(selection, tuple):
+            new_list = []
+            for i in selection:
+                ix = i
+                if isinstance(i, str):
+                    ix = self.array.data_field_names.index(i)
+                if ix <= len(self.array.data_field_names):
+                    new_list.append(ix)
+
+            self.data_selection = new_list
+            matrix_shape[1] = len(new_list)
+        self._matrix_shape = tuple(matrix_shape)
 
     def _calculate(self):
         chromosome_regions = defaultdict(list)
@@ -1222,32 +1247,24 @@ class MetaArray(ArchitecturalFeature, FileGroup):
         for region in self.regions:
             chromosome_regions[region.chromosome].append((region.start+region.end)/2)
 
-        avg_shape = (self.window_width * 2 + 1, self.window_height)
         avg_matrices = dict()
         for chromosome in self.array.chromosomes():
-            avg_matrix = np.zeros(avg_shape)
-            count_matrix = np.zeros(avg_shape)
+            avg_matrix = np.zeros(self._matrix_shape)
+            count_matrix = np.zeros(self._matrix_shape)
             matrix = self.array.as_matrix(chromosome)
             for pos in chromosome_regions[chromosome]:
                 bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
                 for region_ix in xrange(bin_range.start, bin_range.stop):
-                    print region_ix
-                    m_sub = matrix[region_ix-self.window_width:region_ix+self.window_width+1, 0:self.window_height]
-                    print m_sub
-                    if m_sub.shape == avg_shape:
+                    m_sub = matrix[region_ix-self.window_width:region_ix + self.window_width+1, self.data_selection]
+                    if m_sub.shape == self._matrix_shape:
                         count_matrix += np.isnan(m_sub) == False
                         m_sub[np.isnan(m_sub)] = 0
                         avg_matrix += m_sub
-                        print count_matrix
-                        print m_sub
-
 
             avg_matrices[chromosome] = avg_matrix/count_matrix
 
-        print avg_matrices['chr1']
-
-        avg_matrix = np.zeros(avg_shape)
-        count_matrix = np.zeros(avg_shape)
+        avg_matrix = np.zeros(self._matrix_shape)
+        count_matrix = np.zeros(self._matrix_shape)
         for chromosome, matrix in avg_matrices.iteritems():
             count_matrix += np.isnan(matrix) == False
             matrix[np.isnan(matrix)] = 0
@@ -1255,7 +1272,7 @@ class MetaArray(ArchitecturalFeature, FileGroup):
         avg_matrix /= count_matrix
 
         self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
-                                                   tuple(reversed(avg_shape)))
+                                                   tuple(reversed(self._matrix_shape)))
         self.meta_matrix[:] = avg_matrix.T
 
 
