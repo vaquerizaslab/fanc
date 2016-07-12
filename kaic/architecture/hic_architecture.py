@@ -2,6 +2,7 @@ from __future__ import division
 from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand, ArchitecturalFeature
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
     MatrixArchitecturalRegionFeatureFilter
+from kaic.architecture.maxima_callers import MaximaCallerDelta
 from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
@@ -943,7 +944,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
 class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
                  regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
-                 window_sizes=(200000,), _normalisation_window=300, _table_name='insulation_index'):
+                 window_sizes=(200000,), log=False, _normalisation_window=300, _table_name='insulation_index'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -981,6 +982,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         self.impute_missing = impute_missing
         self.normalise = normalise
         self.normalisation_window = _normalisation_window
+        self.log = log
 
     def _insulation_index(self, d1, d2, mask_thresh=.5, aggr_func=np.ma.mean, _mappable=None, _expected=None):
         if self.region_selection is not None:
@@ -1078,8 +1080,10 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         logging.info("__nans__\nchromosome boundary: {}\nmasked region: {}\ninvalid balance: {}\n total: {}/{}".format(
             nan_chromosome_counter, nan_mask_counter, nan_invalid_counter, np.sum(np.isnan(ins_matrix)), len(ins_matrix)
         ))
-
-        return ins_matrix
+        if self.log:
+            return np.log2(ins_matrix)
+        else:
+            return ins_matrix
 
     def _calculate(self):
         mappable = self.hic.mappable()
@@ -1102,6 +1106,23 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'ii_%d' % window_size]
+
+    def boundaries(self, window_size, min_score=0.0, delta_window=7, log=False):
+        index = self.insulation_index(window_size)
+        if log:
+            index = np.log2(index)
+        peaks = MaximaCallerDelta(index, window_size=delta_window)
+        minima, scores = peaks.get_minima()
+        regions = list(self.regions)
+
+        boundaries = []
+        for i, ix in enumerate(minima):
+            if scores[i] < min_score:
+                continue
+            region = regions[ix]
+            b = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end, score=scores[i])
+            boundaries.append(b)
+        return boundaries
 
 
 class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
