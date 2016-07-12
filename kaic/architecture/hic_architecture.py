@@ -1212,10 +1212,11 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
         return self[:, 'av_%d' % window_size]
 
 
-class MetaArray(ArchitecturalFeature, FileGroup):
+class MetaMatrixBase(ArchitecturalFeature, FileGroup):
     def __init__(self, array=None, regions=None, window_width=50, data_selection=None,
                  file_name=None, mode='a', tmpdir=None,
-                 _group_name='meta_matrix'):
+                 _group_name='meta_base'):
+
         ArchitecturalFeature.__init__(self)
 
         if isinstance(array, str) and file_name is None:
@@ -1264,39 +1265,47 @@ class MetaArray(ArchitecturalFeature, FileGroup):
 
         self._matrix_shape = tuple(matrix_shape)
 
-    def _calculate(self):
+    def sub_matrices(self):
         chromosome_regions = defaultdict(list)
 
         for region in self.regions:
-            chromosome_regions[region.chromosome].append((region.start+region.end)/2)
+            chromosome_regions[region.chromosome].append((region.start + region.end) / 2)
 
-        avg_matrices = dict()
+        ds = self.data_selection
+        try:
+            ds = to_slice(ds)
+        except ValueError:
+            pass
+
         for chromosome in self.array.chromosomes():
-            avg_matrix = np.zeros(self._matrix_shape)
-            count_matrix = np.zeros(self._matrix_shape)
             matrix = self.array.as_matrix(chromosome)
             for pos in chromosome_regions[chromosome]:
                 bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
                 for region_ix in xrange(bin_range.start, bin_range.stop):
-                    ds = self.data_selection
-                    try:
-                        ds = to_slice(ds)
-                    except ValueError:
-                        pass
-                    m_sub = matrix[region_ix-self.window_width:region_ix + self.window_width+1, ds]
-                    if m_sub.shape == self._matrix_shape:
-                        count_matrix += np.isnan(m_sub) == False
-                        m_sub[np.isnan(m_sub)] = 0
-                        avg_matrix += m_sub
+                    yield matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
 
-            avg_matrices[chromosome] = avg_matrix/count_matrix
+    @calculateondemand
+    def _calculate(self, *args, **kwargs):
+        pass
 
+
+class MetaArray(MetaMatrixBase):
+    def __init__(self, array=None, regions=None, window_width=50, data_selection=None,
+                 file_name=None, mode='a', tmpdir=None,
+                 _group_name='meta_matrix'):
+        MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
+                                data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                _group_name=_group_name)
+
+    def _calculate(self):
         avg_matrix = np.zeros(self._matrix_shape)
         count_matrix = np.zeros(self._matrix_shape)
-        for chromosome, matrix in avg_matrices.iteritems():
-            count_matrix += np.isnan(matrix) == False
-            matrix[np.isnan(matrix)] = 0
-            avg_matrix += matrix
+        for m_sub in self.sub_matrices():
+            if m_sub.shape == self._matrix_shape:
+                count_matrix += np.isnan(m_sub) == False
+                m_sub[np.isnan(m_sub)] = 0
+                avg_matrix += m_sub
+
         avg_matrix /= count_matrix
 
         self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
