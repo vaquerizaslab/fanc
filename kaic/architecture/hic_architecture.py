@@ -1251,6 +1251,9 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         if isinstance(selection, xrange):
             selection = list(selection)
 
+        if isinstance(selection, int) or isinstance(selection, str):
+            selection = [selection]
+
         if isinstance(selection, list) or isinstance(selection, tuple):
             new_list = []
             for i in selection:
@@ -1262,14 +1265,16 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
             matrix_shape[1] = len(new_list)
             self._data_selection = new_list
+        else:
+            raise ValueError("Unsupported data_selection type({})".format(type(selection)))
 
         self._matrix_shape = tuple(matrix_shape)
 
-    def sub_matrices(self):
+    def _sub_matrices(self):
         chromosome_regions = defaultdict(list)
 
-        for region in self.regions:
-            chromosome_regions[region.chromosome].append((region.start + region.end) / 2)
+        for i, region in enumerate(self.regions):
+            chromosome_regions[region.chromosome].append(((region.start + region.end) / 2, region, i))
 
         ds = self.data_selection
         try:
@@ -1279,10 +1284,10 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
         for chromosome in self.array.chromosomes():
             matrix = self.array.as_matrix(chromosome)
-            for pos in chromosome_regions[chromosome]:
+            for pos, region, i in chromosome_regions[chromosome]:
                 bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
                 for region_ix in xrange(bin_range.start, bin_range.stop):
-                    yield matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
+                    yield i, region, matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
 
     @calculateondemand
     def _calculate(self, *args, **kwargs):
@@ -1290,7 +1295,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
 
 class MetaArray(MetaMatrixBase):
-    def __init__(self, array=None, regions=None, window_width=50, data_selection=None,
+    def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
                  file_name=None, mode='a', tmpdir=None,
                  _group_name='meta_matrix'):
         MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
@@ -1300,7 +1305,7 @@ class MetaArray(MetaMatrixBase):
     def _calculate(self):
         avg_matrix = np.zeros(self._matrix_shape)
         count_matrix = np.zeros(self._matrix_shape)
-        for m_sub in self.sub_matrices():
+        for _, _, m_sub in self._sub_matrices():
             if m_sub.shape == self._matrix_shape:
                 count_matrix += np.isnan(m_sub) == False
                 m_sub[np.isnan(m_sub)] = 0
@@ -1328,6 +1333,42 @@ class MetaArray(MetaMatrixBase):
         for i in self.data_selection:
             y.append(self.array.y_values[i])
         return y
+
+
+class MetaHeatmap(MetaMatrixBase):
+    def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
+                 file_name=None, mode='a', tmpdir=None,
+                 _group_name='meta_heatmap'):
+
+        if data_selection is None and array is not None:
+            data_selection = array.data_field_names[0]
+
+        if not isinstance(data_selection, str) and not isinstance(data_selection, int):
+            raise ValueError("data_selection parameter must be "
+                             "int, str, or None, but is {}".format(type(data_selection)))
+
+        MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
+                                data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                _group_name=_group_name)
+
+    def _calculate(self):
+        order = []
+        heatmap = []
+        for i, region, m_sub in self._sub_matrices():
+            order.append(i)
+            if m_sub.shape == self._matrix_shape:
+                heatmap.append(m_sub[:, 0])
+            else:
+                heatmap.append(np.nan(self._matrix_shape[0]))
+
+        heatmap = np.array(heatmap)[order]
+        self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
+                                                   heatmap.shape)
+        self.meta_matrix[:] = heatmap
+
+    @calculateondemand
+    def heatmap(self):
+        return self.meta_matrix[:]
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
