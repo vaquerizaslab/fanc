@@ -494,7 +494,7 @@ class GenomicTrack(BasicRegionTable):
         return self.data_field_names
 
     @classmethod
-    def from_gtf(cls, file_name, gtf_file, store_attrs=None, nan_strings=(".", "")):
+    def from_gtf(cls, file_name, gtf_file, store_attrs=None, nan_strings=(".", ""), sort=False):
         """
         Import a GTF file as GenomicTrack.
 
@@ -505,13 +505,18 @@ class GenomicTrack(BasicRegionTable):
         :param nan_strings: These characters will be considered NaN for parsing.
                             Will become 0 for int arrays, np.nan for float arrays
                             and left as is for string arrays.
+        :param sort: If True, sort regions in GTF file by genomic location
         """
         import pybedtools as pbt
         gtf = pbt.BedTool(gtf_file)
         n = len(gtf)
         regions = []
         values = {}
-        for i, f in enumerate(gtf.sort()):
+        if not sort:
+            gtf_iter = gtf
+        else:
+            gtf_iter = gtf.sort()
+        for i, f in enumerate(gtf_iter):
             regions.append(GenomicRegion(chromosome=f.chrom, start=f.start, end=f.end, strand=f.strand))
             # If input is a GTF file, also store the type and source fields
             if f.file_type in ("gff", "gtf"):
