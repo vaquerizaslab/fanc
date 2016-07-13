@@ -1359,7 +1359,9 @@ class MetaHeatmap(MetaMatrixBase):
             if m_sub.shape == self._matrix_shape:
                 heatmap.append(m_sub[:, 0])
             else:
-                heatmap.append(np.nan(self._matrix_shape[0]))
+                m = np.zeros((self._matrix_shape[0],))
+                m[m == 0] = np.nan
+                heatmap.append(m)
 
         heatmap = np.array(heatmap)[order]
         self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
@@ -1369,6 +1371,13 @@ class MetaHeatmap(MetaMatrixBase):
     @calculateondemand
     def heatmap(self):
         return self.meta_matrix[:]
+
+    def x(self):
+        x = []
+        for i in xrange(-1*self.window_width, self.window_width + 1):
+            d = self.array.bins_to_distance(i)
+            x.append(d)
+        return x
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
