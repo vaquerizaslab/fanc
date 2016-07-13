@@ -86,6 +86,10 @@ class Kaic(object):
             print 'Unrecognized command'
             parser.print_help()
             exit(1)
+
+        # echo parameters back to user
+        logging.info("Running '{}'".format(" ".join(sys.argv)))
+
         # use dispatch pattern to invoke method with same name
         getattr(self, args.command)()
 
