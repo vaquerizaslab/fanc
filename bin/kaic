@@ -3070,7 +3070,7 @@ class Kaic(object):
                 logging.info("Processing window size: {}".format(window_size))
                 boundaries = array.boundaries(window_size, min_score=args.min_score,
                                               delta_window=args.delta, log=args.log)
-                _to_bed(boundaries, output_path + "{}_{}.bed".format(args.prefix, window_size))
+                _to_bed(boundaries, output_path + "/{}_{}.bed".format(args.prefix, window_size))
         else:
             boundaries = array.boundaries(window_sizes[0], min_score=args.min_score,
                                           delta_window=args.delta, log=args.log)
