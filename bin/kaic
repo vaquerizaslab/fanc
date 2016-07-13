@@ -2991,6 +2991,100 @@ class Kaic(object):
         )
         parser.add_argument(
             'architecture',
+            help='Input InsulationIndex file'
+        )
+        parser.add_argument(
+            'output',
+            help="Output folder for boundary BED files (default or when using '-r' option) or "
+                 "path for boundary BED file (when using -w option)."
+        )
+        parser.add_argument(
+            '-r', '--range', dest='range',
+            type=int,
+            nargs=2,
+            help='Range of insulation index window sizes (<low> <high>) to calculate boundaries on.'
+        )
+        parser.add_argument(
+            '-w', '--window', dest='window',
+            type=int,
+            help='Insulation index window size to calculate boundaries on'
+        )
+        parser.add_argument(
+            '-d', '--delta', dest='delta',
+            type=int, default=7,
+            help='Window size for calculating the delta vector (in bins). Default 7.'
+        )
+        parser.add_argument(
+            '-s', '--min-score', dest='min_score',
+            type=float,
+            help='Report only peaks where the two surrounding extrema of the delta vector have '
+                 'at least this difference in height. Default: no threshold.'
+        )
+        parser.add_argument(
+            '-p', '--prefix', dest='prefix',
+            default='boundaries',
+            help='''Output file prefix. Not necessary when using 'w' modus. Default: boundaries'''
+        )
+        parser.add_argument(
+            '-l', '--log', dest='log',
+            action='store_true',
+            help='''log-transform index values before boundary calling.'''
+        )
+        parser.set_defaults(log=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import kaic
+        from kaic.tools.general import mkdir
+
+        input_file = os.path.expanduser(args.architecture)
+        output_path = os.path.expanduser(args.output)
+
+        array = kaic.load_array(input_file, mode='r')
+
+        single = False
+        window_sizes = []
+        if args.range is not None:
+            for window_size in array.window_sizes:
+                if args.range[0] <= window_size <= args.range[1]:
+                    window_sizes.append(window_size)
+        elif args.window is not None:
+            print array.window_sizes
+            if args.window in array.window_sizes:
+                window_sizes.append(args.window)
+            single = True
+        else:
+            window_sizes = array.window_sizes
+
+        if len(window_sizes) == 0:
+            raise ValueError("No valid window size specified!")
+
+        def _to_bed(bs, file_name):
+            with open(file_name, 'w') as bed:
+                for b in bs:
+                    bed.write("{}\t{}\t{}\t.\t{}\n".format(b.chromosome, b.start, b.end, b.score))
+
+        if not single:
+            mkdir(output_path)
+            for window_size in window_sizes:
+                logging.info("Processing window size: {}".format(window_size))
+                boundaries = array.boundaries(window_size, min_score=args.min_score,
+                                              delta_window=args.delta, log=args.log)
+                _to_bed(boundaries, output_path + "{}_{}.bed".format(args.prefix, window_size))
+        else:
+            boundaries = array.boundaries(window_sizes[0], min_score=args.min_score,
+                                          delta_window=args.delta, log=args.log)
+            _to_bed(boundaries, output_path)
+
+        logging.info("All done.")
+
+    def boundaries_depr(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Determine structural boundaries'
+        )
+        parser.add_argument(
+            'architecture',
             help='Input architecture file'
         )
         parser.add_argument(
@@ -3402,7 +3496,7 @@ class Kaic(object):
 
         with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                              impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
-                             relative=args.relative) as ii:
+                             relative=args.relative, mode='w') as ii:
             ii.calculate()
 
     def optimise(self):
