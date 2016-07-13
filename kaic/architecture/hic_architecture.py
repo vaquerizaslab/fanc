@@ -944,7 +944,8 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
 class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
                  regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
-                 window_sizes=(200000,), log=False, _normalisation_window=300, _table_name='insulation_index'):
+                 window_sizes=(200000,), log=False, _normalisation_window=300,
+                 subtract_mean=False, _table_name='insulation_index'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -982,6 +983,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         self.impute_missing = impute_missing
         self.normalise = normalise
         self.normalisation_window = _normalisation_window
+        self.subtract_mean = subtract_mean
         self.log = log
 
     def _insulation_index(self, d1, d2, mask_thresh=.5, aggr_func=np.ma.mean, _mappable=None, _expected=None):
@@ -1070,10 +1072,13 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
             if self.normalise:
                 if self.normalisation_window is not None:
-                    ins_by_chromosome[i] = ins_by_chromosome[i] / apply_sliding_func(
-                        ins_by_chromosome[i], self.normalisation_window, func=np.nanmean)
+                    mean_ins = apply_sliding_func(ins_by_chromosome[i], self.normalisation_window, func=np.nanmean)
                 else:
-                    ins_by_chromosome[i] = ins_by_chromosome[i] / np.nanmean(ins_by_chromosome[i])
+                    mean_ins = np.nanmean(ins_by_chromosome[i])
+                if not self.subtract_mean:
+                    ins_by_chromosome[i] = ins_by_chromosome[i] / mean_ins
+                else:
+                    ins_by_chromosome[i] = ins_by_chromosome[i] - mean_ins
 
         ins_matrix = np.array(list(itertools.chain.from_iterable(ins_by_chromosome)))
 

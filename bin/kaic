@@ -3464,6 +3464,14 @@ class Kaic(object):
         )
         parser.set_defaults(normalise=False)
 
+        parser.add_argument(
+            '-s', '--subtract-mean', dest='subtract',
+            action='store_true',
+            help='''Subtract mean instead of dividing by it when '--normalise' is enabled.
+                    Useful for log-transformed data'''
+        )
+        parser.set_defaults(subtract=False)
+
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
@@ -3496,7 +3504,7 @@ class Kaic(object):
 
         with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                              impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
-                             relative=args.relative, mode='w') as ii:
+                             relative=args.relative, mode='w', subtract_mean=args.subtract) as ii:
             ii.calculate()
 
     def optimise(self):
