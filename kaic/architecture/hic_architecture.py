@@ -1107,7 +1107,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             window_size = self.window_sizes[0]
         return self[:, 'ii_%d' % window_size]
 
-    def boundaries(self, window_size, min_score=0.0, delta_window=7, log=False):
+    def boundaries(self, window_size, min_score=None, delta_window=7, log=False):
         index = self.insulation_index(window_size)
         if log:
             index = np.log2(index)
@@ -1117,11 +1117,13 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
         boundaries = []
         for i, ix in enumerate(minima):
-            if scores[i] < min_score:
+            if min_score is not None and scores[i] < min_score:
                 continue
             region = regions[ix]
             b = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end, score=scores[i])
             boundaries.append(b)
+
+        logging.info("Found {} boundaries for window size {}".format(len(boundaries), window_size))
         return boundaries
 
 
