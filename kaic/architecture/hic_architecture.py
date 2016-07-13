@@ -1070,10 +1070,10 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
             if self.normalise:
                 if self.normalisation_window is not None:
-                    ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / apply_sliding_func(
-                        ins_by_chromosome[i], self.normalisation_window, func=np.nanmean))
+                    ins_by_chromosome[i] = ins_by_chromosome[i] / apply_sliding_func(
+                        ins_by_chromosome[i], self.normalisation_window, func=np.nanmean)
                 else:
-                    ins_by_chromosome[i] = np.ma.log2(ins_by_chromosome[i] / np.nanmean(ins_by_chromosome[i]))
+                    ins_by_chromosome[i] = ins_by_chromosome[i] / np.nanmean(ins_by_chromosome[i])
 
         ins_matrix = np.array(list(itertools.chain.from_iterable(ins_by_chromosome)))
 
