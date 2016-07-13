@@ -93,6 +93,9 @@ class Kaic(object):
         # use dispatch pattern to invoke method with same name
         getattr(self, args.command)()
 
+        # echo parameters back to user
+        logging.info("Finished '{}'".format(" ".join(sys.argv)))
+
     ##########################################################################
     #
     #                                   Auto
