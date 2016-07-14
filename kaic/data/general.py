@@ -8,6 +8,7 @@ files. Other features include indexing and querying.
 
 from __future__ import division
 import tables as t
+from tables.nodes import filenode
 import kaic.fixes.pytables_nrowsinbuf_inheritance_fix
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
 import numpy as np
@@ -23,6 +24,8 @@ from kaic.tools.lru import lru_cache
 import shutil
 import binascii
 from collections import defaultdict
+from .registry import class_id_dict, class_name_dict
+import six
 logging.basicConfig(level=logging.INFO)
 _filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
 
@@ -252,8 +255,34 @@ def _file_to_data(file_name, sep="\t", has_header=None, types=None):
     return data, header, rownames
 
 
-class FileBased(object):
-    def __init__(self, file_name=None, mode='a', tmpdir=None):
+class MetaFileBased(type):
+    """
+    Metaclass that exists to register classes by name in the module.
+    Taken pretty much verbatim from the same system in PyTables.
+    """
+    def __init__(cls, name, bases, dict_):
+        super(MetaFileBased, cls).__init__(name, bases, dict_)
+
+        # Always register into class name dictionary.
+        class_name_dict[cls.__name__] = cls
+
+        # Register into class identifier dictionary only if the class
+        # has an identifier and it is different from its parents'.
+        cid = getattr(cls, '_classid', None)
+        if cid is not None:
+            for base in bases:
+                pcid = getattr(base, '_classid', None)
+                if pcid == cid:
+                    break
+            else:
+                class_id_dict[cid] = cls
+
+
+class FileBased(six.with_metaclass(MetaFileBased, object)):
+    _classid = 'FILEBASED'
+
+    def __init__(self, file_name=None, mode='a', tmpdir=None,
+                 _meta_group='meta_information'):
         # open file or keep in memory
         if hasattr(self, 'file'):
             if not isinstance(self.file, t.file.File):
@@ -265,6 +294,7 @@ class FileBased(object):
         self.file_name = file_name
         self.tmp_file_name = None
         self._mode = mode
+        self._meta_group_name = _meta_group
         if tmpdir is None:
             self.tmp_file_name = None
             self._init_file(file_name, mode)
@@ -280,7 +310,78 @@ class FileBased(object):
                 shutil.copyfile(file_name, self.tmp_file_name)
             self._init_file(self.tmp_file_name, mode)
         self.closed = False
-    
+
+        self.meta = self._init_meta()
+
+    def _init_meta(self):
+        class MetaAccess(object):
+            def __init__(self, meta_attributes=None):
+                self._meta_attributes = meta_attributes
+
+            def __getitem__(self, item):
+                if self._meta_attributes is None:
+                    raise KeyError("No such key: {}", item)
+                return self._meta_attributes[item]
+
+            def __getattr__(self, item):
+                if item == '_meta_attributes':
+                    return object.__getattribute__(self, item)
+                if self._meta_attributes is None:
+                    raise AttributeError("No such attribute: {}", item)
+                return getattr(self._meta_attributes, item)
+
+            def __setattr__(self, key, value):
+                if key == '_meta_attributes':
+                    object.__setattr__(self, key, value)
+                    return
+
+                if self._meta_attributes is None:
+                    raise t.FileModeError("File not writable, attribute cannot be set!")
+                self._meta_attributes[key] = value
+
+            def __setitem__(self, key, value):
+                if self._meta_attributes is None:
+                    raise t.FileModeError("File not writable, item cannot be set!")
+                setattr(self._meta_attributes, key, value)
+
+            def __contains__(self, item):
+                if self._meta_attributes is None:
+                    return False
+                try:
+                    _ = self._meta_attributes[item]
+                    return True
+                except KeyError:
+                    return False
+
+        # existing?
+        try:
+            meta_group = self.file.get_node('/' + self._meta_group_name)
+        except t.NoSuchNodeError:
+            try:
+                meta_group = self.file.create_group('/', self._meta_group_name)
+            except t.FileModeError:
+                logging.debug("File not open for writing, not creating meta group.")
+                return MetaAccess()
+
+        try:
+            meta_node = self.file.get_node(meta_group, 'meta_node')
+        except t.NoSuchNodeError:
+            try:
+                meta_node = filenode.new_node(self.file, where=meta_group, name='meta_node')
+            except t.FileModeError:
+                logging.debug("File not open for writing, not creating meta node.")
+                return MetaAccess()
+
+        # try to set class id for easier identification
+        ma = MetaAccess(meta_node.attrs)
+        if '_classid' not in ma:
+            try:
+                ma._classid = self._classid
+            except AttributeError:
+                pass
+
+        return ma
+
     def close(self):
         self.file.close()
         self.closed = True
