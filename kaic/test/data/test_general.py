@@ -1088,7 +1088,6 @@ class TestPytablesInheritance:
     def test_registered_table(self, tmpdir):
         h5_file = create_or_open_pytables_file(str(tmpdir) + "/test.h5")
         table = RegisteredTable(h5_file.get_node('/'), 'test', { 'c1': t.Int32Col(), 'c2': t.Int16Col() }, 'test')
-        print class_id_dict
         table.row['c1'] = 0
         table.row.append()
         table.flush()
@@ -1099,3 +1098,37 @@ class TestPytablesInheritance:
         table = h5_file_ret.get_node('/','test')
         assert type(table) == RegisteredTable
         h5_file_ret.close()
+
+
+class TestMetaInformation:
+
+    def test_create(self):
+        with FileBased() as f:
+            f.meta.test = 'test'
+            assert f.meta.test == 'test'
+
+            f.meta['test2'] = 1
+            assert f.meta['test2'] == 1
+
+            assert f.meta._classid == 'FILEBASED'
+
+            with pytest.raises(AttributeError):
+                _ = f.meta.foo
+
+            with pytest.raises(KeyError):
+                _ = f.meta['foo']
+
+    def test_load(self, tmpdir):
+        with FileBased(file_name=str(tmpdir) + '/test.h5') as f:
+            f.meta.test = 'test'
+            f.meta.test2 = 1
+
+        with FileBased(file_name=str(tmpdir) + '/test.h5', mode='r') as f:
+            assert f.meta.test == 'test'
+            assert f.meta.test2 == 1
+
+            with pytest.raises(t.FileModeError):
+                f.meta.test = 'foo'
+
+            with pytest.raises(t.FileModeError):
+                f.meta['test'] = 'foo'
