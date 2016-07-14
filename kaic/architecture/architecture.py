@@ -63,8 +63,6 @@ class ArchitecturalFeature(object):
     If :func:`ArchitecturalFeature::calculate` has already been run before,
     the method is called directly (accessing saved data).
     """
-    __metaclass__ = ABCMeta
-
     def __init__(self):
         self._calculated = False
 
@@ -75,7 +73,6 @@ class ArchitecturalFeature(object):
         self._calculated = True
         self._calculate(*args, **kwargs)
 
-    @abstractmethod
     def _calculate(self, *args, **kwargs):
         pass
 
