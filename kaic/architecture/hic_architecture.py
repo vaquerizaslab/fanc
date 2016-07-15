@@ -132,9 +132,9 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
 class ExpectedContacts(TableArchitecturalFeature):
     _classid = 'EXPECTEDCONTACTS'
 
-    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
+    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
                  regions=None, weight_column=None, _table_name='expected_contacts'):
-        if isinstance(hic, str):
+        if isinstance(hic, str) and file_name is not None:
             file_name = hic
             hic = None
 
@@ -147,7 +147,7 @@ class ExpectedContacts(TableArchitecturalFeature):
         self.smooth = smooth
         self.min_reads = min_reads
         self.regions = regions
-        if weight_column is None:
+        if weight_column is None and hic is not None:
             self.weight_column = self.hic.default_field
         else:
             self.weight_column = weight_column
@@ -336,7 +336,7 @@ class ExpectedContacts(TableArchitecturalFeature):
 class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
     _classid = 'OBSERVEDEXPECTEDRATIO'
 
-    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
+    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
                  weight_column='weight', _table_name='expected_contacts'):
         self.region_selection = regions
 
@@ -344,7 +344,10 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
-            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+
+        if hic is None and file_name is not None:
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      _table_name_edges=_table_name)
         else:
             if regions is None:
                 regions = hic.regions
@@ -382,7 +385,7 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
 class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
     _classid = 'FOLDCHANGEMATRIX'
 
-    def __init__(self, matrix1, matrix2=None, file_name=None, mode='a', tmpdir=None,
+    def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, scale_matrices=False, log2=True,
                  weight_column='weight', _table_name='expected_contacts'):
         self.region_selection = regions
@@ -391,6 +394,8 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
         if isinstance(matrix1, str) and matrix2 is None and file_name is None:
             file_name = matrix1
             matrix1 = None
+
+        if matrix1 is None and matrix2 is None and file_name is not None:
             MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                       default_field='fc', _table_name_edges=_table_name)
         else:
@@ -451,7 +456,7 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
 class ABDomainMatrix(MatrixArchitecturalRegionFeature):
     _classid = 'ABDOMAINMATRIX'
 
-    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
+    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
                  ratio=True, weight_column='weight', per_chromosome=True, _table_name='ab_domains'):
         self.region_selection = regions
 
@@ -459,7 +464,10 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
-            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+
+        if hic is None and file_name is not None:
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      _table_name_edges=_table_name)
         else:
             if regions is None:
                 regions = hic.regions
@@ -516,7 +524,7 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
 class ABDomains(VectorArchitecturalRegionFeature):
     _classid = 'ABDOMAINS'
 
-    def __init__(self, data, file_name=None, mode='a', tmpdir=None,
+    def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
                  per_chromosome=True, regions=None, _table_name='abdomains'):
         self.region_selection = regions
 
@@ -524,7 +532,10 @@ class ABDomains(VectorArchitecturalRegionFeature):
         if isinstance(data, str) and file_name is None:
             file_name = data
             data = None
-            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
+
+        if data is None and file_name is not None:
+            VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      _table_name_data=_table_name)
         else:
             if regions is None:
                 regions = data.regions
@@ -599,9 +610,9 @@ class ABDomains(VectorArchitecturalRegionFeature):
 class PossibleContacts(TableArchitecturalFeature):
     _classid = 'POSSIBLECONTACTS'
 
-    def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
+    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
                  weight_column='weight', _table_name='expected_contacts'):
-        if isinstance(hic, str):
+        if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
 
@@ -839,7 +850,7 @@ def load_array(file_name, mode='r', tmpdir=None):
 class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
     _classid = 'DIRECTIONALITYINDEX'
 
-    def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
+    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None,
                  weight_column=None, regions=None, window_sizes=(2000000,),
                  _table_name='directionality_index'):
 
@@ -848,6 +859,8 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
         # are we retrieving an existing object?
         if isinstance(hic, str) and file_name is None:
             file_name = hic
+
+        if hic is None and file_name is not None:
             MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                            _table_name_data=_table_name)
         else:
@@ -962,7 +975,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
 class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     _classid = 'INSULATIONINDEX'
 
-    def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
+    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
                  window_sizes=(200000,), log=False, _normalisation_window=300,
                  subtract_mean=False, _table_name='insulation_index'):
@@ -972,6 +985,8 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
+
+        if hic is None and file_name is not None:
             MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                            _table_name_data=_table_name)
         else:
@@ -1155,7 +1170,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
     _classid = 'REGIONCONTACTAVERAGE'
 
-    def __init__(self, matrix, file_name=None, mode='a', tmpdir=None,
+    def __init__(self, matrix=None, file_name=None, mode='a', tmpdir=None,
                  window_sizes=(200000,), regions=None, offset=0, padding=1, impute_missing=True,
                  _table_name='contact_average'):
         self.region_selection = regions
@@ -1164,6 +1179,8 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
         if isinstance(matrix, str) and file_name is None:
             file_name = matrix
             matrix = None
+
+        if matrix is None and file_name is not None:
             MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                            _table_name_data=_table_name)
         else:
