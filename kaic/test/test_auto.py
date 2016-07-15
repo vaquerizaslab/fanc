@@ -1,5 +1,4 @@
 import kaic
-from kaic.data.genomic import Hic
 from kaic.data.registry import class_name_dict
 import pytest
 
