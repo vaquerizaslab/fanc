@@ -1,5 +1,4 @@
 import tables as t
-from tables.registry import class_id_dict
 import numpy as np
 import pytest
 from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
@@ -9,6 +8,7 @@ from kaic.data.general import Table, _to_list_and_names, TableRow, TableCol,\
 from __builtin__ import classmethod
 import os
 from kaic.tools.files import create_or_open_pytables_file
+
 
 class TestSupport:
     
