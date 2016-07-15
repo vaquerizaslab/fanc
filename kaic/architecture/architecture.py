@@ -97,9 +97,10 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
         taf.data('text_data')  # ['a', 'b', 'c', 'd', 'e']
 
         taf[1:4, 'a']  # [2, 3, 4]
-
-
     """
+
+    _classid = 'TABLEARCHITECTURALFEATURE'
+
     def __init__(self, group, fields=None, file_name=None, mode='a',
                  tmpdir=None, _table_name='table_architecture'):
         if isinstance(fields, str):
@@ -316,6 +317,9 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
 
 
 class BasicTable(TableArchitecturalFeature):
+
+    _classid = 'BASICTABLE'
+
     def __init__(self, fields, types=None, file_name=None, mode='a',
                  _string_size=100, _group_name='basic_table'):
         if isinstance(fields, str):

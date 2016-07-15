@@ -37,6 +37,8 @@ class HicArchitecture(object):
 
 
 class HicEdgeCollection(MatrixArchitecturalRegionFeature):
+    _classid = 'HICEDGECOLLECTION'
+
     def __init__(self, hics=None, additional_fields=None, file_name=None, mode='a', tmpdir=None,
                  only_intra_chromosomal=False):
         if not isinstance(hics, str) and hics is not None:
@@ -128,6 +130,8 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
 
 
 class ExpectedContacts(TableArchitecturalFeature):
+    _classid = 'EXPECTEDCONTACTS'
+
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
                  regions=None, weight_column=None, _table_name='expected_contacts'):
         if isinstance(hic, str):
@@ -330,6 +334,8 @@ class ExpectedContacts(TableArchitecturalFeature):
 
 
 class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
+    _classid = 'OBSERVEDEXPECTEDRATIO'
+
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
                  weight_column='weight', _table_name='expected_contacts'):
         self.region_selection = regions
@@ -374,6 +380,8 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
 
 
 class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
+    _classid = 'FOLDCHANGEMATRIX'
+
     def __init__(self, matrix1, matrix2=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, scale_matrices=False, log2=True,
                  weight_column='weight', _table_name='expected_contacts'):
@@ -441,6 +449,8 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
 
 
 class ABDomainMatrix(MatrixArchitecturalRegionFeature):
+    _classid = 'ABDOMAINMATRIX'
+
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
                  ratio=True, weight_column='weight', per_chromosome=True, _table_name='ab_domains'):
         self.region_selection = regions
@@ -504,6 +514,8 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
 
 
 class ABDomains(VectorArchitecturalRegionFeature):
+    _classid = 'ABDOMAINS'
+
     def __init__(self, data, file_name=None, mode='a', tmpdir=None,
                  per_chromosome=True, regions=None, _table_name='abdomains'):
         self.region_selection = regions
@@ -585,6 +597,8 @@ class ABDomains(VectorArchitecturalRegionFeature):
 
 
 class PossibleContacts(TableArchitecturalFeature):
+    _classid = 'POSSIBLECONTACTS'
+
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None, regions=None,
                  weight_column='weight', _table_name='expected_contacts'):
         if isinstance(hic, str):
@@ -754,6 +768,8 @@ class RowRegionMatrix(np.ndarray):
 
 
 class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
+    _classid = 'MULTIVECTORARCHITECTURALREGIONFEATURE'
+
     def __init__(self, file_name=None, mode='a', data_fields=None,
                  regions=None, data=None, _table_name_data='region_data',
                  tmpdir=None):
@@ -821,6 +837,8 @@ def load_array(file_name, mode='r', tmpdir=None):
 
 
 class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
+    _classid = 'DIRECTIONALITYINDEX'
+
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
                  weight_column=None, regions=None, window_sizes=(2000000,),
                  _table_name='directionality_index'):
@@ -942,6 +960,8 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
 
 
 class InsulationIndex(MultiVectorArchitecturalRegionFeature):
+    _classid = 'INSULATIONINDEX'
+
     def __init__(self, hic, file_name=None, mode='a', tmpdir=None,
                  regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
                  window_sizes=(200000,), log=False, _normalisation_window=300,
@@ -1133,6 +1153,8 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
 
 class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
+    _classid = 'REGIONCONTACTAVERAGE'
+
     def __init__(self, matrix, file_name=None, mode='a', tmpdir=None,
                  window_sizes=(200000,), regions=None, offset=0, padding=1, impute_missing=True,
                  _table_name='contact_average'):
@@ -1220,6 +1242,8 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
 
 
 class MetaMatrixBase(ArchitecturalFeature, FileGroup):
+    _classid = 'METAMATRIXBASE'
+
     def __init__(self, array=None, regions=None, window_width=50, data_selection=None,
                  file_name=None, mode='a', tmpdir=None,
                  _group_name='meta_base'):
@@ -1302,6 +1326,8 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
 
 class MetaArray(MetaMatrixBase):
+    _classid = 'METAARRAY'
+
     def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
                  file_name=None, mode='a', tmpdir=None,
                  _group_name='meta_matrix'):
@@ -1343,6 +1369,8 @@ class MetaArray(MetaMatrixBase):
 
 
 class MetaHeatmap(MetaMatrixBase):
+    _classid = 'METAHEATMAP'
+
     def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
                  file_name=None, mode='a', tmpdir=None,
                  _group_name='meta_heatmap'):

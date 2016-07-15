@@ -118,6 +118,8 @@ class Reads(Maskable, MetaContainer, FileBased):
     be overridden.
     """
 
+    _classid = 'READS'
+
     class ReadsDefinition(t.IsDescription):
         ix = t.Int32Col(pos=0)
         qname = t.Int32Col(pos=1, dflt=-1)
@@ -1628,6 +1630,8 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
     Custom filters can be created by implementing the FragmentMappedReadPairFilter
     class and overriding the valid_pair method.
     """
+
+    _classid = 'FRAGMENTMAPPEDREADPAIRS'
 
     class FragmentsMappedReadPairDescription(t.IsDescription):
         """

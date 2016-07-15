@@ -1364,6 +1364,8 @@ class RegionsTable(GenomicRegions, FileGroup):
     (:class:`~kaic.construct.seq.FragmentMappedReadPairs`)
     """
 
+    _classid = 'REGIONSTABLE'
+
     class RegionDescription(t.IsDescription):
         """
         Description of a genomic region for PyTables Table
@@ -1855,6 +1857,8 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
     - Edges or contacts: Pairs of genomic regions. See also
       :class:`~Edge`
     """
+
+    _classid = 'REGIONPAIRS'
 
     class EntryDescription(t.IsDescription):
         source = t.Int32Col(pos=0)
@@ -2449,6 +2453,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
     Iterating over sorted edges performance is somewhat reduced due to the fact that we have to
     integrate tens to hundreds of tables in the sorting.
     """
+
+    _classid = 'ACCESSOPTIMISEDREGIONPAIRS'
+
     class EdgeIter(RegionPairs.EdgeIter):
         """
         Class providing iterator functionality to a :class:`~RegionPairs` object.
@@ -2999,6 +3006,8 @@ class RegionMatrixTable(RegionPairs):
         m.add_edges(edges)
     """
 
+    _classid = 'REGIONMATRIXTABLE'
+
     def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
                  default_field=None, _table_name_nodes='nodes', _table_name_edges='edges'):
 
@@ -3544,6 +3553,9 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
     """
     Class with faster access to matrix data, based on :class:`~AccessOptimisedRegionPairs`.
     """
+
+    _classid = 'ACCESSOPTIMISEDREGIONMATRIXTABLE'
+
     def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
                  default_field=None, _table_name_nodes='nodes', _table_name_edges='edges'):
         """
@@ -3656,6 +3668,8 @@ class Hic(RegionMatrixTable):
         # ...
         hic.add_edges(edges)
     """
+
+    _classid = 'HIC'
 
     class HicRegionAnnotationDescription(t.IsDescription):
         bias = t.Float32Col(pos=0, dflt=1)
@@ -4232,6 +4246,9 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
     """
     Class with faster access to matrix data, based on :class:`~AccessOptimisedRegionPairs`.
     """
+
+    _classid = 'ACCESSOPTIMISEDHIC'
+
     def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
                  _table_name_nodes='nodes', _table_name_edges='edges',
                  _table_name_node_annotations='node_annot'):

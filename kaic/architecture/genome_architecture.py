@@ -17,6 +17,9 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
     Behaves similarly to :class:`~Hic`, as they both inherit from
     :class:`~RegionMatrixTable`.
     """
+
+    _classid = 'MATRIXARCHITECTURALREGIONFEATURE'
+
     def __init__(self, file_name=None, mode='a', data_fields=None, default_field=None,
                  regions=None, edges=None, _table_name_regions='region_data',
                  _table_name_edges='edges', tmpdir=None):
@@ -188,6 +191,9 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     """
     Process and store vector data associated with genomic regions.
     """
+
+    _classid = 'VECTORARCHITECTURALREGIONFEATURE'
+
     def __init__(self, file_name=None, mode='a', data_fields=None,
                  regions=None, data=None, _table_name_data='region_data',
                  tmpdir=None):
@@ -379,6 +385,8 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
 
 
 class BasicRegionTable(VectorArchitecturalRegionFeature):
+    _classid = 'VECTORARCHITECTURALREGIONFEATURE'
+
     def __init__(self, regions, fields=None, types=None, data=None,
                  file_name=None, mode='a', tmpdir=None,
                  _string_size=100, _group_name='region_table'):
@@ -438,6 +446,8 @@ def _is_simple_type(data_type):
 
 
 class GenomicTrack(BasicRegionTable):
+    _classid = 'GENOMICTRACK'
+
     def __init__(self, file_name=None, title=None, data_dict=None, regions=None, _table_name_tracks='tracks',
                  mode='a', tmpdir=None):
         """

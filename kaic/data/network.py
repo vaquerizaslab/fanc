@@ -47,6 +47,9 @@ class PeakInfo(RegionMatrixTable):
     x, y: coordinates of the peak centroid, if it is larger than one pixel
     radius: radius of the peak, expressed in bins (can be converted to base pairs)
     """
+
+    _classid = 'PEAKINFO'
+
     class MergedPeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
@@ -168,6 +171,8 @@ class RaoPeakInfo(RegionMatrixTable):
     For more information about neighborhoods and peak infomration,
     see :class:`~RaoPeakCaller`.
     """
+
+    _classid = 'RAOPEAKINFO'
 
     class PeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)

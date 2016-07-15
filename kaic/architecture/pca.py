@@ -15,6 +15,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 class HicCollectionWeightMeanVariance(HicEdgeCollection):
+    _classid = 'HICCOLLECTIONWEIGHTMEANVARIANCE'
+
     def __init__(self, hics=None, file_name=None, mode='a', tmpdir=None,
                  only_intra_chromosomal=False, scale_libraries=False):
         additional_fields = {'var': t.Float32Col(pos=0), 'mean': t.Float32Col(pos=1)}

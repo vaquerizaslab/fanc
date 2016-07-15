@@ -446,6 +446,9 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
 
 
 class FileGroup(FileBased):
+
+    _classid = 'FILEGROUP'
+
     def __init__(self, group, file_name=None, mode='a', tmpdir=None):
         FileBased.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir)
 
@@ -1514,6 +1517,8 @@ class Maskable(FileBased):
     on a MaskedTable object using the 
     MaskedTable.filter(MaskFilter) function. 
     """
+
+    _classid = 'MASKABLE'
     
     class MaskDescription(t.IsDescription):
         ix = t.Int16Col(pos=0)
