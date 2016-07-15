@@ -32,6 +32,7 @@ def load(file_name, mode='a', tmpdir=None):
             logging.info("Detected {}".format(cls_))
             return cls_(file_name=file_name, mode=mode, tmpdir=tmpdir)
         except AttributeError:
+            f.close()
             raise ValueError("File ({}) does not have a '_classid' meta attribute. This might be fixed by loading the "
                              "class once explicitly with the appropriate class in append mode.".format(file_name))
         except KeyError:
@@ -48,8 +49,8 @@ def load(file_name, mode='a', tmpdir=None):
         return GenomicTrack.from_gtf(file_name=None, gtf_file=file_name)
 
 
-def sample_hic():
-    hic = Hic()
+def sample_hic(file_name=None, tmpdir=None):
+    hic = Hic(file_name=file_name, tmpdir=tmpdir, mode='w')
 
     # add some nodes (12 to be exact)
     nodes = []
@@ -74,8 +75,8 @@ def sample_hic():
     return hic
 
 
-def sample_hic_big():
-    hic = Hic()
+def sample_hic_big(file_name=None, tmpdir=None):
+    hic = Hic(file_name=file_name, tmpdir=tmpdir, mode='w')
 
     # add some nodes (120 to be exact)
     nodes = []
@@ -100,8 +101,8 @@ def sample_hic_big():
     return hic
 
 
-def sample_fa_hic():
-    hic = AccessOptimisedHic()
+def sample_fa_hic(file_name=None, tmpdir=None):
+    hic = AccessOptimisedHic(file_name=file_name, tmpdir=tmpdir, mode='w')
 
     # add some nodes (120 to be exact)
     nodes = []
