@@ -43,5 +43,5 @@ class TestAuto:
         hic.close()
 
         hic = kaic.load(file_name, mode='r')
-
+        hic.close()
         assert isinstance(hic, kaic.Hic)
