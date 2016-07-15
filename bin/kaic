@@ -3426,7 +3426,7 @@ class Kaic(object):
 
         parser.add_argument(
             '-r', '--region', dest='region',
-            help='''Region selector (<chr>:<start>-<end>) to only calculate DI for this region.'''
+            help='''Region selector (<chr>:<start>-<end>) to only calculate II for this region.'''
         )
 
         parser.add_argument(
@@ -3456,6 +3456,13 @@ class Kaic(object):
             help='''Calculate II relative to surrounding region'''
         )
         parser.set_defaults(relative=False)
+
+        parser.add_argument(
+            '-log', '--log', dest='log',
+            action='store_true',
+            help='''Log2-transform II'''
+        )
+        parser.set_defaults(log=False)
 
         parser.add_argument(
             '-n', '--normalise', dest='normalise',
@@ -3504,7 +3511,7 @@ class Kaic(object):
 
         with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                              impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
-                             relative=args.relative, mode='w', subtract_mean=args.subtract) as ii:
+                             relative=args.relative, mode='w', subtract_mean=args.subtract, log=args.log) as ii:
             ii.calculate()
 
     def optimise(self):
