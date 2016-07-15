@@ -10,12 +10,45 @@ Provides
 """
 
 from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion
-from kaic.data.general import Table 
+from kaic.data.general import Table, FileBased
+from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIndex, PossibleContacts, \
     ExpectedContacts, load_array
+from kaic.architecture.genome_architecture import GenomicTrack
+import tables
 import logging
 logging.basicConfig(level=logging.INFO)
+
+
+def load(file_name, mode='a', tmpdir=None):
+    try:
+        f = FileBased(file_name, mode='r')
+        classid = None
+        try:
+            print 'here'
+            classid = f.meta._classid
+            print 'there'
+            f.close()
+            cls_ = class_id_dict[classid]
+            logging.info("Detected {}".format(cls_))
+            print cls_, file_name, mode, tmpdir
+            return cls_(file_name=file_name, mode=mode, tmpdir=tmpdir)
+        except AttributeError:
+            raise ValueError("File ({}) does not have a '_classid' meta attribute. This might be fixed by loading the "
+                             "class once explicitly with the appropriate class in append mode.".format(file_name))
+        except KeyError:
+            raise ValueError("classid attribute ({}) does not have a registered class.".format(classid))
+    except tables.HDF5ExtError:
+        # try some well-known file types
+        import pybedtools
+        f = pybedtools.BedTool(file_name)
+        try:
+            _ = f.file_type
+        except IndexError:
+            raise ValueError("File type not recognised.")
+
+        return GenomicTrack.from_gtf(file_name=None, gtf_file=file_name)
 
 
 def sample_hic():
