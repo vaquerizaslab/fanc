@@ -25,8 +25,6 @@ class TestAuto:
             x = cls_(hic, file_name=file_name, mode='w')
             x.close()
 
-            print 'before'
             x = kaic.load(file_name, mode='r')
-            print 'after'
             assert isinstance(x, cls_)
             x.close()

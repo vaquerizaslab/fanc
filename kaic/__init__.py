@@ -26,13 +26,10 @@ def load(file_name, mode='a', tmpdir=None):
         f = FileBased(file_name, mode='r')
         classid = None
         try:
-            print 'here'
             classid = f.meta._classid
-            print 'there'
             f.close()
             cls_ = class_id_dict[classid]
             logging.info("Detected {}".format(cls_))
-            print cls_, file_name, mode, tmpdir
             return cls_(file_name=file_name, mode=mode, tmpdir=tmpdir)
         except AttributeError:
             raise ValueError("File ({}) does not have a '_classid' meta attribute. This might be fixed by loading the "
