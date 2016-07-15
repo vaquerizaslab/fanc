@@ -15,19 +15,18 @@ class TestAuto:
             x.close()
 
     def test_hic_based_auto_identification(self, tmpdir):
-        hic = kaic.sample_hic()
-        for class_name in ('ABDomains', 'ABDomainMatrix', 'ExpectedContacts', 'ObservedExpectedRatio',
-                           'FoldChangeMatrix', 'ABDomains', 'PossibleContacts', 'RegionContactAverage',
-                           'InsulationIndex', 'DirectionalityIndex'):
-            print class_name
-            file_name = str(tmpdir) + '/{}.h5'.format(class_name)
-            cls_ = class_name_dict[class_name]
-            x = cls_(hic, file_name=file_name, mode='w')
-            x.close()
+        with kaic.sample_hic() as hic:
+            for class_name in ('ABDomains', 'ABDomainMatrix', 'ExpectedContacts', 'ObservedExpectedRatio',
+                               'FoldChangeMatrix', 'ABDomains', 'PossibleContacts', 'RegionContactAverage',
+                               'InsulationIndex', 'DirectionalityIndex'):
+                file_name = str(tmpdir) + '/{}.h5'.format(class_name)
+                cls_ = class_name_dict[class_name]
+                x = cls_(hic, file_name=file_name, mode='w')
+                x.close()
 
-            x = kaic.load(file_name, mode='r')
-            assert isinstance(x, cls_)
-            x.close()
+                x = kaic.load(file_name, mode='r')
+                assert isinstance(x, cls_)
+                x.close()
 
     def test_conversion(self, tmpdir):
         file_name = str(tmpdir) + '/x.hic'
