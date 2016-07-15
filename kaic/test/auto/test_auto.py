@@ -1,6 +1,8 @@
 import kaic
 from kaic.data.registry import class_name_dict
 import pytest
+import os
+
 
 class TestAuto:
     def test_auto_identification(self, tmpdir):
@@ -43,3 +45,14 @@ class TestAuto:
         hic = kaic.load(file_name, mode='r')
         hic.close()
         assert isinstance(hic, kaic.Hic)
+
+    def test_bed(self):
+        this_dir = os.path.dirname(os.path.realpath(__file__))
+        bed_file = this_dir + '/test_auto/test.bed'
+
+        with kaic.load(bed_file) as bed:
+            assert isinstance(bed, kaic.GenomicTrack)
+
+        with pytest.raises(ValueError):
+            foo_file = this_dir + '/test_auto/foo.txt'
+            kaic.load(foo_file)
