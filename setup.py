@@ -18,6 +18,7 @@ setup(
         'gridmap',
         'sklearn',
         'progressbar2',
+        'pybedtools',
         'tables>3.2.2'
     ],
     dependency_links=[
