@@ -311,7 +311,9 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
             self._init_file(self.tmp_file_name, mode)
         self.closed = False
 
-        self.meta = self._init_meta()
+        self.meta = None
+        self._init_meta()
+        self._update_classid()
 
     def _init_meta(self):
         class MetaAccess(object):
@@ -361,7 +363,8 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
                 meta_group = self.file.create_group('/', self._meta_group_name)
             except t.FileModeError:
                 logging.debug("File not open for writing, not creating meta group.")
-                return MetaAccess()
+                self.meta = MetaAccess()
+                return
 
         try:
             meta_node = self.file.get_node(meta_group, 'meta_node')
@@ -370,17 +373,17 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
                 meta_node = filenode.new_node(self.file, where=meta_group, name='meta_node')
             except t.FileModeError:
                 logging.debug("File not open for writing, not creating meta node.")
-                return MetaAccess()
+                self.meta = MetaAccess()
+                return
 
-        # try to set class id for easier identification
-        ma = MetaAccess(meta_node.attrs)
-        if '_classid' not in ma:
+        self.meta = MetaAccess(meta_node.attrs)
+
+    def _update_classid(self, force=False):
+        if '_classid' not in self.meta or force:
             try:
-                ma._classid = self._classid
-            except AttributeError:
+                self.meta._classid = self._classid
+            except (AttributeError, t.FileModeError):
                 pass
-
-        return ma
 
     def close(self):
         self.file.close()
