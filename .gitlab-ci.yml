@@ -4,47 +4,22 @@ before_script:
     - "echo 'backend: Agg' > matplotlibrc"
 
 stages:
-    - build
-    - test
-
-job_build_linux:
-    stage: build
-    script:
-        - "pip install cython"
-        - "pip install --process-dependency-links .[plotting]"
-    cache:
-        paths:
-            - kaic_venv/
-    tags:
-        - linux
+    - build_and_test
 
 job_test_kaic:
-    stage: test
-    script:
-        - "py.test kaic -m 'not plotting'"
-    cache:
-        paths:
-            - kaic_venv/
-    tags:
-        - linux
-        - kaic_test
-
-job_test_kaic_plotting:
-    stage: test
-    script:
-        - "py.test kaic -m plotting"
-    cache:
-        paths:
-            - kaic_venv/
-    tags:
-        - linux
-        - plotting_test
-
-job_test_build:
-    stage: test
+    stage: build_and_test
     script:
         - "pip install cython"
         - "pip install --process-dependency-links .[plotting]"
+        - "py.test kaic -m 'not plotting'"
     tags:
         - linux
-        - build_test
+
+job_test_kaic_plotting:
+    stage: build_and_test
+    script:
+        - "pip install cython"
+        - "pip install --process-dependency-links .[plotting]"
+        - "py.test kaic -m plotting"
+    tags:
+        - linux
