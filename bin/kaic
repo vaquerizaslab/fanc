@@ -20,6 +20,7 @@ class Kaic(object):
                 Commands:
                     auto                Automatically process an entire Hi-C data set
                     dirs                Create default folder structure for kaic
+                    stats               Get statistics for kaic pipeline files
 
                     --- Mapping
                     iterative_mapping   Iteratively map a FASTQ file to a Bowtie 2 index
@@ -50,6 +51,7 @@ class Kaic(object):
                     filter_merged_peaks Filter merged peaks
 
                     --- Plotting
+                    plot                Universal plotting function
                     plot_ligation_err   Plot the ligation error of a Pairs object
                     plot_re_dist        Plot the distance of reads to the nearest RE site
                     plot_hic_corr       Plot the correlation of two Hic objects
@@ -3583,6 +3585,202 @@ class Kaic(object):
                 sink = ix_converter[edge.sink]
                 new_hic.add_edge([source, sink, edge.weight], flush=False)
         new_hic.flush()
+
+    def stats(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Get statistics on number of reads used at each step of a pipeline.'
+        )
+
+        parser.add_argument(
+            'output',
+            help="Output file (.txt) to store statistics."
+        )
+
+        parser.add_argument(
+            '-f', '--fastq', dest='fastq',
+            nargs='+',
+            help='''List of FASTQ files or folders containing FASTQ files.'''
+        )
+
+        parser.add_argument(
+            '-r', '--reads', dest='reads',
+            nargs='+',
+            help='''List of Reads files or folders containing Reads files ('.reads ending').'''
+        )
+
+        parser.add_argument(
+            '-p', '--pairs', dest='pairs',
+            nargs='+',
+            help='''List of Pairs files or folders containing Pairs files ('.pairs ending').'''
+        )
+
+        parser.add_argument(
+            '-c', '--hic', dest='hic',
+            nargs='+',
+            help='''List of Hic files or folders containing Hic files ('.hic ending').'''
+        )
+
+        args = parser.parse_args(sys.argv[2:])
+
+        from collections import defaultdict
+
+        output_file = os.path.expanduser(args.output)
+        with open(output_file, 'w') as o:
+            o.write("type\tfile\tproperty\tcount\n")
+
+        def get_files(paths, endings=()):
+            files = []
+            for p in paths:
+                ppath = os.path.expanduser(p)
+                if os.path.isdir(ppath):
+                    for path in os.listdir(ppath):
+                        full_path = ppath + '/{}'.format(path)
+                        if os.path.isfile(full_path):
+                            for ending in endings:
+                                if path.endswith(ending):
+                                    files.append(full_path)
+                                    continue
+                elif os.path.isfile(ppath):
+                    files.append(ppath)
+            return files
+
+        def stats(maskable, masked_table):
+            import tables as t
+            statistics = maskable.mask_statistics(masked_table)
+
+            # calculate total
+            if isinstance(masked_table, t.Group):
+                total = 0
+                for table in masked_table:
+                    total += table._original_len()
+            else:
+                total = masked_table._original_len()
+            return statistics, total
+
+        # 1. Count number of reads
+        if args.fastq is not None:
+            logging.info("Processing FASTQ files.")
+            import gzip
+
+            def blocks(files, size=65536):
+                while True:
+                    b = files.read(size)
+                    if not b:
+                        break
+                    yield b
+
+            fastq_files = get_files(args.fastq, ('.fq', '.fastq', '.fq.gz', '.fastq.gz'))
+
+            total_count = 0
+            for fastq_file in fastq_files:
+                logging.info("{}".format(fastq_file))
+                if fastq_file.endswith('gz'):
+                    read = gzip.open
+                else:
+                    read = open
+
+                with read(fastq_file, 'r') as f:
+                    line_count = sum(bl.count("\n") for bl in blocks(f))
+                total_count += line_count/4
+
+                with open(output_file, 'a') as o:
+                    o.write("fastq\t{}\tcount\t{}\n".format(fastq_file, line_count/4))
+
+            with open(output_file, 'a') as o:
+                o.write("fastq\ttotal\tcount\t{}\n".format(total_count))
+
+        # 2. Reads statistics
+        if args.reads is not None:
+            logging.info("Processing Reads files.")
+
+            from kaic.construct.seq import Reads
+            reads_files = get_files(args.reads, ('.reads',))
+
+            reads_summary = defaultdict(int)
+            for reads_file in reads_files:
+                logging.info("{}".format(reads_file))
+                reads = Reads(reads_file, mode='r')
+                statistics, total = stats(reads, reads._reads)
+
+                with open(output_file, 'a') as o:
+                    for key in sorted(statistics.keys()):
+                        o.write("reads\t{}\t{}\t{}\n".format(reads_file, key, statistics[key]))
+                        reads_summary[key] += statistics[key]
+
+                with open(output_file, 'a') as o:
+                    o.write("reads\t{}\ttotal\t{}\n".format(reads_file, total))
+                    reads_summary['total'] += total
+                reads_summary['filtered'] += total - statistics['unmasked']
+                reads_summary['remaining'] += statistics['unmasked']
+
+            with open(output_file, 'a') as o:
+                for key in sorted(reads_summary.keys()):
+                    if key != 'filtered' and key != 'remaining':
+                        o.write("reads\ttotal\t{}\t{}\n".format(key, reads_summary[key]))
+                o.write("reads\ttotal\tfiltered\t{}\n".format(reads_summary['filtered']))
+                o.write("reads\ttotal\tremaining\t{}\n".format(reads_summary['remaining']))
+
+        # 3. Pairs statistics
+        if args.pairs is not None:
+            logging.info("Processing Pairs files.")
+            from kaic.construct.seq import FragmentMappedReadPairs as Pairs
+            pairs_files = get_files(args.pairs, ('.pairs',))
+            pairs_summary = defaultdict(int)
+            for pairs_file in pairs_files:
+                logging.info("{}".format(pairs_file))
+                pairs = Pairs(pairs_file, mode='r')
+                statistics, total = stats(pairs, pairs._pairs)
+
+                with open(output_file, 'a') as o:
+                    for key in sorted(statistics.keys()):
+                        o.write("pairs\t{}\t{}\t{}\n".format(pairs_file, key, statistics[key]))
+                        pairs_summary[key] += statistics[key]
+
+                with open(output_file, 'a') as o:
+                    o.write("pairs\t{}\ttotal\t{}\n".format(pairs_file, total))
+                    pairs_summary['total'] += total
+
+                pairs_summary['filtered'] += total - statistics['unmasked']
+                pairs_summary['remaining'] += statistics['unmasked']
+
+            with open(output_file, 'a') as o:
+                for key in sorted(pairs_summary.keys()):
+                    if key != 'filtered' and key != 'remaining':
+                        o.write("pairs\ttotal\t{}\t{}\n".format(key, pairs_summary[key]))
+                o.write("pairs\ttotal\tfiltered\t{}\n".format(pairs_summary['filtered']))
+                o.write("pairs\ttotal\tremaining\t{}\n".format(pairs_summary['remaining']))
+
+        # 3. Hic statistics
+        if args.hic is not None:
+            logging.info("Processing Hic files.")
+            from kaic.data.genomic import load_hic
+            hic_files = get_files(args.hic, ('.hic',))
+
+            hic_summary = defaultdict(int)
+            for hic_file in hic_files:
+                logging.info("{}".format(hic_file))
+                hic = load_hic(hic_file, mode='r')
+                statistics, total = stats(hic, hic._edges)
+
+                with open(output_file, 'a') as o:
+                    for key in sorted(statistics.keys()):
+                        o.write("hic\t{}\t{}\t{}\n".format(hic_file, key, statistics[key]))
+                        hic_summary[key] += statistics[key]
+
+                with open(output_file, 'a') as o:
+                    o.write("hic\t{}\ttotal\t{}\n".format(hic_file, total))
+                    hic_summary['total'] = total
+
+                hic_summary['filtered'] += total - statistics['unmasked']
+                hic_summary['remaining'] += statistics['unmasked']
+
+            with open(output_file, 'a') as o:
+                for key in sorted(hic_summary.keys()):
+                    if key != 'filtered' and key != 'remaining':
+                        o.write("hic\ttotal\t{}\t{}\n".format(key, hic_summary[key]))
+                o.write("hic\ttotal\tfiltered\t{}\n".format(hic_summary['filtered']))
+                o.write("hic\ttotal\tremaining\t{}\n".format(hic_summary['remaining']))
 
 
 if __name__ == '__main__':
