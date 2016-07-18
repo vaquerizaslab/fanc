@@ -375,19 +375,19 @@ class BasePlotter1D(BasePlotter):
             self.refresh(region=x_region)
 
 
-class BasePlotterMatrix(BasePlotter):
+class BasePlotterMatrix(object):
     """
     Mix-in class to provide methods for mapping colorvalues
     in special areas in the plots etc.
+    Does not inherit from BasePlotter, since it's meant to be inherited
+    together with another BasePlotter class.
     """
 
     __metaclass__ = ABCMeta
 
     def __init__(self, colormap='viridis', norm="log", vmin=None, vmax=None,
-                 show_colorbar=True, blend_zero=True, title='', replacement_color=None,
-                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None,
-                 aspect=1., axes_style='ticks'):
-        BasePlotter.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+                 show_colorbar=True, blend_zero=True, replacement_color=None,
+                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
 
         if isinstance(colormap, basestring):
             colormap = mpl.cm.get_cmap(colormap)
