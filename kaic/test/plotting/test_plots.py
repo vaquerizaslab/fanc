@@ -21,6 +21,7 @@ def get_example_hic():
     h = kaic.Hic(directory + "/../data/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
     return h
 
+@pytest.mark.plotting
 class TestHicPlot:
     def setup_method(self, method):
         self.hic = get_example_hic()
