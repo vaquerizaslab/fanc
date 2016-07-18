@@ -1,29 +1,23 @@
 before_script:
     - "virtualenv kaic_venv"
     - "source kaic_venv/bin/activate"
+    - "pip install cython"
 
 stages:
-    - build
-    - test
+    - build_and_test
 
-job_build_linux:
-    stage: build
+job_build_test_kaic:
+    stage: build_and_test
     script:
-        - "pip install cython"
-        - "pip install --process-dependency-links .[plotting]"
-    tags:
-        - linux
-
-job_test_kaic:
-    stage: test
-    script:
+        - "pip install --process-dependency-links ."
         - "py.test kaic -m 'not plotting'"
     tags:
         - linux
 
-job_test_kaic_plotting:
-    stage: test
+job_build_test_kaic_plotting:
+    stage: build_and_test
     script:
+        - "pip install --process-dependency-links .[plotting]"
         - "py.test kaic -m plotting"
     tags:
         - linux
