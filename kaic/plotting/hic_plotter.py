@@ -358,8 +358,29 @@ class HicComparisonPlot2D(HicPlot2D):
 
 class HicSlicePlot(ScalarDataPlot):
     def __init__(self, hic_data, slice_region, names=None, style="step", title='',
-                 aspect=.3, axes_style=style_ticks_whitegrid, ylim=None,
+                 aspect=.3, axes_style=style_ticks_whitegrid, ylim=None, yscale="linear",
                  buffering_strategy="relative", buffering_arg=1):
+        """
+        Initialize a plot which draws Hi-C data as virtual 4C-plot. All interactions that
+        involve the slice region are shown.
+
+        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`. Can be list of
+                         multiple Hi-C datasets.
+        :param slice_region: String ("2L:1000000-1500000") or :class:`~GenomicRegion`.
+                             All interactions involving this region are shown.
+        :param names: If multiple Hi-C datasets are provided, can pass a list of names.
+                      Are used as names in the legend of the plot.
+        :param style: 'step' Draw values in a step-wise manner for each bin
+                      'mid' Draw values connecting mid-points of bins
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
+        :param title: Title drawn on top of the figure panel
+        :param ylim: Tuple to set y-axis limits
+        :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
+                        valid argument ("linear", "log", etc.) works
+        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
+        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
+        """
         ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
                         axes_style=axes_style)
         if not isinstance(hic_data, (list, tuple)):
@@ -374,6 +395,7 @@ class HicSlicePlot(ScalarDataPlot):
         if isinstance(slice_region, basestring):
             slice_region = GenomicRegion.from_string(slice_region)
         self.slice_region = slice_region
+        self.yscale = yscale
         self.ylim = ylim
         self.x = None
         self.y = None
@@ -389,6 +411,7 @@ class HicSlicePlot(ScalarDataPlot):
             self.add_legend()
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
+        self.ax.set_yscale(self.yscale)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
 

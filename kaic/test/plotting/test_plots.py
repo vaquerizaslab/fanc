@@ -7,15 +7,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
-# @pytest.fixture
-# def example_hic(request):
-#     directory = os.path.dirname(os.path.realpath(__file__))
-#     h = kaic.Hic(directory + "/../data/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
-#     def fin():
-#         h.close()
-#     request.addfinalizer(fin)
-#     return h
-
 def get_example_hic():
     directory = os.path.dirname(os.path.realpath(__file__))
     h = kaic.Hic(directory + "/../data/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
@@ -120,7 +111,7 @@ class TestHicPlot:
         if unmappable_color is not None:
             unmap_color = mpl.colors.colorConverter.to_rgba(unmappable_color)
             assert np.all(np.isclose(hplot.im.get_array()[unmap_mask, :], unmap_color))
-        # blend zero only really makes sense with log normalization, with 
+        # blend zero only really makes sense with log normalization, with
         # linear normalization 0 values map to the first colormap value anyway
         if norm == "log":
             exp_zero = np.logical_and(zero_mask, np.logical_not(unmap_mask))
