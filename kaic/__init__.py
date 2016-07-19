@@ -46,7 +46,7 @@ def load(file_name, mode='a', tmpdir=None):
         except IndexError:
             raise ValueError("File type not recognised.")
 
-        return GenomicTrack.from_gtf(file_name=None, gtf_file=file_name)
+        return f
 
 
 def sample_hic(file_name=None, tmpdir=None):
