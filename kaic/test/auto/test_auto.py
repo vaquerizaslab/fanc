@@ -51,8 +51,8 @@ class TestAuto:
         this_dir = os.path.dirname(os.path.realpath(__file__))
         bed_file = this_dir + '/test_auto/test.bed'
 
-        bed = kaic.load(bed_file)
-        assert isinstance(bed, pybedtools.BedTool)
+        with kaic.load(bed_file) as bed:
+            assert isinstance(bed, kaic.Bed)
 
         with pytest.raises(ValueError):
             foo_file = this_dir + '/test_auto/foo.txt'
