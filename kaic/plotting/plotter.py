@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 from matplotlib.ticker import NullLocator
-from kaic.data.genomic import GenomicRegion, GenomicRegions
-from kaic.plotting import style_ticks_whitegrid
+from kaic.data.genomic import GenomicRegion
 from kaic.plotting.base_plotter import BasePlotter1D, append_axes
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 import matplotlib.patches as patches
@@ -16,6 +15,32 @@ import re
 plt = sns.plt
 log = logging.getLogger(__name__)
 log.setLevel(10)
+
+style_ticks_whitegrid = {
+    'axes.axisbelow': True,
+    'axes.edgecolor': '.15',
+    'axes.facecolor': 'white',
+    'axes.grid': True,
+    'axes.labelcolor': '.15',
+    'axes.linewidth': 1.25,
+    'figure.facecolor': 'white',
+    'font.family': ['sans-serif'],
+    'grid.color': '.8',
+    'grid.linestyle': '-',
+    'image.cmap': 'Greys',
+    'legend.frameon': False,
+    'legend.numpoints': 1,
+    'legend.scatterpoints': 1,
+    'lines.solid_capstyle': 'round',
+    'text.color': '.15',
+    'xtick.color': '.15',
+    'xtick.direction': 'out',
+    'xtick.major.size': 6,
+    'xtick.minor.size': 3,
+    'ytick.color': '.15',
+    'ytick.direction': 'out',
+    'ytick.major.size': 6,
+    'ytick.minor.size': 3}
 
 
 def region_to_pbt_interval(region):
