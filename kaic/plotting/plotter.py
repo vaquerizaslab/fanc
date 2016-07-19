@@ -5,7 +5,7 @@ from kaic.data.genomic import GenomicRegion, GenomicRegions
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
-                                  region_to_pbt_interval
+                                  region_to_pbt_interval, absolute_wspace_hspace
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import types
@@ -52,8 +52,8 @@ def hide_axis(ax):
 
 
 class GenomicFigure(object):
-    def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None,
-                 ticks_last=False, fix_chromosome=None):
+    def __init__(self, plots, height_ratios=None, figsize=None, hspace=.5,
+                 gridspec_args=None, ticks_last=False, fix_chromosome=None):
         """
         Creates a GenomicFigure composed of one or more plots.
         All plots are arranged in a single column, their genomic coordinates aligned.
@@ -73,6 +73,7 @@ class GenomicFigure(object):
                         Defaults is (6, 6*sum(height_ratios))
                         None can be used to as a placeholder for the default value, eg.
                         (8, None) is converted to (8, 8*sum(height_rations))
+        :param hspace: Distance between plot panels in inches
         :param gridspec_args: Optional keyword-arguments passed directly to GridSpec constructor
         :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
         :param fix_chromosome: boolean list, same length as plots. If an element is True, the corresponding plot
@@ -93,14 +94,13 @@ class GenomicFigure(object):
         if width is None:
             width = 6
         if height is None:
-            height = width*sum(height_ratios)
+            height = width*sum(height_ratios) + hspace*self.n
         self.figsize = width, height
         if not gridspec_args:
             gridspec_args = {}
-        gridspec_args["wspace"] = gridspec_args.get("wspace", .1)
-        gridspec_args["hspace"] = gridspec_args.get("hspace", .2)
         gs = gridspec.GridSpec(self.n, 2, height_ratios=self.height_ratios, width_ratios=[1, .05], **gridspec_args)
-        plt.figure(figsize=self.figsize)
+        fig = plt.figure(figsize=self.figsize)
+        absolute_wspace_hspace(fig, gs, .3, hspace)
         for i in xrange(self.n):
             with sns.axes_style("ticks" if plots[i].axes_style is None else
                                 plots[i].axes_style):
