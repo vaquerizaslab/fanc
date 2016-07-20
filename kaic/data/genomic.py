@@ -142,6 +142,22 @@ class Bed(pybedtools.BedTool):
     def __enter__(self):
         return self
 
+    @property
+    def regions(self):
+        class RegionIter(object):
+            def __init__(self, bed):
+                self.bed = bed
+
+            def __iter__(self):
+                for region in self.bed:
+                    gr = GenomicRegion(chromosome=region.chrom, start=region.start, end=region.end,
+                                       strand=region.strand, name=region.name, score=region.score)
+                    yield gr
+
+            def __call__(self):
+                return iter(self)
+        return RegionIter(self)
+
 
 class Chromosome(object):
     """
