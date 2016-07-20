@@ -14,7 +14,7 @@ from kaic.data.general import Table, FileBased
 from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIndex, PossibleContacts, \
-    ExpectedContacts, load_array, RegionContactAverage
+    ExpectedContacts, load_array, RegionContactAverage, FoldChangeMatrix
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
 import logging
@@ -40,7 +40,7 @@ def load(file_name, mode='a', tmpdir=None):
     except tables.HDF5ExtError:
         # try some well-known file types
         import pybedtools
-        f = pybedtools.BedTool(file_name)
+        f = Bed(file_name)
         try:
             _ = f.file_type
         except IndexError:
