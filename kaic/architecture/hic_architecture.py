@@ -670,10 +670,11 @@ class PossibleContacts(TableArchitecturalFeature):
 
 
 class RowRegionMatrix(np.ndarray):
-    def __new__(cls, input_matrix, regions=None, fields=None):
+    def __new__(cls, input_matrix, regions=None, fields=None, y_values=None):
         obj = np.asarray(input_matrix).view(cls)
         obj.regions = regions
         obj.fields = fields
+        obj.y_values = y_values
         obj._chromosome_index = None
         obj._region_index = None
         return obj
@@ -684,6 +685,7 @@ class RowRegionMatrix(np.ndarray):
 
         self.regions = getattr(obj, 'regions', None)
         self.fields = getattr(obj, 'fields', None)
+        self.y_values = getattr(obj, 'y_values', None)
         self._chromosome_index = None
         self._region_index = None
 
@@ -698,7 +700,7 @@ class RowRegionMatrix(np.ndarray):
         if self._region_index is None or self._chromosome_index is None:
             self._build_region_index()
         if isinstance(region, str):
-            region = GenomicRegion(region)
+            region = GenomicRegion.from_string(region)
         start_ix = bisect_left(self._chromosome_index[region.chromosome], region.start)
         end_ix = bisect_left(self._chromosome_index[region.chromosome], region.end)
         start_region_ix = self._region_index[region.chromosome][start_ix]
@@ -799,6 +801,8 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
             keys = self.data_field_names
         elif isinstance(keys, slice) or isinstance(keys, int):
             keys = self.data_field_names[keys]
+        elif isinstance(keys, list) and len(keys) > 0 and isinstance(keys[0], int):
+            keys = [self.data_field_names[i] for i in keys]
 
         array = []
         array_regions = []
@@ -809,8 +813,18 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
             for key in array_keys:
                 row.append(getattr(region, key))
             array.append(row)
+        array = np.array(array)
 
-        return RowRegionMatrix(np.array(array), regions=array_regions, fields=array_keys)
+        if self.y_values is not None:
+            y_values = []
+            keyset = set(keys)
+            for i, field in enumerate(self.data_field_names):
+                if field in keyset:
+                    y_values.append(self.y_values[i])
+        else:
+            y_values = np.arange(array.shape[1] + 1)
+
+        return RowRegionMatrix(array, regions=array_regions, fields=array_keys, y_values=y_values)
 
     @property
     def y_values(self):
