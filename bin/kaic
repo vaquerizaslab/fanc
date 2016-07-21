@@ -67,6 +67,7 @@ class Kaic(object):
                     average_tracks     Calculate average Hi-C contact profiles per region
                     directionality     Calculate directionality index for Hic object
                     insulation         Calculate insulation index for Hic object
+                    diff               Calculate difference between two vectors
 
                     --- Other
                     optimize           Optimise an existing Hic object for faster access
@@ -3533,6 +3534,47 @@ class Kaic(object):
                 sink = ix_converter[edge.sink]
                 new_hic.add_edge([source, sink, edge.weight], flush=False)
         new_hic.flush()
+
+    def diff(self):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + sys.argv[1],
+            description='Calculate difference between two vectors (v1-v2)'
+        )
+
+        parser.add_argument(
+            'vector1',
+            help='First vector (/array, e.g. InsulationIndex)'
+        )
+
+        parser.add_argument(
+            'vector2',
+            help='Second vector (/array, e.g. InsulationIndex)'
+        )
+
+        parser.add_argument(
+            'output',
+            help='Output VectorDifference file.'
+        )
+
+        parser.add_argument(
+            '-a', '--absolute', dest='absolute',
+            action='store_true',
+            help='''Output absolute difference'''
+        )
+        parser.set_defaults(absolute=False)
+
+        args = parser.parse_args(sys.argv[2:])
+
+        import os.path
+        import kaic
+
+        v1 = kaic.load(args.vector1, mode='r')
+        v2 = kaic.load(args.vector2, mode='r')
+
+        output_file = os.path.expanduser(args.output)
+
+        with kaic.VectorDifference(v1, v2, absolute=args.absolute, file_name=output_file, mode='w') as d:
+            d.calculate()
 
     def stats(self):
         parser = argparse.ArgumentParser(
