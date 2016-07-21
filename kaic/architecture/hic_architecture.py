@@ -1208,7 +1208,7 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
                 window_size = int(colname[3:])
                 self.window_sizes.append(window_size)
 
-        self.y_values = self.window_sizes
+        # self.y_values = self.window_sizes
         self.offset = offset
         self.padding = padding
         self.matrix = matrix
