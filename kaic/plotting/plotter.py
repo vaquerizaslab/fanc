@@ -1,10 +1,12 @@
 from __future__ import division, print_function
+import matplotlib as mpl
 from matplotlib.ticker import NullLocator
 from kaic.data.genomic import GenomicRegion
 from kaic.plotting.base_plotter import BasePlotter1D, append_axes
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
+import types
 import numpy as np
 import logging
 import seaborn as sns
@@ -470,21 +472,19 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
                          None (no special color).
         """
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
         BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm, colorbar_symmetry=colorbar_symmetry,
                                    vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
                                    blend_zero=blend_zero, unmappable_color=unmappable_color,
                                    illegal_color=illegal_color, replacement_color=replacement_color)
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+
         self.array = array
         self.keys = keys
         if plot_kwargs is None:
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
-        if y_coords is None:
-            if self.array.y_values is not None:
-                self.y_coords = self.array.y_values
-            else:
-                self.y_coords = None
+
+        self.y_coords = y_coords
         self.hm = None
         self.y_scale = y_scale
 
@@ -502,12 +502,17 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         if self.show_colorbar:
             self.add_colorbar()
 
+        def drag_pan(self, button, key, x, y):
+            mpl.axes.Axes.drag_pan(self, button, 'x', x, y)  # pretend key=='x'
+
+        self.ax.drag_pan = types.MethodType(drag_pan, self.ax)
+
     def _mesh_data(self, region):
         hm = self.array.as_matrix(regions=region, keys=self.keys)
         regions = hm.regions
         bin_coords = np.r_[[(x.start - 1) for x in regions], regions[-1].end]
         x, y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None
-                                        else np.arange(hm.shape[1] + 1)))
+                                        else hm.y_values))
         return x, y, hm
 
     def _update_mesh_colors(self):
