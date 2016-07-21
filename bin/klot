@@ -1,0 +1,715 @@
+import argparse
+import sys
+import os
+from itertools import groupby
+import textwrap
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+
+
+class Klot(object):
+
+    def __init__(self):
+        #
+        # define parsers for klot and subplots
+        #
+
+        # global parser
+        global_parser = argparse.ArgumentParser(
+            description="klot plotting tool for kaic",
+            usage='''
+                klot [<klot global parameters>] <region> [<region> ...]
+                      --plot <plot data file(s)> [<plot parameters>] [...]
+
+                Run klot --plot -t <plot type> -h for help on a specific subplot.
+                '''
+        )
+
+        global_parser.add_argument(
+            'regions',
+            nargs='*',
+            help='List of region selectors (<chr>:<start>-<end>) or files with region information (BED, GTF, ...).'
+        )
+
+        global_parser.add_argument(
+            '-o', '--output', dest='output',
+            help='''Suppresses interactive plotting window and redirects plot to file.
+                    Specify path to file when plotting a single region,
+                    and path to a folder for plotting multiple regions.'''
+        )
+
+        global_parser.add_argument(
+            '-p', '--plot', dest='plot',
+            action='append',
+            help='''New plot, type will be chosen automatically by file type, unless '-t' is provided.'''
+        )
+
+        global_parser.add_argument(
+            '-n', '--name', dest='name',
+            default='',
+            help='''Plot name to be used as prefix when plotting multiple regions. Is ignored for single region and
+                    interactive plot.'''
+        )
+
+        global_parser.add_argument(
+            '--height', dest='height',
+            type=int,
+            help='''Height of the figure in inches.'''
+        )
+
+        global_parser.add_argument(
+            '--width', dest='width',
+            type=int,
+            default=6,
+            help='''Width of the figure in inches.'''
+        )
+
+        global_parser.add_argument(
+            '-w', '--window-size', dest='window_size',
+            type=int,
+            help='''Plotting region size in base pairs. If provided, the actual size of the given region is
+                    ignored and instead a region
+                    <chromosome>:<region center - window size/2>-<region cener + window size/2> will be plotted.'''
+        )
+
+        self.global_parser = global_parser
+
+        subplot_parser = self._type_parser()
+        self.subplot_parser = subplot_parser
+
+        # sort and parse arguments
+        subplot_data = []
+        group_counter = 0
+        last_k = True
+        global_args = None
+        for k, group in groupby(sys.argv[1:], lambda x: x == "--plot" or x == '-p'):
+            if group_counter == 0:
+                if not k:
+                    global_args = global_parser.parse_args(list(group))
+                else:
+                    global_args = global_parser.parse_args([])
+            elif not k:
+                sub_args, plot_args = subplot_parser.parse_known_args(list(group))
+                subplot_type = self._plot_type(sub_args)
+                subplot_data.append((subplot_type, sub_args.data + plot_args))
+            group_counter += 1
+            last_k = k
+
+        if last_k or group_counter == 0:
+            print "klot: error: last plot without data"
+            exit(1)
+
+        # configure output
+        output_file = None
+        if global_args.output is not None:
+            import matplotlib
+            matplotlib.use("pdf")
+            output_file = os.path.expanduser(global_args.output)
+
+        height_ratios = []
+        plots = []
+        for plot_method, args in subplot_data:
+            # create plot
+            plot, plot_args = plot_method(args)
+            plots.append(plot)
+
+            # register aspect ratio
+            if plot_args.aspect_ratio is None:
+                if hasattr(plot, 'get_default_aspect'):
+                    print 'default', plot.get_default_aspect()
+                    height_ratios.append(plot.get_default_aspect())
+                else:
+                    height_ratios.append(1.)
+            else:
+                height_ratios.append(plot_args.aspect_ratio)
+
+            # set plot title
+            plot.title = plot_args.title
+
+        # parse regions
+        regions = []
+        if global_args.regions is not None:
+            for r in global_args.regions:
+                path = os.path.expanduser(r)
+                if os.path.isfile(path):
+                    import kaic
+                    path_regions = kaic.load(path, mode='r')
+                    if not hasattr(path_regions, 'regions'):
+                        raise ValueError("Provided file does not contain any regions ({})".format(path))
+                    regions += list(path_regions.regions)
+                else:
+                    import kaic
+                    region = kaic.GenomicRegion.from_string(r)
+                    regions.append(region)
+
+        if len(regions) == 0:
+            raise RuntimeError("Must provide at least one region for plotting!")
+
+        logging.info("Found {} regions".format(len(regions)))
+
+        if len(regions) > 1 and output_file is not None:
+            from kaic.tools.general import mkdir
+            mkdir(output_file)
+
+        figure_width = global_args.width
+        figure_height = sum(global_args.width*aspect+.5 for aspect in height_ratios) \
+            if global_args.height is None else global_args.height
+
+        print 'figure dim', figure_width, figure_height
+
+        import kaic.plotting as kplt
+        for region in regions:
+            if global_args.window_size is not None:
+                chromosome = region.chromosome
+                start = max(1, region.start - int(global_args.window_size / 2))
+                end = region.end + int(global_args.window_size / 2)
+                import kaic
+                plot_region = kaic.GenomicRegion(chromosome=chromosome, start=start, end=end)
+            else:
+                plot_region = region
+
+            gf = kplt.GenomicFigure(plots, figsize=(figure_width, figure_height),
+                                    height_ratios=height_ratios, gridspec_args={'hspace': .5})
+            fig, axes = gf.plot(plot_region)
+
+            if output_file is not None:
+                if len(regions) == 1:
+                    fig.savefig(output_file)
+                else:
+                    if global_args.name == '':
+                        fig.savefig(output_file + '/{}_{}-{}.pdf'.format(region.chromosome, region.start, region.end))
+                    else:
+                        fig.savefig(output_file + '/{}_{}_{}-{}.pdf'.format(global_args.name,
+                                                                            region.chromosome,
+                                                                            region.start, region.end))
+                kplt.sns.plt.clf()
+                kplt.sns.plt.close(fig)
+            else:
+                kplt.sns.plt.show()
+            exit(0)
+
+    def _type_parser(self):
+        type_parser = argparse.ArgumentParser(
+            description="klot subplot identifier",
+            add_help=False,
+            formatter_class=argparse.RawTextHelpFormatter
+        )
+
+        type_parser.add_argument(
+            'data',
+            nargs='*',
+            help='Data to be plotted in subplot.'
+        )
+
+        type_parser.add_argument(
+            '-t', '--type', dest='type',
+            help=textwrap.dedent('''\
+                Manually specify subplot type. Options:
+                hic          Hi-C plot, cropped triangle style
+                hic2d        Hi-C plot, matrix style
+                hicsplit     Hi-C vs Hi-C plot, split matrix
+                hiccmp       Hi-C vs Hi-C plot, matrix side-by-side
+                hicvhic      Hi-C vs Hi-C plot, matrices "mirrored"
+                fc           Fold-change plot, cropped triangle style
+                hicvhic      Hi-C vs fold-change plot, matrices "mirrored"
+                array        Array "flame" plot (e.g. insulation index)
+                region       Bar plot with region score (e.g. BED)
+                line         Line plot with values per region
+            ''')
+        )
+        return type_parser
+
+    def _subplot_parser(self):
+        subplot_parser = argparse.ArgumentParser(
+            description="klot subplot identifier",
+        )
+
+        subplot_parser.add_argument(
+            '--aspect-ratio', dest='aspect_ratio',
+            type=float,
+            help='''Aspect ratio of this panel. Default is determined by figure type (usually 1.0).'''
+        )
+
+        subplot_parser.add_argument(
+            '--title', dest='title',
+            default='',
+            help='''Title of this plot.'''
+        )
+
+        return subplot_parser
+
+    def _plot_type(self, subplot_args):
+
+        if subplot_args.type is not None:
+            if not hasattr(self, subplot_args.type):
+                print "klot: error: Unrecognised plot type {}".format(subplot_args.type)
+                self.subplot_parser.print_help()
+                exit(1)
+            return getattr(self, subplot_args.type)
+        else:
+            data = []
+            for file_name in subplot_args.data:
+                try:
+                    if not os.path.isfile(file_name):
+                        data.append(str)
+                    else:
+                        import kaic
+                        with kaic.load(file_name, mode='r') as datum:
+                            data.append(type(datum))
+                except ValueError:
+                    print "klot: error: Cannot auto-detect file type for {}. Use -t option.".format(file_name)
+                    self.subplot_parser.print_help()
+                    exit(1)
+
+            if len(data) == 0:
+                print "klot: error: To automatically identify plot you must provide data or use -t option.".format(data)
+                self.subplot_parser.print_help()
+                exit(1)
+
+            import kaic
+            plot_type_detector = {
+                (kaic.Hic,): self.hic,
+                (kaic.AccessOptimisedHic,): self.hic,
+                (kaic.FoldChangeMatrix,): self.fc,
+                (kaic.InsulationIndex,): self.array,
+                (kaic.DirectionalityIndex,): self.array,
+                (kaic.RegionContactAverage,): self.array,
+                (kaic.GenomicTrack,): self.line,
+                (kaic.Bed,): self.region,
+                (kaic.Hic, kaic.Hic): self.hicsplit,
+                (kaic.Hic, kaic.AccessOptimisedHic): self.hicsplit,
+                (kaic.AccessOptimisedHic, kaic.Hic): self.hicsplit,
+                (kaic.AccessOptimisedHic, kaic.AccessOptimisedHic): self.hicsplit
+            }
+
+            if tuple(data) in plot_type_detector:
+                return plot_type_detector[tuple(data)]
+            else:
+                print "klot: error: Could not find matching plot for {}. Use -t option.".format(data)
+                self.subplot_parser.print_help()
+                exit(1)
+
+    def fc(self, parameters):
+        parser = self._subplot_parser()
+        parser.description = '''Fold-change plot.'''
+
+        parser.add_argument(
+            'fc_matrix',
+            help='''Fold-change matrix.'''
+        )
+
+        parser.add_argument(
+            '-vmin', '--minimum-value', dest='vmin',
+            type=float,
+            help='''Minimum value assigned the first color in the colorbar.'''
+        )
+
+        parser.add_argument(
+            '-vmax', '--maximum-value', dest='vmax',
+            type=float,
+            help='''Maximum value assigned the last color in the colorbar.'''
+        )
+
+        parser.add_argument(
+            '-d', '--maximum-distance', dest='max_dist',
+            type=int,
+            help='''Maximum distance between two points after which triangle will be truncated.'''
+        )
+
+        parser.add_argument(
+            '-l', '--log', dest='log',
+            action='store_true',
+            help='''Log-transform heatmap values'''
+        )
+        parser.set_defaults(log=False)
+
+        parser.add_argument(
+            '-S', '--no-symmetry', dest='symmetry',
+            action='store_false',
+            help='''Do not plot colormap symmetrical around 0.'''
+        )
+        parser.set_defaults(symmetry=True)
+
+        parser.add_argument(
+            '-r', '--range-slider', dest='adjust_range',
+            action='store_true',
+            help='''Add vmax/vmin slider to plot'''
+        )
+        parser.set_defaults(adjust_range=False)
+
+        parser.add_argument(
+            '-c', '--colormap', dest='colormap',
+            default='RdBu_r',
+            help='''Matplotlib colormap (default: RdBu_r)'''
+        )
+
+        parser.add_argument(
+            '-C', '--no-colorbar', dest='show_colorbar',
+            action='store_false',
+            help='''Do not show colorbar in plot'''
+        )
+        parser.set_defaults(show_colorbar=True)
+
+        args = parser.parse_args(parameters)
+
+        import kaic
+        import kaic.plotting as kplt
+        matrix = kaic.FoldChangeMatrix(os.path.expanduser(args.fc_matrix), mode='r')
+        norm = "lin" if not args.log else "log"
+        colorbar_symmetry = 0 if args.symmetry else None
+        return kplt.HicPlot(matrix, colormap=args.colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
+                            vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
+                            colorbar_symmetry=colorbar_symmetry), args
+
+    def hic(self, parameters):
+        parser = self._subplot_parser()
+        parser.description = '''Hi-C plot.'''
+
+        parser.add_argument(
+            'hic',
+            help='''Hi-C object.'''
+        )
+
+        parser.add_argument(
+            '-vmin', '--minimum-value', dest='vmin',
+            type=float,
+            help='''Minimum value assigned the first color in the colorbar.'''
+        )
+
+        parser.add_argument(
+            '-vmax', '--maximum-value', dest='vmax',
+            type=float,
+            help='''Maximum value assigned the last color in the colorbar.'''
+        )
+
+        parser.add_argument(
+            '-d', '--maximum-distance', dest='max_dist',
+            type=int,
+            help='''Maximum distance between two points after which triangle will be truncated.'''
+        )
+
+        parser.add_argument(
+            '-l', '--log', dest='log',
+            action='store_true',
+            help='''Log-transform heatmap values'''
+        )
+        parser.set_defaults(log=False)
+
+        parser.add_argument(
+            '-r', '--range-slider', dest='adjust_range',
+            action='store_true',
+            help='''Add vmax/vmin slider to plot'''
+        )
+        parser.set_defaults(adjust_range=False)
+
+        parser.add_argument(
+            '-c', '--colormap', dest='colormap',
+            default='viridis',
+            help='''Matplotlib colormap (default: viridis)'''
+        )
+
+        parser.add_argument(
+            '-C', '--no-colorbar', dest='show_colorbar',
+            action='store_false',
+            help='''Do not show colorbar in plot'''
+        )
+        parser.set_defaults(show_colorbar=True)
+
+        args = parser.parse_args(parameters)
+
+        import kaic
+        import kaic.plotting as kplt
+
+        matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
+
+        norm = "lin" if not args.log else "log"
+        return kplt.HicPlot(matrix, colormap=args.colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
+                            vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range), args
+
+    def hic2d(self, parameters):
+        parser = self._subplot_parser()
+        parser.description = '''Hi-C 2D plot.'''
+
+        parser.add_argument(
+            'hic',
+            help='''Hi-C object.'''
+        )
+
+        parser.add_argument(
+            '-vmin', '--minimum-value', dest='vmin',
+            type=float,
+            help='''Minimum value assigned the first color in the colorbar.'''
+        )
+
+        parser.add_argument(
+            '-vmax', '--maximum-value', dest='vmax',
+            type=float,
+            help='''Maximum value assigned the last color in the colorbar.'''
+        )
+
+        parser.add_argument(
+            '-l', '--log', dest='log',
+            action='store_true',
+            help='''Log-transform heatmap values'''
+        )
+        parser.set_defaults(log=False)
+
+        parser.add_argument(
+            '-r', '--range-slider', dest='adjust_range',
+            action='store_true',
+            help='''Add vmax/vmin slider to plot'''
+        )
+        parser.set_defaults(log=False)
+
+        parser.add_argument(
+            '-c', '--colormap', dest='colormap',
+            default='viridis',
+            help='''Matplotlib colormap (default: viridis)'''
+        )
+
+        parser.add_argument(
+            '-C', '--no-colorbar', dest='show_colorbar',
+            action='store_false',
+            help='''Do not show colorbar in plot'''
+        )
+        parser.set_defaults(show_colorbar=True)
+
+        args = parser.parse_args(parameters)
+        norm = "lin" if not args.log else "log"
+
+        import kaic
+        import kaic.plotting as kplt
+
+        matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
+        return kplt.HicPlot2D(matrix, colormap=args.colormap, norm=norm, vmin=args.vmin, vmax=args.vmax,
+                              show_colorbar=args.show_colorbar, adjust_range=args.adjust_range), args
+
+    def hicsplit(self, args):
+        pass
+
+    def hiccmp(self, args):
+        pass
+
+    def hicvhic(self, parameters):
+        parser = self._subplot_parser()
+        parser.description = '''Hi-C vs Hi-C plot.'''
+
+        parser.add_argument(
+            'hic_top',
+            help='''Top Hi-C object.'''
+        )
+
+        parser.add_argument(
+            'hic_bottom',
+            help='''Bottom Hi-C object.'''
+        )
+
+        parser.add_argument(
+            '-tvmin', '--minimum-value-top', dest='vmin_top',
+            type=float,
+            help='''Minimum value assigned the first color in the colorbar of top plot.'''
+        )
+
+        parser.add_argument(
+            '-tvmax', '--maximum-value-top', dest='vmax_top',
+            type=float,
+            help='''Maximum value assigned the last color in the colorbar of top plot.'''
+        )
+
+        parser.add_argument(
+            '-bvmin', '--minimum-value-bottom', dest='vmin_bottom',
+            type=float,
+            help='''Minimum value assigned the first color in the colorbar of bottom plot.'''
+        )
+
+        parser.add_argument(
+            '-bvmax', '--maximum-value-bottom', dest='vmax_bottom',
+            type=float,
+            help='''Maximum value assigned the last color in the colorbar of bottom plot.'''
+        )
+
+        parser.add_argument(
+            '-d', '--maximum-distance', dest='max_dist',
+            type=int,
+            help='''Maximum distance between two points after which triangle will be truncated.'''
+        )
+
+        parser.add_argument(
+            '-tl', '--log-top', dest='log_top',
+            action='store_true',
+            help='''Log-transform heatmap values of top plot'''
+        )
+        parser.set_defaults(log_top=False)
+
+        parser.add_argument(
+            '-bl', '--log-bottom', dest='log_bottom',
+            action='store_true',
+            help='''Log-transform heatmap values of bottom plot'''
+        )
+        parser.set_defaults(log_bottom=False)
+
+        parser.add_argument(
+            '-tc', '--colormap-top', dest='colormap_top',
+            default='viridis',
+            help='''Matplotlib colormap for top plot (default: viridis)'''
+        )
+
+        parser.add_argument(
+            '-bc', '--colormap-bottom', dest='colormap_bottom',
+            default='viridis',
+            help='''Matplotlib colormap for bottom plot (default: viridis)'''
+        )
+
+        parser.add_argument(
+            '-C', '--no-colorbars', dest='show_colorbar',
+            action='store_false',
+            help='''Do not show colorbars in plot'''
+        )
+        parser.set_defaults(show_colorbar=True)
+
+        args = parser.parse_args(parameters)
+
+        import kaic
+        import kaic.plotting as kplt
+
+        matrix_top = kaic.load_hic(os.path.expanduser(args.hic_top), mode='r')
+        matrix_bottom = kaic.load_hic(os.path.expanduser(args.hic_bottom), mode='r')
+
+        norm_top = "lin" if not args.log_top else "log"
+        top_plot = kplt.HicPlot(matrix_top, colormap=args.colormap_top, max_dist=args.max_dist, norm=norm_top,
+                                vmin=args.vmin_top, vmax=args.vmax_top, show_colorbar=args.show_colorbar,
+                                adjust_range=False)
+        norm_bottom = "lin" if not args.log_bottom else "log"
+        bottom_plot = kplt.HicPlot(matrix_bottom, colormap=args.colormap_bottom, max_dist=args.max_dist,
+                                   norm=norm_bottom, vmin=args.vmin_bottom, vmax=args.vmax_bottom,
+                                   show_colorbar=args.show_colorbar, adjust_range=False)
+        vsp = kplt.VerticalSplitPlot(top_plot, bottom_plot)
+        return vsp, args
+
+    def hicvfc(self, parameters):
+        parser = self._subplot_parser()
+        parser.description = '''Hi-C vs fold-change plot.'''
+
+        parser.add_argument(
+            'hic',
+            help='''Hi-C object.'''
+        )
+
+        parser.add_argument(
+            'fold_change',
+            help='''Fold-change object.'''
+        )
+
+        parser.add_argument(
+            '-hvmin', '--minimum-value-hic', dest='vmin_hic',
+            type=float,
+            help='''Minimum value assigned the first color in the colorbar of Hi-C plot.'''
+        )
+
+        parser.add_argument(
+            '-hvmax', '--maximum-value-hic', dest='vmax_hic',
+            type=float,
+            help='''Maximum value assigned the last color in the colorbar of Hi-C plot.'''
+        )
+
+        parser.add_argument(
+            '-fvmin', '--minimum-value-fc', dest='vmin_fc',
+            type=float,
+            help='''Minimum value assigned the first color in the colorbar of fold-change plot.'''
+        )
+
+        parser.add_argument(
+            '-fvmax', '--maximum-value-fc', dest='vmax_fc',
+            type=float,
+            help='''Maximum value assigned the last color in the colorbar of fold-change plot.'''
+        )
+
+        parser.add_argument(
+            '-d', '--maximum-distance', dest='max_dist',
+            type=int,
+            help='''Maximum distance between two points after which triangle will be truncated.'''
+        )
+
+        parser.add_argument(
+            '-hl', '--log-hic', dest='log_hic',
+            action='store_true',
+            help='''Log-transform heatmap values of Hi-C plot'''
+        )
+        parser.set_defaults(log_hic=False)
+
+        parser.add_argument(
+            '-fl', '--log-fc', dest='log_fc',
+            action='store_true',
+            help='''Log-transform heatmap values of fold-change plot'''
+        )
+        parser.set_defaults(log_fc=False)
+
+        parser.add_argument(
+            '-hc', '--colormap-hic', dest='colormap_hic',
+            default='viridis',
+            help='''Matplotlib colormap for Hi-C plot (default: viridis)'''
+        )
+
+        parser.add_argument(
+            '-fc', '--colormap-fc', dest='colormap_fc',
+            default='RdBu_r',
+            help='''Matplotlib colormap for fold-change plot (default: RdBu_r)'''
+        )
+
+        parser.add_argument(
+            '-C', '--no-colorbars', dest='show_colorbar',
+            action='store_false',
+            help='''Do not show colorbars in plot'''
+        )
+        parser.set_defaults(show_colorbar=True)
+
+        parser.add_argument(
+            '-S', '--no-symmetry', dest='symmetry',
+            action='store_false',
+            help='''Do not plot colormap symmetrical around 0.'''
+        )
+        parser.set_defaults(symmetry=True)
+
+        parser.add_argument(
+            '-i', '--invert', dest='invert',
+            action='store_true',
+            help='''Invert plot (fold-change on top)'''
+        )
+        parser.set_defaults(invert=False)
+
+        args = parser.parse_args(parameters)
+
+        import kaic
+        import kaic.plotting as kplt
+
+        hic = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
+        fc = kaic.FoldChangeMatrix(os.path.expanduser(args.fold_change), mode='r')
+
+        norm_hic = "lin" if not args.log_hic else "log"
+        hic_plot = kplt.HicPlot(hic, colormap=args.colormap_hic, max_dist=args.max_dist, norm=norm_hic,
+                                vmin=args.vmin_hic, vmax=args.vmax_hic, show_colorbar=args.show_colorbar,
+                                adjust_range=False)
+        norm_fc = "lin" if not args.log_fc else "log"
+        colorbar_symmetry = 0 if args.symmetry else None
+        fc_plot = kplt.HicPlot(fc, colormap=args.colormap_fc, max_dist=args.max_dist,
+                               norm=norm_fc, vmin=args.vmin_fc, vmax=args.vmax_fc,
+                               show_colorbar=args.show_colorbar, adjust_range=False,
+                               colorbar_symmetry=colorbar_symmetry)
+        if args.invert:
+            vsp = kplt.VerticalSplitPlot(fc_plot, hic_plot)
+        else:
+            vsp = kplt.VerticalSplitPlot(hic_plot, fc_plot)
+
+        return vsp, args
+
+    def array(self, parameters):
+        pass
+
+    def region(self, parameters):
+        pass
+
+    def line(self, parameters):
+        pass
+
+if __name__ == '__main__':
+    Klot()
