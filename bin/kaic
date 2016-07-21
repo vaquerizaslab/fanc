@@ -3042,7 +3042,7 @@ class Kaic(object):
         input_file = os.path.expanduser(args.architecture)
         output_path = os.path.expanduser(args.output)
 
-        array = kaic.load_array(input_file, mode='r')
+        array = kaic.load(input_file, mode='r')
 
         single = False
         window_sizes = []
