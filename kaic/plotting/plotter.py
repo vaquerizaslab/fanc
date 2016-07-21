@@ -50,6 +50,21 @@ def get_region_field(interval, field, return_default=False):
         raise ValueError("Field {} can't be found in inteval {}".format(field, interval))
 
 
+def remove_axis_completely(ax):
+    """
+    Remove axis bar, ticks, tick labels on all sides.
+
+    :param ax: matplotlib Axes instance
+    """
+    sns.despine(ax=ax, top=True, left=True, bottom=True, right=True)
+    ax.xaxis.set_major_locator(NullLocator())
+    ax.xaxis.set_minor_locator(NullLocator())
+    ax.yaxis.set_major_locator(NullLocator())
+    ax.yaxis.set_minor_locator(NullLocator())
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+
+
 def absolute_wspace_hspace(fig, gs, wspace, hspace):
     """
     Set distance between subplots of a GridSpec instance in inches. Updates the
@@ -540,7 +555,7 @@ class VerticalSplitPlot(BasePlotter1D):
         top_ax = ax.figure.add_axes([bbox.x0, bbox.y0 + gap/2 + bbox.height/2,
                                      bbox.width, bbox.height/2 - gap/2])
         bottom_ax = ax.figure.add_axes([bbox.x0, bbox.y0,
-                                        bbox.width, bbox.height/2 - gap/2], sharex=top_ax)
+                                        bbox.width, bbox.height/2 - gap/2])
         return top_ax, bottom_ax
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
@@ -550,19 +565,18 @@ class VerticalSplitPlot(BasePlotter1D):
         if self.parent_ax is not self.ax:
             self.parent_ax = self.ax
             self.top_ax, self.bottom_ax = self._add_split_ax(self.ax, self.gap)
-            sns.despine(ax=self.ax, top=True, left=True, bottom=True, right=True)
-            self.ax.xaxis.set_major_locator(NullLocator())
+            sns.despine(ax=self.ax, top=True, left=True, bottom=False, right=True)
             self.ax.yaxis.set_major_locator(NullLocator())
+            self.ax.yaxis.set_minor_locator(NullLocator())
         if self.parent_cax is not self.cax:
             self.parent_cax = self.cax
             self.top_plot.cax, self.bottom_plot.cax = self._add_split_ax(self.cax, self.cax_gap)
             self.cax.set_visible(False)
         self.top_plot.plot(region, ax=self.top_ax)
         self.bottom_plot.plot(region, ax=self.bottom_ax)
-        self.bottom_plot.ax.invert_yaxis()
-        sns.despine(ax=self.top_ax, top=True, left=True, bottom=True, right=True)
-        self.top_ax.xaxis.set_major_locator(NullLocator())
-        self.top_ax.xaxis.set_minor_locator(NullLocator())
+        self.bottom_ax.invert_yaxis()
+        remove_axis_completely(self.top_ax)
+        remove_axis_completely(self.bottom_ax)
 
         if not hasattr(self.top_plot, 'colorbar') or self.top_plot.colorbar is None:
             sns.despine(ax=self.top_plot.cax, top=True, left=True, bottom=True, right=True)
@@ -578,8 +592,8 @@ class VerticalSplitPlot(BasePlotter1D):
         pass
 
     def remove_genome_ticks(self):
-        plt.setp(self.bottom_ax.get_xticklabels(), visible=False)
-        self.bottom_ax.xaxis.offsetText.set_visible(False)
+        plt.setp(self.ax.get_xticklabels(), visible=False)
+        self.ax.xaxis.offsetText.set_visible(False)
 
 
 class GenomicFeaturePlot(BasePlotter1D):
