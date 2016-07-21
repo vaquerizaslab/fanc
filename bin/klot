@@ -765,11 +765,6 @@ class Klot(object):
         return vsp, args
 
     def array(self, parameters):
-        # def __init__(self, array, keys=None, y_coords=None, y_scale='linear', plot_kwargs=None, title='',
-        #              colormap='viridis', colorbar_symmetry=None, norm="lin", vmin=None, vmax=None,
-        #              show_colorbar=True, blend_zero=True, replacement_color=None,
-        #              unmappable_color=".9", illegal_color=None, aspect=.3,
-        #              axes_style="ticks"):
         parser = self._subplot_parser()
         parser.description = '''Hi-C plot.'''
 
@@ -826,7 +821,7 @@ class Klot(object):
         parser.add_argument(
             '-c', '--colormap', dest='colormap',
             default='RdBu_r',
-            help='''Matplotlib colormap (default: viridis)'''
+            help='''Matplotlib colormap (default: RdBu_r)'''
         )
 
         parser.add_argument(
@@ -875,10 +870,102 @@ class Klot(object):
         return p, args
 
     def region(self, parameters):
-        pass
+        # def __init__(self, regions, title="", feature_types=None, aspect=.2, axes_style="ticks",
+        #              color_neutral='grey', color_forward='red', color_reverse='blue'):
+        parser = self._subplot_parser()
+        parser.description = '''Region plot.'''
+
+        parser.add_argument(
+            'bed',
+            help='''BED or other genomic coordinate file .'''
+        )
+
+        parser.add_argument(
+            '-f', '--features', dest='features',
+            nargs='+',
+            help='''(Only for GTF) Plot only the specified feature types (3rd GTF column).'''
+        )
+
+        parser.add_argument(
+            '-cn', '--color-neutral', dest='color_neutral',
+            default='grey',
+            help='''Neutral color (no strand information)'''
+        )
+
+        parser.add_argument(
+            '-cf', '--color-forward', dest='color_forward',
+            default='red',
+            help='''Forward color (strand +)'''
+        )
+
+        parser.add_argument(
+            '-cr', '--color-reverse', dest='color_reverse',
+            default='blue',
+            help='''Reverse color (strand -)'''
+        )
+
+        args = parser.parse_args(parameters)
+
+        import kaic.plotting as kplt
+
+        p = kplt.GenomicFeatureScorePlot(os.path.expanduser(args.bed), feature_types=args.features,
+                                         color_neutral=args.color_neutral, color_forward=args.color_forward,
+                                         color_reverse=args.color_reverse)
+        return p, args
 
     def line(self, parameters):
-        pass
+        parser = self._subplot_parser()
+        parser.description = '''Hi-C plot.'''
+
+        parser.add_argument(
+            'array',
+            help='''Array object, e.g. InsulationIndex, DirectionalityIndex, ... .'''
+        )
+
+        parser.add_argument(
+            '-f', '--fields', dest='fields',
+            nargs='+',
+            help='''Only plot these fields, otherwise all are plotted.'''
+        )
+
+        parser.add_argument(
+            '-r', '--range', dest='range',
+            nargs=2,
+            type=int,
+            help='''Range of y-values to plot (<min> <max> inclusive)'''
+        )
+
+        parser.add_argument(
+            '-v', '--values', dest='values',
+            nargs='+',
+            type=int,
+            help='''Y-values to plot'''
+        )
+
+        args = parser.parse_args(parameters)
+
+        import kaic
+        import kaic.plotting as kplt
+
+        array = kaic.load(args.array, mode='r')
+
+        data_selection = None
+        if args.range is not None:
+            data_selection = []
+            for i, y in enumerate(array.y_values):
+                if args.range[0] <= y <= args.range[1]:
+                    data_selection.append(array.data_field_names[i])
+        elif args.values is not None:
+            values_set = set(args.values)
+            for i, y in enumerate(array.y_values):
+                if int(y) in values_set:
+                    data_selection.append(i)
+        elif args.fields is not None:
+            data_selection = args.fields
+
+        p = kplt.GenomicRegionsPlot(array, attributes=data_selection)
+        return p, args
+
 
 if __name__ == '__main__':
     Klot()
