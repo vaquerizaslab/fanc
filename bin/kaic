@@ -3300,29 +3300,7 @@ class Kaic(object):
         if args.tmp:
             tmpdir = tempfile.gettempdir()
 
-        matrix = None
-        try:
-            # Hi-C file
-            matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
-                                       _table_name_nodes='nodes')
-        except tables.FileModeError:
-            pass
-
-        if matrix is None:
-            try:
-                # Hi-C file with group structure
-                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='edges',
-                                           _table_name_nodes='region_data')
-            except tables.FileModeError:
-                pass
-
-        if matrix is None:
-            try:
-                # fold-change file
-                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='expected_contacts',
-                                           _table_name_nodes='region_data')
-            except tables.FileModeError:
-                pass
+        matrix = kaic.load(input_file, mode='r')
 
         with RegionContactAverage(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                                   offset=args.offset, padding=args.padding, impute_missing=args.impute) as rca:
@@ -3373,11 +3351,9 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
-        from kaic.data.genomic import RegionMatrixTable
         from kaic.architecture.hic_architecture import DirectionalityIndex
         import os.path
         import tempfile
-        import tables
 
         input_file = os.path.expanduser(args.input)
         output_file = os.path.expanduser(args.output)
@@ -3385,20 +3361,7 @@ class Kaic(object):
         if args.tmp:
             tmpdir = tempfile.gettempdir()
 
-        matrix = None
-        try:
-            # Hi-C file
-            matrix = kaic.load_hic(input_file, mode='r')
-        except (tables.FileModeError, tables.NoSuchNodeError):
-            pass
-
-        if matrix is None:
-            try:
-                # fold-change file
-                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='expected_contacts',
-                                           _table_name_nodes='region_data')
-            except tables.FileModeError:
-                pass
+        matrix = kaic.load(input_file, mode='r')
 
         with DirectionalityIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes) as di:
             di.calculate()
@@ -3484,11 +3447,9 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
-        from kaic.data.genomic import RegionMatrixTable
         from kaic.architecture.hic_architecture import InsulationIndex
         import os.path
         import tempfile
-        import tables
 
         input_file = os.path.expanduser(args.input)
         output_file = os.path.expanduser(args.output)
@@ -3496,20 +3457,7 @@ class Kaic(object):
         if args.tmp:
             tmpdir = tempfile.gettempdir()
 
-        matrix = None
-        try:
-            # Hi-C file
-            matrix = kaic.load_hic(input_file, mode='r')
-        except (tables.FileModeError, tables.NoSuchNodeError):
-            pass
-
-        if matrix is None:
-            try:
-                # fold-change file
-                matrix = RegionMatrixTable(input_file, mode='r', _table_name_edges='expected_contacts',
-                                           _table_name_nodes='region_data')
-            except tables.FileModeError:
-                pass
+        matrix = kaic.load(input_file, mode='r')
 
         with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                              impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
