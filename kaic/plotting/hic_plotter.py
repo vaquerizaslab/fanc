@@ -362,12 +362,14 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
         """
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+
         BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
                                 show_colorbar=show_colorbar, adjust_range=adjust_range,
                                 buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
                                 norm=norm, blend_zero=blend_zero, unmappable_color=unmappable_color,
                                 illegal_color=illegal_color, colorbar_symmetry=colorbar_symmetry)
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+
         self.max_dist = max_dist
         self.hm = None
 
