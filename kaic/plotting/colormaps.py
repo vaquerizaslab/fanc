@@ -11,8 +11,9 @@
 #
 # You should have received a copy of the CC0 legalcode along with this
 # work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
-__all__ = ['magma', 'inferno', 'plasma', 'viridis']
+__all__ = ['magma', 'inferno', 'plasma', 'viridis', 'fc_cmap']
 
 _magma_data = [[0.001462, 0.000466, 0.013866],
                [0.002258, 0.001295, 0.018331],
@@ -1042,8 +1043,6 @@ _viridis_data = [[0.267004, 0.004874, 0.329415],
                  [0.983868, 0.904867, 0.136897],
                  [0.993248, 0.906157, 0.143936]]
 
-from matplotlib.colors import ListedColormap
-
 cmaps = {}
 for (name, data) in (('magma', _magma_data),
                      ('inferno', _inferno_data),
@@ -1052,7 +1051,26 @@ for (name, data) in (('magma', _magma_data),
 
     cmaps[name] = ListedColormap(data, name=name)
 
+fc_cdict = {
+    'red': ((0.0, 0.0, 0.0),
+            (0.4, 1.0, 1.0),  # white
+            (0.6, 1.0, 1.0),  # white
+            (1.0, 1.0, 1.0)),  # blue
+
+    'green': ((0.0, 0.0, 0.0),
+              (0.4, 1.0, 1.0),  # white
+              (0.6, 1.0, 1.0),  # white
+              (1.0, 0.0, 0.0)),  # blue
+
+    'blue': ((0.0, 1.0, 1.0),
+             (0.4, 1.0, 1.0),  # white
+             (0.6, 1.0, 1.0),  # white
+             (1.0, 0.0, 0.0)),  # blue
+}
+cmaps['RdBuWhitespace_r'] = LinearSegmentedColormap('RdBuWhitespace_r', fc_cdict)
+
 magma = cmaps['magma']
 inferno = cmaps['inferno']
 plasma = cmaps['plasma']
 viridis = cmaps['viridis']
+fc_cmap = cmaps['RdBuWhitespace_r']
