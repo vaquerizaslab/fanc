@@ -496,8 +496,8 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         self.collection._A = None
         self._update_mesh_colors()
         self.ax.set_yscale(self.y_scale)
-        if self.y_coords is not None:
-            self.ax.set_ylim(self.y_coords[0], self.y_coords[-1])
+
+        self.ax.set_ylim(self.hm.y_values[0], self.hm.y_values[-1])
 
         if self.show_colorbar:
             self.add_colorbar()
