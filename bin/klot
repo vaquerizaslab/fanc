@@ -956,10 +956,11 @@ class Klot(object):
                 if args.range[0] <= y <= args.range[1]:
                     data_selection.append(array.data_field_names[i])
         elif args.values is not None:
+            data_selection = []
             values_set = set(args.values)
             for i, y in enumerate(array.y_values):
                 if int(y) in values_set:
-                    data_selection.append(i)
+                    data_selection.append(array.data_field_names[i])
         elif args.fields is not None:
             data_selection = args.fields
 
