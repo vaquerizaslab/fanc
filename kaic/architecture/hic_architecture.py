@@ -1396,9 +1396,17 @@ class MetaHeatmap(MetaMatrixBase):
             raise ValueError("data_selection parameter must be "
                              "int, str, or None, but is {}".format(type(data_selection)))
 
-        MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
-                                data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                _group_name=_group_name)
+        if isinstance(array, str) and file_name is None:
+            file_name = array
+            array = None
+
+        if file_name is not None and array is None:
+            MetaMatrixBase.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                    _group_name=_group_name)
+        else:
+            MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
+                                    data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                    _group_name=_group_name)
 
     def _calculate(self):
         order = []
