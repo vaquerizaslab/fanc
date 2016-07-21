@@ -476,7 +476,7 @@ class BasePlotterMatrix(BasePlotter):
             baseline = self.colorbar_symmetry
 
         if baseline is None:
-            self.colorbar.set_clim(vmax=vmax)
+            self.colorbar.set_clim(vmax=vmax, vmin=vmin)
         else:
             old_vmin, old_vmax = self.colorbar.get_clim()
             if vmin is None:
