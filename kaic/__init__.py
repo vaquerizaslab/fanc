@@ -23,6 +23,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 def load(file_name, mode='a', tmpdir=None):
+    import os
+    file_name = os.path.expanduser(file_name)
     try:
         f = FileBased(file_name, mode='r')
         classid = None
