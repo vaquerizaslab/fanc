@@ -133,8 +133,8 @@ class ExpectedContacts(TableArchitecturalFeature):
     _classid = 'EXPECTEDCONTACTS'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
-                 regions=None, weight_column=None, _table_name='expected_contacts'):
-        if isinstance(hic, str) and file_name is not None:
+                 regions=None, weight_column=None, _table_name='distance_decay'):
+        if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
 
@@ -337,7 +337,7 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
     _classid = 'OBSERVEDEXPECTEDRATIO'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
-                 weight_column='weight', _table_name='expected_contacts'):
+                 weight_column='weight', _table_name='observed_expected'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -457,7 +457,7 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
     _classid = 'ABDOMAINMATRIX'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
-                 ratio=True, weight_column='weight', per_chromosome=True, _table_name='ab_domains'):
+                 ratio=True, weight_column='weight', per_chromosome=True, _table_name='ab_domain_matrix'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -525,7 +525,7 @@ class ABDomains(VectorArchitecturalRegionFeature):
     _classid = 'ABDOMAINS'
 
     def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
-                 per_chromosome=True, regions=None, _table_name='abdomains'):
+                 per_chromosome=True, regions=None, _table_name='ab_domains'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -611,7 +611,7 @@ class PossibleContacts(TableArchitecturalFeature):
     _classid = 'POSSIBLECONTACTS'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
-                 weight_column='weight', _table_name='expected_contacts'):
+                 weight_column='weight', _table_name='possible_contacts'):
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
@@ -825,28 +825,6 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
         self._y_values = values
 
 
-def load_array(file_name, mode='r', tmpdir=None):
-    try:
-        array = InsulationIndex(file_name, mode=mode, tmpdir=tmpdir)
-        return array
-    except t.FileModeError:
-        pass
-
-    try:
-        array = DirectionalityIndex(file_name, mode=mode, tmpdir=tmpdir)
-        return array
-    except t.FileModeError:
-        pass
-
-    try:
-        array = RegionContactAverage(file_name, mode=mode, tmpdir=tmpdir)
-        return array
-    except t.FileModeError:
-        pass
-
-    raise ValueError("Cannot recognise {} as array".format(file_name))
-
-
 class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
     _classid = 'DIRECTIONALITYINDEX'
 
@@ -859,6 +837,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
         # are we retrieving an existing object?
         if isinstance(hic, str) and file_name is None:
             file_name = hic
+            hic = None
 
         if hic is None and file_name is not None:
             MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
