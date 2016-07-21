@@ -765,7 +765,114 @@ class Klot(object):
         return vsp, args
 
     def array(self, parameters):
-        pass
+        # def __init__(self, array, keys=None, y_coords=None, y_scale='linear', plot_kwargs=None, title='',
+        #              colormap='viridis', colorbar_symmetry=None, norm="lin", vmin=None, vmax=None,
+        #              show_colorbar=True, blend_zero=True, replacement_color=None,
+        #              unmappable_color=".9", illegal_color=None, aspect=.3,
+        #              axes_style="ticks"):
+        parser = self._subplot_parser()
+        parser.description = '''Hi-C plot.'''
+
+        parser.add_argument(
+            'array',
+            help='''Array object, e.g. InsulationIndex, DirectionalityIndex, ... .'''
+        )
+
+        parser.add_argument(
+            '-vmin', '--minimum-value', dest='vmin',
+            type=float,
+            help='''Minimum value assigned the first color in the colorbar.'''
+        )
+
+        parser.add_argument(
+            '-vmax', '--maximum-value', dest='vmax',
+            type=float,
+            help='''Maximum value assigned the last color in the colorbar.'''
+        )
+
+        parser.add_argument(
+            '-d', '--maximum-distance', dest='max_dist',
+            type=int,
+            help='''Maximum distance between two points after which triangle will be truncated.'''
+        )
+
+        parser.add_argument(
+            '-l', '--log', dest='log',
+            action='store_true',
+            help='''Log-transform heatmap values'''
+        )
+        parser.set_defaults(log=False)
+
+        parser.add_argument(
+            '-m', '--matrix-height', dest='matrix_height',
+            type=int,
+            help='''Matrix height in (steps/bins)'''
+        )
+
+        parser.add_argument(
+            '-r', '--range', dest='range',
+            nargs=2,
+            type=int,
+            help='''Range of y-values to plot (<min> <max> inclusive)'''
+        )
+
+        parser.add_argument(
+            '-f', '--fields', dest='fields',
+            type=str,
+            nargs='+',
+            help='''List of specific fields to plot.'''
+        )
+
+        parser.add_argument(
+            '-c', '--colormap', dest='colormap',
+            default='RdBu_r',
+            help='''Matplotlib colormap (default: viridis)'''
+        )
+
+        parser.add_argument(
+            '-C', '--no-colorbar', dest='show_colorbar',
+            action='store_false',
+            help='''Do not show colorbar in plot'''
+        )
+        parser.set_defaults(show_colorbar=True)
+
+        parser.add_argument(
+            '-S', '--no-symmetry', dest='symmetry',
+            action='store_false',
+            help='''Do not plot colormap symmetrical around 0.'''
+        )
+        parser.set_defaults(symmetry=True)
+
+        parser.add_argument(
+            '-rc', '--replacement-color', dest='replacement_color',
+            default='grey',
+            help='''Color to replace missing values. Default: grey'''
+        )
+
+        args = parser.parse_args(parameters)
+
+        import kaic
+        import kaic.plotting as kplt
+
+        array = kaic.load(os.path.expanduser(args.array), mode='r')
+        norm = "linear" if not args.log else "log"
+
+        data_selection = None
+        if args.range is not None:
+            data_selection = []
+            for i, y in enumerate(array.y_values):
+                if args.range[0] <= y <= args.range[1]:
+                    data_selection.append(i)
+        elif args.matrix_height is not None:
+            data_selection = args.matrix_height
+        elif args.fields is not None:
+            data_selection = args.fields
+
+        colorbar_symmetry = 0 if args.symmetry else None
+        p = kplt.GenomicVectorArrayPlot(array, keys=data_selection, y_scale=norm, colormap=args.colormap,
+                                        colorbar_symmetry=colorbar_symmetry, vmin=args.vmin, vmax=args.vmax,
+                                        show_colorbar=args.show_colorbar, replacement_color=args.replacement_color)
+        return p, args
 
     def region(self, parameters):
         pass
