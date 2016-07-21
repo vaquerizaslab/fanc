@@ -37,8 +37,9 @@ class TestAuto:
             # simulate old-style object
             hic.file.remove_node('/meta_information', recursive=True)
 
-        with pytest.raises(ValueError):
-            kaic.load(file_name, mode='r')
+        hic = kaic.load(file_name, mode='r')
+        assert isinstance(hic, kaic.Hic)
+        hic.close()
 
         hic = kaic.Hic(file_name)
         hic.close()
@@ -46,6 +47,34 @@ class TestAuto:
         hic = kaic.load(file_name, mode='r')
         hic.close()
         assert isinstance(hic, kaic.Hic)
+
+    def test_old_style_index(self, tmpdir):
+        with kaic.sample_hic() as hic:
+            for class_name in ('ABDomains', 'ABDomainMatrix', 'ExpectedContacts', 'ObservedExpectedRatio',
+                               'FoldChangeMatrix', 'ABDomains', 'PossibleContacts', 'RegionContactAverage',
+                               'InsulationIndex', 'DirectionalityIndex'):
+                file_name = str(tmpdir) + '/{}.h5'.format(class_name)
+                cls_ = class_name_dict[class_name]
+                x = cls_(hic, file_name=file_name, mode='w')
+                # simulate missing meta-information
+                x.file.remove_node('/meta_information', recursive=True)
+                x.close()
+
+                x = kaic.load(file_name, mode='r')
+                assert isinstance(x, cls_)
+                x.close()
+
+        for class_name in ('Hic', 'AccessOptimisedHic', 'FragmentMappedReadPairs', 'Reads', 'GenomicTrack'):
+            file_name = str(tmpdir) + '/{}.h5'.format(class_name)
+            cls_ = class_name_dict[class_name]
+            x = cls_(file_name=file_name, mode='w')
+            # simulate missing meta-information
+            x.file.remove_node('/meta_information', recursive=True)
+            x.close()
+
+            x = kaic.load(file_name, mode='r')
+            assert isinstance(x, cls_)
+            x.close()
 
     def test_bed(self):
         this_dir = os.path.dirname(os.path.realpath(__file__))

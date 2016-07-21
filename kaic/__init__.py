@@ -14,7 +14,8 @@ from kaic.data.general import Table, FileBased
 from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIndex, PossibleContacts, \
-    ExpectedContacts, load_array, RegionContactAverage, FoldChangeMatrix
+    ExpectedContacts, load_array, RegionContactAverage, FoldChangeMatrix, ObservedExpectedRatio, ABDomains, \
+    ABDomainMatrix, MetaArray, MetaHeatmap
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
 import logging
@@ -32,9 +33,55 @@ def load(file_name, mode='a', tmpdir=None):
             logging.info("Detected {}".format(cls_))
             return cls_(file_name=file_name, mode=mode, tmpdir=tmpdir)
         except AttributeError:
+            # try to detect from file structure
+
+            # Hi-C
+            try:
+                n = f.file.get_node('/edges')
+                from kaic.data.general import MaskedTable
+                hic_class = None
+                if isinstance(n, MaskedTable):
+                    hic_class = Hic
+                elif isinstance(n, tables.group.Group):
+                    hic_class = AccessOptimisedHic
+
+                if hic_class is not None:
+                    f.close()
+                    return hic_class(file_name, mode=mode, tmpdir=tmpdir)
+            except tables.NoSuchNodeError:
+                pass
+
+            # others
+            detectables = (
+                ('insulation_index', InsulationIndex),
+                ('directionality_index', DirectionalityIndex),
+                ('contact_average', RegionContactAverage),
+                ('expected_contacts', FoldChangeMatrix),
+                ('distance_decay', ExpectedContacts),
+                ('observed_expected', ObservedExpectedRatio),
+                ('ab_domains', ABDomains),
+                ('ab_domain_matrix', ABDomainMatrix),
+                ('possible_contacts', PossibleContacts),
+                ('meta_matrix', MetaArray),
+                ('meta_heatmap', MetaHeatmap),
+                ('tracks', GenomicTrack),
+                ('fragments', FragmentMappedReadPairs),
+                ('reads', Reads),
+            )
+
+            for name, cls in detectables:
+                try:
+                    f.file.get_node('/' + name)
+                    f.close()
+                    return cls(file_name, mode=mode, tmpdir=tmpdir)
+                except tables.NoSuchNodeError:
+                    pass
+
             f.close()
             raise ValueError("File ({}) does not have a '_classid' meta attribute. This might be fixed by loading the "
-                             "class once explicitly with the appropriate class in append mode.".format(file_name))
+                             "class once explicitly with the appropriate class in append mode. "
+                             "It was also impossible to auto-detect the file type from the file "
+                             "structure.".format(file_name))
         except KeyError:
             raise ValueError("classid attribute ({}) does not have a registered class.".format(classid))
     except tables.HDF5ExtError:
