@@ -329,15 +329,18 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.ylim = ylim
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
-        for name in self.regions.data_field_names:
-            if not self.attributes or any(re.match(a.replace("*", ".*"), name) for a in self.attributes):
+        for i, name in enumerate(self.regions.data_field_names):
+            if not self.attributes or any(re.match("^" + a.replace("*", ".*") + "$", name) for a in self.attributes):
                 regions = []
                 values = []
                 for r in self.regions.subset(region):
                     regions.append(r)
                     values.append(getattr(r, name))
                 x, y = self.get_plot_values(values, regions)
-                l = self.ax.plot(x, y, label="{}".format(name))
+                if self.regions.y_values is not None:
+                    l = self.ax.plot(x, y, label="{}".format(self.regions.y_values[i]))
+                else:
+                    l = self.ax.plot(x, y, label="{}".format(name))
                 self.lines.append(l[0])
 
         if self.ylim is not None:
