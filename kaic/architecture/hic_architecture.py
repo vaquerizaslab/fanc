@@ -791,18 +791,22 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
                                                   tmpdir=tmpdir)
         self._y_values = None
 
-    def as_matrix(self, regions=None, keys=None):
-        if regions is None:
-            region_iter = self.regions(lazy=False)
-        else:
-            region_iter = self.subset(regions, lazy=False)
-
+    def _fields(self, keys=None):
         if keys is None:
             keys = self.data_field_names
         elif isinstance(keys, slice) or isinstance(keys, int):
             keys = self.data_field_names[keys]
         elif isinstance(keys, list) and len(keys) > 0 and isinstance(keys[0], int):
             keys = [self.data_field_names[i] for i in keys]
+        return keys
+
+    def as_matrix(self, regions=None, keys=None):
+        if regions is None:
+            region_iter = self.regions(lazy=False)
+        else:
+            region_iter = self.subset(regions, lazy=False)
+
+        keys = self._fields(keys)
 
         array = []
         array_regions = []
