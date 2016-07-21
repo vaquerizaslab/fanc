@@ -78,6 +78,7 @@ class Klot(object):
         self.subplot_parser = subplot_parser
 
         # sort and parse arguments
+        logging.info("Pre-parsing command line arguments")
         subplot_data = []
         group_counter = 0
         last_k = True
@@ -116,7 +117,6 @@ class Klot(object):
             # register aspect ratio
             if plot_args.aspect_ratio is None:
                 if hasattr(plot, 'get_default_aspect'):
-                    print 'default', plot.get_default_aspect()
                     height_ratios.append(plot.get_default_aspect())
                 else:
                     height_ratios.append(1.)
@@ -155,8 +155,6 @@ class Klot(object):
         figure_height = sum(global_args.width*aspect+.5 for aspect in height_ratios) \
             if global_args.height is None else global_args.height
 
-        print 'figure dim', figure_width, figure_height
-
         import kaic.plotting as kplt
         for region in regions:
             if global_args.window_size is not None:
@@ -186,7 +184,6 @@ class Klot(object):
                 kplt.sns.plt.close(fig)
             else:
                 kplt.sns.plt.show()
-            exit(0)
 
     def _type_parser(self):
         type_parser = argparse.ArgumentParser(
@@ -210,7 +207,7 @@ class Klot(object):
                 hicsplit     Hi-C vs Hi-C plot, split matrix
                 hicvhic      Hi-C vs Hi-C plot, matrices "mirrored"
                 fc           Fold-change plot, cropped triangle style
-                hicvhic      Hi-C vs fold-change plot, matrices "mirrored"
+                hicvfc       Hi-C vs fold-change plot, matrices "mirrored"
                 array        Array "flame" plot (e.g. insulation index)
                 region       Bar plot with region score (e.g. BED)
                 line         Line plot with values per region
@@ -942,6 +939,13 @@ class Klot(object):
             help='''Y-values to plot'''
         )
 
+        parser.add_argument(
+            '-y', '--ylim', dest='ylim',
+            nargs=2,
+            type=float,
+            help='''Y-axis limits.'''
+        )
+
         args = parser.parse_args(parameters)
 
         import kaic
@@ -964,7 +968,7 @@ class Klot(object):
         elif args.fields is not None:
             data_selection = args.fields
 
-        p = kplt.GenomicRegionsPlot(array, attributes=data_selection)
+        p = kplt.GenomicRegionsPlot(array, attributes=data_selection, ylim=args.ylim)
         return p, args
 
 
