@@ -50,19 +50,33 @@ def get_region_field(interval, field, return_default=False):
         raise ValueError("Field {} can't be found in inteval {}".format(field, interval))
 
 
-def remove_axis_completely(ax):
+def hide_axis(ax):
     """
-    Remove axis bar, ticks, tick labels on all sides.
+    Hide the axis bar, ticks and tick labels on all sides.
 
     :param ax: matplotlib Axes instance
     """
     sns.despine(ax=ax, top=True, left=True, bottom=True, right=True)
-    ax.xaxis.set_major_locator(NullLocator())
-    ax.xaxis.set_minor_locator(NullLocator())
-    ax.yaxis.set_major_locator(NullLocator())
-    ax.yaxis.set_minor_locator(NullLocator())
+    try:
+        plt.setp(ax.get_xticklabels(), visible=False)
+    except IndexError:
+        pass
+    try:
+        plt.setp(ax.get_yticklabels(), visible=False)
+    except IndexError:
+        pass
+    try:
+        plt.setp(ax.get_xticklines(), visible=False)
+    except IndexError:
+        pass
+    try:
+        plt.setp(ax.get_yticklines(), visible=False)
+    except IndexError:
+        pass
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
+    ax.xaxis.offsetText.set_visible(False)
+    ax.yaxis.offsetText.set_visible(False)
 
 
 def absolute_wspace_hspace(fig, gs, wspace, hspace):
@@ -548,14 +562,14 @@ class VerticalSplitPlot(BasePlotter1D):
         self.cax_gap = cax_gap
         self.cax = None
 
-    def _add_split_ax(self, ax, gap):
+    def _add_split_ax(self, ax, gap, sharex=False):
         bbox = ax.get_position()
         figsize = ax.figure.get_size_inches()
         gap = gap/figsize[1]
         top_ax = ax.figure.add_axes([bbox.x0, bbox.y0 + gap/2 + bbox.height/2,
-                                     bbox.width, bbox.height/2 - gap/2])
+                                     bbox.width, bbox.height/2 - gap/2], sharex=ax if sharex else None)
         bottom_ax = ax.figure.add_axes([bbox.x0, bbox.y0,
-                                        bbox.width, bbox.height/2 - gap/2])
+                                        bbox.width, bbox.height/2 - gap/2], sharex=ax if sharex else None)
         return top_ax, bottom_ax
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
@@ -564,7 +578,7 @@ class VerticalSplitPlot(BasePlotter1D):
         # Check if ax has already been split
         if self.parent_ax is not self.ax:
             self.parent_ax = self.ax
-            self.top_ax, self.bottom_ax = self._add_split_ax(self.ax, self.gap)
+            self.top_ax, self.bottom_ax = self._add_split_ax(self.ax, self.gap, sharex=True)
             sns.despine(ax=self.ax, top=True, left=True, bottom=False, right=True)
             self.ax.yaxis.set_major_locator(NullLocator())
             self.ax.yaxis.set_minor_locator(NullLocator())
@@ -575,8 +589,8 @@ class VerticalSplitPlot(BasePlotter1D):
         self.top_plot.plot(region, ax=self.top_ax)
         self.bottom_plot.plot(region, ax=self.bottom_ax)
         self.bottom_ax.invert_yaxis()
-        remove_axis_completely(self.top_ax)
-        remove_axis_completely(self.bottom_ax)
+        hide_axis(self.top_ax)
+        hide_axis(self.bottom_ax)
 
         if not hasattr(self.top_plot, 'colorbar') or self.top_plot.colorbar is None:
             sns.despine(ax=self.top_plot.cax, top=True, left=True, bottom=True, right=True)
