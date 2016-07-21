@@ -15,7 +15,7 @@ from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIndex, PossibleContacts, \
     ExpectedContacts, RegionContactAverage, FoldChangeMatrix, ObservedExpectedRatio, ABDomains, \
-    ABDomainMatrix, MetaArray, MetaHeatmap
+    ABDomainMatrix, MetaArray, MetaHeatmap, VectorDifference
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
 import logging
@@ -69,6 +69,7 @@ def load(file_name, mode='a', tmpdir=None):
                 ('tracks', GenomicTrack),
                 ('fragments', FragmentMappedReadPairs),
                 ('reads', Reads),
+                ('vector_diff', VectorDifference),
             )
 
             for name, cls in detectables:

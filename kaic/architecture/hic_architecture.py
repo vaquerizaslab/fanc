@@ -1208,6 +1208,7 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
                 window_size = int(colname[3:])
                 self.window_sizes.append(window_size)
 
+        self.y_values = self.window_sizes
         self.offset = offset
         self.padding = padding
         self.matrix = matrix
@@ -1253,6 +1254,65 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'av_%d' % window_size]
+
+
+class VectorDifference(MultiVectorArchitecturalRegionFeature):
+    def __init__(self, vector1=None, vector2=None, absolute=False, file_name=None, mode='a', tmpdir=None,
+                 _table_name='vector_diff'):
+
+        if isinstance(vector1, str) and file_name is None and vector2 is None:
+            file_name = vector1
+            vector1 = None
+
+        if vector1 is None and file_name is not None:
+            MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                           _table_name_data=_table_name)
+        else:
+            if vector1 is None or vector2 is None:
+                raise ValueError("Must provide both vector1 and vector2!")
+
+            self.vector1 = vector1
+            self.vector2 = vector2
+
+            vector2_values = set(vector2.y_values)
+            diff_fields = {}
+            self.external_fields = []
+            n = 0
+            for i, field in enumerate(vector1.y_values):
+                if field in vector2_values:
+                    diff_fields['diff_{}'.format(field)] = t.Float32Col(pos=n)
+                    n += 1
+                    self.external_fields.append(vector1.data_field_names[i])
+
+            MultiVectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                           data_fields=diff_fields, regions=vector1.regions,
+                                                           _table_name_data=_table_name)
+
+        self.absolute = absolute
+
+        self.window_sizes = []
+        for colname in self._regions.colnames:
+            if colname.startswith("diff_"):
+                window_size = int(colname[5:])
+                self.window_sizes.append(window_size)
+
+        self.y_values = self.window_sizes
+
+    def _calculate(self, *args, **kwargs):
+        for i, field in enumerate(self.external_fields):
+            logging.info("Calculating difference for {}".format(field))
+            v1 = np.array(self.vector1[:, field])
+            v2 = np.array(self.vector2[:, field])
+            d = v1-v2
+            if self.absolute:
+                d = abs(d)
+            self.data("diff_{}".format(self.y_values[i]), d)
+
+    @calculateondemand
+    def difference(self, window_size=None):
+        if window_size is None:
+            window_size = self.window_sizes[0]
+        return self[:, 'diff_{}'.format(window_size)]
 
 
 class MetaMatrixBase(ArchitecturalFeature, FileGroup):
