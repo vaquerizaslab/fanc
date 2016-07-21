@@ -14,7 +14,7 @@ from kaic.data.general import Table, FileBased
 from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIndex, PossibleContacts, \
-    ExpectedContacts, load_array, RegionContactAverage, FoldChangeMatrix, ObservedExpectedRatio, ABDomains, \
+    ExpectedContacts, RegionContactAverage, FoldChangeMatrix, ObservedExpectedRatio, ABDomains, \
     ABDomainMatrix, MetaArray, MetaHeatmap
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
