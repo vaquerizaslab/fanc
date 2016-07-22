@@ -79,7 +79,7 @@ class Klot(object):
         )
 
         global_parser.add_argument(
-            '-hs', '--horizontal-space', dest='hspace',
+            '-vs', '--vertical-space', dest='hspace',
             type=float,
             default=.5,
             help='''Vertical distance between plots in fraction of figure.'''
