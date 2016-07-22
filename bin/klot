@@ -78,6 +78,13 @@ class Klot(object):
                     <chromosome>:<region center - window size/2>-<region cener + window size/2> will be plotted.'''
         )
 
+        global_parser.add_argument(
+            '-hs', '--horizontal-space', dest='hspace',
+            type=float,
+            default=.5,
+            help='''Vertical distance between plots in fraction of figure.'''
+        )
+
         self.global_parser = global_parser
 
         subplot_parser = self._type_parser()
@@ -155,7 +162,7 @@ class Klot(object):
             mkdir(output_file)
 
         figure_width = global_args.width
-        figure_height = sum(global_args.width*aspect+.5 for aspect in height_ratios) \
+        figure_height = sum(global_args.width*aspect+global_args.hspace for aspect in height_ratios) \
             if global_args.height is None else global_args.height
 
         import kaic.plotting as kplt
@@ -170,7 +177,7 @@ class Klot(object):
                 plot_region = region
 
             gf = kplt.GenomicFigure(plots, figsize=(figure_width, figure_height),
-                                    height_ratios=height_ratios, gridspec_args={'hspace': .5})
+                                    height_ratios=height_ratios, gridspec_args={'hspace': global_args.hspace})
             fig, axes = gf.plot(plot_region)
 
             if output_file is not None:
