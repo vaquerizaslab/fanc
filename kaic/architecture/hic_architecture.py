@@ -1257,6 +1257,8 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
 
 
 class VectorDifference(MultiVectorArchitecturalRegionFeature):
+    _classid = 'VECTORDIFF'
+
     def __init__(self, vector1=None, vector2=None, absolute=False, file_name=None, mode='a', tmpdir=None,
                  _table_name='vector_diff'):
 
