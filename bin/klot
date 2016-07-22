@@ -28,6 +28,7 @@ class Klot(object):
         global_parser.add_argument(
             'regions',
             nargs='*',
+            default=[],
             help='List of region selectors (<chr>:<start>-<end>) or files with region information (BED, GTF, ...).'
         )
 
@@ -36,6 +37,11 @@ class Klot(object):
             help='''Suppresses interactive plotting window and redirects plot to file.
                     Specify path to file when plotting a single region,
                     and path to a folder for plotting multiple regions.'''
+        )
+
+        global_parser.add_argument(
+            '-s', '--script', dest='script',
+            help='''Use a script file to define plot.'''
         )
 
         global_parser.add_argument(
@@ -79,25 +85,22 @@ class Klot(object):
 
         # sort and parse arguments
         logging.info("Pre-parsing command line arguments")
-        subplot_data = []
-        group_counter = 0
-        last_k = True
-        global_args = None
-        for k, group in groupby(sys.argv[1:], lambda x: x == "--plot" or x == '-p'):
-            if group_counter == 0:
-                if not k:
-                    global_args = global_parser.parse_args(list(group))
-                else:
-                    global_args = global_parser.parse_args([])
-            elif not k:
-                sub_args, plot_args = subplot_parser.parse_known_args(list(group))
-                subplot_type = self._plot_type(sub_args)
-                subplot_data.append((subplot_type, sub_args.data + plot_args))
-            group_counter += 1
-            last_k = k
+        global_args, subplot_data = self._parse_argument_vector(sys.argv[1:])
 
-        if last_k or group_counter == 0:
-            print "klot: error: last plot without data"
+        if global_args.script is not None:
+            logging.info("Parsing script file")
+            script_global_args, script_subplots = self._parse_script(global_args.script)
+            d_global = vars(global_args)
+            d_script_global = vars(script_global_args)
+            for key, value in d_script_global.iteritems():
+                # global parameters can only be overridden if not explicitly specified
+                if d_global[key] == self.global_parser.get_default(key):
+                    d_global[key] = value
+            subplot_data = script_subplots + subplot_data
+
+        if len(subplot_data) == 0:
+            print "klot: error: Need to provide at least one plot"
+            self.global_parser.print_help()
             exit(1)
 
         # configure output
@@ -286,6 +289,54 @@ class Klot(object):
                 print "klot: error: Could not find matching plot for {}. Use -t option.".format(data)
                 self.subplot_parser.print_help()
                 exit(1)
+
+    def _parse_argument_vector(self, argv):
+        subplot_data = []
+        group_counter = 0
+        global_args = None
+        for k, group in groupby(argv, lambda x: x == "--plot" or x == '-p'):
+            if group_counter == 0:
+                if not k:
+                    global_args = self.global_parser.parse_args(list(group))
+                else:
+                    global_args = self.global_parser.parse_args([])
+            elif not k:
+                sub_args, plot_args = self.subplot_parser.parse_known_args(list(group))
+                subplot_type = self._plot_type(sub_args)
+                subplot_data.append((subplot_type, sub_args.data + plot_args))
+            group_counter += 1
+
+        return global_args, subplot_data
+
+    def _parse_script(self, script):
+        script = os.path.expanduser(script)
+
+        if not os.path.isfile(script):
+            print 'klot: error: This is not a script file: {}'.format(script)
+
+        import re
+        import shlex
+        re_equal_sign = re.compile("\s*=\s*")
+        parameters = []
+        with open(script, 'r') as s:
+            for i, line in enumerate(s):
+                cmd_val = re_equal_sign.split(line.rstrip())
+                if len(cmd_val) > 2:
+                    print 'klot: error: Too many equal-signs on line {}'.format(i)
+
+                if len(cmd_val) == 1:
+                    if re.match("^\s*$", cmd_val[0]):
+                        continue
+                    parameters.append('--' + cmd_val[0])
+                elif len(cmd_val) == 2:
+                    cmd, val = cmd_val
+                    cmd = '--' + cmd.strip()
+                    if cmd != '--regions' and cmd != '--plot' and cmd != '--data':
+                        parameters.append(cmd)
+                    sub_parameters = shlex.split(val)
+                    parameters += sub_parameters
+
+        return self._parse_argument_vector(parameters)
 
     def fc(self, parameters):
         parser = self._subplot_parser()
