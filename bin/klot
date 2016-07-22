@@ -320,6 +320,9 @@ class Klot(object):
         parameters = []
         with open(script, 'r') as s:
             for i, line in enumerate(s):
+                if line.startswith("#"):
+                    continue
+
                 cmd_val = re_equal_sign.split(line.rstrip())
                 if len(cmd_val) > 2:
                     print 'klot: error: Too many equal-signs on line {}'.format(i)
