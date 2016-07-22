@@ -784,7 +784,7 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
     _classid = 'MULTIVECTORARCHITECTURALREGIONFEATURE'
 
     def __init__(self, file_name=None, mode='a', data_fields=None,
-                 regions=None, data=None, _table_name_data='region_data',
+                 regions=None, data=None, _table_name_data='array_region_data',
                  tmpdir=None):
         VectorArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, data_fields=data_fields,
                                                   regions=regions, data=data, _table_name_data=_table_name_data,
