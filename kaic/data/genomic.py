@@ -160,7 +160,7 @@ class Bed(pybedtools.BedTool):
 
             def __len__(self):
                 return len(self.bed)
-            
+
         return RegionIter(self)
 
 
@@ -529,7 +529,7 @@ class GenomicRegion(TableObject):
 
     """
 
-    def __init__(self, start, end, chromosome=None, strand=None, ix=None, **kwargs):
+    def __init__(self, start, end=None, chromosome=None, strand=None, ix=None, **kwargs):
         """
         Initialize this object.
 
@@ -541,6 +541,8 @@ class GenomicRegion(TableObject):
                    regions.
         """
         self.start = start
+        if end is None:
+            end = start
         self.end = end
         if strand == "+":
             strand = 1
@@ -614,7 +616,7 @@ class GenomicRegion(TableObject):
                 except ValueError:
                     raise ValueError("End of genomic range must be integer")
 
-                if not end > start:
+                if not end >= start:
                     raise ValueError("The end coordinate must be bigger than the start.")
 
         # there is strand information
