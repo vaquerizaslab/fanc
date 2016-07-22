@@ -150,12 +150,17 @@ class Bed(pybedtools.BedTool):
 
             def __iter__(self):
                 for region in self.bed:
+                    score = float(region.score) if region.score != "." else None
                     gr = GenomicRegion(chromosome=region.chrom, start=region.start, end=region.end,
-                                       strand=region.strand, name=region.name, score=region.score)
+                                       strand=region.strand, name=region.name, score=score)
                     yield gr
 
             def __call__(self):
                 return iter(self)
+
+            def __len__(self):
+                return len(self.bed)
+            
         return RegionIter(self)
 
 
