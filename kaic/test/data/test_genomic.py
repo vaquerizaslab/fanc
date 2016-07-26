@@ -125,26 +125,26 @@ class TestGenomicRegions:
         assert region.chromosome == 'chr1'
         assert region.start == 1
         assert region.end == 1000
-        assert region.strand == None
+        assert region.strand is None
         
     def test_from_string(self):
         region1 = GenomicRegion.from_string('chr1')
         assert region1.chromosome == 'chr1'
         assert region1.start is None
         assert region1.end is None
-        assert region1.strand == None
+        assert region1.strand is None
         
         region2 = GenomicRegion.from_string('chr1:0')
         assert region2.chromosome == 'chr1'
         assert region2.start == 0
-        assert region2.end is None
-        assert region2.strand == None
+        assert region2.end == 0
+        assert region2.strand is None
         
         region3 = GenomicRegion.from_string('chr1:0-4956')
         assert region3.chromosome == 'chr1'
         assert region3.start == 0
         assert region3.end == 4956
-        assert region3.strand == None
+        assert region3.strand is None
         
         region4 = GenomicRegion.from_string('chr1:0-4956:-')
         assert region4.chromosome == 'chr1'
