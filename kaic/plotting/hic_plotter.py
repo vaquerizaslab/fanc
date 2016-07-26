@@ -329,7 +329,7 @@ class HicComparisonPlot2D(HicPlot2D):
                                                   axes_style=axes_style)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
-        self.hic_buffer = BufferedCombinedMatrix(hic_top, hic_bottom, scale_matrices,
+        self.hic_buffer = BufferedCombinedMatrix(hic_bottom, hic_top, scale_matrices,
                                                  buffering_strategy, buffering_arg)
 
 
