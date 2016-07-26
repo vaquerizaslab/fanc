@@ -263,12 +263,12 @@ class ExpectedContacts(TableArchitecturalFeature):
         except ZeroDivisionError:
             inter_expected = 0
 
-        distance = np.arange(len(reads_by_distance))*self.hic.bin_size
-        self.data('distance', distance)
-
         while len(reads_by_distance) < max_distance_t+1:
             reads_by_distance.append(reads_by_distance[-1])
             pixels_by_distance.append(pixels_by_distance[-1])
+
+        distance = np.arange(len(reads_by_distance)) * self.hic.bin_size
+        self.data('distance', distance)
 
         # return here if smoothing not requested
         if not self.smooth:
@@ -1381,7 +1381,8 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         chromosome_regions = defaultdict(list)
 
         for i, region in enumerate(self.regions):
-            chromosome_regions[region.chromosome].append(((region.start + region.end) / 2, region, i))
+            midpoint = (region.start + region.end) / 2
+            chromosome_regions[region.chromosome].append((midpoint, region, i))
 
         ds = self.data_selection
         try:
@@ -1392,7 +1393,11 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         for chromosome in self.array.chromosomes():
             matrix = self.array.as_matrix(chromosome)
             for pos, region, i in chromosome_regions[chromosome]:
-                bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
+                try:
+                    bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
+                except IndexError:
+                    logging.error("Cannot find bin range for {}:{}".format(chromosome, pos))
+                    continue
                 for region_ix in xrange(bin_range.start, bin_range.stop):
                     yield i, region, matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
 
@@ -1482,7 +1487,9 @@ class MetaHeatmap(MetaMatrixBase):
                 m[m == 0] = np.nan
                 heatmap.append(m)
 
+        order = np.array(order).argsort()
         heatmap = np.array(heatmap)[order]
+
         self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
                                                    heatmap.shape)
         self.meta_matrix[:] = heatmap
@@ -1497,6 +1504,49 @@ class MetaHeatmap(MetaMatrixBase):
             d = self.array.bins_to_distance(i)
             x.append(d)
         return x
+
+
+class MetaRegionAverage(MetaMatrixBase):
+    _classid = 'METAREGIONAVG'
+
+    def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
+                 file_name=None, mode='a', tmpdir=None,
+                 _group_name='meta_region_avg'):
+
+        if data_selection is None and array is not None:
+            data_selection = array.data_field_names[0]
+
+        if not isinstance(data_selection, str) and not isinstance(data_selection, int):
+            raise ValueError("data_selection parameter must be "
+                             "int, str, or None, but is {}".format(type(data_selection)))
+
+        if isinstance(array, str) and file_name is None:
+            file_name = array
+            array = None
+
+        if file_name is not None and array is None:
+            MetaMatrixBase.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                    _group_name=_group_name)
+        else:
+            MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
+                                    data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                    _group_name=_group_name)
+
+    def _calculate(self):
+        averages = []
+        for i, region, m_sub in self._sub_matrices():
+            if m_sub.shape == self._matrix_shape:
+                v = m_sub[:, 0]
+                averages.append(np.nansum(v)/np.sum(~np.isnan(v)))
+        averages = np.array(averages)
+
+        self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
+                                                   averages.shape)
+        self.meta_matrix[:] = averages
+
+    @calculateondemand
+    def averages(self):
+        return self.meta_matrix[:]
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
