@@ -166,7 +166,7 @@ class Klot(object):
             if global_args.height is None else global_args.height
 
         import kaic.plotting as kplt
-        for region in regions:
+        for i, region in enumerate(regions):
             if global_args.window_size is not None:
                 chromosome = region.chromosome
                 start = max(1, region.start - int(global_args.window_size / 2))
@@ -185,11 +185,12 @@ class Klot(object):
                     fig.savefig(output_file)
                 else:
                     if global_args.name == '':
-                        fig.savefig(output_file + '/{}_{}-{}.pdf'.format(region.chromosome, region.start, region.end))
-                    else:
-                        fig.savefig(output_file + '/{}_{}_{}-{}.pdf'.format(global_args.name,
-                                                                            region.chromosome,
+                        fig.savefig(output_file + '/{}_{}_{}-{}.pdf'.format(i, region.chromosome,
                                                                             region.start, region.end))
+                    else:
+                        fig.savefig(output_file + '/{}_{}_{}_{}-{}.pdf'.format(i, global_args.name,
+                                                                               region.chromosome,
+                                                                               region.start, region.end))
                 kplt.sns.plt.clf()
                 kplt.sns.plt.close(fig)
             else:
@@ -602,8 +603,8 @@ class Klot(object):
         import kaic
         import kaic.plotting as kplt
 
-        matrix_top = kaic.load_hic(os.path.expanduser(args.hic_top), mode='r')
         matrix_bottom = kaic.load_hic(os.path.expanduser(args.hic_bottom), mode='r')
+        matrix_top = kaic.load_hic(os.path.expanduser(args.hic_top), mode='r')
 
         norm = "lin" if not args.log else "log"
         sp = kplt.HicComparisonPlot2D(matrix_top, matrix_bottom, colormap=args.colormap, norm=norm, vmin=args.vmin,
