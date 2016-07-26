@@ -1489,9 +1489,9 @@ class Kaic(object):
             first_hic = hics.pop(0)
 
             if args.optimise:
-                merged = kaic.AccessOptimisedHic(data=first_hic, file_name=output_path, mode='w')
+                merged = kaic.AccessOptimisedHic(data=first_hic, file_name=output_path, mode='w', tmpdir=tmpdir)
             else:
-                merged = kaic.Hic(data=first_hic, file_name=output_path, mode='w')
+                merged = kaic.Hic(data=first_hic, file_name=output_path, mode='w', tmpdir=tmpdir)
 
             merged.merge(hics)
 
