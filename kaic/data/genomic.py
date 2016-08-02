@@ -501,6 +501,19 @@ class Genome(Table):
 
         return regions
 
+    def sub_sequence(self, chromosome, start=None, end=None):
+        if start is not None:
+            selection_region = GenomicRegion(chromosome=chromosome, start=start, end=end)
+        elif isinstance(chromosome, GenomicRegion):
+            selection_region = chromosome
+        else:
+            selection_region = GenomicRegion.from_string(chromosome)
+
+        res = Table.__getitem__(self, selection_region.chromosome)
+        if selection_region.start is None:
+            return self._sequences[res['ix']]
+        return self._sequences[res['ix']][selection_region.start-1:selection_region.end]
+
 
 class GenomicRegion(TableObject):
     """
