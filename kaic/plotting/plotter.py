@@ -878,13 +878,15 @@ class BigWigPlot(ScalarDataPlot):
         return bin_regions, out_values
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
-        import wWigIO
+        import pyBigWig
+
         for i, b in enumerate(self.bigwigs):
             try:
-                bw = wWigIO.open(b)
-                intervals = wWigIO.getIntervals(b, region.chromosome, region.start - 1, region.end)
+                bw = pyBigWig.open(b)
+                intervals = bw.intervals(region.chromosome, region.start - 1, region.end)
             finally:
-                wWigIO.close(b)
+                bw.close()
+
             if self.bin_size:
                 regions, bw_values = self._bin_intervals(region, intervals)
             else:
