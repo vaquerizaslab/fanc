@@ -1079,8 +1079,8 @@ class Kaic(object):
 
         if args.stats:
             logging.info("Plotting filter statistics")
-            import kaic.plotting as kaicplt
-            kaicplt.plot_mask_statistics(reads, reads._reads, output=args.stats)
+            from kaic.plotting.plot_statistics import plot_mask_statistics
+            plot_mask_statistics(reads, reads._reads, output=args.stats)
             logging.info("Done.")
 
         reads.close()
@@ -1341,8 +1341,8 @@ class Kaic(object):
 
         if args.stats:
             logging.info("Plotting filter statistics")
-            import kaic.plotting as kaicplt
-            kaicplt.plot_mask_statistics(pairs, pairs._pairs, output=args.stats)
+            from kaic.plotting.plot_statistics import plot_mask_statistics
+            plot_mask_statistics(pairs, pairs._pairs, output=args.stats)
             logging.info("Done.")
 
         pairs.close()
@@ -1591,8 +1591,8 @@ class Kaic(object):
 
                 if args.stats:
                     logging.info("Plotting filter statistics")
-                    import kaic.plotting as kaicplt
-                    kaicplt.plot_mask_statistics(hic, hic._edges, output=args.stats)
+                    from kaic.plotting.plot_statistics import plot_mask_statistics
+                    plot_mask_statistics(hic, hic._edges, output=args.stats)
                     logging.info("Done.")
 
         if args.tmp:
