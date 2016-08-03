@@ -181,25 +181,23 @@ class Klot(object):
             else:
                 plot_region = region
 
-            gf = kplt.GenomicFigure(plots, figsize=(figure_width, figure_height), fix_chromosome=fix_chromosome,
-                                    height_ratios=height_ratios, gridspec_args={'hspace': global_args.hspace})
-            fig, axes = gf.plot(plot_region)
+            with kplt.GenomicFigure(plots, figsize=(figure_width, figure_height), fix_chromosome=fix_chromosome,
+                                    height_ratios=height_ratios, gridspec_args={'hspace': global_args.hspace}) as gf:
+                fig, axes = gf.plot(plot_region)
 
-            if output_file is not None:
-                if len(regions) == 1:
-                    fig.savefig(output_file)
-                else:
-                    if global_args.name == '':
-                        fig.savefig(output_file + '/{}_{}_{}-{}.pdf'.format(i, region.chromosome,
-                                                                            region.start, region.end))
+                if output_file is not None:
+                    if len(regions) == 1:
+                        fig.savefig(output_file)
                     else:
-                        fig.savefig(output_file + '/{}_{}_{}_{}-{}.pdf'.format(i, global_args.name,
-                                                                               region.chromosome,
-                                                                               region.start, region.end))
-                kplt.sns.plt.clf()
-                kplt.sns.plt.close(fig)
-            else:
-                kplt.sns.plt.show()
+                        if global_args.name == '':
+                            fig.savefig(output_file + '/{}_{}_{}-{}.pdf'.format(i, region.chromosome,
+                                                                                region.start, region.end))
+                        else:
+                            fig.savefig(output_file + '/{}_{}_{}_{}-{}.pdf'.format(i, global_args.name,
+                                                                                   region.chromosome,
+                                                                                   region.start, region.end))
+                else:
+                    kplt.sns.plt.show()
 
     def _type_parser(self):
         type_parser = argparse.ArgumentParser(
