@@ -135,7 +135,7 @@ def absolute_wspace_hspace(fig, gs, wspace, hspace):
 
 class GenomicFigure(object):
     def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None,
-                 ticks_last=False):
+                 ticks_last=False, fix_chromosome=None):
         """
         Creates a GenomicFigure composed of one or more plots.
         All plots are arranged in a single column, their genomic coordinates aligned.
@@ -157,6 +157,8 @@ class GenomicFigure(object):
                         (8, None) is converted to (8, 8*sum(height_rations))
         :param gridspec_args: Optional keyword-arguments passed directly to GridSpec constructor
         :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
+        :param fix_chromosome: boolean list, same length as plots. If an element is True, the corresponding plot
+                               will receive a modified chromosome identifier (omitting or adding 'chr' as necessary)
         """
         self.plots = plots
         self.n = len(plots)
@@ -200,6 +202,14 @@ class GenomicFigure(object):
             plots[i].ax = ax
             self.axes.append(ax)
 
+        if fix_chromosome is None:
+            self.fix_chromosome = [False] * self.n
+        else:
+            self.fix_chromosome = fix_chromosome
+        if len(self.fix_chromosome) != self.n:
+            raise ValueError("fix_chromosome ({}) must be the same length "
+                             "as plots ({})".format(len(self.fix_chromosome), self.n))
+
     @property
     def fig(self):
         return self.axes[0].figure
@@ -212,7 +222,17 @@ class GenomicFigure(object):
         :return: A matplotlib Figure instance and a list of figure axes
         """
         for i, (p, a) in enumerate(zip(self.plots, self.axes)):
-            p.plot(region, ax=a)
+
+            plot_region = region
+            if self.fix_chromosome[i]:
+                chromosome = region.chromosome
+                if chromosome.startswith('chr'):
+                    chromosome = chromosome[3:]
+                else:
+                    chromosome = 'chr' + chromosome
+                plot_region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
+
+            p.plot(plot_region, ax=a)
             if self.ticks_last and i < len(self.axes) - 1:
                 p.remove_genome_ticks()
         return self.fig, self.axes
