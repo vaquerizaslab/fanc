@@ -96,10 +96,19 @@ def load(file_name, mode='a', tmpdir=None):
         f = Bed(file_name)
         try:
             _ = f.file_type
+            return f
         except IndexError:
-            raise ValueError("File type not recognised.")
+            pass
 
-        return f
+        try:
+            import pyBigWig
+            f = pyBigWig.open(file_name, 'r')
+            if mode != 'r':
+                f.close()
+                f = pyBigWig.open(file_name, mode)
+            return f
+        except (ImportError, RuntimeError):
+            raise ValueError("File type not recognised.")
 
 
 def sample_hic(file_name=None, tmpdir=None):
