@@ -881,11 +881,14 @@ class BigWigPlot(ScalarDataPlot):
         import pyBigWig
 
         for i, b in enumerate(self.bigwigs):
-            try:
-                bw = pyBigWig.open(b)
-                intervals = bw.intervals(region.chromosome, region.start - 1, region.end)
-            finally:
-                bw.close()
+            if isinstance(b, str):
+                try:
+                    bw = pyBigWig.open(b)
+                    intervals = bw.intervals(region.chromosome, region.start - 1, region.end)
+                finally:
+                    bw.close()
+            else:
+                intervals = b.intervals(region.chromosome, region.start - 1, region.end)
 
             if self.bin_size:
                 regions, bw_values = self._bin_intervals(region, intervals)
