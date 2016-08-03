@@ -224,6 +224,7 @@ class Klot(object):
                 array        Array "flame" plot (e.g. insulation index)
                 region       Bar plot with region score (e.g. BED)
                 line         Line plot with values per region
+                bigwig       Plot BigWig files
             ''')
         )
         return type_parser
@@ -976,7 +977,7 @@ class Klot(object):
 
     def line(self, parameters):
         parser = self._subplot_parser()
-        parser.description = '''Hi-C plot.'''
+        parser.description = '''Line plot.'''
 
         parser.add_argument(
             'array',
@@ -1035,6 +1036,47 @@ class Klot(object):
         p = kplt.GenomicRegionsPlot(array, attributes=data_selection, ylim=args.ylim)
         return p, args
 
+    def bigwig(self, parameters):
+        parser = self._subplot_parser()
+        parser.description = '''BigWig plot.'''
+
+        parser.add_argument(
+            'bigwig',
+            nargs='+',
+            help='''BigWig file(s).'''
+        )
+
+        parser.add_argument(
+            '-n', '--names', dest='names',
+            nargs='+',
+            help='''Names for each bigWig (must be same length as number of bigWigs).'''
+        )
+
+        parser.add_argument(
+            '-b', '--bin', dest='bin',
+            type=int,
+            help='''Bin bigWig values to genomic region of this fixed size.'''
+        )
+
+        parser.add_argument(
+            '-y', '--ylim', dest='ylim',
+            nargs=2,
+            type=float,
+            help='''Y-axis limits.'''
+        )
+
+        args = parser.parse_args(parameters)
+
+        import kaic
+        import kaic.plotting as kplt
+
+        bigwigs = []
+        for file_name in args.bigwig:
+            bigwigs.append(kaic.load(file_name, mode='r'))
+
+        p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim)
+
+        return p, args
 
 if __name__ == '__main__':
     Klot()
