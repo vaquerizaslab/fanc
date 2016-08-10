@@ -2472,7 +2472,7 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[2:])
 
         import kaic
-        import kaic.plotting as kplt
+        from kaic.plotting.plot_statistics import pairs_re_distance_plot
 
         input_path = os.path.expanduser(args.input)
         output_path = None
@@ -2480,7 +2480,7 @@ class Kaic(object):
             output_path = os.path.expanduser(args.output)
 
         pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='r')
-        kplt.pairs_re_distance_plot(pairs, output=output_path, limit=args.limit, max_distance=args.max_dist)
+        pairs_re_distance_plot(pairs, output=output_path, limit=args.limit, max_distance=args.max_dist)
         pairs.close()
 
         logging.info("All done.")
