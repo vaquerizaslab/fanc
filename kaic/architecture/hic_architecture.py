@@ -1398,7 +1398,11 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
                     bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
                 except IndexError:
                     logging.error("Cannot find bin range for {}:{}".format(chromosome, pos))
+                    sub_matrix = np.zeros((2*self.window_width+1, ds))
+                    sub_matrix[sub_matrix == 0] = np.nan
+                    yield i, region, sub_matrix
                     continue
+
                 for region_ix in xrange(bin_range.start, bin_range.stop):
                     sub_matrix = matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
                     if self.orient_strand and hasattr(region, 'strand') and region.strand == '-':
