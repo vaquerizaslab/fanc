@@ -1321,7 +1321,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
     _classid = 'METAMATRIXBASE'
 
     def __init__(self, array=None, regions=None, window_width=50, data_selection=None,
-                 file_name=None, mode='a', tmpdir=None,
+                 file_name=None, mode='a', tmpdir=None, orient_strand=False,
                  _group_name='meta_base'):
 
         ArchitecturalFeature.__init__(self)
@@ -1344,6 +1344,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         self._matrix_shape = None
         self.data_selection = data_selection
         self.regions = regions
+        self.orient_strand = orient_strand
 
     @property
     def data_selection(self):
@@ -1399,7 +1400,10 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
                     logging.error("Cannot find bin range for {}:{}".format(chromosome, pos))
                     continue
                 for region_ix in xrange(bin_range.start, bin_range.stop):
-                    yield i, region, matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
+                    sub_matrix = matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
+                    if self.orient_strand and hasattr(region, 'strand') and region.strand == '-':
+                        sub_matrix = np.fliplr(sub_matrix)
+                    yield i, region, sub_matrix
 
     @calculateondemand
     def _calculate(self, *args, **kwargs):
@@ -1410,11 +1414,11 @@ class MetaArray(MetaMatrixBase):
     _classid = 'METAARRAY'
 
     def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
-                 file_name=None, mode='a', tmpdir=None,
+                 file_name=None, mode='a', tmpdir=None, orient_strand=False,
                  _group_name='meta_matrix'):
         MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
                                 data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                _group_name=_group_name)
+                                orient_strand=orient_strand, _group_name=_group_name)
 
     def _calculate(self):
         avg_matrix = np.zeros(self._matrix_shape)
@@ -1453,7 +1457,7 @@ class MetaHeatmap(MetaMatrixBase):
     _classid = 'METAHEATMAP'
 
     def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
-                 file_name=None, mode='a', tmpdir=None,
+                 file_name=None, mode='a', tmpdir=None, orient_strand=False,
                  _group_name='meta_heatmap'):
 
         if data_selection is None and array is not None:
@@ -1469,11 +1473,11 @@ class MetaHeatmap(MetaMatrixBase):
 
         if file_name is not None and array is None:
             MetaMatrixBase.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                    _group_name=_group_name)
+                                    _group_name=_group_name, orient_strand=orient_strand)
         else:
             MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
                                     data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                    _group_name=_group_name)
+                                    _group_name=_group_name, orient_strand=orient_strand)
 
     def _calculate(self):
         order = []
@@ -1510,7 +1514,7 @@ class MetaRegionAverage(MetaMatrixBase):
     _classid = 'METAREGIONAVG'
 
     def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
-                 file_name=None, mode='a', tmpdir=None,
+                 file_name=None, mode='a', tmpdir=None, orient_strand=False,
                  _group_name='meta_region_avg'):
 
         if data_selection is None and array is not None:
@@ -1526,11 +1530,11 @@ class MetaRegionAverage(MetaMatrixBase):
 
         if file_name is not None and array is None:
             MetaMatrixBase.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                    _group_name=_group_name)
+                                    _group_name=_group_name, orient_strand=orient_strand)
         else:
             MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
                                     data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                    _group_name=_group_name)
+                                    orient_strand=orient_strand, _group_name=_group_name)
 
     def _calculate(self):
         averages = []
