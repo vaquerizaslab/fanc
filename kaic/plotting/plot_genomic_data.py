@@ -327,12 +327,12 @@ def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, Non
     return None
 
 
-def hic_marginals_plot(hic, output=None, lower=None, upper=None):
+def hic_marginals_plot(hic, output=None, lower=None, upper=None, rel_cutoff=0.1):
     marginals = hic.marginals()
 
     if lower is None or upper is None:
         f = genomic.LowCoverageFilter(hic)
-        lower_calc, upper_calc = f.calculate_cutoffs(0.05)
+        lower_calc, upper_calc = f.calculate_cutoffs(rel_cutoff)
         if lower is None:
             lower = lower_calc
         if upper is None:
