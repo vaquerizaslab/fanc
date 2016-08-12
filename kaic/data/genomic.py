@@ -4108,7 +4108,7 @@ class LowCoverageFilter(HicEdgeFilter):
     If the cutoff is not provided, it is automatically
     chosen at 10% of the mean contact count of all regions.
     """
-    def __init__(self, hic_object, cutoff=None, rel_cutoff=0.1, mask=None):
+    def __init__(self, hic_object, cutoff=None, rel_cutoff=None, mask=None):
         """
         Initialize filter with these settings.
 
@@ -4133,9 +4133,14 @@ class LowCoverageFilter(HicEdgeFilter):
 
         self._marginals = hic_object.marginals()
         if cutoff is None and rel_cutoff is None:
-            raise ValueError("Either rel_cutoff or cutoff must be given")
-        cutoff = min(cutoff if cutoff else float("inf"),
-                     self.calculate_cutoffs(rel_cutoff)[0] if rel_cutoff else float("inf"))
+            rel_cutoff = 0.1
+            logging.info("Using default 10 percent relative coverage as cutoff")
+
+        if cutoff is not None and rel_cutoff is not None:
+            cutoff = min(cutoff if cutoff else float("inf"),
+                         self.calculate_cutoffs(rel_cutoff)[0] if rel_cutoff else float("inf"))
+        elif rel_cutoff is not None:
+            cutoff = self.calculate_cutoffs(rel_cutoff)[0]
         logging.info("Final absolute cutoff threshold is {:.4}".format(float(cutoff)))
 
         self._regions_to_mask = set()
