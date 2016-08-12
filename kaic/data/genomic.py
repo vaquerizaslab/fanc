@@ -4123,7 +4123,7 @@ class LowCoverageFilter(HicEdgeFilter):
                            filter will be called on. Needed for
                            contact count calculation.
         :param rel_cutoff: A cutoff as a fraction (0-1) of the median contact count of all
-                           regions.
+                           regions. If cutoff and rel_cutoff are None, will be set to 10%
         :param cutoff: A cutoff in absolute contact counts (can be float) below
                        which regions are considered "low coverage"
         :param mask: Optional Mask object describing the mask
