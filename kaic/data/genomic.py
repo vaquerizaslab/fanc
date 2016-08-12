@@ -4108,7 +4108,7 @@ class LowCoverageFilter(HicEdgeFilter):
     If the cutoff is not provided, it is automatically
     chosen at 10% of the mean contact count of all regions.
     """
-    def __init__(self, hic_object, cutoff=None, rel_cutoff=None, mask=None):
+    def __init__(self, hic_object, cutoff=None, rel_cutoff=0.1, mask=None):
         """
         Initialize filter with these settings.
 
