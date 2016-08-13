@@ -51,17 +51,14 @@ class Kaic(object):
                     filter_merged_peaks Filter merged peaks
 
                     --- Plotting
-                    plot                Universal plotting function
                     plot_ligation_err   Plot the ligation error of a Pairs object
                     plot_re_dist        Plot the distance of reads to the nearest RE site
                     plot_hic_corr       Plot the correlation of two Hic objects
-                    plot_hic_matrix     Plot a Hic matrix
                     plot_hic_marginals  Plot marginals in a Hic object
                     plot_diff           Plot the difference between two Hic matrices
-                    plot_ratio          Plot the ratio between two Hic matrices
 
                     --- Architecture
-                    structure_tracks   Calculate structural features of an Hic object
+                    structure_tracks   Calculate structural features of a Hic object
                     boundaries         Call boundaries in an Hic object
                     fold_change        Create pairwise fold-change Hi-C comparison maps
                     average_tracks     Calculate average Hi-C contact profiles per region
@@ -70,7 +67,7 @@ class Kaic(object):
                     diff               Calculate difference between two vectors
 
                     --- Other
-                    optimize           Optimise an existing Hic object for faster access
+                    optimise           Optimise an existing Hic object for faster access
                     subset_hic         Create a new Hic object by subsetting
 
                 Run kaic <command> -h for help on a specific command.
@@ -2780,8 +2777,9 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
-        hic_matrix = kaic.Hic(input_path)
+
         logging.info("Fetching Hi-C matrix")
+        hic_matrix = kaic.load(input_path)
 
         if args.observed_expected:
             logging.info("Calculating observed/expected ratio")
