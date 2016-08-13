@@ -350,7 +350,7 @@ Example use:
 
 
 Genome
-~~~~~
+~~~~~~
 
 build_genome
 ____________
@@ -1177,7 +1177,7 @@ Other
 optimise
 ________
 
-Optimise a Hi-C object for faster access.
+Optimise a Hi-C object for faster access. Will improve access speed by an order of magnitude.
 
 .. code:: bash
 
