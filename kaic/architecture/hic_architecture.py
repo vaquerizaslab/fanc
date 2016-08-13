@@ -1482,12 +1482,15 @@ class MetaHeatmap(MetaMatrixBase):
             MetaMatrixBase.__init__(self, array=array, regions=regions, window_width=window_width,
                                     data_selection=data_selection, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                     _group_name=_group_name, orient_strand=orient_strand)
+            self.regions_subset = []
 
     def _calculate(self):
         order = []
         heatmap = []
+        regions = []
         for i, region, m_sub in self._sub_matrices():
             order.append(i)
+            regions.append(region)
             if m_sub.shape == self._matrix_shape:
                 heatmap.append(m_sub[:, 0])
             else:
@@ -1497,6 +1500,7 @@ class MetaHeatmap(MetaMatrixBase):
 
         order = np.array(order).argsort()
         heatmap = np.array(heatmap)[order]
+        self.regions_subset = [regions[i] for i in order]
 
         self.meta_matrix = self.file.create_carray(self._group, 'meta_matrix', t.Float32Atom(),
                                                    heatmap.shape)
