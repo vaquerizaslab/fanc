@@ -1086,5 +1086,109 @@ class Klot(object):
 
         return p, args
 
+    def gene(self, parameters):
+        parser = self._subplot_parser()
+        parser.description = '''Gene plot.'''
+
+        parser.add_argument(
+            'genes',
+            help='''Genes file (GTF, BED).'''
+        )
+
+        # (self, genes, title="", feature_types=('exon',), aspect=.2, axes_style="ticks",
+        #          color_neutral='gray', color_forward='orangered', color_reverse='darkturquoise',
+        #          vdist=0.2, box_height=0.1, font_size=9, arrow_size=8, line_width=1,
+        #          group_by='transcript_id', text_position='alternate'):
+
+        parser.add_argument(
+            '-f', '--feature-types', dest='feature_types',
+            nargs='+',
+            default=('exon',),
+            help='''Feature types to be plotted. By default only exons are shown.'''
+        )
+
+        parser.add_argument(
+            '-cn', '--color-neutral', dest='color_neutral',
+            default='gray',
+            help='''Color for genes without strand information.'''
+        )
+
+        parser.add_argument(
+            '-cf', '--color-forward', dest='color_forward',
+            default='orangered',
+            help='''Color for genes on the '+' strand.'''
+        )
+
+        parser.add_argument(
+            '-cr', '--color-reverse', dest='color_reverse',
+            default='darkturquoise',
+            help='''Color for genes on the '-' strand.'''
+        )
+
+        parser.add_argument(
+            '-v', '--vertical-distance', dest='vdist',
+            type=float,
+            default=0.2,
+            help='''Vertical distance between rows of genes in the plot.'''
+        )
+
+        parser.add_argument(
+            '-b', '--box-height', dest='box_height',
+            type=float,
+            default=0.1,
+            help='''Height of exon boxes.'''
+        )
+
+        parser.add_argument(
+            '-s', '--font-size', dest='font_size',
+            type=float,
+            default=9.,
+            help='''Font size for gene labels.'''
+        )
+
+        parser.add_argument(
+            '-a', '--arrow-size', dest='arrow_size',
+            type=float,
+            default=8.,
+            help='''Size of directionality arrows.'''
+        )
+
+        parser.add_argument(
+            '-l', '--line-width', dest='line_width',
+            type=float,
+            default=1.,
+            help='''Width of the line along the length of the gene.'''
+        )
+
+        parser.add_argument(
+            '-g', '--group-by', dest='group_by',
+            default='transcript_id',
+            help='''Group exons according to this attribute (e.g. for
+                            plotting multiple transcripts of the same gene.
+                            Default: transcript_id'''
+        )
+
+        parser.add_argument(
+            '-t', '--text-position', dest='text_position',
+            default='alternate',
+            help='''Position of gene labels. Can be one of 'top' (above gene), 'bottom' (below gene),
+                    and 'alternate' (default, alternating between above and below gene).'''
+        )
+
+        args = parser.parse_args(parameters)
+
+        import kaic.plotting as kplt
+
+        genes_file = os.path.expanduser(args.genes)
+
+        p = kplt.GenePlot(genes_file, feature_types=args.feature_types,
+                          color_neutral=args.color_neutral, color_forward=args.color_forward,
+                          color_reverse=args.color_reverse,
+                          vdist=args.vdist, box_height=args.box_height, font_size=args.font_size,
+                          arrow_size=args.arrow_size, line_width=args.line_width,
+                          group_by=args.group_by, text_position=args.text_position)
+
+        return p, args
+
 if __name__ == '__main__':
     Klot()
