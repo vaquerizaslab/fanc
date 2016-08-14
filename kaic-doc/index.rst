@@ -3,16 +3,16 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-kaic documentation
-==================
+===================
+Kai-C documentation
+===================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
-   getting_started
-   seq
-   genomic
-   general
+   Getting started with Kai-C <getting_started>
+   Command line access <command_line>
+   API <api>
 
 Indices and tables
 ==================
