@@ -1095,11 +1095,6 @@ class Klot(object):
             help='''Genes file (GTF, BED).'''
         )
 
-        # (self, genes, title="", feature_types=('exon',), aspect=.2, axes_style="ticks",
-        #          color_neutral='gray', color_forward='orangered', color_reverse='darkturquoise',
-        #          vdist=0.2, box_height=0.1, font_size=9, arrow_size=8, line_width=1,
-        #          group_by='transcript_id', text_position='alternate'):
-
         parser.add_argument(
             '-f', '--feature-types', dest='feature_types',
             nargs='+',
