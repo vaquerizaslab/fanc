@@ -933,7 +933,7 @@ class GenePlot(BasePlotter1D):
     """
     Plot genes including exon/intron structure from BED, GTF files or similar.
     """
-    def __init__(self, genes, title="", feature_types=('exon',), aspect=.4, axes_style="ticks",
+    def __init__(self, genes, title="", feature_types=('exon',), aspect=.8, axes_style="ticks",
                  color_neutral='gray', color_forward='orangered', color_reverse='darkturquoise',
                  vdist=0.2, box_height=0.1, font_size=9, arrow_size=8, line_width=1,
                  group_by='transcript_id', text_position='alternate'):
