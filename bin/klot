@@ -226,6 +226,7 @@ class Klot(object):
                 region       Bar plot with region score (e.g. BED)
                 line         Line plot with values per region
                 bigwig       Plot BigWig files
+                gene         Genes plot (exon/intron structure)
             ''')
         )
         return type_parser
