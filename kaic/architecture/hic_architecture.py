@@ -1429,7 +1429,7 @@ class MetaArray(MetaMatrixBase):
         count_matrix = np.zeros(self._matrix_shape)
         for _, _, m_sub in self._sub_matrices():
             if m_sub.shape == self._matrix_shape:
-                count_matrix += np.isnan(m_sub) == False
+                count_matrix += np.isnan(m_sub) is False
                 m_sub[np.isnan(m_sub)] = 0
                 avg_matrix += m_sub
 
