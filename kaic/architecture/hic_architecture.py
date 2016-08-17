@@ -1380,10 +1380,15 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
     def _sub_matrices(self):
         chromosome_regions = defaultdict(list)
+        chromosomes = self.array.chromosomes()
+        chromosome_set = set(chromosomes)
 
+        region_counter = 0
         for i, region in enumerate(self.regions):
-            midpoint = (region.start + region.end) / 2
-            chromosome_regions[region.chromosome].append((midpoint, region, i))
+            if region.chromosome in chromosome_set:
+                midpoint = (region.start + region.end) / 2
+                chromosome_regions[region.chromosome].append((midpoint, region, i))
+                region_counter += 1
 
         ds = self.data_selection
         try:
@@ -1391,23 +1396,27 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         except ValueError:
             pass
 
-        for chromosome in self.array.chromosomes():
-            matrix = self.array.as_matrix(chromosome)
-            for pos, region, i in chromosome_regions[chromosome]:
-                try:
-                    bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
-                except IndexError:
-                    logging.error("Cannot find bin range for {}:{}".format(chromosome, pos))
-                    sub_matrix = np.zeros((2*self.window_width+1, ds))
-                    sub_matrix[sub_matrix == 0] = np.nan
-                    yield i, region, sub_matrix
-                    continue
+        with RareUpdateProgressBar(max_value=region_counter) as pb:
+            counter = 0
+            for chromosome in chromosomes:
+                matrix = self.array.as_matrix(chromosome)
+                for pos, region, i in chromosome_regions[chromosome]:
+                    counter += 1
+                    pb.update(counter)
+                    try:
+                        bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
+                    except IndexError:
+                        logging.error("Cannot find bin range for {}:{}".format(chromosome, pos))
+                        sub_matrix = np.zeros((2*self.window_width+1, ds))
+                        sub_matrix[sub_matrix == 0] = np.nan
+                        yield i, region, sub_matrix
+                        continue
 
-                for region_ix in xrange(bin_range.start, bin_range.stop):
-                    sub_matrix = matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
-                    if self.orient_strand and hasattr(region, 'strand') and region.strand == '-':
-                        sub_matrix = np.fliplr(sub_matrix)
-                    yield i, region, sub_matrix
+                    for region_ix in xrange(bin_range.start, bin_range.stop):
+                        sub_matrix = matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
+                        if self.orient_strand and hasattr(region, 'strand') and region.strand == '-':
+                            sub_matrix = np.fliplr(sub_matrix)
+                        yield i, region, sub_matrix
 
     @calculateondemand
     def _calculate(self, *args, **kwargs):
