@@ -959,6 +959,10 @@ class GenePlot(BasePlotter1D):
         if self.bedtool.file_type != "gff" and self.bedtool.file_type != "gtf":
             feature_types = None
 
+        scores = [a.score for a in self.bedtool]
+        self.min_score = min(scores)
+        self.max_score = max(scores)
+
         if isinstance(feature_types, (str, unicode)):
             feature_types = [feature_types]
         self.feature_types = feature_types
@@ -1049,16 +1053,18 @@ class GenePlot(BasePlotter1D):
             if not spot_found:
                 genes_by_row.append([(gene, gene_region, exons)])
 
-        def _plot_gene(name, gene_region, exons, offset, text_position='top'):
+        def _plot_gene(name, gene_region, exons, offset, text_position='top', color_param='strand'):
             if exons[0].strand == 1:
                 bar_marker = '$>$'
-                gene_color = self.color_forward
+                # gene_color = self.color_forward
             elif exons[0].strand == -1:
                 bar_marker = '$<$'
-                gene_color = self.color_reverse
+                # gene_color = self.color_reverse
             else:
                 bar_marker = 0
-                gene_color = self.color_neutral
+                # gene_color = self.color_neutral
+
+            gene_color = _set_gene_color(exons, color_param) 
 
             bar_start, bar_end = exons[0].start, exons[-1].end
             bar_step_size = int(0.02 * plot_range)
@@ -1068,7 +1074,7 @@ class GenePlot(BasePlotter1D):
                 bar_x += [bar_end]
                 marker_correction -= 1
             bar_y = [offset] * len(bar_x)
-            # bar
+
             bar, = self.ax.plot(bar_x, bar_y, c=gene_color, linewidth=self.line_width)
             # transparent markers
             marker_bar, = self.ax.plot(bar_x[1:marker_correction], bar_y[1:marker_correction], marker=bar_marker,
@@ -1103,6 +1109,24 @@ class GenePlot(BasePlotter1D):
                                 horizontalalignment='left', fontsize=self.font_size, family='monospace',
                                 color='gray')
             self.texts.append(text)
+
+        def _set_gene_color(exons, color_param):
+            cmap = plt.get_cmap('Reds')
+            if color_param == 'strand':
+                if exons[0].strand == 1:
+                    gene_color = self.color_forward
+                elif exons[0].strand == -1:
+                    gene_color = self.color_reverse
+                else:
+                    gene_color = self.color_neutral
+            elif color_param == 'score':
+                norm_score = (exons[0].score - self.min_score) / (self.max_score - self.min_score) 
+                gene_color = cmap(norm_score)
+            return gene_color
+
+
+        # def _plot_scored_gene(name, gene_region, exons, offset, text_position='top'):
+        #    pass
 
         for offset, row in enumerate(genes_by_row):
             for i, (name, gene_region, exons) in enumerate(row):
