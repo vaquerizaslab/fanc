@@ -959,9 +959,15 @@ class GenePlot(BasePlotter1D):
         if self.bedtool.file_type != "gff" and self.bedtool.file_type != "gtf":
             feature_types = None
 
-        scores = [a.score for a in self.bedtool]
+        scores = []
+        for interval in self.bedtool:
+            try:
+                scores.append(float(interval.score))
+            except ValueError:
+                scores.append(0.0)
         self.min_score = min(scores)
         self.max_score = max(scores)
+        self.abs_max_score = max([self.min_score, self.max_score])
 
         if isinstance(feature_types, (str, unicode)):
             feature_types = [feature_types]
@@ -1004,6 +1010,12 @@ class GenePlot(BasePlotter1D):
             except ValueError:
                 name = None
 
+            #get gene score
+            try:
+                score = float(exon.score)
+            except ValueError:
+                score = None
+
             # get transcript id for grouping
             try:
                 transcript_id = exon.attrs[self.group_by]
@@ -1019,6 +1031,7 @@ class GenePlot(BasePlotter1D):
 
             exon_region = GenomicRegion(chromosome=region.chromosome, start=exon.start + 1, end=exon.end,
                                         name=name, id=transcript_id, strand=exon.strand)
+            exon_region.score = score
             genes[transcript_id].append(exon_region)
 
         # sort exons
@@ -1053,7 +1066,7 @@ class GenePlot(BasePlotter1D):
             if not spot_found:
                 genes_by_row.append([(gene, gene_region, exons)])
 
-        def _plot_gene(name, gene_region, exons, offset, text_position='top', color_param='strand'):
+        def _plot_gene(name, gene_region, exons, offset, text_position='top', color_param='score'):
             if exons[0].strand == 1:
                 bar_marker = '$>$'
                 # gene_color = self.color_forward
@@ -1111,7 +1124,7 @@ class GenePlot(BasePlotter1D):
             self.texts.append(text)
 
         def _set_gene_color(exons, color_param):
-            cmap = plt.get_cmap('Reds')
+            cmap = plt.get_cmap('RdBu')
             if color_param == 'strand':
                 if exons[0].strand == 1:
                     gene_color = self.color_forward
@@ -1120,7 +1133,7 @@ class GenePlot(BasePlotter1D):
                 else:
                     gene_color = self.color_neutral
             elif color_param == 'score':
-                norm_score = (exons[0].score - self.min_score) / (self.max_score - self.min_score) 
+                norm_score = (exons[0].score - (-self.abs_max_score)) / (self.abs_max_score - (-self.abs_max_score))
                 gene_color = cmap(norm_score)
             return gene_color
 
