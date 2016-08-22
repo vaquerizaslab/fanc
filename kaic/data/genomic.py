@@ -3099,10 +3099,13 @@ class RegionMatrixTable(RegionPairs):
         # prepare marginals dict
         marginals = np.zeros(len(self.regions()), float)
 
-        for edge in self.edges(lazy=True):
-            marginals[edge.source] += getattr(edge, weight_column)
-            if edge.source != edge.sink:
-                marginals[edge.sink] += getattr(edge, weight_column)
+        logging.debug("Calculating marginals...")
+        with RareUpdateProgressBar(max_value=len(self.edges)) as pb:
+            for i, edge in enumerate(self.edges(lazy=True)):
+                marginals[edge.source] += getattr(edge, weight_column)
+                if edge.source != edge.sink:
+                    marginals[edge.sink] += getattr(edge, weight_column)
+                pb.update(i)
 
         return marginals
 
@@ -3113,10 +3116,14 @@ class RegionMatrixTable(RegionPairs):
         # prepare marginals dict
         mappable = np.zeros(len(self.regions()), dtype=bool)
 
-        for edge in self.edges(lazy=True):
-            mappable[edge.source] = True
-            if edge.source != edge.sink:
-                mappable[edge.sink] = True
+        logging.debug("Calculating mappability...")
+
+        with RareUpdateProgressBar(max_value=len(self.edges)) as pb:
+            for i, edge in enumerate(self.edges(lazy=True)):
+                mappable[edge.source] = True
+                if edge.source != edge.sink:
+                    mappable[edge.sink] = True
+                pb.update(i)
 
         return mappable
 
