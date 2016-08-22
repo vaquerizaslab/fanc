@@ -3277,9 +3277,16 @@ class Kaic(object):
         parser.add_argument(
             '-n', '--normalise', dest='normalise',
             action='store_true',
-            help='''Normalise index to 300 bin window.'''
+            help='''Normalise index to insulation average (default is per-chromosome - to normalise to
+                    smaller regions, use -nw).'''
         )
         parser.set_defaults(normalise=False)
+
+        parser.add_argument(
+            '-nw', '--normalisation-window', dest='normalisation_window',
+            type=int,
+            help='''Size of the normalisation window (moving average) in bins. Default: whole chromosome.'''
+        )
 
         parser.add_argument(
             '-s', '--subtract-mean', dest='subtract',
@@ -3306,7 +3313,8 @@ class Kaic(object):
 
         with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                              impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
-                             relative=args.relative, mode='w', subtract_mean=args.subtract, log=args.log) as ii:
+                             relative=args.relative, mode='w', subtract_mean=args.subtract, log=args.log,
+                             _normalisation_window=args.normalisation_window) as ii:
             ii.calculate()
 
     def optimise(self):
