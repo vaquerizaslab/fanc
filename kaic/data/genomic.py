@@ -80,7 +80,7 @@ from collections import defaultdict
 import copy
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
-from bisect import bisect_right
+from bisect import bisect_right, bisect_left
 logging.basicConfig(level=logging.INFO)
 
 
@@ -998,6 +998,51 @@ class GenomicRegions(object):
 
     def bins_to_distance(self, bins):
         return self.bin_size*bins
+
+    def find_region(self, query_regions):
+        """
+        Find the region that is at the center of a region.
+
+        :param query_regions: Region selector string, :class:~GenomicRegion, or
+                              list of the former
+        :return: index (or list of indexes) of the region at the center of the
+                 query region
+        """
+        is_single = False
+        if isinstance(query_regions, str):
+            is_single = True
+            query_regions = [GenomicRegion.from_string(query_regions)]
+
+        if isinstance(query_regions, GenomicRegion):
+            is_single = True
+            query_regions = [query_regions]
+
+        regions = defaultdict(list)
+        region_ends = defaultdict(list)
+        chromosomes = set()
+
+        for region in self.regions:
+            regions[region.chromosome].append(region)
+            region_ends[region.chromosome].append(region.end)
+            chromosomes.add(region.chromosome)
+
+        hit_regions = []
+        for query_region in query_regions:
+            if isinstance(query_region, str):
+                query_region = GenomicRegion.from_string(query_region)
+
+            if query_region.chromosome not in chromosomes:
+                hit_regions.append(None)
+
+            center = query_region.start + (query_region.end-query_region.start)/2
+            ix = bisect_left(region_ends[query_region.chromosome], center)
+            try:
+                hit_regions.append(regions[query_region.chromosome][ix])
+            except IndexError:
+                hit_regions.append(None)
+        if is_single:
+            return hit_regions[0]
+        return hit_regions
 
 
 class RegionsTable(GenomicRegions, FileGroup):
