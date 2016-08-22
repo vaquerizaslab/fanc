@@ -10,6 +10,7 @@ import tempfile
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
+_version = "0.4.0"
 
 class Kaic(object):
 
@@ -77,12 +78,27 @@ class Kaic(object):
             usage=textwrap.dedent(usage)
         )
 
-        parser.add_argument('command', help='Subcommand to run')
+        parser.add_argument(
+            '-v', '--version', dest='print_version',
+            action='store_true',
+            help='''Print version information'''
+        )
+        parser.set_defaults(print_version=False)
+
+        parser.add_argument('command', nargs='?', help='Subcommand to run')
+
+        option_ix = 1
+        while option_ix < len(sys.argv) and sys.argv[option_ix].startswith('-'):
+            option_ix += 1
 
         # parse_args defaults to [1:] for args, but you need to
         # exclude the rest of the args too, or validation will fail
-        args = parser.parse_args(sys.argv[1:2])
-        if not hasattr(self, args.command):
+        args = parser.parse_args(sys.argv[1:option_ix+1])
+        if args.print_version:
+            print _version
+            exit()
+
+        if args.command is None or not hasattr(self, args.command):
             print 'Unrecognized command'
             parser.print_help()
             exit(1)
@@ -91,7 +107,7 @@ class Kaic(object):
         logging.info("Running '{}'".format(" ".join(sys.argv)))
 
         # use dispatch pattern to invoke method with same name
-        getattr(self, args.command)()
+        getattr(self, args.command)([sys.argv[0]] + sys.argv[option_ix:])
 
         # echo parameters back to user
         logging.info("Finished '{}'".format(" ".join(sys.argv)))
@@ -102,9 +118,9 @@ class Kaic(object):
     #
     ##########################################################################
 
-    def dirs(self):
+    def dirs(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Automatically process an entire Hi-C data set'
         )
 
@@ -113,7 +129,7 @@ class Kaic(object):
             help='''Root directory in which to create kaic folders'''
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         root_dir = os.path.expanduser(args.root_directory)
 
@@ -185,9 +201,9 @@ class Kaic(object):
             if exception.errno != errno.EEXIST:
                 raise
 
-    def auto(self):
+    def auto(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Automatically process an entire Hi-C data set'
         )
 
@@ -252,7 +268,7 @@ class Kaic(object):
         )
         parser.set_defaults(copy=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         def is_fastq_file(file_name):
             base, extension = os.path.splitext(file_name)
@@ -760,9 +776,9 @@ class Kaic(object):
     #
     ##########################################################################
 
-    def iterative_mapping(self):
+    def iterative_mapping(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Iteratively map a FASTQ file to a Bowtie 2 index'
         )
 
@@ -833,7 +849,7 @@ class Kaic(object):
         )
         parser.set_defaults(copy=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         # check arguments
         input_file = os.path.expanduser(args.input)
@@ -858,9 +874,9 @@ class Kaic(object):
     #
     ##########################################################################
 
-    def load_reads(self):
+    def load_reads(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Load a SAM/BAM file into a Reads object'
         )
 
@@ -923,7 +939,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.files import create_temporary_copy
@@ -968,9 +984,9 @@ class Kaic(object):
             shutil.move(output_path, original_output_path)
         logging.info("All done.")
 
-    def filter_reads(self):
+    def filter_reads(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Filter a Reads object'
         )
 
@@ -1029,7 +1045,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.files import copy_or_expand, create_temporary_copy
@@ -1091,9 +1107,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def build_genome(self):
+    def build_genome(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Convenience command to build a Genome object'
         )
 
@@ -1112,7 +1128,7 @@ class Kaic(object):
             help='''Output file for Genome object'''
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         genome_string = ','.join(args.input)
         output_path = os.path.expanduser(args.output)
@@ -1124,9 +1140,9 @@ class Kaic(object):
         genome.close()
         logging.info("All done.")
 
-    def reads_to_pairs(self):
+    def reads_to_pairs(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Convert a Reads object into a Pairs object'
         )
 
@@ -1166,7 +1182,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.files import create_temporary_copy
@@ -1222,9 +1238,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def filter_pairs(self):
+    def filter_pairs(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Filter a Pairs object'
         )
 
@@ -1291,7 +1307,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.files import copy_or_expand, create_temporary_copy
@@ -1353,9 +1369,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def pairs_to_hic(self):
+    def pairs_to_hic(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Convert a pairs object into a Hic object'
         )
 
@@ -1383,7 +1399,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.files import create_temporary_copy
@@ -1425,9 +1441,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def merge_hic(self):
+    def merge_hic(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Merge multiple Hic objects'
         )
 
@@ -1463,7 +1479,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
         tmpdir = '/tmp' if args.tmp else None
 
         import kaic
@@ -1496,9 +1512,9 @@ class Kaic(object):
 
         logging.info("All done")
 
-    def filter_hic(self):
+    def filter_hic(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Filter a Hic object'
         )
 
@@ -1551,7 +1567,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.files import copy_or_expand, create_temporary_copy
@@ -1601,9 +1617,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def bin_hic(self):
+    def bin_hic(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Bin a Hic object into same-size regions'
         )
 
@@ -1630,7 +1646,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.files import create_temporary_copy
@@ -1662,9 +1678,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def correct_hic(self):
+    def correct_hic(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Correct a Hic object for biases'
         )
 
@@ -1707,7 +1723,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.files import copy_or_expand, create_temporary_copy
@@ -1750,9 +1766,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def hic_pca(self):
+    def hic_pca(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Do a PCA on multiple Hi-C objects'
         )
 
@@ -1847,7 +1863,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import errno
         import matplotlib
@@ -1961,9 +1977,9 @@ class Kaic(object):
                     os.unlink(file_name)
                 shutil.move(output_path, output_folder + '/hics.coll')
 
-    def call_peaks(self):
+    def call_peaks(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Call enriched peaks in a Hic object'
         )
 
@@ -2065,7 +2081,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         import kaic.data.network as kn
@@ -2113,9 +2129,9 @@ class Kaic(object):
             logging.info("Moving temporary output file to destination %s" % original_output_path)
             shutil.move(output_path, original_output_path)
 
-    def filter_peaks(self):
+    def filter_peaks(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Filter peaks called with call_peaks'
         )
 
@@ -2222,7 +2238,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic.data.network as kn
         from kaic.tools.files import create_temporary_copy, copy_or_expand
@@ -2278,9 +2294,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def merge_peaks(self):
+    def merge_peaks(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Filter peaks called with call_peaks'
         )
 
@@ -2308,7 +2324,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic.data.network as kn
         from kaic.tools.files import create_temporary_copy
@@ -2336,9 +2352,9 @@ class Kaic(object):
             logging.info("Moving temporary output file to destination %s" % original_output_path)
             shutil.move(output_path, original_output_path)
 
-    def filter_merged_peaks(self):
+    def filter_merged_peaks(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Filter merged peaks'
         )
 
@@ -2369,7 +2385,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic.data.network as kn
         from kaic.tools.files import create_temporary_copy, copy_or_expand
@@ -2397,9 +2413,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def plot_ligation_err(self):
+    def plot_ligation_err(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Plot the ligation structure biases of a Pairs object'
         )
 
@@ -2420,7 +2436,7 @@ class Kaic(object):
             help='''Data points that make up one increment of the x axis. More=smoother=less detail.'''
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.plotting.plot_statistics import hic_ligation_structure_biases_plot
@@ -2436,9 +2452,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def plot_re_dist(self):
+    def plot_re_dist(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Plot the restriction site distance of reads in a Pairs object'
         )
 
@@ -2466,7 +2482,7 @@ class Kaic(object):
             help='''Maximum RE site distance to include in the plot. Default: no max'''
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.plotting.plot_statistics import pairs_re_distance_plot
@@ -2482,9 +2498,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def plot_hic_corr(self):
+    def plot_hic_corr(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Plot the correlation of two Hic objects'
         )
 
@@ -2510,7 +2526,7 @@ class Kaic(object):
             help='''Matplotlib colormap (default: viridis)'''
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.plotting.plot_genomic_data import hic_correlation_plot
@@ -2531,9 +2547,9 @@ class Kaic(object):
         hic2.close()
         logging.info("All done.")
 
-    def plot_hic_marginals(self):
+    def plot_hic_marginals(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Plot Hic matrix marginals'
         )
 
@@ -2560,7 +2576,7 @@ class Kaic(object):
             help='''Plot lower coverage bound at this level'''
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.plotting.plot_genomic_data import hic_marginals_plot
@@ -2577,9 +2593,9 @@ class Kaic(object):
         hic.close()
         logging.info("All done.")
 
-    def plot_diff(self):
+    def plot_diff(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Plot the difference between two Hic matrices'
         )
 
@@ -2636,7 +2652,7 @@ class Kaic(object):
             help='''Matplotlib colormap (default: viridis)'''
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.plotting.plot_genomic_data import hic_matrix_diff_plot
@@ -2661,10 +2677,10 @@ class Kaic(object):
         hic2.close()
         logging.info("All done.")
 
-    def structure_tracks(self):
+    def structure_tracks(self, argv):
         import numpy as np
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Calculate genomic tracks about structural features of the Hi-C map'
         )
         parser.add_argument(
@@ -2767,7 +2783,7 @@ class Kaic(object):
             help='Calculate the relative insulation indices for the given distances (in bins)'
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.architecture.hic_architecture import InsulationIndex, DirectionalityIndex, ObservedExpectedRatio
@@ -2831,9 +2847,9 @@ class Kaic(object):
                             gt.add_data("{}_delta{}".format(k, i), delta_window(v, i))
         logging.info("All done.")
 
-    def boundaries(self):
+    def boundaries(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Determine structural boundaries'
         )
         parser.add_argument(
@@ -2879,7 +2895,7 @@ class Kaic(object):
         )
         parser.set_defaults(log=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.tools.general import mkdir
@@ -2925,9 +2941,9 @@ class Kaic(object):
 
         logging.info("All done.")
 
-    def boundaries_depr(self):
+    def boundaries_depr(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Determine structural boundaries'
         )
         parser.add_argument(
@@ -2982,7 +2998,7 @@ class Kaic(object):
                  'miss the required thresholds.'
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         from kaic.architecture.maxima_callers import MaximaCallerDelta, MaximaCallerMatrix
         from kaic.architecture.genome_architecture import GenomicTrack
@@ -3023,9 +3039,9 @@ class Kaic(object):
                         )
         logging.info("All done.")
 
-    def fold_change(self):
+    def fold_change(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Create pairwise fold-change Hi-C comparison maps'
         )
         parser.add_argument(
@@ -3059,7 +3075,7 @@ class Kaic(object):
         )
         parser.set_defaults(tmp=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.architecture.hic_architecture import FoldChangeMatrix
@@ -3078,9 +3094,9 @@ class Kaic(object):
                               scale_matrices=args.scale, log2=args.log) as fcm:
             fcm.calculate()
 
-    def average_tracks(self):
+    def average_tracks(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Calculate average Hi-C contact profiles per region'
         )
         parser.add_argument(
@@ -3130,7 +3146,7 @@ class Kaic(object):
         )
         parser.set_defaults(impute=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.data.genomic import RegionMatrixTable
@@ -3151,9 +3167,9 @@ class Kaic(object):
                                   offset=args.offset, padding=args.padding, impute_missing=args.impute) as rca:
             rca.calculate()
 
-    def directionality(self):
+    def directionality(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Calculate directionality index for Hic object'
         )
         parser.add_argument(
@@ -3193,7 +3209,7 @@ class Kaic(object):
         )
         parser.set_defaults(impute=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.architecture.hic_architecture import DirectionalityIndex
@@ -3211,9 +3227,9 @@ class Kaic(object):
         with DirectionalityIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes) as di:
             di.calculate()
 
-    def insulation(self):
+    def insulation(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Calculate insulation index for Hic object'
         )
         parser.add_argument(
@@ -3296,7 +3312,7 @@ class Kaic(object):
         )
         parser.set_defaults(subtract=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         from kaic.architecture.hic_architecture import InsulationIndex
@@ -3317,9 +3333,9 @@ class Kaic(object):
                              _normalisation_window=args.normalisation_window) as ii:
             ii.calculate()
 
-    def optimise(self):
+    def optimise(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Optimise a Hic object for faster access'
         )
         parser.add_argument(
@@ -3331,7 +3347,7 @@ class Kaic(object):
             help='Output AccessOptimisedHic file.'
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import kaic
         import os.path
@@ -3340,9 +3356,9 @@ class Kaic(object):
         new_hic.close()
         old_hic.close()
 
-    def subset_hic(self):
+    def subset_hic(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Create a new Hic object by subsetting'
         )
         parser.add_argument(
@@ -3359,7 +3375,7 @@ class Kaic(object):
             nargs='+'
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import os.path
         import kaic
@@ -3387,9 +3403,9 @@ class Kaic(object):
                 new_hic.add_edge([source, sink, edge.weight], flush=False)
         new_hic.flush()
 
-    def diff(self):
+    def diff(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Calculate difference between two vectors (v1-v2)'
         )
 
@@ -3415,7 +3431,7 @@ class Kaic(object):
         )
         parser.set_defaults(absolute=False)
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         import os.path
         import kaic
@@ -3428,9 +3444,9 @@ class Kaic(object):
         with kaic.VectorDifference(v1, v2, absolute=args.absolute, file_name=output_file, mode='w') as d:
             d.calculate()
 
-    def stats(self):
+    def stats(self, argv):
         parser = argparse.ArgumentParser(
-            prog="kaic " + sys.argv[1],
+            prog="kaic " + argv[1],
             description='Get statistics on number of reads used at each step of a pipeline.'
         )
 
@@ -3463,7 +3479,7 @@ class Kaic(object):
             help='''List of Hic files or folders containing Hic files ('.hic ending').'''
         )
 
-        args = parser.parse_args(sys.argv[2:])
+        args = parser.parse_args(argv[2:])
 
         from collections import defaultdict
 
