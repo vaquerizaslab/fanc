@@ -17,6 +17,7 @@ from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIn
     ExpectedContacts, RegionContactAverage, FoldChangeMatrix, ObservedExpectedRatio, ABDomains, \
     ABDomainMatrix, MetaArray, MetaHeatmap, VectorDifference, VectorArchitecturalRegionFeature, \
     MultiVectorArchitecturalRegionFeature
+from kaic.data.network import RaoPeakInfo
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
 import logging

@@ -191,8 +191,8 @@ class RaoPeakInfo(RegionMatrixTable):
         fdr_v = t.Float32Col(pos=13)
         fdr_d = t.Float32Col(pos=14)
 
-    def __init__(self, file_name=None, mode='a', regions=None, _table_name_regions='regions',
-                 _table_name_peaks='edges'):
+    def __init__(self, file_name=None, mode='a', tmpdir=None, regions=None,
+                 _table_name_regions='regions', _table_name_peaks='edges'):
         """
         Initialize a RaoPeakInfo object.
 
@@ -205,7 +205,8 @@ class RaoPeakInfo(RegionMatrixTable):
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
         """
 
-        RegionMatrixTable.__init__(self, file_name, mode=mode, additional_fields=RaoPeakInfo.PeakInformation,
+        RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
+                                   additional_fields=RaoPeakInfo.PeakInformation,
                                    _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
 
         self.peak_table = self._edges
