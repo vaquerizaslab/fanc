@@ -14,12 +14,7 @@ import time
 import multiprocessing
 import math
 from kaic.tools.general import RareUpdateProgressBar
-
-try:
-    import gridmap
-    _has_gridmap = True
-except ImportError:
-    _has_gridmap = False
+import warnings
 
 
 class PeakCaller(object):
@@ -670,7 +665,7 @@ class RaoPeakCaller(PeakCaller):
     def __init__(self, p=None, w_init=None, min_locus_dist=3, max_w=20, min_ll_reads=16,
                  observed_cutoff=1, e_ll_cutoff=1.0, e_h_cutoff=1.0, e_v_cutoff=1.0,
                  e_d_cutoff=1.0, process_inter=False, correct_inter='fdr', n_processes=4,
-                 batch_size=500000, cluster=_has_gridmap):
+                 batch_size=500000, cluster=False):
         """
         Initialize RaoPeakCaller with peak calling parameters.
 
@@ -711,6 +706,18 @@ class RaoPeakCaller(PeakCaller):
         self.batch_size = batch_size
         self.mpqueue = None
         self.cluster = cluster
+        if self.cluster is True:
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    import gridmap
+                has_gridmap = True
+            except ImportError:
+                has_gridmap = False
+            if not has_gridmap:
+                logging.warn("Cannot use the cluster because of previous error.")
+                self.cluster = False
+
         super(RaoPeakCaller, self).__init__()
 
     @staticmethod
