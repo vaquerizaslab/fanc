@@ -628,37 +628,37 @@ class Klot(object):
         parser.description = '''Hi-C vs Hi-C plot.'''
 
         parser.add_argument(
-            'hic_top',
-            help='''Top Hi-C object.'''
+            'hic_upper',
+            help='''Upper Hi-C object.'''
         )
 
         parser.add_argument(
-            'hic_bottom',
-            help='''Bottom Hi-C object.'''
+            'hic_lower',
+            help='''Lower Hi-C object.'''
         )
 
         parser.add_argument(
-            '-tvmin', '--minimum-value-top', dest='vmin_top',
+            '-uvmin', '--minimum-value-upper', dest='vmin_upper',
             type=float,
-            help='''Minimum value assigned the first color in the colorbar of top plot.'''
+            help='''Minimum value assigned the first color in the colorbar of upper plot.'''
         )
 
         parser.add_argument(
-            '-tvmax', '--maximum-value-top', dest='vmax_top',
+            '-uvmax', '--maximum-value-upper', dest='vmax_upper',
             type=float,
-            help='''Maximum value assigned the last color in the colorbar of top plot.'''
+            help='''Maximum value assigned the last color in the colorbar of upper plot.'''
         )
 
         parser.add_argument(
-            '-bvmin', '--minimum-value-bottom', dest='vmin_bottom',
+            '-lvmin', '--minimum-value-lower', dest='vmin_lower',
             type=float,
-            help='''Minimum value assigned the first color in the colorbar of bottom plot.'''
+            help='''Minimum value assigned the first color in the colorbar of lower plot.'''
         )
 
         parser.add_argument(
-            '-bvmax', '--maximum-value-bottom', dest='vmax_bottom',
+            '-lvmax', '--maximum-value-lower', dest='vmax_lower',
             type=float,
-            help='''Maximum value assigned the last color in the colorbar of bottom plot.'''
+            help='''Maximum value assigned the last color in the colorbar of lower plot.'''
         )
 
         parser.add_argument(
@@ -668,29 +668,29 @@ class Klot(object):
         )
 
         parser.add_argument(
-            '-tl', '--log-top', dest='log_top',
+            '-ul', '--log-upper', dest='log_upper',
             action='store_true',
-            help='''Log-transform heatmap values of top plot'''
+            help='''Log-transform heatmap values of upper plot'''
         )
-        parser.set_defaults(log_top=False)
+        parser.set_defaults(log_upper=False)
 
         parser.add_argument(
-            '-bl', '--log-bottom', dest='log_bottom',
+            '-ll', '--log-lower', dest='log_lower',
             action='store_true',
-            help='''Log-transform heatmap values of bottom plot'''
+            help='''Log-transform heatmap values of lower plot'''
         )
-        parser.set_defaults(log_bottom=False)
+        parser.set_defaults(log_lower=False)
 
         parser.add_argument(
-            '-tc', '--colormap-top', dest='colormap_top',
+            '-uc', '--colormap-upper', dest='colormap_upper',
             default='viridis',
-            help='''Matplotlib colormap for top plot (default: viridis)'''
+            help='''Matplotlib colormap for upper plot (default: viridis)'''
         )
 
         parser.add_argument(
-            '-bc', '--colormap-bottom', dest='colormap_bottom',
+            '-lc', '--colormap-lower', dest='colormap_lower',
             default='viridis',
-            help='''Matplotlib colormap for bottom plot (default: viridis)'''
+            help='''Matplotlib colormap for lower plot (default: viridis)'''
         )
 
         parser.add_argument(
@@ -705,18 +705,18 @@ class Klot(object):
         import kaic
         import kaic.plotting as kplt
 
-        matrix_top = kaic.load_hic(os.path.expanduser(args.hic_top), mode='r')
-        matrix_bottom = kaic.load_hic(os.path.expanduser(args.hic_bottom), mode='r')
+        matrix_upper = kaic.load_hic(os.path.expanduser(args.hic_upper), mode='r')
+        matrix_lower = kaic.load_hic(os.path.expanduser(args.hic_lower), mode='r')
 
-        norm_top = "lin" if not args.log_top else "log"
-        top_plot = kplt.HicPlot(matrix_top, colormap=args.colormap_top, max_dist=args.max_dist, norm=norm_top,
-                                vmin=args.vmin_top, vmax=args.vmax_top, show_colorbar=args.show_colorbar,
-                                adjust_range=False)
-        norm_bottom = "lin" if not args.log_bottom else "log"
-        bottom_plot = kplt.HicPlot(matrix_bottom, colormap=args.colormap_bottom, max_dist=args.max_dist,
-                                   norm=norm_bottom, vmin=args.vmin_bottom, vmax=args.vmax_bottom,
-                                   show_colorbar=args.show_colorbar, adjust_range=False)
-        vsp = kplt.VerticalSplitPlot(top_plot, bottom_plot)
+        norm_upper = "lin" if not args.log_upper else "log"
+        upper_plot = kplt.HicPlot(matrix_upper, colormap=args.colormap_upper, max_dist=args.max_dist, norm=norm_upper,
+                                  vmin=args.vmin_upper, vmax=args.vmax_upper, show_colorbar=args.show_colorbar,
+                                  adjust_range=False)
+        norm_lower = "lin" if not args.log_lower else "log"
+        lower_plot = kplt.HicPlot(matrix_lower, colormap=args.colormap_lower, max_dist=args.max_dist,
+                                  norm=norm_lower, vmin=args.vmin_lower, vmax=args.vmax_lower,
+                                  show_colorbar=args.show_colorbar, adjust_range=False)
+        vsp = kplt.VerticalSplitPlot(upper_plot, lower_plot)
         return vsp, args
 
     def hicvfc(self, parameters):
@@ -734,13 +734,13 @@ class Klot(object):
         )
 
         parser.add_argument(
-            '-hvmin', '--minimum-value-hic', dest='vmin_hic',
+            '-vmin', '--minimum-value-hic', dest='vmin_hic',
             type=float,
             help='''Minimum value assigned the first color in the colorbar of Hi-C plot.'''
         )
 
         parser.add_argument(
-            '-hvmax', '--maximum-value-hic', dest='vmax_hic',
+            '-vmax', '--maximum-value-hic', dest='vmax_hic',
             type=float,
             help='''Maximum value assigned the last color in the colorbar of Hi-C plot.'''
         )
