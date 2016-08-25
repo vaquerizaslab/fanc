@@ -10,7 +10,7 @@ import tempfile
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
-_version = "0.4.0"
+_version = "0.4.1"
 
 
 class Kaic(object):
