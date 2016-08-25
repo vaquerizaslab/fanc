@@ -1063,6 +1063,10 @@ class GenePlot(BasePlotter1D):
             bar_start, bar_end = exons[0].start, exons[-1].end
             bar_step_size = int(0.02 * plot_range)
             marker_correction = -1
+
+            if bar_start == bar_end:
+                bar_end += 1
+
             bar_x = list(xrange(bar_start, bar_end, bar_step_size))
             if bar_x[-1] != bar_end:
                 bar_x += [bar_end]
