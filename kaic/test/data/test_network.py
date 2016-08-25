@@ -350,7 +350,13 @@ class TestRaoPeakCaller:
                 assert abs(peak.e_v-e_v/(c[i]*c[j])) < 0.01
 
         def cmp_batches(peaks1, peaks2):
-            for peak1, peak2 in zip(peaks1, peaks2):
+            peaks1_d = {(peak.source, peak.sink): peak for peak in peaks1}
+            peaks2_d = {(peak.source, peak.sink): peak for peak in peaks2}
+
+            for source, sink in peaks1_d.iterkeys():
+                peak1 = peaks1_d[(source, sink)]
+                peak2 = peaks2_d[(source, sink)]
+
                 assert peak1.source == peak2.source
                 assert peak1.sink == peak2.sink
                 assert peak1.observed == peak2.observed
@@ -430,7 +436,13 @@ class TestRaoPeakCaller:
                 assert abs(peak.e_v-e_v/(c[i]*c[j])) < 0.01
 
         def cmp_batches(peaks1, peaks2):
-            for peak1, peak2 in zip(peaks1, peaks2):
+            peaks1_d = {(peak.source, peak.sink): peak for peak in peaks1}
+            peaks2_d = {(peak.source, peak.sink): peak for peak in peaks2}
+
+            for source, sink in peaks1_d.iterkeys():
+                peak1 = peaks1_d[(source, sink)]
+                peak2 = peaks2_d[(source, sink)]
+
                 assert peak1.source == peak2.source
                 assert peak1.sink == peak2.sink
                 assert peak1.observed == peak2.observed
