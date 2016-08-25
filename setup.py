@@ -27,5 +27,5 @@ setup(
     extras_require={
         'plotting':  ["seaborn"]
     },
-    scripts=['bin/kaic']
+    scripts=['bin/kaic', 'bin/klot']
 )
