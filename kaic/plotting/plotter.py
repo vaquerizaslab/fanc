@@ -13,6 +13,7 @@ import seaborn as sns
 import pybedtools as pbt
 import itertools as it
 import re
+import warnings
 from collections import defaultdict
 
 plt = sns.plt
@@ -935,8 +936,8 @@ class GenePlot(BasePlotter1D):
     """
     def __init__(self, genes, title="", feature_types=('exon',), aspect=.5, axes_style="ticks",
                  color_neutral='gray', color_forward='orangered', color_reverse='darkturquoise',
-                 vdist=0.2, box_height=0.1, font_size=9, arrow_size=8, line_width=1,
-                 group_by='transcript_id', text_position='alternate'):
+                 vdist=0.2, box_height=0.1, show_labels=True, font_size=9, arrow_size=8, line_width=1,
+                 group_by='transcript_id', text_position='alternate', collapse=False):
         """
         :param genes: Any input that pybedtools can parse. Can be a path to a
                       GTF/BED file
@@ -972,6 +973,8 @@ class GenePlot(BasePlotter1D):
         self.arrow_size = arrow_size
         self.text_position = text_position
         self.line_width = line_width
+        self.show_labels = show_labels
+        self.collapse = collapse
 
         self.lines = []
         self.patches = []
@@ -985,6 +988,7 @@ class GenePlot(BasePlotter1D):
         exon_hits = self.bedtool.all_hits(interval)
         # trans = self.ax.get_xaxis_transform()
 
+        gene_number = 0
         genes = defaultdict(list)
         for exon in exon_hits:
             if self.feature_types is not None:
@@ -1007,7 +1011,9 @@ class GenePlot(BasePlotter1D):
                 transcript_id = name
 
             if name is None and transcript_id is None:
-                raise ValueError("Could not find either gene name or {}".format(self.group_by))
+                warnings.warn("Could not find either gene name or {}".format(self.group_by))
+                name = str(gene_number)
+                transcript_id = str(gene_number)
             elif name is None:
                 name = transcript_id
             elif transcript_id is None:
@@ -1016,6 +1022,7 @@ class GenePlot(BasePlotter1D):
             exon_region = GenomicRegion(chromosome=region.chromosome, start=exon.start + 1, end=exon.end,
                                         name=name, id=transcript_id, strand=exon.strand)
             genes[transcript_id].append(exon_region)
+            gene_number = len(genes)
 
         # sort exons
         for transcript_id, exons in genes.iteritems():
@@ -1027,27 +1034,32 @@ class GenePlot(BasePlotter1D):
 
         genes_by_row = []
         for gene, exons in genes:
-
             # gene region - only used for calculating avoidance
             start = exons[0].start - 0.02 * plot_range
             end = exons[-1].end + 0.02 * plot_range
             gene_region = GenomicRegion(chromosome=region.chromosome, start=start, end=end)
 
-            # find empty spot in row
-            spot_found = False
-            for i, row in enumerate(genes_by_row):
-                overlaps = False
-                for row_gene in row:
-                    if gene_region.overlaps(row_gene[1]):
-                        overlaps = True
+            if self.collapse:
+                if len(genes_by_row) == 0:
+                    genes_by_row.append([(gene, gene_region, exons)])
+                else:
+                    genes_by_row[0].append((gene, gene_region, exons))
+            else:
+                # find empty spot in row
+                spot_found = False
+                for i, row in enumerate(genes_by_row):
+                    overlaps = False
+                    for row_gene in row:
+                        if gene_region.overlaps(row_gene[1]):
+                            overlaps = True
+                            break
+                    if not overlaps:
+                        row.append((gene, gene_region, exons))
+                        spot_found = True
                         break
-                if not overlaps:
-                    row.append((gene, gene_region, exons))
-                    spot_found = True
-                    break
 
-            if not spot_found:
-                genes_by_row.append([(gene, gene_region, exons)])
+                if not spot_found:
+                    genes_by_row.append([(gene, gene_region, exons)])
 
         def _plot_gene(name, gene_region, exons, offset, text_position='top'):
             if exons[0].strand == 1:
@@ -1094,19 +1106,20 @@ class GenePlot(BasePlotter1D):
                 )
                 self.patches.append(patch)
 
-            if text_position == 'top':
-                text_y = offset - (self.box_height/2)*1.05
-                text_valign = 'bottom'
-            elif text_position == 'bottom':
-                text_y = offset + (self.box_height / 2) * 1.05
-                text_valign = 'top'
-            else:
-                raise ValueError("Text position '{}' not supported".format(text_position))
+            if self.show_labels:
+                if text_position == 'top':
+                    text_y = offset - (self.box_height/2)*1.05
+                    text_valign = 'bottom'
+                elif text_position == 'bottom':
+                    text_y = offset + (self.box_height / 2) * 1.05
+                    text_valign = 'top'
+                else:
+                    raise ValueError("Text position '{}' not supported".format(text_position))
 
-            text = self.ax.text(exons[0].start, text_y, exons[0].name, verticalalignment=text_valign,
-                                horizontalalignment='left', fontsize=self.font_size, family='monospace',
-                                color='gray')
-            self.texts.append(text)
+                text = self.ax.text(exons[0].start, text_y, exons[0].name, verticalalignment=text_valign,
+                                    horizontalalignment='left', fontsize=self.font_size, family='monospace',
+                                    color='gray')
+                self.texts.append(text)
 
         for offset, row in enumerate(genes_by_row):
             for i, (name, gene_region, exons) in enumerate(row):

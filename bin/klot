@@ -1171,6 +1171,20 @@ class Klot(object):
                     and 'alternate' (default, alternating between above and below gene).'''
         )
 
+        parser.add_argument(
+            '-L', '--no-labels', dest='show_labels',
+            action='store_false',
+            help='''Do not plot labels on genes.'''
+        )
+        parser.set_defaults(show_labels=True)
+
+        parser.add_argument(
+            '-C', '--collapse', dest='collapse',
+            action='store_true',
+            help='''Collapse all genes onto one row.'''
+        )
+        parser.set_defaults(collapse=False)
+
         args = parser.parse_args(parameters)
 
         import kaic.plotting as kplt
@@ -1182,7 +1196,8 @@ class Klot(object):
                           color_reverse=args.color_reverse,
                           vdist=args.vdist, box_height=args.box_height, font_size=args.font_size,
                           arrow_size=args.arrow_size, line_width=args.line_width,
-                          group_by=args.group_by, text_position=args.text_position)
+                          group_by=args.group_by, text_position=args.text_position,
+                          show_labels=args.show_labels, collapse=args.collapse)
 
         return p, args
 
