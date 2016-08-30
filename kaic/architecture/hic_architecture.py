@@ -1145,10 +1145,35 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             ex.close()
 
     @calculateondemand
-    def insulation_index(self, window_size):
+    def insulation_index(self, window_size, nan_window=None, nan_threshold=0.33):
         if window_size is None:
             window_size = self.window_sizes[0]
-        return self[:, 'ii_%d' % window_size]
+
+        if isinstance(window_size, int):
+            window_size = 'ii_%d' % window_size
+
+        ii = self[:, window_size]
+        # filter vector on neighboring nan regions
+        if nan_window is not None:
+            ii_nan = np.array(ii).copy()
+            for i, value in enumerate(ii):
+                # if already nan, no need to calculate
+                if np.isnan(value):
+                    continue
+
+                left = max(0, i - nan_window)
+                right = min(len(ii), i + nan_window + 1)
+                ii_left = ii[left:i]
+                ii_right = ii[i+1:right]
+
+                nans_left = np.sum(np.isnan(ii_left)) + (nan_window - len(ii_left))
+                nans_right = np.sum(np.isnan(ii_right)) + (nan_window - len(ii_right))
+
+                if nans_left/nan_window > nan_threshold or nans_right/nan_window > nan_threshold:
+                    ii_nan[i] = np.nan
+            ii = ii_nan
+
+        return ii
 
     def boundaries(self, window_size, min_score=None, delta_window=7, log=False):
         index = self.insulation_index(window_size)
