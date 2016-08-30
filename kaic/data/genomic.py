@@ -151,8 +151,25 @@ class Bed(pybedtools.BedTool):
             def __iter__(self):
                 for region in self.bed:
                     score = float(region.score) if region.score != "." else None
-                    gr = GenomicRegion(chromosome=region.chrom, start=region.start, end=region.end,
-                                       strand=region.strand, score=score, fields=region.fields)
+
+                    if self.bed.file_type == 'gff':
+                        try:
+                            attributes = {key: value for key, value in region.attrs.iteritems()}
+                        except ValueError:
+                            attributes = {}
+
+                        attributes['chromosome'] = region.chrom
+                        attributes['start'] = region.start
+                        attributes['end'] = region.end
+                        attributes['strand'] = region.strand
+                        attributes['score'] = score
+                        attributes['fields'] = region.fields
+
+                        gr = GenomicRegion(**attributes)
+                    else:
+                        gr = GenomicRegion(chromosome=region.chrom, start=region.start, end=region.end,
+                                           strand=region.strand, score=score, fields=region.fields)
+
                     yield gr
 
             def __call__(self):
