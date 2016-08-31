@@ -65,10 +65,9 @@ import numpy as np
 import pybedtools
 from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
     is_fasta_file, is_hdf5_file
-from kaic.tools.files import is_bed_file, is_bedpe_file
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import Table, TableRow, TableArray, TableObject,\
-    MetaContainer, Maskable, MaskedTable, FileBased, MaskFilter, FileGroup
+    MetaContainer, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
 import os.path
 import logging
@@ -727,6 +726,16 @@ class GenomicRegion(TableObject):
             return False
         return True
 
+    def is_reverse(self):
+        if self.strand == -1 or self.strand == '-':
+            return True
+        return False
+
+    def is_forward(self):
+        if self.strand == 1 or self.strand == '+' or self.strand == 0 or self.strand is None:
+            return True
+        return False
+
     def __eq__(self, other):
         return self._equals(other)
 
@@ -801,7 +810,8 @@ class GenomicRegions(object):
         This method offers some flexibility in the types of objects
         that can be loaded. See below for details.
 
-        :param region: Can be a :class:`~GenomicRegion`, a dict with
+        :param region: Can be a :class:`~GenomicRegion`, a str in the form
+                       '<chromosome>:<start>-<end>[:<strand>], a dict with
                        at least the fields 'chromosome', 'start', and
                        'end', optionally 'ix', or a list of length 3
                        (chromosome, start, end) or 4 (ix, chromosome,

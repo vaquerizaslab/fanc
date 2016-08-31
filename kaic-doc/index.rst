@@ -11,8 +11,8 @@ Kai-C documentation
    :maxdepth: 3
 
    Getting started with Kai-C <getting_started>
-   Command line access <command_line>
-   API <api>
+   Command line access <command_line/command_line>
+   API <api/api>
 
 Indices and tables
 ==================

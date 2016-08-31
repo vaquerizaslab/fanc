@@ -1,3 +1,28 @@
+"""
+This module provides a number of classes for the calculation of Hi-C (and other matrices) architectural
+features, such as AB domains, methods for boundary/TAD identification, and lots more.
+
+The classes are built in a way, that only the first method call requesting the architectural feature
+will trigger the calculation of all necessary values. Every subsequent call will retrieve the pre-calculated
+values from memory/file, unless explicitly providing the 'force=True' parameter, which will always
+trigger a recalculation. This behavior leads to a very natural syntax, without the need for explicit calls
+to a "calculate" method, but with the possibility of buffering data.
+
+Example:
+
+.. code:: python
+
+   hic = kaic.sample_hic()
+   ex = ExpectedContacts(hic)  # will not trigger calculation of results yet
+   intra_expected_foo = ex.intra_expected()  # triggers calculation
+   intra_expected_bar = ex.intra_expected()  # simply retrieves data from memory
+
+
+A recalculation is also avoided when restoring data from file.
+
+"""
+
+
 from __future__ import division
 from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand, ArchitecturalFeature
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
@@ -18,6 +43,9 @@ logging.basicConfig(level=logging.INFO)
 
 
 class HicArchitecture(object):
+    """
+    Convenience class to access Hi-C architectural features.
+    """
     def __init__(self, hic):
         self.hic = hic
 
@@ -37,10 +65,24 @@ class HicArchitecture(object):
 
 
 class HicEdgeCollection(MatrixArchitecturalRegionFeature):
+    """
+    Collection of edges from multiple matrices, accessible via the same regions.
+    """
     _classid = 'HICEDGECOLLECTION'
 
     def __init__(self, hics=None, additional_fields=None, file_name=None, mode='a', tmpdir=None,
                  only_intra_chromosomal=False):
+        """
+        Initialize :class:`~HicEdgeCollection`.
+
+        :param hics: Iterable of :class:`~kaic,data.genomic.Hic` objects
+        :param additional_fields: Any additional meta fields to include in the Hi-C collection
+                                  (edge field). Must be PyTables Column description(s)
+        :param file_name: Path to save file
+        :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+        :param tmpdir: Temporary directory
+        :param only_intra_chromosomal: If True, ignore inter-chromosomal edges.
+        """
         if not isinstance(hics, str) and hics is not None:
 
             if additional_fields is not None:
@@ -130,10 +172,34 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
 
 
 class ExpectedContacts(TableArchitecturalFeature):
+    """
+    Calculate the expected number of contacts, intra- and inter-chromosomal.
+
+    Intra-chromosomal contacts take into account the distance between two regions,
+    inter-chromosomal expected contacts are a genome-wide average.
+
+    :param hic: A :class:`~kaic.data.genomic.RegionMatrixTable` object
+                    such as :class:`~kaic.data.genomic.Hic`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param smooth: If True, applies curve smoothing (sliding window average)
+                   to expected intra-chromosomal contacts.
+    :param min_reads: Minimum number of reads in sliding window to apply smooting
+                      function
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+
+    """
     _classid = 'EXPECTEDCONTACTS'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
                  regions=None, weight_column=None, _table_name='distance_decay'):
+        """
+        Initialize an :class:`~ExpectedContacts` object.
+        """
         if isinstance(hic, str) and file_name is None:
             file_name = hic
             hic = None
@@ -314,26 +380,60 @@ class ExpectedContacts(TableArchitecturalFeature):
 
     @calculateondemand
     def intra_expected(self):
+        """
+        Get the list of expected intra-chromosomal contacts.
+        :return: list of floats
+        """
         return self[:, 'intra']
 
     @calculateondemand
     def inter_expected(self):
+        """
+        Get the inter-chromosomal expected (normalized) contact count
+        :return: float
+        """
         return self._table.attrs['inter']
 
     @calculateondemand
     def distance(self):
+        """
+        Get a list of distances between regions matching the :func:`~ExpectedContacts.intra_expected`.
+        :return: list of ints
+        """
         return self[:, 'distance']
 
     @calculateondemand
     def intra_contacts(self):
+        """
+        Get a list of observed intra-chromosomal number of contacts grouped by region distance.
+        :return: list of floats
+        """
         return self[:, 'contacts']
 
     @calculateondemand
     def intra_pixels(self):
+        """
+        Get the number of pixels/pairs of bins that correspond to intra-chromosomal contacts at a certain distance.
+        :return: list of ints
+        """
         return self[:, 'pixels']
 
 
 class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
+    """
+    Calculate the ratio of observed over expected contacts in a :class:`~kaic.data.genomic.RegionMatrixTable`.
+
+    :param hic: A :class:`~kaic.data.genomic.RegionMatrixTable` object
+                such as :class:`~kaic.data.genomic.Hic`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    :return: :class:`~kaic.architecture.genome_architecture.MatrixArchitecturalRegionFeature`
+    """
     _classid = 'OBSERVEDEXPECTEDRATIO'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
@@ -383,6 +483,26 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
 
 
 class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
+    """
+    Calculate the fold-change matrix of two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
+
+    fc_ij = matrix1_ij/matrix2_ij
+
+    :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param scale_matrices: If True, will scale the matrices naively by artificially increasing the number of
+                           reads in one matrix uniformly, so that it has the same number of total contacts
+                           as the other matrix.
+    :param log2: If True, will log2-transform the output values.
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    """
     _classid = 'FOLDCHANGEMATRIX'
 
     def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
@@ -454,6 +574,26 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
 
 
 class ABDomainMatrix(MatrixArchitecturalRegionFeature):
+    """
+    Calculate the AB domain/compartent matrix by first calculating the observed/expected matrix
+    and then returning a matrix in which every entry m_ij is the correlation between row i and row j
+    of the observed/expected matrix.
+    You can also directly calculate the Hi-C correlation matrix by setting 'ratio' to False.
+
+    :param hic: A :class:`~kaic.data.genomic.Hic` matrix
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param ratio: If False, will omit the step of calculating the observed/expected matrix and return
+                  a Hi-C correlation matrix directly.
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    :param per_chromosome: If True, will only calculate the intra-chromosomal ABDomainMatrix,
+                           which will save computation time and memory.
+    """
     _classid = 'ABDOMAINMATRIX'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
@@ -522,6 +662,20 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
 
 
 class ABDomains(VectorArchitecturalRegionFeature):
+    """
+    Calculate AB domain membership per region in a Hi-C matrix. This analysis is based on the
+    sign of the first eigenvector of the :class:`~ABDomainMatrix` - a region will be assigned
+    domain 'A' if its corresponding value in the eigenvector is >= 0, and 'B' otherwise.
+
+    :param data: A :class:`~kaic.data.genomic.Hic` object or :class:`~ABDomainMatrix`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param per_chromosome: If True, will only calculate the intra-chromosomal ABDomainMatrix,
+                           which will save computation time and memory.
+    """
     _classid = 'ABDOMAINS'
 
     def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
@@ -580,10 +734,19 @@ class ABDomains(VectorArchitecturalRegionFeature):
 
     @calculateondemand
     def ab_domain_eigenvector(self):
+        """
+        Get the eigenvector of the :class:`~ABDomainMatrix`
+        :return: list of floats
+        """
         return self[:, 'ev']
 
     @calculateondemand
     def ab_regions(self):
+        """
+        Get a list of regions, each with a 'type' attribute that is either 'A' or 'B',
+        depending on the sign of the matrix eigenvector.
+        :return: list of regions
+        """
         domains = []
         current_domain = None
         last_region = None
@@ -608,6 +771,21 @@ class ABDomains(VectorArchitecturalRegionFeature):
 
 
 class PossibleContacts(TableArchitecturalFeature):
+    """
+    Calculate the possible number of intra- and inter-chromosomal contacts in a
+    :class:`~kaic.data.genomic.RegionMatrixTable`. This is a combinatorial approach
+    that also takes into account unmappable/masked regions in the genome.
+
+    :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    """
     _classid = 'POSSIBLECONTACTS'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
@@ -662,14 +840,25 @@ class PossibleContacts(TableArchitecturalFeature):
 
     @calculateondemand
     def intra_possible(self):
+        """
+        Get the number of theoretically possible intra-chromosomal region pars for this matrix.
+        :return: int
+        """
         return self[0, 'intra']
 
     @calculateondemand
     def inter_possible(self):
+        """
+        Get the number of theoretically possible inter-chromosomal region pars for this matrix.
+        :return: int
+        """
         return self[0, 'inter']
 
 
 class RowRegionMatrix(np.ndarray):
+    """
+    Covenience class to add row information to a matrix.
+    """
     def __new__(cls, input_matrix, regions=None, fields=None, y_values=None):
         obj = np.asarray(input_matrix).view(cls)
         obj.regions = regions
@@ -697,6 +886,11 @@ class RowRegionMatrix(np.ndarray):
             self._chromosome_index[region.chromosome].append(region.end)
 
     def region_bins(self, region):
+        """
+        Get a slice of indices for regions in this matrix spanned by 'region'.
+        :param region: A :class:`~kaic.data.genomic.GenomicRegion` object or region selector string
+        :return: slice
+        """
         if self._region_index is None or self._chromosome_index is None:
             self._build_region_index()
         if isinstance(region, str):
@@ -781,6 +975,20 @@ class RowRegionMatrix(np.ndarray):
 
 
 class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
+    """
+    Base class for numeric vector-based objects. Vectors must all be of the same type for this
+    class to function properly. Provides a convenience method to convert
+    multiple vectors into a matrix.
+
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    :param data_fields: dict or class with PyTables data types
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param data: dict with data to load while initializing the matrix (only here for convenience)
+
+    """
     _classid = 'MULTIVECTORARCHITECTURALREGIONFEATURE'
 
     def __init__(self, file_name=None, mode='a', data_fields=None,
@@ -801,6 +1009,14 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
         return keys
 
     def as_matrix(self, regions=None, keys=None):
+        """
+        Get parts or all of this object's vectors concatenated into a matrix.
+
+        :param regions: If None, will default to all regions in the matrix. Else provide an iterator
+                        over :class:`~kaic.data.genomic.GenomicRegion`s
+        :param keys: Keys of vectors to include in matrix. Will by default include all vectors.
+        :return: :class:`~RowRegionMatrix`
+        """
         if regions is None:
             region_iter = self.regions(lazy=False)
         else:
@@ -832,10 +1048,19 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
 
     @property
     def y_values(self):
+        """
+        Get the y values corresponding to vector keys.
+        :return: list of floats or ints
+        """
         return self._y_values
 
     @y_values.setter
     def y_values(self, values):
+        """
+        Set the y values of vectors in this matrix.
+
+        :param values: list or numpy array of floats or ints.
+        """
         if len(values) != len(self.data_field_names):
             raise ValueError("Length of y-values "
                              "({}) must be the same as length of data fields ({})".format(len(values),
@@ -844,6 +1069,25 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
 
 
 class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
+    """
+    Calculate the directionality index for a given set of window sizes on a Hi-C matrix.
+
+    The directionality index (Dixon 2012 et al.) is a measure for up-/downstream biases of contact counts any
+    given region displays.
+
+    :param hic: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+    a :class:`~kaic.data.genomic.Hic`object
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param window_sizes: A list of intergers with the window sizes (in base pairs) to use for
+                         directionality index calculations.
+    """
     _classid = 'DIRECTIONALITYINDEX'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None,
@@ -964,12 +1208,55 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
 
     @calculateondemand
     def directionality_index(self, window_size=None):
+        """
+        Get the directionality index for the given window size.
+
+        :param window_size: Window size in base pairs. If None, will select the first window size
+                            used in the initialization of this object
+        :return: list of floats
+        """
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'di_%d' % window_size]
 
 
 class InsulationIndex(MultiVectorArchitecturalRegionFeature):
+    """
+    Calculate the insulation index for a list of window sizes.
+
+    The insulation index (Crane et al. 2015) is a measure of the number of interactions that cross a region
+    in the genome. If the value is very low, a region effectively acts as a "contact boundary", while
+    highl values may, for example, reflect that a region is part of a highly self-interacting region.
+
+    This class offers a number of different calculation and normalisation options. While the default
+    should work well in many cases, it is highly recommended that you read through the options listed below
+    to get the most out of your analysis.
+
+    :param hic: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+    a :class:`~kaic.data.genomic.Hic`object
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param relative: if True, will normalise the insuation index for any given region by
+                     dividing it by the insulation of neighboring regions (TODO: fix description by @chug)
+    :param offset: Offset of the insulation square from the diagonal. Can be useful to avoid biases
+                   stemming from very bright diagonals
+    :param normalise: If True, will normalise the insulation values by the chromosome average. You can change
+                      this behavior to division by a smaller sliding window average by specifiying a number of
+                      bins using the _normalisation_window argument
+    :param impute_missing: If True, will do a very simplistic missing value imputation by replacing missing
+                           values with the expected intra-chromosomal value given average contact values at
+                           this region separation. This may be useful if too many regins in the genome are
+                           missing or you observe artefacts.
+    :param window_sizes: List of window sizes in base pairs to calculate the insulation index
+    :param log: If True, log2-transform insulation values. Particularly useful in combination with the
+                'normalise' option.
+    :param subtract_mean: Instead of dividing by the mean when 'normalise' is True, subtract the mean.
+                          This is useful when calculating the insulation index on already-log-transformed values,
+                          such as in a :class:`~FoldChangeMatrix`
+    """
     _classid = 'INSULATIONINDEX'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None,
@@ -1146,6 +1433,22 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
     @calculateondemand
     def insulation_index(self, window_size, nan_window=None, nan_threshold=0.33):
+        """
+        Get the insulation vector for the given window size.
+
+        It is possible to filter insulation values on the fly that are in areas
+        of high NaN-density (generally highly repetitive regions) using the
+        'nan_' parameters. If nan_window is not None, and more than a fraction
+        of nan_treshold values in nan_window upstream OR downstream of a region
+        is NaN, the region's insulation value will also be set to NaN.
+
+        :param window_size: Window size in base pairs
+        :param nan_window: Window size in bins to filter insulation values based
+                           on the NaN density in surrounding regions (see above)
+        :param nan_threshold: Fraction of allowed NaNs in nan_window up- or downstream
+                              of a region
+        :return: list of insulation values for each genomic region
+        """
         if window_size is None:
             window_size = self.window_sizes[0]
 
@@ -1171,11 +1474,23 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
                 if nans_left/nan_window > nan_threshold or nans_right/nan_window > nan_threshold:
                     ii_nan[i] = np.nan
-            ii = ii_nan
+            ii = list(ii_nan)
 
         return ii
 
     def boundaries(self, window_size, min_score=None, delta_window=7, log=False):
+        """
+        Call insulation boundaries based on minima in an insulation vector of this object.
+
+        :param window_size: Window size in base pairs to select insulation vector
+        :param min_score: Minimum difference between minimum and the closest maximum
+                          in the insulation vector for a region to be considered a
+                          boundary
+        :param delta_window: Window size in bins to control smoothing of the delta function
+                             used in the derivative if the insulation index.
+        :param log: Log2-transform insulation index before boundary calls
+        :return: list of :class:`~kaic.data.genomic.GenomicRegion`
+        """
         index = self.insulation_index(window_size)
         if log:
             index = np.log2(index)
@@ -1196,6 +1511,29 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
 
 class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
+    """
+    Calculates the average number of contacts for a given region within a certain window.
+
+    The size and shape of the window can be controlled with the below parameters. In principle,
+    the window is very similar to the insulation index window, but has added padding (directionality
+    index window has a width of 1, region contact average can be as wide as required) and can be offset
+    from the diagonal.
+
+    :param matrix: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+                   a :class:`~kaic.data.genomic.Hic`object
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    :param window_sizes: List of window sizes in base pairs to calculate the insulation index
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param offset: Offset of window from the diagonal of the matrix
+    :param padding: Padding of window (width = 1 + 2*padding)
+    :param impute_missing: If True, will do a very simplistic missing value imputation by replacing missing
+                           values with the expected intra-chromosomal value given average contact values at
+                           this region separation. This may be useful if too many regins in the genome are
+                           missing or you observe artefacts.
+    """
     _classid = 'REGIONCONTACTAVERAGE'
 
     def __init__(self, matrix=None, file_name=None, mode='a', tmpdir=None,
@@ -1282,17 +1620,34 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
 
     @calculateondemand
     def average_contacts(self, window_size):
+        """
+        Get the list of region contact averages for the given window size.
+
+        :param window_size: Window size in base pairs.
+        :return: list of floats
+        """
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'av_%d' % window_size]
 
 
 class VectorDifference(MultiVectorArchitecturalRegionFeature):
+    """
+    Calculate the difference between two :class:`~MultiVectorArchitecturalRegionFeature` objects.
+
+    Will substract any two vectors in both objects that share the same name.
+
+    :param vector1: :class:`~MultiVectorArchitecturalRegionFeature`
+    :param vector2: :class:`~MultiVectorArchitecturalRegionFeature`
+    :param absolute: Transform differences into absolute values
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    """
     _classid = 'VECTORDIFF'
 
     def __init__(self, vector1=None, vector2=None, absolute=False, file_name=None, mode='a', tmpdir=None,
                  _table_name='vector_diff'):
-
         if isinstance(vector1, str) and file_name is None and vector2 is None:
             file_name = vector1
             vector1 = None
@@ -1343,12 +1698,30 @@ class VectorDifference(MultiVectorArchitecturalRegionFeature):
 
     @calculateondemand
     def difference(self, window_size=None):
+        """
+        Get the vector difference for the given window size
+        :param window_size: Window size in base pairs
+        :return: list of floats
+        """
         if window_size is None:
             window_size = self.window_sizes[0]
         return self[:, 'diff_{}'.format(window_size)]
 
 
 class MetaMatrixBase(ArchitecturalFeature, FileGroup):
+    """
+    Meta class for the extraction of submatrices from a matrix using a list of regions.
+
+    :param array: :class:`~MultiVectorArchitecturalRegionFeature`
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param window_width: Width of the extracted sub-matrix in bins
+    :param data_selection: Names or indexes of the vectors to extract submatrix from.
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    :param orient_strand: flip submatrix vertically, if region is on reverse strand
+    """
     _classid = 'METAMATRIXBASE'
 
     def __init__(self, array=None, regions=None, window_width=50, data_selection=None,
@@ -1379,6 +1752,9 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
     @property
     def data_selection(self):
+        """
+        Get the name of the selected data vector.
+        """
         return self._data_selection
 
     @data_selection.setter
@@ -1445,7 +1821,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
                     for region_ix in xrange(bin_range.start, bin_range.stop):
                         sub_matrix = matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
-                        if self.orient_strand and hasattr(region, 'strand') and region.strand == '-':
+                        if self.orient_strand and hasattr(region, 'strand') and region.is_reverse():
                             sub_matrix = np.fliplr(sub_matrix)
                         yield i, region, sub_matrix
 
@@ -1455,6 +1831,21 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
 
 class MetaArray(MetaMatrixBase):
+    """
+    Calculate an average array matrix from a list of regions. This can be used, for example, to
+    create a pile-up flame plot of insulation values at regions of interest, such as all boundaries in the
+    genome.
+
+    :param array: :class:`~MultiVectorArchitecturalRegionFeature`
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param window_width: Width of the extracted sub-matrix in bins
+    :param data_selection: Names or indexes of the vectors to extract submatrix from.
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    :param orient_strand: flip submatrix vertically, if region is on reverse strand
+    """
     _classid = 'METAARRAY'
 
     def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
@@ -1481,9 +1872,17 @@ class MetaArray(MetaMatrixBase):
 
     @calculateondemand
     def matrix(self):
+        """
+        Get the meta matrix
+        :return: numpy array
+        """
         return self.meta_matrix[:]
 
     def x(self):
+        """
+        A list of (relative) x values for the meta matrix
+        :return: list of ints
+        """
         x = []
         for i in xrange(-1*self.window_width, self.window_width + 1):
             d = self.array.bins_to_distance(i)
@@ -1491,6 +1890,10 @@ class MetaArray(MetaMatrixBase):
         return x
 
     def y(self):
+        """
+        Get a list of y-values (such as window sizes) for this meta matrix.
+        :return:
+        """
         y = []
         for i in self.data_selection:
             y.append(self.array.y_values[i])
@@ -1498,12 +1901,24 @@ class MetaArray(MetaMatrixBase):
 
 
 class MetaHeatmap(MetaMatrixBase):
+    """
+    Extract sub-rows from array by a list of regions and concatenate into a heatmap array.
+
+    :param array: :class:`~MultiVectorArchitecturalRegionFeature`
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param window_width: Width of the extracted sub-matrix in bins
+    :param data_selection: Names or indexes of the vectors to extract submatrix from.
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    :param orient_strand: flip submatrix vertically, if region is on reverse strand
+    """
     _classid = 'METAHEATMAP'
 
     def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
                  file_name=None, mode='a', tmpdir=None, orient_strand=False,
                  _group_name='meta_heatmap'):
-
         if data_selection is None and array is not None:
             data_selection = array.data_field_names[0]
 
@@ -1548,9 +1963,17 @@ class MetaHeatmap(MetaMatrixBase):
 
     @calculateondemand
     def heatmap(self):
+        """
+        Get array heatmap.
+        :return: numpy array
+        """
         return self.meta_matrix[:]
 
     def x(self):
+        """
+        Get a list of (relative) x values for this meta matrix.
+        :return: list of ints
+        """
         x = []
         for i in xrange(-1*self.window_width, self.window_width + 1):
             d = self.array.bins_to_distance(i)
@@ -1559,6 +1982,19 @@ class MetaHeatmap(MetaMatrixBase):
 
 
 class MetaRegionAverage(MetaMatrixBase):
+    """
+    Calculate an average profile of array values for a list of regions.
+
+    :param array: :class:`~MultiVectorArchitecturalRegionFeature`
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param window_width: Width of the extracted sub-matrix in bins
+    :param data_selection: Names or indexes of the vectors to extract submatrix from.
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Path to temporary directory
+    :param orient_strand: flip submatrix vertically, if region is on reverse strand
+    """
     _classid = 'METAREGIONAVG'
 
     def __init__(self, array=None, regions=None, window_width=50000, data_selection=None,
@@ -1598,6 +2034,10 @@ class MetaRegionAverage(MetaMatrixBase):
 
     @calculateondemand
     def averages(self):
+        """
+        Get average profiles.
+        :return: numpy array
+        """
         return self.meta_matrix[:]
 
 

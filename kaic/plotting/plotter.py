@@ -807,10 +807,10 @@ class GenomicFeatureScorePlot(BasePlotter1D):
             except ValueError:
                 annotation = ''
 
-            if f.strand == '+':
+            if f.strand == '+' or f.strand == 1:
                 colors.append(self.color_forward)
                 annotation += ' (+)' if annotation != '' else '+'
-            elif f.strand == '-':
+            elif f.strand == '-' or f.strand == -1:
                 colors.append(self.color_reverse)
                 annotation += ' (-)' if annotation != '' else '-'
             else:

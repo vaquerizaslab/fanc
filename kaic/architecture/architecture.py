@@ -317,7 +317,9 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
 
 
 class BasicTable(TableArchitecturalFeature):
-
+    """
+    Convenience class to store row-based information.
+    """
     _classid = 'BASICTABLE'
 
     def __init__(self, fields, types=None, file_name=None, mode='a',

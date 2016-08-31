@@ -156,8 +156,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                           be loaded. Or the name or a non-existing file that
                           will be used to save the Reads object. If not
                           provided, all operations are performed in memory.
-        :param read_only: If True, opens HDF5 file in read-only mode. Default:
-                          False.
+        :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
         :param _group_name: (internal) Name for the HDF5 group that will house
                             the Reads object's tables.
         :param mapper: Mapper that was used to align the reads. If None, will

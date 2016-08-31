@@ -41,6 +41,9 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
 
     @calculateondemand
     def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False):
+        """
+        See :class:`~RegionMatrixTable`
+        """
         return RegionMatrixTable.as_matrix(self, key=key, values_from=values_from,
                                            mask_missing=mask_missing, impute_missing=impute_missing)
 
@@ -59,14 +62,23 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
 
     @calculateondemand
     def as_data_frame(self, key, weight_column=None):
+        """
+        See :class:`~RegionMatrixTable`
+        """
         return RegionMatrixTable.as_data_frame(self, key, weight_column=weight_column)
 
     @calculateondemand
     def get_node(self, key):
+        """
+        See :class:`~RegionMatrixTable`
+        """
         return RegionMatrixTable.get_node(self, key)
 
     @calculateondemand
     def get_edge(self, ix, lazy=False):
+        """
+        See :class:`~RegionMatrixTable`
+        """
         return RegionMatrixTable.get_edge(self, ix, lazy=lazy)
 
     @calculateondemand
@@ -75,6 +87,9 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
 
     @calculateondemand
     def edges_sorted(self, sortby, *args, **kwargs):
+        """
+        See :class:`~RegionMatrixTable`
+        """
         return RegionMatrixTable.edges_sorted(self, sortby, *args, **kwargs)
 
     @calculateondemand
@@ -197,6 +212,16 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     def __init__(self, file_name=None, mode='a', data_fields=None,
                  regions=None, data=None, _table_name_data='region_data',
                  tmpdir=None):
+        """
+
+        :param file_name: Path to file to save/retrieve feature information
+        :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+        :param data_fields: Dictionary of class with PyTables column definitions.
+        :param regions: Any iterable with objects accepted by
+                        :func:`~kaic.data.genomic.GenomicRegions.add_region`.
+        :param data: Dict of iterables with vector data to import
+        :param tmpdir: Path to temporary directory.
+        """
         RegionsTable.__init__(self, file_name=file_name, mode=mode,
                               additional_fields=data_fields, tmpdir=tmpdir,
                               _table_name_regions=_table_name_data)
@@ -385,11 +410,38 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
 
 
 class BasicRegionTable(VectorArchitecturalRegionFeature):
+    """
+    Convenience class to store region-based meta information.
+    Sample usage:
+
+    .. code: python
+       # 10 regions
+       regions = [GenomicRegion(chromosome='chr1', start=1+i, end=i+1000) for i in xrange(0, 10000, 1000)]
+
+       # string data
+       s = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+       # int data
+       i = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+       t = BasicRegionTable(regions, fields=('mystr', 'myint'), types=(str, int), data={'mystr': s, 'myint': i})
+    """
     _classid = 'VECTORARCHITECTURALREGIONFEATURE'
 
     def __init__(self, regions, fields=None, types=None, data=None,
                  file_name=None, mode='a', tmpdir=None,
                  _string_size=100, _group_name='region_table'):
+        """
+        Initialize a BasicRegionTable object.
+        :param regions: Iterable with :class:`~GenomicRegion` objects.
+        :param fields: Either dictionary of class with PyTables column definitions or
+                       list of field names. If the latter, must provide a list with
+                       types of equal length.
+        :param types: List of Python or PyTables data types for table columns.
+        :param data: Dict of iterables with vector data to import
+        :param file_name: Path to file to save/retrieve feature information
+        :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+        :param tmpdir: Path to temporary directory.
+        """
         if isinstance(regions, str):
             if file_name is None:
                 file_name = regions
@@ -446,6 +498,9 @@ def _is_simple_type(data_type):
 
 
 class GenomicTrack(BasicRegionTable):
+    """
+    Update of legacy GenomicTrack class backed by PyTables table.
+    """
     _classid = 'GENOMICTRACK'
 
     def __init__(self, file_name=None, title=None, data_dict=None, regions=None, _table_name_tracks='tracks',
@@ -547,14 +602,21 @@ class GenomicTrack(BasicRegionTable):
         return cls(file_name=file_name, data_dict=values, regions=regions)
 
     def to_bedgraph(self, prefix, tracks=None, skip_nan=True):
+        """
+        Exoprt data as BEDgraph file.
+
+        :param prefix: Prefix of file - entire path in the form /path/to/prefix
+        :param tracks: Name of track/field to save
+        :param skip_nan: If True, NaN values will not be written to file
+        """
         if tracks is None:
             tracks = self._tracks
         elif not isinstance(tracks, list) and not isinstance(tracks, tuple):
             tracks = [tracks]
-        for t in tracks:
-            logging.info("Writing track {}".format(t))
-            with open("{}{}.bedgraph".format(prefix, t), "w") as f:
-                for r, v in it.izip(self.regions, self[t]):
+        for track in tracks:
+            logging.info("Writing track {}".format(track))
+            with open("{}{}.bedgraph".format(prefix, track), "w") as f:
+                for r, v in it.izip(self.regions, self[track]):
                     if skip_nan and np.isnan(v):
                         continue
                     f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start - 1, r.end, v))
@@ -577,6 +639,10 @@ class GenomicTrack(BasicRegionTable):
 
     @property
     def tracks(self):
+        """
+        Get a dictionary with all tracks/vectors in the data set.
+        :return: dict
+        """
         return {t: self[:, t] for t in self._tracks}
 
     def data(self, key, value=None):
