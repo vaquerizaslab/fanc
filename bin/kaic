@@ -93,7 +93,8 @@ class Kaic(object):
         # exclude the rest of the args too, or validation will fail
         args = parser.parse_args(sys.argv[1:option_ix+1])
         if args.print_version:
-            print _version
+            import kaic
+            print kaic.__version__
             exit()
 
         if args.command is None or not hasattr(self, args.command):
