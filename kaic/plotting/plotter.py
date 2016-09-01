@@ -1087,6 +1087,8 @@ class GenePlot(BasePlotter1D):
             else:
                 bar_marker = 0
 
+            gene_color = _set_gene_color(exons, self.color_score)
+
             bar_start, bar_end = exons[0].start, exons[-1].end
             bar_step_size = int(0.02 * plot_range)
             marker_correction = -1
