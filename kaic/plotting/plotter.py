@@ -1152,10 +1152,6 @@ class GenePlot(BasePlotter1D):
                     gene_color = self.color_neutral
             return gene_color
 
-
-        # def _plot_scored_gene(name, gene_region, exons, offset, text_position='top'):
-        #    pass
-
         for offset, row in enumerate(genes_by_row):
             for i, (name, gene_region, exons) in enumerate(row):
                 if self.text_position == 'alternate':
