@@ -868,12 +868,6 @@ class Klot(object):
         )
 
         parser.add_argument(
-            '-d', '--maximum-distance', dest='max_dist',
-            type=int,
-            help='''Maximum distance between two points after which triangle will be truncated.'''
-        )
-
-        parser.add_argument(
             '-l', '--log', dest='log',
             action='store_true',
             help='''Log-transform heatmap values'''
