@@ -8,6 +8,7 @@ Provides
     2. Classes for working with tabular data
 
 """
+from .version import __version__
 
 from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion
 from kaic.data.general import Table, FileBased
@@ -21,6 +22,7 @@ from kaic.data.network import RaoPeakInfo
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
 import logging
+
 logging.basicConfig(level=logging.INFO)
 
 

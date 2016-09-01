@@ -1,8 +1,11 @@
 from setuptools import setup, find_packages
 
+__version__ = None
+exec(open('kaic/version.py').read())
+
 setup(
     name='kaic',
-    version='0.4.1',
+    version=__version__,
     description='Hi-C data analysis tools.',
     packages=find_packages(exclude=["test"]),
     install_requires=[

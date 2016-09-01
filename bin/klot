@@ -87,14 +87,25 @@ class Klot(object):
             help='''Vertical distance between plots in fraction of figure.'''
         )
 
+        global_parser.add_argument(
+            '-v', '--version', dest='print_version',
+            action='store_true',
+            help='''Print version information'''
+        )
+        global_parser.set_defaults(print_version=False)
+
         self.global_parser = global_parser
 
         subplot_parser = self._type_parser()
         self.subplot_parser = subplot_parser
 
         # sort and parse arguments
-        logging.info("Pre-parsing command line arguments")
         global_args, subplot_data = self._parse_argument_vector(sys.argv[1:])
+
+        if global_args.print_version:
+            import kaic
+            print kaic.__version__
+            exit()
 
         if global_args.script is not None:
             logging.info("Parsing script file")
