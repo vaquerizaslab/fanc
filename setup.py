@@ -22,10 +22,7 @@ setup(
         'sklearn',
         'progressbar2',
         'pybedtools',
-        'tables>3.2.2'
-    ],
-    dependency_links=[
-        "https://github.com/PyTables/PyTables/zipball/develop#egg=tables-3.3.0"
+        'tables>=3.2.3'
     ],
     extras_require={
         'plotting':  ["seaborn"]
