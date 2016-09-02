@@ -11,8 +11,7 @@ import subprocess
 import re
 from gridmap import Job, process_jobs
 import logging
-
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def _do_map(tmp_input_file, bowtie_index, 
@@ -24,7 +23,7 @@ def _do_map(tmp_input_file, bowtie_index,
     tmp_output_file = tempfile.NamedTemporaryFile(delete=False)
     tmp_output_file.close()
     
-    #logging.info("SAM file: %s" % tmp_output_file.name)
+    #logger.info("SAM file: %s" % tmp_output_file.name)
     
     bowtieMapCommand = '%s --no-unal %s -x %s -q -U %s -S %s' % (bowtie_executable_path,bowtie_parameters,bowtie_index,tmp_input_file,tmp_output_file.name);
     subprocess.call(bowtieMapCommand, shell=True)
@@ -32,19 +31,19 @@ def _do_map(tmp_input_file, bowtie_index,
     mappable = []
     with open(tmp_output_file.name, 'r') as f:
         for line in f:
-            #logging.info(line)
+            #logger.info(line)
             if line.startswith("@"):
                 continue
             
             fields = line.split("\t")
             
             if fields[1] == '4':
-                #logging.info("unmapped")
+                #logger.info("unmapped")
                 continue
             
             try:
                 if int(fields[4]) < quality_threshold:
-                    #logging.info("quality")
+                    #logger.info("quality")
                     continue
             except ValueError:
                 continue
@@ -52,11 +51,11 @@ def _do_map(tmp_input_file, bowtie_index,
             xs = False
             for i in range(11,len(fields)):
                 if fields[i].startswith('XS'):
-                    #logging.info("XS")
+                    #logger.info("XS")
                     xs = True
                     break
             if xs:
-                #logging.info("XS")
+                #logger.info("XS")
                 continue
             
             m = re.search('chr_(\w+)_pos_(\d+)_reg_(\d+)', fields[0])
@@ -67,7 +66,7 @@ def _do_map(tmp_input_file, bowtie_index,
                 if ix == fields[3] and chrm == fields[2]:
                     mappable.append([int(reg),int(ix)])
                 else:
-                    logging.info("Mismatch: %s-%s, %s-%s" %(chrm, fields[2], ix, fields[3]))
+                    logger.info("Mismatch: %s-%s, %s-%s" %(chrm, fields[2], ix, fields[3]))
             else:
                 raise ValueError("Cannot identify read position")
                 
@@ -84,7 +83,7 @@ def unique_mappability_at_regions(genome, regions, bowtie_index,
                                   chunk_size=500000, max_jobs=50, 
                                   quality_threshold=30, 
                                   bowtie_parameters='--very-sensitive'):
-    logging.info("Maximum number of jobs: %d" % max_jobs)
+    logger.info("Maximum number of jobs: %d" % max_jobs)
     
     if type(genome) is str:
         genome =  Genome.from_folder(genome)
@@ -129,10 +128,10 @@ def unique_mappability_at_regions(genome, regions, bowtie_index,
         
         for chromosome in tmp_mappable:
             for reg in tmp_mappable[chromosome]:
-                logging.info("Length %s: %d" % (chromosome, len(tmp_mappable[chromosome])))
+                logger.info("Length %s: %d" % (chromosome, len(tmp_mappable[chromosome])))
                 tmp_mappable[chromosome][reg].sort()
                 if len(tmp_mappable[chromosome][reg]) > 0:
-                    logging.info("min: %d, max: %d" % (tmp_mappable[chromosome][reg][0], tmp_mappable[chromosome][reg][-1]))
+                    logger.info("min: %d, max: %d" % (tmp_mappable[chromosome][reg][0], tmp_mappable[chromosome][reg][-1]))
                 mappable[chromosome][reg] = mappable[chromosome][reg]+tmp_mappable[chromosome][reg]
         
         jobs = []
@@ -140,7 +139,7 @@ def unique_mappability_at_regions(genome, regions, bowtie_index,
     
     #for chromosome in [genome["chrV"]]:
     for chromosome in genome:
-        logging.info("Processing regions for chromosome %s" % chromosome.name)
+        logger.info("Processing regions for chromosome %s" % chromosome.name)
         mappable[chromosome.name] = []
         
         reads = []
@@ -206,7 +205,7 @@ def unique_mappability(genome, bowtie_index,
                        quality_threshold=30, 
                        #bowtie_parameters='--very-sensitive --score-min "C,0,-1"'):
                        bowtie_parameters='--very-sensitive'):
-    logging.info("Maximum number of jobs: %d" % max_jobs)
+    logger.info("Maximum number of jobs: %d" % max_jobs)
     
     if type(genome) is str:
         genome =  Genome.from_folder(genome)

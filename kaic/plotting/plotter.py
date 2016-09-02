@@ -8,17 +8,16 @@ import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import types
 import numpy as np
-import logging
 import seaborn as sns
 import pybedtools as pbt
 import itertools as it
 import re
 import warnings
 from collections import defaultdict
+import logging
+logger = logging.getLogger(__name__)
 
 plt = sns.plt
-log = logging.getLogger(__name__)
-log.setLevel(10)
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,

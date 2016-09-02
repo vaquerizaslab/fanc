@@ -1,9 +1,3 @@
-'''
-Created on Jul 15, 2015
-
-@author: kkruse1
-'''
-
 import os.path
 import numpy as np
 import pytest

@@ -22,8 +22,7 @@ from kaic.data.network import RaoPeakInfo
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
 import logging
-
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def load(file_name, mode='a', tmpdir=None):
@@ -36,7 +35,7 @@ def load(file_name, mode='a', tmpdir=None):
             classid = f.meta._classid
             f.close()
             cls_ = class_id_dict[classid]
-            logging.info("Detected {}".format(cls_))
+            logger.debug("Detected {}".format(cls_))
             return cls_(file_name=file_name, mode=mode, tmpdir=tmpdir)
         except AttributeError:
             # try to detect from file structure

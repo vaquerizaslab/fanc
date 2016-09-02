@@ -9,14 +9,12 @@ files. Other features include indexing and querying.
 from __future__ import division
 import tables as t
 from tables.nodes import filenode
-import kaic.fixes.pytables_nrowsinbuf_inheritance_fix
 from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
 import numpy as np
 import warnings
 from kaic.tools.general import RareUpdateProgressBar, create_col_index
 import os
 import time
-import logging
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
@@ -26,7 +24,9 @@ import binascii
 from collections import defaultdict
 from .registry import class_id_dict, class_name_dict
 import six
-logging.basicConfig(level=logging.INFO)
+import logging
+logger = logging.getLogger(__name__)
+
 _filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
 
 
@@ -299,9 +299,9 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
             self.tmp_file_name = None
             self._init_file(file_name, mode)
         else:
-            logging.info("Working in temporary directory...")
+            logger.info("Working in temporary directory...")
             self.tmp_file_name = os.path.join(tmpdir, self._generate_tmp_file_name())
-            logging.info("Temporary output file: {}".format(self.tmp_file_name))
+            logger.info("Temporary output file: {}".format(self.tmp_file_name))
             if mode in ['w', 'x', 'w-']:
                 pass
             elif mode in ['r+', 'r']:
@@ -362,7 +362,7 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
             try:
                 meta_group = self.file.create_group('/', self._meta_group_name)
             except t.FileModeError:
-                logging.debug("File not open for writing, not creating meta group.")
+                logger.debug("File not open for writing, not creating meta group.")
                 self.meta = MetaAccess()
                 return
 
@@ -372,7 +372,7 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
             try:
                 meta_node = filenode.new_node(self.file, where=meta_group, name='meta_node')
             except t.FileModeError:
-                logging.debug("File not open for writing, not creating meta node.")
+                logger.debug("File not open for writing, not creating meta node.")
                 self.meta = MetaAccess()
                 return
 
@@ -393,7 +393,7 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
         if self.closed:
             if self.tmp_file_name:
                 if self._mode not in ['r']:
-                    logging.info("Moving temporary output file to destination {}".format(self.file_name))
+                    logger.info("Moving temporary output file to destination {}".format(self.file_name))
                     shutil.copyfile(self.tmp_file_name, self.file_name)
         else:
             raise IOError('The file has to be closed before copying the tmp file. Use close()')
@@ -935,7 +935,7 @@ class Table(object):
 
         # add any potential data
         if data is not None:
-            logging.info("Adding data")
+            logger.info("Adding data")
             self.append(data)
         elif nrows > 0:
             dt = self._table[0:0].dtype
@@ -2012,7 +2012,7 @@ class MaskedTable(t.Table):
         masked, -1 otherwise.
         """
         
-        logging.info("Updating mask indices")
+        logger.info("Updating mask indices")
 
         l = self._original_len()
         with RareUpdateProgressBar(max_value=l) as pb:
@@ -2093,7 +2093,7 @@ class MaskedTable(t.Table):
 
         if _logging:
             pb.finish()
-            logging.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
+            logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
                     
         self.flush(update_index=False)
 
@@ -2149,7 +2149,7 @@ class MaskedTable(t.Table):
 
         if _logging:
             pb.finish()
-            logging.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
+            logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
 
         self.flush(update_index=False)
 

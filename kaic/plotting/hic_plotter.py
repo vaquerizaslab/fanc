@@ -7,8 +7,10 @@ from abc import ABCMeta
 import numpy as np
 import itertools as it
 import types
-import logging
 import seaborn as sns
+import logging
+logger = logging.getLogger(__name__)
+
 plt = sns.plt
 
 
@@ -86,7 +88,7 @@ class BufferedMatrix(object):
         """
         regions = tuple(reversed([r for r in regions]))
         if not self.is_buffered_region(*regions):
-            logging.info("Buffering matrix")
+            logger.info("Buffering matrix")
             self._BUFFERING_STRATEGIES[self.buffering_strategy](self, *regions)
         return self.buffered_matrix[tuple(regions)]
 
@@ -374,7 +376,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.hm = None
 
     def _plot(self, region=None, *args, **kwargs):
-        logging.debug("Generating matrix from hic object")
+        logger.debug("Generating matrix from hic object")
         if region is None:
             raise ValueError("Cannot plot triangle plot for whole genome.")
         # Have to copy unfortunately, otherwise modifying matrix in buffer

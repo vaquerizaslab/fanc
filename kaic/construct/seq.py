@@ -59,7 +59,6 @@ from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.files import is_sambam_file
 from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, MaskedTableView, FileBased
 import os
-import logging
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
@@ -68,10 +67,11 @@ from kaic.tools.lru import lru_cache
 from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
 import msgpack as pickle
 import numpy as np
-from scipy.stats import binom_test
 import hashlib
 from functools import partial
 from collections import defaultdict
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Reads(Maskable, MetaContainer, FileBased):
@@ -205,14 +205,14 @@ class Reads(Maskable, MetaContainer, FileBased):
         try:
             self._header = self._reads._v_attrs.header
         except AttributeError:
-            logging.warn("No header attributes found in existing table")
+            logger.warn("No header attributes found in existing table")
             self._header = None
 
         # Reference names
         try:
             self._ref = self._reads._v_attrs.ref
         except AttributeError:
-            logging.warn("No ref attributes found in existing table")
+            logger.warn("No ref attributes found in existing table")
             self._ref = None
 
         # Qname table
@@ -281,14 +281,14 @@ class Reads(Maskable, MetaContainer, FileBased):
     def mapper(self, mapper=None):
         if mapper:
             self._mapper = mapper
-            logging.info('Mapper was explicitly set to {}'.format(self._mapper))
+            logger.info('Mapper was explicitly set to {}'.format(self._mapper))
         else:
             try:
                 self._mapper = self.header['PG'][0]['ID']
-                logging.info('Mapper was detected to be {}'.format(self._mapper))
+                logger.info('Mapper was detected to be {}'.format(self._mapper))
             except (KeyError, AttributeError, TypeError):
                 self._mapper = None
-                logging.warn('Could not auto-detect mapping program from SAM header')
+                logger.warn('Could not auto-detect mapping program from SAM header')
 
     def load(self, sambam, ignore_duplicates=True, is_sorted=False,
              store_qname=True, store_cigar=True,
@@ -321,13 +321,13 @@ class Reads(Maskable, MetaContainer, FileBased):
         sambam = pysam.AlignmentFile(file_name, 'rb')
 
         # count number of reads
-        logging.info("Counting number of reads...")
+        logger.info("Counting number of reads...")
         n_reads = sum(1 for _ in sambam)
         sambam.close()
         sambam = pysam.AlignmentFile(file_name, 'rb')
-        logging.info("Done.")
+        logger.info("Done.")
 
-        logging.info("Estimating field sizes")
+        logger.info("Estimating field sizes")
         qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, sample_size,
                                                                                           store_qname=True,
                                                                                           store_cigar=True,
@@ -395,13 +395,13 @@ class Reads(Maskable, MetaContainer, FileBased):
 
     def _update_csi(self):
         if not self._reads.cols.qname_ix.is_indexed:
-            logging.info("Sorting on qname_ix...")
+            logger.info("Sorting on qname_ix...")
             self._reads.cols.qname_ix.create_csindex()
-            logging.info("Done.")
+            logger.info("Done.")
         elif not self._reads.cols.qname_ix.index.is_csi:
-            logging.info("qname_ix sorting is stale, reindexing...")
+            logger.info("qname_ix sorting is stale, reindexing...")
             self._reads.cols.qname_ix.reindex()
-            logging.info("Done.")
+            logger.info("Done.")
 
     def _is_sorted(self):
         if (self._reads.cols.qname_ix.index is None or
@@ -452,7 +452,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 break
 
             if i % 100000 == 0:
-                logging.info(i)
+                logger.info(i)
         sambam.close()
 
         return qname_length+10, seq_length+10, cigar_length+10, tags_length+10
@@ -637,7 +637,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         if sort_by_qname_ix:
             if not self._is_sorted():
                 try:
-                    logging.info("Sorting qnames...")
+                    logger.info("Sorting qnames...")
                     self._update_csi()
                 except t.exceptions.FileModeError:
                     raise RuntimeError("This object is not sorted by qname_ix! "
@@ -1443,8 +1443,8 @@ class Bowtie2PairLoader(PairLoader):
                 if i % 1000000 == 0:
                     self._pairs.flush(update_index=False)
 
-        logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
-        logging.info("Pairs: %d. Single: %d" % (pair_count, single_count))
+        logger.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
+        logger.info("Pairs: %d. Single: %d" % (pair_count, single_count))
 
 
 class BwaMemPairLoader(PairLoader):
@@ -1583,7 +1583,7 @@ class BwaMemPairLoader(PairLoader):
                 if i % 1000000 == 0:
                     self._pairs.flush(update_index=False)
 
-        logging.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
+        logger.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
 
 class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
@@ -1970,12 +1970,12 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
                         inter_chrm_count += 1
                     pb.update(i)
 
-            logging.info("Pairs: %d" % l)
-            logging.info("Inter-chromosomal: {}".format(inter_chrm_count))
-            logging.info("Same fragment: {}".format(same_fragment_count))
-            logging.info("Same: {}".format(same_count))
-            logging.info("Inward: {}".format(inward_count))
-            logging.info("Outward: {}".format(outward_count))
+            logger.info("Pairs: %d" % l)
+            logger.info("Inter-chromosomal: {}".format(inter_chrm_count))
+            logger.info("Same fragment: {}".format(same_fragment_count))
+            logger.info("Same: {}".format(same_count))
+            logger.info("Inward: {}".format(inward_count))
+            logger.info("Outward: {}".format(outward_count))
             return gaps, types
 
         def _sort_data(gaps, types):
@@ -1986,7 +1986,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         def _guess_sampling(sampling):
             if sampling is None:
                 sampling = max(100, int(l * 0.0025))
-            logging.info("Number of data points averaged per point in plot: {}".format(sampling))
+            logger.info("Number of data points averaged per point in plot: {}".format(sampling))
             return sampling
 
         def _calculate_ratios(gaps, types, sampling):
@@ -2113,7 +2113,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             mask = self.add_mask_description('inward',
                                              'Mask read pairs that are inward facing and < {}bp apart'
                                              .format(minimum_distance))
-            logging.info("Filtering out inward facing read pairs < {} bp apart".format(minimum_distance))
+            logger.info("Filtering out inward facing read pairs < {} bp apart".format(minimum_distance))
             inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
             self.filter(inward_filter, queue)
         else:
@@ -2138,7 +2138,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
             mask = self.add_mask_description('outward',
                                              'Mask read pairs that are outward facing and < {}bp apart'
                                              .format(minimum_distance))
-            logging.info("Filtering out outward facing read pairs < {} bp apart".format(minimum_distance))
+            logger.info("Filtering out outward facing read pairs < {} bp apart".format(minimum_distance))
             outward_filter = OutwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
             self.filter(outward_filter, queue)
         else:
@@ -2555,7 +2555,7 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
             self.pairs._pairs.cols.left_read_position.remove_index()
         n_dups = len(self.duplicates_set)
         percent_dups = 1.*n_dups/self.pairs._pairs._original_len()
-        logging.info("PCR duplicate stats: " +
+        logger.info("PCR duplicate stats: " +
             "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
             " (multiplicity:occurances) " +
             " ".join("{}:{}".format(k, v) for k, v in duplicate_stats.iteritems()))

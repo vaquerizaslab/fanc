@@ -2,7 +2,7 @@ import numpy as np
 from scipy.signal import savgol_filter
 from kaic.tools.matrix import delta_window
 import logging
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class BaseMaximaCaller(object):
@@ -48,7 +48,7 @@ class MaximaCallerMatrix(BaseMaximaCaller):
                               self.x[self._peaks] > max_threshold)
         self.count = np.sum(self.below[:, start:end], axis=1)
         pass_mask = self.count > (1 - lenience)*(end - start)
-        logging.info("Discarding {}({:.1%}) of total peaks due to thresholds ({}, {})".format(np.sum(~pass_mask),
+        logger.info("Discarding {}({:.1%}) of total peaks due to thresholds ({}, {})".format(np.sum(~pass_mask),
                                                                                               np.sum(~pass_mask) /
                                                                                               len(self._peaks),
                                                                                               min_threshold,
@@ -66,7 +66,7 @@ class MaximaCallerDelta(BaseMaximaCaller):
     def _call_peaks(self):
         self.delta = delta_window(self.x, self.window_size)
         self._peaks = np.nonzero(np.diff(np.signbit(self.delta)))[0]
-        logging.info("Found {} raw peaks".format(len(self._peaks)))
+        logger.info("Found {} raw peaks".format(len(self._peaks)))
         self.delta_d1 = savgol_filter(self.delta, window_length=self.window_size, polyorder=2, deriv=1)
         self._delta_peaks = np.nonzero(np.diff(np.signbit(self.delta_d1)))[0]
         self.delta_d2 = savgol_filter(self.delta, window_length=self.window_size, polyorder=2, deriv=2)
@@ -99,6 +99,6 @@ class MaximaCallerDelta(BaseMaximaCaller):
         if delta_score_thresh:
             delta_score_pass = self._scores > delta_score_thresh
             self._peak_mask = np.logical_and(self._peak_mask, delta_score_pass)
-            logging.info("Discarding {}({:.1%}) of total peaks due to delta score threshold ({})".format(
+            logger.info("Discarding {}({:.1%}) of total peaks due to delta score threshold ({})".format(
                 np.sum(~delta_score_pass), np.sum(~delta_score_pass)/len(self._peaks), delta_score_thresh)
             )

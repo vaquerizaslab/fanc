@@ -1,17 +1,15 @@
 from __future__ import division, print_function
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
-from matplotlib.widgets import Slider
 from abc import abstractmethod, ABCMeta
 import numpy as np
 import matplotlib as mpl
-import logging
 import seaborn as sns
 import math
+import logging
+logger = logging.getLogger(__name__)
 
 plt = sns.plt
-log = logging.getLogger(__name__)
-log.setLevel(10)
 
 
 def append_axes(parent, side, thickness, padding, length=None, shrink=1., **kwargs):

@@ -2,7 +2,6 @@ import kaic
 from kaic.data.registry import class_name_dict
 import pytest
 import os
-import pybedtools
 
 
 class TestAuto:

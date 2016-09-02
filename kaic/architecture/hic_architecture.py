@@ -36,10 +36,10 @@ from kaic.data.general import FileGroup
 import numpy as np
 import tables as t
 import itertools
-import logging
 from bisect import bisect_left
 from kaic.tools.general import RareUpdateProgressBar
-logging.basicConfig(level=logging.INFO)
+import logging
+logger = logging.getLogger(__name__)
 
 
 class HicArchitecture(object):
@@ -142,11 +142,11 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
                 if self.only_intra_chromosomal and chromosome1 != chromosome2:
                     continue
 
-                logging.info("Processing chromosomes %s-%s" % (chromosome1, chromosome2))
+                logger.info("Processing chromosomes %s-%s" % (chromosome1, chromosome2))
 
                 edges = dict()
                 for i, hic in enumerate(self.hics):
-                    logging.info("Processing Hic %d/%d" % (i, len(self.hics)))
+                    logger.info("Processing Hic %d/%d" % (i, len(self.hics)))
 
                     for edge in hic.edge_subset(key=(chromosome1, chromosome2), lazy=True):
                         key = (edge.source, edge.sink)
@@ -633,7 +633,7 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
             for chromosome in chromosomes:
                     m = oer[chromosome, chromosome]
                     corr_m = np.corrcoef(m)
-                    logging.info("Chromosome {}".format(chromosome))
+                    logger.info("Chromosome {}".format(chromosome))
                     with RareUpdateProgressBar(max_value=m.shape[0]) as pb:
                         for i, row_region in enumerate(m.row_regions):
                             for j, col_region in enumerate(m.col_regions):
@@ -1202,7 +1202,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
 
     def _calculate(self):
         for window_size in self.window_sizes:
-            logging.info("Calculating directionality index for window size {}".format(window_size))
+            logger.info("Calculating directionality index for window size {}".format(window_size))
             directionality_index = self._directionality_index(window_size)
             self.data("di_%d" % window_size, directionality_index)
 
@@ -1320,13 +1320,13 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         nan_chromosome_counter = 0
         nan_mask_counter = 0
         nan_invalid_counter = 0
-        logging.debug("Starting processing")
+        logger.debug("Starting processing")
         skipped = 0
         last_chromosome = None
         ins_by_chromosome = []
         for i, r in enumerate(regions):
             if r.chromosome != last_chromosome:
-                logging.info("Processing chromosome {}".format(r.chromosome))
+                logger.info("Processing chromosome {}".format(r.chromosome))
                 last_chromosome = r.chromosome
                 ins_by_chromosome.append(list())
                 unmasked = self.hic.as_matrix(key=(r.chromosome, r.chromosome),
@@ -1340,7 +1340,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                 if self.impute_missing:
                     hic_matrix = self.hic._impute_missing_contacts(hic_matrix=hic_matrix,
                                                                    _expected_contacts=_expected)
-                logging.info("Matrix loaded.")
+                logger.info("Matrix loaded.")
 
             rix = len(ins_by_chromosome[-1])
 
@@ -1385,32 +1385,32 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                                                  hic_matrix[down_rel_slice].data))))
                     ins_by_chromosome[-1].append(s)
 
-        logging.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
+        logger.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
 
         for i in xrange(len(ins_by_chromosome)):
             ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
             if self.normalise:
-                logging.info("Normalising insulation index")
+                logger.info("Normalising insulation index")
                 if self.normalisation_window is not None:
-                    logging.info("Sliding window average")
+                    logger.info("Sliding window average")
                     mean_ins = apply_sliding_func(ins_by_chromosome[i], self.normalisation_window, func=np.nanmean)
                 else:
-                    logging.info("Whole chromosome mean")
+                    logger.info("Whole chromosome mean")
                     mean_ins = np.nanmean(ins_by_chromosome[i])
                 if not self.subtract_mean:
-                    logging.info("Dividing by mean")
+                    logger.info("Dividing by mean")
                     ins_by_chromosome[i] = ins_by_chromosome[i] / mean_ins
                 else:
-                    logging.info("Subtracting mean")
+                    logger.info("Subtracting mean")
                     ins_by_chromosome[i] = ins_by_chromosome[i] - mean_ins
 
         ins_matrix = np.array(list(itertools.chain.from_iterable(ins_by_chromosome)))
 
-        logging.info("__nans__\nchromosome boundary: {}\nmasked region: {}\ninvalid balance: {}\n total: {}/{}".format(
+        logger.info("__nans__\nchromosome boundary: {}\nmasked region: {}\ninvalid balance: {}\n total: {}/{}".format(
             nan_chromosome_counter, nan_mask_counter, nan_invalid_counter, np.sum(np.isnan(ins_matrix)), len(ins_matrix)
         ))
         if self.log:
-            logging.info("Log-transforming insulation index")
+            logger.info("Log-transforming insulation index")
             return np.log2(ins_matrix)
         else:
             return ins_matrix
@@ -1423,7 +1423,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             ex = None
         offset_bins = self.hic.distance_to_bins(self.offset)
         for window_size in self.window_sizes:
-            logging.info("Calculating insulation index for window size {}".format(window_size))
+            logger.info("Calculating insulation index for window size {}".format(window_size))
             bins = self.hic.distance_to_bins(window_size)
             insulation_index = self._insulation_index(offset_bins, offset_bins+bins,
                                                       _mappable=mappable, _expected=ex)
@@ -1506,7 +1506,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             b = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end, score=scores[i])
             boundaries.append(b)
 
-        logging.info("Found {} boundaries for window size {}".format(len(boundaries), window_size))
+        logger.info("Found {} boundaries for window size {}".format(len(boundaries), window_size))
         return boundaries
 
 
@@ -1688,7 +1688,7 @@ class VectorDifference(MultiVectorArchitecturalRegionFeature):
 
     def _calculate(self, *args, **kwargs):
         for i, field in enumerate(self.external_fields):
-            logging.info("Calculating difference for {}".format(field))
+            logger.info("Calculating difference for {}".format(field))
             v1 = np.array(self.vector1[:, field])
             v2 = np.array(self.vector2[:, field])
             d = v1-v2
@@ -1813,7 +1813,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
                     try:
                         bin_range = matrix.region_bins(GenomicRegion(start=pos, end=pos, chromosome=chromosome))
                     except IndexError:
-                        logging.error("Cannot find bin range for {}:{}".format(chromosome, pos))
+                        logger.error("Cannot find bin range for {}:{}".format(chromosome, pos))
                         sub_matrix = np.zeros((2*self.window_width+1, ds))
                         sub_matrix[sub_matrix == 0] = np.nan
                         yield i, region, sub_matrix

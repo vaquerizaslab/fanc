@@ -8,6 +8,7 @@ import itertools as it
 from collections import defaultdict
 from abc import abstractmethod, ABCMeta
 import logging
+logger = logging.getLogger(__name__)
 
 
 class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
@@ -614,7 +615,7 @@ class GenomicTrack(BasicRegionTable):
         elif not isinstance(tracks, list) and not isinstance(tracks, tuple):
             tracks = [tracks]
         for track in tracks:
-            logging.info("Writing track {}".format(track))
+            logger.info("Writing track {}".format(track))
             with open("{}{}.bedgraph".format(prefix, track), "w") as f:
                 for r, v in it.izip(self.regions, self[track]):
                     if skip_nan and np.isnan(v):

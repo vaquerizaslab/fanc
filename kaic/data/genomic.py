@@ -70,7 +70,6 @@ from kaic.data.general import Table, TableRow, TableArray, TableObject,\
     MetaContainer, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
 import os.path
-import logging
 from kaic.tools.general import ranges, distribute_integer, create_col_index
 from itertools import izip as zip
 from xml.etree import ElementTree as et
@@ -80,7 +79,8 @@ import copy
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
 from bisect import bisect_right, bisect_left
-logging.basicConfig(level=logging.INFO)
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _edge_overlap_split_rao(original_edge, overlap_map):
@@ -282,7 +282,7 @@ class Chromosome(object):
                                    (e.g. HindIII)
         :return: List of RE sites in base-pairs (1-based)
         """
-        logging.info("Calculating RE sites")
+        logger.info("Calculating RE sites")
         try:
             re = eval('Restriction.%s' % restriction_enzyme)
         except SyntaxError:
@@ -352,7 +352,7 @@ class Genome(Table):
         for f in os.listdir(folder_name):
             try:
                 chromosome = Chromosome.from_fasta(folder_name + "/" + f, include_sequence=include_sequence)
-                logging.info("Adding chromosome %s" % chromosome.name)
+                logger.info("Adding chromosome %s" % chromosome.name)
                 if exclude is None:
                     chromosomes.append(chromosome)
                 elif chromosome.name not in exclude:
@@ -1121,7 +1121,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         try:
             FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
         except TypeError:
-            logging.warn("RegionsTable is now a FileGroup-based object and "
+            logger.warn("RegionsTable is now a FileGroup-based object and "
                          "this object will no longer be compatible in the future")
 
         # check if this is an existing regions file
@@ -2139,7 +2139,7 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
 
         if not self._is_sorted(sortby):
             try:
-                logging.info("Sorting %s..." % sortby)
+                logger.info("Sorting %s..." % sortby)
                 if not column.is_indexed:
                     column.create_csindex()
                 elif not column.index.is_csi:
@@ -2653,7 +2653,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
 
             if not self._is_sorted(sortby):
                 try:
-                    logging.info("Sorting %s..." % sortby)
+                    logger.info("Sorting %s..." % sortby)
                     if not column.is_indexed:
                         column.create_csindex()
                     elif not column.index.is_csi:
@@ -3171,7 +3171,7 @@ class RegionMatrixTable(RegionPairs):
         # prepare marginals dict
         marginals = np.zeros(len(self.regions()), float)
 
-        logging.debug("Calculating marginals...")
+        logger.debug("Calculating marginals...")
         with RareUpdateProgressBar(max_value=len(self.edges)) as pb:
             for i, edge in enumerate(self.edges(lazy=True)):
                 marginals[edge.source] += getattr(edge, weight_column)
@@ -3188,7 +3188,7 @@ class RegionMatrixTable(RegionPairs):
         # prepare marginals dict
         mappable = np.zeros(len(self.regions()), dtype=bool)
 
-        logging.debug("Calculating mappability...")
+        logger.debug("Calculating mappability...")
 
         with RareUpdateProgressBar(max_value=len(self.edges)) as pb:
             for i, edge in enumerate(self.edges(lazy=True)):
@@ -3214,7 +3214,7 @@ class RegionMatrixTable(RegionPairs):
         if weight_column is None:
             weight_column = self.default_field
 
-        logging.info("Calculating scaling factor...")
+        logger.info("Calculating scaling factor...")
         m1_sum = 0.0
         for edge in self.edges(lazy=True):
             m1_sum += getattr(edge, weight_column)
@@ -3222,7 +3222,7 @@ class RegionMatrixTable(RegionPairs):
         for edge in matrix.edges(lazy=True):
             m2_sum += getattr(edge, weight_column)
         scaling_factor = m1_sum / m2_sum
-        logging.debug("Scaling factor: %f" % scaling_factor)
+        logger.debug("Scaling factor: %f" % scaling_factor)
         return scaling_factor
 
     def get_combined_matrix(self, matrix, key=None, scaling_factor=None, weight_column=None):
@@ -3506,14 +3506,14 @@ class Hic(RegionMatrixTable):
                 edge_buffer[key] += 1
 
                 if len(edge_buffer) > _max_buffer_size:
-                    logging.info("Flushing buffer")
+                    logger.info("Flushing buffer")
                     self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                     edge_buffer = {}
                 try:
                     pb.update(i)
                 except ValueError:
                     pass
-        logging.info("Final flush")
+        logger.info("Final flush")
         self._flush_edge_buffer(edge_buffer, replace=False)
 
     def load_from_hic(self, hic, _edge_buffer_size=5000000,
@@ -3532,7 +3532,7 @@ class Hic(RegionMatrixTable):
         """
         # if we do not have any nodes in this Hi-C object...
         if len(self.regions()) == 0:
-            logging.info("Copying Hi-C")
+            logger.info("Copying Hi-C")
             # ...simply import everything
             with RareUpdateProgressBar(max_value=len(hic.regions)) as pb:
                 for i, region in enumerate(hic.regions()):
@@ -3548,7 +3548,7 @@ class Hic(RegionMatrixTable):
             self.bias_vector(hic.bias_vector())
         # if already have nodes in this HiC object...
         else:
-            logging.info("Binning Hi-C contacts")
+            logger.info("Binning Hi-C contacts")
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
 
@@ -3606,7 +3606,7 @@ class Hic(RegionMatrixTable):
         if isinstance(hics, Hic):
             hics = [hics]
 
-        logging.info("Checking if regions are identical")
+        logger.info("Checking if regions are identical")
         identical = True
         for i in xrange(1, len(hics)):
             if len(hics[i].regions) != len(hics[0].regions):
@@ -3636,7 +3636,7 @@ class Hic(RegionMatrixTable):
         for i in xrange(len(chromosomes)):
             r2 = xrange(i, i + 1) if only_intrachromosomal else xrange(i, len(chromosomes))
             for j in r2:
-                logging.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
                 edges = dict()
                 for hic in hics:
                     for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j])):
@@ -3716,7 +3716,7 @@ class Hic(RegionMatrixTable):
         ix_conversion = {}
 
         # check if regions are identical (saves a lot of time)
-        logging.info("Checking if regions are identical")
+        logger.info("Checking if regions are identical")
         identical = True
         region_counter = 0
         for self_region, hic_region in zip(self.regions(), hic.regions()):
@@ -3769,10 +3769,10 @@ class Hic(RegionMatrixTable):
                 pb.update(i)
 
                 if len(edge_buffer) > _edge_buffer_size:
-                    logging.info("Flushing buffer...")
+                    logger.info("Flushing buffer...")
                     self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
                     edge_buffer = {}
-        logging.info("Final flush...")
+        logger.info("Final flush...")
         self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
 
     def merge(self, hic_or_hics, _edge_buffer_size=5000000):
@@ -3801,7 +3801,7 @@ class Hic(RegionMatrixTable):
         else:
             try:
                 for hic in hic_or_hics:
-                    logging.info("Merging {}".format(hic.file_name))
+                    logger.info("Merging {}".format(hic.file_name))
                     try:
                         self._merge(hic, _edge_buffer_size=_edge_buffer_size)
                     except Exception as e:
@@ -3809,9 +3809,9 @@ class Hic(RegionMatrixTable):
                     else:
                         hic.__exit__(None, None, None)
             except TypeError:
-                logging.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
+                logger.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
 
-        logging.info("Removing zero edges")
+        logger.info("Removing zero edges")
         self._remove_zero_edges(update_index=True)
 
     def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
@@ -4213,20 +4213,20 @@ class LowCoverageFilter(HicEdgeFilter):
         self._marginals = hic_object.marginals()
         if cutoff is None and rel_cutoff is None:
             rel_cutoff = 0.1
-            logging.info("Using default 10 percent relative coverage as cutoff")
+            logger.info("Using default 10 percent relative coverage as cutoff")
 
         if cutoff is not None and rel_cutoff is not None:
             cutoff = min(cutoff if cutoff else float("inf"),
                          self.calculate_cutoffs(rel_cutoff)[0] if rel_cutoff else float("inf"))
         elif rel_cutoff is not None:
             cutoff = self.calculate_cutoffs(rel_cutoff)[0]
-        logging.info("Final absolute cutoff threshold is {:.4}".format(float(cutoff)))
+        logger.info("Final absolute cutoff threshold is {:.4}".format(float(cutoff)))
 
         self._regions_to_mask = set()
         for i, contacts in enumerate(self._marginals):
             if contacts < cutoff:
                 self._regions_to_mask.add(i)
-        logging.info("Selected a total of {} ({:.1%}) regions to be masked".format(
+        logger.info("Selected a total of {} ({:.1%}) regions to be masked".format(
             len(self._regions_to_mask), len(self._regions_to_mask)/len(hic_object.regions)))
 
     def calculate_cutoffs(self, fraction_threshold=0.05):

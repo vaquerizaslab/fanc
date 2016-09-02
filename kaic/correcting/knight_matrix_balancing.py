@@ -1,8 +1,9 @@
-import logging
 import warnings
 import numpy as np
 from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
 from kaic.data.genomic import Hic, AccessOptimisedHic
+import logging
+logger = logging.getLogger(__name__)
 
 
 def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optimise=False):
@@ -28,10 +29,10 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
             m = hic[chromosome, chromosome]
             m_corrected, bias_vector_chromosome = correct_matrix(m)
             if hic_new is None:
-                logging.info("Replacing corrected edges in existing Hic object...")
+                logger.info("Replacing corrected edges in existing Hic object...")
                 hic[chromosome, chromosome] = m_corrected
             else:
-                logging.info("Adding corrected edges in new Hic object ...")
+                logger.info("Adding corrected edges in new Hic object ...")
                 chromosome_offset = chromosome_starts[chromosome]
                 for i in xrange(m_corrected.shape[0]):
                     i_region = i + chromosome_offset
@@ -41,34 +42,34 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
                         weight = m_corrected[i, j]
                         hic_new.add_edge([i_region, j_region, weight], flush=False)
             bias_vectors.append(bias_vector_chromosome)
-        logging.info("Done.")
-        logging.info("Adding bias vector...")
+        logger.info("Done.")
+        logger.info("Adding bias vector...")
         if hic_new is None:
             hic.bias_vector(np.concatenate(bias_vectors))
         else:
             hic_new.bias_vector(np.concatenate(bias_vectors))
-        logging.info("Done.")
+        logger.info("Done.")
     else:
-        logging.info("Fetching whole genome matrix")
+        logger.info("Fetching whole genome matrix")
         m = hic[:, :]
         m_corrected, bias_vector = correct_matrix(m)
         if hic_new is None:
-            logging.info("Replacing corrected edges in existing Hic object...")
+            logger.info("Replacing corrected edges in existing Hic object...")
             hic[:, :] = m_corrected
         else:
-            logging.info("Adding corrected edges in new Hic object ...")
+            logger.info("Adding corrected edges in new Hic object ...")
             for i in xrange(m_corrected.shape[0]):
                 nonzero_idx = np.nonzero(m_corrected[i])[0]
                 for j in nonzero_idx[nonzero_idx >= i]:
                     weight = m_corrected[i, j]
                     hic_new.add_edge([i, j, weight], flush=False)
-        logging.info("Done.")
-        logging.info("Adding bias vector...")
+        logger.info("Done.")
+        logger.info("Adding bias vector...")
         if hic_new is None:
             hic.bias_vector(bias_vector)
         else:
             hic_new.bias_vector(bias_vector)
-        logging.info("Done.")
+        logger.info("Done.")
 
     if hic_new is None:
         return hic
@@ -90,7 +91,7 @@ def correct_matrix(m, max_attempts=50):
         try:
             x = get_bias_vector(m_nonzero)
         except ValueError, e:
-            logging.info("Matrix balancing failed (this can happen!), \
+            logger.info("Matrix balancing failed (this can happen!), \
                           removing sparsest rows to try again. Error: \
                           %s" % str(e))
             m_nonzero, ixs = remove_sparse_rows(m_nonzero)
@@ -101,12 +102,12 @@ def correct_matrix(m, max_attempts=50):
         if iterations > max_attempts:
             raise RuntimeError("Exceeded maximum attempts (%d)" % max_attempts)
 
-    logging.info("Applying bias vector")
+    logger.info("Applying bias vector")
     m_nonzero *= x
     m_nonzero *= x[:, np.newaxis]
 
-    logging.debug(removed_rows)
-    logging.info("Restoring {} sets ({} total) sparse rows.".format(
+    logger.debug(removed_rows)
+    logger.info("Restoring {} sets ({} total) sparse rows.".format(
         len(removed_rows), sum(len(x) for x in removed_rows)))
     # restore zero rows
     m_nonzero = restore_sparse_rows(m_nonzero, removed_rows)
@@ -116,7 +117,7 @@ def correct_matrix(m, max_attempts=50):
 
 
 def get_bias_vector(A, x0=None, tol=1e-06, delta=0.1, Delta=3, fl=0, high_precision=False, outer_limit=300):
-    logging.info("Starting matrix balancing")
+    logger.info("Starting matrix balancing")
 
     with warnings.catch_warnings():
         warnings.filterwarnings('error')
@@ -248,10 +249,10 @@ def get_bias_vector(A, x0=None, tol=1e-06, delta=0.1, Delta=3, fl=0, high_precis
                     print "%d %d   %.3e %.3e %.3e \n" % (i, k, res_norm, min(y), min(x))
                     res = np.array([[res], [res_norm]])
 
-            logging.info("Matrix-vector products = %d\n" % MVP)
-            logging.info("Outer iterations: %d" % n_iterations_outer)
+            logger.info("Matrix-vector products = %d\n" % MVP)
+            logger.info("Outer iterations: %d" % n_iterations_outer)
         except Warning, e:
-            logging.error(str(e))
+            logger.error(str(e))
             raise ValueError("Generic catch all warnings")
 
     return x

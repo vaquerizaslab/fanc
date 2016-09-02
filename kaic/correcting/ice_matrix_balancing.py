@@ -1,12 +1,13 @@
 import numpy as np
 import logging
+logger = logging.getLogger(__name__)
 
 
 def correct(hic, tolerance=1e-2, max_iterations=500):
     bias_vector = np.ones(len(hic.regions()), float)
     marginal_error = tolerance + 1
     current_iteration = 0
-    logging.info("Starting iterations")
+    logger.info("Starting iterations")
     while (marginal_error > tolerance and
            current_iteration <= max_iterations):
         m = hic.marginals()
@@ -19,7 +20,7 @@ def correct(hic, tolerance=1e-2, max_iterations=500):
             edge.weight = weight/np.sqrt(m[source])/np.sqrt(m[sink])
         hic.flush()
         current_iteration += 1
-        logging.info("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
+        logger.info("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
     hic.bias_vector(bias_vector)
 
 

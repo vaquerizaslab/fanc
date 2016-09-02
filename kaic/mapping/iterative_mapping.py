@@ -3,7 +3,6 @@
 import os.path
 import tempfile
 import shutil
-import logging
 import subprocess
 import multiprocessing as mp
 import re
@@ -13,7 +12,8 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
 import glob
 import Queue
-logging.basicConfig(level=logging.DEBUG)
+import logging
+logger = logging.getLogger(__name__)
 
 
 def ligation_site_pattern(restriction_enzyme):
@@ -225,7 +225,7 @@ class Bowtie2Mapper(SequenceMapper):
             mapping_command += ['-S', output]
         mapping_command += self.options
 
-        logging.debug("Mapping command: %s" % " ".join(mapping_command))
+        logger.debug("Mapping command: %s" % " ".join(mapping_command))
 
         if not self.verbose:
             stderr = open(os.devnull, 'w')
@@ -254,7 +254,7 @@ class Bowtie2Mapper(SequenceMapper):
         if not self.verbose:
             stderr.close()
 
-        logging.debug("Aligned reads: %d" % len(alignments))
+        logger.debug("Aligned reads: %d" % len(alignments))
 
         return header, alignments
 
@@ -293,14 +293,14 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
     reader = _get_fastq_reader(file_name)
 
     if steps is None:
-        logging.debug("Finding maximum read length...")
+        logger.debug("Finding maximum read length...")
 
         max_len = 0
         with reader(file_name, 'r') as fastq:
             for title, seq, qual in FastqGeneralIterator(fastq):
                 max_len = max(len(seq), max_len)
 
-        logging.debug("Maximum read length: %d" % max_len)
+        logger.debug("Maximum read length: %d" % max_len)
 
         if min_read_length is None:
             min_read_length = max_len
@@ -341,7 +341,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
                             trimmed.write("@%s\n%s\n+\n%s\n" % (title, seq[:size], qual[:size]))
                             fastq_counter += 1
 
-        logging.debug("Sending %d reads to the next iteration (length %d)" % (fastq_counter, size))
+        logger.debug("Sending %d reads to the next iteration (length %d)" % (fastq_counter, size))
 
         header, alignments_trimmed = mapper.map(trimmed_file)
 
@@ -368,7 +368,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
                 else:
                     improvable_alignments[name] = fields_array
 
-        logging.debug("Resubmitting %d improvable alignments" % len(improvable_alignments))
+        logger.debug("Resubmitting %d improvable alignments" % len(improvable_alignments))
 
     # clean
     os.unlink(trimmed_file)
@@ -403,7 +403,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
     working_output_file = None
     working_input_file = None
     try:
-        logging.info("Working directory: %s" % work_dir)
+        logger.info("Working directory: %s" % work_dir)
 
         if index_path.endswith('.'):
             index_path = index_path[:-1]
@@ -428,7 +428,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
         mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=1)
 
-        logging.info("Splitting files...")
+        logger.info("Splitting files...")
         re_pattern = None
         if restriction_enzyme is not None:
             re_pattern = ligation_site_pattern(restriction_enzyme)
@@ -439,11 +439,11 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
             if n_lines/threads < batch_size*threads:
                 batch_size = int(n_lines/threads)+threads
-                logging.info("Adjusted batch size to: %d" % batch_size)
+                logger.info("Adjusted batch size to: %d" % batch_size)
 
         def _mapping_process_with_queue(input_queue, output_queue):
             while True:
-                logging.info("Waiting for input...")
+                logger.info("Waiting for input...")
                 p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
                 steps = list(xrange(min_size, max_length+1, step_size))
                 if len(steps) == 0 or steps[-1] != max_length:
@@ -459,7 +459,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                         current += 1
                 steps = [steps[ix] for ix in ixs]
 
-                logging.info("Mapping %s" % file_name)
+                logger.info("Mapping %s" % file_name)
                 partial_output_file = work_dir + '/mapped_reads_' + str(p_number) + '.sam'
                 process_work_dir = work_dir + "/mapping_%d/" % p_number
                 os.makedirs(process_work_dir)
@@ -467,7 +467,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                 iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
                                       partial_output_file, True)
 
-                logging.info("Done mapping %s" % file_name)
+                logger.info("Done mapping %s" % file_name)
 
                 os.unlink(file_name)
                 shutil.rmtree(process_work_dir)
@@ -508,12 +508,12 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                          max_length, step_size, work_dir))
 
                         # write output if any
-                        logging.info("Merging output files...")
+                        logger.info("Merging output files...")
                         while True:
-                            logging.info("Trying to collect results")
+                            logger.info("Trying to collect results")
                             try:
                                 partial_output_file = output_queue.get(False)
-                                logging.info("Processing %s..." % partial_output_file)
+                                logger.info("Processing %s..." % partial_output_file)
                                 with open(partial_output_file, 'r') as p:
                                     for line in p:
                                         if line.startswith("@") and output_count > 0:
@@ -522,7 +522,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                 output_count += 1
                                 os.unlink(partial_output_file)
                             except Queue.Empty:
-                                logging.info("No results found")
+                                logger.info("No results found")
                                 break
 
                         max_length = 0
@@ -541,32 +541,32 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             if copy:
                 os.unlink(working_input_file)
 
-            logging.info("Trimmed %d reads at ligation junction" % trimmed_count)
+            logger.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
             # merge files
             while output_count < batch_count+1:
                 partial_output_file = output_queue.get(True)
-                logging.info("Processing %s..." % partial_output_file)
+                logger.info("Processing %s..." % partial_output_file)
                 with open(partial_output_file, 'r') as p:
                     for line in p:
                         if line.startswith("@") and output_count > 0:
                             continue
                         o.write(line)
                 output_count += 1
-                logging.info("%d/%d" % (output_count, batch_count+1))
+                logger.info("%d/%d" % (output_count, batch_count+1))
                 os.unlink(partial_output_file)
 
         if os.path.splitext(output_file)[1] == '.bam':
-            logging.info("Converting to BAM...")
+            logger.info("Converting to BAM...")
             success = False
             o = open(work_dir + '/output.bam', 'w')
             try:
                 bam_command = ['samtools', 'view', '-bS', working_output_file]
-                logging.info("BAM conversion command: %s" % " ".join(bam_command))
+                logger.info("BAM conversion command: %s" % " ".join(bam_command))
                 exit_code = subprocess.call(bam_command, stdout=o)
                 success = True if exit_code == 0 else False
             except OSError:
-                logging.error("Cannot convert to BAM, samtools not in PATH!")
+                logger.error("Cannot convert to BAM, samtools not in PATH!")
             finally:
                 o.close()
 
@@ -575,9 +575,9 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                     shutil.move(o.name, output_file)
                 working_output_file = o.name
             else:
-                logging.info("BAM conversion failed.")
+                logger.info("BAM conversion failed.")
 
-        logging.info("All done.")
+        logger.info("All done.")
     finally:
         # clean up
 
@@ -586,7 +586,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             try:
                 shutil.move(working_output_file, output_file)
             except (OSError, IOError):
-                logging.error("Cannot move working output file to required location.")
+                logger.error("Cannot move working output file to required location.")
         # remove temporary directory
         shutil.rmtree(work_dir)
 

@@ -1,8 +1,6 @@
 from __future__ import division
-from kaic.architecture.hic_architecture import BackgroundLigationFilter, \
-    ExpectedObservedEnrichmentFilter, ZeroWeightFilter, \
-    ExpectedObservedCollectionFilter, BackgroundLigationCollectionFilter, \
-    HicEdgeCollection
+from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter, \
+    BackgroundLigationCollectionFilter, HicEdgeCollection
 from kaic.data.genomic import GenomicRegion
 from sklearn.decomposition import PCA
 from abc import ABCMeta, abstractmethod
@@ -11,7 +9,7 @@ import numpy as np
 import tempfile
 import os.path
 import logging
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class HicCollectionWeightMeanVariance(HicEdgeCollection):
@@ -218,10 +216,10 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
     if not tmpdir.endswith('/'):
         tmpdir += '/'
 
-    logging.info("Joining objects")
+    logger.info("Joining objects")
     existing_coll = False
     if isinstance(hics, HicCollectionWeightMeanVariance):
-        logging.info("Found collection.")
+        logger.info("Found collection.")
         coll = hics
         n_hics = 0
         while 'weight_' + str(n_hics) in coll.field_names:
@@ -259,7 +257,7 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
 
     pca = PCA()
     pca_res = pca.fit_transform(y.T)
-    logging.info("Variance explained: %s" % str(pca.explained_variance_ratio_))
+    logger.info("Variance explained: %s" % str(pca.explained_variance_ratio_))
 
     if not existing_coll:
         coll.close()

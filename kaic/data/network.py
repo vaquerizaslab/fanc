@@ -2,7 +2,6 @@ from __future__ import division
 from abc import abstractmethod, ABCMeta
 import numpy as np
 from scipy.stats import poisson
-import logging
 from collections import defaultdict
 import tables as t
 from bisect import bisect_left
@@ -15,6 +14,8 @@ import multiprocessing
 import math
 from kaic.tools.general import RareUpdateProgressBar
 import warnings
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PeakCaller(object):
@@ -341,7 +342,7 @@ class RaoPeakInfo(RegionMatrixTable):
             for j in xrange(i, len(chromosome_names)):
                 chromosome_name2 = chromosome_names[j]
 
-                logging.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
+                logger.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
                 remaining_peaks_set = set()
                 for peak in self.peaks():
                     region1 = regions_dict[peak.source]
@@ -715,7 +716,7 @@ class RaoPeakCaller(PeakCaller):
             except ImportError:
                 has_gridmap = False
             if not has_gridmap:
-                logging.warn("Cannot use the cluster because of previous error.")
+                logger.warn("Cannot use the cluster because of previous error.")
                 self.cluster = False
 
         super(RaoPeakCaller, self).__init__()
@@ -1278,13 +1279,13 @@ class RaoPeakCaller(PeakCaller):
         peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True), mode='w')
 
         # mappability
-        logging.info("Calculating visibility of regions...")
+        logger.info("Calculating visibility of regions...")
         mappable = hic.mappable()
-        logging.info("Done.")
+        logger.info("Done.")
 
-        logging.info("Calculating expected values...")
+        logger.info("Calculating expected values...")
         intra_expected, inter_expected = RaoPeakCaller.get_expected(hic, smooth=True)
-        logging.info("Done.")
+        logger.info("Done.")
 
         intra_possible, inter_possible = hic.possible_contacts()
 
@@ -1302,23 +1303,23 @@ class RaoPeakCaller(PeakCaller):
             else:
                 p = int(24999/bin_size) if p is None else p
                 w_init = int(round(25000/bin_size) + 2) if w_init is None else w_init
-        logging.info("Initial parameter values: p=%d, w=%d" % (p, w_init))
+        logger.info("Initial parameter values: p=%d, w=%d" % (p, w_init))
 
-        logging.info("Obtaining bias vector...")
+        logger.info("Obtaining bias vector...")
         c = hic.bias_vector()
-        logging.info("Done.")
+        logger.info("Done.")
 
-        logging.info("Finding maximum observed value...")
+        logger.info("Finding maximum observed value...")
         max_observed = 0
         for edge in hic.edges(lazy=True):
             new_max = edge.weight/(c[edge.source]*c[edge.sink])
             if not math.isinf(new_max):
                 max_observed = max(max_observed, new_max)
-        logging.info("Done.")
+        logger.info("Done.")
 
-        logging.info("Calculating lambda-chunk boundaries...")
+        logger.info("Calculating lambda-chunk boundaries...")
         lambda_chunks = RaoPeakCaller._lambda_chunks(max_observed*2)
-        logging.info("Done.")
+        logger.info("Done.")
 
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
         inter_stats = {'total': 0, 'observed': 0}
@@ -1334,7 +1335,7 @@ class RaoPeakCaller(PeakCaller):
                     chromosome_pairs.append((chromosome1, chromosome2))
 
         for chromosome1, chromosome2 in chromosome_pairs:
-            logging.info("Processing %s-%s" % (chromosome1, chromosome2))
+            logger.info("Processing %s-%s" % (chromosome1, chromosome2))
 
             m = hic[chromosome1, chromosome2]
             if chromosome1 == chromosome2:
@@ -1511,12 +1512,12 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
                     observed_chunk_distribution['d'][e_d_chunk][observed_c] += 1
 
             except IndexError:
-                logging.error("Chunk distribution index error")
-                logging.error("observed_c: %d" % observed_c)
-                logging.error("e_ll_chunk: %s" % str(e_ll_chunk))
-                logging.error("e_h_chunk: %s" % str(e_h_chunk))
-                logging.error("e_v_chunk: %s" % str(e_v_chunk))
-                logging.error("e_d_chunk: %s" % str(e_d_chunk))
+                logger.error("Chunk distribution index error")
+                logger.error("observed_c: %d" % observed_c)
+                logger.error("e_ll_chunk: %s" % str(e_ll_chunk))
+                logger.error("e_h_chunk: %s" % str(e_h_chunk))
+                logger.error("e_v_chunk: %s" % str(e_v_chunk))
+                logger.error("e_d_chunk: %s" % str(e_d_chunk))
                 #continue
 
         else:
