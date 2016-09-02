@@ -78,16 +78,25 @@ class Kaic(object):
         )
 
         parser.add_argument(
-            '-v', '--version', dest='print_version',
+            '--version', dest='print_version',
             action='store_true',
             help='''Print version information'''
         )
         parser.set_defaults(print_version=False)
 
         parser.add_argument(
+            '--verbose', '-v', dest='verbosity',
+            action='count',
+            default=0,
+            help='''Set verbosity level: Can be chained like '-vvv' to increase verbosity. Default is to show
+                    errors, warnings, and info messages (same as '-vv'). '-v' shows only errors and warnings,
+                    '-vvv' shows errors, warnings, info, and debug messages in addition.'''
+        )
+
+        parser.add_argument(
             '-s', '--silent', dest='silent',
             action='store_true',
-            help='''Do not print information or debugging logging events, only warnings and errors.'''
+            help='''if set, do not print log messages to to command line.'''
         )
         parser.set_defaults(silent=False)
 
@@ -109,23 +118,32 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[1:option_ix+1])
 
         # configure logger
-        sh = logging.StreamHandler()
-        sh_formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-        sh.setFormatter(sh_formatter)
-        logger.addHandler(sh)
-        if not args.silent:
-            logger.setLevel(logging.INFO)
+        if args.verbosity == 1:
+            log_level = logging.WARN
+        elif args.verbosity == 2:
+            log_level = logging.INFO
+        elif args.verbosity > 2:
+            log_level = logging.DEBUG
         else:
-            logger.setLevel(logging.WARN)
+            log_level = logging.INFO
+        logger.setLevel(log_level)
+
+        if not args.silent:
+            sh = logging.StreamHandler()
+            sh_formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+            sh.setFormatter(sh_formatter)
+            sh.setLevel(log_level)
+            logger.addHandler(sh)
+        else:
+            nh = logging.NullHandler()
+            logger.addHandler(nh)
+
         if args.log_file is not None:
             log_file = os.path.expanduser(args.log_file)
             fh = logging.FileHandler(log_file, mode='a')
             formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
             fh.setFormatter(formatter)
-            if not args.silent:
-                fh.setLevel(logging.INFO)
-            else:
-                fh.setLevel(logging.WARN)
+            fh.setLevel(log_level)
             logger.addHandler(fh)
 
         # get version info
