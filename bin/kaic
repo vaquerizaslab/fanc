@@ -8,7 +8,8 @@ import shutil
 import tempfile
 
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger('')
+
 
 class Kaic(object):
 
@@ -83,15 +84,51 @@ class Kaic(object):
         )
         parser.set_defaults(print_version=False)
 
+        parser.add_argument(
+            '-s', '--silent', dest='silent',
+            action='store_true',
+            help='''Do not print information or debugging logging events, only warnings and errors.'''
+        )
+        parser.set_defaults(silent=False)
+
+        parser.add_argument(
+            '-l', '--log-file', dest='log_file',
+            help='''Path to file in which to save log.'''
+        )
+
         parser.add_argument('command', nargs='?', help='Subcommand to run')
 
         option_ix = 1
         while option_ix < len(sys.argv) and sys.argv[option_ix].startswith('-'):
             option_ix += 1
+            if sys.argv[option_ix - 1] == '-l' or sys.argv[option_ix - 1] == '--log-file':
+                option_ix += 1
 
         # parse_args defaults to [1:] for args, but you need to
         # exclude the rest of the args too, or validation will fail
         args = parser.parse_args(sys.argv[1:option_ix+1])
+
+        # configure logger
+        sh = logging.StreamHandler()
+        sh_formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        sh.setFormatter(sh_formatter)
+        logger.addHandler(sh)
+        if not args.silent:
+            logger.setLevel(logging.INFO)
+        else:
+            logger.setLevel(logging.WARN)
+        if args.log_file is not None:
+            log_file = os.path.expanduser(args.log_file)
+            fh = logging.FileHandler(log_file, mode='a')
+            formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+            fh.setFormatter(formatter)
+            if not args.silent:
+                fh.setLevel(logging.INFO)
+            else:
+                fh.setLevel(logging.WARN)
+            logger.addHandler(fh)
+
+        # get version info
         if args.print_version:
             import kaic
             print kaic.__version__
@@ -103,13 +140,13 @@ class Kaic(object):
             exit(1)
 
         # echo parameters back to user
-        logging.info("Running '{}'".format(" ".join(sys.argv)))
+        logger.info("Running '{}'".format(" ".join(sys.argv)))
 
         # use dispatch pattern to invoke method with same name
         getattr(self, args.command)([sys.argv[0]] + sys.argv[option_ix:])
 
         # echo parameters back to user
-        logging.info("Finished '{}'".format(" ".join(sys.argv)))
+        logger.info("Finished '{}'".format(" ".join(sys.argv)))
 
     ##########################################################################
     #
@@ -358,20 +395,20 @@ class Kaic(object):
                 print "Error: Must provide restriction enzyme (-r) to process read pair files!"
                 quit(1)
 
-        logging.info("Output folder: %s" % output_folder)
-        logging.info("Input files: %s" % str(file_names))
-        logging.info("Input file types: %s" % str(file_types))
+        logger.info("Output folder: %s" % output_folder)
+        logger.info("Input files: %s" % str(file_names))
+        logger.info("Input file types: %s" % str(file_types))
 
         if args.basename:
-            logging.info("Final basename: %s" % basename)
+            logger.info("Final basename: %s" % basename)
         else:
-            logging.info("Final basename: %s (you can change this with the -n option!)" % basename)
+            logger.info("Final basename: %s (you can change this with the -n option!)" % basename)
 
         import subprocess
         from multiprocessing.pool import ThreadPool
 
         # 1. create default folders in root directory
-        logging.info("Creating output folders...")
+        logger.info("Creating output folders...")
         rc = subprocess.call(['kaic', 'dirs', output_folder])
         if rc != 0:
             print "Creating folders failed for some reason, aborting..."
@@ -397,7 +434,7 @@ class Kaic(object):
             tp = ThreadPool(1)
 
             index = os.path.expanduser(args.genome_index)
-            logging.info("Iteratively mapping FASTQ files...")
+            logger.info("Iteratively mapping FASTQ files...")
 
             bam_files = []
             for i, ix in enumerate(fastq_files):
@@ -475,7 +512,7 @@ class Kaic(object):
 
         # 5. Reads to Pairs
         def pairs_worker(pairs_file, filtered_reads_file1, filtered_reads_file2, genome, restriction_enzyme):
-            logging.info("Creating Pairs object...")
+            logger.info("Creating Pairs object...")
             pairs_command = ['kaic', 'reads_to_pairs', filtered_reads_file1, filtered_reads_file2,
                              genome, restriction_enzyme, pairs_file]
             if args.tmp:
@@ -535,7 +572,7 @@ class Kaic(object):
             p1 = subprocess.call(filter_pairs_command + [filtered_pairs_stats_file, pairs_file,
                                                          filtered_pairs_file])
             if p1 != 0:
-                logging.error("Filtering failed for some reason, trying again with fixed thresholds...")
+                logger.error("Filtering failed for some reason, trying again with fixed thresholds...")
                 filter_pairs_command = ['kaic', 'filter_pairs', '-i', '10000',
                                         '-o', '10000', '-r', '5000', '-l', '-d', '2']
                 if args.tmp:
@@ -619,7 +656,7 @@ class Kaic(object):
 
         if len(hic_files) > 1:
             output_hic = output_folder + 'hic/' + basename + '.hic'
-            logging.info("Merging Hi-C files...")
+            logger.info("Merging Hi-C files...")
             merge_hic_command = ['kaic', 'merge_hic']
             if args.tmp:
                 merge_hic_command.append('-tmp')
@@ -638,7 +675,7 @@ class Kaic(object):
 
         # 10. Bin Hic
         def bin_hic_worker(hic_file, binned_hic_file, bin_size):
-            logging.info("Binning at %d" % bin_size)
+            logger.info("Binning at %d" % bin_size)
             bin_hic_command = ['kaic', 'bin_hic']
             if args.tmp:
                 bin_hic_command.append('-tmp')
@@ -684,7 +721,7 @@ class Kaic(object):
 
         # 11.a. Filter Hic
         def filter_hic_worker(hic_file, filtered_hic_file, filtered_hic_stats_file):
-            logging.info("Filtering Hic...")
+            logger.info("Filtering Hic...")
             filter_hic_command = ['kaic', 'filter_hic']
             if args.tmp:
                 filter_hic_command.append('-tmp')
@@ -725,7 +762,7 @@ class Kaic(object):
 
         # 11.b. Correct Hic
         def correct_hic_worker(hic_file, corrected_hic_file, per_chromosome=False):
-            logging.info("Correcting Hic...")
+            logger.info("Correcting Hic...")
             correct_hic_command = ['kaic', 'correct_hic']
             if args.tmp:
                 correct_hic_command.append('-tmp')
@@ -945,9 +982,9 @@ class Kaic(object):
 
         input_path = os.path.expanduser(args.input)
         if args.tmp:
-            logging.info("Creating copy to work in temporary folder...")
+            logger.info("Creating copy to work in temporary folder...")
             input_path = create_temporary_copy(input_path, preserve_extension=True)
-            logging.info("Copy created in %s" % input_path)
+            logger.info("Copy created in %s" % input_path)
 
         output_path = os.path.expanduser(args.output)
         original_output_path = output_path
@@ -955,7 +992,7 @@ class Kaic(object):
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
             output_path = tmp_file.name
-            logging.info("Output temporarily redirected to %s" % output_path)
+            logger.info("Output temporarily redirected to %s" % output_path)
 
         if args.ignore_default is True:
             store_qname = False
@@ -970,18 +1007,18 @@ class Kaic(object):
             store_cigar = args.cigar
             store_tags = args.tags
 
-        logging.info("Starting to import file %s" % input_path)
+        logger.info("Starting to import file %s" % input_path)
         reads = kaic.Reads(file_name=output_path, mode='w')
         reads.load(sambam=input_path, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
                    store_qual=store_qual, store_tags=store_tags, sample_size=100000)
         reads.close()
 
         if args.tmp:
-            logging.info("Removing temporary file...")
+            logger.info("Removing temporary file...")
             os.unlink(input_path)
-            logging.info("Moving output file to destination...")
+            logger.info("Moving output file to destination...")
             shutil.move(output_path, original_output_path)
-        logging.info("All done.")
+        logger.info("All done.")
 
     def filter_reads(self, argv):
         parser = argparse.ArgumentParser(
@@ -1053,47 +1090,47 @@ class Kaic(object):
         # copy file if required
         original_input_path = os.path.expanduser(args.input)
         if args.tmp:
-            logging.info("Copying Reads object to temporary file...")
+            logger.info("Copying Reads object to temporary file...")
             input_path = create_temporary_copy(original_input_path)
-            logging.info("Temporarily working in %s" % input_path)
+            logger.info("Temporarily working in %s" % input_path)
         else:
             input_path = copy_or_expand(args.input, args.output)
 
         reads = kaic.Reads(file_name=input_path, mode='a')
 
         if args.mapped:
-            logging.info("Unmapped filter enabled")
+            logger.info("Unmapped filter enabled")
             reads.filter_unmapped(queue=True)
 
         if args.unique_strict:
-            logging.info("Strict multi-map filter enabled")
+            logger.info("Strict multi-map filter enabled")
             reads.filter_non_unique(strict=True, queue=True)
         elif args.unique:
-            logging.info("Soft multi-map filter enabled")
+            logger.info("Soft multi-map filter enabled")
             reads.filter_non_unique(strict=False, queue=True)
 
         if args.quality:
-            logging.info("Quality filter enabled (%d)" % args.quality)
+            logger.info("Quality filter enabled (%d)" % args.quality)
             reads.filter_quality(args.quality, queue=True)
 
         if args.contaminant:
             contaminant_file = os.path.expanduser(args.contaminant)
-            logging.info("Contaminant filter enabled %s" % contaminant_file)
+            logger.info("Contaminant filter enabled %s" % contaminant_file)
             contaminant = kaic.Reads(contaminant_file)
             contaminant_filter = ContaminantFilter(contaminant,
                                                    reads.add_mask_description("contaminant",
                                                                               "Filter contaminating reads"))
             reads.filter(contaminant_filter, queue=True)
 
-        logging.info("Running filters...")
+        logger.info("Running filters...")
         reads.run_queued_filters(log_progress=True)
-        logging.info("Done.")
+        logger.info("Done.")
 
         if args.stats:
-            logging.info("Plotting filter statistics")
+            logger.info("Plotting filter statistics")
             from kaic.plotting.plot_statistics import plot_mask_statistics
             plot_mask_statistics(reads, reads._reads, output=args.stats)
-            logging.info("Done.")
+            logger.info("Done.")
 
         reads.close()
 
@@ -1101,10 +1138,10 @@ class Kaic(object):
             output_path = os.path.expanduser(args.output)
             if os.path.isdir(output_path):
                 output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-            logging.info("Moving temporary output file to destination %s..." % output_path)
+            logger.info("Moving temporary output file to destination %s..." % output_path)
             shutil.move(input_path, output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def build_genome(self, argv):
         parser = argparse.ArgumentParser(
@@ -1134,10 +1171,10 @@ class Kaic(object):
 
         import kaic
 
-        logging.info("Building Genome...")
+        logger.info("Building Genome...")
         genome = kaic.Genome.from_string(genome_string=genome_string, file_name=output_path)
         genome.close()
-        logging.info("All done.")
+        logger.info("All done.")
 
     def reads_to_pairs(self, argv):
         parser = argparse.ArgumentParser(
@@ -1189,16 +1226,16 @@ class Kaic(object):
         reads1_path = os.path.expanduser(args.reads1)
         # copy file if required
         if args.tmp:
-            logging.info("Creating temporary copy of first half of reads...")
+            logger.info("Creating temporary copy of first half of reads...")
             reads1_path = create_temporary_copy(reads1_path)
-            logging.info("Working with temporary copy %s" % reads1_path)
+            logger.info("Working with temporary copy %s" % reads1_path)
 
         reads2_path = os.path.expanduser(args.reads2)
         # copy file if required
         if args.tmp:
-            logging.info("Creating temporary copy of second half of reads...")
+            logger.info("Creating temporary copy of second half of reads...")
             reads2_path = create_temporary_copy(reads2_path)
-            logging.info("Working with temporary copy %s" % reads2_path)
+            logger.info("Working with temporary copy %s" % reads2_path)
 
         genome_path = os.path.expanduser(args.genome)
 
@@ -1208,20 +1245,20 @@ class Kaic(object):
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
             output_path = tmp_file.name
-            logging.info("Working in temporary output file %s" % output_path)
+            logger.info("Working in temporary output file %s" % output_path)
 
-        logging.info("Loading left side of reads...")
+        logger.info("Loading left side of reads...")
         reads1 = kaic.Reads(reads1_path, mode='r')
-        logging.info("Loading right side of reads...")
+        logger.info("Loading right side of reads...")
         reads2 = kaic.Reads(reads2_path, mode='r')
-        logging.info("Building genome...")
+        logger.info("Building genome...")
         genome = kaic.Genome.from_string(genome_path)
-        logging.info("Getting fragments...")
+        logger.info("Getting fragments...")
         nodes = genome.get_regions(args.restriction_enzyme)
 
-        logging.info("Building pairs...")
+        logger.info("Building pairs...")
         pairs = kaic.FragmentMappedReadPairs(file_name=output_path, mode='w')
-        logging.info("Mapping reads...")
+        logger.info("Mapping reads...")
         pairs.load(reads1, reads2, nodes)
 
         reads1.close()
@@ -1229,13 +1266,13 @@ class Kaic(object):
         pairs.close()
 
         if args.tmp:
-            logging.info("Removing temporary input files...")
+            logger.info("Removing temporary input files...")
             os.unlink(reads1_path)
             os.unlink(reads2_path)
-            logging.info("Moving output file to destination %s" % original_output_path)
+            logger.info("Moving output file to destination %s" % original_output_path)
             shutil.move(output_path, original_output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def filter_pairs(self, argv):
         parser = argparse.ArgumentParser(
@@ -1314,48 +1351,48 @@ class Kaic(object):
         # copy file if required
         original_input_path = os.path.expanduser(args.input)
         if args.tmp:
-            logging.info("Creating temporary copy of input file...")
+            logger.info("Creating temporary copy of input file...")
             input_path = create_temporary_copy(original_input_path)
-            logging.info("Working from copy in %s" % input_path)
+            logger.info("Working from copy in %s" % input_path)
         else:
             input_path = copy_or_expand(args.input, args.output)
 
         pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='a')
 
         if args.auto:
-            logging.info("Filtering inward- and outward-facing reads using automatically"
+            logger.info("Filtering inward- and outward-facing reads using automatically"
                          "determined thresholds.")
             pairs.filter_ligation_products(queue=True)
         else:
             if args.inward:
-                logging.info("Filtering inward-facing reads at %dbp" % args.inward)
+                logger.info("Filtering inward-facing reads at %dbp" % args.inward)
                 pairs.filter_inward(minimum_distance=args.inward, queue=True)
 
             if args.outward:
-                logging.info("Filtering outward-facing reads at %dbp" % args.outward)
+                logger.info("Filtering outward-facing reads at %dbp" % args.outward)
                 pairs.filter_outward(minimum_distance=args.outward, queue=True)
 
         if args.redist:
-            logging.info("Filtering reads with RE distance >%dbp" % args.redist)
+            logger.info("Filtering reads with RE distance >%dbp" % args.redist)
             pairs.filter_re_dist(args.redist, queue=True)
 
         if args.self_ligated:
-            logging.info("Filtering self-ligated read pairs")
+            logger.info("Filtering self-ligated read pairs")
             pairs.filter_self_ligated(queue=True)
 
         if args.dup_thresh:
-            logging.info("Filtering PCR duplicates, threshold <=%dbp" % args.dup_thresh)
+            logger.info("Filtering PCR duplicates, threshold <=%dbp" % args.dup_thresh)
             pairs.filter_pcr_duplicates(threshold=args.dup_thresh, queue=True)
 
-        logging.info("Running filters...")
+        logger.info("Running filters...")
         pairs.run_queued_filters(log_progress=True)
-        logging.info("Done.")
+        logger.info("Done.")
 
         if args.stats:
-            logging.info("Plotting filter statistics")
+            logger.info("Plotting filter statistics")
             from kaic.plotting.plot_statistics import plot_mask_statistics
             plot_mask_statistics(pairs, pairs._pairs, output=args.stats)
-            logging.info("Done.")
+            logger.info("Done.")
 
         pairs.close()
 
@@ -1363,10 +1400,10 @@ class Kaic(object):
             output_path = os.path.expanduser(args.output)
             if os.path.isdir(output_path):
                 output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-            logging.info("Moving temporary output file to destination %s..." % output_path)
+            logger.info("Moving temporary output file to destination %s..." % output_path)
             shutil.move(input_path, output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def pairs_to_hic(self, argv):
         parser = argparse.ArgumentParser(
@@ -1406,39 +1443,39 @@ class Kaic(object):
         original_pairs_path = os.path.expanduser(args.pairs)
         original_hic_path = os.path.expanduser(args.hic)
         if args.tmp:
-            logging.info("Creating temporary copy of input file...")
+            logger.info("Creating temporary copy of input file...")
             pairs_path = create_temporary_copy(original_pairs_path)
-            logging.info("Woring from temporary input file %s" % pairs_path)
+            logger.info("Woring from temporary input file %s" % pairs_path)
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
             hic_path = tmp_file.name
-            logging.info("Working in temporary output file %s" % hic_path)
+            logger.info("Working in temporary output file %s" % hic_path)
         else:
             pairs_path = original_pairs_path
             hic_path = original_hic_path
 
-        logging.info("Loading pairs...")
+        logger.info("Loading pairs...")
         pairs = kaic.FragmentMappedReadPairs(pairs_path, mode='r')
-        logging.info("Done.")
+        logger.info("Done.")
 
-        logging.info("Adding pairs to Hic...")
+        logger.info("Adding pairs to Hic...")
         if not args.optimise:
             hic = kaic.Hic(hic_path, mode='w')
         else:
             hic = kaic.AccessOptimisedHic(hic_path, mode='w')
         hic.load_read_fragment_pairs(pairs)
-        logging.info("Done.")
+        logger.info("Done.")
 
         pairs.close()
         hic.close()
 
         if args.tmp:
-            logging.info("Removing temporary input file...")
+            logger.info("Removing temporary input file...")
             os.unlink(pairs_path)
-            logging.info("Moving output file to destination %s" % original_hic_path)
+            logger.info("Moving output file to destination %s" % original_hic_path)
             shutil.move(hic_path, original_hic_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def merge_hic(self, argv):
         parser = argparse.ArgumentParser(
@@ -1509,7 +1546,7 @@ class Kaic(object):
 
             merged.close()
 
-        logging.info("All done")
+        logger.info("All done")
 
     def filter_hic(self, argv):
         parser = argparse.ArgumentParser(
@@ -1573,48 +1610,48 @@ class Kaic(object):
 
         original_input_path = os.path.expanduser(args.input)
         if args.tmp:
-            logging.info("Creating temporary copy of input file...")
+            logger.info("Creating temporary copy of input file...")
             input_path = create_temporary_copy(original_input_path)
-            logging.info("Working from copy in %s" % input_path)
+            logger.info("Working from copy in %s" % input_path)
         else:
             input_path = copy_or_expand(args.input, args.output)
 
         with kaic.load_hic(file_name=input_path, mode='a') as hic:
             if args.low_default:
                 if args.low or args.rel_low:
-                    logging.info("Already specified an cutoff with -l or -rl, skipping -ld...")
+                    logger.info("Already specified an cutoff with -l or -rl, skipping -ld...")
                 else:
-                    logging.info("Filtering low-coverage bins at 10%%")
+                    logger.info("Filtering low-coverage bins at 10%%")
                     hic.filter_low_coverage_regions(rel_cutoff=0.1, cutoff=None, queue=True)
 
             if (args.low is not None or args.rel_low is not None) and args.low_default is False:
-                logging.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
+                logger.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
                              "relative cutoff {:.1%}".format(float(args.low) if args.low else 0.,
                                                              float(args.rel_low) if args.rel_low else 0.))
                 hic.filter_low_coverage_regions(cutoff=args.low, rel_cutoff=args.rel_low, queue=True)
 
                 if args.diagonal is not None:
-                    logging.info("Filtering diagonal at distance %d" % args.diagonal)
+                    logger.info("Filtering diagonal at distance %d" % args.diagonal)
                     hic.filter_diagonal(distance=args.diagonal, queue=True)
 
-                logging.info("Running filters...")
+                logger.info("Running filters...")
                 hic.run_queued_filters(log_progress=True)
-                logging.info("Done.")
+                logger.info("Done.")
 
                 if args.stats:
-                    logging.info("Plotting filter statistics")
+                    logger.info("Plotting filter statistics")
                     from kaic.plotting.plot_statistics import plot_mask_statistics
                     plot_mask_statistics(hic, hic._edges, output=args.stats)
-                    logging.info("Done.")
+                    logger.info("Done.")
 
         if args.tmp:
             output_path = os.path.expanduser(args.output)
             if os.path.isdir(output_path):
                 output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-            logging.info("Moving temporary output file to destination %s..." % output_path)
+            logger.info("Moving temporary output file to destination %s..." % output_path)
             shutil.move(input_path, output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def bin_hic(self, argv):
         parser = argparse.ArgumentParser(
@@ -1653,29 +1690,29 @@ class Kaic(object):
         original_output_path = os.path.expanduser(args.output)
         if args.tmp:
             input_path = create_temporary_copy(args.hic)
-            logging.info("Working in temporary directory...")
+            logger.info("Working in temporary directory...")
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
             output_path = tmp_file.name
-            logging.info("Temporary output file: %s" % output_path)
+            logger.info("Temporary output file: %s" % output_path)
         else:
             input_path = os.path.expanduser(args.hic)
             output_path = original_output_path
 
         hic = kaic.load_hic(file_name=input_path, mode='r')
 
-        logging.info("Binning at %dbp" % args.bin_size)
+        logger.info("Binning at %dbp" % args.bin_size)
         binned = hic.bin(args.bin_size, file_name=output_path)
 
         hic.close()
         binned.close()
 
         if args.tmp:
-            logging.info("Moving temporary output file to destination %s" % original_output_path)
+            logger.info("Moving temporary output file to destination %s" % original_output_path)
             os.unlink(input_path)
             shutil.move(output_path, original_output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def correct_hic(self, argv):
         parser = argparse.ArgumentParser(
@@ -1731,13 +1768,13 @@ class Kaic(object):
         original_input_path = os.path.expanduser(args.input)
         original_output_path = os.path.expanduser(args.output)
         if args.tmp:
-            logging.info("Copying data to temporary file...")
+            logger.info("Copying data to temporary file...")
             input_path = create_temporary_copy(original_input_path)
-            logging.info("Working from temporary file %s" % input_path)
+            logger.info("Working from temporary file %s" % input_path)
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
             output_path = tmp_file.name
-            logging.info("Temporary output file: %s" % output_path)
+            logger.info("Temporary output file: %s" % output_path)
         else:
             input_path = os.path.expanduser(args.input)
             output_path = os.path.expanduser(args.output)
@@ -1748,7 +1785,7 @@ class Kaic(object):
             ice.correct(hic)
             hic.close()
             if args.tmp:
-                logging.info("Moving temporary output file to destination %s" % original_output_path)
+                logger.info("Moving temporary output file to destination %s" % original_output_path)
                 shutil.move(input_path, original_output_path)
         else:
             import kaic.correcting.knight_matrix_balancing as knight
@@ -1759,11 +1796,11 @@ class Kaic(object):
             hic.close()
             hic_new.close()
             if args.tmp:
-                logging.info("Moving temporary output file to destination %s" % original_output_path)
+                logger.info("Moving temporary output file to destination %s" % original_output_path)
                 os.unlink(input_path)
                 shutil.move(output_path, original_output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def hic_pca(self, argv):
         parser = argparse.ArgumentParser(
@@ -1942,7 +1979,7 @@ class Kaic(object):
 
             for sample_size in args.sample_sizes:
                 for region in regions:
-                    logging.info("Sample size: %d" % sample_size)
+                    logger.info("Sample size: %d" % sample_size)
                     pca_info, pca_res = do_pca(coll, pair_selection=pair_selector, sample_size=sample_size,
                                                regions=region)
 
@@ -2090,13 +2127,13 @@ class Kaic(object):
         original_input_path = os.path.expanduser(args.input)
         original_output_path = os.path.expanduser(args.output)
         if args.tmp:
-            logging.info("Copying data to temporary file...")
+            logger.info("Copying data to temporary file...")
             input_path = create_temporary_copy(original_input_path)
-            logging.info("Working from temporary file %s" % input_path)
+            logger.info("Working from temporary file %s" % input_path)
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
             output_path = tmp_file.name
-            logging.info("Temporary output file: %s" % output_path)
+            logger.info("Temporary output file: %s" % output_path)
         else:
             input_path = os.path.expanduser(args.input)
             output_path = os.path.expanduser(args.output)
@@ -2120,12 +2157,12 @@ class Kaic(object):
 
         peaks = pk.call_peaks(hic, chromosome_pairs=chromosome_pairs, file_name=output_path)
 
-        logging.info("Found %d potential peaks" % len(peaks))
+        logger.info("Found %d potential peaks" % len(peaks))
         peaks.close()
 
         if args.tmp:
             os.unlink(input_path)
-            logging.info("Moving temporary output file to destination %s" % original_output_path)
+            logger.info("Moving temporary output file to destination %s" % original_output_path)
             shutil.move(output_path, original_output_path)
 
     def filter_peaks(self, argv):
@@ -2245,7 +2282,7 @@ class Kaic(object):
         # copy file if required
         original_input_path = os.path.expanduser(args.input)
         if args.tmp:
-            logging.info("Copying data to temporary file...")
+            logger.info("Copying data to temporary file...")
             input_path = create_temporary_copy(original_input_path)
         else:
             input_path = copy_or_expand(args.input, args.output)
@@ -2253,14 +2290,14 @@ class Kaic(object):
         peaks = kn.RaoPeakInfo(input_path, mode='a')
 
         if args.rao:
-            logging.info("Running Rao filter")
+            logger.info("Running Rao filter")
             peaks.filter_rao()
         else:
             if args.fdr_cutoff is not None:
-                logging.info("Global FDR filter at %.f" % args.fdr_cutoff)
+                logger.info("Global FDR filter at %.f" % args.fdr_cutoff)
                 peaks.filter_fdr(args.fdr_cutoff, queue=True)
             else:
-                logging.info("Local FDR filter")
+                logger.info("Local FDR filter")
                 fdr_mask = peaks.add_mask_description('fdr', 'FDR cutoff filter')
                 fdr_filter = kn.FdrPeakFilter(fdr_ll_cutoff=args.fdr_lower_left_cutoff,
                                               fdr_d_cutoff=args.fdr_donut_cutoff,
@@ -2270,12 +2307,12 @@ class Kaic(object):
                 peaks.filter(fdr_filter, queue=True)
 
             if args.enrichment is not None:
-                logging.info("Global enrichment filter at %.f" % args.enrichment)
+                logger.info("Global enrichment filter at %.f" % args.enrichment)
                 peaks.filter_observed_expected_ratio(ll_ratio=args.enrichment, d_ratio=args.enrichment,
                                                      v_ratio=args.enrichment, h_ratio=args.enrichment,
                                                      queue=True)
             else:
-                logging.info("Local enrichment filter")
+                logger.info("Local enrichment filter")
                 peaks.filter_observed_expected_ratio(ll_ratio=args.enrichment_lower_left,
                                                      d_ratio=args.enrichment_donut,
                                                      v_ratio=args.enrichment_vertical,
@@ -2288,10 +2325,10 @@ class Kaic(object):
             output_path = os.path.expanduser(args.output)
             if os.path.isdir(output_path):
                 output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-            logging.info("Moving temporary output file to destination %s..." % output_path)
+            logger.info("Moving temporary output file to destination %s..." % output_path)
             shutil.move(input_path, output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def merge_peaks(self, argv):
         parser = argparse.ArgumentParser(
@@ -2332,13 +2369,13 @@ class Kaic(object):
         original_input_path = os.path.expanduser(args.input)
         original_output_path = os.path.expanduser(args.output)
         if args.tmp:
-            logging.info("Copying data to temporary file...")
+            logger.info("Copying data to temporary file...")
             input_path = create_temporary_copy(original_input_path)
-            logging.info("Working from temporary file %s" % input_path)
+            logger.info("Working from temporary file %s" % input_path)
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             tmp_file.close()
             output_path = tmp_file.name
-            logging.info("Temporary output file: %s" % output_path)
+            logger.info("Temporary output file: %s" % output_path)
         else:
             input_path = os.path.expanduser(args.input)
             output_path = os.path.expanduser(args.output)
@@ -2348,7 +2385,7 @@ class Kaic(object):
 
         if args.tmp:
             os.unlink(input_path)
-            logging.info("Moving temporary output file to destination %s" % original_output_path)
+            logger.info("Moving temporary output file to destination %s" % original_output_path)
             shutil.move(output_path, original_output_path)
 
     def filter_merged_peaks(self, argv):
@@ -2392,7 +2429,7 @@ class Kaic(object):
         # copy file if required
         original_input_path = os.path.expanduser(args.input)
         if args.tmp:
-            logging.info("Copying data to temporary file...")
+            logger.info("Copying data to temporary file...")
             input_path = create_temporary_copy(original_input_path)
         else:
             input_path = copy_or_expand(args.input, args.output)
@@ -2400,17 +2437,17 @@ class Kaic(object):
         merged_peaks = kn.PeakInfo(input_path, mode='a')
 
         if args.rao:
-            logging.info("Running Rao filter")
+            logger.info("Running Rao filter")
             merged_peaks.filter_rao()
 
         if args.tmp:
             output_path = os.path.expanduser(args.output)
             if os.path.isdir(output_path):
                 output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-            logging.info("Moving temporary output file to destination %s..." % output_path)
+            logger.info("Moving temporary output file to destination %s..." % output_path)
             shutil.move(input_path, output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def plot_ligation_err(self, argv):
         parser = argparse.ArgumentParser(
@@ -2449,7 +2486,7 @@ class Kaic(object):
         hic_ligation_structure_biases_plot(pairs, output=output_path, sampling=args.points)
         pairs.close()
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def plot_re_dist(self, argv):
         parser = argparse.ArgumentParser(
@@ -2495,7 +2532,7 @@ class Kaic(object):
         pairs_re_distance_plot(pairs, output=output_path, limit=args.limit, max_distance=args.max_dist)
         pairs.close()
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def plot_hic_corr(self, argv):
         parser = argparse.ArgumentParser(
@@ -2544,7 +2581,7 @@ class Kaic(object):
 
         hic1.close()
         hic2.close()
-        logging.info("All done.")
+        logger.info("All done.")
 
     def plot_hic_marginals(self, argv):
         parser = argparse.ArgumentParser(
@@ -2590,7 +2627,7 @@ class Kaic(object):
 
         hic_marginals_plot(hic, output=output_path, lower=args.lower, upper=args.upper)
         hic.close()
-        logging.info("All done.")
+        logger.info("All done.")
 
     def plot_diff(self, argv):
         parser = argparse.ArgumentParser(
@@ -2674,7 +2711,7 @@ class Kaic(object):
                                      colormap=args.colormap)
         hic1.close()
         hic2.close()
-        logging.info("All done.")
+        logger.info("All done.")
 
     def structure_tracks(self, argv):
         import numpy as np
@@ -2793,11 +2830,11 @@ class Kaic(object):
         input_path = os.path.expanduser(args.hic)
         output_path = os.path.expanduser(args.output)
 
-        logging.info("Fetching Hi-C matrix")
+        logger.info("Fetching Hi-C matrix")
         hic_matrix = kaic.load(input_path)
 
         if args.observed_expected:
-            logging.info("Calculating observed/expected ratio")
+            logger.info("Calculating observed/expected ratio")
             hic_matrix = ObservedExpectedRatio(hic_matrix)
 
         try:
@@ -2844,7 +2881,7 @@ class Kaic(object):
                             gt.add_data("{}_delta{}".format(k, i), delta_matrix)
                         else:
                             gt.add_data("{}_delta{}".format(k, i), delta_window(v, i))
-        logging.info("All done.")
+        logger.info("All done.")
 
     def boundaries(self, argv):
         parser = argparse.ArgumentParser(
@@ -2929,7 +2966,7 @@ class Kaic(object):
         if not single:
             mkdir(output_path)
             for window_size in window_sizes:
-                logging.info("Processing window size: {}".format(window_size))
+                logger.info("Processing window size: {}".format(window_size))
                 boundaries = array.boundaries(window_size, min_score=args.min_score,
                                               delta_window=args.delta, log=args.log)
                 _to_bed(boundaries, output_path + "/{}_{}.bed".format(args.prefix, window_size))
@@ -2938,7 +2975,7 @@ class Kaic(object):
                                           delta_window=args.delta, log=args.log)
             _to_bed(boundaries, output_path)
 
-        logging.info("All done.")
+        logger.info("All done.")
 
     def boundaries_depr(self, argv):
         parser = argparse.ArgumentParser(
@@ -3012,7 +3049,7 @@ class Kaic(object):
         arch = GenomicTrack(input_path)
         metric_list = list(it.chain(k for k in arch.tracks.keys() if any(re.match(r, k) for r in args.metrics)))
         for metric in metric_list:
-            logging.info("Calling borders using {}".format(metric))
+            logger.info("Calling borders using {}".format(metric))
             if arch[metric].ndim == 1:
                 peak_caller = MaximaCallerDelta(arch[metric], window_size=args.window_size)
                 peak_caller.filter(delta_score_thresh=args.delta_score_thresh)
@@ -3036,7 +3073,7 @@ class Kaic(object):
                             chrm=r.chromosome, source="kaic", feature="{}_border_region".format(metric),
                             start=r.start, end=r.end, score=scores[i], attrs="ID={}_{}".format(metric, i))
                         )
-        logging.info("All done.")
+        logger.info("All done.")
 
     def fold_change(self, argv):
         parser = argparse.ArgumentParser(
@@ -3517,7 +3554,7 @@ class Kaic(object):
 
         # 1. Count number of reads
         if args.fastq is not None:
-            logging.info("Processing FASTQ files.")
+            logger.info("Processing FASTQ files.")
             import gzip
 
             def blocks(files, size=65536):
@@ -3531,7 +3568,7 @@ class Kaic(object):
 
             total_count = 0
             for fastq_file in fastq_files:
-                logging.info("{}".format(fastq_file))
+                logger.info("{}".format(fastq_file))
                 if fastq_file.endswith('gz'):
                     read = gzip.open
                 else:
@@ -3549,14 +3586,14 @@ class Kaic(object):
 
         # 2. Reads statistics
         if args.reads is not None:
-            logging.info("Processing Reads files.")
+            logger.info("Processing Reads files.")
 
             from kaic.construct.seq import Reads
             reads_files = get_files(args.reads, ('.reads',))
 
             reads_summary = defaultdict(int)
             for reads_file in reads_files:
-                logging.info("{}".format(reads_file))
+                logger.info("{}".format(reads_file))
                 reads = Reads(reads_file, mode='r')
                 statistics, total = stats(reads, reads._reads)
 
@@ -3580,12 +3617,12 @@ class Kaic(object):
 
         # 3. Pairs statistics
         if args.pairs is not None:
-            logging.info("Processing Pairs files.")
+            logger.info("Processing Pairs files.")
             from kaic.construct.seq import FragmentMappedReadPairs as Pairs
             pairs_files = get_files(args.pairs, ('.pairs',))
             pairs_summary = defaultdict(int)
             for pairs_file in pairs_files:
-                logging.info("{}".format(pairs_file))
+                logger.info("{}".format(pairs_file))
                 pairs = Pairs(pairs_file, mode='r')
                 statistics, total = stats(pairs, pairs._pairs)
 
@@ -3610,13 +3647,13 @@ class Kaic(object):
 
         # 3. Hic statistics
         if args.hic is not None:
-            logging.info("Processing Hic files.")
+            logger.info("Processing Hic files.")
             from kaic.data.genomic import load_hic
             hic_files = get_files(args.hic, ('.hic',))
 
             hic_summary = defaultdict(int)
             for hic_file in hic_files:
-                logging.info("{}".format(hic_file))
+                logger.info("{}".format(hic_file))
                 hic = load_hic(hic_file, mode='r')
                 statistics, total = stats(hic, hic._edges)
 
