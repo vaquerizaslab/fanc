@@ -3218,11 +3218,13 @@ class RegionMatrixTable(RegionPairs):
         m1_sum = 0.0
         for edge in self.edges(lazy=True):
             m1_sum += getattr(edge, weight_column)
+
         m2_sum = 0.0
         for edge in matrix.edges(lazy=True):
             m2_sum += getattr(edge, weight_column)
+
         scaling_factor = m1_sum / m2_sum
-        logger.debug("Scaling factor: %f" % scaling_factor)
+        logger.info("Scaling factor: %f" % scaling_factor)
         return scaling_factor
 
     def get_combined_matrix(self, matrix, key=None, scaling_factor=None, weight_column=None):
