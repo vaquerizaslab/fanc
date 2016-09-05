@@ -108,7 +108,7 @@ def load(file_name, mode='a', tmpdir=None):
         try:
             _ = f.file_type
             return f
-        except IndexError:
+        except (IndexError, pybedtools.MalformedBedLineError):
             pass
 
         try:
