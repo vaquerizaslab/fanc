@@ -22,9 +22,16 @@ from kaic.data.network import RaoPeakInfo
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
 import logging
+
+# configure logging
 logger = logging.getLogger(__name__)
-nh = logging.NullHandler()
-logger.addHandler(nh)
+try:  # Python 2.7+
+    from logging import NullHandler
+except ImportError:
+    class NullHandler(logging.Handler):
+        def emit(self, record):
+            pass
+logger.addHandler(NullHandler())
 
 
 def load(file_name, mode='a', tmpdir=None):
