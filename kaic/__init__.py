@@ -23,6 +23,8 @@ from kaic.architecture.genome_architecture import GenomicTrack
 import tables
 import logging
 logger = logging.getLogger(__name__)
+nh = logging.NullHandler()
+logger.addHandler(nh)
 
 
 def load(file_name, mode='a', tmpdir=None):
