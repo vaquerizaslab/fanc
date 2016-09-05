@@ -2,7 +2,7 @@ from __future__ import division, print_function
 from kaic.plotting.helpers import style_ticks_whitegrid
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
-from abc import abstractmethod, ABCMeta
+from abc import abstractmethod, abstractproperty, ABCMeta
 import numpy as np
 import matplotlib as mpl
 import seaborn as sns
@@ -162,12 +162,14 @@ class BasePlotter(object):
         self.has_legend = False
         self._aspect = aspect
         self.axes_style = axes_style
+        self.overlays = []
 
     def _before_plot(self, region=None, *args, **kwargs):
         self.ax.set_title(self.title)
 
     def _after_plot(self, region=None, *args, **kwargs):
-        pass
+        for o in self.overlays:
+            o.plot(self, region)
 
     @abstractmethod
     def _plot(self, region=None, *args, **kwargs):
@@ -213,6 +215,13 @@ class BasePlotter(object):
             self.cax = None
         except KeyError:
             pass
+
+    def add_overlay(self, overlay):
+        plot_class = self.__class__.__name__
+        if plot_class not in overlay.compatibility:
+            raise ValueError("Overlay type {} is not compatible with plotter type {}.".format(
+                overlay.__class__.__name__, plot_class))
+        self.overlays.append(overlay)
 
 
 class BasePlotter1D(BasePlotter):
@@ -504,3 +513,22 @@ class BasePlotter2D(BasePlotter):
         if plot_output is None:
             return self.fig, self.ax
         return plot_output
+
+
+class BaseOverlayPlotter(object):
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self):
+        pass
+
+    @abstractproperty
+    def compatibility(self):
+        return None
+
+    @abstractmethod
+    def _plot(self, base_plot, region):
+        raise NotImplementedError("Subclasses need to override _plot function")
+
+    def plot(self, base_plot, region):
+        self._plot(base_plot, region)

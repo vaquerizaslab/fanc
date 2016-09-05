@@ -2,7 +2,7 @@ from __future__ import division, print_function
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator
 from kaic.data.genomic import GenomicRegion, GenomicRegions
-from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot
+from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace
@@ -449,6 +449,48 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         # update matrix data
         self.collection.set_array(self.hm.T.ravel())
         self._update_mesh_colors()
+
+
+class HicPeakPlot(BaseOverlayPlotter):
+    """
+    Overlay peaks onto Hicplot or HicPlot2D
+    """
+    def __init__(self, peaks, radius):
+        """
+        :param peaks: Kaic peaks instance
+        :param radius: Radius in bp for plotted circles
+        """
+        BaseOverlayPlotter.__init__(self)
+        self.peaks = peaks
+        self.radius = radius
+        self.circle_props = {"edgecolor": "black", "fill": False}
+
+    @property
+    def compatibility(self):
+         return ["HicPlot", "HicPlot2D"]
+
+    def _plot(self, base_plot, region):
+        def plot_hicplot(start, end, radius):
+            x = .5*(start + end)
+            y = .5*(end - start)
+            circle = patches.Circle((x, y), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+
+        def plot_hicplot2d(start, end, radius):
+            circle = patches.Circle((start, end), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+            circle = patches.Circle((end, start), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+
+        plot_dispatch = {
+            "HicPlot": plot_hicplot,
+            "HicPlot2D": plot_hicplot2d
+        }
+
+        base_plot_class = base_plot.__class__.__name__
+        peaks_gen = self.peaks.edge_subset((region, region))
+        for p in peaks_gen:
+            plot_dispatch[base_plot_class](p.source_node.start, p.sink_node.end, self.radius)
 
 
 class VerticalSplitPlot(BasePlotter1D):
