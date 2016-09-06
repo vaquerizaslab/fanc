@@ -180,6 +180,28 @@ class Bed(pybedtools.BedTool):
         return RegionIter(self)
 
 
+class BigWig(object):
+    def __init__(self, bw):
+        self.bw = bw
+
+    def __exit__(self, exec_type, exec_val, exec_tb):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __getattr__(self, name):
+        try:
+            func = getattr(self.__dict__['bw'], name)
+            return func
+        except AttributeError:
+            if name == '__enter__':
+                return BigWig.__enter__
+            elif name == '__exit__':
+                return BigWig.__exit__
+            raise
+
+
 class Chromosome(object):
     """
     Chromosome data type.
@@ -3224,7 +3246,7 @@ class RegionMatrixTable(RegionPairs):
             m2_sum += getattr(edge, weight_column)
 
         scaling_factor = m1_sum / m2_sum
-        logger.info("Scaling factor: %f" % scaling_factor)
+        logger.debug("Scaling factor: %f" % scaling_factor)
         return scaling_factor
 
     def get_combined_matrix(self, matrix, key=None, scaling_factor=None, weight_column=None):
