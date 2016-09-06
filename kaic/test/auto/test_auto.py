@@ -86,3 +86,10 @@ class TestAuto:
         with pytest.raises(ValueError):
             foo_file = this_dir + '/test_auto/foo.txt'
             kaic.load(foo_file)
+
+    def test_bigwig(self):
+        this_dir = os.path.dirname(os.path.realpath(__file__))
+        bw_file = this_dir + '/test_auto/test.bw'
+
+        with kaic.load(bw_file) as bw:
+            assert isinstance(bw, kaic.BigWig)

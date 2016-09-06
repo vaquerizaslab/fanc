@@ -22,6 +22,7 @@ setup(
         'sklearn',
         'progressbar2',
         'pybedtools',
+        'pyBigWig',
         'tables>=3.2.3'
     ],
     extras_require={

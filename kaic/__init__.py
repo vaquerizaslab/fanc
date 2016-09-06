@@ -10,7 +10,8 @@ Provides
 """
 from .version import __version__
 
-from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion
+from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion, \
+    BigWig
 from kaic.data.general import Table, FileBased
 from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -103,6 +104,18 @@ def load(file_name, mode='a', tmpdir=None):
             raise ValueError("classid attribute ({}) does not have a registered class.".format(classid))
     except tables.HDF5ExtError:
         # try some well-known file types
+
+        # SAM/BAM
+        import pysam
+        try:
+            sb = pysam.AlignmentFile(file_name, 'rb')
+            if mode != 'rb':
+                sb.close()
+                sb = pysam.AlignmentFile(file_name, mode)
+            return sb
+        except (ValueError, IOError):
+            pass
+
         import pybedtools
         f = Bed(file_name)
         try:
@@ -117,7 +130,8 @@ def load(file_name, mode='a', tmpdir=None):
             if mode != 'r':
                 f.close()
                 f = pyBigWig.open(file_name, mode)
-            return f
+
+            return BigWig(f)
         except (ImportError, RuntimeError):
             raise ValueError("File type not recognised ({}).".format(file_name))
 
