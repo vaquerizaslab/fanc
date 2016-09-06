@@ -1,6 +1,7 @@
 import kaic
 from kaic.data.registry import class_name_dict
 import pytest
+import pysam
 import os
 
 
@@ -93,3 +94,15 @@ class TestAuto:
 
         with kaic.load(bw_file) as bw:
             assert isinstance(bw, kaic.BigWig)
+
+    def test_sambam(self):
+        this_dir = os.path.dirname(os.path.realpath(__file__))
+        sam_file = this_dir + '/test_auto/test.sam'
+
+        with kaic.load(sam_file, mode='r') as bw:
+            assert isinstance(bw, pysam.AlignmentFile)
+
+        bam_file = this_dir + '/test_auto/test.bam'
+
+        with kaic.load(bam_file, mode='r') as bw:
+            assert isinstance(bw, pysam.AlignmentFile)

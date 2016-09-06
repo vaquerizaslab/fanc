@@ -172,7 +172,7 @@ def is_sambam_file(file_name):
         return False
     
     try:
-        sb = pysam.AlignmentFile(file_name)
+        sb = pysam.AlignmentFile(file_name, 'rb')
         sb.close()
     except (ValueError, IOError):
         return False
