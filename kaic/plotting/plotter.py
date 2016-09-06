@@ -1,9 +1,11 @@
 from __future__ import division, print_function
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator
-from kaic.data.genomic import GenomicRegion
-from kaic.plotting.base_plotter import BasePlotter1D, append_axes
+from kaic.data.genomic import GenomicRegion, GenomicRegions
+from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
 from kaic.plotting.hic_plotter import BasePlotterMatrix
+from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
+                                  region_to_pbt_interval, absolute_wspace_hspace
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import types
@@ -18,64 +20,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 plt = sns.plt
-
-style_ticks_whitegrid = {
-    'axes.axisbelow': True,
-    'axes.edgecolor': '.15',
-    'axes.facecolor': 'white',
-    'axes.grid': True,
-    'axes.labelcolor': '.15',
-    'axes.linewidth': 1.25,
-    'figure.facecolor': 'white',
-    'font.family': ['sans-serif'],
-    'grid.color': '.8',
-    'grid.linestyle': '-',
-    'image.cmap': 'Greys',
-    'legend.frameon': False,
-    'legend.numpoints': 1,
-    'legend.scatterpoints': 1,
-    'lines.solid_capstyle': 'round',
-    'text.color': '.15',
-    'xtick.color': '.15',
-    'xtick.direction': 'out',
-    'xtick.major.size': 6,
-    'xtick.minor.size': 3,
-    'ytick.color': '.15',
-    'ytick.direction': 'out',
-    'ytick.major.size': 6,
-    'ytick.minor.size': 3}
-
-
-def region_to_pbt_interval(region):
-    return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
-
-
-def get_region_field(interval, field, return_default=False):
-    """
-    Take BedTool region and return value stored in the specified field.
-    Will try to fetch field from specific integer index, from Interval attribute and 
-    lastly from the BedTool attributes dictionary present for GTF files
-
-    :param return_default: If False, raise ValueError if field cannot be found. If anything
-                           else return this value instead.
-    """
-    try:
-        return interval[int(field)]
-    except ValueError:
-        pass
-    try:
-        return getattr(interval, field)
-    except AttributeError:
-        pass
-    if interval.file_type == "gff":
-        try:
-            return interval.attrs[field]
-        except KeyError:
-            pass
-    if return_default != False:
-        return return_default
-    else:
-        raise ValueError("Field {} can't be found in inteval {}".format(field, interval))
 
 
 def hide_axis(ax):
@@ -107,36 +51,9 @@ def hide_axis(ax):
     ax.yaxis.offsetText.set_visible(False)
 
 
-def absolute_wspace_hspace(fig, gs, wspace, hspace):
-    """
-    Set distance between subplots of a GridSpec instance in inches. Updates the
-    GridSpec instance and returns the calculated relative (as required by GridSpec) as tuple.
-
-    :param fig: Figure instance
-    :param gs: GridSpec instance
-    :param wspace: Distance in inches horizontal
-    :param hspace: Distance in inches vertical
-    :return: (wspace, hspace) as a fraction of axes size
-    """
-    figsize = fig.get_size_inches()
-    sp_params = gs.get_subplot_params(fig)
-    wspace = wspace/figsize[0]
-    hspace = hspace/figsize[1]
-    tot_width = sp_params.right - sp_params.left
-    tot_height = sp_params.top - sp_params.bottom
-    nrows, ncols = gs.get_geometry()
-    wspace = wspace*ncols/(tot_width - wspace*ncols + wspace)
-    hspace = hspace*nrows/(tot_height - hspace*nrows + hspace)
-    if not wspace > 0 or not hspace > 0:
-        raise ValueError("Invalid relative spacing ({}, {}) calculated, "
-                         "Probably distance set too large.".format(wspace, hspace))
-    gs.update(wspace=wspace, hspace=hspace)
-    return wspace, hspace
-
-
 class GenomicFigure(object):
-    def __init__(self, plots, height_ratios=None, figsize=None, gridspec_args=None,
-                 ticks_last=False, fix_chromosome=None):
+    def __init__(self, plots, height_ratios=None, figsize=None, hspace=.5,
+                 gridspec_args=None, ticks_last=False, fix_chromosome=None):
         """
         Creates a GenomicFigure composed of one or more plots.
         All plots are arranged in a single column, their genomic coordinates aligned.
@@ -156,6 +73,7 @@ class GenomicFigure(object):
                         Defaults is (6, 6*sum(height_ratios))
                         None can be used to as a placeholder for the default value, eg.
                         (8, None) is converted to (8, 8*sum(height_rations))
+        :param hspace: Distance between plot panels in inches
         :param gridspec_args: Optional keyword-arguments passed directly to GridSpec constructor
         :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
         :param fix_chromosome: boolean list, same length as plots. If an element is True, the corresponding plot
@@ -176,15 +94,13 @@ class GenomicFigure(object):
         if width is None:
             width = 6
         if height is None:
-            height = width*sum(height_ratios)
+            height = width*sum(height_ratios) + hspace*self.n
         self.figsize = width, height
         if not gridspec_args:
             gridspec_args = {}
-        gridspec_args["wspace"] = gridspec_args.get("wspace", .1)
-        gridspec_args["hspace"] = gridspec_args.get("hspace", .2)
         gs = gridspec.GridSpec(self.n, 2, height_ratios=self.height_ratios, width_ratios=[1, .05], **gridspec_args)
-        self.axes = []
-        plt.figure(figsize=self.figsize)
+        fig = plt.figure(figsize=self.figsize)
+        absolute_wspace_hspace(fig, gs, .3, hspace)
         for i in xrange(self.n):
             with sns.axes_style("ticks" if plots[i].axes_style is None else
                                 plots[i].axes_style):
@@ -192,16 +108,8 @@ class GenomicFigure(object):
                     ax = plt.subplot(gs[i, 0], sharex=self.axes[0])
                 else:
                     ax = plt.subplot(gs[i, 0])
-
-            if hasattr(plots[i], 'cax'):
-                plots[i].cax = plt.subplot(gs[i, 1])
-            else:
-                cax = plt.subplot(gs[i, 1])
-                sns.despine(ax=cax, top=True, left=True, bottom=True, right=True)
-                cax.xaxis.set_visible(False)
-                cax.yaxis.set_visible(False)
             plots[i].ax = ax
-            self.axes.append(ax)
+            plots[i].cax = plt.subplot(gs[i, 1])
 
         if fix_chromosome is None:
             self.fix_chromosome = [False] * self.n
@@ -244,58 +152,13 @@ class GenomicFigure(object):
     def __exit__(self, exc_type, exc_value, traceback):
         plt.close(self.fig)
 
+    @property
+    def axes(self):
+        return [p.ax for p in self.plots]
 
-class ScalarDataPlot(BasePlotter1D):
-    """
-    Base class for plotting scalar values like ChIP-seq signal.
-    Provides methods for converting lists of values and regions
-    to plotting coordinates.
-    """
-    _STYLE_STEP = "step"
-    _STYLE_MID = "mid"
-
-    def __init__(self, style="step", title='', aspect=.2, axes_style=style_ticks_whitegrid):
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-        self.style = style
-        if style not in self._STYLES:
-            raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
-
-    def _get_values_per_step(self, values, region_list):
-        x = np.empty(len(region_list)*2)
-        y = np.empty(len(region_list)*2)
-        for i, r in enumerate(region_list):
-            j = i*2
-            x[j], x[j + 1] = r.start, r.end
-            y[j:j + 2] = values[i]
-        return x, y
-
-    def _get_values_per_mid(self, values, region_list):
-        x = np.empty(len(values), dtype=np.int_)
-        for i, r in enumerate(region_list):
-            x[i] = int(round((r.end + r.start)/2))
-        return x, values
-
-    def get_plot_values(self, values, region_list):
-        """
-        Convert values and regions to final x- and y-
-        coordinates for plotting, based on the selected style.
-
-        :param values: List or array of scalar values
-        :param region_list: List of class:`~kaic.data.genomic.GenomicRegion`,
-                            one for each value
-        """
-        return self._STYLES[self.style](self, values, region_list)
-
-    def remove_colorbar_ax(self):
-        if not hasattr(self, 'cax') or self.cax is None:
-            return
-        try:
-            self.fig.delaxes(self.cax)
-        except KeyError:
-            pass
-
-    _STYLES = {_STYLE_STEP: _get_values_per_step,
-               _STYLE_MID: _get_values_per_mid}
+    @property
+    def caxes(self):
+        return [p.cax for p in self.plots]
 
 
 class GenomicTrackPlot(ScalarDataPlot):
@@ -525,19 +388,21 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
                          None (no special color).
         """
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
         BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm, colorbar_symmetry=colorbar_symmetry,
                                    vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
                                    blend_zero=blend_zero, unmappable_color=unmappable_color,
                                    illegal_color=illegal_color, replacement_color=replacement_color)
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-
         self.array = array
         self.keys = keys
         if plot_kwargs is None:
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
-
-        self.y_coords = y_coords
+        if y_coords is None:
+            if self.array.y_values is not None:
+                self.y_coords = self.array.y_values
+            else:
+                self.y_coords = None
         self.hm = None
         self.y_scale = y_scale
 
@@ -549,8 +414,8 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         self.collection._A = None
         self._update_mesh_colors()
         self.ax.set_yscale(self.y_scale)
-
-        self.ax.set_ylim(self.hm.y_values[0], self.hm.y_values[-1])
+        if self.y_coords is not None:
+            self.ax.set_ylim(self.y_coords[0], self.y_coords[-1])
 
         if self.show_colorbar:
             self.add_colorbar()
@@ -565,7 +430,7 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         regions = hm.regions
         bin_coords = np.r_[[(x.start - 1) for x in regions], regions[-1].end]
         x, y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None
-                                        else hm.y_values))
+                                        else np.arange(hm.shape[1] + 1)))
         return x, y, hm
 
     def _update_mesh_colors(self):
@@ -584,6 +449,48 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         # update matrix data
         self.collection.set_array(self.hm.T.ravel())
         self._update_mesh_colors()
+
+
+class HicPeakPlot(BaseOverlayPlotter):
+    """
+    Overlay peaks onto Hicplot or HicPlot2D
+    """
+    def __init__(self, peaks, radius):
+        """
+        :param peaks: Kaic peaks instance
+        :param radius: Radius in bp for plotted circles
+        """
+        BaseOverlayPlotter.__init__(self)
+        self.peaks = peaks
+        self.radius = radius
+        self.circle_props = {"edgecolor": "black", "fill": False}
+
+    @property
+    def compatibility(self):
+         return ["HicPlot", "HicPlot2D"]
+
+    def _plot(self, base_plot, region):
+        def plot_hicplot(start, end, radius):
+            x = .5*(start + end)
+            y = .5*(end - start)
+            circle = patches.Circle((x, y), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+
+        def plot_hicplot2d(start, end, radius):
+            circle = patches.Circle((start, end), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+            circle = patches.Circle((end, start), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+
+        plot_dispatch = {
+            "HicPlot": plot_hicplot,
+            "HicPlot2D": plot_hicplot2d
+        }
+
+        base_plot_class = base_plot.__class__.__name__
+        peaks_gen = self.peaks.edge_subset((region, region))
+        for p in peaks_gen:
+            plot_dispatch[base_plot_class](p.source_node.start, p.sink_node.end, self.radius)
 
 
 class VerticalSplitPlot(BasePlotter1D):
@@ -670,7 +577,7 @@ class GenomicFeaturePlot(BasePlotter1D):
     Just draws a black box where the feature is located.
     """
     def __init__(self, regions, title="", feature_types=False, label_field="gene_symbol",
-                 label_format=None, label_cast=None, aspect=.2, axes_style="ticks"):
+                 label_func=None, aspect=.2, axes_style="ticks"):
         """
         :param regions: Any input that pybedtools can parse. Can be a path to a
                         GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), ...]
@@ -683,15 +590,17 @@ class GenomicFeaturePlot(BasePlotter1D):
                          Can be an integer to select a specific column or the name of an attribute
                          in the GTF file. If None or False no label is drawn. E.g. 2 for the second
                          column or "score" for the score attribute.
-        :param label_format: If a label field is specified, can also supply a python format string
-                             to customize how the label is formatted. E.g. "{:.2}"
-        :param label_cast: Supply a function to cast the label to a specific type, e.g. int or float
+        :param label_func: Alternatively, label can be generated by calling this function which
+                           takes pybedtools.Interval als argument and returns label string
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
         """
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-        self.bedtool = pbt.BedTool(regions)
+        if isinstance(regions, pbt.BedTool):
+            self.bedtool = regions
+        else:
+            self.bedtool = pbt.BedTool(regions)
         if feature_types is None and self.bedtool.file_type == "gff":
             feature_types = set(f[2] for f in self.bedtool)
         elif isinstance(feature_types, (str, unicode)):
@@ -699,8 +608,7 @@ class GenomicFeaturePlot(BasePlotter1D):
         self.feature_types = feature_types
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
         self.label_field = label_field
-        self.label_format = label_format
-        self.label_cast = label_cast
+        self.label_func = label_func
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
         interval = region_to_pbt_interval(region)
@@ -723,14 +631,12 @@ class GenomicFeaturePlot(BasePlotter1D):
             )
             self.ax.add_patch(gene_patch)
             self.ax.text((g.start + g.end)/2, pos[feature_type] + stroke_length + .05,
-                         self.label_format.format(self.label_cast(label)
-                                                  if self.label_cast
-                                                  else label)
-                         if self.label_format else label,
+                         label if not self.label_func else self.label_func(g),
                          transform=trans, ha="center", size="small")
+            #import ipdb; ipdb.set_trace()
         sns.despine(ax=self.ax, top=True, left=True, right=True)
         self.ax.yaxis.set_major_locator(NullLocator())
-        # self.remove_colorbar_ax()
+        self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
@@ -872,30 +778,19 @@ class BigWigPlot(ScalarDataPlot):
         suitable for plotting.
         """
         bin_coords = np.r_[slice(region.start, region.end, self.bin_size), region.end]
-        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
-                       for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
         interval_records = np.core.records.fromrecords(intervals, names=["start", "end", "value"])
         out_values = np.full(len(bin_coords) - 1, np.nan, dtype=np.float_)
-        start_overlap = np.searchsorted(interval_records["start"], bin_coords[:-1], side="right") - 1
-        end_overlap = np.searchsorted(interval_records["end"], bin_coords[1:], side="left")
+        start_overlap = np.searchsorted(interval_records["end"], bin_coords[:-1], side="right")
+        end_overlap = np.searchsorted(interval_records["start"], bin_coords[1:], side="left")
         for i, (s, e) in enumerate(it.izip(start_overlap, end_overlap)):
             assert e >= s
             if s == e:
-                out_values[i] = interval_records["value"][s]
+                # In this case no suitable values found in bigwig, leave nan
                 continue
-            total_range = bin_coords[i + 1] - bin_coords[i]
-            weighted_value = 0
-            # Have to control for edge cases where first and/or last bin only partially overlap with
-            # interval
-            weighted_value += (min(interval_records["end"][s], bin_coords[i + 1]) -
-                               max(interval_records["start"][s], bin_coords[i]))*interval_records["value"][s]
-            weighted_value += (min(interval_records["end"][e], bin_coords[i + 1]) -
-                               max(interval_records["start"][e], bin_coords[i]))*interval_records["value"][e]
-            # Once edge case is taken care of the rest of the intervals can be binned evenly
-            if e - s > 1:
-                weighted_value += np.sum((interval_records["end"][s + 1:e] - interval_records["start"][s + 1:e]) *
-                                         interval_records["value"][s + 1:e])
-            out_values[i] = weighted_value/total_range
+            weights = interval_records["end"][s:e] - interval_records["start"][s:e]
+            out_values[i] = np.average(interval_records["value"][s:e], weights=weights)
+        bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
+                       for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
         return bin_regions, out_values
 
     def _plot(self, region=None, ax=None, *args, **kwargs):

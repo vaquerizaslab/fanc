@@ -1,5 +1,6 @@
 import kaic
-from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, append_axes
+from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot
+from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
 from kaic.data.genomic import GenomicRegion
 import matplotlib as mpl
 from matplotlib.widgets import Slider
@@ -12,6 +13,31 @@ import logging
 logger = logging.getLogger(__name__)
 
 plt = sns.plt
+
+
+def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1):
+    """
+    Prepare :class:`~BufferedMatrix` from hic data.
+
+    :param hic_data: :class:`~kaic.data.genomic.RegionMatrixTable` or
+                     :class:`~kaic.data.genomic.RegionMatrix`
+    :param buffering_strategy: "all", "fixed" or "relative"
+                               "all" buffers the whole matrix
+                               "fixed" buffers a fixed area, specified by buffering_arg
+                                       around the query area
+                               "relative" buffers a multiple of the query area.
+                                          With buffering_arg=1 the query area plus
+                                          the same amount upstream and downstream
+                                          are buffered
+    :param buffering_arg: Number specifying how much around the query area is buffered
+    """
+    if isinstance(hic_data, kaic.data.genomic.RegionMatrixTable):
+        return BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
+                                         buffering_arg=buffering_arg)
+    elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
+        return BufferedMatrix.from_hic_matrix(hic_data)
+    else:
+        raise ValueError("Unknown type for hic_data")
 
 
 class BufferedMatrix(object):
@@ -205,13 +231,8 @@ class BasePlotterHic(BasePlotterMatrix):
                                    blend_zero=blend_zero, unmappable_color=unmappable_color,
                                    illegal_color=illegal_color, colorbar_symmetry=colorbar_symmetry)
         self.hic_data = hic_data
-        if isinstance(hic_data, kaic.data.genomic.RegionMatrixTable):
-            self.hic_buffer = BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
+        self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
                                              buffering_arg=buffering_arg)
-        elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
-            self.hic_buffer = BufferedMatrix.from_hic_matrix(hic_data)
-        else:
-            raise ValueError("Unknown type for hic_data")
         self.slider = None
         self.adjust_range = adjust_range
         self.vmax_slider = None
@@ -333,6 +354,69 @@ class HicComparisonPlot2D(HicPlot2D):
         self.hic_bottom = hic_bottom
         self.hic_buffer = BufferedCombinedMatrix(hic_bottom, hic_top, scale_matrices,
                                                  buffering_strategy, buffering_arg)
+
+
+class HicSlicePlot(ScalarDataPlot):
+    def __init__(self, hic_data, slice_region, names=None, style="step", title='',
+                 aspect=.3, axes_style=style_ticks_whitegrid, ylim=None, yscale="linear",
+                 buffering_strategy="relative", buffering_arg=1):
+        """
+        Initialize a plot which draws Hi-C data as virtual 4C-plot. All interactions that
+        involve the slice region are shown.
+
+        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`. Can be list of
+                         multiple Hi-C datasets.
+        :param slice_region: String ("2L:1000000-1500000") or :class:`~GenomicRegion`.
+                             All interactions involving this region are shown.
+        :param names: If multiple Hi-C datasets are provided, can pass a list of names.
+                      Are used as names in the legend of the plot.
+        :param style: 'step' Draw values in a step-wise manner for each bin
+                      'mid' Draw values connecting mid-points of bins
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
+        :param title: Title drawn on top of the figure panel
+        :param ylim: Tuple to set y-axis limits
+        :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
+                        valid argument ("linear", "log", etc.) works
+        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
+        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
+        """
+        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
+                        axes_style=axes_style)
+        if not isinstance(hic_data, (list, tuple)):
+            hic_data = [hic_data]
+        self.hic_buffers = []
+        for h in hic_data:
+            hb = prepare_hic_buffer(h,
+                                    buffering_strategy=buffering_strategy,
+                                    buffering_arg=buffering_arg)
+            self.hic_buffers.append(hb)
+        self.names = names
+        if isinstance(slice_region, basestring):
+            slice_region = GenomicRegion.from_string(slice_region)
+        self.slice_region = slice_region
+        self.yscale = yscale
+        self.ylim = ylim
+        self.x = None
+        self.y = None
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        for i, b in enumerate(self.hic_buffers):
+            hm = b.get_matrix(self.slice_region, region).T
+            hm = np.mean(b.get_matrix(self.slice_region, region).T, axis=0)
+            bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]
+            bin_coords = (bin_coords[1:] + bin_coords[:-1])/2
+            self.ax.plot(bin_coords, hm, label=self.names[i] if self.names else "")
+        if self.names:
+            self.add_legend()
+        self.remove_colorbar_ax()
+        sns.despine(ax=self.ax, top=True, right=True)
+        self.ax.set_yscale(self.yscale)
+        if self.ylim:
+            self.ax.set_ylim(self.ylim)
+
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
+        pass
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):

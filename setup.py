@@ -26,7 +26,7 @@ setup(
         'tables>=3.2.3'
     ],
     extras_require={
-        'plotting':  ["seaborn"]
+        'plotting': ["seaborn"]
     },
     scripts=['bin/kaic', 'bin/klot']
 )

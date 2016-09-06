@@ -1,16 +1,25 @@
 before_script:
     - "virtualenv kaic_venv"
     - "source kaic_venv/bin/activate"
+    - "echo 'backend: Agg' > matplotlibrc"
 
 stages:
     - build_and_test
 
-job_build-and-test_linux:
+job_test_kaic:
     stage: build_and_test
     script:
         - "pip install cython"
-        - "pip install --process-dependency-links ."
-        - "py.test kaic"
+        - "pip install --process-dependency-links .[plotting]"
+        - "py.test kaic -m 'not plotting'"
     tags:
         - linux
 
+job_test_kaic_plotting:
+    stage: build_and_test
+    script:
+        - "pip install cython"
+        - "pip install --process-dependency-links .[plotting]"
+        - "py.test kaic -m plotting"
+    tags:
+        - linux

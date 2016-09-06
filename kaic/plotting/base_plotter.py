@@ -1,7 +1,8 @@
 from __future__ import division, print_function
+from kaic.plotting.helpers import style_ticks_whitegrid
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
-from abc import abstractmethod, ABCMeta
+from abc import abstractmethod, abstractproperty, ABCMeta
 import numpy as np
 import matplotlib as mpl
 import seaborn as sns
@@ -10,147 +11,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 plt = sns.plt
-
-
-def append_axes(parent, side, thickness, padding, length=None, shrink=1., **kwargs):
-    """
-    Add an axes on any side of parent ax without resizing the parent ax.
-
-    :param parent: Parent axes
-    :param side: Side on which axes is appended ("top", "bottom", "left" or "right")
-    :param thickness: Thickness of newly created axes, in inches. Measured in
-                      direction from the parent axes to the side where axes is created
-    :param padding: Padding between parent and new axes
-    :param length: Length of new axes perpendicular thickness. By default same length
-                   as parent axes
-    :param shrink: Set length to a certain fraction of parent axes length. No effect
-                   if length is set explicitely.
-    :param kwargs: Additional keyword args passed to figure.add_axes method
-    :return: Axes instance
-    """
-    figsize = parent.figure.get_size_inches()
-    bbox = parent.get_position()
-    if side in ("top", "bottom"):
-        thickness = thickness/figsize[1]
-        padding = padding/figsize[1]
-        length = length/figsize[0] if length is not None else shrink*bbox.width
-        if side == "top":
-            hor = bbox.x0 + (bbox.width - length)/2
-            vert = bbox.y0 + bbox.height + padding
-            width = length
-            height = thickness
-        else:
-            length = length if length is not None else shrink*bbox.width
-            hor = bbox.x0 + (bbox.width - length)/2
-            vert = bbox.y0 - padding - thickness
-            width = length
-            height = thickness
-    elif side in ("right", "left"):
-        thickness = thickness/figsize[0]
-        padding = padding/figsize[0]
-        length = length/figsize[1] if length is not None else shrink*bbox.height
-        if side == "right":
-            hor = bbox.x0 + bbox.width + padding
-            vert = bbox.y0 + (bbox.height - length)/2
-            width = thickness
-            height = length
-        else:
-            hor = bbox.x0 - padding - thickness
-            vert = bbox.y0 + (bbox.height - length)/2
-            width = thickness
-            height = length
-    else:
-        raise ValueError("Illegal parameter side '{}'".format(side))
-    return parent.figure.add_axes([hor, vert, width, height], **kwargs)
-
-
-def force_aspect(ax, aspect):
-    """
-    Force aspect ratio of a matplotlib axes
-
-    :param ax: axes whose aspect ratio will be forced
-    :param aspect: Aspect ratio (width/height)
-    """
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
-    data_aspect = (xlim[1] - xlim[0])/(ylim[1] - ylim[0])
-    aspect = abs(data_aspect/aspect)
-    ax.set_aspect(aspect)
-
-
-class SymmetricNorm(mpl.colors.Normalize):
-    """
-    Normalizes data for plotting on a divergent colormap.
-    Automatically chooses vmin and vmax so that the colormap is
-    centered at zero.
-    """
-    def __init__(self, vmin=None, vmax=None, percentile=None):
-        """
-        :param vmin: Choose vmin manually
-        :param vmax: Choose vmax manually
-        :param percentile: Instead of taking the minmum or maximum to
-                           automatically determine vmin/vmax, take the
-                           percentile.
-                           eg. with 5, vmin is 5%-ile, vmax 95%-ile
-        """
-        mpl.colors.Normalize.__init__(self, vmin=vmin, vmax=vmax, clip=False)
-        self.percentile = percentile
-        self.vmin = vmin
-        self.vmax = vmax
-
-    def _get_min(self, A):
-        if self.percentile:
-            return np.nanpercentile(A, 100 - self.percentile)
-        else:
-            return np.ma.min(A[~np.isnan(A)])
-
-    def _get_max(self, A):
-        if self.percentile:
-            return np.nanpercentile(A, self.percentile)
-        else:
-            return np.ma.max(A[~np.isnan(A)])
-
-    def autoscale(self, A):
-        vmin = self._get_min(A)
-        vmax = self._get_max(A)
-        abs_max = max(abs(vmin), abs(vmax))
-        self.vmin = -1.*abs_max
-        self.vmax = abs_max
-
-    def autoscale_None(self, A):
-        vmin = self.vmin if self.vmin else self._get_min(A)
-        vmax = self.vmax if self.vmax else self._get_max(A)
-        abs_max = max(abs(vmin), abs(vmax))
-        self.vmin = -1.*abs_max
-        self.vmax = abs_max
-
-
-def millify(n, precision=1):
-    """
-    Take input float and return human readable string.
-    E.g.:
-    millify(1000f0) -> "10k"
-    millify(2300000) -> "2M"
-
-    Parameters
-    ----------
-    n : int, float
-        Number to be converted
-    precision : int
-        Number of decimals displayed in output string
-
-    Returns
-    -------
-    str : Human readable string representation of n
-    """
-    millnames = ["", "k", "M", "B", "T"]
-    if n == 0:
-        return 0
-    n = float(n)
-    millidx = max(0, min(len(millnames) - 1, int(math.floor(math.log10(abs(n))/3))))
-
-    return "{:.{prec}f}{}".format(n/10**(3*millidx), millnames[millidx], prec=precision)
-
 
 class GenomeCoordFormatter(Formatter):
     """
@@ -297,16 +157,19 @@ class BasePlotter(object):
 
     def __init__(self, title='', aspect=1., axes_style="ticks"):
         self.ax = None
+        self.cax = None
         self.title = title
         self.has_legend = False
         self._aspect = aspect
         self.axes_style = axes_style
+        self.overlays = []
 
     def _before_plot(self, region=None, *args, **kwargs):
         self.ax.set_title(self.title)
 
     def _after_plot(self, region=None, *args, **kwargs):
-        pass
+        for o in self.overlays:
+            o.plot(self, region)
 
     @abstractmethod
     def _plot(self, region=None, *args, **kwargs):
@@ -343,6 +206,22 @@ class BasePlotter(object):
     def remove_genome_ticks(self):
         plt.setp(self.ax.get_xticklabels(), visible=False)
         self.ax.xaxis.offsetText.set_visible(False)
+
+    def remove_colorbar_ax(self):
+        if self.cax is None:
+            return
+        try:
+            self.fig.delaxes(self.cax)
+            self.cax = None
+        except KeyError:
+            pass
+
+    def add_overlay(self, overlay):
+        plot_class = self.__class__.__name__
+        if plot_class not in overlay.compatibility:
+            raise ValueError("Overlay type {} is not compatible with plotter type {}.".format(
+                overlay.__class__.__name__, plot_class))
+        self.overlays.append(overlay)
 
 
 class BasePlotter1D(BasePlotter):
@@ -389,19 +268,64 @@ class BasePlotter1D(BasePlotter):
             self.refresh(region=x_region)
 
 
-class BasePlotterMatrix(BasePlotter):
+class ScalarDataPlot(BasePlotter1D):
+    """
+    Base class for plotting scalar values like ChIP-seq signal.
+    Provides methods for converting lists of values and regions
+    to plotting coordinates.
+    """
+    _STYLE_STEP = "step"
+    _STYLE_MID = "mid"
+
+    def __init__(self, style="step", title='', aspect=.2, axes_style=style_ticks_whitegrid):
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+        self.style = style
+        if style not in self._STYLES:
+            raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
+
+    def _get_values_per_step(self, values, region_list):
+        x = np.empty(len(region_list)*2)
+        y = np.empty(len(region_list)*2)
+        for i, r in enumerate(region_list):
+            j = i*2
+            x[j], x[j + 1] = r.start, r.end
+            y[j:j + 2] = values[i]
+        return x, y
+
+    def _get_values_per_mid(self, values, region_list):
+        x = np.empty(len(values), dtype=np.int_)
+        for i, r in enumerate(region_list):
+            x[i] = int(round((r.end + r.start)/2))
+        return x, values
+
+    def get_plot_values(self, values, region_list):
+        """
+        Convert values and regions to final x- and y-
+        coordinates for plotting, based on the selected style.
+
+        :param values: List or array of scalar values
+        :param region_list: List of class:`~kaic.data.genomic.GenomicRegion`,
+                            one for each value
+        """
+        return self._STYLES[self.style](self, values, region_list)
+
+    _STYLES = {_STYLE_STEP: _get_values_per_step,
+               _STYLE_MID: _get_values_per_mid}
+
+
+class BasePlotterMatrix(object):
     """
     Mix-in class to provide methods for mapping colorvalues
     in special areas in the plots etc.
+    Does not inherit from BasePlotter, since it's meant to be inherited
+    together with another BasePlotter class.
     """
 
     __metaclass__ = ABCMeta
 
     def __init__(self, colormap='viridis', norm="log", vmin=None, vmax=None,
-                 show_colorbar=True, blend_zero=True, title='', replacement_color=None,
-                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None,
-                 aspect=1., axes_style='ticks'):
-        BasePlotter.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+                 show_colorbar=True, blend_zero=True, replacement_color=None,
+                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
 
         if isinstance(colormap, basestring):
             colormap = mpl.cm.get_cmap(colormap)
@@ -446,9 +370,9 @@ class BasePlotterMatrix(BasePlotter):
         if self.illegal_color:
             color_matrix[~np.isfinite(matrix)] = mpl.colors.colorConverter.to_rgba(self.illegal_color)
         if self.unmappable_color:
-            color_matrix[np.all(zero_mask, axis=0), :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+            color_matrix[np.all(zero_mask, axis=1), :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
             if matrix.shape[0] == matrix.shape[1]:
-                color_matrix[:, np.all(zero_mask, axis=1)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
+                color_matrix[:, np.all(zero_mask, axis=0)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
         return color_matrix
 
     def add_colorbar(self, ax=None, baseline=None):
@@ -486,12 +410,6 @@ class BasePlotterMatrix(BasePlotter):
             self.colorbar.set_clim(vmin=baseline-max_diff, vmax=baseline+max_diff)
         self.colorbar.draw_all()
 
-    def remove_colorbar_ax(self):
-        try:
-            self.fig.delaxes(self.colorbar.ax)
-        except KeyError:
-            pass
-
     @property
     def vmin(self):
         return self._vmin if self._vmin else self.norm.vmin
@@ -510,12 +428,12 @@ class BasePlotterMatrix(BasePlotter):
         self.norm = _prepare_normalization(norm, vmin, vmax)
 
 
-class BasePlotter2D(BasePlotterMatrix):
+class BasePlotter2D(BasePlotter):
 
     __metaclass__ = ABCMeta
 
     def __init__(self, title, aspect=1., axes_style="ticks"):
-        BasePlotterMatrix.__init__(self, title=title, aspect=aspect,
+        BasePlotter.__init__(self, title=title, aspect=aspect,
                                    axes_style=axes_style)
         self._mouse_release_handler = None
         self._current_chromosome_x = None
@@ -595,3 +513,22 @@ class BasePlotter2D(BasePlotterMatrix):
         if plot_output is None:
             return self.fig, self.ax
         return plot_output
+
+
+class BaseOverlayPlotter(object):
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self):
+        pass
+
+    @abstractproperty
+    def compatibility(self):
+        return None
+
+    @abstractmethod
+    def _plot(self, base_plot, region):
+        raise NotImplementedError("Subclasses need to override _plot function")
+
+    def plot(self, base_plot, region):
+        self._plot(base_plot, region)
