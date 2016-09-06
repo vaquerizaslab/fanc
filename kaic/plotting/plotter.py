@@ -742,7 +742,6 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
 
 class BigWigPlot(ScalarDataPlot):
-    # TODO make this work - wWigIO just won't install
     def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None,
                  plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
         """
