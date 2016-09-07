@@ -135,6 +135,9 @@ def mkdir(dir_name):
         if exception.errno != errno.EEXIST:
             raise
 
+    if not dir_name.endswith('/'):
+        dir_name += '/'
+
     return dir_name
 
 
