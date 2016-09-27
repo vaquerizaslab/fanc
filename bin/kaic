@@ -2576,14 +2576,16 @@ class Kaic(object):
 
         parser.add_argument(
             '-c', '--colormap', dest='colormap',
-            default='viridis',
-            help='''Matplotlib colormap (default: viridis)'''
+            help='''Matplotlib colormap'''
         )
 
         args = parser.parse_args(argv[2:])
 
         import kaic
+        from kaic.config import config
         from kaic.plotting.plot_genomic_data import hic_correlation_plot
+
+        colormap = config.hic_colormap if args.colormap is None else args.colormap
 
         hic1_path = os.path.expanduser(args.hic1)
         hic2_path = os.path.expanduser(args.hic2)
@@ -2595,7 +2597,7 @@ class Kaic(object):
         if args.output:
             output_path = os.path.expanduser(args.output)
 
-        hic_correlation_plot(hic1, hic2, output=output_path, colormap=args.colormap, size=15)
+        hic_correlation_plot(hic1, hic2, output=output_path, colormap=colormap, size=15)
 
         hic1.close()
         hic2.close()
@@ -2702,14 +2704,15 @@ class Kaic(object):
 
         parser.add_argument(
             '-c', '--colormap', dest='colormap',
-            default='viridis',
-            help='''Matplotlib colormap (default: viridis)'''
+            help='''Matplotlib colormap'''
         )
 
         args = parser.parse_args(argv[2:])
 
         import kaic
+        from kaic.config import config
         from kaic.plotting.plot_genomic_data import hic_matrix_diff_plot
+        colormap = config.hic_colormap if args.colormap is None else args.colormap
 
         input_path1 = os.path.expanduser(args.hic1)
         input_path2 = os.path.expanduser(args.hic2)
@@ -2724,9 +2727,9 @@ class Kaic(object):
         if args.region is None:
             args.region = slice(0, None, None)
         hic_matrix_diff_plot(hic1, hic2, output=output_path, key=args.region,
-                                     lower_percentile=args.lower, upper_percentile=args.upper,
-                                     lower=args.lower_abs, upper=args.upper_abs,
-                                     colormap=args.colormap)
+                             lower_percentile=args.lower, upper_percentile=args.upper,
+                             lower=args.lower_abs, upper=args.upper_abs,
+                             colormap=colormap)
         hic1.close()
         hic2.close()
         logger.info("All done.")

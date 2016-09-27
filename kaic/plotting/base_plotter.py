@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+from kaic.config import config
 from kaic.plotting.helpers import style_ticks_whitegrid
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
@@ -11,6 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 plt = sns.plt
+
 
 class GenomeCoordFormatter(Formatter):
     """
@@ -323,7 +325,7 @@ class BasePlotterMatrix(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, colormap='viridis', norm="log", vmin=None, vmax=None,
+    def __init__(self, colormap=config.hic_colormap, norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, replacement_color=None,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
 

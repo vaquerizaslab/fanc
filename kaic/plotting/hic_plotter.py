@@ -1,4 +1,5 @@
 import kaic
+from kaic.config import config
 from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
 from kaic.data.genomic import GenomicRegion
@@ -222,7 +223,7 @@ class BasePlotterHic(BasePlotterMatrix):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, hic_data, colormap='viridis', norm="log",
+    def __init__(self, hic_data, colormap=config.hic_colormap, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
@@ -239,7 +240,7 @@ class BasePlotterHic(BasePlotterMatrix):
 
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
-    def __init__(self, hic_data, title='', colormap='viridis', norm="log",
+    def __init__(self, hic_data, title='', colormap=config.hic_colormap, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, colorbar_symmetry=None,
                  adjust_range=True, buffering_strategy="relative", buffering_arg=1,
                  blend_zero=True, unmappable_color=".9",
@@ -323,7 +324,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
 
 class HicSideBySidePlot2D(object):
-    def __init__(self, hic1, hic2, colormap='viridis', norm="log",
+    def __init__(self, hic1, hic2, colormap=config.hic_colormap, norm="log",
                  vmin=None, vmax=None, aspect=1., axes_style="ticks"):
         self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm,
                                       vmin=vmin, vmax=vmax, aspect=aspect, axes_style=axes_style)
@@ -342,7 +343,7 @@ class HicSideBySidePlot2D(object):
 
 
 class HicComparisonPlot2D(HicPlot2D):
-    def __init__(self, hic_top, hic_bottom, colormap='viridis', norm='log',
+    def __init__(self, hic_top, hic_bottom, colormap=config.hic_colormap, norm='log',
                  vmin=None, vmax=None, scale_matrices=True, show_colorbar=True,
                  buffering_strategy="relative", buffering_arg=1, aspect=1.,
                  axes_style="ticks"):
@@ -382,7 +383,7 @@ class HicSlicePlot(ScalarDataPlot):
         :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
         """
         ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
-                        axes_style=axes_style)
+                                axes_style=axes_style)
         if not isinstance(hic_data, (list, tuple)):
             hic_data = [hic_data]
         self.hic_buffers = []
@@ -420,7 +421,7 @@ class HicSlicePlot(ScalarDataPlot):
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
-    def __init__(self, hic_data, title='', colormap='viridis', max_dist=None, norm="log",
+    def __init__(self, hic_data, title='', colormap=config.hic_colormap, max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False, colorbar_symmetry=None,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
                  unmappable_color=".9", illegal_color=None, aspect=.5,

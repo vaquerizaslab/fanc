@@ -1,12 +1,11 @@
 from __future__ import division
+from kaic.config import config
 import matplotlib as mp
 import seaborn as sns
 import pandas
 import numpy as np
 import kaic.data.general as general
 import kaic.data.genomic as genomic
-from mpl_toolkits.mplot3d import Axes3D
-# import os.path
 
 
 def _prepare_backend(output):
@@ -97,7 +96,7 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
 
 
 def _matrix_plot(hm, output=None, lower_percentile=25.0, upper_percentile=98.0,
-                 lower=None, upper=None, colormap='viridis'):
+                 lower=None, upper=None, colormap=config.hic_colormap):
 
     if lower is None or upper is None:
         percentiles = np.percentile(hm, [lower_percentile, upper_percentile])
@@ -126,7 +125,7 @@ def _matrix_plot(hm, output=None, lower_percentile=25.0, upper_percentile=98.0,
 
 def hic_matrix_plot(hic, output=None, key=slice(0, None, None),
                     lower_percentile=25.0, upper_percentile=98.0,
-                    lower=None, upper=None, colormap='viridis'):
+                    lower=None, upper=None, colormap=config.hic_colormap):
     hm = hic[key, key]
 
     _matrix_plot(hm, output=output, lower_percentile=lower_percentile,
@@ -136,7 +135,7 @@ def hic_matrix_plot(hic, output=None, key=slice(0, None, None),
 
 def hic_matrix_diff_plot(hic1, hic2, output=None, key=slice(0, None, None),
                          lower_percentile=25.0, upper_percentile=98.0,
-                         lower=None, upper=None, colormap='viridis'):
+                         lower=None, upper=None, colormap=config.hic_colormap):
     hm1 = hic1[key, key]
     hm2 = hic2[key, key]
     hm = hm1 - hm2
@@ -190,7 +189,7 @@ def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
     return pandas.DataFrame(data=corr_matrix, index=chromosomes, columns=chromosomes)
 
 
-def hic_correlation_plot(hic1, hic2, output=None, include_zeros=False, colormap="viridis", size=10):
+def hic_correlation_plot(hic1, hic2, output=None, include_zeros=False, colormap=config.hic_colormap, size=10):
     corr_df = _correlation_df(hic1, hic2, include_zeros=include_zeros, in_percent=True)
 
     if output is not None:
@@ -354,7 +353,7 @@ def hic_directionality_index_plot(hic, output=None):
     _plot_figure(scatter, output, old_backend)
 
 
-def hic_triangle_plot(hic, key=slice(0, None, None), output=None, colormap='viridis', max_height=None, axes=None,
+def hic_triangle_plot(hic, key=slice(0, None, None), output=None, colormap=config.hic_colormap, max_height=None, axes=None,
                       n_x_labels=10, vmin=1, vmax=50):
     hm = hic[key, key]
     print hm.shape

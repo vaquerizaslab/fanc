@@ -495,8 +495,7 @@ class Klot(object):
 
         parser.add_argument(
             '-c', '--colormap', dest='colormap',
-            default='viridis',
-            help='''Matplotlib colormap (default: viridis)'''
+            help='''Matplotlib colormap'''
         )
 
         parser.add_argument(
@@ -509,12 +508,14 @@ class Klot(object):
         args = parser.parse_args(parameters)
 
         import kaic
+        from kaic.config import config
         import kaic.plotting as kplt
+        colormap = config.hic_colormap if args.colormap is None else args.colormap
 
         matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
 
         norm = "lin" if not args.log else "log"
-        return kplt.HicPlot(matrix, colormap=args.colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
+        return kplt.HicPlot(matrix, colormap=colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
                             vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range), args
 
     def hic2d(self, parameters):
@@ -554,8 +555,7 @@ class Klot(object):
 
         parser.add_argument(
             '-c', '--colormap', dest='colormap',
-            default='viridis',
-            help='''Matplotlib colormap (default: viridis)'''
+            help='''Matplotlib colormap'''
         )
 
         parser.add_argument(
@@ -569,10 +569,12 @@ class Klot(object):
         norm = "lin" if not args.log else "log"
 
         import kaic
+        from kaic.config import config
         import kaic.plotting as kplt
+        colormap = config.hic_colormap if args.colormap is None else args.colormap
 
         matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
-        return kplt.HicPlot2D(matrix, colormap=args.colormap, norm=norm, vmin=args.vmin, vmax=args.vmax,
+        return kplt.HicPlot2D(matrix, colormap=colormap, norm=norm, vmin=args.vmin, vmax=args.vmax,
                               show_colorbar=args.show_colorbar, adjust_range=args.adjust_range), args
 
     def hicsplit(self, parameters):
@@ -610,8 +612,7 @@ class Klot(object):
 
         parser.add_argument(
             '-c', '--colormap', dest='colormap',
-            default='viridis',
-            help='''Matplotlib colormap (default: viridis)'''
+            help='''Matplotlib colormap'''
         )
 
         parser.add_argument(
@@ -632,13 +633,15 @@ class Klot(object):
         args = parser.parse_args(parameters)
 
         import kaic
+        from kaic.config import config
         import kaic.plotting as kplt
+        colormap = config.hic_colormap if args.colormap is None else args.colormap
 
         matrix_bottom = kaic.load_hic(os.path.expanduser(args.hic_bottom), mode='r')
         matrix_top = kaic.load_hic(os.path.expanduser(args.hic_top), mode='r')
 
         norm = "lin" if not args.log else "log"
-        sp = kplt.HicComparisonPlot2D(matrix_top, matrix_bottom, colormap=args.colormap, norm=norm, vmin=args.vmin,
+        sp = kplt.HicComparisonPlot2D(matrix_top, matrix_bottom, colormap=colormap, norm=norm, vmin=args.vmin,
                                       vmax=args.vmax, scale_matrices=args.scaling, show_colorbar=args.show_colorbar)
         return sp, args
 
@@ -702,14 +705,12 @@ class Klot(object):
 
         parser.add_argument(
             '-uc', '--colormap-upper', dest='colormap_upper',
-            default='viridis',
-            help='''Matplotlib colormap for upper plot (default: viridis)'''
+            help='''Matplotlib colormap for upper plot'''
         )
 
         parser.add_argument(
             '-lc', '--colormap-lower', dest='colormap_lower',
-            default='viridis',
-            help='''Matplotlib colormap for lower plot (default: viridis)'''
+            help='''Matplotlib colormap for lower plot'''
         )
 
         parser.add_argument(
@@ -722,17 +723,20 @@ class Klot(object):
         args = parser.parse_args(parameters)
 
         import kaic
+        from kaic.config import config
         import kaic.plotting as kplt
+        colormap_lower = config.hic_colormap if args.colormap_lower is None else args.colormap_lower
+        colormap_upper = config.hic_colormap if args.colormap_upper is None else args.colormap_upper
 
         matrix_upper = kaic.load_hic(os.path.expanduser(args.hic_upper), mode='r')
         matrix_lower = kaic.load_hic(os.path.expanduser(args.hic_lower), mode='r')
 
         norm_upper = "lin" if not args.log_upper else "log"
-        upper_plot = kplt.HicPlot(matrix_upper, colormap=args.colormap_upper, max_dist=args.max_dist, norm=norm_upper,
+        upper_plot = kplt.HicPlot(matrix_upper, colormap=colormap_upper, max_dist=args.max_dist, norm=norm_upper,
                                   vmin=args.vmin_upper, vmax=args.vmax_upper, show_colorbar=args.show_colorbar,
                                   adjust_range=False)
         norm_lower = "lin" if not args.log_lower else "log"
-        lower_plot = kplt.HicPlot(matrix_lower, colormap=args.colormap_lower, max_dist=args.max_dist,
+        lower_plot = kplt.HicPlot(matrix_lower, colormap=colormap_lower, max_dist=args.max_dist,
                                   norm=norm_lower, vmin=args.vmin_lower, vmax=args.vmax_lower,
                                   show_colorbar=args.show_colorbar, adjust_range=False)
         vsp = kplt.VerticalSplitPlot(upper_plot, lower_plot)
@@ -798,8 +802,7 @@ class Klot(object):
 
         parser.add_argument(
             '-hc', '--colormap-hic', dest='colormap_hic',
-            default='viridis',
-            help='''Matplotlib colormap for Hi-C plot (default: viridis)'''
+            help='''Matplotlib colormap for Hi-C plot'''
         )
 
         parser.add_argument(
@@ -832,13 +835,16 @@ class Klot(object):
         args = parser.parse_args(parameters)
 
         import kaic
+        from kaic.config import config
         import kaic.plotting as kplt
+
+        colormap_hic = config.hic_colormap if args.colormap_hic is None else args.colormap_hic
 
         hic = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
         fc = kaic.FoldChangeMatrix(os.path.expanduser(args.fold_change), mode='r')
 
         norm_hic = "lin" if not args.log_hic else "log"
-        hic_plot = kplt.HicPlot(hic, colormap=args.colormap_hic, max_dist=args.max_dist, norm=norm_hic,
+        hic_plot = kplt.HicPlot(hic, colormap=colormap_hic, max_dist=args.max_dist, norm=norm_hic,
                                 vmin=args.vmin_hic, vmax=args.vmax_hic, show_colorbar=args.show_colorbar,
                                 adjust_range=False)
         norm_fc = "lin" if not args.log_fc else "log"
