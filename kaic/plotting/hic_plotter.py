@@ -463,6 +463,10 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         logger.debug("Generating matrix from hic object")
         if region is None:
             raise ValueError("Cannot plot triangle plot for whole genome.")
+        if region.start is None:
+            region.start = 1
+        if region.end is None:
+            region.end = self.hic_data.chromosome_lens[region.chromosome]
         # Have to copy unfortunately, otherwise modifying matrix in buffer
         x_, y_, hm = self._mesh_data(region)
         self.hm = hm
