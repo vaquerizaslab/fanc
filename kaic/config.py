@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 default_config_content = """\
 colormap_hic: germany
-verbosity: 1
 """
 default_config = yaml.load(default_config_content)
 
