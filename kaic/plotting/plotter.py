@@ -1068,6 +1068,7 @@ class GenePlot(BasePlotter1D):
         self.ax.drag_pan = types.MethodType(drag_pan, self.ax)
         self.ax.get_yaxis().set_visible(False)
         sns.despine(ax=self.ax, top=True, right=True, left=True)
+        self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         while len(self.lines) > 0:
