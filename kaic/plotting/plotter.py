@@ -280,7 +280,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
 
 class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
     def __init__(self, track, attribute, y_coords=None, y_scale='linear', plot_kwargs=None, title='',
-                 colormap=config.hic_colormap, norm="lin", vmin=None, vmax=None,
+                 colormap=config.colormap_hic, norm="lin", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=False,
                  unmappable_color=".9", illegal_color=None, aspect=.3,
                  axes_style="ticks"):
@@ -363,7 +363,7 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
 
 class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
     def __init__(self, array, keys=None, y_coords=None, y_scale='linear', plot_kwargs=None, title='',
-                 colormap=config.hic_colormap, colorbar_symmetry=None, norm="lin", vmin=None, vmax=None,
+                 colormap=config.colormap_hic, colorbar_symmetry=None, norm="lin", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, replacement_color=None,
                  unmappable_color=".9", illegal_color=None, aspect=.3,
                  axes_style="ticks"):

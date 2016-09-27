@@ -2585,7 +2585,7 @@ class Kaic(object):
         from kaic.config import config
         from kaic.plotting.plot_genomic_data import hic_correlation_plot
 
-        colormap = config.hic_colormap if args.colormap is None else args.colormap
+        colormap = config.colormap_hic if args.colormap is None else args.colormap
 
         hic1_path = os.path.expanduser(args.hic1)
         hic2_path = os.path.expanduser(args.hic2)
@@ -2712,7 +2712,7 @@ class Kaic(object):
         import kaic
         from kaic.config import config
         from kaic.plotting.plot_genomic_data import hic_matrix_diff_plot
-        colormap = config.hic_colormap if args.colormap is None else args.colormap
+        colormap = config.colormap_hic if args.colormap is None else args.colormap
 
         input_path1 = os.path.expanduser(args.hic1)
         input_path2 = os.path.expanduser(args.hic2)

@@ -325,7 +325,7 @@ class BasePlotterMatrix(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, colormap=config.hic_colormap, norm="log", vmin=None, vmax=None,
+    def __init__(self, colormap=config.colormap_hic, norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, replacement_color=None,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
 

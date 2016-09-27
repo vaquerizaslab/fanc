@@ -223,7 +223,7 @@ class BasePlotterHic(BasePlotterMatrix):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, hic_data, colormap=config.hic_colormap, norm="log",
+    def __init__(self, hic_data, colormap=config.colormap_hic, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
@@ -240,7 +240,7 @@ class BasePlotterHic(BasePlotterMatrix):
 
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
-    def __init__(self, hic_data, title='', colormap=config.hic_colormap, norm="log",
+    def __init__(self, hic_data, title='', colormap=config.colormap_hic, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, colorbar_symmetry=None,
                  adjust_range=True, buffering_strategy="relative", buffering_arg=1,
                  blend_zero=True, unmappable_color=".9",
@@ -324,7 +324,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
 
 class HicSideBySidePlot2D(object):
-    def __init__(self, hic1, hic2, colormap=config.hic_colormap, norm="log",
+    def __init__(self, hic1, hic2, colormap=config.colormap_hic, norm="log",
                  vmin=None, vmax=None, aspect=1., axes_style="ticks"):
         self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm,
                                       vmin=vmin, vmax=vmax, aspect=aspect, axes_style=axes_style)
@@ -343,7 +343,7 @@ class HicSideBySidePlot2D(object):
 
 
 class HicComparisonPlot2D(HicPlot2D):
-    def __init__(self, hic_top, hic_bottom, colormap=config.hic_colormap, norm='log',
+    def __init__(self, hic_top, hic_bottom, colormap=config.colormap_hic, norm='log',
                  vmin=None, vmax=None, scale_matrices=True, show_colorbar=True,
                  buffering_strategy="relative", buffering_arg=1, aspect=1.,
                  axes_style="ticks"):
@@ -421,7 +421,7 @@ class HicSlicePlot(ScalarDataPlot):
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
-    def __init__(self, hic_data, title='', colormap=config.hic_colormap, max_dist=None, norm="log",
+    def __init__(self, hic_data, title='', colormap=config.colormap_hic, max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False, colorbar_symmetry=None,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
                  unmappable_color=".9", illegal_color=None, aspect=.5,
