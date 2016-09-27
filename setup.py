@@ -23,6 +23,7 @@ setup(
         'progressbar2',
         'pybedtools',
         'pyBigWig',
+        'PyYAML',
         'tables>=3.2.3'
     ],
     extras_require={
