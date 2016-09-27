@@ -10,6 +10,7 @@ Provides
 """
 from .version import __version__
 
+from kaic.config import config
 from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion, \
     BigWig
 from kaic.data.general import Table, FileBased
