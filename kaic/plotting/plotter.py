@@ -54,7 +54,8 @@ def hide_axis(ax):
 
 class GenomicFigure(object):
     def __init__(self, plots, height_ratios=None, figsize=None, hspace=.5,
-                 gridspec_args=None, ticks_last=False, fix_chromosome=None):
+                 gridspec_args=None, ticks_last=False, fix_chromosome=None,
+                 invert_x=False, hide_x=None):
         """
         Creates a GenomicFigure composed of one or more plots.
         All plots are arranged in a single column, their genomic coordinates aligned.
@@ -112,6 +113,7 @@ class GenomicFigure(object):
             plots[i].ax = ax
             plots[i].cax = plt.subplot(gs[i, 1])
 
+        # fix chromosome identifiers
         if fix_chromosome is None:
             self.fix_chromosome = [False] * self.n
         else:
@@ -119,6 +121,17 @@ class GenomicFigure(object):
         if len(self.fix_chromosome) != self.n:
             raise ValueError("fix_chromosome ({}) must be the same length "
                              "as plots ({})".format(len(self.fix_chromosome), self.n))
+
+        self.invert_x = invert_x
+
+        # hide x axes
+        if hide_x is None:
+            self.hide_x = [False] * self.n
+        else:
+            self.hide_x = hide_x
+        if len(self.hide_x) != self.n:
+            raise ValueError("hide_x ({}) must be the same length "
+                             "as plots ({})".format(len(self.hide_x), self.n))
 
     @property
     def fig(self):
@@ -145,6 +158,13 @@ class GenomicFigure(object):
             p.plot(plot_region, ax=a)
             if self.ticks_last and i < len(self.axes) - 1:
                 p.remove_genome_ticks()
+
+            if self.invert_x:
+                a.invert_xaxis()
+
+            if self.hide_x[i]:
+                a.xaxis.set_visible(False)
+
         return self.fig, self.axes
 
     def __enter__(self):

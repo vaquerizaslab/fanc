@@ -89,6 +89,13 @@ class Klot(object):
         )
 
         global_parser.add_argument(
+            '--invert-x', dest='invert_x',
+            action='store_true',
+            help='''Invert x-axis for this plot'''
+        )
+        global_parser.set_defaults(invert_x=False)
+
+        global_parser.add_argument(
             '-v', '--version', dest='print_version',
             action='store_true',
             help='''Print version information'''
@@ -134,6 +141,7 @@ class Klot(object):
         height_ratios = []
         plots = []
         fix_chromosome = []
+        hide_x = []
         for plot_method, args in subplot_data:
             # create plot
             plot, plot_args = plot_method(args)
@@ -149,6 +157,7 @@ class Klot(object):
                 height_ratios.append(plot_args.aspect_ratio)
 
             fix_chromosome.append(plot_args.fix_chromosome)
+            hide_x.append(plot_args.hide_x)
 
             # set plot title
             plot.title = plot_args.title
@@ -194,7 +203,8 @@ class Klot(object):
                 plot_region = region
 
             with kplt.GenomicFigure(plots, figsize=(figure_width, figure_height), fix_chromosome=fix_chromosome,
-                                    height_ratios=height_ratios, gridspec_args={'hspace': global_args.hspace}) as gf:
+                                    height_ratios=height_ratios, gridspec_args={'hspace': global_args.hspace},
+                                    invert_x=global_args.invert_x, hide_x=hide_x) as gf:
                 try:
                     fig, axes = gf.plot(plot_region)
                 except Exception, error:
@@ -273,6 +283,13 @@ class Klot(object):
             help='''Fix chromosome identifier for this plot (add or remove 'chr' as required)'''
         )
         subplot_parser.set_defaults(fix_chromosome=False)
+
+        subplot_parser.add_argument(
+            '--hide-x', dest='hide_x',
+            action='store_true',
+            help='''Hide x-axis for this plot'''
+        )
+        subplot_parser.set_defaults(hide_x=False)
 
         return subplot_parser
 
