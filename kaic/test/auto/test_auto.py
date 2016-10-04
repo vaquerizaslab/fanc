@@ -1,5 +1,6 @@
 import kaic
 from kaic.data.registry import class_name_dict
+from kaic.tools import dummy
 import pytest
 import pysam
 import os
@@ -19,7 +20,7 @@ class TestAuto:
             x.close()
 
     def test_hic_based_auto_identification(self, tmpdir):
-        with kaic.sample_hic() as hic:
+        with dummy.sample_hic() as hic:
             for class_name in ('ABDomains', 'ABDomainMatrix', 'ExpectedContacts', 'ObservedExpectedRatio',
                                'FoldChangeMatrix', 'ABDomains', 'PossibleContacts', 'RegionContactAverage',
                                'InsulationIndex', 'DirectionalityIndex'):
@@ -34,7 +35,7 @@ class TestAuto:
 
     def test_conversion(self, tmpdir):
         file_name = str(tmpdir) + '/x.hic'
-        with kaic.sample_hic(file_name=file_name) as hic:
+        with dummy.sample_hic(file_name=file_name) as hic:
             # simulate old-style object
             hic.file.remove_node('/meta_information', recursive=True)
 
@@ -50,7 +51,7 @@ class TestAuto:
         assert isinstance(hic, kaic.Hic)
 
     def test_old_style_index(self, tmpdir):
-        with kaic.sample_hic() as hic:
+        with dummy.sample_hic() as hic:
             for class_name in ('ABDomains', 'ABDomainMatrix', 'ExpectedContacts', 'ObservedExpectedRatio',
                                'FoldChangeMatrix', 'ABDomains', 'PossibleContacts', 'RegionContactAverage',
                                'InsulationIndex', 'DirectionalityIndex'):
