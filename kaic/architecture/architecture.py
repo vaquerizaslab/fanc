@@ -339,7 +339,7 @@ class BasicTable(TableArchitecturalFeature):
                 for field, field_type in fields.iteritems():
                     pt_fields[field] = _get_pytables_data_type(field_type)
             else:
-                if types is None or not len(fields) == len(types):
+                if types is None or len(fields) != len(types):
                     raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields), len(types)))
                 for i, field in enumerate(fields):
                     pt_fields[field] = _get_pytables_data_type(types[i])
