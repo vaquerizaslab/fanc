@@ -24,6 +24,7 @@ import binascii
 from collections import defaultdict
 from .registry import class_id_dict, class_name_dict
 import six
+import tempfile
 import logging
 logger = logging.getLogger(__name__)
 
@@ -295,11 +296,13 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
         self.tmp_file_name = None
         self._mode = mode
         self._meta_group_name = _meta_group
-        if tmpdir is None:
+        if tmpdir is None or (isinstance(tmpdir, bool) and not tmpdir):
             self.tmp_file_name = None
             self._init_file(file_name, mode)
         else:
             logger.info("Working in temporary directory...")
+            if isinstance(tmpdir, bool):
+                tmpdir = tempfile.gettempdir()
             self.tmp_file_name = os.path.join(tmpdir, self._generate_tmp_file_name())
             logger.info("Temporary output file: {}".format(self.tmp_file_name))
             if mode in ['w', 'x', 'w-']:
