@@ -11,6 +11,7 @@ from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.tools.matrix import is_symmetric
 import kaic.correcting.knight_matrix_balancing as knight
 import kaic.correcting.ice_matrix_balancing as ice
+from kaic.tools import dummy
 import tables as t
 
 class TestChromosome:
@@ -622,18 +623,7 @@ class TestHicBasic:
     def teardown_method(self, method):
         self.hic_cerevisiae.close()
         self.hic.close()
-    
-    def test_initialize_xml(self):
-        current_dir = os.path.dirname(os.path.realpath(__file__))
-        
-        # from XML
-        hic1 = self.hic_class(current_dir + "/test_genomic/hic.example.xml")
-        nodes1 = hic1.nodes()
-        edges1 = hic1.edges()
-        assert len(nodes1) == 2
-        assert len(edges1) == 1
-        hic1.close()
-    
+
     def test_initialize_empty(self):
         hic = self.hic_class()
         nodes = hic.nodes()
@@ -643,18 +633,15 @@ class TestHicBasic:
         hic.close()
     
     def test_save_and_load(self, tmpdir):
-        current_dir = os.path.dirname(os.path.realpath(__file__))
-        dest_file = str(tmpdir) + "/hic.h5" 
-        
-        # from XML
-        hic1 = self.hic_class(current_dir + "/test_genomic/hic.example.xml", file_name=dest_file)
-        hic1.close()
-        
-#         from subprocess import check_output
-#         print check_output(["h5dump", dest_file])
-#         print class_id_dict
+        dest_file = str(tmpdir) + "/hic.h5"
 
-        hic2 = self.hic_class(dest_file)
+        hic1 = self.hic_class(file_name=dest_file, mode='w')
+        hic1.add_node(GenomicRegion(1, 1000, 'chr1'))
+        hic1.add_node(GenomicRegion(1, 1000, 'chr2'))
+        hic1.add_edge([0, 1])
+        hic1.close()
+
+        hic2 = self.hic_class(dest_file, mode='r')
         nodes2 = hic2.nodes()
         edges2 = hic2.edges()
         assert len(nodes2) == 2
