@@ -3474,21 +3474,8 @@ class Hic(RegionMatrixTable):
 
     def _add_data(self, data):
         if data is not None:
-            if type(data) is str:
-                if is_hic_xml_file(data):
-                    xml = HicXmlFile(data)
-                    for node in xml.nodes():
-                        self.add_node(node, flush=False)
-                    self.flush()
-
-                    for edge in xml.edges():
-                        self.add_edge(edge, flush=False)
-                    self.flush()
-                else:
-                    raise ValueError("File is not in Hi-C XML format")
-
             # data is existing Hic object
-            elif isinstance(data, Hic):
+            if isinstance(data, Hic):
                 self.load_from_hic(data)
             else:
                 try:
@@ -4356,84 +4343,6 @@ class RegionMatrix(np.ndarray):
         self.col_regions = pickle.loads(state[-1])
         # Call the parent's __setstate__ with the other tuple elements.
         super(RegionMatrix, self).__setstate__(state[0:-2])
-
-
-class HicXmlFile(object):
-    def __init__(self, file_name):
-        self.file_name = file_name
-
-    def nodes(self):
-        file_name = self.file_name
-        
-        class XmlNodeIter:
-            def __init__(self):
-                self.iter = et.iterparse(file_name)
-                
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                event, elem = self.iter.next()  # @UnusedVariable
-                while elem.tag != "node":
-                    elem.clear()
-                    event, elem = self.iter.next()  # @UnusedVariable
-            
-                a = elem.attrib
-                ix = None
-                if 'ix' in a:
-                    ix = int(a['ix'])
-                    
-                chromosome = None
-                if 'chromosome' in a:
-                    chromosome = a['chromosome']
-                
-                if 'start' not in a:
-                    raise ValueError("start must be a node attribute")
-                start = int(a['start'])
-                
-                if 'end' not in a:
-                    raise ValueError("end must be a node attribute")
-                end = int(a['end'])
-                
-                elem.clear()
-                return Node(ix=ix, chromosome=chromosome, start=start, end=end)
-            
-        return XmlNodeIter()
-    
-    def edges(self):
-        file_name = self.file_name
-        
-        class XmlEdgeIter:
-            def __init__(self):
-                self.iter = et.iterparse(file_name)
-                
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                event, elem = self.iter.next()  # @UnusedVariable
-                while elem.tag != "edge":
-                    elem.clear()
-                    event, elem = self.iter.next()  # @UnusedVariable
-            
-                a = elem.attrib
-                    
-                weight = 1.
-                if 'weight' in a:
-                    weight = float(a['weight'])
-                
-                if 'source' not in a:
-                    raise ValueError("source must be an edge attribute")
-                source = int(a['source'])
-                
-                if 'sink' not in a:
-                    raise ValueError("sink must be an edge attribute")
-                sink = int(a['sink'])
-                
-                elem.clear()
-                return Edge(source=source, sink=sink, weight=weight)
-            
-        return XmlEdgeIter()
 
 
 def genome_from_string(genome_string):
