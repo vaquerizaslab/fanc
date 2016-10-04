@@ -72,12 +72,12 @@ from abc import abstractmethod, ABCMeta
 import os.path
 from kaic.tools.general import ranges, distribute_integer, create_col_index
 from itertools import izip as zip
-from xml.etree import ElementTree as et
 import pickle
 from collections import defaultdict
 import copy
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
+from kaic.architecture.architecture import BasicTable
 from bisect import bisect_right, bisect_left
 import logging
 logger = logging.getLogger(__name__)
@@ -313,244 +313,6 @@ class Chromosome(object):
             raise ValueError("restriction_enzyme string is not recognized: %s" % restriction_enzyme)
         
         return re.search(Seq.Seq(self.sequence))
-
-
-class Genome(Table):
-    """
-    Class representing a collection of chromosomes.
-
-    Extends the :class:`~kaic.data.general.Table` class and provides
-    all the expected functionality. Provides some convenience batch
-    methods that call :class:`~Chromosome` methods for every
-    chromosome in this object.
-
-    This object can be saved to file.
-    """
-    def __init__(self, file_name=None, chromosomes=None):
-        """
-        Build :class:`~Genome` from a list of chromosomes or load
-        previously saved object.
-
-        :param file_name: Path of the file to load or to save to.
-        :param chromosomes: List of chromosomes to load into this
-                            object.
-        """
-        self.file = create_or_open_pytables_file(file_name)
-            
-        columns = ["ix", "name", "length"]
-        column_types = [t.Int32Col(pos=0), t.StringCol(50, pos=1), t.Int32Col(pos=2)]  # @UndefinedVariable
-        Table.__init__(self, colnames=columns, col_types=column_types)
-        
-        try:
-            self._sequences = self.file.get_node('/genome_sequences')
-        except t.NoSuchNodeError:
-            self._sequences = self.file.create_vlarray("/", 'genome_sequences', t.VLStringAtom())
-        
-        if chromosomes is not None:
-            if isinstance(chromosomes, Chromosome):
-                self.add_chromosome(chromosomes)
-            else:
-                for chromosome in chromosomes:
-                    self.add_chromosome(chromosome)
-
-    def close(self):
-        self.file.close()
-
-    @classmethod
-    def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
-        """
-        Load every FASTA file from a folder as a chromosome.
-
-        :param folder_name: Path to the folder to load
-        :param file_name: File to save Genome object to
-        :param exclude: List or set of chromosome names that
-                        should NOT be loaded
-        :param include_sequence: If True, will save the
-                                 chromosome sequences in the
-                                 Genome object
-        """
-        chromosomes = []
-        folder_name = os.path.expanduser(folder_name)
-        for f in os.listdir(folder_name):
-            try:
-                chromosome = Chromosome.from_fasta(folder_name + "/" + f, include_sequence=include_sequence)
-                logger.info("Adding chromosome %s" % chromosome.name)
-                if exclude is None:
-                    chromosomes.append(chromosome)
-                elif chromosome.name not in exclude:
-                    chromosomes.append(chromosome)
-            except (ValueError, IOError):
-                pass
-        
-        return cls(chromosomes=chromosomes, file_name=file_name)
-
-    @classmethod
-    def from_string(cls, genome_string, file_name=None):
-        """
-        Convenience function to load a :class:`~Genome` from a string.
-
-        :param genome_string: Path to FASTA file, path to folder with
-                              FASTA files, comma-separated list of
-                              paths to FASTA files, path to HDF5 file
-        :return: A :class:`~Genome` object
-        """
-        # case 1: FASTA file = Chromosome
-        if is_fasta_file(genome_string):
-            chromosomes = Chromosome.from_fasta(genome_string)
-            genome = cls(chromosomes=chromosomes, file_name=file_name)
-        # case 2: Folder with FASTA files
-        elif os.path.isdir(genome_string):
-            genome = cls.from_folder(genome_string, file_name=file_name)
-        # case 3: path to HDF5 file
-        elif is_hdf5_file(genome_string):
-            genome = cls(genome_string)
-        # case 4: List of FASTA files
-        else:
-            chromosome_files = genome_string.split(',')
-            chromosomes = []
-            for chromosome_file in chromosome_files:
-                chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
-                chromosomes.append(chromosome)
-            genome = cls(chromosomes=chromosomes, file_name=file_name)
-
-        return genome
-
-    def __getitem__(self, key):
-        """
-        Get Genome table subsets.
-
-        If the result is one or more rows, they will be converted to
-        :class:`~Chromosome` objects, if the result is a column, it
-        will be returned without conversion.
-        """
-        res = Table.__getitem__(self, key)
-        
-        if isinstance(res, TableRow):
-            return Chromosome(name=res.name, length=res.length, sequence=self._sequences[res.ix])
-        elif isinstance(res, TableArray):
-            l = []
-            for row in res:
-                l.append(Chromosome(name=row["name"], length=row["length"], sequence=self._sequences[row["ix"]]))
-            return l
-        return res
-    
-    def __iter__(self):
-        """
-        Get iterator over :class:`~Chromosome` objects.
-        """
-        this = self
-
-        class Iter:
-            def __init__(self):
-                self.current = 0
-                
-            def __iter__(self):
-                self.current = 0
-                return self
-            
-            def next(self):
-                if self.current >= len(this):
-                    raise StopIteration
-                self.current += 1
-                return this[self.current-1]
-        return Iter()
-    
-    def __del__(self):
-        self.file.close()
-        super(Genome, self).__del__()
-
-    def add_chromosome(self, chromosome):
-        """
-        Add a :class:`~Chromosome` to this object.
-
-        Will choose suitable defaults for missing attributes.
-
-        :param chromosome: :class:`~Chromosome` object or similar
-                           object (e.g. dict) with the same fields
-        """
-        i = len(self)-1
-        
-        n = str(i)
-        if chromosome.name is not None:
-            n = chromosome.name
-        i += 1
-        
-        l = 0
-        if chromosome.length is not None:
-            l = chromosome.length
-        
-        s = ''
-        if chromosome.sequence is not None:
-            s = chromosome.sequence
-            if l == 0:
-                l = len(s)
-        
-        self.append([i,n,l], rownames=[n])
-        self._sequences.append(s)
-        self._sequences.flush()
-
-    def get_regions(self, split, file_name=None):
-        """
-        Extract genomic regions from genome.
-
-        Provides two options:
-
-        - Splits chromosomes at restriction sites if the split
-          parameter is the name of a restriction enzyme.
-
-        - Splits chromosomes at equi-distant points if split
-          is an integer
-
-        :param split: Name of a restriction enzyme or positive
-                      integer
-        :param file_name: Name of a file if the result of this
-                          method should be saved to file
-        :return: :class:`~GenomicRegions`
-        """
-
-        regions = RegionsTable(file_name=file_name)
-        for chromosome in self:
-            split_locations = []
-            if isinstance(split, str):
-                split_locations = chromosome.get_restriction_sites(split)
-            elif isinstance(split, int):
-                for i in xrange(split, len(chromosome)-1, split):
-                    split_locations.append(i)
-            else:
-                for i in split:
-                    split_locations.append(i)
-            
-            for i in xrange(0, len(split_locations)):
-                if i == 0:
-                    region = GenomicRegion(start=1, end=split_locations[i], chromosome=chromosome.name)
-                else:
-                    region = GenomicRegion(start=split_locations[i-1]+1,
-                                           end=split_locations[i], chromosome=chromosome.name)
-                
-                regions.add_region(region, flush=False)
-                
-            # add last node
-            if len(split_locations) > 0:
-                region = GenomicRegion(start=split_locations[len(split_locations)-1]+1,
-                                       end=chromosome.length, chromosome=chromosome.name)
-            else:
-                region = GenomicRegion(start=1, end=chromosome.length, chromosome=chromosome.name)
-            regions.add_region(region, flush=True)
-
-        return regions
-
-    def sub_sequence(self, chromosome, start=None, end=None):
-        if start is not None:
-            selection_region = GenomicRegion(chromosome=chromosome, start=start, end=end)
-        elif isinstance(chromosome, GenomicRegion):
-            selection_region = chromosome
-        else:
-            selection_region = GenomicRegion.from_string(chromosome)
-
-        res = Table.__getitem__(self, selection_region.chromosome)
-        if selection_region.start is None:
-            return self._sequences[res['ix']]
-        return self._sequences[res['ix']][selection_region.start-1:selection_region.end]
 
 
 class GenomicRegion(TableObject):
@@ -1405,6 +1167,285 @@ class RegionsTable(GenomicRegions, FileGroup):
                     for row in self._regions.where(query):
                         sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
                         yield sub_region
+
+
+class Genome(FileGroup):
+    """
+    Class representing a collection of chromosomes.
+
+    Extends the :class:`~RegionsTable` class and provides
+    all the expected functionality. Provides some convenience batch
+    methods that call :class:`~Chromosome` methods for every
+    chromosome in this object.
+
+    This object can be saved to file.
+    """
+
+    def __init__(self, file_name=None, chromosomes=None, mode='a', tmpdir=None,
+                 _table_name_chromosomes='chromosomes'):
+        """
+        Build :class:`~Genome` from a list of chromosomes or load
+        previously saved object.
+
+        :param file_name: Path of the file to load or to save to.
+        :param chromosomes: List of chromosomes to load into this
+                            object.
+        """
+        FileGroup.__init__(self, _table_name_chromosomes, file_name, mode=mode, tmpdir=tmpdir)
+
+        # check if this is an existing regions file
+        try:
+            self._sequences = self._group.sequences
+        except t.NoSuchNodeError:
+            self._sequences = self.file.create_vlarray(self._group, 'sequences', t.VLStringAtom())
+
+        if chromosomes is not None:
+            if isinstance(chromosomes, Chromosome):
+                chromosomes = [chromosomes]
+
+            for chromosome in chromosomes:
+                self.add_chromosome(chromosome)
+
+    @property
+    def _names(self):
+        try:
+            return self.meta['chromosome_names']
+        except KeyError:
+            return []
+
+    @_names.setter
+    def _names(self, names):
+        self.meta['chromosome_names'] = names
+
+    @property
+    def _lengths(self):
+        try:
+            return self.meta['chromosome_lengths']
+        except KeyError:
+            return []
+
+    @_lengths.setter
+    def _lengths(self, lengths):
+        self.meta['chromosome_lengths'] = lengths
+
+    def close(self):
+        self.file.close()
+
+    @classmethod
+    def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
+        """
+        Load every FASTA file from a folder as a chromosome.
+
+        :param folder_name: Path to the folder to load
+        :param file_name: File to save Genome object to
+        :param exclude: List or set of chromosome names that
+                        should NOT be loaded
+        :param include_sequence: If True, will save the
+                                 chromosome sequences in the
+                                 Genome object
+        """
+        chromosomes = []
+        folder_name = os.path.expanduser(folder_name)
+        for f in os.listdir(folder_name):
+            try:
+                chromosome = Chromosome.from_fasta(folder_name + "/" + f, include_sequence=include_sequence)
+                logger.info("Adding chromosome %s" % chromosome.name)
+                if exclude is None:
+                    chromosomes.append(chromosome)
+                elif chromosome.name not in exclude:
+                    chromosomes.append(chromosome)
+            except (ValueError, IOError):
+                pass
+
+        return cls(chromosomes=chromosomes, file_name=file_name)
+
+    @classmethod
+    def from_string(cls, genome_string, file_name=None):
+        """
+        Convenience function to load a :class:`~Genome` from a string.
+
+        :param genome_string: Path to FASTA file, path to folder with
+                              FASTA files, comma-separated list of
+                              paths to FASTA files, path to HDF5 file
+        :param file_name: Path to save file
+        :return: A :class:`~Genome` object
+        """
+        # case 1: FASTA file = Chromosome
+        if is_fasta_file(genome_string):
+            chromosomes = Chromosome.from_fasta(genome_string)
+            genome = cls(chromosomes=chromosomes, file_name=file_name)
+        # case 2: Folder with FASTA files
+        elif os.path.isdir(genome_string):
+            genome = cls.from_folder(genome_string, file_name=file_name)
+        # case 3: path to HDF5 file
+        elif is_hdf5_file(genome_string):
+            genome = cls(genome_string)
+        # case 4: List of FASTA files
+        else:
+            chromosome_files = genome_string.split(',')
+            chromosomes = []
+            for chromosome_file in chromosome_files:
+                chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
+                chromosomes.append(chromosome)
+            genome = cls(chromosomes=chromosomes, file_name=file_name)
+
+        return genome
+
+    def __getitem__(self, key):
+        """
+        Get Genome table subsets.
+
+        If the result is one or more rows, they will be converted to
+        :class:`~Chromosome` objects, if the result is a column, it
+        will be returned without conversion.
+        """
+        names = self._names
+        lengths = self._lengths
+
+        if isinstance(key, str):
+            key = names.index(key)
+
+        if isinstance(key, int):
+            return Chromosome(name=names[key], length=lengths[key], sequence=self._sequences[key])
+        elif isinstance(key, slice):
+            l = []
+            start = key.start if key.start is not None else 0
+            stop = key.stop if key.stop is not None else len(names)
+            step = key.step if key.step is None else 1
+
+            for i in xrange(start, stop, step):
+                c = Chromosome(name=names[i], length=lengths[i], sequence=self._sequences[i])
+                l.append(c)
+            return l
+        else:
+            l = []
+            for i in key:
+                if isinstance(i, str):
+                    i = names.index(i)
+                c = Chromosome(name=names[i], length=lengths[i], sequence=self._sequences[i])
+                l.append(c)
+            return l
+
+    def __len__(self):
+        return len(self._names)
+
+    def __iter__(self):
+        """
+        Get iterator over :class:`~Chromosome` objects.
+        """
+        this = self
+
+        class Iter:
+            def __init__(self):
+                self.current = 0
+
+            def __iter__(self):
+                self.current = 0
+                return self
+
+            def next(self):
+                if self.current >= len(this):
+                    raise StopIteration
+                self.current += 1
+                return this[self.current - 1]
+
+        return Iter()
+
+    def __del__(self):
+        self.file.close()
+
+    def add_chromosome(self, chromosome):
+        """
+        Add a :class:`~Chromosome` to this object.
+
+        Will choose suitable defaults for missing attributes.
+
+        :param chromosome: :class:`~Chromosome` object or similar
+                           object (e.g. dict) with the same fields
+        """
+        i = len(self._names)
+
+        n = str(i)
+        if chromosome.name is not None:
+            n = chromosome.name
+
+        l = 0
+        if chromosome.length is not None:
+            l = chromosome.length
+
+        s = ''
+        if chromosome.sequence is not None:
+            s = chromosome.sequence
+            if l == 0:
+                l = len(s)
+
+        self._names = self._names + [n]
+        self._lengths = self._lengths + [l]
+        self._sequences.append(s)
+        self._sequences.flush()
+
+    def get_regions(self, split, file_name=None):
+        """
+        Extract genomic regions from genome.
+
+        Provides two options:
+
+        - Splits chromosomes at restriction sites if the split
+          parameter is the name of a restriction enzyme.
+
+        - Splits chromosomes at equi-distant points if split
+          is an integer
+
+        :param split: Name of a restriction enzyme or positive
+                      integer
+        :param file_name: Name of a file if the result of this
+                          method should be saved to file
+        :return: :class:`~GenomicRegions`
+        """
+
+        regions = RegionsTable(file_name=file_name)
+        for chromosome in self:
+            split_locations = []
+            if isinstance(split, str):
+                split_locations = chromosome.get_restriction_sites(split)
+            elif isinstance(split, int):
+                for i in xrange(split, len(chromosome) - 1, split):
+                    split_locations.append(i)
+            else:
+                for i in split:
+                    split_locations.append(i)
+
+            for i in xrange(0, len(split_locations)):
+                if i == 0:
+                    region = GenomicRegion(start=1, end=split_locations[i], chromosome=chromosome.name)
+                else:
+                    region = GenomicRegion(start=split_locations[i - 1] + 1,
+                                           end=split_locations[i], chromosome=chromosome.name)
+
+                regions.add_region(region, flush=False)
+
+            # add last node
+            if len(split_locations) > 0:
+                region = GenomicRegion(start=split_locations[len(split_locations) - 1] + 1,
+                                       end=chromosome.length, chromosome=chromosome.name)
+            else:
+                region = GenomicRegion(start=1, end=chromosome.length, chromosome=chromosome.name)
+            regions.add_region(region, flush=True)
+
+        return regions
+
+    def sub_sequence(self, chromosome, start=None, end=None):
+        if start is not None:
+            selection_region = GenomicRegion(chromosome=chromosome, start=start, end=end)
+        elif isinstance(chromosome, GenomicRegion):
+            selection_region = chromosome
+        else:
+            selection_region = GenomicRegion.from_string(chromosome)
+
+        res_chromosome = self[selection_region.chromosome]
+        if selection_region.start is None:
+            return res_chromosome.sequence
+        return res_chromosome.sequence[selection_region.start - 1:selection_region.end]
 
 
 class Node(GenomicRegion, TableObject):
