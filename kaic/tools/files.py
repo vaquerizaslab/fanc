@@ -1,9 +1,3 @@
-'''
-Created on May 20, 2015
-
-@author: kkruse1
-'''
-
 import tables as t
 import os.path
 from xml.etree.ElementTree import iterparse, ParseError
@@ -14,14 +8,6 @@ import pysam
 from Bio import SeqIO
 import tempfile
 import shutil
-
-
-def without_extension(file_name):
-    os.path.splitext(file_name)[0]
-
-
-def get_extension(file_name):
-    os.path.splitext(file_name)[1][1:]
 
 
 def create_temporary_copy(src_file_name, preserve_extension=False):
@@ -39,28 +25,14 @@ def create_temporary_copy(src_file_name, preserve_extension=False):
     return tf.name
 
 
-def make_dir(dir_name, fail_if_exists=False, make_subdirs=True):
-    if make_subdirs:
-        f = os.makedirs
-    else:
-        f = os.mkdir
-        
-    try: 
-        f(dir_name)
-    except OSError:
-        if not fail_if_exists and not os.path.isdir(dir_name):
-            raise
-
-
 def get_number_of_lines(file_name):
-    with open(file_name,'r') as f:
-        n = sum(1 for line in f)  # @UnusedVariable
-    return n
+    with open(file_name, 'r') as f:
+        return sum(1 for _ in f)
 
 
 def random_name(length=6):
     return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))
-        
+
 
 def create_or_open_pytables_file(file_name=None, mode='a'):
     in_memory = False
@@ -85,85 +57,6 @@ def create_or_open_pytables_file(file_name=None, mode='a'):
     else:
         # 256Mb cache
         return t.open_file(file_name, mode, chunk_cache_size=270536704, chunk_cache_nelmts=2084)
-
-
-def is_bed_file(file_name):
-    file_name = os.path.expanduser(file_name)
-    if not os.path.isfile(file_name):
-        return False
-    
-    def is_bed_line(line):
-        l = line.rstrip().split("\t")
-        if len(l) > 2:
-            try:
-                int(l[1])
-                int(l[2])
-            except ValueError:
-                return False
-        else:
-            return False
-        return True
-        
-    with open(file_name, 'r') as f:
-        if not is_bed_line(f.readline()):
-            return is_bed_line(f.readline())
-        else:
-            return True
-
-
-def is_bedpe_file(file_name):
-    file_name = os.path.expanduser(file_name)
-    if not os.path.isfile(file_name):
-        return False
-    
-    def is_bedpe_line(line):
-        l = line.rstrip().split("\t")
-        if len(l) > 5:
-            try:
-                int(l[1])
-                int(l[2])
-                int(l[4])
-                int(l[5])
-            except ValueError:
-                return False
-        else:
-            return False
-        return True
-        
-    with open(file_name, 'r') as f:
-        if not is_bedpe_line(f.readline()):
-            return is_bedpe_line(f.readline())
-        else:
-            return True
-        
-        
-def is_hic_xml_file(file_name):
-    file_name = os.path.expanduser(file_name)
-    if not os.path.isfile(file_name):
-        return False
-    
-    try:
-        for event, elem in iterparse(file_name):  # @UnusedVariable
-            if elem.tag == 'hic':
-                return True
-            elem.clear()
-    except ParseError:
-        return False
-    
-    return False
-
-
-def is_hdf5_file(file_name):
-    file_name = os.path.expanduser(file_name)
-    if not os.path.isfile(file_name):
-        return False
-    
-    try:
-        f = h5py.File(file_name,'r')
-        f.close()
-    except IOError:
-        return False
-    return True
 
 
 def is_sambam_file(file_name):
