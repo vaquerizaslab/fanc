@@ -57,7 +57,7 @@ import tables as t
 import pysam
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.files import is_sambam_file
-from kaic.data.general import Maskable, MetaContainer, MaskFilter, MaskedTable, MaskedTableView, FileBased
+from kaic.data.general import Maskable, MaskFilter, MaskedTable, MaskedTableView, FileBased
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
@@ -74,7 +74,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Reads(Maskable, MetaContainer, FileBased):
+class Reads(Maskable, FileBased):
     """
     Load and filter mapped reads from a SAM/BAM file.
 
@@ -174,7 +174,6 @@ class Reads(Maskable, MetaContainer, FileBased):
 
         FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         Maskable.__init__(self, self.file)
-        MetaContainer.__init__(self, self.file)
 
         self._row_counter = {
             'reads': 0,
@@ -311,7 +310,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                           already sorted.
         """
 
-        self.log_info("Loading SAM/BAM file")
+        logger.info("Loading SAM/BAM file")
         # get file names
         try:
             file_name = sambam.filename
@@ -376,7 +375,7 @@ class Reads(Maskable, MetaContainer, FileBased):
         self._reads._v_attrs.ref = sambam.references
         self._ref = sambam.references
 
-        self.log_info("Loading mapped reads...")
+        logger.info("Loading mapped reads...")
         with RareUpdateProgressBar(max_value=n_reads) as pb:
             last_name = ""
             for i, read in enumerate(sambam):
@@ -391,7 +390,7 @@ class Reads(Maskable, MetaContainer, FileBased):
                 pb.update(i)
         self.flush()
 
-        self.log_info("Done.")
+        logger.info("Done.")
 
     def _update_csi(self):
         if not self._reads.cols.qname_ix.is_indexed:
@@ -1289,12 +1288,12 @@ class PairLoader(object):
 
     def setup(self, reads1, reads2, regions):
         if regions is not None:
-            self._pairs.log_info("Adding regions...")
+            logger.info("Adding regions...")
             self._pairs.add_regions(regions)
-            self._pairs.log_info("Done.")
+            logger.info("Done.")
 
         # generate index for fragments
-        self._pairs.log_info("Generating region index...")
+        logger.info("Generating region index...")
         fragment_infos = None
         fragment_ends = None
         if self._in_memory_index:
@@ -1310,11 +1309,11 @@ class PairLoader(object):
                 fragment_ends[region.chromosome].append(region.end)
 
         if isinstance(self._reads1, str):
-            self._pairs.log_info("Loading reads 1")
+            logger.info("Loading reads 1")
             reads1 = Reads(sambam_file=self._reads1)
 
         if isinstance(self._reads2, str):
-            self._pairs.log_info("Loading reads 2")
+            logger.info("Loading reads 2")
             reads2 = Reads(sambam_file=self._reads2)
 
         self.fragment_ends = fragment_ends
@@ -1350,7 +1349,7 @@ class Bowtie2PairLoader(PairLoader):
             return None
 
     def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
-        self._pairs.log_info("Adding read pairs...")
+        logger.info("Adding read pairs...")
 
         iter1 = reads1.reads(lazy=True, sort_by_qname_ix=True, excluded_filters=self.excluded_filters)
         iter2 = reads2.reads(lazy=True, sort_by_qname_ix=True, excluded_filters=self.excluded_filters)
@@ -1517,7 +1516,7 @@ class BwaMemPairLoader(PairLoader):
                 pass
 
     def load_pairs_from_reads(self, reads1, reads2, regions, add_read_single, add_read_pair):
-        self._pairs.log_info("Adding read pairs...")
+        logger.info("Adding read pairs...")
         self.add_read_single = add_read_single
         self.add_read_pair = add_read_pair
 
@@ -1586,7 +1585,7 @@ class BwaMemPairLoader(PairLoader):
         logger.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
 
-class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
+class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
     """
     Map pairs of reads to restriction fragments in a reference genome.
 
@@ -1691,7 +1690,6 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
 
         # generate tables from inherited classes
         Maskable.__init__(self, self.file)
-        MetaContainer.__init__(self, self.file)
 
         # try to retrieve existing table
         try:
@@ -1719,7 +1717,7 @@ class FragmentMappedReadPairs(Maskable, MetaContainer, RegionsTable, FileBased):
         self._pairs.flush(update_index=update_index)
         self._single.flush(update_index=update_index)
 
-    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True, excluded_filters=[]):
+    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True, excluded_filters=()):
         """
         Load paired reads and map them to genomic regions (e.g. RE-fragments).
 

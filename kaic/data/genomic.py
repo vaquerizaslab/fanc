@@ -66,8 +66,7 @@ import pybedtools
 from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
     is_fasta_file, is_hdf5_file
 from Bio import SeqIO, Restriction, Seq
-from kaic.data.general import Table, TableRow, TableArray, TableObject,\
-    MetaContainer, Maskable, MaskedTable, MaskFilter, FileGroup
+from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
 import os.path
 from kaic.tools.general import ranges, distribute_integer, create_col_index
@@ -77,7 +76,6 @@ from collections import defaultdict
 import copy
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
-from kaic.architecture.architecture import BasicTable
 from bisect import bisect_right, bisect_left
 import logging
 logger = logging.getLogger(__name__)
@@ -1625,7 +1623,7 @@ class LazyEdge(Edge):
         return base_info
 
 
-class RegionPairs(Maskable, MetaContainer, RegionsTable):
+class RegionPairs(Maskable, RegionsTable):
     """
     Class for working with data associated with pairs of regions.
 
@@ -1716,7 +1714,6 @@ class RegionPairs(Maskable, MetaContainer, RegionsTable):
         RegionsTable.__init__(self, file_name=file_name, _table_name_regions=_table_name_nodes,
                               mode=mode, tmpdir=tmpdir)
         Maskable.__init__(self, self.file)
-        MetaContainer.__init__(self, self.file)
 
         # create edge table
         if _table_name_edges in self.file.root:
@@ -2321,7 +2318,6 @@ class AccessOptimisedRegionPairs(RegionPairs):
         RegionsTable.__init__(self, file_name=file_name, _table_name_regions=_table_name_nodes,
                               mode=mode, tmpdir=tmpdir)
         Maskable.__init__(self, self.file)
-        MetaContainer.__init__(self, self.file)
 
         # create edge table
         self._field_dict = None
@@ -3790,7 +3786,7 @@ class Hic(RegionMatrixTable):
         if not identical:
             ix_conversion = {}
             # merge genomic regions
-            self.log_info("Merging genomic regions...")
+            logger.info("Merging genomic regions...")
 
             l = len(hic.regions)
 
@@ -3804,7 +3800,7 @@ class Hic(RegionMatrixTable):
                 self._regions.flush()
 
         # merge edges
-        self.log_info("Merging contacts...")
+        logger.info("Merging contacts...")
         edge_buffer = {}
         l = len(hic.edges)
         with RareUpdateProgressBar(max_value=l) as pb:
