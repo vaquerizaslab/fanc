@@ -23,7 +23,7 @@ setup(
         'pybedtools',
         'pyBigWig',
         'PyYAML',
-        'tables>=3.2.3'
+        'tables>=3.2.3',
         'seaborn'
     ],
     scripts=['bin/kaic', 'bin/klot']
