@@ -10,7 +10,7 @@ job_test_kaic:
     stage: build_and_test
     script:
         - "pip install cython"
-        - "pip install --process-dependency-links .[plotting]"
+        - "pip install ."
         - "py.test kaic -m 'not plotting'"
     tags:
         - linux
@@ -19,7 +19,7 @@ job_test_kaic_plotting:
     stage: build_and_test
     script:
         - "pip install cython"
-        - "pip install --process-dependency-links .[plotting]"
+        - "pip install ."
         - "py.test kaic -m plotting"
     tags:
         - linux

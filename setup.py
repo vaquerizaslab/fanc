@@ -24,9 +24,7 @@ setup(
         'pyBigWig',
         'PyYAML',
         'tables>=3.2.3'
+        'seaborn'
     ],
-    extras_require={
-        'plotting': ["seaborn"]
-    },
     scripts=['bin/kaic', 'bin/klot']
 )
