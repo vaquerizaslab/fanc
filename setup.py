@@ -13,7 +13,6 @@ setup(
         'scipy',
         'matplotlib',
         'pandas',
-        'h5py',
         'pysam',
         'biopython',
         'pytest',
