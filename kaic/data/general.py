@@ -9,15 +9,11 @@ files. Other features include indexing and querying.
 from __future__ import division
 import tables as t
 from tables.nodes import filenode
-from kaic.tools.files import create_or_open_pytables_file, is_hdf5_file
-import numpy as np
-import warnings
+from kaic.tools.files import create_or_open_pytables_file
 from kaic.tools.general import RareUpdateProgressBar, create_col_index
 import os
-import time
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
-from datetime import datetime
 from kaic.tools.lru import lru_cache
 import shutil
 import binascii
