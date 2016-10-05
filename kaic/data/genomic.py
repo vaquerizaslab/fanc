@@ -841,6 +841,7 @@ class GenomicRegions(object):
 
             if query_region.chromosome not in chromosomes:
                 hit_regions.append(None)
+                continue
 
             center = query_region.start + (query_region.end-query_region.start)/2
             ix = bisect_left(region_ends[query_region.chromosome], center)
