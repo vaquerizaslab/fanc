@@ -1,9 +1,7 @@
 import tables as t
 import os.path
-from xml.etree.ElementTree import iterparse, ParseError
 import string
 import random
-import h5py
 import pysam
 from Bio import SeqIO
 import tempfile
