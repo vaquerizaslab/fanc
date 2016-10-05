@@ -18,6 +18,7 @@ def _prepare_backend(output):
         return old_backend
     return None
 
+
 def _plot_figure(figure, output, old_backend):
     sns.despine()
     if output is not None:
@@ -30,20 +31,12 @@ def _plot_figure(figure, output, old_backend):
 
 
 def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
-    if isinstance(regions, general.Table):
-        new_regions = []
-        for region in regions:
-            region_string = "%s:%d-%d" % (region.chrom,
-                                          region.start,
-                                          region.end)
-            new_regions.append(region_string)
-        regions = new_regions
-
     contact_list = []
     half_window = int(window_size/2)
     bin_size = hic.bin_size
-    for i, region_string in enumerate(regions):
-        feature_region = genomic.GenomicRegion.from_string(region_string)
+    for i, feature_region in enumerate(regions):
+        if isinstance(feature_region, str):
+            feature_region = genomic.GenomicRegion.from_string(feature_region)
         center = feature_region.start + int((feature_region.end-feature_region.start)/2)
         center_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,
                                               start=center, end=center)
@@ -57,9 +50,6 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
         right_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,
                                              start=center_node.end+1,
                                              end=center_node.end+half_window)
-
-        print left_region
-        print right_region
 
         hic_left = hic[center_region, left_region][0]
         for j in xrange(0, len(hic_left)):
@@ -93,69 +83,6 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
         sns.plt.show()
 
     return df
-
-
-def _matrix_plot(hm, output=None, lower_percentile=25.0, upper_percentile=98.0,
-                 lower=None, upper=None, colormap=config.colormap_hic):
-
-    if lower is None or upper is None:
-        percentiles = np.percentile(hm, [lower_percentile, upper_percentile])
-        if lower is None:
-            lower = percentiles[0]
-        if upper is None:
-            upper = percentiles[1]
-
-    old_backend = None
-    if output is not None:
-        old_backend = sns.plt.get_backend()
-        sns.plt.switch_backend('pdf')
-        sns.plt.ioff()
-
-    heatmap = sns.heatmap(hm, vmin=lower, vmax=upper, cmap=colormap,
-                          square=True, xticklabels=False, yticklabels=False)
-
-    if output is not None:
-        heatmap.figure.savefig(output)
-        sns.plt.close(heatmap.figure)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
-    else:
-        sns.plt.show()
-
-
-def hic_matrix_plot(hic, output=None, key=slice(0, None, None),
-                    lower_percentile=25.0, upper_percentile=98.0,
-                    lower=None, upper=None, colormap=config.colormap_hic):
-    hm = hic[key, key]
-
-    _matrix_plot(hm, output=output, lower_percentile=lower_percentile,
-                 upper_percentile=upper_percentile, lower=lower,
-                 upper=upper, colormap=colormap)
-
-
-def hic_matrix_diff_plot(hic1, hic2, output=None, key=slice(0, None, None),
-                         lower_percentile=25.0, upper_percentile=98.0,
-                         lower=None, upper=None, colormap=config.colormap_hic):
-    hm1 = hic1[key, key]
-    hm2 = hic2[key, key]
-    hm = hm1 - hm2
-
-    _matrix_plot(hm, output=output, lower_percentile=lower_percentile,
-                 upper_percentile=upper_percentile, lower=lower,
-                 upper=upper, colormap=colormap)
-
-
-def hic_matrix_ratio_plot(hic1, hic2, output=None, key=slice(0, None, None),
-                          lower=-2, upper=2, colormap='RdBu_r', log=True):
-    hm1 = hic1[key, key]
-    hm2 = hic2[key, key]
-    if log:
-        hm = np.log2(hm1/hm2)
-    else:
-        hm = hm1/hm2
-
-    _matrix_plot(hm, output=output, lower=lower,
-                 upper=upper, colormap=colormap)
 
 
 def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
@@ -343,90 +270,3 @@ def hic_marginals_plot(hic, output=None, lower=None, upper=None, rel_cutoff=0.1)
     ax.axhline(upper, color='r', linestyle=':')
     ax.axhline(lower, color='r', linestyle=':')
     _plot_figure(fig, output, old_backend)
-
-
-def hic_directionality_index_plot(hic, output=None):
-    d = hic.directionality_index()
-
-    old_backend = _prepare_backend(output)
-    scatter = sns.plt.plot(d)
-    _plot_figure(scatter, output, old_backend)
-
-
-def hic_triangle_plot(hic, key=slice(0, None, None), output=None, colormap=config.colormap_hic, max_height=None, axes=None,
-                      n_x_labels=10, vmin=1, vmax=50):
-    hm = hic[key, key]
-    print hm.shape
-    n = hm.shape[0]
-
-    # mask areas we don't want to plot
-    # lower triangle
-    mask_lower = np.tril_indices(n, k=-1)
-    hm[mask_lower] = np.nan
-    if max_height is not None:
-        # upper right corner
-        mask_upper = np.triu_indices(n, k=max_height)
-        hm[mask_upper] = np.nan
-    triangle = np.ma.masked_array(hm, np.isnan(hm))
-
-    # prepare an array of tuples that will be used to rotate triangle
-    A = np.array([(y, x) for x in range(n, -1, -1) for y in range(n + 1)])
-    # rotation matrix 45 degrees
-    t = np.array([[0.707, 0.707], [-0.707, 0.707]])
-    # "rotate" A
-    A = np.dot(A, t)
-    # transform A into x and y values
-    X = A[:, 1].reshape((n + 1, n + 1))
-    Y = A[:, 0].reshape((n + 1, n + 1))
-
-    # flip triangle (because that pcolormesh works opposite than imshow)
-    flip_triangle = np.flipud(triangle)
-
-    with sns.axes_style("ticks"):
-        new_plot = False
-        if axes is None:
-            new_plot = True
-            fig = sns.plt.figure(figsize=(6, 3.5))
-            axes = fig.add_subplot(111, frame_on=True)
-
-        # normalize colors
-        cmap = mp.cm.get_cmap(colormap)
-        norm = mp.colors.BoundaryNorm(np.linspace(vmin, vmax, 50), cmap.N)
-
-        # create plot
-        caxes = sns.plt.pcolormesh(X, Y, flip_triangle, axes=axes, cmap=cmap, norm=norm)
-
-        # re-calculate and reset axis limits
-        max_x = max(A[:, 1])
-        max_y = 0
-        for i in xrange(flip_triangle.shape[0]):
-            for j in xrange(flip_triangle.shape[1]):
-                if flip_triangle[i, j] is not np.ma.masked:
-                    max_y = max(max_y, Y[i, j]+2)
-        axes.set_ylim((-1, max_y))
-        axes.set_xlim((0, max_x))
-
-        # set ticks to genomic regions
-        all_x_ticks = np.linspace(0, max_x, n+1)
-        last_label = "%s: %d" % (hm.row_regions[-1].chromosome, hm.row_regions[-1].end)
-        all_x_labels = ["%s: %d" % (region.chromosome, region.start) for region in hm.row_regions] + [last_label]
-        labels_dist = int(round(len(all_x_labels)/n_x_labels))
-        axes.set_xticks(all_x_ticks[0:len(all_x_ticks):labels_dist])
-        axes.set_xticklabels(all_x_labels[0:len(all_x_ticks):labels_dist], rotation=45, ha='right')
-
-        # remove y ticks
-        axes.set_yticks([])
-
-        # Hide the left, right and top spines
-        sns.despine(left=True)
-        # hide background patch
-        axes.patch.set_visible(False)
-
-        # Only show ticks on the left and bottom spines
-        axes.xaxis.set_ticks_position('bottom')
-
-        # make figure margins accommodate labels
-        sns.plt.tight_layout()
-        if new_plot and output is None:
-            sns.plt.show()
-
