@@ -63,8 +63,7 @@ import tables as t
 import pandas as p
 import numpy as np
 import pybedtools
-from kaic.tools.files import create_or_open_pytables_file, is_hic_xml_file,\
-    is_fasta_file, is_hdf5_file
+from kaic.tools.files import is_fasta_file
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
@@ -304,7 +303,7 @@ class Chromosome(object):
         """
         logger.info("Calculating RE sites")
         try:
-            re = eval('Restriction.%s' % restriction_enzyme)
+            re = getattr(Restriction, restriction_enzyme)
         except SyntaxError:
             raise ValueError("restriction_enzyme must be a string")
         except AttributeError:
@@ -1276,7 +1275,7 @@ class Genome(FileGroup):
         elif os.path.isdir(genome_string):
             genome = cls.from_folder(genome_string, file_name=file_name)
         # case 3: path to HDF5 file
-        elif is_hdf5_file(genome_string):
+        elif os.path.isfile(genome_string):
             genome = cls(genome_string)
         # case 4: List of FASTA files
         else:
@@ -3483,7 +3482,7 @@ class Hic(RegionMatrixTable):
             if type(data) is str:
                 data = os.path.expanduser(data)
 
-                if (not os.path.isfile(data) or not is_hic_xml_file(data)) and file_name is None:
+                if os.path.isfile(data) and file_name is None:
                     file_name = data
                     data = None
 
@@ -4044,7 +4043,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
             if type(data) is str:
                 data = os.path.expanduser(data)
 
-                if (not os.path.isfile(data) or not is_hic_xml_file(data)) and file_name is None:
+                if os.path.isfile(data) and file_name is None:
                     file_name = data
                     data = None
 
@@ -4380,38 +4379,6 @@ class RegionMatrix(np.ndarray):
         self.col_regions = pickle.loads(state[-1])
         # Call the parent's __setstate__ with the other tuple elements.
         super(RegionMatrix, self).__setstate__(state[0:-2])
-
-
-def genome_from_string(genome_string):
-    """
-    Convenience function to load a :class:`~Genome` from a string.
-
-    :param genome_string: Path to FASTA file, path to folder with
-                          FASTA files, comma-separated list of
-                          paths to FASTA files, path to HDF5 file
-    :return: A :class:`~Genome` object
-    """
-    genome = None
-    # case 1: FASTA file = Chromosome
-    if is_fasta_file(genome_string):
-        chromosome = Chromosome.from_fasta(genome_string)
-        genome = Genome(chromosomes=[chromosome])
-    # case 2: Folder with FASTA files
-    elif os.path.isdir(genome_string):
-        genome = Genome.from_folder(genome_string)
-    # case 3: path to HDF5 file
-    elif is_hdf5_file(genome_string):
-        genome = Genome(genome_string)
-    # case 4: List of FASTA files
-    else:
-        chromosome_files = genome_string.split(',')
-        chromosomes = []
-        for chromosome_file in chromosome_files:
-            chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
-            chromosomes.append(chromosome)
-        genome = Genome(chromosomes=chromosomes)
-    
-    return genome
 
 
 def _get_overlap_map(old_regions, new_regions):
