@@ -1,10 +1,11 @@
 from __future__ import division
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 import kaic
 import kaic.plotting as kplot
 import os.path
 import pytest
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 
 def get_example_hic():
