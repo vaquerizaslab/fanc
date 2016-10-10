@@ -198,6 +198,49 @@ class BigWig(object):
                 return BigWig.__exit__
             raise
 
+    @property
+    def regions(self):
+        class RegionIter(object):
+            def __init__(self, bw):
+                self.bw = bw
+
+            def __iter__(self):
+                for chromosome, length in self.bw.chroms().iteritems():
+                    for start, end, score in self.bw.intervals(chromosome, 0, length):
+                        yield GenomicRegion(chromosome=chromosome, start=start, end=end, score=score)
+
+            def __call__(self):
+                return iter(self)
+
+        return RegionIter(self)
+
+    def subset(self, region):
+        if isinstance(region, str):
+            region = GenomicRegion.from_string(region)
+
+        if isinstance(region, GenomicRegion):
+            regions = [region]
+        else:
+            regions = region
+
+        for r in regions:
+            chroms = self.bw.chroms()
+            r_start = r.start if r.start is not None else 0
+            r_end = r.end if r.end is not None else chroms[r.chromosome]
+
+            for start, end, score in self.bw.intervals(r.chromosome, r_start, r_end):
+                yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
+
+    def region_stats(self, region, bins=1, stat='mean'):
+        if isinstance(region, str):
+            region = GenomicRegion.from_string(region)
+
+        chroms = self.bw.chroms()
+        r_start = region.start if region.start is not None else 0
+        r_end = region.end if region.end is not None else chroms[region.chromosome]
+
+        return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
+
 
 class Chromosome(object):
     """
