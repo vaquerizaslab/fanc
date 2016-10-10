@@ -3743,55 +3743,6 @@ class Hic(RegionMatrixTable):
 
         return merged_hic
 
-
-    @classmethod
-    def from_hiclib(cls, hl, file_name=None):
-        """
-        Create :class:`~Hic` object from hiclib object.
-
-        :param hl: hiclib object
-        :param file_name: Path to save file
-        :return: :class:`~Hic`
-        """
-        hic = cls(file_name=file_name)
-
-        # nodes
-        chrms = {hl.genome.chrmStartsBinCont[i]: hl.genome.chrmLabels[i] for i in xrange(0, len(hl.genome.chrmLabels))}
-        chromosome = ''
-        for i in xrange(0, len(hl.genome.posBinCont)):
-            start = hl.genome.posBinCont[i]+1
-            if i in chrms:
-                chromosome = chrms[i]
-
-            if i < len(hl.genome.posBinCont)-1:
-                end = hl.genome.posBinCont[i+1]
-            else:
-                ix = hl.genome.label2idx[chromosome]
-                end = hl.genome.chrmLens[ix]
-
-            hic.add_node([chromosome, start, end], flush=False)
-        hic.flush(flush_edges=False)
-
-        # edges
-        for chr1, chr2 in hl.data:
-            data = hl.data[(chr1, chr2)].getData()
-            chr1StartBin = hl.genome.chrmStartsBinCont[chr1]
-            chr2StartBin = hl.genome.chrmStartsBinCont[chr2]
-
-            for i in xrange(0, data.shape[0]):
-                iNode = i+chr1StartBin
-                start = i
-                if chr1 != chr2:
-                    start = 0
-                for j in xrange(start, data.shape[1]):
-                    jNode = j+chr2StartBin
-
-                    if data[i, j] != 0:
-                        hic.add_edge([iNode, jNode, data[i, j]], flush=False)
-        hic.flush(flush_nodes=False)
-
-        return hic
-
     def _merge(self, hic, _edge_buffer_size=5000000):
         """
         Merge this object with another :class:`~Hic` object.
