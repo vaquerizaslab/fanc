@@ -64,6 +64,7 @@ import pandas as p
 import numpy as np
 import pybedtools
 from kaic.tools.files import is_fasta_file
+from kaic.tools.matrix import apply_sliding_func
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
@@ -177,6 +178,18 @@ class Bed(pybedtools.BedTool):
         return RegionIter(self)
 
 
+def _weighted_mean(intervals):
+    intervals = np.array(intervals)
+    if len(intervals) == 0:
+        return np.nan
+    mask = np.isfinite(intervals[:, 2])
+    valid = intervals[mask]
+    if len(valid) == 0:
+        return np.nan
+    weights = (valid[:, 1] - valid[:, 0])
+    return np.average(valid[:, 2], weights=weights)
+
+
 class BigWig(object):
     def __init__(self, bw):
         self.bw = bw
@@ -240,6 +253,50 @@ class BigWig(object):
         r_end = region.end if region.end is not None else chroms[region.chromosome]
 
         return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
+
+    @staticmethod
+    def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean):
+        intervals = np.array(intervals)
+        if interval_range is None:
+            interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
+
+        bin_size = (interval_range[1] - interval_range[0]) / bins
+        min_bin_size = min(intervals[:, 1] - intervals[:, 0])
+        if bin_size < min_bin_size:
+            raise ValueError("Bin size smaller than supported by BigWig ({}/{})".format(bin_size, min_bin_size))
+        else:
+            logging.info("Bin size: {}".format(bin_size))
+
+        binned_intervals = [list() for _ in xrange(0, bins)]
+        for i, interval in enumerate(intervals):
+            # exclude regions completely outside of range
+            if interval[0] > interval_range[1] or interval[1] < interval_range[0]:
+                continue
+
+            start_bin = int((interval[0] - interval_range[0]) / bin_size)
+            if start_bin >= 0:
+                binned_intervals[start_bin].append(interval)
+
+            end_bin = int((interval[1] - interval_range[0]) / bin_size)
+            if end_bin != start_bin and end_bin < bins:
+                binned_intervals[end_bin].append(interval)
+
+        result = np.array([stat(interval_bins) for interval_bins in binned_intervals])
+        if smoothing_window is not None:
+            result = apply_sliding_func(result, smoothing_window)
+
+        return result
+
+    def binned_values(self, region, bins, smoothing_window=None):
+        if isinstance(region, str):
+            region = GenomicRegion.from_string(region)
+        chroms = self.chroms()
+        chromosome = region.chromosome
+        start = region.start if region.start is not None else 1
+        end = region.end if region.end is not None else chroms[chromosome]
+        return BigWig.bin_intervals(self.intervals(chromosome, start, end),
+                                    bins, interval_range=(start, end),
+                                    smoothing_window=smoothing_window)
 
 
 class Chromosome(object):
