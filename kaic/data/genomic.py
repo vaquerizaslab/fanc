@@ -254,32 +254,52 @@ class BigWig(object):
 
         return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
 
+    def intervals(self, chromosome, start=None, end=None):
+        chroms = self.chroms()
+        if isinstance(chromosome, str):
+            chromosome = GenomicRegion.from_string(chromosome)
+
+        if isinstance(chromosome, GenomicRegion):
+            if start is None:
+                start = chromosome.start if chromosome.start is not None else 1
+            if end is None:
+                end = chromosome.end if chromosome.end is not None else chroms[chromosome.chromosome]
+            chromosome = chromosome.chromosome
+
+        intervals = self.bw.intervals(chromosome, start, end)
+        if intervals is None:
+            intervals = ()
+        return intervals
+
     @staticmethod
     def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean):
         intervals = np.array(intervals)
+        if intervals is None or len(intervals) == 0:
+            return [np.nan] * bins
+
         if interval_range is None:
             interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
 
         bin_size = (interval_range[1] - interval_range[0]) / bins
-        min_bin_size = min(intervals[:, 1] - intervals[:, 0])
-        if bin_size < min_bin_size:
-            raise ValueError("Bin size smaller than supported by BigWig ({}/{})".format(bin_size, min_bin_size))
-        else:
-            logging.info("Bin size: {}".format(bin_size))
+        logging.info("Bin size: {}".format(bin_size))
 
+        current_interval = 0
         binned_intervals = [list() for _ in xrange(0, bins)]
-        for i, interval in enumerate(intervals):
-            # exclude regions completely outside of range
-            if interval[0] > interval_range[1] or interval[1] < interval_range[0]:
-                continue
+        for bin_counter in xrange(len(binned_intervals)):
+            bin_start = interval_range[0] + bin_size * bin_counter
+            bin_end = interval_range[0] + bin_size + bin_size * bin_counter
 
-            start_bin = int((interval[0] - interval_range[0]) / bin_size)
-            if start_bin >= 0:
-                binned_intervals[start_bin].append(interval)
-
-            end_bin = int((interval[1] - interval_range[0]) / bin_size)
-            if end_bin != start_bin and end_bin < bins:
-                binned_intervals[end_bin].append(interval)
+            if current_interval < len(intervals):
+                interval = intervals[current_interval]
+            else:
+                interval = None
+            while interval is not None and (interval[0] < bin_end and interval[1] > bin_start):
+                binned_intervals[bin_counter].append(interval)
+                current_interval += 1
+                if current_interval < len(intervals):
+                    interval = intervals[current_interval]
+                else:
+                    interval = None
 
         result = np.array([stat(interval_bins) for interval_bins in binned_intervals])
         if smoothing_window is not None:
