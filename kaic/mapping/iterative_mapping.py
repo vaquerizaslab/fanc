@@ -393,7 +393,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
 
 def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=None, quality_cutoff=30,
                                 batch_size=250000, threads=1, min_size=25, step_size=2, copy=False,
-                                restriction_enzyme=None, adjust_batch_size=False):
+                                restriction_enzyme=None, adjust_batch_size=False, mapper=None):
     if work_dir is not None:
         work_dir = tempfile.mkdtemp(dir=os.path.expanduser(work_dir))
     else:
@@ -426,7 +426,8 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         working_file = gzip.open(work_dir + '/full_reads_0.fastq.gz', 'w')
         working_files = [working_file.name]
 
-        mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=1)
+        if mapper is None:
+            mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=1)
 
         logger.info("Splitting files...")
         re_pattern = None
