@@ -322,7 +322,7 @@ class RaoPeakInfo(RegionMatrixTable):
                                    consider two peaks to be the same
         :return: :class:`~PeakInfo`
         """
-        merged_peaks = PeakInfo(file_name=file_name, regions=self.regions(lazy=True))
+        merged_peaks = PeakInfo(file_name=file_name, mode='w', regions=self.regions(lazy=True))
 
         # get region index
         regions_dict = self.regions_dict
