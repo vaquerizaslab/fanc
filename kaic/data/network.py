@@ -12,6 +12,7 @@ import msgpack
 import time
 import multiprocessing
 import math
+from kaic.architecture.hic_architecture import ExpectedContacts
 from kaic.tools.general import RareUpdateProgressBar
 import warnings
 import logging
@@ -735,89 +736,6 @@ class RaoPeakCaller(PeakCaller):
             chromosomes[i] = chromosome_map[region.chromosome]
         return chromosomes
 
-    @staticmethod
-    def get_expected(hic, smooth=True, min_smoothed_reads=400, _mappable=None, _chromosomes=None):
-        """
-        Get intra- and inter-chromosomal expected contact counts.
-
-        :param hic: A :class:`~kaic.data.genomic.Hic` object
-        :param smooth: Smoothe intra-chromosomal expected counts
-        :param min_smoothed_reads: Minimum number of reads/counts per
-                                   expected value
-        :param _mappable: Output of :func:`~kaic.data.genomic.Hic.mappable_regions`
-        :param _chromosomes: Output of :func:`~RaoPeakCaller.chromosome_map`
-        :return: (np.array, float), where the first argument is a numpy
-                 array with expected intra-chromosomal counts at any given
-                 distance from the diagonal of the Hi-C matrix (loci distance)
-                 and float is the average number of inter-chromosomal reads
-                 per contact
-        """
-        if _mappable is None:
-            _mappable = hic.mappable_regions()
-
-        regions_by_chromosome = defaultdict(int)
-        for region in hic.regions(lazy=True):
-            regions_by_chromosome[region.chromosome] += 1
-
-        max_distance = max(regions_by_chromosome.values())
-        # get the number of pixels at a given bin distance
-        pixels_by_distance = np.zeros(max_distance + 1)
-        for chromosome, n in regions_by_chromosome.iteritems():
-            current_pixels = n + 1
-            for distance in xrange(0, n + 1):
-                pixels_by_distance[distance] += current_pixels
-                current_pixels -= 1
-
-        # get the number of reads at a given bin distance
-        if _chromosomes is None:
-            _chromosomes = RaoPeakCaller.chromosome_map(hic)
-
-        reads_by_distance = np.zeros(max_distance + 1)
-        inter_observed = 0
-        for edge in hic.edges(lazy=True):
-            # only intra-chromosomal distances
-            if _chromosomes[edge.source] == _chromosomes[edge.sink]:
-                reads_by_distance[edge.sink - edge.source] += edge.weight
-            else:
-                inter_observed += edge.weight
-
-        intra_possible, inter_possible = hic.possible_contacts(_mappable=_mappable)
-
-        try:
-            inter_expected = inter_observed/inter_possible
-        except ZeroDivisionError:
-            inter_expected = 0
-
-        # return here if smoothing not requested
-        if not smooth:
-            return reads_by_distance/pixels_by_distance, inter_expected
-
-        # smoothing
-        smoothed_reads_by_distance = np.zeros(max_distance + 1)
-        smoothed_pixels_by_distance = np.zeros(max_distance + 1)
-        for i in xrange(len(reads_by_distance)):
-            smoothed_reads = reads_by_distance[i]
-            smoothed_pixels = pixels_by_distance[i]
-            window_size = 0
-            can_extend = True
-            # smooth to a minimum number of reads per distance
-            while smoothed_reads < min_smoothed_reads and can_extend:
-                window_size += 1
-                can_extend = False
-                # check if we can increase the window to the left
-                if i - window_size >= 0:
-                    smoothed_reads += reads_by_distance[i-window_size]
-                    smoothed_pixels += pixels_by_distance[i-window_size]
-                    can_extend = True
-                # check if we can increase the window to the right
-                if i + window_size < len(reads_by_distance):
-                    smoothed_reads += reads_by_distance[i+window_size]
-                    smoothed_pixels += pixels_by_distance[i+window_size]
-                    can_extend = True
-            smoothed_reads_by_distance[i] = smoothed_reads
-            smoothed_pixels_by_distance[i] = smoothed_pixels
-        return smoothed_reads_by_distance/smoothed_pixels_by_distance, inter_expected
-
     # sum of reads in lower-left neighborhood
     @staticmethod
     def ll_sum(m, i, j, w=1, p=0):
@@ -1254,7 +1172,7 @@ class RaoPeakCaller(PeakCaller):
             self._process_jobs(jobs, peak_info, observed_chunk_distribution)
         peak_info.flush()
 
-    def call_peaks(self, hic, chromosome_pairs=None, file_name=None):
+    def call_peaks(self, hic, chromosome_pairs=None, file_name=None, expected=None):
         """
         Call peaks in Hi-C matrix.
 
@@ -1283,8 +1201,13 @@ class RaoPeakCaller(PeakCaller):
         mappable = hic.mappable()
         logger.info("Done.")
 
-        logger.info("Calculating expected values...")
-        intra_expected, inter_expected = RaoPeakCaller.get_expected(hic, smooth=True)
+        calculated_expected = False
+        if expected is None:
+            calculated_expected = True
+            logger.info("Calculating expected values...")
+            expected = ExpectedContacts(hic, smooth=True)
+        intra_expected = expected.intra_expected()
+        inter_expected = expected.inter_expected()
         logger.info("Done.")
 
         intra_possible, inter_possible = hic.possible_contacts()
@@ -1408,6 +1331,9 @@ class RaoPeakCaller(PeakCaller):
                     peak.fdr_d *= inter_possible/(i+1)
                     peak.update()
             peaks.flush()
+
+        if calculated_expected:
+            expected.close()
 
         return peaks
 
