@@ -281,7 +281,7 @@ class BigWig(object):
             interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
 
         bin_size = (interval_range[1] - interval_range[0]) / bins
-        logging.info("Bin size: {}".format(bin_size))
+        logging.debug("Bin size: {}".format(bin_size))
 
         current_interval = 0
         binned_intervals = [list() for _ in xrange(0, bins)]
