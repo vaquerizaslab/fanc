@@ -18,7 +18,7 @@ setup(
         'pytest',
         'msgpack-python',
         'gridmap',
-        'sklearn',
+        'scikit-learn',
         'progressbar2',
         'pybedtools',
         'pyBigWig',
