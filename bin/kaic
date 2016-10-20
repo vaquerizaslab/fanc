@@ -43,6 +43,8 @@ class Kaic(object):
                     bin_hic             Bin a Hic object into same-size regions
                     correct_hic         Correct a Hic object for biases
                     hic_pca             Do a PCA on multiple Hi-C objects
+                    optimise           Optimise an existing Hic object for faster access
+                    subset_hic         Create a new Hic object by subsetting
 
                     --- Network
                     call_peaks          Call enriched peaks in a Hic object
@@ -67,8 +69,7 @@ class Kaic(object):
                     diff               Calculate difference between two vectors
 
                     --- Other
-                    optimise           Optimise an existing Hic object for faster access
-                    subset_hic         Create a new Hic object by subsetting
+                    write_config       Write default config file
 
                 Run kaic <command> -h for help on a specific command.
                 '''
@@ -3621,6 +3622,29 @@ class Kaic(object):
                         o.write("hic\ttotal\t{}\t{}\n".format(key, hic_summary[key]))
                 o.write("hic\ttotal\tfiltered\t{}\n".format(hic_summary['filtered']))
                 o.write("hic\ttotal\tremaining\t{}\n".format(hic_summary['remaining']))
+
+    def write_config(self, argv):
+        parser = argparse.ArgumentParser(
+            prog="kaic " + argv[1],
+            description='Write default config file to specified location.'
+        )
+
+        parser.add_argument(
+            'config_file',
+            help="Output file for default configuration."
+        )
+
+        parser.add_argument(
+            '-f', '--force', dest='force',
+            action='store_true',
+            help='''Force overwrite of existing config file.'''
+        )
+        parser.set_defaults(force=False)
+
+        args = parser.parse_args(argv[2:])
+
+        from kaic.config import write_default_config
+        write_default_config(os.path.expanduser(args.config_file), overwrite=args.force)
 
 
 if __name__ == '__main__':
