@@ -7,7 +7,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 _default_config_content = """\
+#
+# PLOTTING
+#
 colormap_hic: germany
+
+#
+# EMAIL
+#
+email_from_address:
+email_smtp_server:
+email_smtp_port:
+email_smtp_username:
+email_smtp_password:
 """
 default_config = yaml.load(_default_config_content)
 
@@ -66,7 +78,6 @@ for current_config_path, current_file_config in reversed(file_configs):
             _config_dict[key] = value
 
 config = Map(_config_dict)
-
 
 def write_default_config(file_name, overwrite=False):
     file_name = os.path.expanduser(file_name)
