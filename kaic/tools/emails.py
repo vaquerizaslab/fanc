@@ -34,11 +34,11 @@ def send_email(to_address, message, subject='', from_address=None, server=None, 
         if len(server) == 2:
             port = server[1]
 
-    password = None
-    username = None
-    if credentials is None:
+    if credentials is None or credentials[0] is None or credentials[1] is None:
         username = config.email_smtp_username
         password = config.email_smtp_password
+    else:
+        username, password = credentials
 
     # start connection
     if port is None:
