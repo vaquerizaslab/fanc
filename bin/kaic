@@ -106,12 +106,44 @@ class Kaic(object):
             help='''Path to file in which to save log.'''
         )
 
+        parser.add_argument(
+            '-m', '--email', dest='email_to_address',
+            help='''Email address for kaic command summary.'''
+        )
+
+        parser.add_argument(
+            '--smtp-server', dest='smtp_server',
+            help='''SMTP server in the form smtp.server.com[:port].'''
+        )
+
+        parser.add_argument(
+            '--smtp-username', dest='smtp_username',
+            help='''SMTP username.'''
+        )
+
+        parser.add_argument(
+            '--smtp-password', dest='smtp_password',
+            help='''SMTP password.'''
+        )
+
+        parser.add_argument(
+            '--smtp-sender-address', dest='email_from_address',
+            help='''SMTP sender email address.'''
+        )
+
         parser.add_argument('command', nargs='?', help='Subcommand to run')
+
+        flag_increments = {
+            '-l': 2, '--log-file': 2,
+            '-m': 2, '--email': 2, '--smtp-server': 2, '--smtp-username': 2,
+            '--smtp-password': 2, '--smtp-sender-address': 2,
+        }
 
         option_ix = 1
         while option_ix < len(sys.argv) and sys.argv[option_ix].startswith('-'):
-            option_ix += 1
-            if sys.argv[option_ix - 1] == '-l' or sys.argv[option_ix - 1] == '--log-file':
+            if sys.argv[option_ix] in flag_increments:
+                option_ix += flag_increments[sys.argv[option_ix]]
+            else:
                 option_ix += 1
 
         # parse_args defaults to [1:] for args, but you need to
@@ -159,10 +191,33 @@ class Kaic(object):
             exit(1)
 
         # echo parameters back to user
-        logger.info("Running '{}'".format(" ".join(sys.argv)))
+        kaic_command = " ".join(sys.argv)
+        logger.info("Running '{}'".format(kaic_command))
 
         # use dispatch pattern to invoke method with same name
-        getattr(self, args.command)([sys.argv[0]] + sys.argv[option_ix:])
+        try:
+            getattr(self, args.command)([sys.argv[0]] + sys.argv[option_ix:])
+        except Exception:
+            if args.email_to_address is not None:
+                from kaic.tools import emails
+                import traceback
+
+                exception_message = traceback.format_exc().replace("\n", "<br>")
+                message = "Kai-C command: {}<br>failed with the following exception:<br>{}".format(kaic_command,
+                                                                                                   exception_message)
+                subject = "{} failed".format(sys.argv[option_ix])
+                emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
+                                  server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
+            raise
+
+        if args.email_to_address is not None:
+            from kaic.tools import emails
+            import traceback
+
+            message = "Kai-C command: {}<br>executed successfully!".format(kaic_command)
+            subject = "{} completed".format(sys.argv[option_ix])
+            emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
+                              server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
 
         # echo parameters back to user
         logger.info("Finished '{}'".format(" ".join(sys.argv)))
