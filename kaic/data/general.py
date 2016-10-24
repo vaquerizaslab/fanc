@@ -180,6 +180,8 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
 
     def _generate_tmp_file_name(self):
         rand_str = binascii.b2a_hex(os.urandom(15))
+        while os.path.exists("tmp_{}.h5".format(rand_str)):
+            rand_str = binascii.b2a_hex(os.urandom(15))
         return "tmp_{}.h5".format(rand_str)
 
     def _init_file(self, file_name, mode):
