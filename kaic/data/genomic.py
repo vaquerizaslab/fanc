@@ -637,6 +637,10 @@ class GenomicRegion(TableObject):
             return True
         return False
 
+    @property
+    def center(self):
+        return self.start + (self.end - self.start)/2
+
     def __eq__(self, other):
         return self._equals(other)
 
