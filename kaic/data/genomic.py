@@ -280,32 +280,48 @@ class BigWig(object):
         if interval_range is None:
             interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
 
+        if isinstance(interval_range, GenomicRegion):
+            interval_range = (interval_range.start, interval_range.end)
+
         bin_size = (interval_range[1] - interval_range[0]) / bins
         logging.debug("Bin size: {}".format(bin_size))
 
         current_interval = 0
+        bin_coordinates = []
         binned_intervals = [list() for _ in xrange(0, bins)]
+        bin_start = interval_range[0]
         for bin_counter in xrange(len(binned_intervals)):
-            bin_start = interval_range[0] + bin_size * bin_counter
-            bin_end = interval_range[0] + bin_size + bin_size * bin_counter
+            bin_end = round(interval_range[0] + bin_size + (bin_size * bin_counter))
+            bin_coordinates.append((bin_start, bin_end))
 
             if current_interval < len(intervals):
                 interval = intervals[current_interval]
             else:
                 interval = None
-            while interval is not None and (interval[0] < bin_end and interval[1] > bin_start):
-                binned_intervals[bin_counter].append(interval)
+
+            # add all successive, fully-contained intervals to bin
+            while interval is not None and (interval[0] <= interval[1] <= bin_end and interval[1] >= bin_start):
+                binned_intervals[bin_counter].append((max(bin_start, interval[0]), interval[1], interval[2]))
+
                 current_interval += 1
                 if current_interval < len(intervals):
                     interval = intervals[current_interval]
                 else:
                     interval = None
 
+            # add partially-contained interval to bin
+            if interval is not None and (interval[0] <= bin_end and interval[1] >= bin_start):
+                binned_intervals[bin_counter].append((max(bin_start, interval[0]),
+                                                      min(bin_end, interval[1]),
+                                                      interval[2]))
+
+            bin_start = bin_end
+
         result = np.array([stat(interval_bins) for interval_bins in binned_intervals])
         if smoothing_window is not None:
             result = apply_sliding_func(result, smoothing_window)
 
-        return result
+        return tuple((bin_coordinates[i][0], bin_coordinates[i][1], result[i]) for i in xrange(len(result)))
 
     def binned_values(self, region, bins, smoothing_window=None):
         if isinstance(region, str):
