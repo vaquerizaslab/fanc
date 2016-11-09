@@ -187,6 +187,7 @@ def _weighted_mean(intervals):
     if len(valid) == 0:
         return np.nan
     weights = (valid[:, 1] - valid[:, 0])
+    weights += 1
     return np.average(valid[:, 2], weights=weights)
 
 
