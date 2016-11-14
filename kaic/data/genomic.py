@@ -1345,6 +1345,9 @@ class Genome(FileGroup):
             for chromosome in chromosomes:
                 self.add_chromosome(chromosome)
 
+    def chromosomes(self):
+        return self._names
+
     @property
     def _names(self):
         try:
