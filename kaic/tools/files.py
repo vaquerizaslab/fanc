@@ -77,7 +77,7 @@ def is_fasta_file(file_name):
         
     is_fasta = True
     with open(file_name, 'r') as f:
-        fastas = SeqIO.parse(f,'fasta')
+        fastas = SeqIO.parse(f, 'fasta')
         
         try:
             fastas.next()
@@ -98,34 +98,3 @@ def copy_or_expand(input_file, output_file=None):
         else:
             input_path = output_path
     return input_path
-
-
-def file_type(file_name):
-    file_name = os.path.expanduser(file_name)
-    if not os.path.isfile(file_name):
-        raise IOError("File {} not found.".format(file_name))
-
-    # might be HDF5
-    try:
-        f = t.open_file(file_name, mode='r')
-        f.close()
-        is_hdf5 = True
-    except t.HDF5ExtError:
-        is_hdf5 = False
-
-    # if is_hdf5:
-    #     with t.open_file(file_name, mode='r') as f:
-    #         # Hi-C file
-    #
-    #
-    #
-    # n = f.get_node('/' + _edge_table_name)
-    # if isinstance(n, MaskedTable):
-    #     hic_class = Hic
-    # elif isinstance(n, t.group.Group):
-    #     hic_class = AccessOptimisedHic
-    # else:
-    #     raise ValueError("%s is not a valid Hi-C object file" % file_name)
-    #
-    # f.close()
-    # return hic_class(file_name=file_name, mode=mode, tmpdir=tmpdir)
