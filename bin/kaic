@@ -828,13 +828,13 @@ class Kaic(object):
             tp.close()
             tp.join()
 
-        for ix, i in enumerate(reversed(hic_files)):
-            del file_names[i]
-            del file_types[i]
+            for ix, i in enumerate(reversed(hic_files)):
+                del file_names[i]
+                del file_types[i]
 
-        for filtered_hic_file in filtered_hic_files:
-            file_names.append(filtered_hic_file)
-            file_types.append('hic')
+            for filtered_hic_file in filtered_hic_files:
+                file_names.append(filtered_hic_file)
+                file_types.append('hic')
 
         # 11.b. Correct Hic
         def correct_hic_worker(hic_file, corrected_hic_file, per_chromosome=False):
