@@ -430,6 +430,10 @@ class Kaic(object):
         file_types = [file_type(file_name) for file_name in file_names]
         file_basenames = [file_basename(file_name) for file_name in file_names]
 
+        for file_type in file_types:
+            if file_type not in ('fastq', 'sam', 'reads', 'pairs', 'hic'):
+                raise ValueError("Not a valid input file type: {}".format(file_type))
+
         if args.basename is None:
             if len(file_basenames) == 1:
                 basename = file_basenames[0]
