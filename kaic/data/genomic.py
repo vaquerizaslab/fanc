@@ -221,7 +221,7 @@ class BigWig(object):
             def __iter__(self):
                 for chromosome, length in self.bw.chroms().iteritems():
                     for start, end, score in self.bw.intervals(chromosome, 0, length):
-                        yield GenomicRegion(chromosome=chromosome, start=start, end=end, score=score)
+                        yield GenomicRegion(chromosome=chromosome, start=start + 1, end=end, score=score)
 
             def __call__(self):
                 return iter(self)
@@ -238,11 +238,7 @@ class BigWig(object):
             regions = region
 
         for r in regions:
-            chroms = self.bw.chroms()
-            r_start = r.start if r.start is not None else 0
-            r_end = r.end if r.end is not None else chroms[r.chromosome]
-
-            for start, end, score in self.bw.intervals(r.chromosome, r_start, r_end):
+            for start, end, score in self.intervals(r):
                 yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
 
     def region_stats(self, region, bins=1, stat='mean'):
@@ -250,7 +246,7 @@ class BigWig(object):
             region = GenomicRegion.from_string(region)
 
         chroms = self.bw.chroms()
-        r_start = region.start if region.start is not None else 0
+        r_start = region.start - 1 if region.start is not None else 0
         r_end = region.end if region.end is not None else chroms[region.chromosome]
 
         return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
@@ -262,7 +258,7 @@ class BigWig(object):
 
         if isinstance(chromosome, GenomicRegion):
             if start is None:
-                start = chromosome.start if chromosome.start is not None else 1
+                start = chromosome.start - 1 if chromosome.start is not None else 0
             if end is None:
                 end = chromosome.end if chromosome.end is not None else chroms[chromosome.chromosome]
             chromosome = chromosome.chromosome
@@ -270,7 +266,7 @@ class BigWig(object):
         intervals = self.bw.intervals(chromosome, start, end)
         if intervals is None:
             intervals = ()
-        return intervals
+        return [(interval[0]+1, interval[1], interval[2]) for interval in intervals]
 
     @staticmethod
     def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean):
@@ -284,7 +280,7 @@ class BigWig(object):
         if isinstance(interval_range, GenomicRegion):
             interval_range = (interval_range.start, interval_range.end)
 
-        bin_size = (interval_range[1] - interval_range[0]) / bins
+        bin_size = (interval_range[1] - interval_range[0] + 1) / bins
         logging.debug("Bin size: {}".format(bin_size))
 
         current_interval = 0
@@ -292,7 +288,7 @@ class BigWig(object):
         binned_intervals = [list() for _ in xrange(0, bins)]
         bin_start = interval_range[0]
         for bin_counter in xrange(len(binned_intervals)):
-            bin_end = round(interval_range[0] + bin_size + (bin_size * bin_counter))
+            bin_end = round(interval_range[0] + bin_size + (bin_size * bin_counter)) - 1
             bin_coordinates.append((bin_start, bin_end))
 
             if current_interval < len(intervals):
@@ -316,7 +312,7 @@ class BigWig(object):
                                                       min(bin_end, interval[1]),
                                                       interval[2]))
 
-            bin_start = bin_end
+            bin_start = bin_end + 1
 
         result = np.array([stat(interval_bins) for interval_bins in binned_intervals])
         if smoothing_window is not None:
