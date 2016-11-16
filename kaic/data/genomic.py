@@ -220,8 +220,8 @@ class BigWig(object):
 
             def __iter__(self):
                 for chromosome, length in self.bw.chroms().iteritems():
-                    for start, end, score in self.bw.intervals(chromosome, 0, length):
-                        yield GenomicRegion(chromosome=chromosome, start=start + 1, end=end, score=score)
+                    for start, end, score in self.bw.intervals(chromosome, 1, length):
+                        yield GenomicRegion(chromosome=chromosome, start=start, end=end, score=score)
 
             def __call__(self):
                 return iter(self)
