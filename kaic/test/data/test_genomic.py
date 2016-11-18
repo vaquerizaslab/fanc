@@ -915,10 +915,6 @@ class TestHicBasic:
         assert np.array_equal(df.shape, [5,5])
         assert np.array_equal(df.index, [1,1001,2001,3001,4001])
         assert np.array_equal(df.columns, [1,1001,2001,3001,4001])
-        
-    def test_from_mirny(self):
-        # TODO
-        pass
 
     def test_merge(self):
         hic = self.hic_class()
@@ -1326,13 +1322,14 @@ class TestHicBasic:
         assert original_reads == new_reads
         hic.close()
         binned.close()
-        
+
     def test_knight_matrix_balancing(self):
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
         
         hic = self.hic_class()
         regions = genome.get_regions(10000)
+        genome.close()
         hic.add_regions(regions)
         regions.close()
         hic.load_from_hic(self.hic_cerevisiae)
@@ -1354,6 +1351,7 @@ class TestHicBasic:
 
         hic = self.hic_class()
         regions = genome.get_regions(10000)
+        genome.close()
         hic.add_regions(regions)
         regions.close()
         hic.load_from_hic(self.hic_cerevisiae)
@@ -1392,6 +1390,7 @@ class TestHicBasic:
         
         hic = self.hic_class()
         regions = genome.get_regions(10000)
+        genome.close()
         hic.add_regions(regions)
         regions.close()
         hic.load_from_hic(self.hic_cerevisiae)
