@@ -188,6 +188,8 @@ def _weighted_mean(intervals):
         return np.nan
     weights = (valid[:, 1] - valid[:, 0])
     weights += 1
+    # safety
+    weights = [weight if weight > 0 else 1 for weight in weights]
     return np.average(valid[:, 2], weights=weights)
 
 
