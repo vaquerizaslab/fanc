@@ -1,6 +1,6 @@
 """
 
-KaiC
+Kai-C
 ====
 
 Provides
