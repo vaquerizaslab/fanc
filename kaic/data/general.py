@@ -74,11 +74,11 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
             logger.info("Working in temporary directory...")
             if isinstance(tmpdir, bool):
                 tmpdir = tempfile.gettempdir()
+            else:
+                tmpdir = os.path.expanduser(tmpdir)
             self.tmp_file_name = os.path.join(tmpdir, self._generate_tmp_file_name())
             logger.info("Temporary output file: {}".format(self.tmp_file_name))
-            if mode in ['w', 'x', 'w-']:
-                pass
-            elif mode in ['r+', 'r']:
+            if mode in ['r+', 'r']:
                 shutil.copyfile(file_name, self.tmp_file_name)
             elif mode in ['a'] and os.path.isfile(file_name):
                 shutil.copyfile(file_name, self.tmp_file_name)
