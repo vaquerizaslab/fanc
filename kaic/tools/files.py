@@ -3,6 +3,7 @@ import os.path
 import string
 import random
 import pysam
+import binascii
 from Bio import SeqIO
 import tempfile
 import shutil
@@ -26,6 +27,13 @@ def create_temporary_copy(src_file_name, preserve_extension=False):
 def get_number_of_lines(file_name):
     with open(file_name, 'r') as f:
         return sum(1 for _ in f)
+
+
+def tmp_file_name(tmpdir, prefix='tmp_kaic', extension='h5'):
+    name = os.path.join(tmpdir, "{}_{}.{}".format(prefix, binascii.b2a_hex(os.urandom(15)), extension))
+    while os.path.exists(name):
+        name = os.path.join(tmpdir, "{}_{}.{}".format(prefix, binascii.b2a_hex(os.urandom(15)), extension))
+    return name
 
 
 def random_name(length=6):
