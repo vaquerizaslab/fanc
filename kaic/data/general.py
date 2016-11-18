@@ -9,14 +9,14 @@ files. Other features include indexing and querying.
 from __future__ import division
 import tables as t
 from tables.nodes import filenode
-from kaic.tools.files import create_or_open_pytables_file
+from kaic.tools.files import create_or_open_pytables_file, tmp_file_name
 from kaic.tools.general import RareUpdateProgressBar, create_col_index
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
 from kaic.tools.lru import lru_cache
 import shutil
-import binascii
+import warnings
 from collections import defaultdict
 from .registry import class_id_dict, class_name_dict
 import six
@@ -55,39 +55,42 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
                  _meta_group='meta_information'):
+
+        if hasattr(self, 'tmp_file_name'):
+            self.tmp_file_name = getattr(self, 'tmp_file_name')
+        else:
+            self.tmp_file_name = None
+
         # open file or keep in memory
         if hasattr(self, 'file'):
             if not isinstance(self.file, t.file.File):
                 raise ValueError("'file' attribute already exists, but is no pytables File")
-            else:
-                return
-        self.file = None
-        self.tmp_file = None
-        self.file_name = file_name
-        self.tmp_file_name = None
-        self._mode = mode
-        self._meta_group_name = _meta_group
-        if tmpdir is None or (isinstance(tmpdir, bool) and not tmpdir):
-            self.tmp_file_name = None
-            self._init_file(file_name, mode)
         else:
-            logger.info("Working in temporary directory...")
-            if isinstance(tmpdir, bool):
-                tmpdir = tempfile.gettempdir()
-            else:
-                tmpdir = os.path.expanduser(tmpdir)
-            self.tmp_file_name = os.path.join(tmpdir, self._generate_tmp_file_name())
-            logger.info("Temporary output file: {}".format(self.tmp_file_name))
-            if mode in ['r+', 'r']:
-                shutil.copyfile(file_name, self.tmp_file_name)
-            elif mode in ['a'] and os.path.isfile(file_name):
-                shutil.copyfile(file_name, self.tmp_file_name)
-            self._init_file(self.tmp_file_name, mode)
-        self.closed = False
+            self.file = None
+            self.file_name = file_name
 
-        self.meta = None
-        self._init_meta()
-        self._update_classid()
+            if tmpdir is None or (isinstance(tmpdir, bool) and not tmpdir):
+                self.tmp_file_name = None
+                self._init_file(file_name, mode)
+            else:
+                logger.info("Working in temporary directory...")
+                if isinstance(tmpdir, bool):
+                    tmpdir = tempfile.gettempdir()
+                else:
+                    tmpdir = os.path.expanduser(tmpdir)
+                self.tmp_file_name = tmp_file_name(tmpdir, prefix='tmp_kaic', extension='h5')
+                logger.info("Temporary output file: {}".format(self.tmp_file_name))
+                if mode in ('r+', 'r'):
+                    shutil.copyfile(file_name, self.tmp_file_name)
+                elif mode == 'a' and os.path.isfile(file_name):
+                    shutil.copyfile(file_name, self.tmp_file_name)
+                self._init_file(self.tmp_file_name, mode)
+
+        if not hasattr(self, 'meta'):
+            self._meta_group_name = _meta_group
+            self.meta = None
+            self._init_meta()
+            self._update_classid()
 
     def _init_meta(self):
         class MetaAccess(object):
@@ -159,30 +162,18 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
             except (AttributeError, t.FileModeError):
                 pass
 
-    def close(self):
+    def close(self, copy_tmp=True, remove_tmp=True):
+        if not self.file.isopen:
+            warnings.warn("File {} is already closed!".format(self.file.filename))
+            return
+        file_mode = self.file.mode
         self.file.close()
-        self.closed = True
-
-    def finalize(self):
-        if self.closed:
-            if self.tmp_file_name:
-                if self._mode not in ['r']:
-                    logger.info("Moving temporary output file to destination {}".format(self.file_name))
-                    shutil.copyfile(self.tmp_file_name, self.file_name)
-        else:
-            raise IOError('The file has to be closed before copying the tmp file. Use close()')
-
-    def cleanup(self):
-        if self.closed:
-            os.remove(self.tmp_file_name)
-        else:
-            raise IOError('The file has to be closed before deleting the tmp file. Use close()')
-
-    def _generate_tmp_file_name(self):
-        rand_str = binascii.b2a_hex(os.urandom(15))
-        while os.path.exists("tmp_{}.h5".format(rand_str)):
-            rand_str = binascii.b2a_hex(os.urandom(15))
-        return "tmp_{}.h5".format(rand_str)
+        if self.tmp_file_name is not None:
+            if copy_tmp and file_mode not in ('r', 'r+'):
+                logger.info("Moving temporary output file to destination {}".format(self.file_name))
+                shutil.copyfile(self.tmp_file_name, self.file_name)
+            if remove_tmp:
+                os.remove(self.tmp_file_name)
 
     def _init_file(self, file_name, mode):
         if file_name is None:
@@ -198,30 +189,9 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-        if exc_type is None:
-            if self.tmp_file_name:
-                self.finalize()
-                self.cleanup()
-            return True
-        else:
-            if self.tmp_file_name:
-                self.cleanup()
-            return False
-
-    @property
-    def mode(self):
-        return self._mode
-
-    @mode.setter
-    def mode(self, mode):
-        if mode not in ['r', 'w', 'x', 'w-', 'r+', 'a']:
-            raise ValueError('Unknown mode {}'.format(mode))
-        if mode in ['r', 'r+'] and not os.path.isfile(self.file_name):
-            raise OSError('The file {} does not exists'.format(self.file_name))
-        if mode in ['x', 'w-'] and os.path.isfile(self.file_name):
-            raise OSError('The file {} already exists'.format(self.file_name))
-        self._mode = mode
+        report_exception = exc_type is None
+        self.close(copy_tmp=report_exception)
+        return report_exception
 
 
 class FileGroup(FileBased):
