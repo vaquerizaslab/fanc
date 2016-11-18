@@ -1615,8 +1615,6 @@ class Kaic(object):
                                            only_intrachromosomal=args.intra)
 
             merged.close()
-            merged.finalize()
-            merged.cleanup()
         except ValueError:
             first_hic = hics.pop(0)
 
@@ -1628,13 +1626,9 @@ class Kaic(object):
             merged.merge(hics)
 
             merged.close()
-            merged.finalize()
-            merged.cleanup()
 
         for hic in hics:
             hic.close()
-            hic.finalize()
-            hic.cleanup()
 
         logger.info("All done")
 
