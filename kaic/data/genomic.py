@@ -1366,9 +1366,6 @@ class Genome(FileGroup):
     def _lengths(self, lengths):
         self.meta['chromosome_lengths'] = lengths
 
-    def close(self):
-        self.file.close()
-
     @classmethod
     def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
         """
@@ -1488,9 +1485,6 @@ class Genome(FileGroup):
                 return this[self.current - 1]
 
         return Iter()
-
-    def __del__(self):
-        self.file.close()
 
     def add_chromosome(self, chromosome):
         """
@@ -3783,6 +3777,7 @@ class Hic(RegionMatrixTable):
         genome = Genome(chromosomes=chromosome_list)
         hic = self.__class__(file_name=file_name, mode='w')
         regions = genome.get_regions(bin_size)
+        genome.close()
         hic.add_regions(regions)
         regions.close()
         hic.load_from_hic(self)
@@ -3928,27 +3923,15 @@ class Hic(RegionMatrixTable):
                             of :class:`~Hic` objects to be
                             merged into this one
         """
-        import traceback
         if isinstance(hic_or_hics, Hic):
-            hic = hic_or_hics
-            try:
+            hic_or_hics = (hic_or_hics,)
+
+        try:
+            for hic in hic_or_hics:
+                logger.info("Merging {}".format(hic.file_name))
                 self._merge(hic, _edge_buffer_size=_edge_buffer_size)
-            except Exception as e:
-                hic.__exit__(e, e.message, traceback.format_exc())
-            else:
-                hic.__exit__(None, None, None)
-        else:
-            try:
-                for hic in hic_or_hics:
-                    logger.info("Merging {}".format(hic.file_name))
-                    try:
-                        self._merge(hic, _edge_buffer_size=_edge_buffer_size)
-                    except Exception as e:
-                        hic.__exit__(e, e.message, traceback.format_exc())
-                    else:
-                        hic.__exit__(None, None, None)
-            except TypeError:
-                logger.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
+        except TypeError:
+            logger.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
 
         logger.info("Removing zero edges")
         self._remove_zero_edges(update_index=True)
