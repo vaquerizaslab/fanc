@@ -2,7 +2,6 @@ import tables as t
 import numpy as np
 import pytest
 from kaic.data.general import Mask, Maskable, MaskedTable, MaskFilter, FileBased
-from __builtin__ import classmethod
 import os
 from kaic.tools.files import create_or_open_pytables_file
 
@@ -62,7 +61,7 @@ class TestMaskable:
             def __init__(self, h5_file):
                 self.file = h5_file
                 Maskable.__init__(self)
-        
+
         h5_file3 = create_or_open_pytables_file(str(tmpdir) + "/test4.h5")
         mc2 = MaskableContainerTest2(h5_file3)
         assert isinstance(mc2._mask, t.table.Table)
@@ -127,7 +126,8 @@ class TestMaskable:
         masks = maskable.get_masks(ix)
         assert len(masks) == 0
         maskable.close()
-        
+
+
 class TestMaskedTable:
     class ExampleFilter(MaskFilter):
         def __init__(self, cutoff=25):
@@ -142,14 +142,14 @@ class TestMaskedTable:
     def setup_method(self, method):
         f = create_or_open_pytables_file()
         test_description = {
-            'a': t.StringCol(50,pos=0),
+            'a': t.StringCol(50, pos=0),
             'b': t.Int32Col(pos=1),
             'c': t.Float32Col(pos=2)
         }
         self.table = MaskedTable(f.get_node("/"), "test", test_description)
         
         row = self.table.row
-        for i in range(0,50):
+        for i in range(0, 50):
             row['a'] = "test_%d" % i 
             row['b'] = 0 + i
             row['c'] = 0.0 + i
@@ -160,7 +160,7 @@ class TestMaskedTable:
         self.filtered_table = MaskedTable(f.get_node("/"), "test_filter", test_description)
         
         row = self.filtered_table.row
-        for i in range(0,50):
+        for i in range(0, 50):
             row['a'] = "test_%d" % i 
             row['b'] = 0 + i
             row['c'] = 0.0 + i
@@ -188,8 +188,8 @@ class TestMaskedTable:
         assert self.filtered_table[-1][1] == 49
         # slice
         x = self.filtered_table[1:3]
-        assert np.array_equal(tuple(x[0]), ('test_26',26,26.0,0,1))
-        assert np.array_equal(tuple(x[1]), ('test_27',27,27.0,0,2))
+        assert np.array_equal(tuple(x[0]), ('test_26', 26, 26.0, 0, 1))
+        assert np.array_equal(tuple(x[1]), ('test_27', 27, 27.0, 0, 2))
     
     def test_filter(self):
         self.table.filter(TestMaskedTable.ExampleFilter())
@@ -249,55 +249,54 @@ class TestFileBased:
     def test_tmp(self, tmpdir):
         filename = str(tmpdir) + "/test.file"
         f = FileBased(file_name=filename, mode='a', tmpdir='/tmp')
-        assert os.path.isfile(filename) == False
-        assert os.path.isfile(f.tmp_file_name) == True
+        assert not os.path.isfile(filename)
+        assert os.path.isfile(f.tmp_file_name)
         f.close()
-        f.finalize()
-        assert os.path.isfile(filename) == True
-        f.cleanup()
-        assert os.path.isfile(f.tmp_file_name) == False
+        assert os.path.isfile(filename)
+        assert not os.path.isfile(f.tmp_file_name)
 
     def test_tmp_with(self, tmpdir):
         filename = str(tmpdir) + "/test.file"
         with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
-            assert os.path.isfile(filename) == False
-            assert os.path.isfile(f.tmp_file_name) == True
-        assert os.path.isfile(filename) == True
-        assert os.path.isfile(f.tmp_file_name) == False
+            assert not os.path.isfile(filename)
+            assert os.path.isfile(f.tmp_file_name)
+        assert os.path.isfile(filename)
+        assert not os.path.isfile(f.tmp_file_name)
 
     def test_tmp_with_exception(self, tmpdir):
         filename = str(tmpdir) + "/test.file"
         with pytest.raises(Exception):
             with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
-                assert os.path.isfile(filename) == False
-                assert os.path.isfile(f.tmp_file_name) == True
+                assert not os.path.isfile(filename)
+                assert os.path.isfile(f.tmp_file_name)
                 try:
                     raise Exception
-                except:
-                    assert os.path.isfile(filename) == False
-                    assert os.path.isfile(f.tmp_file_name) == False
+                finally:
+                    assert not os.path.isfile(filename)
+                    assert not os.path.isfile(f.tmp_file_name)
 
     def test_tmp_with_existing(self, tmpdir):
         filename = str(tmpdir) + "/test.file"
         f = FileBased(str(tmpdir) + "/test.file")
         f.file.create_table("/", "test1", {'a': t.Int32Col()})
         f.close()
-        assert os.path.isfile(filename) == True
+        assert os.path.isfile(filename)
         with FileBased(file_name=filename, mode='a', tmpdir='/tmp') as f:
             f.file.create_table("/", "test2", {'b': t.Int32Col()})
-            assert os.path.isfile(f.tmp_file_name) == True
-        assert os.path.isfile(filename) == True
-        assert os.path.isfile(f.tmp_file_name) == False
+            assert os.path.isfile(f.tmp_file_name)
+        assert os.path.isfile(filename)
+        assert not os.path.isfile(f.tmp_file_name)
         with FileBased(file_name=filename, mode='r') as f:
             assert 'test1' in f.file.root
             assert 'test2' in f.file.root
+
 
 class TestPytablesInheritance:
     class MinTable(t.Table):
 
         def __init__(self):
     
-            f = t.open_file('bla', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
+            f = t.open_file('bla', 'a', driver="H5FD_CORE", driver_core_backing_store=0)
     
             description = {
                 'c1': t.Int32Col(),
@@ -317,9 +316,7 @@ class TestPytablesInheritance:
     
         def _enable_index(self):
             self.cols.c1.create_index()
-            
-    
-    
+
     def test_table_wrapper_with_index(self):
         m = TestPytablesInheritance.MinTable()
         # next line fails in unpatched code
@@ -327,8 +324,8 @@ class TestPytablesInheritance:
         m.file.close()
 
     def test_no_wrapper_with_index(self):
-        f = t.open_file('bla2', 'a', driver="H5FD_CORE",driver_core_backing_store=0)
-        table = t.Table(f.get_node('/'),'test',{ 'c1': t.Int32Col(), 'c2': t.Int16Col() },title='test')
+        f = t.open_file('bla2', 'a', driver="H5FD_CORE", driver_core_backing_store=0)
+        table = t.Table(f.get_node('/'), 'test', {'c1': t.Int32Col(), 'c2': t.Int16Col()}, title='test')
         table.row['c1'] = 0
         table.row.append()
         table.flush()
@@ -338,7 +335,7 @@ class TestPytablesInheritance:
         
     def test_registered_table(self, tmpdir):
         h5_file = create_or_open_pytables_file(str(tmpdir) + "/test.h5")
-        table = RegisteredTable(h5_file.get_node('/'), 'test', { 'c1': t.Int32Col(), 'c2': t.Int16Col() }, 'test')
+        table = RegisteredTable(h5_file.get_node('/'), 'test', {'c1': t.Int32Col(), 'c2': t.Int16Col()}, 'test')
         table.row['c1'] = 0
         table.row.append()
         table.flush()
@@ -346,7 +343,7 @@ class TestPytablesInheritance:
         h5_file.close()
 
         h5_file_ret = create_or_open_pytables_file(str(tmpdir) + "/test.h5")
-        table = h5_file_ret.get_node('/','test')
+        table = h5_file_ret.get_node('/', 'test')
         assert type(table) == RegisteredTable
         h5_file_ret.close()
 
