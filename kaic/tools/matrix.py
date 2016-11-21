@@ -1,8 +1,4 @@
 import numpy as np
-import matplotlib
-import re
-
-from matplotlib import pyplot as plt
 
 
 def remove_sparse_rows(m, cutoff=None):
