@@ -474,6 +474,12 @@ class Kaic(object):
             if args.restriction_enzyme is None:
                 print "Error: Must provide restriction enzyme (-r) to process read pair files!"
                 quit(1)
+            else:
+                from Bio import Restriction
+                try:
+                    getattr(Restriction, args.restriction_enzyme)
+                except AttributeError:
+                    raise ValueError("restriction_enzyme string is not recognized: %s" % args.restriction_enzyme)
 
         logger.info("Output folder: %s" % output_folder)
         logger.info("Input files: %s" % str(file_names))
