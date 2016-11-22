@@ -1710,8 +1710,8 @@ class Kaic(object):
 
             if (args.low is not None or args.rel_low is not None) and args.low_default is False:
                 logger.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
-                             "relative cutoff {:.1%}".format(float(args.low) if args.low else 0.,
-                                                             float(args.rel_low) if args.rel_low else 0.))
+                            "relative cutoff {:.1%}".format(float(args.low) if args.low else 0.,
+                                                            float(args.rel_low) if args.rel_low else 0.))
                 hic.filter_low_coverage_regions(cutoff=args.low, rel_cutoff=args.rel_low, queue=True)
 
                 if args.diagonal is not None:
@@ -1846,7 +1846,7 @@ class Kaic(object):
         args = parser.parse_args(argv[2:])
 
         import kaic
-        from kaic.tools.files import copy_or_expand, create_temporary_copy
+        from kaic.tools.files import create_temporary_copy
 
         # copy file if required
         original_input_path = os.path.expanduser(args.input)
@@ -2402,7 +2402,7 @@ class Kaic(object):
                                                      v_ratio=args.enrichment_vertical,
                                                      h_ratio=args.enrichment_horizontal,
                                                      queue=True)
-                peaks.run_queued_filters()
+                peaks.peak_table.run_queued_filters()
         peaks.close()
 
         if args.tmp:
@@ -3187,11 +3187,9 @@ class Kaic(object):
         args = parser.parse_args(argv[2:])
 
         import kaic
-        from kaic.data.genomic import RegionMatrixTable
         from kaic.architecture.hic_architecture import RegionContactAverage
         import os.path
         import tempfile
-        import tables
 
         input_file = os.path.expanduser(args.input)
         output_file = os.path.expanduser(args.output)
