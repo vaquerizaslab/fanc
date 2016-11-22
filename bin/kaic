@@ -465,6 +465,16 @@ class Kaic(object):
             if args.genome_index is None:
                 print "Error: Must provide genome index (-i) when mapping FASTQ files!"
                 quit(1)
+            else:
+                check_path = os.path.expanduser(args.genome_index)
+                if check_path.endswith('.'):
+                    check_path = check_path[:-1]
+                for i in xrange(1, 5):
+                    if not os.path.exists(check_path + '.{}.bt2'.format(i)):
+                        raise ValueError("Cannot find bowtie2 path!")
+                for i in xrange(1, 3):
+                    if not os.path.exists(check_path + '.rev.{}.bt2'.format(i)):
+                        raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
 
         if 'fastq' in file_types or 'sam' in file_types or 'reads' in file_types:
             if args.genome is None:
@@ -520,6 +530,8 @@ class Kaic(object):
             tp = ThreadPool(1)
 
             index = os.path.expanduser(args.genome_index)
+            if index.endswith('.'):
+                index = index[:-1]
             logger.info("Iteratively mapping FASTQ files...")
 
             bam_files = []
