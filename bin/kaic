@@ -771,16 +771,40 @@ class Kaic(object):
                 del file_names[i]
                 del file_types[i]
 
-        # 10. Bin Hic
-        def bin_hic_worker(hic_file, binned_hic_file, bin_size):
-            logger.info("Binning at %d" % bin_size)
+        # batch worker to:
+        # * bin
+        # * filter
+        # * correct
+        def batch_hic_worker(hic_file, bin_size, binned_hic_file, filtered_hic_file, filtered_hic_stats_file,
+                             corrected_hic_file, chromosome_corrected_hic_file):
+            logger.info("Binning Hic {} at {}...".format(hic_file, bin_size))
             bin_hic_command = ['kaic', 'bin_hic']
             if args.tmp:
                 bin_hic_command.append('-tmp')
 
-            ret = subprocess.call(bin_hic_command + [hic_file, binned_hic_file, str(bin_size)])
+            ret1 = subprocess.call(bin_hic_command + [hic_file, binned_hic_file, str(bin_size)])
 
-            return ret
+            logger.info("Filtering Hic {}...".format(binned_hic_file))
+            filter_hic_command = ['kaic', 'filter_hic']
+            if args.tmp:
+                filter_hic_command.append('-tmp')
+            filter_hic_command.append('-rl')
+            filter_hic_command.append('0.1')
+            filter_hic_command.append('-s')
+
+            ret2 = subprocess.call(filter_hic_command + [filtered_hic_stats_file, binned_hic_file, filtered_hic_file])
+
+            logger.info("Correcting Hic {}...".format(filtered_hic_file))
+            correct_hic_command = ['kaic', 'correct_hic']
+            if args.tmp:
+                correct_hic_command.append('-tmp')
+            if args.optimise:
+                correct_hic_command.append('-o')
+
+            ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file, chromosome_corrected_hic_file])
+            ret4 = subprocess.call(correct_hic_command + [filtered_hic_file, corrected_hic_file])
+
+            return ret1, ret2, ret3, ret4
 
         hic_files = []
         for i in xrange(len(file_names)):
@@ -791,7 +815,6 @@ class Kaic(object):
         if len(hic_files) > 0:
             tp = ThreadPool(threads)
 
-            binned_hic_files = []
             for ix in hic_files:
                 binned_hic_file_base = output_folder + 'hic/binned/' + basename + '_'
 
@@ -800,106 +823,19 @@ class Kaic(object):
                                                (50000, '50kb'), (25000, '25kb'), (10000, '10kb'), (5000, '5kb')]:
 
                     binned_hic_file = binned_hic_file_base + bin_size_str + '.hic'
+                    hic_basename = os.path.basename(os.path.splitext(binned_hic_file)[0])
+                    filtered_hic_file = output_folder + 'hic/filtered/' + hic_basename + '_filtered.hic'
+                    filtered_hic_stats_file = output_folder + 'plots/stats/' + hic_basename + '_filtered.stats.pdf'
+                    chromosome_corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected_pc.hic'
+                    corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected.hic'
 
-                    tp.apply_async(bin_hic_worker, (file_names[ix],
-                                                    binned_hic_file,
-                                                    bin_size))
-
-                    binned_hic_files.append(binned_hic_file)
-            tp.close()
-            tp.join()
-
-            for ix, i in enumerate(reversed(hic_files)):
-                del file_names[i]
-                del file_types[i]
-
-            for binned_hic_file in binned_hic_files:
-                file_names.append(binned_hic_file)
-                file_types.append('hic')
-
-        # 11.a. Filter Hic
-        def filter_hic_worker(hic_file, filtered_hic_file, filtered_hic_stats_file):
-            logger.info("Filtering Hic...")
-            filter_hic_command = ['kaic', 'filter_hic']
-            if args.tmp:
-                filter_hic_command.append('-tmp')
-            filter_hic_command.append('-rl')
-            filter_hic_command.append('0.1')
-            filter_hic_command.append('-s')
-
-            return subprocess.call(filter_hic_command + [filtered_hic_stats_file, hic_file, filtered_hic_file])
-
-        hic_files = []
-        for i in xrange(len(file_names)):
-            if file_types[i] != 'hic':
-                continue
-            hic_files.append(i)
-
-        if len(hic_files) > 0:
-            tp = ThreadPool(threads)
-
-            filtered_hic_files = []
-            for ix in hic_files:
-                hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
-                filtered_hic_file = output_folder + 'hic/filtered/' + hic_basename + '_filtered.hic'
-                filtered_hic_stats_file = output_folder + 'plots/stats/' + hic_basename + '_filtered.stats.pdf'
-                tp.apply_async(filter_hic_worker, (file_names[ix], filtered_hic_file, filtered_hic_stats_file))
-
-                filtered_hic_files.append(filtered_hic_file)
-
-            tp.close()
-            tp.join()
-
-            for ix, i in enumerate(reversed(hic_files)):
-                del file_names[i]
-                del file_types[i]
-
-            for filtered_hic_file in filtered_hic_files:
-                file_names.append(filtered_hic_file)
-                file_types.append('hic')
-
-        # 11.b. Correct Hic
-        def correct_hic_worker(hic_file, corrected_hic_file, per_chromosome=False):
-            logger.info("Correcting Hic...")
-            correct_hic_command = ['kaic', 'correct_hic']
-            if args.tmp:
-                correct_hic_command.append('-tmp')
-            if per_chromosome:
-                correct_hic_command.append('-c')
-            if args.optimise:
-                correct_hic_command.append('-o')
-
-            return subprocess.call(correct_hic_command + [hic_file, corrected_hic_file])
-
-        hic_files = []
-        for i in xrange(len(file_names)):
-            if file_types[i] != 'hic':
-                continue
-            hic_files.append(i)
-
-        if len(hic_files) > 0:
-            tp = ThreadPool(threads)
-
-            corrected_hic_files = []
-            for ix in hic_files:
-                hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
-                corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected_pc.hic'
-                tp.apply_async(correct_hic_worker, (file_names[ix], corrected_hic_file, True))
-
-                corrected_hic_files.append(corrected_hic_file)
-
-            import kaic
-            for ix in hic_files:
-                hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
-                corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected.hic'
-
-                hic = kaic.load_hic(file_names[ix], mode='r')
-                n_regions = len(hic.regions)
-                hic.close()
-
-                if n_regions <= 50000:
-                    tp.apply_async(correct_hic_worker, (file_names[ix], corrected_hic_file))
-                    corrected_hic_files.append(corrected_hic_file)
+                    tp.apply_async(batch_hic_worker, (file_names[ix],  # hic_file
+                                                      bin_size,
+                                                      binned_hic_file,
+                                                      filtered_hic_file,
+                                                      filtered_hic_stats_file,
+                                                      corrected_hic_file,
+                                                      chromosome_corrected_hic_file))
 
             tp.close()
             tp.join()
