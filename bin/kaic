@@ -843,7 +843,7 @@ class Kaic(object):
                 hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
                 filtered_hic_file = output_folder + 'hic/filtered/' + hic_basename + '_filtered.hic'
                 filtered_hic_stats_file = output_folder + 'plots/stats/' + hic_basename + '_filtered.stats.pdf'
-                tp.apply_async(filter_hic_worker, (filtered_hic_stats_file, file_names[ix], filtered_hic_file))
+                tp.apply_async(filter_hic_worker, (file_names[ix], filtered_hic_file, filtered_hic_stats_file))
 
                 filtered_hic_files.append(filtered_hic_file)
 
