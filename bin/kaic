@@ -284,12 +284,6 @@ class Kaic(object):
                 raise
 
         try:
-            os.makedirs(root_dir + '/hic/filtered/corrected')
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                raise
-
-        try:
             os.makedirs(root_dir + '/hic/binned')
         except OSError as exception:
             if exception.errno != errno.EEXIST:
