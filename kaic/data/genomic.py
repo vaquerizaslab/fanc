@@ -206,9 +206,10 @@ class Bed(pybedtools.BedTool):
                 current_intervals.append(interval)
             else:
                 # merge
-                intervals = np.array([(current.start, current.end, current.score if current.score != '.' else np.nan)
+                intervals = np.array([(current.start, current.end,
+                                       float(current.score) if current.score != '.' else np.nan)
                                       for current in current_intervals])
-                merged_score = stat(intervals)
+                merged_score = "{:0.6f}".format(stat(intervals))
                 merged_strand = current_intervals[0].strand
                 merged_start = min(intervals[:, 0])
                 merged_end = max(intervals[:, 1])
@@ -216,6 +217,7 @@ class Bed(pybedtools.BedTool):
                 merged_name = current_intervals[0].name
                 merged_interval = pybedtools.Interval(merged_chrom, merged_start, merged_end, name=merged_name,
                                                       score=merged_score, strand=merged_strand)
+                current_intervals = [interval]
                 yield merged_interval
 
 
