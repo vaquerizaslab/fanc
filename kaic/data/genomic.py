@@ -123,6 +123,21 @@ def _edge_overlap_split_rao(original_edge, overlap_map):
     return edges_list
 
 
+def _weighted_mean(intervals):
+    intervals = np.array(intervals)
+    if len(intervals) == 0:
+        return np.nan
+    mask = np.isfinite(intervals[:, 2])
+    valid = intervals[mask]
+    if len(valid) == 0:
+        return np.nan
+    weights = (valid[:, 1] - valid[:, 0])
+    weights += 1
+    # safety
+    weights = [weight if weight > 0 else 1 for weight in weights]
+    return np.average(valid[:, 2], weights=weights)
+
+
 class Bed(pybedtools.BedTool):
     """
     Data type representing a BED file.
@@ -202,21 +217,6 @@ class Bed(pybedtools.BedTool):
                 merged_interval = pybedtools.Interval(merged_chrom, merged_start, merged_end, name=merged_name,
                                                       score=merged_score, strand=merged_strand)
                 yield merged_interval
-
-
-def _weighted_mean(intervals):
-    intervals = np.array(intervals)
-    if len(intervals) == 0:
-        return np.nan
-    mask = np.isfinite(intervals[:, 2])
-    valid = intervals[mask]
-    if len(valid) == 0:
-        return np.nan
-    weights = (valid[:, 1] - valid[:, 0])
-    weights += 1
-    # safety
-    weights = [weight if weight > 0 else 1 for weight in weights]
-    return np.average(valid[:, 2], weights=weights)
 
 
 class BigWig(object):
