@@ -177,6 +177,32 @@ class Bed(pybedtools.BedTool):
 
         return RegionIter(self)
 
+    def merge_overlapping(self, stat=_weighted_mean, sort=True):
+        if sort:
+            bed = self
+        else:
+            bed = self.sort()
+
+        current_intervals = []
+        for interval in bed:
+            if len(current_intervals) == 0 or (current_intervals[-1].start < interval.end and
+                                               current_intervals[-1].end > interval.start and
+                                               current_intervals[-1].chrom == interval.chrom):
+                current_intervals.append(interval)
+            else:
+                # merge
+                intervals = np.array([(current.start, current.end, current.score if current.score != '.' else np.nan)
+                                      for current in current_intervals])
+                merged_score = stat(intervals)
+                merged_strand = current_intervals[0].strand
+                merged_start = min(intervals[:, 0])
+                merged_end = max(intervals[:, 1])
+                merged_chrom = current_intervals[0].chrom
+                merged_name = current_intervals[0].name
+                merged_interval = pybedtools.Interval(merged_chrom, merged_start, merged_end, name=merged_name,
+                                                      score=merged_score, strand=merged_strand)
+                yield merged_interval
+
 
 def _weighted_mean(intervals):
     intervals = np.array(intervals)
