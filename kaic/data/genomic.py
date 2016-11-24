@@ -271,12 +271,13 @@ class BigWig(object):
         return [(interval[0]+1, interval[1], interval[2]) for interval in intervals]
 
     @staticmethod
-    def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean):
+    def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean,
+                      nan_replacement=None):
         intervals = np.array(intervals)
-        if intervals is None or len(intervals) == 0:
-            return [np.nan] * bins
 
         if interval_range is None:
+            if intervals is None or len(intervals) == 0:
+                raise ValueError("intervals cannot be None or length 0 if not providing interval_range!")
             interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
 
         if isinstance(interval_range, GenomicRegion):
@@ -317,6 +318,9 @@ class BigWig(object):
             bin_start = bin_end + 1
 
         result = np.array([stat(interval_bins) for interval_bins in binned_intervals])
+        if nan_replacement is not None:
+            result[np.isnan(result)] = nan_replacement
+
         if smoothing_window is not None:
             result = apply_sliding_func(result, smoothing_window)
 

@@ -670,7 +670,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
     Regions will be plotted as bars with the height equal to the score provided in the file.
     """
     def __init__(self, regions, title="", feature_types=None, aspect=.2, axes_style="ticks",
-                 color_neutral='grey', color_forward='red', color_reverse='blue'):
+                 color_neutral='grey', color_forward='red', color_reverse='blue', show_labels=True):
         """
         :param regions: Any input that pybedtools can parse. Can be a path to a
                         GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), ...]
@@ -696,6 +696,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         self.color_forward = color_forward
         self.color_reverse = color_reverse
         self.color_neutral = color_neutral
+        self.show_labels = show_labels
 
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
 
@@ -742,9 +743,12 @@ class GenomicFeatureScorePlot(BasePlotter1D):
             else:
                 colors.append(self.color_neutral)
 
+            if not self.show_labels:
+                annotation = ''
+
             annotations.append(annotation)
 
-        rects = self.ax.bar(x, y, width=width, color=colors)
+        rects = self.ax.bar(x, y, width=width, color=colors, edgecolor=colors)
 
         for i, rect in enumerate(rects):
             if i % 2 == 0:
@@ -755,6 +759,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
                          annotations[i], ha='center', va='bottom')
 
         sns.despine(ax=self.ax, top=True, right=True)
+        self.remove_colorbar_ax()
         # self.ax.yaxis.set_major_locator(NullLocator())
         # self.remove_colorbar_ax()
 
@@ -851,7 +856,8 @@ class GenePlot(BasePlotter1D):
     def __init__(self, genes, title="", feature_types=('exon',), aspect=.5, axes_style="ticks",
                  color_neutral='gray', color_forward='orangered', color_reverse='darkturquoise',
                  color_score=False, vdist=0.2, box_height=0.1, show_labels=True, font_size=9, arrow_size=8,
-                 line_width=1, group_by='transcript_id', text_position='alternate', collapse=False):
+                 line_width=1, group_by='transcript_id', text_position='alternate', collapse=False,
+                 min_gene_size=None):
         """
         :param genes: Any input that pybedtools can parse. Can be a path to a
                       GTF/BED file
@@ -899,6 +905,7 @@ class GenePlot(BasePlotter1D):
         self.line_width = line_width
         self.show_labels = show_labels
         self.collapse = collapse
+        self.min_gene_size = min_gene_size
 
         self.lines = []
         self.patches = []
@@ -946,7 +953,7 @@ class GenePlot(BasePlotter1D):
             exon_region = GenomicRegion(chromosome=region.chromosome, start=exon.start + 1, end=exon.end,
                                         name=name, id=transcript_id, strand=exon.strand)
 
-            #get gene score
+            # get gene score
             if self.color_score:
                 try:
                     exon_region.score = float(exon.score)
@@ -1025,10 +1032,19 @@ class GenePlot(BasePlotter1D):
 
             # plot exons
             for exon in exons:
+                actual_width = exon.end - exon.start + 1
+                if self.min_gene_size is None:
+                    width = actual_width
+                    exon_start = exon.start
+                else:
+                    width = max(self.min_gene_size, actual_width)
+                    start_offset = (width - actual_width) / 2
+                    exon_start = exon.start - start_offset
+                width = width if not self.min_gene_size else max(self.min_gene_size, width)
                 patch = self.ax.add_patch(
                     patches.Rectangle(
-                        (exon.start, offset - self.box_height/2),  # (x,y)
-                        exon.end - exon.start + 1,  # width
+                        (exon_start, offset - self.box_height/2),  # (x,y)
+                        width,  # width
                         self.box_height,  # height
                         facecolor=gene_color,
                         alpha=0.5,

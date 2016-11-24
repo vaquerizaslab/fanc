@@ -63,14 +63,15 @@ class Klot(object):
         global_parser.add_argument(
             '--height', dest='height',
             type=int,
-            help='''Height of the figure in inches.'''
+            help='''Height of the figure in inches. Default is proportional to figure width, dependent on number
+                    of subplots.'''
         )
 
         global_parser.add_argument(
             '--width', dest='width',
             type=int,
             default=6,
-            help='''Width of the figure in inches.'''
+            help='''Width of the figure in inches. Default: 6'''
         )
 
         global_parser.add_argument(
@@ -78,7 +79,7 @@ class Klot(object):
             type=int,
             help='''Plotting region size in base pairs. If provided, the actual size of the given region is
                     ignored and instead a region
-                    <chromosome>:<region center - window size/2>-<region cener + window size/2> will be plotted.'''
+                    <chromosome>:<region center - window size/2>-<region center + window size/2> will be plotted.'''
         )
 
         global_parser.add_argument(
@@ -1011,13 +1012,20 @@ class Klot(object):
             help='''Reverse color (strand -)'''
         )
 
+        parser.add_argument(
+            '-L', '--no-labels', dest='show_labels',
+            action='store_false',
+            help='''Do not show element labels.'''
+        )
+        parser.set_defaults(show_labels=True)
+
         args = parser.parse_args(parameters)
 
         import kaic.plotting as kplt
 
         p = kplt.GenomicFeatureScorePlot(os.path.expanduser(args.bed), feature_types=args.features,
                                          color_neutral=args.color_neutral, color_forward=args.color_forward,
-                                         color_reverse=args.color_reverse)
+                                         color_reverse=args.color_reverse, show_labels=args.show_labels)
         return p, args
 
     def line(self, parameters):
@@ -1174,7 +1182,7 @@ class Klot(object):
         parser.add_argument(
             '-b', '--box-height', dest='box_height',
             type=float,
-            default=0.1,
+            default=0.5,
             help='''Height of exon boxes.'''
         )
 
@@ -1212,6 +1220,12 @@ class Klot(object):
             default='alternate',
             help='''Position of gene labels. Can be one of 'top' (above gene), 'bottom' (below gene),
                     and 'alternate' (default, alternating between above and below gene).'''
+        )
+
+        parser.add_argument(
+            '-m', '--min-gene-size', dest='min_gene_size',
+            type=int,
+            help='''If set, forces the plotted gene to be at least this wide.'''
         )
 
         parser.add_argument(
