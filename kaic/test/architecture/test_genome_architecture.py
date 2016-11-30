@@ -157,7 +157,7 @@ class MAF(MatrixArchitecturalRegionFeature):
                                                   regions=regions, edges=edges, tmpdir=tmpdir)
 
     def _calculate(self, *args, **kwargs):
-        for i in xrange(10):
+        for i in range(10):
             if i < 5:
                 chromosome = 'chr1'
                 start = i*1000
@@ -174,8 +174,8 @@ class MAF(MatrixArchitecturalRegionFeature):
             self.add_region(node, flush=False)
         self.flush()
 
-        for i in xrange(10):
-            for j in xrange(i, 10):
+        for i in range(10):
+            for j in range(i, 10):
                 edge = Edge(source=i, sink=j, weight=i*j, foo=i, bar=j, baz='x' + str(i*j))
                 self.add_edge(edge, flush=False)
         self.flush()

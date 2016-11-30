@@ -1,7 +1,7 @@
 from __future__ import division
 import numpy as np
-from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge,\
-    GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao,\
+from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
+    GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao, \
     RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
     AccessOptimisedRegionMatrixTable, AccessOptimisedHic
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
@@ -11,29 +11,27 @@ from kaic.construct.seq import Reads, FragmentMappedReadPairs
 from kaic.tools.matrix import is_symmetric
 import kaic.correcting.knight_matrix_balancing as knight
 import kaic.correcting.ice_matrix_balancing as ice
-from kaic.tools import dummy
 import tables as t
 
+
 class TestChromosome:
-    
     @classmethod
     def setup_method(self, method):
         self.chromosome = Chromosome(name='chr1', length=10000, sequence='agcgctgctgaagcttcgatcgtaagcttc')
-        
+
     def test_attributes(self):
         assert self.chromosome.name == 'chr1'
         assert self.chromosome.length == 10000
         assert len(self.chromosome) == 10000
         assert self.chromosome.sequence == 'agcgctgctgaagcttcgatcgtaagcttc'
-        
+
     def test_re_sites(self):
         res = self.chromosome.get_restriction_sites('HindIII')
         assert len(res) == 2
-        assert np.array_equal(res, [12,25])
+        assert np.array_equal(res, [12, 25])
 
 
 class TestGenome:
-    
     def setup_method(self, method):
         chr1 = Chromosome(name='chr1', length=10000, sequence='agcgctgctgaagcttcgatcgtaagcttc')
         chr2 = Chromosome(name='chr2', length=5000, sequence='gcgctgctgaagcttcgatcgtaagcttc')
@@ -41,7 +39,7 @@ class TestGenome:
 
     def teardown_method(self, method):
         self.genome.close()
-        
+
     def test_iter(self):
         i = 0
         for chromosome in self.genome:
@@ -54,10 +52,10 @@ class TestGenome:
                 assert chromosome.length == 5000
                 assert chromosome.sequence == 'gcgctgctgaagcttcgatcgtaagcttc'
             i += 1
-            
+
     def test_node_list(self):
         regions = self.genome.get_regions('HindIII')
-        
+
         assert len(regions) == 6
         for i in range(0, len(regions)):
             region = regions[i]
@@ -76,7 +74,7 @@ class TestGenome:
         nl = self.genome.get_regions(4000)
 
         assert len(nl) == 5
-        for i in range(0,len(nl)):
+        for i in range(0, len(nl)):
             node = nl[i]
             if i == 0:
                 assert node['chromosome'] == 'chr1'
@@ -103,23 +101,22 @@ class TestGenome:
         assert len(chr4) == 2
         genome.close()
 
-            
-class TestGenomicRegions:
 
+class TestGenomicRegions:
     def setup_method(self, method):
         chromosomes = [
             {'name': 'chr1', 'end': 10000},
             {'name': 'chr2', 'end': 15000},
             {'name': 'chr3', 'end': 7000}
         ]
-        
+
         regions = []
         for chromosome in chromosomes:
-            for start in range(1,chromosome["end"]-1000, 1000):
-                regions.append(GenomicRegion(start,start+999,chromosome=chromosome["name"]))
+            for start in range(1, chromosome["end"] - 1000, 1000):
+                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
         self.regions = GenomicRegions(regions)
         self.empty_regions = GenomicRegions()
-    
+
     def test_get_item(self):
         region = self.regions[0]
         assert isinstance(region, GenomicRegion)
@@ -127,38 +124,38 @@ class TestGenomicRegions:
         assert region.start == 1
         assert region.end == 1000
         assert region.strand is None
-        
+
     def test_from_string(self):
         region1 = GenomicRegion.from_string('chr1')
         assert region1.chromosome == 'chr1'
         assert region1.start is None
         assert region1.end is None
         assert region1.strand is None
-        
+
         region2 = GenomicRegion.from_string('chr1:0')
         assert region2.chromosome == 'chr1'
         assert region2.start == 0
         assert region2.end == 0
         assert region2.strand is None
-        
+
         region3 = GenomicRegion.from_string('chr1:0-4956')
         assert region3.chromosome == 'chr1'
         assert region3.start == 0
         assert region3.end == 4956
         assert region3.strand is None
-        
+
         region4 = GenomicRegion.from_string('chr1:0-4956:-')
         assert region4.chromosome == 'chr1'
         assert region4.start == 0
         assert region4.end == 4956
         assert region4.strand == -1
-        
+
         region5 = GenomicRegion.from_string('chr1:0-4956:+1')
         assert region5.chromosome == 'chr1'
         assert region5.start == 0
         assert region5.end == 4956
         assert region5.strand == 1
-        
+
         with pytest.raises(ValueError):
             # invalid start
             GenomicRegion.from_string('chr1:x-4956:-')
@@ -177,7 +174,7 @@ class TestGenomicRegions:
         region_iter = self.regions
 
         for i, region in enumerate(region_iter):
-            start = 1 + i*1000
+            start = 1 + i * 1000
             chromosome = 'chr1'
             if i > 22:
                 start -= 23000
@@ -228,7 +225,6 @@ class TestGenomicRegions:
 
 
 class TestRegionsTable(TestGenomicRegions):
-
     def setup_method(self, method):
         chromosomes = [
             {'name': 'chr1', 'end': 10000},
@@ -238,8 +234,8 @@ class TestRegionsTable(TestGenomicRegions):
 
         regions = []
         for chromosome in chromosomes:
-            for start in range(1, chromosome["end"]-1000, 1000):
-                regions.append(GenomicRegion(start, start+999, chromosome=chromosome["name"]))
+            for start in range(1, chromosome["end"] - 1000, 1000):
+                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
         self.regions = RegionsTable(regions)
         self.empty_regions = RegionsTable(additional_fields={'a': t.Int32Col(), 'b': t.StringCol(10)})
 
@@ -280,7 +276,7 @@ class TestRegionPairs:
                                                   'bar': t.Float32Col(pos=2),
                                                   'baz': t.StringCol(50, pos=3)})
 
-        for i in xrange(10):
+        for i in range(10):
             if i < 5:
                 chromosome = 'chr1'
                 start = i * 1000
@@ -297,8 +293,8 @@ class TestRegionPairs:
             self.rmt.add_region(node, flush=False)
         self.rmt.flush()
 
-        for i in xrange(10):
-            for j in xrange(i, 10):
+        for i in range(10):
+            for j in range(i, 10):
                 edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
                 self.rmt.add_edge(edge, flush=False)
         self.rmt.flush()
@@ -461,7 +457,7 @@ class TestAccessOptimisedRegionPairs(TestRegionPairs):
                                                                  'bar': t.Float32Col(pos=2),
                                                                  'baz': t.StringCol(50, pos=3)})
 
-        for i in xrange(10):
+        for i in range(10):
             if i < 5:
                 chromosome = 'chr1'
                 start = i * 1000
@@ -478,8 +474,8 @@ class TestAccessOptimisedRegionPairs(TestRegionPairs):
             self.rmt.add_region(node, flush=False)
         self.rmt.flush()
 
-        for i in xrange(10):
-            for j in xrange(i, 10):
+        for i in range(10):
+            for j in range(i, 10):
                 edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
                 self.rmt.add_edge(edge, flush=False)
         self.rmt.flush()
@@ -494,26 +490,26 @@ class TestRegionMatrixTable:
                                                         'bar': t.Float32Col(pos=2),
                                                         'baz': t.StringCol(50, pos=3)})
 
-        for i in xrange(10):
+        for i in range(10):
             if i < 5:
                 chromosome = 'chr1'
-                start = i*1000
-                end = (i+1)*1000
+                start = i * 1000
+                end = (i + 1) * 1000
             elif i < 8:
                 chromosome = 'chr2'
-                start = (i-5)*1000
-                end = (i+1-5)*1000
+                start = (i - 5) * 1000
+                end = (i + 1 - 5) * 1000
             else:
                 chromosome = 'chr3'
-                start = (i-8)*1000
-                end = (i+1-8)*1000
+                start = (i - 8) * 1000
+                end = (i + 1 - 8) * 1000
             node = Node(chromosome=chromosome, start=start, end=end)
             self.rmt.add_region(node, flush=False)
         self.rmt.flush()
 
-        for i in xrange(10):
-            for j in xrange(i, 10):
-                edge = Edge(source=i, sink=j, weight=i*j, foo=i, bar=j, baz='x' + str(i*j))
+        for i in range(10):
+            for j in range(i, 10):
+                edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
                 self.rmt.add_edge(edge, flush=False)
         self.rmt.flush()
 
@@ -526,7 +522,7 @@ class TestRegionMatrixTable:
             i = row_region.ix
             for col_region in m.col_regions:
                 j = col_region.ix
-                assert m[i, j] == m[j, i] == i*j
+                assert m[i, j] == m[j, i] == i * j
 
         m = self.rmt.as_matrix(values_from='foo')
         for row_region in m.row_regions:
@@ -561,7 +557,7 @@ class TestAccessOptimisedRegionMatrixTable(TestRegionMatrixTable):
                                                                        'bar': t.Float32Col(pos=2),
                                                                        'baz': t.StringCol(50, pos=3)})
 
-        for i in xrange(10):
+        for i in range(10):
             if i < 5:
                 chromosome = 'chr1'
                 start = i * 1000
@@ -578,43 +574,43 @@ class TestAccessOptimisedRegionMatrixTable(TestRegionMatrixTable):
             self.rmt.add_region(node, flush=False)
         self.rmt.flush()
 
-        for i in xrange(10):
-            for j in xrange(i, 10):
+        for i in range(10):
+            for j in range(i, 10):
                 edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
                 self.rmt.add_edge(edge, flush=False)
         self.rmt.flush()
 
+
 class TestHicBasic:
-    
     def setup_method(self, method):
         self.dir = os.path.dirname(os.path.realpath(__file__))
-        
+
         hic = Hic()
-        
+
         # add some nodes (120 to be exact)
         nodes = []
-        for i in range(1,5000,1000):
-            nodes.append(Node(chromosome="chr1",start=i,end=i+1000-1))
-        for i in range(1,3000,1000):
-            nodes.append(Node(chromosome="chr2",start=i,end=i+1000-1))
-        for i in range(1,2000,500):
-            nodes.append(Node(chromosome="chr3",start=i,end=i+1000-1))
+        for i in range(1, 5000, 1000):
+            nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+        for i in range(1, 3000, 1000):
+            nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+        for i in range(1, 2000, 500):
+            nodes.append(Node(chromosome="chr3", start=i, end=i + 1000 - 1))
         hic.add_nodes(nodes)
-        
+
         # add some edges with increasing weight for testing
         edges = []
         weight = 1
-        for i in range(0,len(nodes)):
-            for j in range(i,len(nodes)):
-                edges.append(Edge(source=i,sink=j,weight=weight))
+        for i in range(0, len(nodes)):
+            for j in range(i, len(nodes)):
+                edges.append(Edge(source=i, sink=j, weight=weight))
                 weight += 1
 
         hic.add_edges(edges)
-        
+
         self.hic = hic
         self.hic_cerevisiae = Hic(self.dir + "/test_genomic/cerevisiae.chrI.HindIII.hic")
         self.hic_class = Hic
-    
+
     def teardown_method(self, method):
         self.hic_cerevisiae.close()
         self.hic.close()
@@ -626,7 +622,7 @@ class TestHicBasic:
         assert len(nodes) == 0
         assert len(edges) == 0
         hic.close()
-    
+
     def test_save_and_load(self, tmpdir):
         dest_file = str(tmpdir) + "/hic.h5"
 
@@ -641,13 +637,13 @@ class TestHicBasic:
         edges2 = hic2.edges()
         assert len(nodes2) == 2
         assert len(edges2) == 1
-        
+
         hic2.close()
-    
+
     def test_nodes(self):
         nodes = self.hic.nodes()
         assert len(nodes) == 12
-    
+
     def test_edges(self):
         edges = self.hic.edges()
         assert len(edges) == 78
@@ -655,66 +651,66 @@ class TestHicBasic:
     def test_intra_edges(self):
         edges = self.hic.edges(only_intrachromosomal=True)
         assert sum(1 for _ in edges) == 31
-    
+
     def test_get_node_x_by_region(self):
         region1 = GenomicRegion.from_string('chr1')
         nodes1 = self.hic._getitem_nodes(region1)
         assert len(nodes1) == 5
-        
+
         region2 = GenomicRegion.from_string('chr2')
         nodes2 = self.hic._getitem_nodes(region2)
         assert len(nodes2) == 3
-        
+
         region3 = GenomicRegion.from_string('chr3')
         nodes3 = self.hic._getitem_nodes(region3)
         assert len(nodes3) == 4
-        
+
         region4 = GenomicRegion.from_string('chr1:3452-6000')
         nodes4 = self.hic._getitem_nodes(region4)
         assert len(nodes4) == 2
-        
+
         region5 = GenomicRegion.from_string('chr1:1-51000')
         nodes5 = self.hic._getitem_nodes(region5)
         assert len(nodes5) == 5
-        
+
     def test_getitem_nodes(self):
         # all
-        node_ix1 = self.hic._getitem_nodes(slice(None,None,None), as_index=True)
-        assert np.array_equal(node_ix1, [0,1,2,3,4,5,6,7,8,9,10,11])
-        
+        node_ix1 = self.hic._getitem_nodes(slice(None, None, None), as_index=True)
+        assert np.array_equal(node_ix1, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+
         # smaller slice
-        node_ix2 = self.hic._getitem_nodes(slice(4,10,1), as_index=True)
-        assert np.array_equal(node_ix2, [4,5,6,7,8,9])
-        
+        node_ix2 = self.hic._getitem_nodes(slice(4, 10, 1), as_index=True)
+        assert np.array_equal(node_ix2, [4, 5, 6, 7, 8, 9])
+
         # single ix
         node_ix3 = self.hic._getitem_nodes(1, as_index=True)
         assert node_ix3 == 1
-        
+
         # single chromosome
         node_ix4 = self.hic._getitem_nodes('chr1', as_index=True)
-        assert np.array_equal(node_ix4, [0,1,2,3,4])
-        
+        assert np.array_equal(node_ix4, [0, 1, 2, 3, 4])
+
         # HicNode
         node_ix5 = self.hic._getitem_nodes(Node(ix=1), as_index=True)
         assert node_ix5 == 1
-        
+
         # list of items
-        node_ix6 = self.hic._getitem_nodes(['chr1','chr3'], as_index=True)
-        assert np.array_equal(node_ix6, [0,1,2,3,4,8,9,10,11])
-        
+        node_ix6 = self.hic._getitem_nodes(['chr1', 'chr3'], as_index=True)
+        assert np.array_equal(node_ix6, [0, 1, 2, 3, 4, 8, 9, 10, 11])
+
         # nested list of items
-        node_ix7 = self.hic._getitem_nodes(['chr1',['chr2','chr3']], as_index=True)
-        assert np.array_equal(node_ix7, [0,1,2,3,4,5,6,7,8,9,10,11])
-        
+        node_ix7 = self.hic._getitem_nodes(['chr1', ['chr2', 'chr3']], as_index=True)
+        assert np.array_equal(node_ix7, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+
         # item repetition
-        node_ix8 = self.hic._getitem_nodes(['chr3','chr3'], as_index=True)
-        assert np.array_equal(node_ix8, [8,9,10,11,8,9,10,11])
+        node_ix8 = self.hic._getitem_nodes(['chr3', 'chr3'], as_index=True)
+        assert np.array_equal(node_ix8, [8, 9, 10, 11, 8, 9, 10, 11])
 
     def test_get_matrix(self):
         # whole matrix
         m = self.hic[:, :]
         # spot checks
-        assert np.array_equal(m.shape, [12,12])
+        assert np.array_equal(m.shape, [12, 12])
         assert m[0, 0] == 1
         assert m[11, 11] == 78
         assert m[11, 0] == 12
@@ -723,7 +719,7 @@ class TestHicBasic:
         for i in range(0, 12):
             for j in range(i, 12):
                 assert m[i, j] == m[j, i]
-                
+
         # only upper half
         m = self.hic[:6, :]
         # spot checks
@@ -732,16 +728,16 @@ class TestHicBasic:
         assert m[5, 11] == 57
         assert m[5, 0] == 6
         assert m[1, 10] == 22
-        
+
         # only lower half
         m = self.hic[6:, :]
         # spot checks
-        assert np.array_equal(m.shape, [6,12])
+        assert np.array_equal(m.shape, [6, 12])
         assert m[0, 0] == 7
         assert m[5, 11] == 78
         assert m[5, 0] == 12
         assert m[1, 10] == 67
-        
+
         # only left half
         m = self.hic[:, :6]
         # spot checks
@@ -750,7 +746,7 @@ class TestHicBasic:
         assert m[11, 5] == 57
         assert m[11, 0] == 12
         assert m[1, 4] == 16
-        
+
         # only right half
         m = self.hic[:, 6:]
         # spot checks
@@ -759,73 +755,73 @@ class TestHicBasic:
         assert m[11, 5] == 78
         assert m[11, 0] == 63
         assert m[1, 4] == 22
-        
+
         # top-left chunk
         m = self.hic[:6, :6]
         # spot checks
         assert np.array_equal(m.shape, [6, 6])
-        assert m[0,0] == 1
-        assert m[5,5] == 51
-        assert m[5,0] == 6 
-        assert m[1,4] == 16
-        
+        assert m[0, 0] == 1
+        assert m[5, 5] == 51
+        assert m[5, 0] == 6
+        assert m[1, 4] == 16
+
         # bottom_right chunk
-        m = self.hic[6:,6:]
+        m = self.hic[6:, 6:]
         # spot checks
-        assert np.array_equal(m.shape, [6,6])
-        assert m[0,0] == 58
-        assert m[5,5] == 78
-        assert m[5,0] == 63
-        assert m[1,4] == 67
-        
+        assert np.array_equal(m.shape, [6, 6])
+        assert m[0, 0] == 58
+        assert m[5, 5] == 78
+        assert m[5, 0] == 63
+        assert m[1, 4] == 67
+
         # central chunk
-        m = self.hic[3:9,3:9]
+        m = self.hic[3:9, 3:9]
         # spot checks
-        assert np.array_equal(m.shape, [6,6])
-        assert m[0,0] == 34
-        assert m[5,5] == 69
-        assert m[5,0] == 39
-        assert m[1,4] == 46
-        
+        assert np.array_equal(m.shape, [6, 6])
+        assert m[0, 0] == 34
+        assert m[5, 5] == 69
+        assert m[5, 0] == 39
+        assert m[1, 4] == 46
+
         # disjunct pieces
-        m = self.hic[[1,9],[4,6]]
+        m = self.hic[[1, 9], [4, 6]]
         # spot checks
-        assert np.array_equal(m.shape, [2,2])
-        assert m[0,0] == 16
-        assert m[1,1] == 61
-        assert m[1,0] == 48
-        assert m[0,1] == 18
-        
+        assert np.array_equal(m.shape, [2, 2])
+        assert m[0, 0] == 16
+        assert m[1, 1] == 61
+        assert m[1, 0] == 48
+        assert m[0, 1] == 18
+
         # single row
-        m = self.hic[1,0:3]
-        assert np.array_equal(m, [2,13,14])
-        
+        m = self.hic[1, 0:3]
+        assert np.array_equal(m, [2, 13, 14])
+
         # single row but only one value
-        m = self.hic[1,1:2]
+        m = self.hic[1, 1:2]
         assert np.array_equal(m, [13])
-        
+
         # single col
-        m = self.hic[0:3,1]
-        assert np.array_equal(m, [2,13,14])
-        
+        m = self.hic[0:3, 1]
+        assert np.array_equal(m, [2, 13, 14])
+
         # single col but only one value
-        m = self.hic[1:2,1]
+        m = self.hic[1:2, 1]
         assert np.array_equal(m, [13])
-        
+
         # single value
-        m = self.hic[1,1]
+        m = self.hic[1, 1]
         assert m == 13
-        
+
         # empty array
-        m = self.hic[1:1,2:2]
-        assert np.array_equal(m.shape, [0,0])
-    
+        m = self.hic[1:1, 2:2]
+        assert np.array_equal(m.shape, [0, 0])
+
     def test_set_matrix(self):
-        
+
         hic = self.hic_class(self.hic)
 
         n_edges = len(hic.edges)
-        #for edge_table in hic._edge_table_iter():
+        # for edge_table in hic._edge_table_iter():
         #    print edge_table
 
         # whole matrix
@@ -837,7 +833,7 @@ class TestHicBasic:
         m = hic[:, :]
 
         assert np.array_equal(m.shape, old.shape)
-        for i in range(0,m.shape[0]):
+        for i in range(0, m.shape[0]):
             for j in range(0, m.shape[1]):
                 if i == j:
                     assert m[i, j] == 0
@@ -846,70 +842,70 @@ class TestHicBasic:
 
         assert len(hic.edges) < n_edges
         hic.close()
-        
+
         # central matrix
         hic = self.hic_class(self.hic)
         old = hic[2:8, 2:10]
         # set border elements to zero
         # set checkerboard pattern
-        for i in range(0,old.shape[0]):
-            for j in range(0,old.shape[1]):
+        for i in range(0, old.shape[0]):
+            for j in range(0, old.shape[1]):
                 if i == 0 or j == 0:
-                    old[i,j] = 0
+                    old[i, j] = 0
                 elif i % 2 == 0 and j % 2 == 1:
-                    old[i,j] = 0
+                    old[i, j] = 0
                 elif i % 2 == 1 and j % 2 == 0:
-                    old[i,j] = 0
+                    old[i, j] = 0
         hic[2:8, 2:10] = old
         m = hic[2:8, 2:10]
         hic.close()
-        
+
         assert np.array_equal(m.shape, old.shape)
-        for i in range(0,m.shape[0]):
+        for i in range(0, m.shape[0]):
             for j in range(0, m.shape[1]):
                 if i == 0 or j == 0:
-                    assert m[i,j] == 0
+                    assert m[i, j] == 0
                 elif i % 2 == 0 and j % 2 == 1:
-                    assert m[i,j] == 0
+                    assert m[i, j] == 0
                 elif i % 2 == 1 and j % 2 == 0:
-                    assert m[i,j] == 0
+                    assert m[i, j] == 0
                 else:
-                    assert m[i,j] == old[i,j]
-        
+                    assert m[i, j] == old[i, j]
+
         hic = self.hic_class(self.hic)
         # row
-        old = hic[1,2:10]
-        for i in range(0,8,2):
+        old = hic[1, 2:10]
+        for i in range(0, 8, 2):
             old[i] = 0
-        hic[1,2:10] = old
-        
-        assert np.array_equal(hic[1,:], [2,13,0,15,0,17,0,19,0,21,22,23])
-        assert np.array_equal(hic[:,1], [2,13,0,15,0,17,0,19,0,21,22,23])
+        hic[1, 2:10] = old
+
+        assert np.array_equal(hic[1, :], [2, 13, 0, 15, 0, 17, 0, 19, 0, 21, 22, 23])
+        assert np.array_equal(hic[:, 1], [2, 13, 0, 15, 0, 17, 0, 19, 0, 21, 22, 23])
         hic.close()
 
         hic = self.hic_class(self.hic)
         # col
-        old = hic[2:10,1]
-        for i in range(0,8,2):
+        old = hic[2:10, 1]
+        for i in range(0, 8, 2):
             old[i] = 0
-        hic[2:10,1] = old
-        
-        assert np.array_equal(hic[1,:], [2,13,0,15,0,17,0,19,0,21,22,23])
-        assert np.array_equal(hic[:,1], [2,13,0,15,0,17,0,19,0,21,22,23])
+        hic[2:10, 1] = old
+
+        assert np.array_equal(hic[1, :], [2, 13, 0, 15, 0, 17, 0, 19, 0, 21, 22, 23])
+        assert np.array_equal(hic[:, 1], [2, 13, 0, 15, 0, 17, 0, 19, 0, 21, 22, 23])
         hic.close()
 
         # individual
         hic = self.hic_class(self.hic)
-        hic[2,1] = 0
-        assert hic[2,1] == 0
-        assert hic[1,2] == 0
+        hic[2, 1] = 0
+        assert hic[2, 1] == 0
+        assert hic[1, 2] == 0
         hic.close()
 
     def test_as_data_frame(self):
-        df = self.hic.as_data_frame(('chr1','chr1'))
-        assert np.array_equal(df.shape, [5,5])
-        assert np.array_equal(df.index, [1,1001,2001,3001,4001])
-        assert np.array_equal(df.columns, [1,1001,2001,3001,4001])
+        df = self.hic.as_data_frame(('chr1', 'chr1'))
+        assert np.array_equal(df.shape, [5, 5])
+        assert np.array_equal(df.index, [1, 1001, 2001, 3001, 4001])
+        assert np.array_equal(df.columns, [1, 1001, 2001, 3001, 4001])
 
     def test_merge(self):
         hic = self.hic_class()
@@ -1047,8 +1043,8 @@ class TestHicBasic:
         merged = merged_hic[:, :]
         merged_hic.close()
 
-        for i in xrange(merged.shape[0]):
-            for j in xrange(merged.shape[1]):
+        for i in range(merged.shape[0]):
+            for j in range(merged.shape[1]):
                 assert merged[i, j] == left[i, j] + right[i, j]
 
         double = [0, 1, 2, 3, 4, 5, 6, 7]
@@ -1063,28 +1059,28 @@ class TestHicBasic:
         genome = Genome(chromosomes=[chrI])
         pairs = FragmentMappedReadPairs()
         regions = genome.get_regions('HindIII')
-        pairs.load(reads1,reads2,regions)
+        pairs.load(reads1, reads2, regions)
         reads1.close()
         reads2.close()
         genome.close()
         regions.close()
 
         pl = len(pairs)
-        
+
         hic = self.hic_class()
         hic.load_read_fragment_pairs(pairs, _max_buffer_size=1000)
-        
+
         assert len(hic._regions) == len(pairs._regions)
         pairs.close()
 
         reads = 0
         edge_dict = {}
         for edge in hic.edges():
-            edge_string = "%d-%d" % (edge.source, edge.sink) 
+            edge_string = "%d-%d" % (edge.source, edge.sink)
             assert edge_string not in edge_dict
             edge_dict[edge_string] = 1
             reads += edge.weight
-        
+
         assert reads == pl
         hic.close()
 
@@ -1095,7 +1091,7 @@ class TestHicBasic:
         genome = Genome(chromosomes=[chrI])
         pairs = FragmentMappedReadPairs()
         regions = genome.get_regions('HindIII')
-        pairs.load(reads1,reads2,regions)
+        pairs.load(reads1, reads2, regions)
         reads1.close()
         reads2.close()
         regions.close()
@@ -1110,7 +1106,7 @@ class TestHicBasic:
         assert len(hic.edges()) > hl
         pairs.close()
         hic.close()
-        
+
     def test_overlap_map(self):
         # ----|----|----|----|---|-----|-| new
         # -------|-------|-------|-------| old
@@ -1119,7 +1115,7 @@ class TestHicBasic:
         old_regions.append(Node(chromosome='chr1', start=9, end=16))
         old_regions.append(Node(chromosome='chr1', start=17, end=24))
         old_regions.append(Node(chromosome='chr1', start=25, end=32))
-        
+
         new_regions = []
         new_regions.append(Node(chromosome='chr1', start=1, end=5))
         new_regions.append(Node(chromosome='chr1', start=6, end=10))
@@ -1128,22 +1124,22 @@ class TestHicBasic:
         new_regions.append(Node(chromosome='chr1', start=21, end=24))
         new_regions.append(Node(chromosome='chr1', start=25, end=30))
         new_regions.append(Node(chromosome='chr1', start=31, end=32))
-        
+
         overlap_map = _get_overlap_map(old_regions, new_regions)
         assert len(overlap_map[0]) == 2
-        assert np.array_equal(overlap_map[0][0], [0,1.0])
-        assert np.array_equal(overlap_map[0][1], [1,0.6])
+        assert np.array_equal(overlap_map[0][0], [0, 1.0])
+        assert np.array_equal(overlap_map[0][1], [1, 0.6])
         assert len(overlap_map[1]) == 3
-        assert np.array_equal(overlap_map[1][0], [1,0.4])
-        assert np.array_equal(overlap_map[1][1], [2,1.0])
-        assert np.array_equal(overlap_map[1][2], [3,0.2])
+        assert np.array_equal(overlap_map[1][0], [1, 0.4])
+        assert np.array_equal(overlap_map[1][1], [2, 1.0])
+        assert np.array_equal(overlap_map[1][2], [3, 0.2])
         assert len(overlap_map[2]) == 2
-        assert np.array_equal(overlap_map[2][0], [3,0.8])
-        assert np.array_equal(overlap_map[2][1], [4,1.0])
+        assert np.array_equal(overlap_map[2][0], [3, 0.8])
+        assert np.array_equal(overlap_map[2][1], [4, 1.0])
         assert len(overlap_map[3]) == 2
-        assert np.array_equal(overlap_map[3][0], [5,1.0])
-        assert np.array_equal(overlap_map[3][1], [6,1.0])
-        
+        assert np.array_equal(overlap_map[3][0], [5, 1.0])
+        assert np.array_equal(overlap_map[3][1], [6, 1.0])
+
         # ----|----|-| new
         # --|--|--|--| old
         old_regions = []
@@ -1151,72 +1147,72 @@ class TestHicBasic:
         old_regions.append(Node(chromosome='chr1', start=4, end=6))
         old_regions.append(Node(chromosome='chr1', start=7, end=9))
         old_regions.append(Node(chromosome='chr1', start=10, end=12))
-        
+
         new_regions = []
         new_regions.append(Node(chromosome='chr1', start=1, end=5))
         new_regions.append(Node(chromosome='chr1', start=6, end=10))
         new_regions.append(Node(chromosome='chr1', start=11, end=12))
-        
+
         overlap_map = _get_overlap_map(old_regions, new_regions)
         assert len(overlap_map[0]) == 1
-        assert np.array_equal(overlap_map[0][0], [0,0.6])
+        assert np.array_equal(overlap_map[0][0], [0, 0.6])
         assert len(overlap_map[1]) == 2
-        assert np.array_equal(overlap_map[1][0], [0,0.4])
-        assert np.array_equal(overlap_map[1][1], [1,0.2])
+        assert np.array_equal(overlap_map[1][0], [0, 0.4])
+        assert np.array_equal(overlap_map[1][1], [1, 0.2])
         assert len(overlap_map[2]) == 1
-        assert np.array_equal(overlap_map[2][0], [1,0.6])
+        assert np.array_equal(overlap_map[2][0], [1, 0.6])
         assert len(overlap_map[3]) == 2
-        assert np.array_equal(overlap_map[3][0], [1,0.2])
-        assert np.array_equal(overlap_map[3][1], [2,1.0])
-        
+        assert np.array_equal(overlap_map[3][0], [1, 0.2])
+        assert np.array_equal(overlap_map[3][1], [2, 1.0])
+
     def test_edge_splitting_rao(self):
         #     1         2         3         4
         # ---------|---------|---------|---------| old
         # ----|----|----|----|---------|---|--|--| new
         #  1    2    3    4       5      6  7  8
         overlap_map = {}
-        overlap_map[1] = [[1,1.0], [2,1.0]]
-        overlap_map[2] = [[3,1.0], [4,1.0]]
-        overlap_map[3] = [[5,1.0]]
-        overlap_map[4] = [[6,1.0],[7,1.0],[8,1.0]]
-        
-        original_edge = [1,2,12.0]
-        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+        overlap_map[1] = [[1, 1.0], [2, 1.0]]
+        overlap_map[2] = [[3, 1.0], [4, 1.0]]
+        overlap_map[3] = [[5, 1.0]]
+        overlap_map[4] = [[6, 1.0], [7, 1.0], [8, 1.0]]
+
+        original_edge = [1, 2, 12.0]
+        new_edges = _edge_overlap_split_rao(original_edge, overlap_map)
         assert len(new_edges) == 4
         weight_sum = 0
         for new_edge in new_edges:
             weight_sum += new_edge[2]
         assert weight_sum == original_edge[2]
-        
-        original_edge = [1,1,12.0]
-        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+
+        original_edge = [1, 1, 12.0]
+        new_edges = _edge_overlap_split_rao(original_edge, overlap_map)
         assert len(new_edges) == 3
         weight_sum = 0
         for new_edge in new_edges:
             weight_sum += new_edge[2]
         assert weight_sum == original_edge[2]
-        
-        original_edge = [1,3,9.0]
-        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+
+        original_edge = [1, 3, 9.0]
+        new_edges = _edge_overlap_split_rao(original_edge, overlap_map)
         assert len(new_edges) == 2
         weight_sum = 0
         for new_edge in new_edges:
             weight_sum += new_edge[2]
         assert weight_sum == original_edge[2]
-        
-        original_edge = [3,3,9.0]
-        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+
+        original_edge = [3, 3, 9.0]
+        new_edges = _edge_overlap_split_rao(original_edge, overlap_map)
         assert len(new_edges) == 1
         assert new_edges[0][2] == original_edge[2]
-        
-        original_edge = [1,4,9.0]
-        new_edges = _edge_overlap_split_rao(original_edge,overlap_map)
+
+        original_edge = [1, 4, 9.0]
+        new_edges = _edge_overlap_split_rao(original_edge, overlap_map)
         assert len(new_edges) == 4
         weight_sum = 0
         for new_edge in new_edges:
             weight_sum += new_edge[2]
         assert weight_sum == original_edge[2]
-        
+
     def test_from_hic(self):
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
@@ -1224,65 +1220,65 @@ class TestHicBasic:
         original_reads = 0
         for edge in self.hic_cerevisiae.edges():
             original_reads += edge.weight
-        
+
         def assert_binning(hic, bin_size, buffer_size):
             binned = self.hic_class()
             assert len(binned.nodes()) == 0
             regions = genome.get_regions(bin_size)
             binned.add_regions(regions)
             binned.load_from_hic(self.hic_cerevisiae, _edge_buffer_size=buffer_size)
-            
+
             new_reads = 0
             for edge in binned.edges():
                 new_reads += edge.weight
-            
+
             # search for duplicated edges
             edge_dict = {}
             for edge in binned.edges():
                 assert (edge.source, edge.sink) not in edge_dict
-                
+
             # make sure that the total number
             # of reads stays the same
             assert original_reads == new_reads
             regions.close()
             binned.close()
 
-        bin_sizes = [500,1000,5000,10000,20000]
-        buffer_sizes = [10,100,500,1000,10000,50000]
+        bin_sizes = [500, 1000, 5000, 10000, 20000]
+        buffer_sizes = [10, 100, 500, 1000, 10000, 50000]
         for bin_size in bin_sizes:
             for buffer_size in buffer_sizes:
                 assert_binning(self.hic_cerevisiae, bin_size, buffer_size)
         genome.close()
-        
+
     def test_from_hic_sample(self):
         hic = self.hic_class()
-        hic.add_region(GenomicRegion(chromosome='chr1',start=1,end=100))
-        hic.add_region(GenomicRegion(chromosome='chr1',start=101,end=200))
-        hic.add_edge([0,0,12])
-        hic.add_edge([0,1,36])
-        hic.add_edge([1,1,24])
-        
+        hic.add_region(GenomicRegion(chromosome='chr1', start=1, end=100))
+        hic.add_region(GenomicRegion(chromosome='chr1', start=101, end=200))
+        hic.add_edge([0, 0, 12])
+        hic.add_edge([0, 1, 36])
+        hic.add_edge([1, 1, 24])
+
         binned = self.hic_class()
         binned.add_region(GenomicRegion(chromosome='chr1', start=1, end=50))
         binned.add_region(GenomicRegion(chromosome='chr1', start=51, end=100))
         binned.add_region(GenomicRegion(chromosome='chr1', start=101, end=150))
         binned.add_region(GenomicRegion(chromosome='chr1', start=151, end=200))
-        
+
         binned.load_from_hic(hic, _edge_buffer_size=1000)
-        
+
         original_reads = 0
         for edge in hic.edges():
             original_reads += edge.weight
-        
+
         new_reads = 0
         for edge in binned.edges():
             new_reads += edge.weight
-        
+
         # search for duplicated edges
         edge_dict = {}
         for edge in binned.edges():
             assert (edge.source, edge.sink) not in edge_dict
-        
+
         # make sure that the total number
         # of reads stays the same
         assert original_reads == new_reads
@@ -1291,11 +1287,11 @@ class TestHicBasic:
 
     def test_builtin_bin(self):
         hic = self.hic_class()
-        hic.add_region(GenomicRegion(chromosome='chr1',start=1,end=100))
-        hic.add_region(GenomicRegion(chromosome='chr1',start=101,end=200))
-        hic.add_edge([0,0,12])
-        hic.add_edge([0,1,36])
-        hic.add_edge([1,1,24])
+        hic.add_region(GenomicRegion(chromosome='chr1', start=1, end=100))
+        hic.add_region(GenomicRegion(chromosome='chr1', start=101, end=200))
+        hic.add_edge([0, 0, 12])
+        hic.add_edge([0, 1, 36])
+        hic.add_edge([1, 1, 24])
 
         binned = hic.bin(50)
 
@@ -1321,23 +1317,23 @@ class TestHicBasic:
     def test_knight_matrix_balancing(self):
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
-        
+
         hic = self.hic_class()
         regions = genome.get_regions(10000)
         genome.close()
         hic.add_regions(regions)
         regions.close()
         hic.load_from_hic(self.hic_cerevisiae)
-        
-        m = hic[:,:]
+
+        m = hic[:, :]
         assert is_symmetric(m)
-        
+
         knight.correct(hic)
-        m_corr = hic[:,:]
+        m_corr = hic[:, :]
         assert is_symmetric(m_corr)
-        
+
         for n in sum(m_corr):
-            assert abs(1.0-n) < 1e-5 or n == 0
+            assert abs(1.0 - n) < 1e-5 or n == 0
         hic.close()
 
     def test_knight_matrix_balancing_copy(self):
@@ -1362,7 +1358,7 @@ class TestHicBasic:
         assert hic is not hic_new
 
         for n in sum(m_corr):
-            assert abs(1.0-n) < 1e-5 or n == 0
+            assert abs(1.0 - n) < 1e-5 or n == 0
 
         hic_new2 = knight.correct(hic, copy=True, only_intra_chromosomal=True)
         m_corr_pc = hic_new2[:, :]
@@ -1371,51 +1367,51 @@ class TestHicBasic:
 
         assert hic is not hic_new2
 
-        for i in xrange(m_corr.shape[0]):
-            for j in xrange(m_corr.shape[1]):
-                assert abs(m_corr[i, j]-m_corr_pc[i, j]) < 0.0001
+        for i in range(m_corr.shape[0]):
+            for j in range(m_corr.shape[1]):
+                assert abs(m_corr[i, j] - m_corr_pc[i, j]) < 0.0001
 
         hic.close()
         hic_new.close()
         hic_new2.close()
-            
+
     def test_ice_matrix_balancing(self):
         chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
-        
+
         hic = self.hic_class()
         regions = genome.get_regions(10000)
         genome.close()
         hic.add_regions(regions)
         regions.close()
         hic.load_from_hic(self.hic_cerevisiae)
-        
-        m = hic[:,:]
+
+        m = hic[:, :]
         assert is_symmetric(m)
-        
+
         ice.correct(hic)
-        m_corr = hic[:,:]
+        m_corr = hic[:, :]
         assert is_symmetric(m_corr)
-        
+
         sum_m_corr = sum(m_corr)
         for n in sum_m_corr:
-            assert (sum_m_corr[0]-5 < n < sum_m_corr[0]+5) or n == 0
+            assert (sum_m_corr[0] - 5 < n < sum_m_corr[0] + 5) or n == 0
         hic.close()
 
     def test_diagonal_filter(self):
         hic = self.hic
 
         m = hic[:]
-        for i in xrange(m.shape[0]):
-            for j in xrange(m.shape[1]):
+        for i in range(m.shape[0]):
+            for j in xange(m.shape[1]):
                 if i == j:
                     assert m[i, j] != 0
 
         hic.filter_diagonal(distance=1)
         m = hic[:]
-        for i in xrange(m.shape[0]):
-            for j in xrange(m.shape[1]):
-                if abs(i-j) <= 1:
+        for i in range(m.shape[0]):
+            for j in range(m.shape[1]):
+                if abs(i - j) <= 1:
                     assert m[i, j] == 0
 
     def test_low_coverage_filter(self):
@@ -1423,16 +1419,16 @@ class TestHicBasic:
 
         hic.filter_low_coverage_regions(cutoff=201)
         m = hic[:]
-        for i in xrange(m.shape[0]):
-            for j in xrange(m.shape[1]):
+        for i in range(m.shape[0]):
+            for j in range(m.shape[1]):
                 if i == 0 or j == 0 or i == 1 or j == 1:
-                    assert m[i,j] == 0
+                    assert m[i, j] == 0
                 else:
-                    assert m[i,j] != 0
+                    assert m[i, j] != 0
 
     def test_filter_background_ligation(self):
         blf = BackgroundLigationFilter(self.hic, fold_change=2)
-        assert blf.cutoff - 2*(610+405+734)/47 < 0.001
+        assert blf.cutoff - 2 * (610 + 405 + 734) / 47 < 0.001
         for edge in self.hic.edges(lazy=True):
             if edge.weight < blf.cutoff:
                 assert blf.valid_edge(edge) == False
@@ -1443,7 +1439,7 @@ class TestHicBasic:
         eof = ExpectedObservedEnrichmentFilter(self.hic, fold_change=1)
         previous = len(self.hic.edges)
         self.hic.filter(eof)
-        assert len(self.hic.edges) == previous-15-23  # 15 intra, 23 inter filtered
+        assert len(self.hic.edges) == previous - 15 - 23  # 15 intra, 23 inter filtered
 
 
 class TestAccessOptimisedHic(TestHicBasic):
@@ -1482,7 +1478,6 @@ class TestAccessOptimisedHic(TestHicBasic):
 
 
 class TestRegionMatrix:
-
     def setup_method(self, method):
         hic = Hic()
 
@@ -1492,17 +1487,17 @@ class TestRegionMatrix:
         # add some nodes (120 to be exact)
         nodes = []
         for i in range(1, 5000, 1000):
-            node = Node(chromosome="chr1", start=i, end=i+1000-1)
+            node = Node(chromosome="chr1", start=i, end=i + 1000 - 1)
             nodes.append(node)
             row_regions.append(node)
             col_regions.append(node)
         for i in range(1, 3000, 1000):
-            node = Node(chromosome="chr2", start=i, end=i+1000-1)
+            node = Node(chromosome="chr2", start=i, end=i + 1000 - 1)
             nodes.append(node)
             row_regions.append(node)
             col_regions.append(node)
         for i in range(1, 2000, 500):
-            node = Node(chromosome="chr3", start=i, end=i+1000-1)
+            node = Node(chromosome="chr3", start=i, end=i + 1000 - 1)
             nodes.append(node)
             row_regions.append(node)
             col_regions.append(node)
@@ -1607,7 +1602,7 @@ class TestRegionMatrix:
         m = self.hic.as_matrix(mask_missing=True)
 
         # check masking
-        for i in xrange(m.shape[0]):
+        for i in range(m.shape[0]):
             assert np.ma.is_masked(m[1, i])
             assert np.ma.is_masked(m[i, 1])
             assert np.ma.is_masked(m[5, i])
@@ -1618,7 +1613,7 @@ class TestRegionMatrix:
         masked = {1, 5}
 
         for j in not_masked:
-            for i in xrange(m.shape[0]):
+            for i in range(m.shape[0]):
                 if i not in masked:
                     assert not np.ma.is_masked(m[i, j])
                     assert not np.ma.is_masked(m[j, i])

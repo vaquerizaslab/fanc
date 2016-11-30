@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 import time
 import random
-import pytest
 from kaic.tools.lru import lru_cache
-from __builtin__ import classmethod
 
 
 class TestDecorators:

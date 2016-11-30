@@ -8,6 +8,7 @@ import os.path
 import pytest
 import numpy as np
 
+
 def get_example_hic():
     directory = os.path.dirname(os.path.realpath(__file__))
     h = kaic.Hic(directory + "/../data/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
@@ -86,8 +87,8 @@ class TestHicPlot:
         start, end = crange
         vmin, vmax = vrange
         hplot = kplot.HicPlot2D(hic_data=self.hic_matrix, title="quark", norm=norm, vmin=vmin, vmax=vmax,
-                              colormap=colormap, show_colorbar=colorbar,
-                              blend_zero=blend_zero, aspect=aspect, unmappable_color=unmappable_color)
+                                colormap=colormap, show_colorbar=colorbar,
+                                blend_zero=blend_zero, aspect=aspect, unmappable_color=unmappable_color)
         gfig = kplot.GenomicFigure([hplot])
         selector = "chr11:{}-{}".format(start, end)
         fig, axes = gfig.plot(selector)

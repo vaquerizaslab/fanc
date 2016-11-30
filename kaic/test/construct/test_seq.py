@@ -1,5 +1,4 @@
 import os.path
-import numpy as np
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
@@ -36,26 +35,31 @@ class TestReads:
         
         reads = Reads()
         reads.load(self.sam1_file)
-        
-        compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,[(0,15)],-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9,1])
-        
+
+        compare(reads[0],
+                ['SRR038105.1', 0, 'chrXI', 128390, 35, [(0, 15)], -1, -1, 0, 'GATATGATGGATTTG', 'FDFFFFFFFFFFFCF', 9,
+                 1])
+
         # SRR038105.1000167    0    chrXIV    703158    42    15M    *    0    0    TACGGTATTGGTCGG    FFFFCFFFFFFFFCF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000167')
-        compare(res, ['SRR038105.1000167',0,'chrXIV',703158,42,[(0,15)],-1,-1,0,'TACGGTATTGGTCGG','FFFFCFFFFFFFFCF',8,1])
-        
+        compare(res, ['SRR038105.1000167', 0, 'chrXIV', 703158, 42, [(0, 15)], -1, -1, 0, 'TACGGTATTGGTCGG',
+                      'FFFFCFFFFFFFFCF', 8, 1])
+
         # SRR038105.1000320    0    chrXVI    577162    35    15M    *    0    0    TTGATAAAATAGTCC    <<@FF<FFFFAFAFA    AS:i:0    XS:i:-5    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000320')
-        compare(res, ['SRR038105.1000320',0,'chrXVI',577162,35,[(0,15)],-1,-1,0,'TTGATAAAATAGTCC','<<@FF<FFFFAFAFA',9,1])
+        compare(res, ['SRR038105.1000320', 0, 'chrXVI', 577162, 35, [(0, 15)], -1, -1, 0, 'TTGATAAAATAGTCC',
+                      '<<@FF<FFFFAFAFA', 9, 1])
 
         # check unpaired right
         # SRR038105.1000002    16    chrIV    203242    42    16M    *    0    0    ACCCATTATTTCTCGA    IIIIIFIICIFIIIII    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000002')
         assert res is None
-        
+
         # check unpaired left
         # SRR038105.1000011    16    chrIV    526796    42    16M    *    0    0    GGTGAATTAGAAGATA    FFFFFFFFFFFFFFFF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000011')
-        compare(res, ['SRR038105.1000011',16,'chrIV',526796,42,[(0,16)],-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8,-1])
+        compare(res, ['SRR038105.1000011', 16, 'chrIV', 526796, 42, [(0, 16)], -1, -1, 0, 'GGTGAATTAGAAGATA',
+                      'FFFFFFFFFFFFFFFF', 8, -1])
 
         reads.close()
         
@@ -119,7 +123,7 @@ class TestReads:
         read = reads[0]
         assert read.get_tag('AS') == 0
         assert read.get_tag('MD') == '15'
-        assert read.get_tag('X0') == None
+        assert read.get_tag('X0') is None
         reads.close()
     
     def test_quality_filter(self):
