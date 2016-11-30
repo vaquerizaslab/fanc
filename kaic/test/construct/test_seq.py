@@ -35,7 +35,7 @@ class TestReads:
             assert read.strand == values[12]
         
         reads = Reads()
-        reads.load(self.sam1_file, is_sorted=False)
+        reads.load(self.sam1_file)
         
         compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,[(0,15)],-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9,1])
         

@@ -49,10 +49,10 @@ class MaximaCallerMatrix(BaseMaximaCaller):
         self.count = np.sum(self.below[:, start:end], axis=1)
         pass_mask = self.count > (1 - lenience)*(end - start)
         logger.info("Discarding {}({:.1%}) of total peaks due to thresholds ({}, {})".format(np.sum(~pass_mask),
-                                                                                              np.sum(~pass_mask) /
-                                                                                              len(self._peaks),
-                                                                                              min_threshold,
-                                                                                              max_threshold))
+                                                                                             np.sum(~pass_mask) /
+                                                                                             len(self._peaks),
+                                                                                             min_threshold,
+                                                                                             max_threshold))
         self._peak_mask = np.logical_and(self._peak_mask, pass_mask)
 
 

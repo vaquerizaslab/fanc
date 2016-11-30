@@ -183,7 +183,7 @@ class BasePlotter(object):
         else:
             self.ax = ax
 
-        if isinstance(region, basestring):
+        if isinstance(region, str):
             region = GenomicRegion.from_string(region)
 
         self._before_plot(region=region, *args, **kwargs)
@@ -329,7 +329,7 @@ class BasePlotterMatrix(object):
                  show_colorbar=True, blend_zero=True, replacement_color=None,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
 
-        if isinstance(colormap, basestring):
+        if isinstance(colormap, str):
             colormap = mpl.cm.get_cmap(colormap)
 
         self.colormap = colormap
@@ -436,7 +436,7 @@ class BasePlotter2D(BasePlotter):
 
     def __init__(self, title, aspect=1., axes_style="ticks"):
         BasePlotter.__init__(self, title=title, aspect=aspect,
-                                   axes_style=axes_style)
+                             axes_style=axes_style)
         self._mouse_release_handler = None
         self._current_chromosome_x = None
         self._current_chromosome_y = None
@@ -499,10 +499,10 @@ class BasePlotter2D(BasePlotter):
             x_region = regions
             y_region = x_region
 
-        if isinstance(x_region, basestring):
+        if isinstance(x_region, str):
             x_region = GenomicRegion.from_string(x_region)
 
-        if isinstance(y_region, basestring):
+        if isinstance(y_region, str):
             y_region = GenomicRegion.from_string(y_region)
 
         self._current_chromosome_x = x_region.chromosome

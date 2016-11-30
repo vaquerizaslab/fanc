@@ -20,7 +20,7 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
     labels = ['total', 'unmasked']
     values = [total, stats['unmasked']]
 
-    for item in stats.iteritems():
+    for item in stats.items():
         if not item[0] == 'unmasked':
             if not ignore_zero or item[1] > 0:
                 labels.append(item[0])
@@ -141,7 +141,7 @@ def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
 
     ax_main.set_title('PCA on %d samples' % pca_res.shape[0])
 
-    for i in xrange(pca_res.shape[0]):
+    for i in range(pca_res.shape[0]):
         name = names[i] if names is not None else None
         ax_main.plot(pca_res[i, 0], pca_res[i, 1], marker=markers.next(), color=colors.next(), label=name)
 

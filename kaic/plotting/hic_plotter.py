@@ -393,7 +393,7 @@ class HicSlicePlot(ScalarDataPlot):
                                     buffering_arg=buffering_arg)
             self.hic_buffers.append(hb)
         self.names = names
-        if isinstance(slice_region, basestring):
+        if isinstance(slice_region, str):
             slice_region = GenomicRegion.from_string(slice_region)
         self.slice_region = slice_region
         self.yscale = yscale

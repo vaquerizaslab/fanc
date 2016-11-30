@@ -1,10 +1,8 @@
 from __future__ import division
 from kaic.config import config
-import matplotlib as mp
 import seaborn as sns
 import pandas
 import numpy as np
-import kaic.data.general as general
 import kaic.data.genomic as genomic
 
 
@@ -52,14 +50,14 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
                                              end=center_node.end+half_window)
 
         hic_left = hic[center_region, left_region][0]
-        for j in xrange(0, len(hic_left)):
+        for j in range(0, len(hic_left)):
             j_r = len(hic_left)-j-1
             label = -1*bin_size*j
             val = hic_left[j_r]
             contact_list.append([label, val, str(i), 'data'])
 
         hic_right = hic[center_region, right_region][0]
-        for j in xrange(0, len(hic_right)):
+        for j in range(0, len(hic_right)):
             label = bin_size*(j+1)
             val = hic_right[j]
             contact_list.append([label, val, str(i), 'data'])
@@ -90,9 +88,9 @@ def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
 
     corr_matrix = np.zeros(shape=(len(chromosomes), len(chromosomes)))
 
-    for chr_i in xrange(0, len(chromosomes)):
+    for chr_i in range(0, len(chromosomes)):
         chromosome1 = chromosomes[chr_i]
-        for chr_j in xrange(chr_i, len(chromosomes)):
+        for chr_j in range(chr_i, len(chromosomes)):
             chromosome2 = chromosomes[chr_j]
 
             m1 = hic1[chromosome1, chromosome2]
@@ -100,8 +98,8 @@ def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
 
             contacts1 = []
             contacts2 = []
-            for i in xrange(0, m1.shape[0]):
-                for j in xrange(i, m1.shape[1]):
+            for i in range(0, m1.shape[0]):
+                for j in range(i, m1.shape[1]):
                     if not include_zeros and m1[i, j] == 0 and m2[i, j] == 0:
                         continue
                     contacts1.append(m1[i, j])
@@ -168,9 +166,9 @@ def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, Non
     highlighted_fold_changes = []
     highlighted_colors = []
     if len(hm1.shape) == 2:
-        for i in xrange(0, hm1.shape[0]):
+        for i in range(0, hm1.shape[0]):
             row_region = hm1.row_regions[i]
-            for j in xrange(i, hm1.shape[1]):
+            for j in range(i, hm1.shape[1]):
                 col_region = hm1.col_regions[j]
                 if hm1[i, j] == 0 or hm2[i, j] == 0:
                     continue

@@ -57,14 +57,14 @@ import tables as t
 import pysam
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.files import is_sambam_file
-from kaic.data.general import Maskable, MaskFilter, MaskedTable, MaskedTableView, FileBased
+from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int, CachedIterator
 from kaic.tools.lru import lru_cache
-from kaic.data.genomic import RegionsTable, GenomicRegion, LazyGenomicRegion
+from kaic.data.genomic import RegionsTable, GenomicRegion
 import msgpack as pickle
 import numpy as np
 import hashlib
@@ -167,10 +167,10 @@ class Reads(Maskable, FileBased):
         """
 
         if (sambam_file is not None and
-            file_name is None and not
-            is_sambam_file(sambam_file)):
-                file_name = sambam_file
-                sambam_file = None
+                file_name is None and not
+                is_sambam_file(sambam_file)):
+            file_name = sambam_file
+            sambam_file = None
 
         FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
         Maskable.__init__(self, self.file)
@@ -289,7 +289,7 @@ class Reads(Maskable, FileBased):
                 self._mapper = None
                 logger.warn('Could not auto-detect mapping program from SAM header')
 
-    def load(self, sambam, ignore_duplicates=True, is_sorted=False,
+    def load(self, sambam, ignore_duplicates=True,
              store_qname=True, store_cigar=True,
              store_seq=True, store_tags=True,
              store_qual=True, sample_size=None, mapper=None):
@@ -304,10 +304,6 @@ class Reads(Maskable, FileBased):
         :param ignore_duplicates: If True (default) will not load reads that
                                   have the same name as the last loaded read.
                                   Will load all reads if False.
-        :param is_sorted: If False will sort the file using samtools (if
-                          available, otherwise will attempt to sort using
-                          pysam.sort). If True assumes that the file is
-                          already sorted.
         """
 
         logger.info("Loading SAM/BAM file")
@@ -621,7 +617,7 @@ class Reads(Maskable, FileBased):
                     pnext=row['pnext'], tlen=row['tlen'], seq=seq, qual=qual,
                     tags=tags, reference_id=ref_ix, qname_ix=row['qname_ix'])
 
-    def reads(self, lazy=False, sort_by_qname_ix=False, excluded_filters=[]):
+    def reads(self, lazy=False, sort_by_qname_ix=False, excluded_filters=()):
         """
         Iterate over _reads table and convert each result to Read.
 
@@ -640,7 +636,7 @@ class Reads(Maskable, FileBased):
                     self._update_csi()
                 except t.exceptions.FileModeError:
                     raise RuntimeError("This object is not sorted by qname_ix! "
-                                    "Cannot sort manually, because file is in read-only mode.")
+                                       "Cannot sort manually, because file is in read-only mode.")
             it = self._reads.itersorted('qname_ix', excluded_masks=excluded_masks)
         else:
             it = self._reads.iterrows(excluded_masks=excluded_masks)
@@ -1267,7 +1263,7 @@ class PairLoader(object):
             self.flag = row.flag
             self.cigar = row.cigar
 
-    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filters=[]):
+    def __init__(self, pairs, ignore_duplicates=True, _in_memory_index=True, excluded_filters=()):
         self._pairs = pairs
         self._reads1 = None
         self._reads2 = None
@@ -1447,7 +1443,7 @@ class Bowtie2PairLoader(PairLoader):
 
 
 class BwaMemPairLoader(PairLoader):
-    def __init__(self, pairs, _in_memory_index=True, excluded_filters=[]):
+    def __init__(self, pairs, _in_memory_index=True, excluded_filters=()):
         self.add_read_single = None
         self.add_read_pair = None
         super(BwaMemPairLoader, self).__init__(pairs,
@@ -2193,7 +2189,7 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
         """
         return self.pairs(lazy=False)
 
-    def pairs(self, lazy=False, excluded_filters=[]):
+    def pairs(self, lazy=False, excluded_filters=()):
         """
         Iterate over unfiltered fragment-mapped read pairs.
         """
@@ -2554,9 +2550,9 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
         n_dups = len(self.duplicates_set)
         percent_dups = 1.*n_dups/self.pairs._pairs._original_len()
         logger.info("PCR duplicate stats: " +
-            "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
-            " (multiplicity:occurances) " +
-            " ".join("{}:{}".format(k, v) for k, v in duplicate_stats.iteritems()))
+                    "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
+                    " (multiplicity:occurances) " +
+                    " ".join("{}:{}".format(k, v) for k, v in duplicate_stats.items()))
 
     def valid_pair(self, pair):
         """
@@ -2565,6 +2561,7 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
         if pair.ix in self.duplicates_set:
             return False
         return True
+
 
 class OutwardPairsFilter(FragmentMappedReadPairFilter):
     """
@@ -2608,7 +2605,7 @@ class ReDistanceFilter(FragmentMappedReadPairFilter):
         """
         for read in [pair.left, pair.right]:
             if (read.position - read.fragment.start > self.maximum_distance
-                and read.fragment.end - read.position > self.maximum_distance):
+                    and read.fragment.end - read.position > self.maximum_distance):
                 return False
         return True
 

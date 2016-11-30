@@ -1,6 +1,7 @@
 from __future__ import division
 import matplotlib as mpl
 import numpy as np
+import pybedtools as pbt
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,
@@ -30,7 +31,6 @@ style_ticks_whitegrid = {
 
 
 def region_to_pbt_interval(region):
-    import pybedtools as pbt
     return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
 
 

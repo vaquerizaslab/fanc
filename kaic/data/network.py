@@ -340,7 +340,7 @@ class RaoPeakInfo(RegionMatrixTable):
 
         chromosome_names = self.chromosomes()
         for i, chromosome_name1 in enumerate(chromosome_names):
-            for j in xrange(i, len(chromosome_names)):
+            for j in range(i, len(chromosome_names)):
                 chromosome_name2 = chromosome_names[j]
 
                 logger.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
@@ -766,13 +766,13 @@ class RaoPeakCaller(PeakCaller):
 
         # divisor
         sum3 = 0
-        for a in xrange(max(0, i+1), min(i_max, i+w+1)):
-            for b in xrange(max(0, j-w), min(j_max, j)):
+        for a in range(max(0, i+1), min(i_max, i+w+1)):
+            for b in range(max(0, j-w), min(j_max, j)):
                 sum3 += e(a, b)
 
         sum4 = 0
-        for a in xrange(max(0, i+1), min(i_max, i+p+1)):
-            for b in xrange(max(0, j-p), min(j_max, j)):
+        for a in range(max(0, i+1), min(i_max, i+p+1)):
+            for b in range(max(0, j-p), min(j_max, j)):
                 sum4 += e(a, b)
 
         return (sum1-sum2)/(sum3-sum4)*e(i, j)
@@ -794,13 +794,13 @@ class RaoPeakCaller(PeakCaller):
 
         # divisor
         sum3 = 0
-        for a in xrange(max(0, i-1), min(i_max, i+2)):
-            for b in xrange(max(0, j-w), min(j_max, j+w+1)):
+        for a in range(max(0, i-1), min(i_max, i+2)):
+            for b in range(max(0, j-w), min(j_max, j+w+1)):
                 sum3 += e(a, b)
 
         sum4 = 0
-        for a in xrange(max(0, i-1), min(i_max, i+2)):
-            for b in xrange(max(0, j-p), min(j_max, j+p+1)):
+        for a in range(max(0, i-1), min(i_max, i+2)):
+            for b in range(max(0, j-p), min(j_max, j+p+1)):
                 sum4 += e(a, b)
 
         return (sum1-sum2)/(sum3-sum4)*e(i, j)
@@ -822,13 +822,13 @@ class RaoPeakCaller(PeakCaller):
 
         # divisor
         sum3 = 0
-        for a in xrange(max(0, i-w), min(i_max, i+w+1)):
-            for b in xrange(max(0, j-1), min(j_max, j+2)):
+        for a in range(max(0, i-w), min(i_max, i+w+1)):
+            for b in range(max(0, j-1), min(j_max, j+2)):
                 sum3 += e(a, b)
 
         sum4 = 0
-        for a in xrange(max(0, i-p), min(i_max, i+p+1)):
-            for b in xrange(max(0, j-1), min(j_max, j+2)):
+        for a in range(max(0, i-p), min(i_max, i+p+1)):
+            for b in range(max(0, j-1), min(j_max, j+2)):
                 sum4 += e(a, b)
 
         return (sum1-sum2)/(sum3-sum4)*e(i, j)
@@ -853,29 +853,29 @@ class RaoPeakCaller(PeakCaller):
             return 0
 
         bottom_sum1 = 0
-        for a in xrange(max(0, i-w), min(i_max, i+w+1)):
-            for b in xrange(max(0, j-w), min(j_max, j+w+1)):
+        for a in range(max(0, i-w), min(i_max, i+w+1)):
+            for b in range(max(0, j-w), min(j_max, j+w+1)):
                 bottom_sum1 += e(a, b)
 
         bottom_sum2 = 0
-        for a in xrange(max(0, i-p), min(i_max, i+p+1)):
-            for b in xrange(max(0, j-p), min(j_max, j+p+1)):
+        for a in range(max(0, i-p), min(i_max, i+p+1)):
+            for b in range(max(0, j-p), min(j_max, j+p+1)):
                 bottom_sum2 += e(a, b)
 
         bottom_sum3 = 0
-        for a in xrange(max(0, i-w), min(i_max, i-p)):
+        for a in range(max(0, i-w), min(i_max, i-p)):
             bottom_sum3 += e(a, j)
 
         bottom_sum4 = 0
-        for a in xrange(max(0, i+p+1), min(i_max, i+w+1)):
+        for a in range(max(0, i+p+1), min(i_max, i+w+1)):
             bottom_sum4 += e(a, j)
 
         bottom_sum5 = 0
-        for b in xrange(max(0, j-w), min(j_max, j-p)):
+        for b in range(max(0, j-w), min(j_max, j-p)):
             bottom_sum5 += e(i, b)
 
         bottom_sum6 = 0
-        for b in xrange(max(0, j+p+1), min(j_max, j+w+1)):
+        for b in range(max(0, j+p+1), min(j_max, j+w+1)):
             bottom_sum6 += e(i, b)
 
         return top / \
@@ -993,7 +993,7 @@ class RaoPeakCaller(PeakCaller):
 
             # intra-chromosomal
             if observed_chunk_distribution_part is not None:
-                for ix in xrange(len(region_pairs)):
+                for ix in range(len(region_pairs)):
                     source = region_pairs[ix][0]
                     sink = region_pairs[ix][1]
 
@@ -1009,12 +1009,12 @@ class RaoPeakCaller(PeakCaller):
                                     e_ll_chunk=e_ll_chunk, e_h_chunk=e_h_chunk, e_v_chunk=e_v_chunk, e_d_chunk=e_d_chunk)
                         peaks.add_edge(peak, flush=False)
 
-                for e_type in observed_chunk_distribution_part.iterkeys():
-                    for chunk_ix in xrange(len(observed_chunk_distribution_part[e_type])):
-                        for o in observed_chunk_distribution_part[e_type][chunk_ix].iterkeys():
+                for e_type in observed_chunk_distribution_part.keys():
+                    for chunk_ix in range(len(observed_chunk_distribution_part[e_type])):
+                        for o in observed_chunk_distribution_part[e_type][chunk_ix].keys():
                             observed_chunk_distribution[e_type][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
             else:
-                for ix in xrange(len(region_pairs)):
+                for ix in range(len(region_pairs)):
                     source = region_pairs[ix][0]
                     sink = region_pairs[ix][1]
 
@@ -1039,7 +1039,7 @@ class RaoPeakCaller(PeakCaller):
             'v': [],
             'd': []
         }
-        for _ in xrange(len(lambda_chunks)):
+        for _ in range(len(lambda_chunks)):
             observed_chunk_distribution['ll'].append(defaultdict(int))
             observed_chunk_distribution['h'].append(defaultdict(int))
             observed_chunk_distribution['v'].append(defaultdict(int))
@@ -1062,7 +1062,7 @@ class RaoPeakCaller(PeakCaller):
                 poisson_e = poisson(max_e)
 
                 observed_sum = 0
-                for observed_count in observed_chunk_distribution[e_type][chunk].itervalues():
+                for observed_count in observed_chunk_distribution[e_type][chunk].values():
                     observed_sum += observed_count
 
                 observed_distribution_integral_left = 0
@@ -1114,7 +1114,7 @@ class RaoPeakCaller(PeakCaller):
         jobs = []
         ij_pairs = []
         ij_region_pairs = []
-        for i in xrange(m.shape[0]):
+        for i in range(m.shape[0]):
             i_region = m.row_regions[i].ix
 
             if not mappable[i_region]:
@@ -1126,7 +1126,7 @@ class RaoPeakCaller(PeakCaller):
             else:
                 start_j = i
 
-            for j in xrange(start_j, m.shape[1]):
+            for j in range(start_j, m.shape[1]):
                 j_region = m.col_regions[j].ix
 
                 if not mappable[j_region]:
@@ -1253,7 +1253,7 @@ class RaoPeakCaller(PeakCaller):
             chromosomes = list(hic.chromosomes())
 
             for i_chr, chromosome1 in enumerate(chromosomes):
-                for j_chr in xrange(i_chr, len(chromosomes)):
+                for j_chr in range(i_chr, len(chromosomes)):
                     chromosome2 = chromosomes[j_chr]
                     chromosome_pairs.append((chromosome1, chromosome2))
 
@@ -1369,8 +1369,8 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
     c_col_sub = c[m.col_regions[0].ix:m.col_regions[-1].ix+1]
     m_corr = np.zeros(m.shape)
 
-    for i in xrange(m.shape[0]):
-        for j in xrange(m.shape[1]):
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
             m_corr[i, j] = m[i, j]/c_row_sub[i]/c_col_sub[j]
 
     observed_list = []

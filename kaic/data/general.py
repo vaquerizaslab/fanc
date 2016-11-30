@@ -388,13 +388,13 @@ class Maskable(FileBased):
     def get_binary_mask_from_masks(self, masks):
         o = []
         for m in masks:
-            if type(m) == type('str'):
+            if isinstance(m, str):
                 o.append(2**self.get_mask(m).ix)
             elif isinstance(m, MaskFilter):
                 o.append(2**m.mask_ix)
             elif isinstance(m, Mask):
                 o.append(2**m.ix)
-            elif type(m) == type(1):
+            elif isinstance(m, int):
                 o.append(2**m)
             else:
                 raise ValueError('Can only get binary mask from mask names, indexes and MaskFilter instances')
@@ -465,7 +465,7 @@ class Maskable(FileBased):
         for row in table._iter_visible_and_masked():
             stats[row[table._mask_field]] += 1
 
-        for mask_bit, count in stats.iteritems():
+        for mask_bit, count in stats.items():
             row_masks = self.get_masks(mask_bit)
 
             found_masks = False
@@ -483,7 +483,7 @@ class Maskable(FileBased):
             masks['unmasked'] = 0
 
         for table in group:
-            for mask, count in self._mask_statistics_table(table, include_unmasked=include_unmasked).iteritems():
+            for mask, count in self._mask_statistics_table(table, include_unmasked=include_unmasked).items():
                 masks[mask] += count
 
         return masks
@@ -555,12 +555,6 @@ class MaskedTable(t.Table):
                  mask_field='_mask', mask_index_field='_mask_ix'):
         """
         Pytables Table extension to provide masking functionality.
-        
-        Args:
-            table (tables.Table):
-                pytables Table with at least a 'mask' column.
-                'mask_ix' column required for full indexing
-                functionality.
         """
         
         # set instance variables
@@ -582,9 +576,9 @@ class MaskedTable(t.Table):
                 raise ValueError("Unrecognised description type (%s)" % str(type(description)))
             
             # check that reserved keys are not used
-            if masked_description.has_key(mask_field):
+            if mask_field in masked_description:
                 raise ValueError("%s field is reserved in MaskedTable!" % mask_field)
-            if masked_description.has_key(mask_index_field):
+            if mask_index_field in masked_description:
                 raise ValueError("%s field is reserved in MaskedTable!" % mask_index_field)
             
             # add mask fields to description
@@ -649,8 +643,8 @@ class MaskedTable(t.Table):
         it = self._iter_visible_and_masked()
 
         class MaskedRows(MaskedTableView):
-            def __init__(self, masked_table, it):
-                super(MaskedRows, self).__init__(masked_table, it)
+            def __init__(self, masked_table, it_):
+                super(MaskedRows, self).__init__(masked_table, it_)
 
             def next(self):
                 row = self.iter.next()
@@ -708,7 +702,7 @@ class MaskedTable(t.Table):
                 key = int(key)
                 
                 if key >= 0:
-                    res = [x.fetch_all_fields() for x in self.where("%s == %d" % (self._mask_index_field,key))]
+                    res = [x.fetch_all_fields() for x in self.where("%s == %d" % (self._mask_index_field, key))]
                     if len(res) == 1:
                         return res[0]
                     if len(res) == 0:

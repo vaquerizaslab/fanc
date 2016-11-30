@@ -2,7 +2,7 @@ from __future__ import division, print_function
 from kaic.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator
-from kaic.data.genomic import GenomicRegion, GenomicRegions
+from kaic.data.genomic import GenomicRegion
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
@@ -103,7 +103,7 @@ class GenomicFigure(object):
         gs = gridspec.GridSpec(self.n, 2, height_ratios=self.height_ratios, width_ratios=[1, .05], **gridspec_args)
         fig = plt.figure(figsize=self.figsize)
         absolute_wspace_hspace(fig, gs, .3, hspace)
-        for i in xrange(self.n):
+        for i in range(self.n):
             with sns.axes_style("ticks" if plots[i].axes_style is None else
                                 plots[i].axes_style):
                 if i > 0:
@@ -212,7 +212,7 @@ class GenomicTrackPlot(ScalarDataPlot):
             bins = track.region_bins(region)
             values = track[bins]
             regions = track.regions[bins]
-            for k, v in values.iteritems():
+            for k, v in values.items():
                 if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
                     x, y = self.get_plot_values(v, regions)
                     l = self.ax.plot(x, y,
@@ -229,7 +229,7 @@ class GenomicTrackPlot(ScalarDataPlot):
             values = track[bins]
             regions = track.regions[bins]
             current_line = 0
-            for k, v in values.iteritems():
+            for k, v in values.items():
                 if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
                     x, y = self.get_plot_values(v, regions)
                     self.lines[current_line].set_xdata(x)
@@ -488,7 +488,7 @@ class HicPeakPlot(BaseOverlayPlotter):
 
     @property
     def compatibility(self):
-         return ["HicPlot", "HicPlot2D"]
+        return ["HicPlot", "HicPlot2D"]
 
     def _plot(self, base_plot, region):
         def plot_hicplot(start, end, radius):
@@ -638,7 +638,7 @@ class GenomicFeaturePlot(BasePlotter1D):
         pos = {k: i/(1 + self._n_tracks)
                for i, k in (enumerate(self.feature_types) if self.feature_types else [(0, "")])}
         stroke_length = max(0.03, 1/self._n_tracks - .05)
-        for k, p in pos.iteritems():
+        for k, p in pos.items():
             self.ax.text(0, p, k, transform=self.ax.transAxes, ha="left", size=5)
         for g in genes:
             feature_type = g[2] if self.feature_types else ""
@@ -654,7 +654,7 @@ class GenomicFeaturePlot(BasePlotter1D):
             self.ax.text((g.start + g.end)/2, pos[feature_type] + stroke_length + .05,
                          label if not self.label_func else self.label_func(g),
                          transform=trans, ha="center", size="small")
-            #import ipdb; ipdb.set_trace()
+
         sns.despine(ax=self.ax, top=True, left=True, right=True)
         self.ax.yaxis.set_major_locator(NullLocator())
         self.remove_colorbar_ax()
@@ -787,7 +787,7 @@ class BigWigPlot(ScalarDataPlot):
         """
         ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
                                 axes_style=axes_style)
-        if isinstance(bigwigs, basestring):
+        if isinstance(bigwigs, str):
             bigwigs = [bigwigs]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
         self.bigwigs = bigwigs
@@ -964,11 +964,11 @@ class GenePlot(BasePlotter1D):
             gene_number = len(genes)
 
         # sort exons
-        for transcript_id, exons in genes.iteritems():
+        for transcript_id, exons in genes.items():
             exons.sort(key=lambda x: x.start)
 
         # sort transcripts
-        genes = [(name, exons) for name, exons in genes.iteritems()]
+        genes = [(name, exons) for name, exons in genes.items()]
         genes.sort(key=lambda x: x[1][0].start)
 
         genes_by_row = []
@@ -1017,7 +1017,7 @@ class GenePlot(BasePlotter1D):
             if bar_start == bar_end:
                 bar_end += 1
 
-            bar_x = list(xrange(bar_start, bar_end, bar_step_size))
+            bar_x = list(range(bar_start, bar_end, bar_step_size))
             if bar_x[-1] != bar_end:
                 bar_x += [bar_end]
                 marker_correction -= 1

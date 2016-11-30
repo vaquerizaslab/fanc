@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+import sys
 import os.path
 import tempfile
 import shutil
@@ -11,7 +10,10 @@ import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
 import glob
-import Queue
+if sys.version[0] == '2':
+    import Queue
+else:
+    import queue as Queue
 import logging
 logger = logging.getLogger(__name__)
 
@@ -180,7 +182,7 @@ class Bowtie2Mapper(SequenceMapper):
                           <https://samtools.github.io/hts-specs/SAMv1.pdf/>`_
         :return: See :func:`~SequenceMapper.alignment_quality`
         """
-        for i in xrange(11, len(alignment)):
+        for i in range(11, len(alignment)):
             if alignment[i].startswith("XS:"):
                 return SequenceMapper.BAD_ALIGNMENT
 
@@ -305,13 +307,13 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
         if min_read_length is None:
             min_read_length = max_len
 
-        steps = list(xrange(min_read_length, max_len+1, step_size))
+        steps = list(range(min_read_length, max_len+1, step_size))
         if len(steps) == 0 or steps[-1] != max_len:
             steps.append(max_len)
 
         ixs = [0]
         current = 1
-        for i in xrange(len(steps)-1):
+        for i in range(len(steps)-1):
             if i % 2 == 0:
                 ixs.append(-1*current)
             else:
@@ -323,7 +325,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
             step_size = 0
         else:
             step_size = abs(steps[0]-steps[1])
-            for i in xrange(2, len(steps)):
+            for i in range(2, len(steps)):
                 step_size = min(step_size, abs(steps[0]-steps[i]))
             min_read_length = min(steps)
 
@@ -346,7 +348,13 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
         header, alignments_trimmed = mapper.map(trimmed_file)
 
         # merge alignments
-        for name, fields_array in alignments_trimmed.iteritems():
+        try:
+            # noinspection PyCompatibility
+            alignments_trimmes_items = alignments_trimmed.iteritems()
+        except AttributeError:
+            alignments_trimmes_items = alignments_trimmed.items()
+
+        for name, fields_array in alignments_trimmes_items:
             worst_quality = SequenceMapper.PERFECT_ALIGNMENT
             for fields in fields_array:
                 worst_quality = max(worst_quality, mapper.alignment_quality(fields))
@@ -361,7 +369,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
                         improvable_alignments[name] = fields_array
                     elif len(improvable_alignments[name]) == len(fields_array):
                         new_fields_array = []
-                        for j in xrange(len(fields_array)):
+                        for j in range(len(fields_array)):
                             fields = fields_array[j]
                             existing_fields = improvable_alignments[name][j]
                             new_fields_array.append(mapper.get_better_alignment(fields, existing_fields))
@@ -382,7 +390,13 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
             if write_header:
                 for header_line in header:
                     o.write(header_line)
-            for _, fields_array in perfect_alignments.iteritems():
+
+            try:
+                # noinspection PyCompatibility
+                perfect_alignments_items = perfect_alignments.iteritems()
+            except AttributeError:
+                perfect_alignments_items = perfect_alignments.items()
+            for _, fields_array in perfect_alignments_items:
                 for fields in fields_array:
                     alignment_line = "\t".join(fields)
                     o.write(alignment_line)
@@ -446,13 +460,13 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             while True:
                 logger.info("Waiting for input...")
                 p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
-                steps = list(xrange(min_size, max_length+1, step_size))
+                steps = list(range(min_size, max_length+1, step_size))
                 if len(steps) == 0 or steps[-1] != max_length:
                     steps.append(max_length)
 
                 ixs = [0]
                 current = 1
-                for i in xrange(len(steps)-1):
+                for i in range(len(steps)-1):
                     if i % 2 == 0:
                         ixs.append(-1*current)
                     else:
