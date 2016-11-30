@@ -169,7 +169,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
                         d_items = d.iteritems()
                     except AttributeError:
                         d_items = d.items()
-                    for field, values in d_items():
+                    for field, values in d_items:
                         source = key[0]
                         sink = key[1]
 

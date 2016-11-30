@@ -1403,7 +1403,7 @@ class TestHicBasic:
 
         m = hic[:]
         for i in range(m.shape[0]):
-            for j in xange(m.shape[1]):
+            for j in range(m.shape[1]):
                 if i == j:
                     assert m[i, j] != 0
 
