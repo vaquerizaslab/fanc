@@ -34,7 +34,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
             else:
                 logger.info("Adding corrected edges in new Hic object ...")
                 chromosome_offset = chromosome_starts[chromosome]
-                for i in xrange(m_corrected.shape[0]):
+                for i in range(m_corrected.shape[0]):
                     i_region = i + chromosome_offset
                     nonzero_idx = np.nonzero(m_corrected[i])[0]
                     for j in nonzero_idx[nonzero_idx >= i]:
@@ -58,7 +58,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
             hic[:, :] = m_corrected
         else:
             logger.info("Adding corrected edges in new Hic object ...")
-            for i in xrange(m_corrected.shape[0]):
+            for i in range(m_corrected.shape[0]):
                 nonzero_idx = np.nonzero(m_corrected[i])[0]
                 for j in nonzero_idx[nonzero_idx >= i]:
                     weight = m_corrected[i, j]
@@ -85,12 +85,13 @@ def correct_matrix(m, max_attempts=50):
 
     has_errors = True
     iterations = 0
+    x = None
     while has_errors:
         has_errors = False
 
         try:
             x = get_bias_vector(m_nonzero)
-        except ValueError, e:
+        except ValueError as e:
             logger.info("Matrix balancing failed (this can happen!), \
                           removing sparsest rows to try again. Error: \
                           %s" % str(e))
@@ -246,12 +247,12 @@ def get_bias_vector(A, x0=None, tol=1e-06, delta=0.1, Delta=3, fl=0, high_precis
                     eta = max(eta, g * eta_o ** 2)
                 eta = max(min(eta, etamax), stop_tol / res_norm)
                 if fl == 1:
-                    print "%d %d   %.3e %.3e %.3e \n" % (i, k, res_norm, min(y), min(x))
+                    print("%d %d   %.3e %.3e %.3e \n" % (i, k, res_norm, min(y), min(x)))
                     res = np.array([[res], [res_norm]])
 
             logger.info("Matrix-vector products = %d\n" % MVP)
             logger.info("Outer iterations: %d" % n_iterations_outer)
-        except Warning, e:
+        except Warning as e:
             logger.error(str(e))
             raise ValueError("Generic catch all warnings")
 

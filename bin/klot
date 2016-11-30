@@ -113,7 +113,7 @@ class Klot(object):
 
         if global_args.print_version:
             import kaic
-            print kaic.__version__
+            print(kaic.__version__)
             exit()
 
         if global_args.script is not None:
@@ -121,14 +121,14 @@ class Klot(object):
             script_global_args, script_subplots = self._parse_script(global_args.script)
             d_global = vars(global_args)
             d_script_global = vars(script_global_args)
-            for key, value in d_script_global.iteritems():
+            for key, value in d_script_global.items():
                 # global parameters can only be overridden if not explicitly specified
                 if d_global[key] == self.global_parser.get_default(key):
                     d_global[key] = value
             subplot_data = script_subplots + subplot_data
 
         if len(subplot_data) == 0:
-            print "klot: error: Need to provide at least one plot"
+            print("klot: error: Need to provide at least one plot")
             self.global_parser.print_help()
             exit(1)
 
@@ -208,7 +208,7 @@ class Klot(object):
                                     invert_x=global_args.invert_x, hide_x=hide_x) as gf:
                 try:
                     fig, axes = gf.plot(plot_region)
-                except Exception, error:
+                except Exception as error:
                     warnings.warn("There was an error with plot {}, region {}:{}-{} ({})".format(i, region.chromosome,
                                                                                                  region.start,
                                                                                                  region.end,
@@ -298,7 +298,7 @@ class Klot(object):
 
         if subplot_args.type is not None:
             if not hasattr(self, subplot_args.type):
-                print "klot: error: Unrecognised plot type {}".format(subplot_args.type)
+                print("klot: error: Unrecognised plot type {}".format(subplot_args.type))
                 self.subplot_parser.print_help()
                 exit(1)
             return getattr(self, subplot_args.type)
@@ -313,12 +313,13 @@ class Klot(object):
                         with kaic.load(file_name, mode='r') as datum:
                             data.append(type(datum))
                 except ValueError:
-                    print "klot: error: Cannot auto-detect file type for {}. Use -t option.".format(file_name)
+                    print("klot: error: Cannot auto-detect file type for {}. Use -t option.".format(file_name))
                     self.subplot_parser.print_help()
                     exit(1)
 
             if len(data) == 0:
-                print "klot: error: To automatically identify plot you must provide data or use -t option.".format(data)
+                print("klot: error: To automatically identify plot you "
+                      "must provide data or use -t option.".format(data))
                 self.subplot_parser.print_help()
                 exit(1)
 
@@ -343,7 +344,7 @@ class Klot(object):
             if tuple(data) in plot_type_detector:
                 return plot_type_detector[tuple(data)]
             else:
-                print "klot: error: Could not find matching plot for {}. Use -t option.".format(data)
+                print("klot: error: Could not find matching plot for {}. Use -t option.".format(data))
                 self.subplot_parser.print_help()
                 exit(1)
 
@@ -369,7 +370,7 @@ class Klot(object):
         script = os.path.expanduser(script)
 
         if not os.path.isfile(script):
-            print 'klot: error: This is not a script file: {}'.format(script)
+            print('klot: error: This is not a script file: {}'.format(script))
 
         import re
         import shlex
@@ -382,7 +383,7 @@ class Klot(object):
 
                 cmd_val = re_equal_sign.split(line.rstrip())
                 if len(cmd_val) > 2:
-                    print 'klot: error: Too many equal-signs on line {}'.format(i)
+                    print('klot: error: Too many equal-signs on line {}'.format(i))
 
                 if len(cmd_val) == 1:
                     if re.match("^\s*$", cmd_val[0]):

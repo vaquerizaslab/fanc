@@ -182,11 +182,11 @@ class Kaic(object):
         # get version info
         if args.print_version:
             import kaic
-            print kaic.__version__
+            print(kaic.__version__)
             exit()
 
         if args.command is None or not hasattr(self, args.command):
-            print 'Unrecognized command'
+            print('Unrecognized command')
             parser.print_help()
             exit(1)
 
@@ -457,26 +457,26 @@ class Kaic(object):
         # 0. Do some sanity checks on required flags
         if 'fastq' in file_types:
             if args.genome_index is None:
-                print "Error: Must provide genome index (-i) when mapping FASTQ files!"
+                print("Error: Must provide genome index (-i) when mapping FASTQ files!")
                 quit(1)
             else:
                 check_path = os.path.expanduser(args.genome_index)
                 if check_path.endswith('.'):
                     check_path = check_path[:-1]
-                for i in xrange(1, 5):
+                for i in range(1, 5):
                     if not os.path.exists(check_path + '.{}.bt2'.format(i)):
                         raise ValueError("Cannot find bowtie2 path!")
-                for i in xrange(1, 3):
+                for i in range(1, 3):
                     if not os.path.exists(check_path + '.rev.{}.bt2'.format(i)):
                         raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
 
         if 'fastq' in file_types or 'sam' in file_types or 'reads' in file_types:
             if args.genome is None:
-                print "Error: Must provide genome (-g) to process read pair files!"
+                print("Error: Must provide genome (-g) to process read pair files!")
                 quit(1)
 
             if args.restriction_enzyme is None:
-                print "Error: Must provide restriction enzyme (-r) to process read pair files!"
+                print("Error: Must provide restriction enzyme (-r) to process read pair files!")
                 quit(1)
             else:
                 from Bio import Restriction
@@ -501,7 +501,7 @@ class Kaic(object):
         logger.info("Creating output folders...")
         rc = subprocess.call(['kaic', 'dirs', output_folder])
         if rc != 0:
-            print "Creating folders failed for some reason, aborting..."
+            print("Creating folders failed for some reason, aborting...")
             quit(rc)
 
         # 2. If input files are (gzipped) FASTQ, map them iteratively first
@@ -514,7 +514,7 @@ class Kaic(object):
             return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
 
         fastq_files = []
-        for i in xrange(len(file_names)):
+        for i in range(len(file_names)):
             if file_types[i] != 'fastq':
                 continue
             fastq_files.append(i)
@@ -550,7 +550,7 @@ class Kaic(object):
             return subprocess.call(load_reads_command + [file_name, reads_file])
 
         sam_files = []
-        for i in xrange(len(file_names)):
+        for i in range(len(file_names)):
             if file_types[i] != 'sam':
                 continue
             sam_files.append(i)
@@ -581,7 +581,7 @@ class Kaic(object):
             return subprocess.call(filter_reads_command + [filtered_reads_stats_file, reads_file, filtered_reads_file])
 
         reads_files = []
-        for i in xrange(len(file_names)):
+        for i in range(len(file_names)):
             if file_types[i] != 'reads':
                 continue
             reads_files.append(i)
@@ -622,7 +622,7 @@ class Kaic(object):
             i += 1
 
         # get reads file pair basenames
-        pair_basenames = [basename + '_' + str(i) for i in xrange(len(reads_file_pairs))]
+        pair_basenames = [basename + '_' + str(i) for i in range(len(reads_file_pairs))]
 
         if len(reads_file_pairs) > 0:
             tp = ThreadPool(threads)
@@ -675,7 +675,7 @@ class Kaic(object):
             return p1
 
         pairs_files = []
-        for i in xrange(len(file_names)):
+        for i in range(len(file_names)):
             if file_types[i] != 'pairs':
                 continue
             pairs_files.append(i)
@@ -714,7 +714,7 @@ class Kaic(object):
             return subprocess.call(hic_command + [pairs_file, hic_file])
 
         pairs_files = []
-        for i in xrange(len(file_names)):
+        for i in range(len(file_names)):
             if file_types[i] != 'pairs':
                 continue
             pairs_files.append(i)
@@ -741,7 +741,7 @@ class Kaic(object):
 
         # 9. Merge Hic
         hic_files = []
-        for i in xrange(len(file_names)):
+        for i in range(len(file_names)):
             if file_types[i] != 'hic':
                 continue
             hic_files.append(i)
@@ -801,7 +801,7 @@ class Kaic(object):
             return ret1, ret2, ret3, ret4
 
         hic_files = []
-        for i in xrange(len(file_names)):
+        for i in range(len(file_names)):
             if file_types[i] != 'hic':
                 continue
             hic_files.append(i)
@@ -1389,7 +1389,7 @@ class Kaic(object):
 
         if args.auto:
             logger.info("Filtering inward- and outward-facing reads using automatically"
-                         "determined thresholds.")
+                        "determined thresholds.")
             pairs.filter_ligation_products(queue=True)
         else:
             if args.inward:
@@ -2181,9 +2181,9 @@ class Kaic(object):
             chromosome_pairs = None
         else:
             chromosome_pairs = []
-            for i in xrange(len(args.chromosomes)):
+            for i in range(len(args.chromosomes)):
                 chromosome1 = args.chromosomes[i]
-                for j in xrange(i, len(args.chromosomes)):
+                for j in range(i, len(args.chromosomes)):
                     chromosome2 = args.chromosomes[j]
                     chromosome_pairs.append((chromosome1, chromosome2))
 
@@ -2813,7 +2813,7 @@ class Kaic(object):
 
         # calculate derivatives, if requested
         if args.derivative or args.delta:
-            for k, v in gt.tracks.iteritems():
+            for k, v in gt.tracks.items():
                 if args.derivative:
                     for i in args.derivative:
                         if "matrix" in k:
@@ -2898,7 +2898,6 @@ class Kaic(object):
                 if args.range[0] <= window_size <= args.range[1]:
                     window_sizes.append(window_size)
         elif args.window is not None:
-            print array.window_sizes
             if args.window in array.window_sizes:
                 window_sizes.append(args.window)
             single = True

@@ -1,5 +1,5 @@
 from kaic.data.general import FileGroup
-from abc import abstractmethod, ABCMeta
+from abc import abstractmethod
 import tables as t
 from collections import defaultdict
 import inspect
@@ -132,7 +132,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             }
 
         data_fields = dict()
-        for data_name, vector in data.iteritems():
+        for data_name, vector in data.items():
             string_size = 0
             for value in vector:
                 table_type = _get_pytables_data_type(value)
@@ -167,7 +167,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             self._table.flush()
 
             row = self._table.row
-            for i in xrange(len(self._table), len(value)):
+            for i in range(len(self._table), len(value)):
                 row[key] = value[i]
                 row.append()
             self._table.flush()
@@ -193,7 +193,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
                 data_name: data
             }
 
-        for data_name, vector in data.iteritems():
+        for data_name, vector in data.items():
             self.data(data_name, vector)
 
     @calculateondemand
@@ -218,7 +218,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
                 colnames.append(column_selector)
 
         if isinstance(value, list):
-            print len(value), n_rows
+            print(len(value), n_rows)
             if len(value) != n_rows:
                 raise ValueError("Number of elements in selection does not "
                                  "match number of elements to be replaced!")
@@ -336,7 +336,7 @@ class BasicTable(TableArchitecturalFeature):
         else:
             pt_fields = {}
             if isinstance(fields, dict):
-                for field, field_type in fields.iteritems():
+                for field, field_type in fields.items():
                     pt_fields[field] = _get_pytables_data_type(field_type)
             else:
                 if types is None or len(fields) != len(types):
@@ -345,7 +345,7 @@ class BasicTable(TableArchitecturalFeature):
                     pt_fields[field] = _get_pytables_data_type(types[i])
 
             data_fields = {}
-            for data_name, table_type in pt_fields.iteritems():
+            for data_name, table_type in pt_fields.items():
                 if table_type != t.StringCol:
                     data_fields[data_name] = table_type(pos=len(data_fields))
                 else:

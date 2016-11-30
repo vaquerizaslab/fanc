@@ -97,12 +97,12 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
             self.shared_base_field_names = []
             for i, hic in enumerate(hics):
                 field_descriptions = hic._field_dict
-                for name, description in field_descriptions.iteritems():
+                for name, description in field_descriptions.items():
 
                     if name.startswith("_") or name in {'source', 'sink'}:
                         continue
 
-                    for j in xrange(len(hics)):
+                    for j in range(len(hics)):
                         new_name = "%s_%d" % (name, j)
                         if new_name in original_fields:
                             raise ValueError("%s already in hic object, please choose different name." % new_name)
@@ -136,7 +136,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
         # step 1: combine all hic objects into one
         #         and calculate variance
         for chr_i, chromosome1 in enumerate(chromosomes):
-            for chr_j in xrange(chr_i, len(chromosomes)):
+            for chr_j in range(chr_i, len(chromosomes)):
                 chromosome2 = chromosomes[chr_j]
 
                 if self.only_intra_chromosomal and chromosome1 != chromosome2:
@@ -157,8 +157,19 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
                                 edges[key][field] = [None] * len(self.hics)
                             edges[key][field][i] = getattr(edge, field, None)
 
-                for key, d in edges.iteritems():
-                    for field, values in d.iteritems():
+                try:
+                    # noinspection PyCompatibility
+                    edge_items = edges.iteritems()
+                except AttributeError:
+                    edge_items = edges.items()
+
+                for key, d in edge_items:
+                    try:
+                        # noinspection PyCompatibility
+                        d_items = d.iteritems()
+                    except AttributeError:
+                        d_items = d.items()
+                    for field, values in d_items():
                         source = key[0]
                         sink = key[1]
 
@@ -255,11 +266,11 @@ class ExpectedContacts(TableArchitecturalFeature):
         max_region_by_chromosome = dict()
         for region in regions:
             if (region.chromosome not in max_region_by_chromosome or
-                        max_region_by_chromosome[region.chromosome] < region.ix):
+                    max_region_by_chromosome[region.chromosome] < region.ix):
                 max_region_by_chromosome[region.chromosome] = region.ix
 
             if (region.chromosome not in min_region_by_chromosome or
-                        min_region_by_chromosome[region.chromosome] > region.ix):
+                    min_region_by_chromosome[region.chromosome] > region.ix):
                 min_region_by_chromosome[region.chromosome] = region.ix
 
             regions_by_chromosome[region.chromosome] += 1
@@ -276,11 +287,11 @@ class ExpectedContacts(TableArchitecturalFeature):
         max_region_by_chromosome_t = dict()
         for region in all_regions:
             if (region.chromosome not in max_region_by_chromosome_t or
-                        max_region_by_chromosome_t[region.chromosome] < region.ix):
+                    max_region_by_chromosome_t[region.chromosome] < region.ix):
                 max_region_by_chromosome_t[region.chromosome] = region.ix
 
             if (region.chromosome not in min_region_by_chromosome_t or
-                        min_region_by_chromosome_t[region.chromosome] > region.ix):
+                    min_region_by_chromosome_t[region.chromosome] > region.ix):
                 min_region_by_chromosome_t[region.chromosome] = region.ix
 
         # find the largest distance between two regions
@@ -292,8 +303,8 @@ class ExpectedContacts(TableArchitecturalFeature):
 
         # get the number of pixels at a given bin distance
         pixels_by_distance = [0.0] * (max_distance + 1)
-        for chromosome, n in regions_by_chromosome.iteritems():
-            for distance in xrange(0, n):
+        for chromosome, n in regions_by_chromosome.items():
+            for distance in range(0, n):
                 pixels_by_distance[distance] += n-distance
 
         # build a reverse-lookup chromosome map to quickly
@@ -349,7 +360,7 @@ class ExpectedContacts(TableArchitecturalFeature):
         # smoothing
         smoothed_reads_by_distance = np.zeros(len(reads_by_distance))
         smoothed_pixels_by_distance = np.zeros(len(pixels_by_distance))
-        for i in xrange(len(reads_by_distance)):
+        for i in range(len(reads_by_distance)):
             smoothed_reads = reads_by_distance[i]
             smoothed_pixels = pixels_by_distance[i]
             window_size = 0
@@ -542,9 +553,9 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
 
         chromosomes = self.chromosomes()
 
-        for i in xrange(len(chromosomes)):
+        for i in range(len(chromosomes)):
             chromosome1 = chromosomes[i]
-            for j in xrange(i, len(chromosomes)):
+            for j in range(i, len(chromosomes)):
                 chromosome2 = chromosomes[j]
 
                 edges1 = dict()
@@ -649,7 +660,7 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
             corr_m = np.corrcoef(m)
             with RareUpdateProgressBar(max_value=m.shape[0]) as pb:
                 for i, row_region in enumerate(m.row_regions):
-                    for j in xrange(i, len(m.row_regions)):
+                    for j in range(i, len(m.row_regions)):
                         col_region = m.row_regions[j]
                         source = self.region_conversion[row_region.ix]
                         sink = self.region_conversion[col_region.ix]
@@ -826,11 +837,11 @@ class PossibleContacts(TableArchitecturalFeature):
         intra_possible = 0
         inter_possible = 0
         chromosomes = mappable.keys()
-        for i in xrange(len(chromosomes)):
+        for i in range(len(chromosomes)):
             chromosome1 = chromosomes[i]
             n1 = mappable[chromosome1]
             intra_possible += n1**2/2 + n1/2
-            for j in xrange(i+1, len(chromosomes)):
+            for j in range(i+1, len(chromosomes)):
                 chromosome2 = chromosomes[j]
                 n2 = mappable[chromosome2]
                 inter_possible += n1*n2
@@ -1067,6 +1078,9 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
                                                                                           len(self.data_field_names)))
         self._y_values = values
 
+    def _calculate(self, *args, **kwargs):
+        pass
+
 
 class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
     """
@@ -1143,12 +1157,12 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
             chromosome = region.chromosome
             if last_chromosome is not None and chromosome != last_chromosome:
                 chromosome_length = i-last_chromosome_index
-                for j in xrange(chromosome_length):
+                for j in range(chromosome_length):
                     boundary_dist[last_chromosome_index+j] = min(j, i-last_chromosome_index-1-j)
                 last_chromosome_index = i
             last_chromosome = chromosome
         chromosome_length = n_bins-last_chromosome_index
-        for j in xrange(chromosome_length):
+        for j in range(chromosome_length):
             boundary_dist[last_chromosome_index+j] = min(j, n_bins-last_chromosome_index-1-j)
 
         return boundary_dist
@@ -1180,7 +1194,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
                 if boundary_dist[source] >= sink-source:
                     right_sums[source] += weight
 
-        for i in xrange(n_bins):
+        for i in range(n_bins):
             A = left_sums[i]
             B = right_sums[i]
             E = (A+B)/2
@@ -1332,7 +1346,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                 unmasked = self.hic.as_matrix(key=(r.chromosome, r.chromosome),
                                               mask_missing=False, impute_missing=False)
                 mask = np.zeros(unmasked.shape, dtype=bool)
-                for z, ix in enumerate(xrange(r.ix, r.ix + unmasked.shape[0])):
+                for z, ix in enumerate(range(r.ix, r.ix + unmasked.shape[0])):
                     if not _mappable[ix]:
                         mask[z, :] = True
                         mask[:, z] = True
@@ -1387,7 +1401,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
         logger.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
 
-        for i in xrange(len(ins_by_chromosome)):
+        for i in range(len(ins_by_chromosome)):
             ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
             if self.normalise:
                 logger.info("Normalising insulation index")
@@ -1819,7 +1833,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
                         yield i, region, sub_matrix
                         continue
 
-                    for region_ix in xrange(bin_range.start, bin_range.stop):
+                    for region_ix in range(bin_range.start, bin_range.stop):
                         sub_matrix = matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
                         if self.orient_strand and hasattr(region, 'strand') and region.is_reverse():
                             sub_matrix = np.fliplr(sub_matrix)
@@ -1884,7 +1898,7 @@ class MetaArray(MetaMatrixBase):
         :return: list of ints
         """
         x = []
-        for i in xrange(-1*self.window_width, self.window_width + 1):
+        for i in range(-1*self.window_width, self.window_width + 1):
             d = self.array.bins_to_distance(i)
             x.append(d)
         return x
@@ -1975,7 +1989,7 @@ class MetaHeatmap(MetaMatrixBase):
         :return: list of ints
         """
         x = []
-        for i in xrange(-1*self.window_width, self.window_width + 1):
+        for i in range(-1*self.window_width, self.window_width + 1):
             d = self.array.bins_to_distance(i)
             x.append(d)
         return x
@@ -2089,8 +2103,8 @@ class ExpectedObservedCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
 
         self.intra_expected = dict()
         self.inter_expected = dict()
-        for i in xrange(n_hic):
-            print 'weight_' + str(i)
+        for i in range(n_hic):
+            print('weight_' + str(i))
             with ExpectedContacts(collection, weight_column='weight_' + str(i)) as ex:
                 self.intra_expected[i] = ex.intra_expected()
                 self.inter_expected[i] = ex.inter_expected()
@@ -2111,7 +2125,7 @@ class ExpectedObservedCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
         if self.regions_dict[source].chromosome == self.regions_dict[sink].chromosome:
             intra = True
         n_failed = 0
-        for i in xrange(self.n_hic):
+        for i in range(self.n_hic):
             if intra:
                 expected = self.intra_expected[i][abs(sink-source)]
             else:
@@ -2151,18 +2165,18 @@ class BackgroundLigationCollectionFilter(MatrixArchitecturalRegionFeatureFilter)
         inter_sum = defaultdict(int)
         for edge in collection.edges(lazy=True):
             intra = regions_dict[edge.source].chromosome == regions_dict[edge.sink].chromosome
-            for i in xrange(n_hic):
+            for i in range(n_hic):
                 if intra:
                     inter_count[i] += 1
                     inter_sum[i] += getattr(edge, 'weight_' + str(i))
 
         if all_contacts:
             with PossibleContacts(collection, weight_column='weight_0') as pc:
-                for i in xrange(n_hic):
+                for i in range(n_hic):
                     inter_count[i] = pc.inter_possible()
 
         self.cutoff = dict()
-        for i in xrange(n_hic):
+        for i in range(n_hic):
             if inter_count[i] == 0:
                 self.cutoff[i] = 0
             else:
@@ -2177,7 +2191,7 @@ class BackgroundLigationCollectionFilter(MatrixArchitecturalRegionFeatureFilter)
         the expected weight for this contact.
         """
         n_failed = 0
-        for i in xrange(self.n_hic):
+        for i in range(self.n_hic):
             if getattr(edge, 'weight_' + str(i)) < self.cutoff[i]:
                 if self.filter_single:
                     return False

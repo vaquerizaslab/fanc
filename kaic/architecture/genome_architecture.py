@@ -1,7 +1,7 @@
 from __future__ import division
 from kaic.data.genomic import RegionMatrixTable, RegionsTable, GenomicRegion
 from kaic.architecture.architecture import ArchitecturalFeature, calculateondemand, _get_pytables_data_type
-from kaic.data.general import Mask, MaskFilter
+from kaic.data.general import MaskFilter
 import tables as t
 import numpy as np
 import itertools as it
@@ -258,7 +258,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
             }
 
         data_fields = dict()
-        for data_name, vector in data.iteritems():
+        for data_name, vector in data.items():
             string_size = 0
             for value in vector:
                 table_type = _get_pytables_data_type(value)
@@ -292,7 +292,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
                 name: data
             }
 
-        for data_name, vector in data.iteritems():
+        for data_name, vector in data.items():
             self.data(data_name, vector)
 
     @calculateondemand
@@ -457,16 +457,17 @@ class BasicRegionTable(VectorArchitecturalRegionFeature):
             pt_fields = {}
             if fields is not None:
                 if isinstance(fields, dict):
-                    for field, field_type in fields.iteritems():
+                    for field, field_type in fields.items():
                         pt_fields[field] = _get_pytables_data_type(field_type)
                 else:
                     if types is None or not len(fields) == len(types):
-                        raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields), len(types)))
+                        raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields),
+                                                                                                len(types)))
                     for i, field in enumerate(fields):
                         pt_fields[field] = _get_pytables_data_type(types[i])
 
             data_fields = {}
-            for data_name, table_type in pt_fields.iteritems():
+            for data_name, table_type in pt_fields.items():
                 if table_type != t.StringCol:
                     data_fields[data_name] = table_type(pos=len(data_fields))
                 else:
@@ -493,7 +494,7 @@ def _get_typed_array(input_iterable, nan_strings, count=-1):
 
 
 def _is_simple_type(data_type):
-    if data_type in {int, float, bool, str, basestring, long}:
+    if data_type in {int, float, bool, str, long, unicode}:
         return True
     return False
 
@@ -520,21 +521,21 @@ class GenomicTrack(BasicRegionTable):
         matrix_data = {}
         fields = {}
         if data_dict is not None:
-            for field, values in data_dict.iteritems():
+            for field, values in data_dict.items():
                 data_type = type(values[0])
                 if _is_simple_type(data_type):
                     fields[field] = type(values[0])
                 else:
                     matrix_data[field] = values
 
-        for key in matrix_data.iterkeys():
+        for key in matrix_data.keys():
             del data_dict[key]
 
         self._matrix_tracks = set()
         BasicRegionTable.__init__(self, regions=regions, fields=fields, data=data_dict, file_name=file_name,
                                   _group_name=_table_name_tracks, mode=mode, tmpdir=tmpdir)
 
-        for key, values in matrix_data.iteritems():
+        for key, values in matrix_data.items():
             self.data(key, values)
 
         if title is not None:
@@ -598,7 +599,7 @@ class GenomicTrack(BasicRegionTable):
                         values[k] = []
             for k in values.keys():
                 values[k].append(f.attrs.get(k, nan_strings[0]))
-        for k, v in values.iteritems():
+        for k, v in values.items():
             values[k] = _get_typed_array(v, nan_strings=nan_strings, count=n)
         return cls(file_name=file_name, data_dict=values, regions=regions)
 
@@ -623,7 +624,7 @@ class GenomicTrack(BasicRegionTable):
                     f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start - 1, r.end, v))
 
     def __getitem__(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             if item in self._tracks:
                 return self[:, item]
             if item in self._matrix_tracks:
@@ -644,7 +645,7 @@ class GenomicTrack(BasicRegionTable):
         Get a dictionary with all tracks/vectors in the data set.
         :return: dict
         """
-        return {t: self[:, t] for t in self._tracks}
+        return {t_name: self[:, t_name] for t_name in self._tracks}
 
     def data(self, key, value=None):
         """

@@ -21,17 +21,17 @@ class TestHicArchitecture:
         hic.add_nodes(nodes)
 
         edges = []
-        for i in xrange(0, 5):
-            for j in xrange(i, 5):
+        for i in range(0, 5):
+            for j in range(i, 5):
                 edges.append(Edge(source=i, sink=j, weight=50))
-        for i in xrange(6, 12):
-            for j in xrange(i, 12):
+        for i in range(6, 12):
+            for j in range(i, 12):
                 edges.append(Edge(source=i, sink=j, weight=75))
-        for i in xrange(13, 18):
-            for j in xrange(i, 18):
+        for i in range(13, 18):
+            for j in range(i, 18):
                 edges.append(Edge(source=i, sink=j, weight=30))
-        for i in xrange(18, 20):
-            for j in xrange(i, 20):
+        for i in range(18, 20):
+            for j in range(i, 20):
                 edges.append(Edge(source=i, sink=j, weight=50))
 
         hic.add_edges(edges)
@@ -74,7 +74,6 @@ class TestPossbibleContacts:
         self.hic.close()
 
     def test_no_region(self):
-        print self.hic[:]
         with PossibleContacts(self.hic) as pc:
 
             assert pc.intra_possible() == 15+6+10
@@ -134,9 +133,9 @@ class TestExpectedContacts:
             # find largest distance
             max_d = 0
             hic_matrix = self.hic.as_matrix(mask_missing=True)
-            for i in xrange(hic_matrix.shape[0]):
+            for i in range(hic_matrix.shape[0]):
                 row_region = hic_matrix.row_regions[i]
-                for j in xrange(hic_matrix.shape[1]):
+                for j in range(hic_matrix.shape[1]):
                     col_region = hic_matrix.col_regions[j]
 
                     if row_region.chromosome == col_region.chromosome:
@@ -208,8 +207,8 @@ class TestObservedExpectedRatio:
 
             ex = np.empty(obs.shape)
             rd = self.hic.regions_dict
-            for i in xrange(obs.shape[0]):
-                for j in xrange(obs.shape[1]):
+            for i in range(obs.shape[0]):
+                for j in range(obs.shape[1]):
                     if rd[i].chromosome == rd[j].chromosome:
                         ex[i, j] = intra_expected[abs(i - j)]
                     else:
@@ -219,8 +218,8 @@ class TestObservedExpectedRatio:
             oer_m = oer[:]
             assert oer_m.shape == obs.shape
 
-            for i in xrange(obs.shape[0]):
-                for j in xrange(obs.shape[1]):
+            for i in range(obs.shape[0]):
+                for j in range(obs.shape[1]):
                     assert oer_m[i, j] - (obs[i, j] / ex[i, j]) < 0.001
 
     def test_observed_expected_ratio_region(self):
@@ -231,8 +230,8 @@ class TestObservedExpectedRatio:
 
             ex = np.empty(obs.shape)
             rd = self.hic.regions_dict
-            for i in xrange(obs.shape[0]):
-                for j in xrange(obs.shape[1]):
+            for i in range(obs.shape[0]):
+                for j in range(obs.shape[1]):
                     if rd[i].chromosome == rd[j].chromosome:
                         ex[i, j] = intra_expected[abs(i - j)]
                     else:
@@ -242,8 +241,8 @@ class TestObservedExpectedRatio:
             oer_m = oer[:]
             assert oer_m.shape == obs.shape
 
-            for i in xrange(obs.shape[0]):
-                for j in xrange(obs.shape[1]):
+            for i in range(obs.shape[0]):
+                for j in range(obs.shape[1]):
                     assert oer_m[i, j] - (obs[i, j] / ex[i, j]) < 0.001
 
 
@@ -262,17 +261,17 @@ class TestDirectionalityIndex:
         hic.add_nodes(nodes)
 
         edges = []
-        for i in xrange(0, 5):
-            for j in xrange(i, 5):
+        for i in range(0, 5):
+            for j in range(i, 5):
                 edges.append(Edge(source=i, sink=j, weight=50))
-        for i in xrange(6, 12):
-            for j in xrange(i, 12):
+        for i in range(6, 12):
+            for j in range(i, 12):
                 edges.append(Edge(source=i, sink=j, weight=75))
-        for i in xrange(13, 18):
-            for j in xrange(i, 18):
+        for i in range(13, 18):
+            for j in range(i, 18):
                 edges.append(Edge(source=i, sink=j, weight=30))
-        for i in xrange(18, 20):
-            for j in xrange(i, 20):
+        for i in range(18, 20):
+            for j in range(i, 20):
                 edges.append(Edge(source=i, sink=j, weight=50))
 
         hic.add_edges(edges)
@@ -352,17 +351,17 @@ class TestInsulationIndex:
         hic.add_nodes(nodes)
 
         edges = []
-        for i in xrange(0, 5):
-            for j in xrange(i, 5):
+        for i in range(0, 5):
+            for j in range(i, 5):
                 edges.append(Edge(source=i, sink=j, weight=50))
-        for i in xrange(6, 12):
-            for j in xrange(i, 12):
+        for i in range(6, 12):
+            for j in range(i, 12):
                 edges.append(Edge(source=i, sink=j, weight=75))
-        for i in xrange(13, 18):
-            for j in xrange(i, 18):
+        for i in range(13, 18):
+            for j in range(i, 18):
                 edges.append(Edge(source=i, sink=j, weight=30))
-        for i in xrange(18, 20):
-            for j in xrange(i, 20):
+        for i in range(18, 20):
+            for j in range(i, 20):
                 edges.append(Edge(source=i, sink=j, weight=50))
 
         hic.add_edges(edges)
@@ -373,7 +372,6 @@ class TestInsulationIndex:
 
     def test_insulation_index(self):
         with InsulationIndex(self.hic, window_sizes=(2000, 3000)) as ins:
-            print len(ins.regions)
             d = ins.insulation_index(window_size=2000)
 
             assert np.isnan(d[0])
@@ -392,7 +390,7 @@ class TestInsulationIndex:
             d = ins.insulation_index(window_size=2000)
 
             assert len(d) == len(do[:12])
-            for i in xrange(len(d)):
+            for i in range(len(d)):
                 if np.isnan(d[i]):
                     assert np.isnan(do[i])
                 else:
@@ -402,7 +400,7 @@ class TestInsulationIndex:
             d = ins.insulation_index(window_size=2000)
 
             assert len(d) == len(do[12:])
-            for i in xrange(len(d)):
+            for i in range(len(d)):
                 if np.isnan(d[i]):
                     assert np.isnan(do[i+12])
                 else:

@@ -205,7 +205,6 @@ class TestGenomicRegions:
     def test_intersect(self):
         # this is essentially the same as region_bins
         intersect = self.regions.intersect(GenomicRegion(chromosome='chr1', start=3400, end=8100))
-        print intersect
         assert len(intersect) == 6
 
     def test_add_region(self):
@@ -355,7 +354,6 @@ class TestRegionPairs:
 
         covered = set()
         for edge in self.rmt.edge_subset((slice(1, 3), slice(0, 2))):
-            print edge
             pair = (edge.source, edge.sink)
             if pair in covered:
                 assert 0
@@ -363,7 +361,6 @@ class TestRegionPairs:
 
         covered = set()
         for edge in self.rmt.edge_subset((slice(0, 3), slice(1, 2))):
-            print edge
             pair = (edge.source, edge.sink)
             if pair in covered:
                 assert 0
@@ -373,7 +370,6 @@ class TestRegionPairs:
 
         previous_weight = -1
         for edge in self.rmt.edges_sorted('weight'):
-            print edge
             assert edge.weight == edge.source * edge.sink
             assert edge.weight >= previous_weight
             previous_weight = edge.weight
@@ -525,7 +521,6 @@ class TestRegionMatrixTable:
         self.rmt.close()
 
     def test_matrix(self):
-        print self.rmt.default_field
         m = self.rmt.as_matrix()
         for row_region in m.row_regions:
             i = row_region.ix
@@ -1437,8 +1432,6 @@ class TestHicBasic:
 
     def test_filter_background_ligation(self):
         blf = BackgroundLigationFilter(self.hic, fold_change=2)
-        print blf.cutoff
-        print 2*(610+405+734)/47
         assert blf.cutoff - 2*(610+405+734)/47 < 0.001
         for edge in self.hic.edges(lazy=True):
             if edge.weight < blf.cutoff:

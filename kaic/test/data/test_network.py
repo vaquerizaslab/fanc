@@ -2,11 +2,9 @@ from __future__ import division
 from kaic.data.network import RaoPeakCaller, process_matrix_range, RaoPeakInfo
 from kaic.data.genomic import Hic, RegionMatrix, GenomicRegion
 import numpy as np
-import tables as t
 import pickle
 import os.path
 import msgpack
-from scipy.stats import poisson
 
 
 class TestRaoPeakCaller:
@@ -235,12 +233,7 @@ class TestRaoPeakCaller:
          e_v_list, e_d_list,
          observed_counts) = msgpack.loads(rv)
 
-        print ij_pairs
-        print region_list
-        print observed_list
-
         for ix, pair in enumerate(region_list):
-            print ix
             i = pair[0]
             j = pair[1]
             observed = self.m[i, j]
@@ -328,7 +321,6 @@ class TestRaoPeakCaller:
         assert len(peaks) == 5+4+3+2+1
 
         for peak in peaks.peaks():
-            print peak
             i = peak.source
             j = peak.sink
             observed = self.m[i, j]
@@ -353,7 +345,7 @@ class TestRaoPeakCaller:
             peaks1_d = {(peak.source, peak.sink): peak for peak in peaks1}
             peaks2_d = {(peak.source, peak.sink): peak for peak in peaks2}
 
-            for source, sink in peaks1_d.iterkeys():
+            for source, sink in peaks1_d.keys():
                 peak1 = peaks1_d[(source, sink)]
                 peak2 = peaks2_d[(source, sink)]
 
@@ -408,7 +400,6 @@ class TestRaoPeakCaller:
 
         seen = set()
         for peak in peaks.peaks():
-            print peak
             i = peak.source
             j = peak.sink
 
@@ -439,7 +430,7 @@ class TestRaoPeakCaller:
             peaks1_d = {(peak.source, peak.sink): peak for peak in peaks1}
             peaks2_d = {(peak.source, peak.sink): peak for peak in peaks2}
 
-            for source, sink in peaks1_d.iterkeys():
+            for source, sink in peaks1_d.keys():
                 peak1 = peaks1_d[(source, sink)]
                 peak2 = peaks2_d[(source, sink)]
 
@@ -482,7 +473,7 @@ class TestRaoPeakCaller:
             observed_chunk_distribution['ll'][0][x] = y
 
         fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
-        for fdr in fdr_cutoffs['ll'][0].itervalues():
+        for fdr in fdr_cutoffs['ll'][0].values():
             assert 0 <= fdr <= 1
 
     def test_chromosome_map(self):
@@ -493,7 +484,6 @@ class TestRaoPeakCaller:
             if region.chromosome == 'chr11':
                 assert chromosome_map[i] == 0
             else:
-                print region
                 assert chromosome_map[i] == 1
         hic_10kb.close()
 
@@ -567,8 +557,8 @@ class TestRaoPeakCaller:
         assert hasattr(m_load, 'col_regions')
 
         # matrix identical
-        for i in xrange(m_load.shape[0]):
-            for j in xrange(m_load.shape[1]):
+        for i in range(m_load.shape[0]):
+            for j in range(m_load.shape[1]):
                 assert self.m[i, j] == m_load[i, j]
 
         # row regions identical
