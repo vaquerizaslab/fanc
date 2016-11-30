@@ -62,7 +62,7 @@ def read_file_configs(config_file_locations):
                     config_file_content = config_file.read()
                     file_config = yaml.safe_load(config_file_content)
                     configs.append((config_path, file_config))
-            except IOError, e:
+            except IOError as e:
                 logging.error("Could not read config file {}".format(config_path), e)
                 pass
     return configs
@@ -71,13 +71,14 @@ file_configs = read_file_configs(_config_file_locations)
 
 _config_dict = copy.deepcopy(default_config)
 for current_config_path, current_file_config in reversed(file_configs):
-    for key, value in current_file_config.iteritems():
+    for key, value in current_file_config.items():
         if key not in default_config:
             warnings.warn("Config option '{}' is not known".format(key))
         else:
             _config_dict[key] = value
 
 config = Map(_config_dict)
+
 
 def write_default_config(file_name, overwrite=False):
     file_name = os.path.expanduser(file_name)
