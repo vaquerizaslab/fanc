@@ -2,6 +2,7 @@ from kaic.data.general import FileGroup
 from abc import abstractmethod
 import tables as t
 from collections import defaultdict
+from future.utils import string_types
 import inspect
 
 
@@ -103,7 +104,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
 
     def __init__(self, group, fields=None, file_name=None, mode='a',
                  tmpdir=None, _table_name='table_architecture'):
-        if isinstance(fields, str):
+        if isinstance(fields, string_types):
             if file_name is None:
                 file_name = fields
             else:
@@ -214,11 +215,10 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
         for column_selector in column_selectors:
             if isinstance(column_selector, int) or isinstance(column_selector, slice):
                 colnames.append(self._table.colnames[column_selector])
-            elif isinstance(column_selector, str):
+            elif isinstance(column_selector, string_types):
                 colnames.append(column_selector)
 
         if isinstance(value, list):
-            print(len(value), n_rows)
             if len(value) != n_rows:
                 raise ValueError("Number of elements in selection does not "
                                  "match number of elements to be replaced!")
@@ -260,7 +260,9 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             return row
         d = dict()
         for colname in self._table.colnames:
-            d[colname] = row[colname]
+            value = row[colname]
+            value = value.decode() if isinstance(value, bytes) else value
+            d[colname] = value
         return d
 
     @calculateondemand
@@ -289,7 +291,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             is_list = False
         elif isinstance(item, slice):
             colnames = self._table.colnames[item]
-        elif isinstance(item, str):
+        elif isinstance(item, string_types):
             colnames = [item]
             is_list = False
         elif isinstance(item, list):
@@ -301,7 +303,9 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             results_dict = defaultdict(list)
             for row in rows:
                 for name in colnames:
-                    results_dict[name].append(row[name])
+                    value = row[name]
+                    value = value.decode() if isinstance(value, bytes) else value
+                    results_dict[name].append(value)
         else:
             results_dict = dict()
             for name in colnames:
@@ -324,7 +328,7 @@ class BasicTable(TableArchitecturalFeature):
 
     def __init__(self, fields, types=None, file_name=None, mode='a',
                  _string_size=100, _group_name='basic_table'):
-        if isinstance(fields, str):
+        if isinstance(fields, string_types):
             if file_name is None:
                 file_name = fields
                 fields = None

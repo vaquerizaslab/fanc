@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib as mpl
 import seaborn as sns
 import math
-from future.utils import with_metaclass
+from future.utils import with_metaclass, string_types
 import logging
 logger = logging.getLogger(__name__)
 
@@ -182,7 +182,7 @@ class BasePlotter(with_metaclass(ABCMeta, object)):
         else:
             self.ax = ax
 
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
 
         self._before_plot(region=region, *args, **kwargs)
@@ -280,7 +280,7 @@ class ScalarDataPlot(BasePlotter1D):
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
         self.style = style
         if style not in self._STYLES:
-            raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
+            raise ValueError("Only the styles {} are supported.".format(list(self._STYLES.keys())))
 
     def _get_values_per_step(self, values, region_list):
         x = np.empty(len(region_list)*2)
@@ -324,7 +324,7 @@ class BasePlotterMatrix(with_metaclass(ABCMeta, object)):
                  show_colorbar=True, blend_zero=True, replacement_color=None,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
 
-        if isinstance(colormap, str):
+        if isinstance(colormap, string_types):
             colormap = mpl.cm.get_cmap(colormap)
 
         self.colormap = colormap
@@ -492,10 +492,10 @@ class BasePlotter2D(with_metaclass(ABCMeta, BasePlotter)):
             x_region = regions
             y_region = x_region
 
-        if isinstance(x_region, str):
+        if isinstance(x_region, string_types):
             x_region = GenomicRegion.from_string(x_region)
 
-        if isinstance(y_region, str):
+        if isinstance(y_region, string_types):
             y_region = GenomicRegion.from_string(y_region)
 
         self._current_chromosome_x = x_region.chromosome

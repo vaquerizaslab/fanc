@@ -17,6 +17,7 @@ import itertools as it
 import re
 import warnings
 from collections import defaultdict
+from future.utils import string_types
 import logging
 logger = logging.getLogger(__name__)
 
@@ -787,7 +788,7 @@ class BigWigPlot(ScalarDataPlot):
         """
         ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
                                 axes_style=axes_style)
-        if isinstance(bigwigs, str):
+        if isinstance(bigwigs, string_types):
             bigwigs = [bigwigs]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
         self.bigwigs = bigwigs
@@ -822,7 +823,7 @@ class BigWigPlot(ScalarDataPlot):
         import pyBigWig
 
         for i, b in enumerate(self.bigwigs):
-            if isinstance(b, str):
+            if isinstance(b, string_types):
                 try:
                     bw = pyBigWig.open(b)
                     intervals = bw.intervals(region.chromosome, region.start - 1, region.end)

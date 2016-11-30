@@ -80,7 +80,7 @@ import copy
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
 from bisect import bisect_right, bisect_left
-from future.utils import with_metaclass
+from future.utils import with_metaclass, string_types
 from builtins import object
 import logging
 logger = logging.getLogger(__name__)
@@ -264,7 +264,7 @@ class BigWig(object):
         return RegionIter(self)
 
     def subset(self, region):
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
 
         if isinstance(region, GenomicRegion):
@@ -277,7 +277,7 @@ class BigWig(object):
                 yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
 
     def region_stats(self, region, bins=1, stat='mean'):
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
 
         chroms = self.bw.chroms()
@@ -288,7 +288,7 @@ class BigWig(object):
 
     def intervals(self, chromosome, start=None, end=None):
         chroms = self.chroms()
-        if isinstance(chromosome, str):
+        if isinstance(chromosome, string_types):
             chromosome = GenomicRegion.from_string(chromosome)
 
         if isinstance(chromosome, GenomicRegion):
@@ -360,7 +360,7 @@ class BigWig(object):
         return tuple((bin_coordinates[i][0], bin_coordinates[i][1], result[i]) for i in range(len(result)))
 
     def binned_values(self, region, bins, smoothing_window=None):
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
         chroms = self.chroms()
         chromosome = region.chromosome
@@ -643,7 +643,7 @@ class GenomicRegion(TableObject):
 
         :param region: :class:`~GenomicRegion` object or string
         """
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
 
         if region.chromosome != self.chromosome:
@@ -660,7 +660,7 @@ class GenomicRegion(TableObject):
 
         :param region: :class:`~GenomicRegion` object or string
         """
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
 
         if region.chromosome != self.chromosome:
@@ -721,7 +721,9 @@ class LazyGenomicRegion(GenomicRegion):
         if item == 'reserved' or item in self.reserved:
             return object.__getattribute__(self, item)
         try:
-            return self._row[item]
+            value = self._row[item]
+            value = value.decode() if isinstance(value, bytes) else value
+            return value
         except KeyError:
             raise AttributeError
 
@@ -778,7 +780,7 @@ class GenomicRegions(object):
 
         if isinstance(region, GenomicRegion):
             return self._add_region(copy.copy(region))
-        elif isinstance(region, str):
+        elif isinstance(region, string_types):
             return self._add_region(GenomicRegion.from_string(region))
         elif type(region) is dict:
             return self._add_region(GenomicRegion(**copy.copy(region)))
@@ -869,7 +871,7 @@ class GenomicRegions(object):
                        be returned.
         :return: slice
         """
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
         start_ix = None
         end_ix = None
@@ -993,7 +995,7 @@ class GenomicRegions(object):
                  query region
         """
         is_single = False
-        if isinstance(query_regions, str):
+        if isinstance(query_regions, string_types):
             is_single = True
             query_regions = [GenomicRegion.from_string(query_regions)]
 
@@ -1012,7 +1014,7 @@ class GenomicRegions(object):
 
         hit_regions = []
         for query_region in query_regions:
-            if isinstance(query_region, str):
+            if isinstance(query_region, string_types):
                 query_region = GenomicRegion.from_string(query_region)
 
             if query_region.chromosome not in chromosomes:
@@ -1103,7 +1105,7 @@ class RegionsTable(GenomicRegions, FileGroup):
                     additional_fields = additional_fields.columns
 
                 current = len(basic_fields)
-                for key, value in sorted(additional_fields.items(), key=lambda x: x[1]._v_pos):
+                for key, value in sorted(additional_fields.items(), key=lambda x: x[1]._v_pos if x[1]._v_pos is not None else 1):
                     if key not in basic_fields:
                         if value._v_pos is not None:
                             value._v_pos = current
@@ -1221,7 +1223,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         """
         Get index from other region properties (chromosome, start, end)
         """
-        condition = "(start == %d) & (end == %d) & (chromosome == '%s')"
+        condition = "(start == %d) & (end == %d) & (chromosome == b'%s')"
         condition %= region.start, region.end, region.chromosome
         for res in self._regions.where(condition):
             return res["ix"]
@@ -1234,8 +1236,10 @@ class RegionsTable(GenomicRegions, FileGroup):
         kwargs = {}
         for name in self._regions.colnames:
             if name not in RegionsTable.RegionDescription().columns.keys():
-                kwargs[name] = row[name]
-        return GenomicRegion(chromosome=row["chromosome"], start=row["start"],
+                value = row[name]
+                value = value.decode() if isinstance(value, bytes) else value
+                kwargs[name] = value
+        return GenomicRegion(chromosome=row["chromosome"].decode(), start=row["start"],
                              end=row["end"], ix=row["ix"], **kwargs)
 
     @property
@@ -1311,7 +1315,7 @@ class RegionsTable(GenomicRegions, FileGroup):
                 sub_region = self._row_to_region(self._regions[ix], lazy=lazy, auto_update=auto_update)
                 yield sub_region
         else:
-            if isinstance(region, str):
+            if isinstance(region, string_types):
                 region = GenomicRegion.from_string(region)
 
             if isinstance(region, GenomicRegion):
@@ -1320,12 +1324,12 @@ class RegionsTable(GenomicRegions, FileGroup):
                 regions = region
 
             for r in regions:
-                if isinstance(r, str):
+                if isinstance(r, string_types):
                     r = GenomicRegion.from_string(r)
 
                 query = '('
                 if r.chromosome is not None:
-                    query += "(chromosome == '%s') & " % r.chromosome
+                    query += "(chromosome == b'%s') & " % r.chromosome
                 if r.end is not None:
                     query += "(start <= %d) & " % r.end
                 if r.start is not None:
@@ -1476,7 +1480,7 @@ class Genome(FileGroup):
         names = self._names
         lengths = self._lengths
 
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             key = names.index(key)
 
         if isinstance(key, int):
@@ -1494,7 +1498,7 @@ class Genome(FileGroup):
         else:
             l = []
             for i in key:
-                if isinstance(i, str):
+                if isinstance(i, string_types):
                     i = names.index(i)
                 c = Chromosome(name=names[i], length=lengths[i], sequence=self._sequences[i])
                 l.append(c)
@@ -1577,7 +1581,7 @@ class Genome(FileGroup):
         regions = RegionsTable(file_name=file_name)
         for chromosome in self:
             split_locations = []
-            if isinstance(split, str):
+            if isinstance(split, string_types):
                 split_locations = chromosome.get_restriction_sites(split)
             elif isinstance(split, int):
                 for i in range(split, len(chromosome) - 1, split):
@@ -2213,7 +2217,7 @@ class RegionPairs(Maskable, RegionsTable):
 
     def _getitem_nodes(self, key, as_index=False):
         # 'chr1:1234:56789'
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
 
         # Node('chr1', 1234, 56789, ix=0)
@@ -2235,9 +2239,9 @@ class RegionPairs(Maskable, RegionsTable):
             if start is None:
                 start = 0
             if end is None:
-                end = max(row['end'] for row in self._regions.where("(chromosome == '%s')" % chromosome))
+                end = max(row['end'] for row in self._regions.where("(chromosome == b'%s')" % chromosome))
 
-            condition = "(chromosome == '%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
+            condition = "(chromosome == b'%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
             if as_index:
                 region_nodes = [row['ix'] for row in self._regions.where(condition)]
             else:
@@ -2261,6 +2265,7 @@ class RegionPairs(Maskable, RegionsTable):
                 return self._row_to_region(row)
 
         # [item1, item2, item3]
+        print(key)
         all_nodes_ix = []
         for item in key:
             nodes_ix = self._getitem_nodes(item, as_index=as_index)
@@ -4135,7 +4140,7 @@ class Hic(RegionMatrixTable):
         # calculate possible combinations
         intra_possible = 0
         inter_possible = 0
-        chromosomes = _mappable.keys()
+        chromosomes = list(_mappable.keys())
         for i in range(len(chromosomes)):
             chromosome1 = chromosomes[i]
             n1 = _mappable[chromosome1]
@@ -4487,7 +4492,7 @@ class RegionMatrix(np.ndarray):
         return self.__getitem__(slice(start, stop))
 
     def _convert_key(self, key, regions):
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
         if isinstance(key, GenomicRegion):
             key_start = max(0, key.start)

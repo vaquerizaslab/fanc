@@ -10,7 +10,7 @@ import numpy as np
 import itertools as it
 import types
 import seaborn as sns
-from future.utils import with_metaclass
+from future.utils import with_metaclass, string_types
 import logging
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class BufferedMatrix(object):
         """
         self.data = data
         if buffering_strategy not in self._BUFFERING_STRATEGIES:
-            raise ValueError("Only support the buffering strategies {}".format(self._BUFFERING_STRATEGIES.keys()))
+            raise ValueError("Only support the buffering strategies {}".format(list(self._BUFFERING_STRATEGIES.keys())))
         self.buffering_strategy = buffering_strategy
         self.buffering_arg = buffering_arg
         self.buffered_region = None
@@ -393,7 +393,7 @@ class HicSlicePlot(ScalarDataPlot):
                                     buffering_arg=buffering_arg)
             self.hic_buffers.append(hb)
         self.names = names
-        if isinstance(slice_region, str):
+        if isinstance(slice_region, string_types):
             slice_region = GenomicRegion.from_string(slice_region)
         self.slice_region = slice_region
         self.yscale = yscale

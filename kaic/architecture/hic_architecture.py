@@ -38,6 +38,7 @@ import tables as t
 import itertools
 from bisect import bisect_left
 from kaic.tools.general import RareUpdateProgressBar
+from future.utils import string_types
 import logging
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
         :param tmpdir: Temporary directory
         :param only_intra_chromosomal: If True, ignore inter-chromosomal edges.
         """
-        if not isinstance(hics, str) and hics is not None:
+        if not isinstance(hics, string_types) and hics is not None:
 
             if additional_fields is not None:
                 if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
@@ -211,7 +212,7 @@ class ExpectedContacts(TableArchitecturalFeature):
         """
         Initialize an :class:`~ExpectedContacts` object.
         """
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -246,11 +247,11 @@ class ExpectedContacts(TableArchitecturalFeature):
                     regions.append(region)
                     region_ix.add(region.ix)
         else:
-            if isinstance(self.regions, str) or isinstance(self.regions, GenomicRegion):
+            if isinstance(self.regions, string_types) or isinstance(self.regions, GenomicRegion):
                 self.regions = [self.regions]
 
             for region in self.regions:
-                if isinstance(region, str):
+                if isinstance(region, string_types):
                     region = GenomicRegion.from_string(region)
 
                 for r in self.hic.subset(region, lazy=False):
@@ -452,7 +453,7 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -522,7 +523,7 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(matrix1, str) and matrix2 is None and file_name is None:
+        if isinstance(matrix1, string_types) and matrix2 is None and file_name is None:
             file_name = matrix1
             matrix1 = None
 
@@ -612,7 +613,7 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -694,7 +695,7 @@ class ABDomains(VectorArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(data, str) and file_name is None:
+        if isinstance(data, string_types) and file_name is None:
             file_name = data
             data = None
 
@@ -801,7 +802,7 @@ class PossibleContacts(TableArchitecturalFeature):
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
                  weight_column='weight', _table_name='possible_contacts'):
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -822,11 +823,11 @@ class PossibleContacts(TableArchitecturalFeature):
                 if marginals[r.ix] > 0:
                     mappable[r.chromosome] += 1
         else:
-            if isinstance(self.regions, str) or isinstance(self.regions, GenomicRegion):
+            if isinstance(self.regions, string_types) or isinstance(self.regions, GenomicRegion):
                 self.regions = [self.regions]
 
             for region in self.regions:
-                if isinstance(region, str):
+                if isinstance(region, string_types):
                     region = GenomicRegion.from_string(region)
 
                 for r in self.hic.subset(region, lazy=True):
@@ -836,7 +837,7 @@ class PossibleContacts(TableArchitecturalFeature):
         # calculate possible combinations
         intra_possible = 0
         inter_possible = 0
-        chromosomes = mappable.keys()
+        chromosomes = list(mappable.keys())
         for i in range(len(chromosomes)):
             chromosome1 = chromosomes[i]
             n1 = mappable[chromosome1]
@@ -904,7 +905,7 @@ class RowRegionMatrix(np.ndarray):
         """
         if self._region_index is None or self._chromosome_index is None:
             self._build_region_index()
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
         start_ix = bisect_left(self._chromosome_index[region.chromosome], region.start)
         end_ix = bisect_left(self._chromosome_index[region.chromosome], region.end)
@@ -962,14 +963,14 @@ class RowRegionMatrix(np.ndarray):
         return self.__getitem__(slice(start, stop))
 
     def _convert_region_key(self, key):
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
         if isinstance(key, GenomicRegion):
             return self.region_bins(key)
         return key
 
     def _convert_field_key(self, key):
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             return self.fields.index(key)
 
         if isinstance(key, list):
@@ -977,7 +978,7 @@ class RowRegionMatrix(np.ndarray):
                 raise ValueError("Length of supplied list is 0.")
             l = []
             for k in key:
-                if isinstance(k, str):
+                if isinstance(k, string_types):
                     k = self.fields.index(k)
                 l.append(k)
             return l
@@ -1111,7 +1112,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -1280,7 +1281,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -1556,7 +1557,7 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(matrix, str) and file_name is None:
+        if isinstance(matrix, string_types) and file_name is None:
             file_name = matrix
             matrix = None
 
@@ -1662,7 +1663,7 @@ class VectorDifference(MultiVectorArchitecturalRegionFeature):
 
     def __init__(self, vector1=None, vector2=None, absolute=False, file_name=None, mode='a', tmpdir=None,
                  _table_name='vector_diff'):
-        if isinstance(vector1, str) and file_name is None and vector2 is None:
+        if isinstance(vector1, string_types) and file_name is None and vector2 is None:
             file_name = vector1
             vector1 = None
 
@@ -1744,7 +1745,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
         ArchitecturalFeature.__init__(self)
 
-        if isinstance(array, str) and file_name is None:
+        if isinstance(array, string_types) and file_name is None:
             file_name = array
             array = None
 
@@ -1780,14 +1781,14 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         if isinstance(selection, xrange):
             selection = list(selection)
 
-        if isinstance(selection, int) or isinstance(selection, str):
+        if isinstance(selection, int) or isinstance(selection, string_types):
             selection = [selection]
 
         if isinstance(selection, list) or isinstance(selection, tuple):
             new_list = []
             for i in selection:
                 ix = i
-                if isinstance(i, str):
+                if isinstance(i, string_types):
                     ix = self.array.data_field_names.index(i)
                 if ix <= len(self.array.data_field_names):
                     new_list.append(ix)
@@ -1936,11 +1937,11 @@ class MetaHeatmap(MetaMatrixBase):
         if data_selection is None and array is not None:
             data_selection = array.data_field_names[0]
 
-        if not isinstance(data_selection, str) and not isinstance(data_selection, int):
+        if not isinstance(data_selection, string_types) and not isinstance(data_selection, int):
             raise ValueError("data_selection parameter must be "
                              "int, str, or None, but is {}".format(type(data_selection)))
 
-        if isinstance(array, str) and file_name is None:
+        if isinstance(array, string_types) and file_name is None:
             file_name = array
             array = None
 
@@ -2018,11 +2019,11 @@ class MetaRegionAverage(MetaMatrixBase):
         if data_selection is None and array is not None:
             data_selection = array.data_field_names[0]
 
-        if not isinstance(data_selection, str) and not isinstance(data_selection, int):
+        if not isinstance(data_selection, string_types) and not isinstance(data_selection, int):
             raise ValueError("data_selection parameter must be "
                              "int, str, or None, but is {}".format(type(data_selection)))
 
-        if isinstance(array, str) and file_name is None:
+        if isinstance(array, string_types) and file_name is None:
             file_name = array
             array = None
 

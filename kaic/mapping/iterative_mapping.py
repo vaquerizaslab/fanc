@@ -11,12 +11,13 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
 import glob
 from queue import Queue
+from future.utils import string_types
 import logging
 logger = logging.getLogger(__name__)
 
 
 def ligation_site_pattern(restriction_enzyme):
-    if isinstance(restriction_enzyme, str):
+    if isinstance(restriction_enzyme, string_types):
         restriction_enzyme = getattr(Restriction, restriction_enzyme)
 
     cut_pattern = restriction_enzyme.elucidate()

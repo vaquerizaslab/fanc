@@ -7,7 +7,7 @@ import numpy as np
 import itertools as it
 from collections import defaultdict
 from abc import abstractmethod, ABCMeta
-from future.utils import with_metaclass
+from future.utils import with_metaclass, string_types
 import logging
 logger = logging.getLogger(__name__)
 
@@ -314,7 +314,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         for column_selector in column_selectors:
             if isinstance(column_selector, int) or isinstance(column_selector, slice):
                 colnames.append(self._regions.colnames[column_selector])
-            elif isinstance(column_selector, str):
+            elif isinstance(column_selector, string_types):
                 colnames.append(column_selector)
 
         if isinstance(value, list):
@@ -365,7 +365,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
             return (self._row_to_region(row, lazy=lazy, auto_update=auto_update)
                     for row in self._regions.iterrows(item.start, item.stop, item.step))
 
-        if isinstance(item, str):
+        if isinstance(item, string_types):
             item = GenomicRegion.from_string(item)
 
         if isinstance(item, GenomicRegion):
@@ -382,7 +382,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
             is_list = False
         elif isinstance(item, slice):
             colnames = self._regions.colnames[item]
-        elif isinstance(item, str):
+        elif isinstance(item, string_types):
             colnames = [item]
             is_list = False
         elif isinstance(item, list):
@@ -442,7 +442,7 @@ class BasicRegionTable(VectorArchitecturalRegionFeature):
         :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
         :param tmpdir: Path to temporary directory.
         """
-        if isinstance(regions, str):
+        if isinstance(regions, string_types):
             if file_name is None:
                 file_name = regions
                 regions = None
@@ -623,7 +623,7 @@ class GenomicTrack(BasicRegionTable):
                     f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start - 1, r.end, v))
 
     def __getitem__(self, item):
-        if isinstance(item, str):
+        if isinstance(item, string_types):
             if item in self._tracks:
                 return self[:, item]
             if item in self._matrix_tracks:

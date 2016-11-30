@@ -3,6 +3,7 @@ from kaic.config import config
 import seaborn as sns
 import pandas
 import numpy as np
+from future.utils import string_types
 import kaic.data.genomic as genomic
 
 
@@ -33,7 +34,7 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
     half_window = int(window_size/2)
     bin_size = hic.bin_size
     for i, feature_region in enumerate(regions):
-        if isinstance(feature_region, str):
+        if isinstance(feature_region, string_types):
             feature_region = genomic.GenomicRegion.from_string(feature_region)
         center = feature_region.start + int((feature_region.end-feature_region.start)/2)
         center_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,

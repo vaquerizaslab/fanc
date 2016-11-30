@@ -70,7 +70,7 @@ import numpy as np
 import hashlib
 from functools import partial
 from collections import defaultdict
-from future.utils import with_metaclass
+from future.utils import with_metaclass, string_types
 from builtins import object
 import logging
 logger = logging.getLogger(__name__)
@@ -1302,11 +1302,11 @@ class PairLoader(with_metaclass(ABCMeta, object)):
                                                           region.start, region.end))
                 fragment_ends[region.chromosome].append(region.end)
 
-        if isinstance(self._reads1, str):
+        if isinstance(self._reads1, string_types):
             logger.info("Loading reads 1")
             reads1 = Reads(sambam_file=self._reads1)
 
-        if isinstance(self._reads2, str):
+        if isinstance(self._reads2, string_types):
             logger.info("Loading reads 2")
             reads2 = Reads(sambam_file=self._reads2)
 
@@ -1676,7 +1676,7 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
                                      data
         """
 
-        if file_name is not None and isinstance(file_name, str):
+        if file_name is not None and isinstance(file_name, string_types):
             file_name = os.path.expanduser(file_name)
 
         FileBased.__init__(self, file_name, mode=mode, tmpdir=tmpdir)
@@ -1883,7 +1883,7 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
                 pass
         else:
             for row in self._regions.where(
-                            "(start <= %d) & (end >= %d) & (chromosome == '%s')" % (position, position, chromosome)):
+                            "(start <= %d) & (end >= %d) & (chromosome == b'%s')" % (position, position, chromosome)):
                 fragment_infos = [row['ix'], self._chromosome_to_ix[chromosome], row['start'], row['end']]
 
         return fragment_infos

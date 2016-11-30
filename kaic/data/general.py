@@ -20,7 +20,7 @@ import warnings
 from collections import defaultdict
 from .registry import class_id_dict, class_name_dict
 import tempfile
-from future.utils import with_metaclass
+from future.utils import with_metaclass, string_types
 from builtins import object
 import logging
 logger = logging.getLogger(__name__)
@@ -389,7 +389,7 @@ class Maskable(FileBased):
     def get_binary_mask_from_masks(self, masks):
         o = []
         for m in masks:
-            if isinstance(m, str):
+            if isinstance(m, string_types):
                 o.append(2**self.get_mask(m).ix)
             elif isinstance(m, MaskFilter):
                 o.append(2**m.mask_ix)
@@ -418,7 +418,7 @@ class Maskable(FileBased):
             for row in self._mask.where("ix == %d" % key):
                 return Maskable._row_to_mask(row)
         else:
-            for row in self._mask.where("name == '%s'" % str(key)):
+            for row in self._mask.where("name == b'%s'" % str(key)):
                 return Maskable._row_to_mask(row)
         return KeyError("Unrecognised key type")
     

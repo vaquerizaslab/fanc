@@ -8,7 +8,7 @@ import tables as t
 import numpy as np
 import tempfile
 import os.path
-from future.utils import with_metaclass
+from future.utils import with_metaclass, string_types
 import logging
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class LargestVariancePairSelection(PairSelection):
         if regions is None:
             regions = self.regions
 
-        if isinstance(regions, str):
+        if isinstance(regions, string_types):
             regions = GenomicRegion.from_string(regions)
 
         regions_dict = None
@@ -160,7 +160,7 @@ class LargestFoldChangePairSelection(PairSelection):
         if regions is None:
             regions = self.regions
 
-        if isinstance(regions, str):
+        if isinstance(regions, string_types):
             regions = GenomicRegion.from_string(regions)
 
         regions_dict = None
