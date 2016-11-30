@@ -19,8 +19,8 @@ import shutil
 import warnings
 from collections import defaultdict
 from .registry import class_id_dict, class_name_dict
-import six
 import tempfile
+from future.utils import with_metaclass
 import logging
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class MetaFileBased(type):
                 class_id_dict[cid] = cls
 
 
-class FileBased(six.with_metaclass(MetaFileBased, object)):
+class FileBased(with_metaclass(MetaFileBased, object)):
     _classid = 'FILEBASED'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
@@ -895,13 +895,11 @@ class MaskedTable(t.Table):
                                               start=None, stop=None, step=None)
 
 
-class MaskFilter(object):
+class MaskFilter(with_metaclass(ABCMeta, object)):
     """
     Abstract class that defines a filter for MaskedTable.
     """
 
-    __metaclass__ = ABCMeta
-    
     def __init__(self, mask=None, mask_ix=0, mask_name='default', mask_description="Default mask."):
         """
         Create a MaskFilter.

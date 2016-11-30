@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib as mpl
 import seaborn as sns
 import math
+from future.utils import with_metaclass
 import logging
 logger = logging.getLogger(__name__)
 
@@ -153,9 +154,7 @@ def _prepare_normalization(norm="lin", vmin=None, vmax=None):
         raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
 
-class BasePlotter(object):
-
-    __metaclass__ = ABCMeta
+class BasePlotter(with_metaclass(ABCMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks"):
         self.ax = None
@@ -226,9 +225,7 @@ class BasePlotter(object):
         self.overlays.append(overlay)
 
 
-class BasePlotter1D(BasePlotter):
-
-    __metaclass__ = ABCMeta
+class BasePlotter1D(with_metaclass(ABCMeta, BasePlotter)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks"):
         BasePlotter.__init__(self, title=title, aspect=aspect,
@@ -315,15 +312,13 @@ class ScalarDataPlot(BasePlotter1D):
                _STYLE_MID: _get_values_per_mid}
 
 
-class BasePlotterMatrix(object):
+class BasePlotterMatrix(with_metaclass(ABCMeta, object)):
     """
     Mix-in class to provide methods for mapping colorvalues
     in special areas in the plots etc.
     Does not inherit from BasePlotter, since it's meant to be inherited
     together with another BasePlotter class.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, colormap=config.colormap_hic, norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, replacement_color=None,
@@ -430,9 +425,7 @@ class BasePlotterMatrix(object):
         self.norm = _prepare_normalization(norm, vmin, vmax)
 
 
-class BasePlotter2D(BasePlotter):
-
-    __metaclass__ = ABCMeta
+class BasePlotter2D(with_metaclass(ABCMeta, BasePlotter)):
 
     def __init__(self, title, aspect=1., axes_style="ticks"):
         BasePlotter.__init__(self, title=title, aspect=aspect,
@@ -517,9 +510,7 @@ class BasePlotter2D(BasePlotter):
         return plot_output
 
 
-class BaseOverlayPlotter(object):
-
-    __metaclass__ = ABCMeta
+class BaseOverlayPlotter(with_metaclass(ABCMeta, object)):
 
     def __init__(self):
         pass

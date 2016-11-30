@@ -42,7 +42,8 @@ setup(
         'pyBigWig',
         'PyYAML',
         'tables>=3.2.3',
-        'seaborn'
+        'seaborn',
+        'future'
     ],
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={

@@ -15,13 +15,12 @@ import math
 from kaic.architecture.hic_architecture import ExpectedContacts
 from kaic.tools.general import RareUpdateProgressBar
 import warnings
+from future.utils import with_metaclass
 import logging
 logger = logging.getLogger(__name__)
 
 
-class PeakCaller(object):
-
-    __metaclass__ = ABCMeta
+class PeakCaller(with_metaclass(ABCMeta, object)):
 
     def __init__(self):
         pass
@@ -425,7 +424,7 @@ class LazyPeak(LazyEdge):
         return res
 
 
-class PeakFilter(MaskFilter):
+class PeakFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     peaks in a :class:`~RaoPeakInfo` object.
@@ -442,8 +441,6 @@ class PeakFilter(MaskFilter):
     Pass a custom filter to the :func:`~RaoPeakInfo.filter` method in :class:`~Hic`
     to apply it.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, mask=None):
         """

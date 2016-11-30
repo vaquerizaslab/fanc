@@ -8,6 +8,7 @@ import tables as t
 import numpy as np
 import tempfile
 import os.path
+from future.utils import with_metaclass
 import logging
 logger = logging.getLogger(__name__)
 
@@ -50,9 +51,7 @@ class HicCollectionWeightMeanVariance(HicEdgeCollection):
         self._edges.cols.var.create_csindex()
 
 
-class PairSelection(object):
-    __metaclass__ = ABCMeta
-
+class PairSelection(with_metaclass(ABCMeta, object)):
     def __init__(self):
         self.collection = None
         pass

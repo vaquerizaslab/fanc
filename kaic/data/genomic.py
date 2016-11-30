@@ -77,6 +77,7 @@ import copy
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
 from bisect import bisect_right, bisect_left
+from future.utils import with_metaclass
 import logging
 logger = logging.getLogger(__name__)
 
@@ -4262,7 +4263,7 @@ def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):
     return hic_class(file_name=file_name, mode=mode, tmpdir=tmpdir)
 
 
-class HicEdgeFilter(MaskFilter):
+class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     edges/contacts in a :class:`~Hic` object.
@@ -4279,8 +4280,6 @@ class HicEdgeFilter(MaskFilter):
     Pass a custom filter to the :func:`~Hic.filter` method in :class:`~Hic`
     to apply it.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, mask=None):
         """

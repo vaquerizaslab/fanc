@@ -7,6 +7,7 @@ import numpy as np
 import itertools as it
 from collections import defaultdict
 from abc import abstractmethod, ABCMeta
+from future.utils import with_metaclass
 import logging
 logger = logging.getLogger(__name__)
 
@@ -132,7 +133,7 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
         self._edges.run_queued_filters(_logging=log_progress)
 
 
-class MatrixArchitecturalRegionFeatureFilter(MaskFilter):
+class MatrixArchitecturalRegionFeatureFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     edges/contacts in a :class:`~MatrixArchitecturalRegionFeature` object.
@@ -146,8 +147,6 @@ class MatrixArchitecturalRegionFeatureFilter(MaskFilter):
     if the object is supposed to be filtered/masked and True
     otherwise.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, mask=None):
         """

@@ -70,6 +70,7 @@ import numpy as np
 import hashlib
 from functools import partial
 from collections import defaultdict
+from future.utils import with_metaclass
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1034,7 +1035,7 @@ class LazyRead(Read):
 #
 # Filters Reads
 #
-class ReadFilter(MaskFilter):
+class ReadFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     Reads object.
@@ -1051,8 +1052,6 @@ class ReadFilter(MaskFilter):
     Pass a custom filter to the filter method in :class:`~Reads`
     to aplly it.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, mask=None):
         """
@@ -1250,9 +1249,7 @@ class UnmappedFilter(ReadFilter):
         return True
 
 
-class PairLoader(object):
-
-    __metaclass__ = ABCMeta
+class PairLoader(with_metaclass(ABCMeta, object)):
 
     class Aln(object):
         def __init__(self, row):
@@ -2428,7 +2425,7 @@ class FragmentReadPair(object):
         return "%s -- %s" % (left_repr, right_repr)
 
     
-class FragmentMappedReadPairFilter(MaskFilter):
+class FragmentMappedReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     :class:`~FragmentReadPair` object.
@@ -2447,8 +2444,6 @@ class FragmentMappedReadPairFilter(MaskFilter):
     to apply it.
     """
 
-    __metaclass__ = ABCMeta
-    
     def __init__(self, mask=None):
         super(FragmentMappedReadPairFilter, self).__init__(mask)
         self.pairs = None

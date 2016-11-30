@@ -10,6 +10,7 @@ import numpy as np
 import itertools as it
 import types
 import seaborn as sns
+from future.utils import with_metaclass
 import logging
 logger = logging.getLogger(__name__)
 
@@ -215,13 +216,12 @@ class BufferedCombinedMatrix(BufferedMatrix):
         self.data = CombinedData(top_matrix, bottom_matrix, scaling_factor)
 
 
-class BasePlotterHic(BasePlotterMatrix):
+class BasePlotterHic(with_metaclass(ABCMeta, BasePlotterMatrix)):
     """
     Base class for plotting Hi-C data.
 
     Makes use of matrix buffering by :class:`~BufferedMatrix` internally.
     """
-    __metaclass__ = ABCMeta
 
     def __init__(self, hic_data, colormap=config.colormap_hic, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
