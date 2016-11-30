@@ -30,10 +30,10 @@ def restore_sparse_rows(m, idx_sets, rows=None):
     return a
 
 
-def is_symmetric(M, tol=1e-10):
-    for i in range(0,M.shape[0]):
-        for j in range(i,M.shape[1]):
-            if abs(M[i,j]-M[j,i]) > tol:
+def is_symmetric(m, tol=1e-10):
+    for i in range(0, m.shape[0]):
+        for j in range(i, m.shape[1]):
+            if abs(m[i, j]-m[j, i]) > tol:
                 return False
     return True
 

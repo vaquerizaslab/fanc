@@ -37,7 +37,7 @@ def tmp_file_name(tmpdir, prefix='tmp_kaic', extension='h5'):
 
 
 def random_name(length=6):
-    return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(length))
 
 
 def create_or_open_pytables_file(file_name=None, mode='a'):
@@ -88,7 +88,7 @@ def is_fasta_file(file_name):
         fastas = SeqIO.parse(f, 'fasta')
         
         try:
-            fastas.next()
+            next(fastas)
         except StopIteration:
             is_fasta = False
         

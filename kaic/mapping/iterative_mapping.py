@@ -10,10 +10,7 @@ import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
 import glob
-if sys.version[0] == '2':
-    import Queue
-else:
-    import queue as Queue
+from queue import Queue
 import logging
 logger = logging.getLogger(__name__)
 

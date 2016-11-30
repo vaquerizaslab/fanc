@@ -5,6 +5,7 @@ import progressbar
 import tables as t
 import os
 import errno
+from builtins import object
 from datetime import datetime
 
 
@@ -17,11 +18,11 @@ class Map(dict):
         super(Map, self).__init__(*args, **kwargs)
         for arg in args:
             if isinstance(arg, dict):
-                for k, v in arg.iteritems():
+                for k, v in arg.items():
                     self[k] = v
 
         if kwargs:
-            for k, v in kwargs.iteritems():
+            for k, v in kwargs.items():
                 self[k] = v
 
     def __getattr__(self, attr):
@@ -42,7 +43,7 @@ class Map(dict):
         del self.__dict__[key]
 
 
-class CachedIterator:
+class CachedIterator(object):
     def __init__(self, it, cache_size=1):
         self.it = iter(it)
         self.current = None
@@ -52,7 +53,7 @@ class CachedIterator:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         try:
             if self.cache_offset:
                 self.cache_offset -= 1
@@ -60,7 +61,7 @@ class CachedIterator:
                     return self.cache[-self.cache_offset]
                 return self.current
             self.cache.append(self.current)
-            self.current = self.it.next()
+            self.current = next(self.it)
             return self.current
         except StopIteration:
             return None
@@ -75,7 +76,7 @@ class CachedIterator:
 
 
 def ranges(i):
-    for _, b in itertools.groupby(enumerate(i), lambda (x, y): y - x):
+    for _, b in itertools.groupby(enumerate(i), lambda xy: xy[1] - xy[0]):
         b = list(b)
         yield b[0][1], b[-1][1]
 
@@ -148,7 +149,7 @@ def to_slice(l):
         return slice(l[0], l[1]+1, l[1]-l[0])
 
     d = l[1] - l[0]
-    for i in xrange(len(l)-1):
+    for i in range(len(l)-1):
         if l[i+1] - l[i] != d:
             raise ValueError("Step size between elements varies, cannot make slice")
     return slice(l[0], l[-1]+1, d)

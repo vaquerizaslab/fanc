@@ -7,11 +7,11 @@ def iter_randiomized_regions(original_regions, iterations=1, chromosome_sizes=No
     if method == 'unconstrained':
         if chromosome_sizes is None:
             raise ValueError("Must provide chromosome_sizes list when using unconstrained randomization method")
-        for i in xrange(iterations):
+        for i in range(iterations):
             yield _random_regions_unconstrained(original_regions, chromosome_sizes)
     elif method == 'spacing':
         chromosome_regions = _chromosome_regions(original_regions)
-        for i in xrange(iterations):
+        for i in range(iterations):
             yield _random_regions_spacing(chromosome_regions, sort=False)
     else:
         raise ValueError("Unknown randomization method '{}'".format(method))
@@ -40,7 +40,7 @@ def _chromosome_regions(original_regions, sort=True):
         chromosome_regions = original_regions
 
     if sort:
-        for chromosome, regions in chromosome_regions.iteritems():
+        for chromosome, regions in chromosome_regions.items():
             regions.sort(key=lambda x: x.start)
 
     return chromosome_regions
@@ -66,22 +66,22 @@ def _random_regions_spacing(original_regions, sort=True):
     if isinstance(original_regions, dict):
         chromosome_regions = original_regions
         if sort:
-            for chromosome, regions in chromosome_regions.iteritems():
+            for chromosome, regions in chromosome_regions.items():
                 regions.sort(key=lambda x: x.start)
     else:
         chromosome_regions = _chromosome_regions(original_regions, sort=sort)
 
-    for chromosome, regions in chromosome_regions.iteritems():
+    for chromosome, regions in chromosome_regions.items():
         region_lens = []
         spacing_lens = []
-        for i in xrange(len(regions) - 1):
+        for i in range(len(regions) - 1):
             region_lens.append(len(regions[i]))
             spacing_lens.append(regions[i + 1].start - regions[i].end)
 
         random.shuffle(region_lens)
         random.shuffle(spacing_lens)
         current_start = regions[0].start
-        for i in xrange(len(region_lens)):
+        for i in range(len(region_lens)):
             random_region = GenomicRegion(start=current_start, end=current_start + region_lens[i],
                                           chromosome=chromosome)
             random_regions.append(random_region)

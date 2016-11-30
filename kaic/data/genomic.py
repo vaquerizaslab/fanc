@@ -70,7 +70,10 @@ from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, Fi
 from abc import abstractmethod, ABCMeta
 import os.path
 from kaic.tools.general import ranges, distribute_integer, create_col_index
-from itertools import izip as zip
+try:
+    from itertools import izip as zip
+except ImportError:
+    pass
 import pickle
 from collections import defaultdict
 import copy
@@ -78,6 +81,7 @@ from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.general import range_overlap
 from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass
+from builtins import object
 import logging
 logger = logging.getLogger(__name__)
 
@@ -827,7 +831,7 @@ class GenomicRegions(object):
 
         this = self
 
-        class RegionIter:
+        class RegionIter(object):
             def __init__(self):
                 self.regions = this._regions
                 self.iter = iter(self.regions)
@@ -835,8 +839,8 @@ class GenomicRegions(object):
             def __iter__(self):
                 return self
 
-            def next(self):
-                return self.iter.next()
+            def __next__(self):
+                return next(self.iter)
 
             def __len__(self):
                 return this._len()
@@ -1250,7 +1254,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         """
         this = self
 
-        class RegionIter:
+        class RegionIter(object):
             def __init__(self):
                 self.iter = iter(this._regions)
                 self.lazy = False
@@ -1259,8 +1263,8 @@ class RegionsTable(GenomicRegions, FileGroup):
             def __iter__(self):
                 return self
             
-            def next(self):
-                return this._row_to_region(self.iter.next(), lazy=self.lazy)
+            def __next__(self):
+                return this._row_to_region(next(self.iter), lazy=self.lazy)
             
             def __len__(self):
                 return len(this._regions)
@@ -1505,7 +1509,7 @@ class Genome(FileGroup):
         """
         this = self
 
-        class Iter:
+        class Iter(object):
             def __init__(self):
                 self.current = 0
 
@@ -1513,7 +1517,7 @@ class Genome(FileGroup):
                 self.current = 0
                 return self
 
-            def next(self):
+            def __next__(self):
                 if self.current >= len(this):
                     raise StopIteration
                 self.current += 1
@@ -1849,11 +1853,11 @@ class RegionPairs(Maskable, RegionsTable):
             self.row_conversion_kwargs = kwargs
             return iter(self)
 
-        def next(self):
-            row = self.iter.next()
+        def __next__(self):
+            row = next(self.iter)
             if self.only_intrachromosomal:
                 while self.regions_dict[row['source']].chromosome != self.regions_dict[row['sink']].chromosome:
-                    row = self.iter.next()
+                    row = next(self.iter)
             return self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
 
         def __len__(self):
@@ -2465,11 +2469,11 @@ class AccessOptimisedRegionPairs(RegionPairs):
             self.row_conversion_kwargs = kwargs
             return iter(self)
 
-        def next(self):
+        def __next__(self):
             if self.iter is None:
                 self.iter = self.this._edge_row_iter(intrachromosomal=self.intrachromosomal,
                                                      interchromosomal=self.interchromosomal)
-            row = self.iter.next()
+            row = next(self.iter)
             return self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
 
         def __len__(self):
@@ -2843,7 +2847,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         rows = []
         for i, table_iterator in enumerate(table_iterators):
             try:
-                row = table_iterator.next()
+                row = next(table_iterator)
                 rows.append(row)
             except StopIteration:
                 del table_iterators[i]
@@ -2866,7 +2870,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
             yield rows[current_ix]
 
             try:
-                rows[current_ix] = table_iterators[current_ix].next()
+                rows[current_ix] = next(table_iterators[current_ix])
             except StopIteration:
                 del table_iterators[current_ix]
                 del rows[current_ix]

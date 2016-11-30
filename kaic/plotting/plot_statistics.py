@@ -143,7 +143,7 @@ def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
 
     for i in range(pca_res.shape[0]):
         name = names[i] if names is not None else None
-        ax_main.plot(pca_res[i, 0], pca_res[i, 1], marker=markers.next(), color=colors.next(), label=name)
+        ax_main.plot(pca_res[i, 0], pca_res[i, 1], marker=next(markers), color=next(colors), label=name)
 
     if names is not None:
         ax_main.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)

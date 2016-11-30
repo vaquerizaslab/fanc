@@ -71,6 +71,7 @@ import hashlib
 from functools import partial
 from collections import defaultdict
 from future.utils import with_metaclass
+from builtins import object
 import logging
 logger = logging.getLogger(__name__)
 
@@ -781,15 +782,15 @@ class Reads(Maskable, FileBased):
         """
         this = self
 
-        class MaskedReadsIter:
+        class MaskedReadsIter(object):
             def __init__(self):
                 self.iter = this._reads.masked_rows()
 
             def __iter__(self):
                 return self
 
-            def next(self):
-                row = self.iter.next()
+            def __next__(self):
+                row = next(self.iter)
                 read = this._row2read(row)
 
                 masks = this.get_masks(row[this._reads._mask_field])
@@ -1336,7 +1337,7 @@ class Bowtie2PairLoader(PairLoader):
     @staticmethod
     def get_next_read(iterator):
         try:
-            r = iterator.next()
+            r = next(iterator)
             return r
         except StopIteration:
             return None
@@ -1451,11 +1452,11 @@ class BwaMemPairLoader(PairLoader):
     @staticmethod
     def get_all_read_alns(it):
         alns = list()
-        alns.append(it.next())
+        alns.append(next(it))
         if alns[0] is not None:
             name_ix = alns[0].qname_ix
             while 1:
-                r = it.next()
+                r = next(it)
                 if r is None:
                     break
                 elif r.qname_ix == name_ix:

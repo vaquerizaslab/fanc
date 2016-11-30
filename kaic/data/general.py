@@ -21,6 +21,7 @@ from collections import defaultdict
 from .registry import class_id_dict, class_name_dict
 import tempfile
 from future.utils import with_metaclass
+from builtins import object
 import logging
 logger = logging.getLogger(__name__)
 
@@ -368,15 +369,15 @@ class Maskable(FileBased):
     def masks(self):
         this = self
 
-        class MaskIter:
+        class MaskIter(object):
             def __init__(self):
                 self.iter = iter(this._mask)
 
             def __iter__(self):
                 return self
 
-            def next(self):
-                row = self.iter.next()
+            def __next__(self):
+                row = next(self.iter)
                 return Maskable._row_to_mask(row)
 
         return MaskIter()
@@ -506,13 +507,13 @@ class MaskedTableView(object):
     def __iter__(self):
         return self
 
-    def next(self):
-        row = self.iter.next()
+    def __next__(self):
+        row = next(self.iter)
         # bit-shift magic! Go @alexis!
         # a is a subset of b if and only if a | b == b.
         # If this condition is satisfied for each byte, return TRUE. Otherwise return FALSE
         while row[self.masked_table._mask_field] | self.excluded_mask_ix != self.excluded_mask_ix:
-            row = self.iter.next()
+            row = next(self.iter)
         return row
 
 
@@ -646,10 +647,10 @@ class MaskedTable(t.Table):
             def __init__(self, masked_table, it_):
                 super(MaskedRows, self).__init__(masked_table, it_)
 
-            def next(self):
-                row = self.iter.next()
+            def __next__(self):
+                row = next(self.iter)
                 while row[this._mask_field] == 0:
-                    row = self.iter.next()
+                    row = next(self.iter)
                 return row
 
             def __getitem__(self, key):
