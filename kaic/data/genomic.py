@@ -395,9 +395,9 @@ class Chromosome(object):
         :param length: Length of the chromosome in base-pairs
         :param sequence: Base-pair sequence of DNA in the chromosome
         """
-        self.name = name
+        self.name = name.decode() if isinstance(name, bytes) else name
         self.length = length
-        self.sequence = sequence
+        self.sequence = sequence.decode() if isinstance(sequence, bytes) else sequence
         if length is None and sequence is not None:
             self.length = len(sequence)
         if sequence is None and length is not None:
@@ -444,18 +444,16 @@ class Chromosome(object):
                  sequence in the file, list(:class:`~Chromosome`) if
                  there are multiple sequences.
         """
-        if type(file_name) is file:
-            fastas = SeqIO.parse(file_name, 'fasta')
-        else:
-            fastas = SeqIO.parse(open(file_name, 'r'), 'fasta')
+        with open(file_name, 'r') as fasta_file:
+            fastas = SeqIO.parse(fasta_file, 'fasta')
 
-        chromosomes = []
-        for fasta in fastas:
-            if include_sequence:
-                chromosome = cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
-            else:
-                chromosome = cls(name if name else fasta.id, length=len(fasta))
-            chromosomes.append(chromosome)
+            chromosomes = []
+            for fasta in fastas:
+                if include_sequence:
+                    chromosome = cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
+                else:
+                    chromosome = cls(name if name else fasta.id, length=len(fasta))
+                chromosomes.append(chromosome)
 
         if len(chromosomes) == 0:
             raise ValueError("File %s does not appear to be a FASTA file" % file_name)
@@ -480,7 +478,8 @@ class Chromosome(object):
             raise ValueError("restriction_enzyme must be a string")
         except AttributeError:
             raise ValueError("restriction_enzyme string is not recognized: %s" % restriction_enzyme)
-        
+
+        print(type(self.sequence))
         return re.search(Seq.Seq(self.sequence))
 
 

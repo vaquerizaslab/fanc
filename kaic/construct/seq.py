@@ -490,7 +490,7 @@ class Reads(Maskable, FileBased):
         reads_row['tlen'] = read.tlen
 
         # string info
-        qname = read.qname
+        qname = read.qname.encode('utf-8')
         if store_qname:
             self._qname.append([qname])
             reads_row['qname'] = self._row_counter['qname']
@@ -585,7 +585,10 @@ class Reads(Maskable, FileBased):
             try:
                 tags = pickle.loads(tags_str)
             except pickle.UnpackValueError:
-                tags = pickle.loads(tags_str + '\x00')
+                tags = pickle.loads(tags_str + b'\x00')
+            tags = [
+                (key.decode() if isinstance(key, bytes) else key, value.decode() if isinstance(value, bytes) else value)
+                for key, value in tags]
 
         cigar = None
         cigar_ix = row['cigar']
@@ -757,7 +760,8 @@ class Reads(Maskable, FileBased):
                       run_queued_filters
         """
         if self._mapper == 'bwa':
-            mask = self.add_mask_description('uniqueness', 'Mask reads that do not map uniquely (mapq <= {})'.format(cutoff))
+            mask = self.add_mask_description('uniqueness', 'Mask reads that do not map '
+                                                           'uniquely (mapq <= {})'.format(cutoff))
             uniqueness_filter = BwaMemUniquenessFilter(cutoff, mask)
         else:
             mask = self.add_mask_description('uniqueness', 'Mask reads that do not map uniquely (according to XS tag)')
@@ -837,17 +841,17 @@ class Read(object):
         :param qname_ix: qname converted into a unique float representation
         """
 
-        self.qname = qname
+        self.qname = qname.decode() if isinstance(qname, bytes) else qname
         self.flag = flag
-        self.ref = ref
+        self.ref = ref.decode() if isinstance(ref, bytes) else ref
         self.pos = pos
         self.mapq = mapq
-        self.cigar = cigar
+        self.cigar = cigar.decode() if isinstance(cigar, bytes) else cigar
         self.rnext = rnext
         self.pnext = pnext
         self.tlen = tlen
-        self.seq = seq
-        self.qual = qual
+        self.seq = seq.decode() if isinstance(seq, bytes) else seq
+        self.qual = qual.decode() if isinstance(qual, bytes) else qual
         self.tags = tags
         self.reference_id = reference_id
         self.qname_ix = qname_ix
@@ -996,21 +1000,21 @@ class LazyRead(Read):
     def qname(self):
         ix = self.row["qname"]
         if ix >= 0:
-            return self.parent._qname[ix]
+            return self.parent._qname[ix].decode()
         return None
 
     @property
     def seq(self):
         ix = self.row["seq"]
         if ix >= 0:
-            return self.parent._seq[ix]
+            return self.parent._seq[ix].decode()
         return None
 
     @property
     def qual(self):
         ix = self.row["qual"]
         if ix >= 0:
-            return self.parent._qual[ix]
+            return self.parent._qual[ix].decode()
         return None
 
     @property
@@ -1019,9 +1023,11 @@ class LazyRead(Read):
         if ix >= 0:
             tags = self.parent._tags[ix]
             try:
-                return pickle.loads(tags)
+                tags = pickle.loads(tags)
             except pickle.UnpackValueError:
-                return pickle.loads(tags + '\x00')
+                tags = pickle.loads(tags + b'\x00')
+            return [(key.decode() if isinstance(key, bytes) else key,
+                     value.decode() if isinstance(value, bytes) else value) for key, value in tags]
         return None
 
     @property

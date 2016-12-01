@@ -121,8 +121,9 @@ def load(file_name, mode='a', tmpdir=None):
         import pybedtools
         f = Bed(file_name)
         try:
-            _ = f.file_type
-            return f
+            ft = f.file_type
+            if ft != 'empty':
+                return f
         except (IndexError, pybedtools.MalformedBedLineError):
             pass
 

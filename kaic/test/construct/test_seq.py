@@ -5,6 +5,7 @@ from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter,\
     LazyFragmentRead, ContaminantFilter
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
+import msgpack as pickle
 import numpy as np
 
 
@@ -143,7 +144,14 @@ class TestReads:
         reads.filter_non_unique(strict=True)
         for row in reads._reads._iter_visible_and_masked():
             if row['pos'] > 0:
-                tags = reads._tags[row['ix']]
+                tags_str = reads._tags[row['ix']]
+                try:
+                    tags = pickle.loads(tags_str)
+                except pickle.UnpackValueError:
+                    tags = pickle.loads(tags_str + '\x00')
+                tags = [(key.decode() if isinstance(key, bytes) else key,
+                         value.decode() if isinstance(value, bytes) else value) for key, value in tags]
+
                 has_xs = False
                 for tag in tags:
                     if tag[0] == 'XS':
