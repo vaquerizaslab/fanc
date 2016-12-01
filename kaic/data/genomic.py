@@ -649,8 +649,8 @@ class GenomicRegion(TableObject):
         if region.chromosome != self.chromosome:
             return False
 
-        if region.start <= self.end or self.end is None or region.start is None:
-            if region.end >= self.start or self.start is None or region.end is None:
+        if self.end is None or region.start is None or region.start <= self.end:
+            if self.start is None or region.end is None or region.end >= self.start:
                 return True
         return False
 
