@@ -226,8 +226,8 @@ class Mask(object):
     
     def __init__(self, ix, name, description=''):
         self.ix = ix
-        self.name = name
-        self.description = description
+        self.name = name.decode() if isinstance(name, bytes) else name
+        self.description = description.decode() if isinstance(description, bytes) else description
 
     def __repr__(self):
         return "%d. %s: %s" % (self.ix, self.name, self.description)

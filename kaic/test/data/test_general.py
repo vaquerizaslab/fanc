@@ -188,8 +188,8 @@ class TestMaskedTable:
         assert self.filtered_table[-1][1] == 49
         # slice
         x = self.filtered_table[1:3]
-        assert np.array_equal(tuple(x[0]), ('test_26', 26, 26.0, 0, 1))
-        assert np.array_equal(tuple(x[1]), ('test_27', 27, 27.0, 0, 2))
+        assert np.array_equal(tuple(x[0]), (b'test_26', 26, 26.0, 0, 1))
+        assert np.array_equal(tuple(x[1]), (b'test_27', 27, 27.0, 0, 2))
     
     def test_filter(self):
         self.table.filter(TestMaskedTable.ExampleFilter())
