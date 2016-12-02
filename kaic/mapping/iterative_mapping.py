@@ -10,7 +10,7 @@ import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
 import glob
-from queue import Queue
+from queue import Empty
 from future.utils import string_types
 import pysam
 import logging
@@ -540,7 +540,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                         o.write(alignment)
                                 output_count += 1
                                 os.unlink(partial_output_file)
-                            except Queue.Empty:
+                            except Empty:
                                 logger.info("No results found")
                                 break
 
