@@ -500,7 +500,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         o = None
 
         try:
-            with reader(working_input_file, 'r') as fastq:
+            with reader(working_input_file, 'rt') as fastq:
                 for title, seq, qual in FastqGeneralIterator(fastq):
                     if batch_reads_count <= batch_size:
                         # check if ligation junction is in this read
