@@ -324,7 +324,7 @@ class BigWig(object):
         binned_intervals = [list() for _ in range(0, bins)]
         bin_start = interval_range[0]
         for bin_counter in range(len(binned_intervals)):
-            bin_end = round(interval_range[0] + bin_size + (bin_size * bin_counter)) - 1
+            bin_end = int(interval_range[0] + bin_size + (bin_size * bin_counter) + 0.5) - 1
             bin_coordinates.append((bin_start, bin_end))
 
             if current_interval < len(intervals):
@@ -532,11 +532,12 @@ class GenomicRegion(TableObject):
         elif strand == "0" or strand == ".":
             strand = None
         self.strand = strand
-        self.chromosome = chromosome
+        self.chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
         self.ix = ix
 
         for name, value in kwargs.items():
-            setattr(self, name, value)
+            setattr(self, name.decode() if isinstance(name, bytes) else name,
+                    value.decode() if isinstance(value, bytes) else value)
 
     @classmethod
     def from_row(cls, row):
@@ -1699,7 +1700,7 @@ class Edge(TableObject):
         self.field_names = []
 
         for key, value in kwargs.items():
-            setattr(self, key, value)
+            setattr(self, key.decode() if isinstance(key, bytes) else key, value)
             self.field_names.append(key)
 
     @property
@@ -1751,7 +1752,9 @@ class LazyEdge(Edge):
         if item == 'reserved' or item in self.reserved:
             return object.__getattribute__(self, item)
         try:
-            return self._row[item]
+            value = self._row[item]
+            value = value.decode() if isinstance(value, bytes) else value
+            return value
         except KeyError:
             raise AttributeError("Attribute not supported (%s)" % str(item))
 
@@ -2311,7 +2314,9 @@ class RegionPairs(Maskable, RegionsTable):
             d = dict()
             for field in self.field_names:
                 if field != 'source' and field != 'sink':
-                    d[field] = row[field]
+                    value = row[field]
+                    value = value.decode() if isinstance(value, bytes) else value
+                    d[field] = value
 
             source_node_row = self._regions[source]
             source_node = self._row_to_node(source_node_row)
@@ -4494,7 +4499,7 @@ class RegionMatrix(np.ndarray):
         if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
         if isinstance(key, GenomicRegion):
-            key_start = max(0, key.start)
+            key_start = 0 if key.start is None else max(0, key.start)
             key_end = key.end
             start = None
             stop = None

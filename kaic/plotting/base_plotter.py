@@ -294,7 +294,7 @@ class ScalarDataPlot(BasePlotter1D):
     def _get_values_per_mid(self, values, region_list):
         x = np.empty(len(values), dtype=np.int_)
         for i, r in enumerate(region_list):
-            x[i] = int(round((r.end + r.start)/2))
+            x[i] = int((r.end + r.start)/2 + 0.5)
         return x, values
 
     def get_plot_values(self, values, region_list):

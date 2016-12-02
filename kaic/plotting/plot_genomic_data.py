@@ -108,7 +108,7 @@ def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
 
             corr = np.corrcoef(contacts1, contacts2)[0, 1]
             if in_percent:
-                corr = int(round(corr*100))
+                corr = int(corr*100 + 0.5)
             corr_matrix[chr_i, chr_j] = corr
             corr_matrix[chr_j, chr_i] = corr
 

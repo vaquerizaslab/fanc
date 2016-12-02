@@ -1009,7 +1009,8 @@ class RaoPeakCaller(PeakCaller):
                 for e_type in observed_chunk_distribution_part.keys():
                     for chunk_ix in range(len(observed_chunk_distribution_part[e_type])):
                         for o in observed_chunk_distribution_part[e_type][chunk_ix].keys():
-                            observed_chunk_distribution[e_type][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
+                            et = e_type.decode() if isinstance(e_type, bytes) else e_type
+                            observed_chunk_distribution[et][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
             else:
                 for ix in range(len(region_pairs)):
                     source = region_pairs[ix][0]
@@ -1222,7 +1223,8 @@ class RaoPeakCaller(PeakCaller):
                 w_init = 3 if w_init is None else w_init
             else:
                 p = int(24999/bin_size) if p is None else p
-                w_init = int(round(25000/bin_size) + 2) if w_init is None else w_init
+                w_init = int(25000/bin_size + 0.5) + 2 if w_init is None else w_init
+                print(w_init, bin_size)
         logger.info("Initial parameter values: p=%d, w=%d" % (p, w_init))
 
         logger.info("Obtaining bias vector...")
@@ -1383,7 +1385,7 @@ def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
         j_region = ij_region_pair[1]
         cf = c[i_region]*c[j_region]
         observed = m[i, j]
-        observed_c = int(round(observed/cf))
+        observed_c = int(observed/cf + 0.5)
 
         # do not examine loci closer than p+3
         if abs(i_region-j_region) <= p + min_locus_dist:

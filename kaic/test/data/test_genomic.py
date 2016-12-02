@@ -960,11 +960,8 @@ class TestHicBasic:
                 assert merged[i, j] == right[i, j - 4]
 
     def test_multi_merge(self):
-        def populate_hic(hic, seed=0):
-            import random
-            from itertools import product
-            random.seed(seed)
-            # add some nodes (169 to be exact)
+        def populate_hic(hic, s_s):
+            # add some nodes (13 to be exact)
             nodes = []
             for i in range(1, 5000, 1000):
                 nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
@@ -973,28 +970,31 @@ class TestHicBasic:
             for i in range(1, 2000, 400):
                 nodes.append(Node(chromosome="chr4", start=i, end=i + 100 - 1))
             hic.add_nodes(nodes)
+
             # add half as many random edges
             edges = []
             weight = 1
-            p = list(product(range(len(nodes)), range(len(nodes))))
-            n = int((len(nodes) ** 2) / 8)
-            s_s = random.sample(p, n)
-            s_s = set([(max(i), min(i)) for i in s_s])
+
             for i, j in s_s:
-                edges.append(Edge(source=i, sink=j, weight=weight))
+                e = Edge(source=i, sink=j, weight=weight)
+                print(e)
+                edges.append(e)
                 weight += 1
             hic.add_edges(edges)
 
         hic1 = self.hic_class()
-        populate_hic(hic1, seed=24)
-        assert hic1[:, :].sum() == 411
+        populate_hic(hic1, s_s=[(7, 4), (8, 3), (7, 3), (5, 5), (6, 4), (3, 0), (7, 6), (7, 0), (6, 0), (2, 1),
+                                (6, 3), (2, 0), (6, 2), (5, 1), (8, 6), (8, 5), (6, 5), (3, 3)])
+        assert hic1[:, :].sum() == 320  # 411
         hic2 = self.hic_class()
-        populate_hic(hic2, seed=42)
-        assert hic2[:, :].sum() == 443
+        populate_hic(hic2, s_s=[(7, 3), (3, 2), (0, 0), (3, 3), (8, 1), (6, 1), (6, 0), (8, 8), (7, 4), (2, 0),
+                                (6, 2), (8, 7), (5, 1), (5, 4), (8, 3), (1, 0), (4, 1), (7, 6), (6, 5), (5, 5)])
+        assert hic2[:, :].sum() == 385  # 443
 
         hic3 = self.hic_class()
-        populate_hic(hic3, seed=84)
-        assert hic3[:, :].sum() == 331
+        populate_hic(hic3, s_s=[(6, 4), (7, 5), (0, 0), (7, 0), (8, 1), (5, 2), (7, 6), (4, 4), (7, 4), (2, 0),
+                                (6, 2), (7, 2), (4, 3), (4, 2), (8, 6), (5, 1), (4, 0), (8, 5), (6, 5), (8, 4)])
+        assert hic3[:, :].sum() == 409  # 331
 
         hic_sum = hic1[:, :] + hic2[:, :] + hic3[:, :]
         hic1.merge([hic2, hic3], _edge_buffer_size=5)

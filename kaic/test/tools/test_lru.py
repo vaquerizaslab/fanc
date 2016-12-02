@@ -71,7 +71,7 @@ class TestDecorators:
         m1.cache_clear()
         m2.cache_clear()
         f1.cache_clear()
-        temp_list = map(lambda i: (test_func_time(i), m1(i), m2(i)), range(15))
+        temp_list = list(map(lambda i: (test_func_time(i), m1(i), m2(i)), range(15)))
 
         for i in range(5, 10):
             assert temp_list[i] == (test_func_time(i), m1(i), m2(i))
