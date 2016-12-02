@@ -567,27 +567,6 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             except AttributeError:
                 pass
 
-        if os.path.splitext(output_file)[1] == '.bam':
-            logger.info("Converting to BAM...")
-            success = False
-            o = open(work_dir + '/output.bam', 'w')
-            try:
-                bam_command = ['samtools', 'view', '-bS', working_output_file]
-                logger.info("BAM conversion command: %s" % " ".join(bam_command))
-                exit_code = subprocess.call(bam_command, stdout=o)
-                success = True if exit_code == 0 else False
-            except OSError:
-                logger.error("Cannot convert to BAM, samtools not in PATH!")
-            finally:
-                o.close()
-
-            if success:
-                if not copy:
-                    shutil.move(o.name, output_file)
-                working_output_file = o.name
-            else:
-                logger.info("BAM conversion failed.")
-
         logger.info("All done.")
     finally:
         # clean up
