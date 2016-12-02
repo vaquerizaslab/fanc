@@ -864,7 +864,8 @@ class Kaic(object):
         parser.add_argument(
             '-m', '--min-size', dest='min_size',
             type=int,
-            help='''Minimum length of read before extension. Default is entire length of the read.'''
+            default=25,
+            help='''Minimum length of read before extension. Default 25.'''
         )
 
         parser.add_argument(
