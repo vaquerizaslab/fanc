@@ -12,6 +12,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from collections import defaultdict
 import glob
 import Queue
+import pysam
 import logging
 logger = logging.getLogger(__name__)
 
@@ -484,7 +485,10 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         batch_count = 0
         batch_reads_count = 0
         output_count = 0
-        with open(working_output_file, 'w') as o:
+
+        o = None
+
+        try:
             with reader(working_input_file, 'r') as fastq:
                 for title, seq, qual in FastqGeneralIterator(fastq):
                     if batch_reads_count <= batch_size:
@@ -515,11 +519,14 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                             try:
                                 partial_output_file = output_queue.get(False)
                                 logger.info("Processing %s..." % partial_output_file)
-                                with open(partial_output_file, 'r') as p:
-                                    for line in p:
-                                        if line.startswith("@") and output_count > 0:
-                                            continue
-                                        o.write(line)
+                                with pysam.AlignmentFile(partial_output_file, 'r') as p:
+                                    if o is None:
+                                        if os.path.splitext(output_file)[1] == '.bam':
+                                            o = pysam.AlignmentFile(output_file, 'wb', template=p)
+                                        else:
+                                            o = pysam.AlignmentFile(output_file, 'w', template=p)
+                                    for alignment in p:
+                                        o.write(alignment)
                                 output_count += 1
                                 os.unlink(partial_output_file)
                             except Queue.Empty:
@@ -548,14 +555,17 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             while output_count < batch_count+1:
                 partial_output_file = output_queue.get(True)
                 logger.info("Processing %s..." % partial_output_file)
-                with open(partial_output_file, 'r') as p:
-                    for line in p:
-                        if line.startswith("@") and output_count > 0:
-                            continue
-                        o.write(line)
+                with pysam.AlignmentFile(partial_output_file, 'r') as p:
+                    for alignment in p:
+                        o.write(alignment)
                 output_count += 1
                 logger.info("%d/%d" % (output_count, batch_count+1))
                 os.unlink(partial_output_file)
+        finally:
+            try:
+                o.close()
+            except AttributeError:
+                pass
 
         if os.path.splitext(output_file)[1] == '.bam':
             logger.info("Converting to BAM...")
