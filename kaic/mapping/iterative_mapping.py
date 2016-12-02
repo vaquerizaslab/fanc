@@ -12,6 +12,7 @@ from collections import defaultdict
 import glob
 from queue import Queue
 from future.utils import string_types
+import pysam
 import logging
 logger = logging.getLogger(__name__)
 
@@ -181,7 +182,7 @@ class Bowtie2Mapper(SequenceMapper):
         :return: See :func:`~SequenceMapper.alignment_quality`
         """
         for i in range(11, len(alignment)):
-            if alignment[i].startswith("XS:"):
+            if alignment[i].startswith(b'XS:'):
                 return SequenceMapper.BAD_ALIGNMENT
 
         try:
@@ -243,11 +244,11 @@ class Bowtie2Mapper(SequenceMapper):
         alignments = defaultdict(list)
         while True:
             line = mapping_process.stdout.readline()
-            if line != '':
-                if line.startswith("@"):
+            if line != b'':
+                if line.startswith(b'@'):
                     header.append(line)
                 else:
-                    fields = line.split("\t")
+                    fields = line.split(b'\t')
                     alignments[fields[0]].append(fields)
             else:
                 break
@@ -332,7 +333,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
     improvable_alignments = {}
     for i, size in enumerate(steps):
         fastq_counter = 0
-        with reader(file_name, 'r') as fastq:
+        with reader(file_name, 'rt') as fastq:
             with open(trimmed_file, 'w') as trimmed:
                 for title, seq, qual in FastqGeneralIterator(fastq):
                     name = title.split(" ")[0]
@@ -382,7 +383,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
     # merge alignments into one
     perfect_alignments.update(improvable_alignments)
     if output_file is not None:
-        mode = 'w' if write_header else 'a'
+        mode = 'wb' if write_header else 'ab'
         # flush results to file
         with open(output_file, mode) as o:
             if write_header:
@@ -396,7 +397,7 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
                 perfect_alignments_items = perfect_alignments.items()
             for _, fields_array in perfect_alignments_items:
                 for fields in fields_array:
-                    alignment_line = "\t".join(fields)
+                    alignment_line = b'\t'.join(fields)
                     o.write(alignment_line)
         return output_file
 
@@ -458,6 +459,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             while True:
                 logger.info("Waiting for input...")
                 p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
+                print(min_size, max_length, step_size)
                 steps = list(range(min_size, max_length+1, step_size))
                 if len(steps) == 0 or steps[-1] != max_length:
                     steps.append(max_length)
@@ -496,7 +498,9 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         batch_count = 0
         batch_reads_count = 0
         output_count = 0
-        with open(working_output_file, 'w') as o:
+        o = None
+
+        try:
             with reader(working_input_file, 'r') as fastq:
                 for title, seq, qual in FastqGeneralIterator(fastq):
                     if batch_reads_count <= batch_size:
@@ -508,8 +512,8 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                 qual = qual[:len(seq)]
                                 trimmed_count += 1
                         max_length = max(max_length, len(seq))
-                        line = "@%s\n%s\n+\n%s\n" % (title, seq, qual)
-                        working_file.write(line)
+                        line = "@{}\n{}\n+\n{}\n".format(title, seq, qual)
+                        working_file.write(line.encode())
                         batch_reads_count += 1
                     else:
                         # reset
@@ -527,11 +531,14 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                             try:
                                 partial_output_file = output_queue.get(False)
                                 logger.info("Processing %s..." % partial_output_file)
-                                with open(partial_output_file, 'r') as p:
-                                    for line in p:
-                                        if line.startswith("@") and output_count > 0:
-                                            continue
-                                        o.write(line)
+                                with pysam.AlignmentFile(partial_output_file, 'r') as p:
+                                    if o is None:
+                                        if os.path.splitext(output_file)[1] == '.bam':
+                                            o = pysam.AlignmentFile(output_file, 'wb', template=p)
+                                        else:
+                                            o = pysam.AlignmentFile(output_file, 'w', template=p)
+                                    for alignment in p:
+                                        o.write(alignment)
                                 output_count += 1
                                 os.unlink(partial_output_file)
                             except Queue.Empty:
@@ -557,38 +564,25 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             logger.info("Trimmed %d reads at ligation junction" % trimmed_count)
 
             # merge files
-            while output_count < batch_count+1:
+            while output_count < batch_count + 1:
                 partial_output_file = output_queue.get(True)
                 logger.info("Processing %s..." % partial_output_file)
-                with open(partial_output_file, 'r') as p:
-                    for line in p:
-                        if line.startswith("@") and output_count > 0:
-                            continue
-                        o.write(line)
+                with pysam.AlignmentFile(partial_output_file, 'r') as p:
+                    if os.path.splitext(output_file)[1] == '.bam':
+                        o = pysam.AlignmentFile(output_file, 'wb', template=p)
+                    else:
+                        o = pysam.AlignmentFile(output_file, 'w', template=p)
+
+                    for alignment in p:
+                        o.write(alignment)
                 output_count += 1
-                logger.info("%d/%d" % (output_count, batch_count+1))
+                logger.info("%d/%d" % (output_count, batch_count + 1))
                 os.unlink(partial_output_file)
-
-        if os.path.splitext(output_file)[1] == '.bam':
-            logger.info("Converting to BAM...")
-            success = False
-            o = open(work_dir + '/output.bam', 'w')
+        finally:
             try:
-                bam_command = ['samtools', 'view', '-bS', working_output_file]
-                logger.info("BAM conversion command: %s" % " ".join(bam_command))
-                exit_code = subprocess.call(bam_command, stdout=o)
-                success = True if exit_code == 0 else False
-            except OSError:
-                logger.error("Cannot convert to BAM, samtools not in PATH!")
-            finally:
                 o.close()
-
-            if success:
-                if not copy:
-                    shutil.move(o.name, output_file)
-                working_output_file = o.name
-            else:
-                logger.info("BAM conversion failed.")
+            except AttributeError:
+                pass
 
         logger.info("All done.")
     finally:
