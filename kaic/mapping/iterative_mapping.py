@@ -459,7 +459,6 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             while True:
                 logger.info("Waiting for input...")
                 p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
-                print(min_size, max_length, step_size)
                 steps = list(range(min_size, max_length+1, step_size))
                 if len(steps) == 0 or steps[-1] != max_length:
                     steps.append(max_length)
