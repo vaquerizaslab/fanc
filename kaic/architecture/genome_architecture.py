@@ -4,10 +4,10 @@ from kaic.architecture.architecture import ArchitecturalFeature, calculateondema
 from kaic.data.general import MaskFilter
 import tables as t
 import numpy as np
-import itertools as it
 from collections import defaultdict
 from abc import abstractmethod, ABCMeta
 from future.utils import with_metaclass, string_types
+import pybedtools as pbt
 import logging
 logger = logging.getLogger(__name__)
 
@@ -573,7 +573,6 @@ class GenomicTrack(BasicRegionTable):
                             and left as is for string arrays.
         :param sort: If True, sort regions in GTF file by genomic location
         """
-        import pybedtools as pbt
         gtf = pbt.BedTool(gtf_file)
         n = len(gtf)
         regions = []
@@ -617,7 +616,7 @@ class GenomicTrack(BasicRegionTable):
         for track in tracks:
             logger.info("Writing track {}".format(track))
             with open("{}{}.bedgraph".format(prefix, track), "w") as f:
-                for r, v in it.izip(self.regions, self[track]):
+                for r, v in zip(self.regions, self[track]):
                     if skip_nan and np.isnan(v):
                         continue
                     f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start - 1, r.end, v))

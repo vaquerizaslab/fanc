@@ -13,7 +13,10 @@ import types
 import numpy as np
 import seaborn as sns
 import pybedtools as pbt
-import itertools as it
+try:
+    from itertools import izip as zip
+except ImportError:
+    pass
 import re
 import warnings
 from collections import defaultdict
@@ -808,7 +811,7 @@ class BigWigPlot(ScalarDataPlot):
         out_values = np.full(len(bin_coords) - 1, np.nan, dtype=np.float_)
         start_overlap = np.searchsorted(interval_records["end"], bin_coords[:-1], side="right")
         end_overlap = np.searchsorted(interval_records["start"], bin_coords[1:], side="left")
-        for i, (s, e) in enumerate(it.izip(start_overlap, end_overlap)):
+        for i, (s, e) in enumerate(zip(start_overlap, end_overlap)):
             assert e >= s
             if s == e:
                 # In this case no suitable values found in bigwig, leave nan
@@ -816,7 +819,7 @@ class BigWigPlot(ScalarDataPlot):
             weights = interval_records["end"][s:e] - interval_records["start"][s:e]
             out_values[i] = np.average(interval_records["value"][s:e], weights=weights)
         bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
-                       for s, e in it.izip(bin_coords[:-1], bin_coords[1:])]
+                       for s, e in zip(bin_coords[:-1], bin_coords[1:])]
         return bin_regions, out_values
 
     def _plot(self, region=None, ax=None, *args, **kwargs):

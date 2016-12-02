@@ -101,7 +101,7 @@ class BufferedMatrix(object):
         """
         if (self.buffered_region is None or self.buffered_matrix is None or
                 (not self.buffered_region == self._STRATEGY_ALL and not
-                 all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)))):
+                 all(rb.contains(rq) for rb, rq in zip(self.buffered_region, regions)))):
             return False
         return True
 
