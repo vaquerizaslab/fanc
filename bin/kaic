@@ -765,6 +765,9 @@ class Kaic(object):
                 del file_names[i]
                 del file_types[i]
 
+
+        import kaic
+
         # batch worker to:
         # * bin
         # * filter
@@ -796,7 +799,15 @@ class Kaic(object):
                 correct_hic_command.append('-o')
 
             ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file, chromosome_corrected_hic_file])
-            ret4 = subprocess.call(correct_hic_command + [filtered_hic_file, corrected_hic_file])
+
+            hic = kaic.load(filtered_hic_file, mode='r')
+            n_regions = len(hic.regions)
+            hic.close()
+
+            if n_regions <= 50000:
+                ret4 = subprocess.call(correct_hic_command + [filtered_hic_file, corrected_hic_file])
+            else:
+                ret4 = 0
 
             return ret1, ret2, ret3, ret4
 
