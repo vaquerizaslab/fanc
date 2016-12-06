@@ -628,7 +628,7 @@ class GenomicFeaturePlot(BasePlotter1D):
             self.bedtool = pbt.BedTool(regions)
         if feature_types is None and self.bedtool.file_type == "gff":
             feature_types = set(f[2] for f in self.bedtool)
-        elif isinstance(feature_types, (str, unicode)):
+        elif isinstance(feature_types, string_types):
             feature_types = [feature_types]
         self.feature_types = feature_types
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
@@ -694,7 +694,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
             self.bedtool = regions
         if feature_types is None and self.bedtool.file_type == "gff":
             feature_types = set(f[2] for f in self.bedtool)
-        elif isinstance(feature_types, (str, unicode)):
+        elif isinstance(feature_types, string_types):
             feature_types = [feature_types]
         self.feature_types = feature_types
         self.color_forward = color_forward
@@ -894,7 +894,7 @@ class GenePlot(BasePlotter1D):
                     scores.append(0.0)
             self.abs_max_score = max([min(scores), max(scores)])
 
-        if isinstance(feature_types, (str, unicode)):
+        if isinstance(feature_types, string_types):
             feature_types = [feature_types]
         self.feature_types = feature_types
         self.color_forward = color_forward
