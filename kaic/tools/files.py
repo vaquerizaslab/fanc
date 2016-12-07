@@ -106,3 +106,14 @@ def copy_or_expand(input_file, output_file=None):
         else:
             input_path = output_path
     return input_path
+
+
+def read_chromosome_sizes(file_name):
+    chrom_sizes = {}
+    with open(os.path.expanduser(file_name), 'r') as chrom_sizes_file:
+        for line in chrom_sizes_file:
+            line = line.rstrip()
+            if line != '':
+                chromosome, chromosome_length = line.split("\t")
+                chrom_sizes[chromosome] = int(chromosome_length)
+    return chrom_sizes

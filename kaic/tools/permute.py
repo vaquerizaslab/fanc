@@ -1,12 +1,14 @@
 from collections import defaultdict
 from kaic.data.genomic import GenomicRegion
+from kaic.tools.files import read_chromosome_sizes
+from future.utils import string_types
 import random
 
 
 def iter_randiomized_regions(original_regions, iterations=1, chromosome_sizes=None, method='unconstrained'):
     if method == 'unconstrained':
         if chromosome_sizes is None:
-            raise ValueError("Must provide chromosome_sizes list when using unconstrained randomization method")
+            raise ValueError("Must provide chromosome_sizes dict when using unconstrained randomization method")
         for i in range(iterations):
             yield _random_regions_unconstrained(original_regions, chromosome_sizes)
     elif method == 'spacing':
@@ -22,7 +24,7 @@ def randomize_regions(original_regions, chromosome_sizes=None, method='unconstra
 
     if method == 'unconstrained':
         if chromosome_sizes is None:
-            raise ValueError("Must provide chromosome_sizes list when using unconstrained randomization method")
+            raise ValueError("Must provide chromosome_sizes dict when using unconstrained randomization method")
         random_regions = _random_regions_unconstrained(original_regions, chromosome_sizes)
     elif method == 'spacing':
         chromosome_regions = _chromosome_regions(original_regions)
@@ -48,6 +50,9 @@ def _chromosome_regions(original_regions, sort=True):
 
 def _random_regions_unconstrained(original_regions, chromosome_sizes):
     random_regions = []
+
+    if isinstance(chromosome_sizes, string_types):
+        chromosome_sizes = read_chromosome_sizes(chromosome_sizes)
 
     for region in original_regions:
         if region.chromosome not in chromosome_sizes:
