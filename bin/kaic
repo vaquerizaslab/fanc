@@ -859,6 +859,7 @@ class Kaic(object):
 
         parser.add_argument(
             'input',
+            nargs='+',
             help='''File name of the input FASTQ file (or gzipped FASTQ)'''
         )
 
@@ -869,7 +870,7 @@ class Kaic(object):
 
         parser.add_argument(
             'output',
-            help='''Output file name'''
+            help='''Output file name (or folder name if multiple input files provided)'''
         )
 
         parser.add_argument(
@@ -928,9 +929,8 @@ class Kaic(object):
         args = parser.parse_args(argv[2:])
 
         # check arguments
-        input_file = os.path.expanduser(args.input)
         index_path = os.path.expanduser(args.index)
-        output_file = os.path.expanduser(args.output)
+        output_folder = os.path.expanduser(args.output)
 
         step_size = args.step_size
         min_size = args.min_size
@@ -938,11 +938,20 @@ class Kaic(object):
         batch_size = args.batch_size
 
         from kaic.mapping.iterative_mapping import split_iteratively_map_reads
+        from kaic.tools.general import mkdir
 
-        split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
-                                    quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
-                                    min_size=min_size, step_size=step_size, copy=args.copy,
-                                    restriction_enzyme=args.restriction_enzyme)
+        for input_file in args.input:
+            input_file = os.path.expanduser(input_file)
+            if len(args.input) == 1:
+                output_file = output_folder
+            else:
+                output_folder = mkdir(output_folder)
+                basename, extension = os.path.splitext(os.path.basename(input_file))
+                output_file = output_folder + basename + '.bam'
+            split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
+                                        quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
+                                        min_size=min_size, step_size=step_size, copy=args.copy,
+                                        restriction_enzyme=args.restriction_enzyme)
 
     ##########################################################################
     #
