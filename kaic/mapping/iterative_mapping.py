@@ -416,7 +416,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             os.makedirs(work_dir + '/index')
             index_base = os.path.basename(index_path)
 
-            for file_name in glob.glob(index_path + '*'):
+            for file_name in glob.glob(index_path + '*.bt2'):
                 shutil.copy(file_name, work_dir + '/index')
             index_path = work_dir + '/index/' + index_base
         else:
