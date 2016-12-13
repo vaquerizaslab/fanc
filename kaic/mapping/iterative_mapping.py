@@ -393,8 +393,11 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
 
 
 def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=None, quality_cutoff=30,
-                                batch_size=250000, threads=1, min_size=25, step_size=2, copy=False,
-                                restriction_enzyme=None, adjust_batch_size=False, mapper=None):
+                                batch_size=1000000, threads=1, min_size=25, step_size=2, copy=False,
+                                restriction_enzyme=None, adjust_batch_size=False, mapper=None,
+                                bowtie_parallel=True):
+    bowtie_threads, worker_threads = (threads, 1) if bowtie_parallel else (1, threads)
+
     if work_dir is not None:
         work_dir = tempfile.mkdtemp(dir=os.path.expanduser(work_dir))
     else:
@@ -428,7 +431,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         working_files = [working_file.name]
 
         if mapper is None:
-            mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=1)
+            mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=bowtie_threads)
 
         logger.info("Splitting files...")
         re_pattern = None
@@ -478,7 +481,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
         input_queue = mp.Queue()
         output_queue = mp.Queue()
-        worker_pool = mp.Pool(threads, _mapping_process_with_queue, (input_queue, output_queue))
+        worker_pool = mp.Pool(worker_threads, _mapping_process_with_queue, (input_queue, output_queue))
 
         max_length = 0
         trimmed_count = 0
@@ -491,19 +494,20 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         try:
             with reader(working_input_file, 'r') as fastq:
                 for title, seq, qual in FastqGeneralIterator(fastq):
-                    if batch_reads_count <= batch_size:
-                        # check if ligation junction is in this read
-                        if re_pattern is not None:
-                            m = re_pattern.search(seq)
-                            if m is not None:
-                                seq = m.group(1)
-                                qual = qual[:len(seq)]
-                                trimmed_count += 1
-                        max_length = max(max_length, len(seq))
-                        line = "@%s\n%s\n+\n%s\n" % (title, seq, qual)
-                        working_file.write(line)
-                        batch_reads_count += 1
-                    else:
+
+                    # check if ligation junction is in this read
+                    if re_pattern is not None:
+                        m = re_pattern.search(seq)
+                        if m is not None:
+                            seq = m.group(1)
+                            qual = qual[:len(seq)]
+                            trimmed_count += 1
+                    max_length = max(max_length, len(seq))
+                    line = "@%s\n%s\n+\n%s\n" % (title, seq, qual)
+                    working_file.write(line)
+                    batch_reads_count += 1
+
+                    if batch_reads_count > batch_size:
                         # reset
                         batch_reads_count = 0
                         working_file.close()
