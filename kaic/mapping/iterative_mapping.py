@@ -427,7 +427,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             working_output_file = output_file
 
         reader = _get_fastq_reader(working_input_file)
-        working_file = reader(work_dir + '/full_reads_0.fastq.gz', 'w')
+        working_file = gzip.open(work_dir + '/full_reads_0.fastq.gz', 'w')
         working_files = [working_file.name]
 
         if mapper is None:
