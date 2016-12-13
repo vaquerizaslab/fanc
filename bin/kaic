@@ -368,6 +368,14 @@ class Kaic(object):
         parser.set_defaults(optimise=False)
 
         parser.add_argument(
+            '-x', '--split-fastq', dest='split_fastq',
+            action='store_true',
+            help='''Run multiple bowtie2 processes in split FASTQ files instead of a single multi-core bowtie2 process.
+                            Faster, but uses more memory proportional to the number fo threads.'''
+        )
+        parser.set_defaults(split_fastq=False)
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
@@ -510,6 +518,9 @@ class Kaic(object):
                                          '-m', '25', '-s', str(args.step_size), '-q', '30', '-t', str(mapping_threads)]
             if args.tmp:
                 iterative_mapping_command.append('-tmp')
+
+            if args.split_fastq:
+                iterative_mapping_command.append('-x')
 
             return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
 
