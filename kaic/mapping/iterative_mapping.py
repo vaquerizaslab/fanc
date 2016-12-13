@@ -260,8 +260,8 @@ class Bowtie2Mapper(SequenceMapper):
         return header, alignments
 
 
-def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=None, step_size=2,
-                          work_dir=None, output_file=None, write_header=False):
+def _iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=None, step_size=2,
+                           work_dir=None, output_file=None, write_header=False):
     """
     Iteratively map reads in a FASTQ or gzipped FASTQ file.
 
@@ -349,11 +349,11 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
         # merge alignments
         try:
             # noinspection PyCompatibility
-            alignments_trimmes_items = alignments_trimmed.iteritems()
+            alignments_trimmed_items = alignments_trimmed.iteritems()
         except AttributeError:
-            alignments_trimmes_items = alignments_trimmed.items()
+            alignments_trimmed_items = alignments_trimmed.items()
 
-        for name, fields_array in alignments_trimmes_items:
+        for name, fields_array in alignments_trimmed_items:
             worst_quality = SequenceMapper.PERFECT_ALIGNMENT
             for fields in fields_array:
                 worst_quality = max(worst_quality, mapper.alignment_quality(fields))
@@ -405,8 +405,12 @@ def iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=No
 
 
 def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=None, quality_cutoff=30,
-                                batch_size=250000, threads=1, min_size=25, step_size=2, copy=False,
-                                restriction_enzyme=None, adjust_batch_size=False, mapper=None):
+                                batch_size=1000000, threads=1, min_size=25, step_size=2, copy=False,
+                                restriction_enzyme=None, adjust_batch_size=False, mapper=None,
+                                bowtie_parallel=True):
+
+    bowtie_threads, worker_threads = (threads, 1) if bowtie_parallel else (1, threads)
+
     if work_dir is not None:
         work_dir = tempfile.mkdtemp(dir=os.path.expanduser(work_dir))
     else:
@@ -436,11 +440,11 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             working_output_file = output_file
 
         reader = _get_fastq_reader(working_input_file)
-        working_file = reader(work_dir + '/full_reads_0.fastq.gz', 'w')
+        working_file = gzip.open(work_dir + '/full_reads_0.fastq.gz', 'wb')
         working_files = [working_file.name]
 
         if mapper is None:
-            mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=1)
+            mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=bowtie_threads)
 
         logger.info("Splitting files...")
         re_pattern = None
@@ -478,7 +482,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                 process_work_dir = work_dir + "/mapping_%d/" % p_number
                 os.makedirs(process_work_dir)
 
-                iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
+                _iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
                                       partial_output_file, True)
 
                 logger.info("Done mapping %s" % file_name)
@@ -490,7 +494,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
         input_queue = mp.Queue()
         output_queue = mp.Queue()
-        worker_pool = mp.Pool(threads, _mapping_process_with_queue, (input_queue, output_queue))
+        worker_pool = mp.Pool(worker_threads, _mapping_process_with_queue, (input_queue, output_queue))
 
         max_length = 0
         trimmed_count = 0
@@ -502,19 +506,19 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         try:
             with reader(working_input_file, 'rt') as fastq:
                 for title, seq, qual in FastqGeneralIterator(fastq):
-                    if batch_reads_count <= batch_size:
-                        # check if ligation junction is in this read
-                        if re_pattern is not None:
-                            m = re_pattern.search(seq)
-                            if m is not None:
-                                seq = m.group(1)
-                                qual = qual[:len(seq)]
-                                trimmed_count += 1
-                        max_length = max(max_length, len(seq))
-                        line = "@{}\n{}\n+\n{}\n".format(title, seq, qual)
-                        working_file.write(line.encode())
-                        batch_reads_count += 1
-                    else:
+                    # check if ligation junction is in this read
+                    if re_pattern is not None:
+                        m = re_pattern.search(seq)
+                        if m is not None:
+                            seq = m.group(1)
+                            qual = qual[:len(seq)]
+                            trimmed_count += 1
+                    max_length = max(max_length, len(seq))
+                    line = "@{}\n{}\n+\n{}\n".format(title, seq, qual)
+                    working_file.write(line.encode())
+                    batch_reads_count += 1
+
+                    if batch_reads_count > batch_size:
                         # reset
                         batch_reads_count = 0
                         working_file.close()

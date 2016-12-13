@@ -914,9 +914,17 @@ class Kaic(object):
         parser.add_argument(
             '-b', '--batch-size', dest='batch_size',
             type=int,
-            default=250000,
+            default=1000000,
             help='''Number of reads processed (mapped and merged) in one go. Default: 250000'''
         )
+
+        parser.add_argument(
+            '-x', '--split-fastq', dest='split_fastq',
+            action='store_true',
+            help='''Parallelise by spawning multiple bowtie2 processes rather than a
+                    single multi-core bowtie2 process.'''
+        )
+        parser.set_defaults(split_fastq=False)
 
         parser.add_argument(
             '-tmp', '--work-in-tmp', dest='copy',
@@ -935,6 +943,7 @@ class Kaic(object):
         min_size = args.min_size
         threads = args.threads
         batch_size = args.batch_size
+        split_fastq = args.split_fastq
 
         from kaic.mapping.iterative_mapping import split_iteratively_map_reads
         from kaic.tools.general import mkdir
@@ -950,7 +959,7 @@ class Kaic(object):
             split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
                                         quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
                                         min_size=min_size, step_size=step_size, copy=args.copy,
-                                        restriction_enzyme=args.restriction_enzyme)
+                                        restriction_enzyme=args.restriction_enzyme, bowtie_parallel=not split_fastq)
 
     ##########################################################################
     #
