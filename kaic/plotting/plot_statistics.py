@@ -20,11 +20,11 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
     labels = ['total', 'unmasked']
     values = [total, stats['unmasked']]
 
-    for item in stats.items():
-        if not item[0] == 'unmasked':
-            if not ignore_zero or item[1] > 0:
-                labels.append(item[0])
-                values.append(item[1])
+    for key, value in sorted(stats.items()):
+        if not key == 'unmasked':
+            if not ignore_zero or value > 0:
+                labels.append(key)
+                values.append(value)
 
     if output is not None:
         old_backend = sns.plt.get_backend()
