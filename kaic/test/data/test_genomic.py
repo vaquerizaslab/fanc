@@ -1197,12 +1197,12 @@ class TestHicBasic:
         for edge in self.hic_cerevisiae.edges():
             original_reads += edge.weight
 
-        def assert_binning(hic, bin_size, buffer_size):
+        def assert_binning(hic, bin_size):
             binned = self.hic_class()
             assert len(binned.nodes()) == 0
             regions = genome.get_regions(bin_size)
             binned.add_regions(regions)
-            binned.load_from_hic(self.hic_cerevisiae, _edge_buffer_size=buffer_size)
+            binned.load_from_hic(hic)
 
             new_reads = 0
             for edge in binned.edges():
@@ -1220,10 +1220,8 @@ class TestHicBasic:
             binned.close()
 
         bin_sizes = [500, 1000, 5000, 10000, 20000]
-        buffer_sizes = [10, 100, 500, 1000, 10000, 50000]
         for bin_size in bin_sizes:
-            for buffer_size in buffer_sizes:
-                assert_binning(self.hic_cerevisiae, bin_size, buffer_size)
+            assert_binning(self.hic_cerevisiae, bin_size)
         genome.close()
 
     def test_from_hic_sample(self):
@@ -1240,7 +1238,7 @@ class TestHicBasic:
         binned.add_region(GenomicRegion(chromosome='chr1', start=101, end=150))
         binned.add_region(GenomicRegion(chromosome='chr1', start=151, end=200))
 
-        binned.load_from_hic(hic, _edge_buffer_size=1000)
+        binned.load_from_hic(hic)
 
         original_reads = 0
         for edge in hic.edges():

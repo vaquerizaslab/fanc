@@ -3765,14 +3765,11 @@ class Hic(RegionMatrixTable):
                     self.flush(update_index=False)
         self.flush(update_index=True)
 
-    def load_from_hic(self, hic, _edge_buffer_size=5000000,
-                      _edges_by_overlap_method=_edge_overlap_split_rao):
+    def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
         """
         Load data from another :class:`~Hic` object.
 
         :param hic: Another :class:`~Hic` object
-        :param _edge_buffer_size: Number of edges in memory before writing
-                                  to file
         :param _edges_by_overlap_method: A function that maps reads from
                                          one genomic region to others using
                                          a supplied overlap map. By default
@@ -3801,23 +3798,32 @@ class Hic(RegionMatrixTable):
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
 
-            edge_buffer = defaultdict(int)
+            edge_counter = 0
             with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
-                for i, old_edge in enumerate(hic.edges()):
-                    old_source = old_edge.source
-                    old_sink = old_edge.sink
-                    old_weight = old_edge.weight
-                    new_edges = _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map)
-
-                    for new_edge in new_edges:
-                        key_pair = (new_edge[0], new_edge[1])
-                        edge_buffer[key_pair] += new_edge[2]
-
-                    if len(edge_buffer) > _edge_buffer_size:
-                        self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+                chromosomes = self.chromosomes()
+                for chr_ix1 in range(0, len(chromosomes)):
+                    chromosome1 = chromosomes[chr_ix1]
+                    for chr_ix2 in range(chr_ix1, len(chromosomes)):
+                        chromosome2 = chromosomes[chr_ix2]
                         edge_buffer = defaultdict(int)
-                    pb.update(i)
-            self._flush_edge_buffer(edge_buffer)
+                        for old_edge in hic.edge_subset((chromosome1, chromosome2), lazy=True):
+                            for new_edge in _edges_by_overlap_method([old_edge.source, old_edge.sink, old_edge.weight],
+                                                                     overlap_map):
+                                edge_buffer[(new_edge[0], new_edge[1])] += new_edge[2]
+                            edge_counter += 1
+                            pb.update(edge_counter)
+
+                        try:
+                            # noinspection PyCompatibility
+                            edge_buffer_items = edge_buffer.iteritems()
+                        except AttributeError:
+                            edge_buffer_items = edge_buffer.items()
+
+                        for (source, sink), weight in edge_buffer_items:
+                            self.add_edge(Edge(source=source, sink=sink, weight=weight), check_nodes_exist=False,
+                                          flush=False, replace=True)
+                    self.flush(update_index=False)
+            self.flush(update_index=True)
 
     def copy(self, file_name, tmpdir=None):
         return Hic(data=self, file_name=file_name, tmpdir=tmpdir, mode='w')
