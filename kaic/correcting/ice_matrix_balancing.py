@@ -17,7 +17,7 @@ def correct(hic, tolerance=1e-2, max_iterations=500):
             source = edge.source
             sink = edge.sink
             weight = edge.weight
-            edge.weight = weight/np.sqrt(m[source])/np.sqrt(m[sink])
+            edge.weight = 0 if m[sink] == 0 else weight/np.sqrt(m[source])/np.sqrt(m[sink])
         hic.flush()
         current_iteration += 1
         logger.info("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
