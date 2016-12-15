@@ -1960,54 +1960,56 @@ class RegionPairs(Maskable, RegionsTable):
         :param row: PyTables row object representing an edge. If provided, edge will be used to
                     modify existing row.
         """
-        source = None
-        sink = None
+        if not isinstance(edge, Edge):
+            source = None
+            sink = None
 
-        # object
-        is_object = True
-        try:
-            source = edge.source
-            sink = edge.sink
-        except AttributeError:
-            is_object = False
-
-        # dictionary
-        is_dict = False
-        if not is_object:
-            is_dict = True
+            # object
+            is_object = True
             try:
-                source = edge['source']
-                sink = edge['sink']
-            except TypeError:
-                is_dict = False
+                source = edge.source
+                sink = edge.sink
+            except AttributeError:
+                is_object = False
 
-        # list
-        is_list = False
-        if not is_object and not is_dict:
-            is_list = True
-            try:
-                source = edge[self._source_field_ix]
-                sink = edge[self._sink_field_ix]
-            except TypeError:
-                is_list = False
+            # dictionary
+            is_dict = False
+            if not is_object:
+                is_dict = True
+                try:
+                    source = edge['source']
+                    sink = edge['sink']
+                except TypeError:
+                    is_dict = False
 
-        if source is None and sink is None:
-            raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+            # list
+            is_list = False
+            if not is_object and not is_dict:
+                is_list = True
+                try:
+                    source = edge[self._source_field_ix]
+                    sink = edge[self._sink_field_ix]
+                except TypeError:
+                    is_list = False
 
-        if check_nodes_exist:
-            n_regions = len(self._regions)
-            if source >= n_regions or sink >= n_regions:
-                raise ValueError("Node index exceeds number of nodes in object")
+            if source is None and sink is None:
+                raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
 
-        if is_object:
-            new_edge = self._edge_from_object(edge)
-        elif is_dict:
-            new_edge = self._edge_from_dict(edge)
-        elif is_list:
-            new_edge = self._edge_from_list(edge)
+            if check_nodes_exist:
+                n_regions = len(self._regions)
+                if source >= n_regions or sink >= n_regions:
+                    raise ValueError("Node index exceeds number of nodes in object")
+
+            if is_object:
+                new_edge = self._edge_from_object(edge)
+            elif is_dict:
+                new_edge = self._edge_from_dict(edge)
+            elif is_list:
+                new_edge = self._edge_from_list(edge)
+            else:
+                raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
         else:
-            raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
-
+            new_edge = edge
         self._add_edge(new_edge, row=row, replace=replace)
 
         if flush:
@@ -3720,7 +3722,7 @@ class Hic(RegionMatrixTable):
                 except AttributeError:
                     raise ValueError("Input data type not recognized")
 
-    def load_read_fragment_pairs(self, pairs, excluded_filters=(), _max_buffer_size=5000000):
+    def load_read_fragment_pairs(self, pairs):
         """
         Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
 
@@ -3729,9 +3731,6 @@ class Hic(RegionMatrixTable):
 
         :param pairs: A :class:`~kaic.construct.seq.FragmentMappedReadPairs`
                       object.
-        :param excluded_filters: Filters to ignore when loading the data
-        :param _max_buffer_size: Number of edges kept in buffer before
-                                 writing to Table.
         """
         # add regions
         if len(self._regions) != 0:
@@ -3741,28 +3740,32 @@ class Hic(RegionMatrixTable):
 
         l = len(pairs)
 
+        pair_counter = 0
         with RareUpdateProgressBar(max_value=l) as pb:
-            edge_buffer = {}
-            for i, pair in enumerate(pairs.pairs(lazy=True, excluded_filters=excluded_filters)):
-                source = pair.left.fragment.ix
-                sink = pair.right.fragment.ix
-                if source > sink:
-                    source, sink = sink, source
-                key = (source, sink)
-                if key not in edge_buffer:
-                    edge_buffer[key] = 0
-                edge_buffer[key] += 1
+            n_chromosomes = len(self._ix_to_chromosome)
+            for ix1 in range(n_chromosomes):
+                for ix2 in range(ix1, n_chromosomes):
+                    logging.info("Processing pair {}-{}".format(self._ix_to_chromosome[ix1],
+                                                                self._ix_to_chromosome[ix2]))
+                    edge_buffer = defaultdict(int)
+                    for pair in pairs.where(
+                            "(left_fragment_chromosome == {}) & (right_fragment_chromosome == {})".format(ix1, ix2)):
+                        source, sink = pair.left.fragment.ix, pair.right.fragment.ix
+                        edge_buffer[(source, sink)] += 1
+                        pair_counter += 1
+                        pb.update(pair_counter)
 
-                if len(edge_buffer) > _max_buffer_size:
-                    logger.info("Flushing buffer")
-                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                    edge_buffer = {}
-                try:
-                    pb.update(i)
-                except ValueError:
-                    pass
-        logger.info("Final flush")
-        self._flush_edge_buffer(edge_buffer, replace=False)
+                    try:
+                        # noinspection PyCompatibility
+                        e_buffer_items = edge_buffer.iteritems()
+                    except AttributeError:
+                        e_buffer_items = edge_buffer.items()
+
+                    for (source, sink), weight in e_buffer_items:
+                        self.add_edge(Edge(source=source, sink=sink, weight=weight), replace=True, flush=False,
+                                      check_nodes_exist=False)
+                    self.flush(update_index=False)
+        self.flush(update_index=True)
 
     def load_from_hic(self, hic, _edge_buffer_size=5000000,
                       _edges_by_overlap_method=_edge_overlap_split_rao):

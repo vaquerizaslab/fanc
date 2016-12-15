@@ -1706,6 +1706,8 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
 
             self._pairs = MaskedTable(group, 'mapped_read_pairs',
                                       FragmentMappedReadPairs.FragmentsMappedReadPairDescription)
+            self._pairs.cols.left_fragment_chromosome.create_index()
+            self._pairs.cols.right_fragment_chromosome.create_index()
 
             self._single = MaskedTable(group, 'mapped_read_single',
                                        FragmentMappedReadPairs.FragmentsMappedReadSingleDescription)
@@ -2219,6 +2221,10 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
         Get the number of read pairs in this object.
         """
         return len(self._pairs)
+
+    def where(self, query, lazy=True):
+        for row in self._pairs.where(query):
+            yield self._pair_from_row(row, lazy=lazy)
 
 
 class FragmentRead(object):
