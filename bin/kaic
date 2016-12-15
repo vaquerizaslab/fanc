@@ -1604,6 +1604,8 @@ class Kaic(object):
 
             merged.close()
         except ValueError:
+            logging.warning("The regions in your Hi-C objects do not appear to be identical. This will slow down"
+                            "merging significantly.")
             first_hic = hics.pop(0)
 
             if args.optimise:

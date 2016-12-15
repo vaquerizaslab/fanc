@@ -1995,11 +1995,6 @@ class RegionPairs(Maskable, RegionsTable):
             if source is None and sink is None:
                 raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
 
-            if check_nodes_exist:
-                n_regions = len(self._regions)
-                if source >= n_regions or sink >= n_regions:
-                    raise ValueError("Node index exceeds number of nodes in object")
-
             if is_object:
                 new_edge = self._edge_from_object(edge)
             elif is_dict:
@@ -2010,6 +2005,12 @@ class RegionPairs(Maskable, RegionsTable):
                 raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
         else:
             new_edge = edge
+
+        if check_nodes_exist:
+            n_regions = len(self._regions)
+            if new_edge.source >= n_regions or new_edge.sink >= n_regions:
+                raise ValueError("Node index exceeds number of nodes in object")
+
         self._add_edge(new_edge, row=row, replace=replace)
 
         if flush:
@@ -3884,9 +3885,9 @@ class Hic(RegionMatrixTable):
             merged_hic.add_region(region, flush=False)
         merged_hic.flush()
 
-        chromosomes = hics[0].chromosomes()
+        chromosomes = merged_hic.chromosomes()
         for i in range(len(chromosomes)):
-            r2 = range(i, i + 1) if only_intrachromosomal else range(i, len(chromosomes))
+            r2 = [i] if only_intrachromosomal else range(i, len(chromosomes))
             for j in r2:
                 logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
                 edges = dict()
@@ -3905,7 +3906,7 @@ class Hic(RegionMatrixTable):
                     edge_values = edges.values()
 
                 for edge in edge_values:
-                    merged_hic.add_edge(edge, flush=False)
+                    merged_hic.add_edge(edge, check_nodes_exist=False, replace=True, flush=False)
         merged_hic.flush()
 
         return merged_hic
