@@ -977,7 +977,6 @@ class TestHicBasic:
 
             for i, j in s_s:
                 e = Edge(source=i, sink=j, weight=weight)
-                print(e)
                 edges.append(e)
                 weight += 1
             hic.add_edges(edges)

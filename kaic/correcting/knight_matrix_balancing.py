@@ -247,7 +247,6 @@ def get_bias_vector(A, x0=None, tol=1e-06, delta=0.1, Delta=3, fl=0, high_precis
                     eta = max(eta, g * eta_o ** 2)
                 eta = max(min(eta, etamax), stop_tol / res_norm)
                 if fl == 1:
-                    print("%d %d   %.3e %.3e %.3e \n" % (i, k, res_norm, min(y), min(x)))
                     res = np.array([[res], [res_norm]])
 
             logger.info("Matrix-vector products = %d\n" % MVP)

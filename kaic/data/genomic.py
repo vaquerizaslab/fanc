@@ -479,7 +479,6 @@ class Chromosome(object):
         except AttributeError:
             raise ValueError("restriction_enzyme string is not recognized: %s" % restriction_enzyme)
 
-        print(type(self.sequence))
         return re.search(Seq.Seq(self.sequence))
 
 
@@ -955,11 +954,11 @@ class GenomicRegions(object):
 
         return regions
 
-    def to_bed(self, file):
+    def to_bed(self, file_name):
         """
         Export regions as BED file
         """
-        with open(file, 'w') as f:
+        with open(file_name, 'w') as f:
             for i, r in enumerate(self.regions):
                 print(r.chromosome, r.start - 1, r.end, i, sep="\t", file=f)
 
@@ -2270,7 +2269,6 @@ class RegionPairs(Maskable, RegionsTable):
                 return self._row_to_region(row)
 
         # [item1, item2, item3]
-        print(key)
         all_nodes_ix = []
         for item in key:
             nodes_ix = self._getitem_nodes(item, as_index=as_index)
@@ -2454,7 +2452,6 @@ class AccessOptimisedRegionPairs(RegionPairs):
 
                     # in range, get edges
                     r = (max(0, start - l), min(len(edge_table), stop - l))
-                    print(r)
                     res = edge_table[r[0]:r[1]]
                     for edge in res:
                         edges.append(self.this._row_to_edge(edge,

@@ -2105,7 +2105,6 @@ class ExpectedObservedCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
         self.intra_expected = dict()
         self.inter_expected = dict()
         for i in range(n_hic):
-            print('weight_' + str(i))
             with ExpectedContacts(collection, weight_column='weight_' + str(i)) as ex:
                 self.intra_expected[i] = ex.intra_expected()
                 self.inter_expected[i] = ex.inter_expected()

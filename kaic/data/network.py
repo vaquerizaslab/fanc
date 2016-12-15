@@ -1224,7 +1224,6 @@ class RaoPeakCaller(PeakCaller):
             else:
                 p = int(24999/bin_size) if p is None else p
                 w_init = int(25000/bin_size + 0.5) + 2 if w_init is None else w_init
-                print(w_init, bin_size)
         logger.info("Initial parameter values: p=%d, w=%d" % (p, w_init))
 
         logger.info("Obtaining bias vector...")
