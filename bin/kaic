@@ -195,6 +195,8 @@ class Kaic(object):
         logger.info("Running '{}'".format(kaic_command))
 
         # use dispatch pattern to invoke method with same name
+        from datetime import datetime
+        start_date = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
         try:
             getattr(self, args.command)([sys.argv[0]] + sys.argv[option_ix:])
         except Exception:
@@ -204,9 +206,10 @@ class Kaic(object):
                 import traceback
 
                 exception_message = traceback.format_exc().replace("\n", "<br>")
-                message = "Kai-C command: {}<br>failed with the following exception:<br>{}".format(kaic_command,
-                                                                                                   exception_message)
-                subject = "{} failed".format(sys.argv[option_ix])
+                message = "Kai-C command (start date: {}): " \
+                          "{}<br>failed with the following exception:<br>{}".format(start_date, kaic_command,
+                                                                                    exception_message)
+                subject = "[Kai-C] {} ({}) failed".format(start_date, sys.argv[option_ix])
                 emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
                                   server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
             raise
@@ -216,8 +219,9 @@ class Kaic(object):
             from kaic.tools import emails
             import traceback
 
-            message = "Kai-C command: {}<br>executed successfully!".format(kaic_command)
-            subject = "{} completed".format(sys.argv[option_ix])
+            message = "Kai-C command (start date: {}): " \
+                      "{}<br>executed successfully!".format(start_date, kaic_command)
+            subject = "[Kai-C] {} ({}) completed".format(start_date, sys.argv[option_ix])
             emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
                               server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
 
