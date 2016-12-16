@@ -2706,6 +2706,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
         :param row_conversion_args: Keyword arguments passed to :func:`RegionPairs._row_to_edge`
         :return: :class:`~Edge`
         """
+        if item < 0:
+            item += len(self)
+
         l = 0
         for edge_table in self._edge_table_iter(intrachromosomal=intrachromosomal,
                                                 interchromosomal=interchromosomal):
@@ -2727,12 +2730,13 @@ class AccessOptimisedRegionPairs(RegionPairs):
     def _edges_iter(self):
         return AccessOptimisedRegionPairs.EdgeIter(self)
 
-    def _edge_row_iter(self, intrachromosomal=True, interchromosomal=True):
+    def _edge_row_iter(self, intrachromosomal=True, interchromosomal=True, excluded_filters=()):
         """
         Yield rows in edge tables, ordered by partition.
         """
         for edge_table in self._edge_table_iter(intrachromosomal=intrachromosomal, interchromosomal=interchromosomal):
-            for row in edge_table:
+            excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
+            for row in edge_table.iterrows(excluded_masks=excluded_masks):
                 yield row
 
     def _partition_ix_range(self, start, stop):

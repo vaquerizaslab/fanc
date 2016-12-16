@@ -3,7 +3,7 @@ import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter,\
-    LazyFragmentRead, ContaminantFilter
+    LazyFragmentRead, ContaminantFilter, AccessOptimisedReadPairs
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
 import msgpack as pickle
 import numpy as np
@@ -280,7 +280,7 @@ class TestBWAReads:
                 assert read.mapq > 3
 
 
-class TestFragmentMappedReads:
+class TestFragmentMappedReadPairs:
     @classmethod
     def setup_method(self, method):
         self.dir = os.path.dirname(os.path.realpath(__file__))
@@ -291,8 +291,9 @@ class TestFragmentMappedReads:
         self.reads1.filter_unmapped()
         self.reads2.filter_unmapped()
         self.genome = Genome.from_folder(self.dir + "/test_seq/lambda_genome/")
-        
-        self.pairs = FragmentMappedReadPairs()
+
+        self.pairs_class = FragmentMappedReadPairs
+        self.pairs = self.pairs_class()
         regions = self.genome.get_regions(1000)
         self.pairs.load(self.reads1, self.reads2, regions=regions)
         regions.close()
@@ -375,7 +376,7 @@ class TestFragmentMappedReads:
         assert len(self.pairs._single) == 6
 
     def test_auto_mindist(self):
-        ad = FragmentMappedReadPairs._auto_dist
+        ad = self.pairs_class._auto_dist
         np.random.seed(101)
         x = np.linspace(1, 100, 10)
         i = [4.0, 3.0, 1.0, 1.2, 0.4, 0.8, 0.5, 0.4, 0.6, 0.5, 0.6, 0.5, 0.5, 0.5]
@@ -390,11 +391,7 @@ class TestFragmentMappedReads:
         
         assert len(self.pairs) == 44
         self.pairs.filter(in_filter)
-        
-#         print "Valid pairs:"
-#         for pair in self.pairs:
-#             print pair[0]
-#             print pair[1]
+
         assert len(self.pairs) == 18
 
     def test_filter_outward(self):
@@ -426,7 +423,7 @@ class TestFragmentMappedReads:
         reads2 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.2.sam")
         chrI = Chromosome.from_fasta(self.dir + "/../data/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
-        pairs = FragmentMappedReadPairs()
+        pairs = self.pairs_class()
         regions = genome.get_regions('HindIII')
         pairs.load(reads1, reads2, regions)
         reads1.close()
@@ -468,6 +465,31 @@ class TestFragmentMappedReads:
         assert len(list(self.pairs.pairs(excluded_filters=[in_filter, re_filter]))) == 28
         assert len(list(self.pairs.pairs(excluded_filters=[in_filter, mask]))) == 28
         assert len(list(self.pairs.pairs(excluded_filters=[in_filter, 3]))) == 28
+
+
+class TestAccessOptimisedReadPairs(TestFragmentMappedReadPairs):
+    @classmethod
+    def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
+        sam2_file = self.dir + "/test_seq/lambda_reads2.sam"
+        self.reads1 = Reads(sam1_file)
+        self.reads2 = Reads(sam2_file)
+        self.reads1.filter_unmapped()
+        self.reads2.filter_unmapped()
+        self.genome = Genome.from_folder(self.dir + "/test_seq/lambda_genome/")
+
+        self.pairs_class = AccessOptimisedReadPairs
+        self.pairs = self.pairs_class()
+        regions = self.genome.get_regions(1000)
+        self.pairs.load(self.reads1, self.reads2, regions=regions)
+        regions.close()
+
+    def teardown_method(self, method):
+        self.reads1.close()
+        self.reads2.close()
+        self.genome.close()
+        self.pairs.close()
 
 
 class TestFragmentRead:

@@ -2334,13 +2334,12 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
             edge_table.run_queued_filters(_logging=log_progress)
 
     def pairs(self, lazy=False, excluded_filters=()):
-        for row in self._edge_row_iter():
+        for row in self._edge_row_iter(excluded_filters=excluded_filters):
             yield self._pair_from_row(row, lazy=lazy)
 
     def __getitem__(self, item):
         if isinstance(item, int):
-            edge = self.this.get_edge(item, intrachromosomal=self.intrachromosomal,
-                                      interchromosomal=self.interchromosomal)
+            edge = self.get_edge(item)
             fragment1 = GenomicRegion(start=edge.left_fragment_start,
                                       end=edge.left_fragment_end,
                                       chromosome=self._ix_to_chromosome[edge.left_fragment_chromosome],
