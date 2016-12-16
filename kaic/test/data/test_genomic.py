@@ -7,7 +7,7 @@ from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
-from kaic.construct.seq import Reads, FragmentMappedReadPairs
+from kaic.construct.seq import Reads, FragmentMappedReadPairs, AccessOptimisedReadPairs
 from kaic.tools.matrix import is_symmetric
 import kaic.correcting.knight_matrix_balancing as knight
 import kaic.correcting.ice_matrix_balancing as ice
@@ -1073,11 +1073,58 @@ class TestHicBasic:
         pairs.close()
 
         reads = 0
-        edge_dict = {}
+        edge_set = set()
         for edge in hic.edges():
-            edge_string = "%d-%d" % (edge.source, edge.sink)
-            assert edge_string not in edge_dict
-            edge_dict[edge_string] = 1
+            key = (edge.source, edge.sink)
+            assert key not in edge_set
+            edge_set.add(key)
+            reads += edge.weight
+
+        assert reads == pl
+        hic.close()
+
+    def test_from_ao_pairs(self):
+        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs_old = FragmentMappedReadPairs()
+        regions = genome.get_regions('HindIII')
+        pairs_old.load(reads1, reads2, regions)
+        reads1.close()
+        reads2.close()
+        genome.close()
+        regions.close()
+
+        reads1 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.1.sam")
+        reads2 = Reads(self.dir + "/test_genomic/yeast.sample.chrI.2.sam")
+        chrI = Chromosome.from_fasta(self.dir + "/test_genomic/chrI.fa")
+        genome = Genome(chromosomes=[chrI])
+        pairs = AccessOptimisedReadPairs()
+        regions = genome.get_regions('HindIII')
+        pairs.load(reads1, reads2, regions)
+        reads1.close()
+        reads2.close()
+        genome.close()
+        regions.close()
+
+        pl = len(pairs)
+        pl_old = len(pairs_old)
+
+        assert pl == pl_old
+
+        hic = self.hic_class()
+        hic.load_read_fragment_pairs(pairs)
+
+        assert len(hic._regions) == len(pairs._regions)
+        pairs.close()
+
+        reads = 0
+        edge_set = set()
+        for edge in hic.edges():
+            key = (edge.source, edge.sink)
+            assert key not in edge_set
+            edge_set.add(key)
             reads += edge.weight
 
         assert reads == pl
@@ -1086,20 +1133,22 @@ class TestHicBasic:
     def test_overlap_map(self):
         # ----|----|----|----|---|-----|-| new
         # -------|-------|-------|-------| old
-        old_regions = []
-        old_regions.append(Node(chromosome='chr1', start=1, end=8))
-        old_regions.append(Node(chromosome='chr1', start=9, end=16))
-        old_regions.append(Node(chromosome='chr1', start=17, end=24))
-        old_regions.append(Node(chromosome='chr1', start=25, end=32))
+        old_regions = [
+            Node(chromosome='chr1', start=1, end=8),
+            Node(chromosome='chr1', start=9, end=16),
+            Node(chromosome='chr1', start=17, end=24),
+            Node(chromosome='chr1', start=25, end=32)
+        ]
 
-        new_regions = []
-        new_regions.append(Node(chromosome='chr1', start=1, end=5))
-        new_regions.append(Node(chromosome='chr1', start=6, end=10))
-        new_regions.append(Node(chromosome='chr1', start=11, end=15))
-        new_regions.append(Node(chromosome='chr1', start=16, end=20))
-        new_regions.append(Node(chromosome='chr1', start=21, end=24))
-        new_regions.append(Node(chromosome='chr1', start=25, end=30))
-        new_regions.append(Node(chromosome='chr1', start=31, end=32))
+        new_regions = [
+            Node(chromosome='chr1', start=1, end=5),
+            Node(chromosome='chr1', start=6, end=10),
+            Node(chromosome='chr1', start=11, end=15),
+            Node(chromosome='chr1', start=16, end=20),
+            Node(chromosome='chr1', start=21, end=24),
+            Node(chromosome='chr1', start=25, end=30),
+            Node(chromosome='chr1', start=31, end=32)
+        ]
 
         overlap_map = _get_overlap_map(old_regions, new_regions)
         assert len(overlap_map[0]) == 2

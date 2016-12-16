@@ -1325,7 +1325,7 @@ class Kaic(object):
         nodes = genome.get_regions(args.restriction_enzyme)
 
         logger.info("Building pairs...")
-        pairs = kaic.FragmentMappedReadPairs(file_name=output_path, mode='w')
+        pairs = kaic.Pairs(file_name=output_path, mode='w')
         logger.info("Mapping reads...")
         pairs.load(reads1, reads2, nodes)
 
@@ -1425,7 +1425,7 @@ class Kaic(object):
         else:
             input_path = copy_or_expand(args.input, args.output)
 
-        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='a')
+        pairs = kaic.load(file_name=input_path, mode='a')
 
         if args.auto:
             logger.info("Filtering inward- and outward-facing reads using automatically"
@@ -1481,7 +1481,7 @@ class Kaic(object):
 
         parser.add_argument(
             'pairs',
-            help='''Input FragmentMappedReadPairs file'''
+            help='''Input Pairs file'''
         )
 
         parser.add_argument(
@@ -1523,7 +1523,7 @@ class Kaic(object):
             hic_path = original_hic_path
 
         logger.info("Loading pairs...")
-        pairs = kaic.FragmentMappedReadPairs(pairs_path, mode='r')
+        pairs = kaic.load(pairs_path, mode='r')
         logger.info("Done.")
 
         logger.info("Adding pairs to Hic...")
@@ -2531,7 +2531,7 @@ class Kaic(object):
 
         parser.add_argument(
             'input',
-            help='''Input FragmentMappedPairs file'''
+            help='''Input Pairs file'''
         )
 
         parser.add_argument(
@@ -2556,7 +2556,7 @@ class Kaic(object):
         if args.output:
             output_path = os.path.expanduser(args.output)
 
-        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='r')
+        pairs = kaic.load(file_name=input_path, mode='r')
         hic_ligation_structure_biases_plot(pairs, output=output_path, sampling=args.points)
         pairs.close()
 
@@ -2570,7 +2570,7 @@ class Kaic(object):
 
         parser.add_argument(
             'input',
-            help='''Input FragmentMappedPairs file'''
+            help='''Input Pairs file'''
         )
 
         parser.add_argument(
@@ -2602,7 +2602,7 @@ class Kaic(object):
         if args.output:
             output_path = os.path.expanduser(args.output)
 
-        pairs = kaic.FragmentMappedReadPairs(file_name=input_path, mode='r')
+        pairs = kaic.load(file_name=input_path, mode='r')
         pairs_re_distance_plot(pairs, output=output_path, limit=args.limit, max_distance=args.max_dist)
         pairs.close()
 
@@ -3607,12 +3607,12 @@ class Kaic(object):
         # 3. Pairs statistics
         if args.pairs is not None:
             logger.info("Processing Pairs files.")
-            from kaic.construct.seq import FragmentMappedReadPairs as Pairs
+            import kaic
             pairs_files = get_files(args.pairs, ('.pairs',))
             pairs_summary = defaultdict(int)
             for pairs_file in pairs_files:
                 logger.info("{}".format(pairs_file))
-                pairs = Pairs(pairs_file, mode='r')
+                pairs = kaic.Pairs(pairs_file, mode='r')
                 statistics, total = stats(pairs, pairs._pairs)
 
                 with open(output_file, 'a') as o:

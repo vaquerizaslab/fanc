@@ -77,8 +77,8 @@ except ImportError:
 import pickle
 from collections import defaultdict
 import copy
-from kaic.tools.general import RareUpdateProgressBar
-from kaic.tools.general import range_overlap
+from kaic.tools.general import RareUpdateProgressBar, range_overlap
+from kaic.tools.lru import lru_cache
 from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass, string_types
 from builtins import object
@@ -931,12 +931,15 @@ class GenomicRegions(object):
         Returned list is xrange-compatible, i.e. chromosome
         bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.
         """
+        return self._chromosome_bins()
+
+    def _chromosome_bins(self):
         chr_bins = {}
         for r in self.regions:
             if chr_bins.get(r.chromosome) is None:
                 chr_bins[r.chromosome] = [r.ix, r.ix + 1]
-                continue
-            chr_bins[r.chromosome][1] = r.ix + 1
+            else:
+                chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
 
     def range(self, range_region):
@@ -2433,32 +2436,35 @@ class AccessOptimisedRegionPairs(RegionPairs):
                                           interchromosomal=self.interchromosomal)
             elif isinstance(item, slice):
                 edges = []
-                start = 0 if item.start is None else item.start
-                stop = len(self.this.edges) if item.stop is None else item.stop
-                step = 1 if item.step is None else item.step
-                if step != 1:
-                    raise ValueError("Step sizes != 1 not currently supported in slices. %s" % str(step))
-
-                l = 0
-                for edge_table in self.this._edge_table_iter(intrachromosomal=self.intrachromosomal,
-                                                             interchromosomal=self.interchromosomal):
-                    # not yet in range
-                    if start >= l + len(edge_table):
-                        l += len(edge_table)
-                        continue
-                    # over range - can stop here
-                    if stop < l:
-                        break
-
-                    # in range, get edges
-                    r = (max(0, start - l), min(len(edge_table), stop - l))
-                    res = edge_table[r[0]:r[1]]
-                    for edge in res:
-                        edges.append(self.this._row_to_edge(edge,
-                                                            *self.row_conversion_args,
-                                                            **self.row_conversion_kwargs))
-                    l += len(edge_table)
+                for row in self.get_row_range(item):
+                    edge = self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
+                    edges.append(edge)
                 return edges
+
+        def get_row_range(self, item):
+            start = 0 if item.start is None else item.start
+            stop = len(self.this.edges) if item.stop is None else item.stop
+            step = 1 if item.step is None else item.step
+            if step != 1:
+                raise ValueError("Step sizes != 1 not currently supported in slices. %s" % str(step))
+
+            l = 0
+            for edge_table in self.this._edge_table_iter(intrachromosomal=self.intrachromosomal,
+                                                         interchromosomal=self.interchromosomal):
+                # not yet in range
+                if start >= l + len(edge_table):
+                    l += len(edge_table)
+                    continue
+                # over range - can stop here
+                if stop < l:
+                    break
+
+                # in range, get edges
+                r = (max(0, start - l), min(len(edge_table), stop - l))
+                res = edge_table[r[0]:r[1]]
+                for row in res:
+                    yield row
+                l += len(edge_table)
 
         def __iter__(self):
             return self
@@ -2714,9 +2720,6 @@ class AccessOptimisedRegionPairs(RegionPairs):
         """
         Iterate over :class:`~Edge` objects.
 
-        :param lazy: Enable lazy loading of edge attributes,
-                     only works in the loop iteration this
-                     edge is accessed.
         :return: Iterator over :class:`~Edge`
         """
         return self._edges_iter()
@@ -3740,14 +3743,14 @@ class Hic(RegionMatrixTable):
 
         pair_counter = 0
         with RareUpdateProgressBar(max_value=l) as pb:
-            n_chromosomes = len(self._ix_to_chromosome)
-            for ix1 in range(n_chromosomes):
-                for ix2 in range(ix1, n_chromosomes):
-                    logging.info("Processing pair {}-{}".format(self._ix_to_chromosome[ix1],
-                                                                self._ix_to_chromosome[ix2]))
+            chromosomes = self.chromosomes()
+            for ix1 in range(len(chromosomes)):
+                chromosome1 = chromosomes[ix1]
+                for ix2 in range(ix1, len(chromosomes)):
+                    chromosome2 = chromosomes[ix2]
+                    logging.info("Processing pair {}-{}".format(chromosome1, chromosome2))
                     edge_buffer = defaultdict(int)
-                    for pair in pairs.where(
-                            "(left_fragment_chromosome == {}) & (right_fragment_chromosome == {})".format(ix1, ix2)):
+                    for pair in pairs.pairs_by_chromosomes(chromosome1, chromosome2):
                         source, sink = pair.left.fragment.ix, pair.right.fragment.ix
                         edge_buffer[(source, sink)] += 1
                         pair_counter += 1

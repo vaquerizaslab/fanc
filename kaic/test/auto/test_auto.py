@@ -9,7 +9,7 @@ import os
 class TestAuto:
     def test_auto_identification(self, tmpdir):
         for class_name in ('Hic', 'AccessOptimisedHic', 'FragmentMappedReadPairs', 'Reads', 'GenomicTrack',
-                           'RaoPeakInfo'):
+                           'RaoPeakInfo', 'AccessOptimisedReadPairs'):
             file_name = str(tmpdir) + '/{}.h5'.format(class_name)
             cls_ = class_name_dict[class_name]
             x = cls_(file_name=file_name, mode='w')
