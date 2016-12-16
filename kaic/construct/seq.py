@@ -2333,6 +2333,20 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
         for edge_table in self._edge_table_iter():
             edge_table.run_queued_filters(_logging=log_progress)
 
+    def filter_pcr_duplicates(self, threshold=3, queue=False):
+        """
+        Convenience function that applies an :class:`~PCRDuplicateFilter`.
+
+        :param threshold: If distance between two alignments is smaller or equal the threshold, the alignments
+                          are considered to be starting at the same position
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
+        pcr_duplicate_filter = AOPCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
+        self.filter(pcr_duplicate_filter, queue)
+
     def pairs(self, lazy=False, excluded_filters=()):
         for row in self._edge_row_iter(excluded_filters=excluded_filters):
             yield self._pair_from_row(row, lazy=lazy)
@@ -2694,21 +2708,32 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered reads.
         """
-        super(PCRDuplicateFilter, self).__init__(mask=mask)
+        FragmentMappedReadPairFilter.__init__(self, mask=mask)
         self.threshold = threshold
         self.pairs = pairs
+        self.duplicates_set = set()
+        self.duplicate_stats = defaultdict(int)
+        self._mark_duplicates(self.pairs._pairs)
+
+        n_dups = len(self.duplicates_set)
+        percent_dups = 1.*n_dups/self.pairs._pairs._original_len()
+        logger.info("PCR duplicate stats: " +
+                    "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
+                    " (multiplicity:occurances) " +
+                    " ".join("{}:{}".format(k, v) for k, v in self.duplicate_stats.items()))
+
+    def _mark_duplicates(self, edge_table):
         # In order for sorted iteration to work, column needs to be indexed
         try:
-            self.pairs._pairs.cols.left_read_position.create_csindex()
+            edge_table.cols.left_read_position.create_csindex()
             index_existed = False
-        except ValueError: # Index already exists
+        except ValueError:  # Index already exists
             index_existed = True
+
         # Using itersorted from Table class, since MaskedTable.itersorted only yields unmasked entries
-        all_iter = super(MaskedTable, self.pairs._pairs).itersorted(sortby="left_read_position")
+        all_iter = super(MaskedTable, edge_table).itersorted(sortby="left_read_position")
         cur_pos = {}
         cur_duplicates = {}
-        self.duplicates_set = set()
-        duplicate_stats = defaultdict(int)
         for p in all_iter:
             pair = self.pairs._pair_from_row(p, lazy=True)
             chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
@@ -2716,23 +2741,18 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
                 cur_pos[chrm] = (pair.left.position, pair.right.position)
                 cur_duplicates[chrm] = 1
                 continue
-            if (abs(pair.left.position - cur_pos[chrm][0]) <= threshold and
-                abs(pair.right.position - cur_pos[chrm][1]) <= threshold):
+            if (abs(pair.left.position - cur_pos[chrm][0]) <= self.threshold and
+                    abs(pair.right.position - cur_pos[chrm][1]) <= self.threshold):
                 self.duplicates_set.add(pair.ix)
                 cur_duplicates[chrm] += 1
                 continue
             if cur_duplicates[chrm] > 1:
-                duplicate_stats[cur_duplicates[chrm]] += 1
+                self.duplicate_stats[cur_duplicates[chrm]] += 1
             cur_pos[chrm] = (pair.left.position, pair.right.position)
             cur_duplicates[chrm] = 1
+
         if not index_existed:
-            self.pairs._pairs.cols.left_read_position.remove_index()
-        n_dups = len(self.duplicates_set)
-        percent_dups = 1.*n_dups/self.pairs._pairs._original_len()
-        logger.info("PCR duplicate stats: " +
-                    "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
-                    " (multiplicity:occurances) " +
-                    " ".join("{}:{}".format(k, v) for k, v in duplicate_stats.items()))
+            edge_table.cols.left_read_position.remove_index()
 
     def valid_pair(self, pair):
         """
@@ -2741,6 +2761,41 @@ class PCRDuplicateFilter(FragmentMappedReadPairFilter):
         if pair.ix in self.duplicates_set:
             return False
         return True
+
+
+class AOPCRDuplicateFilter(PCRDuplicateFilter):
+    """
+    Masks alignments that are suspected to be PCR duplicates.
+    In order to be considered duplicates, two pairs need to have identical
+    start positions of their respective left alignments AND of their right alignments.
+    """
+    def __init__(self, pairs, threshold=3, mask=None):
+        """
+        Initialize filter with filter settings.
+
+        :param pairs: The :class:`~FragmentMappedReadPairs` instance that the filter will be
+                      applied to
+        :param threshold: If distance between two alignments is smaller or equal the threshold,
+                          the alignments are considered to be starting at the same position
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        FragmentMappedReadPairFilter.__init__(self, mask=mask)
+        self.threshold = threshold
+        self.pairs = pairs
+        self.duplicates_set = set()
+        self.duplicate_stats = defaultdict(int)
+        original_len = 0
+        for edge_table in self.pairs._edge_table_iter():
+            original_len += edge_table._original_len()
+            self._mark_duplicates(edge_table)
+
+        n_dups = len(self.duplicates_set)
+        percent_dups = 1. * n_dups / self.pairs._pairs._original_len()
+        logger.info("PCR duplicate stats: " +
+                    "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
+                    " (multiplicity:occurances) " +
+                    " ".join("{}:{}".format(k, v) for k, v in self.duplicate_stats.items()))
 
 
 class OutwardPairsFilter(FragmentMappedReadPairFilter):
