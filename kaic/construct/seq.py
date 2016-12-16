@@ -2287,6 +2287,14 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
                                          flush_edges=flush_edges, update_index=update_index)
         self._single.flush(update_index=update_index)
 
+    def load(self, reads1, reads2, regions=None, ignore_duplicates=True, _in_memory_index=True, excluded_filters=()):
+        self.disable_indexes()
+        FragmentMappedReadPairs.load(self, reads1, reads2, regions=regions,
+                                     ignore_duplicates=ignore_duplicates,
+                                     _in_memory_index=_in_memory_index,
+                                     excluded_filters=excluded_filters)
+        self.enable_indexes()
+
     def _add_pair(self, pair):
         self.add_edge(pair, check_nodes_exist=False, flush=False, replace=True)
 

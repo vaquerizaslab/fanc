@@ -1921,6 +1921,21 @@ class RegionPairs(Maskable, RegionsTable):
             if name == 'sink':
                 self._sink_field_ix = i
 
+    def disable_indexes(self):
+        try:
+            self._edges.cols.source.remove_index()
+        except:
+            pass
+
+        try:
+            self._edges.cols.sink.remove_index()
+        except:
+            pass
+
+    def enable_indexes(self):
+        create_col_index(self._edges.cols.source)
+        create_col_index(self._edges.cols.sink)
+
     def _get_field_dict(self, additional_fields=None):
         basic_fields = RegionMatrixTable.EntryDescription().columns.copy()
         if additional_fields is not None:
@@ -2620,6 +2635,23 @@ class AccessOptimisedRegionPairs(RegionPairs):
 
         self._edge_table_dict[(source_partition, sink_partition)] = edge_table
         return edge_table
+
+    def disable_indexes(self):
+        for edge_table in self._edge_table_iter():
+            try:
+                edge_table.cols.source.remove_index()
+            except:
+                pass
+
+            try:
+                edge_table.cols.sink.remove_index()
+            except:
+                pass
+
+    def enable_indexes(self):
+        for edge_table in self._edge_table_iter():
+            create_col_index(edge_table.cols.source)
+            create_col_index(edge_table.cols.sink)
 
     def _get_edge_table(self, source, sink):
         """
@@ -3743,6 +3775,8 @@ class Hic(RegionMatrixTable):
 
         self.add_regions(pairs.regions())
 
+        self.disable_indexes()
+
         l = len(pairs)
 
         pair_counter = 0
@@ -3771,6 +3805,7 @@ class Hic(RegionMatrixTable):
                                       check_nodes_exist=False)
                     self.flush(update_index=False)
         self.flush(update_index=True)
+        self.enable_indexes()
 
     def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
         """
@@ -3895,6 +3930,7 @@ class Hic(RegionMatrixTable):
             merged_hic.add_region(region, flush=False)
         merged_hic.flush()
 
+        merged_hic.disable_indexes()
         chromosomes = merged_hic.chromosomes()
         for i in range(len(chromosomes)):
             r2 = [i] if only_intrachromosomal else range(i, len(chromosomes))
@@ -3918,6 +3954,7 @@ class Hic(RegionMatrixTable):
                 for edge in edge_values:
                     merged_hic.add_edge(edge, check_nodes_exist=False, replace=True, flush=False)
         merged_hic.flush()
+        merged_hic.enable_indexes()
 
         return merged_hic
 
