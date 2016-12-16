@@ -199,7 +199,7 @@ class Kaic(object):
         start_date = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
         try:
             getattr(self, args.command)([sys.argv[0]] + sys.argv[option_ix:])
-        except Exception:
+        except Exception as ex:
             if args.email_to_address is not None:
                 logger.info("Command failed, sending email...")
                 from kaic.tools import emails
@@ -212,7 +212,7 @@ class Kaic(object):
                 subject = "[Kai-C] {} ({}) failed".format(start_date, sys.argv[option_ix])
                 emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
                                   server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
-            raise
+            raise ex
 
         if args.email_to_address is not None:
             logger.info("Command completed, sending email...")
