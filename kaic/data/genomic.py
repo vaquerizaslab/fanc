@@ -3808,8 +3808,8 @@ class Hic(RegionMatrixTable):
                         self.add_edge(Edge(source=source, sink=sink, weight=weight), replace=True, flush=False,
                                       check_nodes_exist=False)
                     self.flush(update_index=False)
-        self.flush(update_index=True)
         self.enable_indexes()
+        self.flush(update_index=True)
 
     def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
         """
@@ -3844,6 +3844,7 @@ class Hic(RegionMatrixTable):
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
 
+            self.disable_indexes()
             edge_counter = 0
             with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
                 chromosomes = self.chromosomes()
@@ -3869,6 +3870,7 @@ class Hic(RegionMatrixTable):
                             self.add_edge(Edge(source=source, sink=sink, weight=weight), check_nodes_exist=False,
                                           flush=False, replace=True)
                     self.flush(update_index=False)
+            self.enable_indexes()
             self.flush(update_index=True)
 
     def copy(self, file_name, tmpdir=None):
@@ -3957,8 +3959,8 @@ class Hic(RegionMatrixTable):
 
                 for edge in edge_values:
                     merged_hic.add_edge(edge, check_nodes_exist=False, replace=True, flush=False)
-        merged_hic.flush()
         merged_hic.enable_indexes()
+        merged_hic.flush()
 
         return merged_hic
 
