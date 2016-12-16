@@ -2791,7 +2791,7 @@ class AOPCRDuplicateFilter(PCRDuplicateFilter):
             self._mark_duplicates(edge_table)
 
         n_dups = len(self.duplicates_set)
-        percent_dups = 1. * n_dups / self.pairs._pairs._original_len()
+        percent_dups = 1. * n_dups / original_len
         logger.info("PCR duplicate stats: " +
                     "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
                     " (multiplicity:occurances) " +
