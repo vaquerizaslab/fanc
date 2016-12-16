@@ -1931,10 +1931,12 @@ class RegionPairs(Maskable, RegionsTable):
             self._edges.cols.sink.remove_index()
         except:
             pass
+        self._edges.disable_mask_index()
 
     def enable_indexes(self):
         create_col_index(self._edges.cols.source)
         create_col_index(self._edges.cols.sink)
+        self._edges.enable_mask_index()
 
     def _get_field_dict(self, additional_fields=None):
         basic_fields = RegionMatrixTable.EntryDescription().columns.copy()
@@ -2647,11 +2649,13 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 edge_table.cols.sink.remove_index()
             except:
                 pass
+            edge_table.disable_mask_index()
 
     def enable_indexes(self):
         for edge_table in self._edge_table_iter():
             create_col_index(edge_table.cols.source)
             create_col_index(edge_table.cols.sink)
+            edge_table.enable_mask_index()
 
     def _get_edge_table(self, source, sink):
         """

@@ -596,6 +596,16 @@ class MaskedTable(t.Table):
                          chunkshape=chunkshape,
                          byteorder=byteorder)
         
+        self.enable_mask_index()
+
+    def disable_mask_index(self):
+        mask_ix_col = getattr(self.cols, self._mask_index_field)
+        try:
+            mask_ix_col.remove_index()
+        except:
+            pass
+
+    def enable_mask_index(self):
         mask_ix_col = getattr(self.cols, self._mask_index_field)
         create_col_index(mask_ix_col)
 
