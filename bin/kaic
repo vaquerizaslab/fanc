@@ -1588,10 +1588,10 @@ class Kaic(object):
 
         logger.info("Adding pairs to Hic...")
         if not args.optimise:
-            hic = kaic.Hic(hic_path, mode='w')
+            hic_class = kaic.Hic
         else:
-            hic = kaic.AccessOptimisedHic(hic_path, mode='w')
-        hic.load_read_fragment_pairs(pairs)
+            hic_class = kaic.AccessOptimisedHic
+        hic = pairs.to_hic(file_name=hic_path, _hic_class=hic_class)
         logger.info("Done.")
 
         pairs.close()

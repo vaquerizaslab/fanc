@@ -2625,6 +2625,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
         """
         Create and register an edge table for a partition combination.
         """
+        if (source_partition, sink_partition) in self._edge_table_dict:
+            return self._edge_table_dict[(source_partition, sink_partition)]
+
         edge_table = MaskedTable(self._edges,
                                  'chrpair_' + str(source_partition) + '_' + str(sink_partition),
                                  self._field_dict)
