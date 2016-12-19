@@ -46,6 +46,7 @@ def load(file_name, mode='a', tmpdir=None):
         classid = None
         try:
             classid = f.meta._classid
+            classid = classid.decode() if isinstance(classid, bytes) else classid
             f.close()
             cls_ = class_id_dict[classid]
             logger.debug("Detected {}".format(cls_))
