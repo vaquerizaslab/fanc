@@ -3858,7 +3858,8 @@ class Hic(RegionMatrixTable):
                             old_weight = getattr(edge, hic.default_field)
 
                             for new_edge in _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map):
-                                edges[(new_edge[0], new_edge[1])] += new_edge[2]
+                                if new_edge[2] != 0:
+                                    edges[(new_edge[0], new_edge[1])] += new_edge[2]
 
                             edge_counter += 1
                             pb.update(edge_counter)
@@ -4417,7 +4418,8 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
                         for new_edge in _edges_by_overlap_method((row['source'], row['sink'],
                                                                  row[hic.default_field]),
                                                                  overlap_map):
-                            edge_buffer[(new_edge[0], new_edge[1])] += new_edge[2]
+                            if new_edge[2] != 0:
+                                edge_buffer[(new_edge[0], new_edge[1])] += new_edge[2]
                         edge_counter += 1
                         pb.update(edge_counter)
 
