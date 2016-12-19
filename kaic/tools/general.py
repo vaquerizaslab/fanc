@@ -173,11 +173,14 @@ def mkdir(dir_name):
 class RareUpdateProgressBar(progressbar.ProgressBar):
     def __init__(self, min_value=0, max_value=None, widgets=None,
                  left_justify=True, initial_value=0, poll_interval=None,
-                 percent_update_interval=1,
+                 percent_update_interval=1, silent=False,
                  **kwargs):
         self.manual_poll_interval = True
         if poll_interval is None:
             self.manual_poll_interval = False
+
+        if silent:
+            kwargs['fd'] = open(os.devnull, "w")
 
         progressbar.ProgressBar.__init__(self, min_value=min_value, max_value=max_value, widgets=widgets,
                                          left_justify=left_justify, initial_value=initial_value,
@@ -187,6 +190,8 @@ class RareUpdateProgressBar(progressbar.ProgressBar):
             self.one_percent = self.max_value*(1.0*percent_update_interval)/100
         else:
             self.one_percent = 1
+
+        self.silent = silent
 
     def _needs_update(self):
         """

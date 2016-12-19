@@ -609,20 +609,20 @@ class MaskedTable(t.Table):
         mask_ix_col = getattr(self.cols, self._mask_index_field)
         create_col_index(mask_ix_col)
 
-    def flush(self, update_index=False):
+    def flush(self, update_index=False, log_progress=True):
         """
         Flush buffered rows.
         
         Also updates the mask index, if requested.
         """
-        self._flush(update_index)
+        self._flush(update_index, log_progress=log_progress)
     
-    def _flush(self, update_index=False):
+    def _flush(self, update_index=False, log_progress=True):
         # commit any previous changes
         t.Table.flush(self)
 
         if update_index:
-            self._update_ix()
+            self._update_ix(log_progress=log_progress)
             # force flush of index if
             # autoindex is disabled
             if not self.autoindex:
@@ -748,7 +748,7 @@ class MaskedTable(t.Table):
         return t.Table.__len__(self)
     
     # new index update method
-    def _update_ix(self):
+    def _update_ix(self, log_progress=True):
         """
         Update the row indexes of the Table.
         
@@ -757,11 +757,12 @@ class MaskedTable(t.Table):
         field of each row in the table if it is not 
         masked, -1 otherwise.
         """
-        
-        logger.info("Updating mask indices")
+
+        if log_progress:
+            logger.info("Updating mask indices")
 
         l = self._original_len()
-        with RareUpdateProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l, silent=not log_progress) as pb:
             ix = 0
             masked_ix = -1
             for i, row in enumerate(self._iter_visible_and_masked()):

@@ -2602,8 +2602,12 @@ class AccessOptimisedRegionPairs(RegionPairs):
             self._update_partitions()
 
         if flush_edges:
-            for edge_table in self._edges:
-                edge_table.flush(update_index=update_index)
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges)) as pb:
+                for i, edge_table in enumerate(self._edges):
+                    if update_index:
+                        logger.info("Updating mask indices...")
+                    edge_table.flush(update_index=update_index, log_progress=False)
+                    pb.update(i)
 
     def _get_field_dict(self, additional_fields=None):
         """
