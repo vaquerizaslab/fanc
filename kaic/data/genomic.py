@@ -80,7 +80,7 @@ import copy
 from kaic.tools.general import RareUpdateProgressBar, range_overlap
 from kaic.tools.lru import lru_cache
 from bisect import bisect_right, bisect_left
-from future.utils import with_metaclass, string_types
+from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
 import logging
 logger = logging.getLogger(__name__)
@@ -2534,7 +2534,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         # existing one
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
-            for edge_table in self._edges._f_iter_nodes():
+            for edge_table in self._edges:
                 if self._field_dict is None:
                     self._field_dict = edge_table.coldescrs
                     self._update_field_names(edge_table=edge_table)
@@ -2558,7 +2558,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         Set internal object variables related to edge table field names.
         """
         if edge_table is None:
-            for et in self._edges._f_iter_nodes():
+            for et in self._edges:
                 edge_table = et
                 break
 
@@ -2602,7 +2602,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
             self._update_partitions()
 
         if flush_edges:
-            for edge_table in self._edges._f_iter_nodes():
+            for edge_table in self._edges:
                 edge_table.flush(update_index=update_index)
 
     def _get_field_dict(self, additional_fields=None):
@@ -3850,29 +3850,24 @@ class Hic(RegionMatrixTable):
             self.disable_indexes()
             edge_counter = 0
             with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
-                chromosomes = self.chromosomes()
-                for chr_ix1 in range(0, len(chromosomes)):
-                    chromosome1 = chromosomes[chr_ix1]
-                    for chr_ix2 in range(chr_ix1, len(chromosomes)):
-                        chromosome2 = chromosomes[chr_ix2]
-                        edge_buffer = defaultdict(int)
-                        for old_edge in hic.edge_subset((chromosome1, chromosome2), lazy=True):
-                            for new_edge in _edges_by_overlap_method([old_edge.source, old_edge.sink, old_edge.weight],
-                                                                     overlap_map):
-                                edge_buffer[(new_edge[0], new_edge[1])] += new_edge[2]
+                chromosomes = hic.chromosomes()
+                for i in range(len(chromosomes)):
+                    for j in range(i, len(chromosomes)):
+                        logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                        edges = defaultdict(int)
+                        for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j])):
+                            old_source, old_sink = edge.source, edge.sink
+                            old_weight = getattr(edge, hic.default_field)
+
+                            for new_edge in _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map):
+                                edges[(new_edge[0], new_edge[1])] += new_edge[2]
+
                             edge_counter += 1
                             pb.update(edge_counter)
 
-                        try:
-                            # noinspection PyCompatibility
-                            edge_buffer_items = edge_buffer.iteritems()
-                        except AttributeError:
-                            edge_buffer_items = edge_buffer.items()
+                        for (source, sink), weight in viewitems(edges):
+                            self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=False)
 
-                        for (source, sink), weight in edge_buffer_items:
-                            self.add_edge(Edge(source=source, sink=sink, weight=weight), check_nodes_exist=False,
-                                          flush=False, replace=True)
-                    self.flush(update_index=False)
             self.enable_indexes()
             self.flush(update_index=True)
 
@@ -3931,40 +3926,33 @@ class Hic(RegionMatrixTable):
                     identical = False
                     break
 
-        if not identical:
-            raise ValueError("Regions must be identical in both Hic objects to merge!")
-
         merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
-        for region in hics[0].regions:
-            merged_hic.add_region(region, flush=False)
-        merged_hic.flush()
-
         merged_hic.disable_indexes()
-        chromosomes = merged_hic.chromosomes()
-        for i in range(len(chromosomes)):
-            r2 = [i] if only_intrachromosomal else range(i, len(chromosomes))
-            for j in r2:
-                logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
-                edges = dict()
-                for hic in hics:
-                    for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j])):
-                        key = (edge.source, edge.sink)
-                        if key not in edges:
-                            edges[key] = edge
-                        else:
-                            edges[key].weight += edge.weight
+        if not identical:
+            logger.warn("Regions in your Hi-C objects are not identical. Attempting a merge, "
+                        "but it will probably be painfully slow. Ensure identical regions before a"
+                        "merge by using the same FASTA/genome object for building both Hi-C objects.")
+            merged_hic.merge(hics)
+        else:
 
-                try:
-                    # noinspection PyCompatibility
-                    edge_values = edges.itervalues()
-                except AttributeError:
-                    edge_values = edges.values()
+            merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
+            merged_hic.add_regions(hics[0].regions)
 
-                for edge in edge_values:
-                    merged_hic.add_edge(edge, check_nodes_exist=False, replace=True, flush=False)
+            chromosomes = hics[0].chromosomes()
+            for i in range(len(chromosomes)):
+                r2 = range(i, i + 1) if only_intrachromosomal else range(i, len(chromosomes))
+                for j in r2:
+                    logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                    edges = defaultdict(int)
+                    for hic in hics:
+                        for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j])):
+                            key = (edge.source, edge.sink)
+                            edges[key] += edge.weight
+
+                    for (source, sink), weight in viewitems(edges):
+                        merged_hic.add_edge(Edge(source=source, sink=sink, weight=weight), flush=False)
+            merged_hic.flush()
         merged_hic.enable_indexes()
-        merged_hic.flush()
-
         return merged_hic
 
     def _merge(self, hic, _edge_buffer_size=5000000):
@@ -4288,6 +4276,171 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         AccessOptimisedRegionMatrixTable.flush(self, flush_nodes=flush_nodes,
                                                flush_edges=flush_edges, update_index=update_index)
         self._node_annotations.flush()
+
+    @classmethod
+    def from_hic(cls, hics, file_name=None, tmpdir=None, only_intrachromosomal=False):
+        if isinstance(hics, Hic):
+            hics = [hics]
+
+        logger.info("Checking if regions are identical")
+        identical = True
+        for i in range(1, len(hics)):
+            if len(hics[i].regions) != len(hics[0].regions):
+                identical = False
+                break
+
+            for self_region, hic_region in zip(hics[0].regions, hics[i].regions):
+                if self_region.chromosome != hic_region.chromosome:
+                    identical = False
+                    break
+                if self_region.start != hic_region.start:
+                    identical = False
+                    break
+                if self_region.end != hic_region.end:
+                    identical = False
+                    break
+
+        if not identical:
+            logger.warn("Regions in your Hi-C objects are not identical. Attempting a merge, "
+                        "but it will probably be painfully slow. Ensure identical regions before a"
+                        "merge by using the same FASTA/genome object for building both Hi-C objects.")
+            merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
+            merged_hic.merge(hics)
+            return merged_hic
+
+        merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
+        merged_hic.add_regions(hics[0].regions)
+
+        # check if edge table partitions are also identical
+        try:
+            merged_partitions = merged_hic.partitions
+            partitions_identical = True
+            for hic in hics:
+                if hic.partitions != merged_partitions:
+                    partitions_identical = False
+                    break
+        except AttributeError:
+            # this is an old-style Hi-C object
+            partitions_identical = False
+
+        merged_hic.disable_indexes()
+        if partitions_identical:
+            logger.info("Partitions identical, performing fast merge.")
+            for partition_key in hics[0]._edge_table_dict.keys():
+
+                edge_buffer = defaultdict(int)
+                for hic in hics:
+                    for row in hic._edge_table_dict[partition_key]:
+                        source, sink, weight = row['source'], row['sink'], row[hic.default_field]
+                        edge_buffer[(source, sink)] += weight
+
+                merged_edge_table = merged_hic._create_edge_table(partition_key[0], partition_key[1])
+                merged_row = merged_edge_table.row
+                for (source, sink), weight in viewitems(edge_buffer):
+                    merged_row['source'] = source
+                    merged_row['sink'] = sink
+                    merged_row[merged_hic.default_field] = weight
+                    merged_row.append()
+                merged_edge_table.flush(update_index=False)
+        else:
+            logger.info("Partition tables not identical, this will be a slower merge.")
+            chromosomes = merged_hic.chromosomes()
+            for i in range(len(chromosomes)):
+                r2 = [i] if only_intrachromosomal else range(i, len(chromosomes))
+                for j in r2:
+                    logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                    edge_buffer = defaultdict(int)
+                    for hic in hics:
+                        for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j]), lazy=True):
+                            edge_buffer[(edge.source, edge.sink)] += edge.weight
+
+                    # re-arrange edge buffer
+                    partition_edge_buffer = defaultdict(dict)
+                    for key, edge in viewitems(edge_buffer):
+                        source_partition = merged_hic._get_partition_ix(key[0])
+                        sink_partition = merged_hic._get_partition_ix(key[1])
+                        partition_edge_buffer[(source_partition, sink_partition)][key] = edge_buffer[key]
+
+                    # update current rows
+                    for partition_key, e_buffer in viewitems(partition_edge_buffer):
+                        merged_edge_table = merged_hic._create_edge_table(partition_key[0], partition_key[1])
+
+                        merged_row = merged_edge_table.row
+                        for (source, sink), weight in viewitems(e_buffer):
+                            merged_row['source'] = source
+                            merged_row['sink'] = sink
+                            merged_row[merged_hic.default_field] = weight
+                            merged_row.append()
+                        merged_edge_table.flush(update_index=False)
+        merged_hic.enable_indexes()
+        merged_hic.flush()
+
+        return merged_hic
+
+    def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
+        """
+        Load data from another :class:`~Hic` object.
+
+        :param hic: Another :class:`~Hic` object
+        :param _edges_by_overlap_method: A function that maps reads from
+                                         one genomic region to others using
+                                         a supplied overlap map. By default
+                                         it uses the Rao et al. (2014) method.
+                                         See :func:`~_edge_overlap_split_rao`
+        """
+
+        try:
+            hic.partitions
+        except AttributeError:
+            return Hic.load_from_hic(hic, _edges_by_overlap_method=_edge_overlap_split_rao)
+
+        # if we do not have any nodes in this Hi-C object...
+        if len(self.regions()) == 0:
+            logger.info("Copying Hi-C")
+            self.add_regions(hic.regions)
+            self.add_edges(hic.edges)
+            self.bias_vector(hic.bias_vector())
+        # if already have nodes in this HiC object...
+        else:
+            logger.info("Binning Hi-C contacts")
+            # create region "overlap map"
+            overlap_map = _get_overlap_map(hic.regions(), self.regions())
+
+            self.disable_indexes()
+            edge_counter = 0
+            with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
+
+                for edge_table in hic._edge_table_dict.values():
+                    edge_buffer = defaultdict(int)
+                    for row in edge_table:
+                        for new_edge in _edges_by_overlap_method((row['source'], row['sink'],
+                                                                 row[hic.default_field]),
+                                                                 overlap_map):
+                            edge_buffer[(new_edge[0], new_edge[1])] += new_edge[2]
+                        edge_counter += 1
+                        pb.update(edge_counter)
+
+                    # re-arrange edge buffer
+                    partition_edge_buffer = defaultdict(dict)
+                    for key, edge in viewitems(edge_buffer):
+                        source_partition = self._get_partition_ix(key[0])
+                        sink_partition = self._get_partition_ix(key[1])
+                        partition_edge_buffer[(source_partition, sink_partition)][key] = edge_buffer[key]
+
+                    # update current rows
+                    for partition_key, e_buffer in viewitems(partition_edge_buffer):
+                        this_edge_table = self._create_edge_table(partition_key[0], partition_key[1])
+
+                        merged_row = this_edge_table.row
+                        for (source, sink), weight in viewitems(e_buffer):
+                            merged_row['source'] = source
+                            merged_row['sink'] = sink
+                            merged_row[self.default_field] = weight
+                            merged_row.append()
+                        this_edge_table.flush(update_index=False)
+
+            self.enable_indexes()
+            self.flush(update_index=True)
 
     def filter(self, edge_filter, queue=False, log_progress=False):
         """
