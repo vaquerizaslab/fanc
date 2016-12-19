@@ -805,38 +805,29 @@ class MaskedTable(t.Table):
         ix = 0
         mask_ix = -1
 
-        # progress bar
-        l = self._original_len()
-        pb = RareUpdateProgressBar(max_value=l)
-        if _logging:
-            pb.start()
-
         # statistics
         stats = defaultdict(int)
+        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging) as pb:
+            for i, row in enumerate(self._iter_visible_and_masked()):
+                total += 1
 
-        for i, row in enumerate(self._iter_visible_and_masked()):
-            total += 1
+                if not mask_filter.valid(row):
+                    row[self._mask_field] += 2**mask_filter.mask_ix
 
-            if not mask_filter.valid(row):
-                row[self._mask_field] += 2**mask_filter.mask_ix
+                stats[row[self._mask_field]] += 1
 
-            stats[row[self._mask_field]] += 1
-
-            # update index
-            if row[self._mask_field] > 0:
-                row[self._mask_index_field] = mask_ix
-                mask_ix -= 1
-            else:
-                row[self._mask_index_field] = ix
-                ix += 1
-            row.update()
-
-            if _logging:
+                # update index
+                if row[self._mask_field] > 0:
+                    row[self._mask_index_field] = mask_ix
+                    mask_ix -= 1
+                else:
+                    row[self._mask_index_field] = ix
+                    ix += 1
+                row.update()
                 pb.update(i)
         self.attrs['masked_length'] = ix
 
         if _logging:
-            pb.finish()
             logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
                     
         self.flush(update_index=False)
@@ -865,37 +856,33 @@ class MaskedTable(t.Table):
         mask_ix = -1
         total = 0
 
-        # progress bar
-        l = self._original_len()
-        pb = RareUpdateProgressBar(max_value=l)
-        if _logging:
-            pb.start()
+        stats = defaultdict(int)
+        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging) as pb:
+            for i, row in enumerate(self._iter_visible_and_masked()):
+                total += 1
+                for f in self._queued_filters:
+                    if not f.valid(row):
+                        row[self._mask_field] += 2**f.mask_ix
 
-        for i, row in enumerate(self._iter_visible_and_masked()):
-            total += 1
-            for f in self._queued_filters:
-                if not f.valid(row):
-                    row[self._mask_field] += 2**f.mask_ix
-                    
-            # update index
-            if row[self._mask_field] > 0:
-                row[self._mask_index_field] = mask_ix
-                mask_ix -= 1
-            else:
-                row[self._mask_index_field] = ix
-                ix += 1
-            row.update()
-            
-            if _logging:
+                stats[row[self._mask_field]] += 1
+
+                # update index
+                if row[self._mask_field] > 0:
+                    row[self._mask_index_field] = mask_ix
+                    mask_ix -= 1
+                else:
+                    row[self._mask_index_field] = ix
+                    ix += 1
+                row.update()
                 pb.update(i)
 
         self.attrs['masked_length'] = ix
 
         if _logging:
-            pb.finish()
             logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
 
         self.flush(update_index=False)
+        return stats
 
     def where(self, condition, condvars=None,
               start=None, stop=None, step=None):

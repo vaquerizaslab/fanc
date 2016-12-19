@@ -4458,9 +4458,21 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
                              will be continuously reported.
         """
         edge_filter.set_hic_object(self)
+
+        total = 0
+        filtered = 0
         if not queue:
-            for edge_table in self._edge_table_iter():
-                edge_table.filter(edge_filter, _logging=log_progress)
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                       silent=not log_progress) as pb:
+                for i, edge_table in enumerate(self._edge_table_iter()):
+                    stats = edge_table.filter(edge_filter, _logging=False)
+                    for key, value in stats.items():
+                        if key != 0:
+                            filtered += stats[key]
+                        total += stats[key]
+                    pb.update(i)
+            if log_progress:
+                logging.info("Total: {}. Filtered: {}".format(total, filtered))
         else:
             for edge_table in self._edge_table_iter():
                 edge_table.queue_filter(edge_filter)
@@ -4472,8 +4484,19 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         :param log_progress: If true, process iterating through all edges
                              will be continuously reported.
         """
-        for edge_table in self._edge_table_iter():
-            edge_table.run_queued_filters(_logging=log_progress)
+        total = 0
+        filtered = 0
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                   silent=not log_progress) as pb:
+            for i, edge_table in enumerate(self._edge_table_iter()):
+                stats = edge_table.run_queued_filters(_logging=False)
+                for key, value in stats.items():
+                    if key != 0:
+                        filtered += stats[key]
+                    total += stats[key]
+                pb.update(i)
+        if log_progress:
+            logging.info("Total: {}. Filtered: {}".format(total, filtered))
 
 
 def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):
