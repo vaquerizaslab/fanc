@@ -528,7 +528,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                         if os.path.splitext(output_file)[1] == '.bam':
                                             o = pysam.AlignmentFile(working_output_file, 'wb', template=p)
                                         else:
-                                            o = pysam.AlignmentFile(working_output_file, 'w', template=p)
+                                            o = pysam.AlignmentFile(working_output_file, 'wh', template=p)
                                     for alignment in p:
                                         o.write(alignment)
                                 output_count += 1
@@ -564,7 +564,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                         if os.path.splitext(output_file)[1] == '.bam':
                             o = pysam.AlignmentFile(working_output_file, 'wb', template=p)
                         else:
-                            o = pysam.AlignmentFile(working_output_file, 'w', template=p)
+                            o = pysam.AlignmentFile(working_output_file, 'wh', template=p)
 
                     for alignment in p:
                         o.write(alignment)
