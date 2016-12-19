@@ -4393,7 +4393,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         try:
             hic.partitions
         except AttributeError:
-            return Hic.load_from_hic(hic, _edges_by_overlap_method=_edge_overlap_split_rao)
+            return Hic.load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao)
 
         # if we do not have any nodes in this Hi-C object...
         if len(self.regions()) == 0:
