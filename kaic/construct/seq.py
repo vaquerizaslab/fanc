@@ -64,13 +64,13 @@ from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int, CachedIterator
 from kaic.tools.lru import lru_cache
-from kaic.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegionPairs, Edge, AccessOptimisedHic
+from kaic.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegionPairs, Edge, AccessOptimisedHic, Hic
 import msgpack as pickle
 import numpy as np
 import hashlib
 from functools import partial
 from collections import defaultdict
-from future.utils import with_metaclass, string_types
+from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
 import logging
 logger = logging.getLogger(__name__)
@@ -2221,8 +2221,8 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
         for row in self._pairs.where(query):
             yield self._pair_from_row(row, lazy=lazy)
 
-    def to_hic(self, file_name=None, tmpdir=None, _hic_class=AccessOptimisedHic):
-        hic = _hic_class(file_name=file_name, mode='w', tmpdir=tmpdir)
+    def to_hic(self, file_name=None, tmpdir=None):
+        hic = Hic(file_name=file_name, mode='w', tmpdir=tmpdir)
         hic.load_read_fragment_pairs(self)
         return hic
 
@@ -2400,39 +2400,32 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
 
         hic.disable_indexes()
 
-        for pairs_edge_table in self._edge_table_dict.values():
+        l = len(self)
+        pairs_counter = 0
+        with RareUpdateProgressBar(max_value=l) as pb:
+            for pairs_edge_table in self._edge_table_dict.values():
 
-            partition_edge_buffer = defaultdict(dict)
-            for row in pairs_edge_table:
-                key = (row.source, row.sink)
-                source_partition = self._get_partition_ix(key[0])
-                sink_partition = self._get_partition_ix(key[1])
-                if key not in partition_edge_buffer[(source_partition, sink_partition)]:
-                    partition_edge_buffer[(source_partition, sink_partition)][key] += 0
-                partition_edge_buffer[(source_partition, sink_partition)][key] += 1
+                partition_edge_buffer = defaultdict(dict)
+                for row in pairs_edge_table:
+                    key = (row['source'], row['sink'])
+                    source_partition = self._get_partition_ix(key[0])
+                    sink_partition = self._get_partition_ix(key[1])
+                    if key not in partition_edge_buffer[(source_partition, sink_partition)]:
+                        partition_edge_buffer[(source_partition, sink_partition)][key] = 0
+                    partition_edge_buffer[(source_partition, sink_partition)][key] += 1
+                    pb.update(pairs_counter)
+                    pairs_counter += 1
 
-            try:
-                # noinspection PyCompatibility
-                partition_edge_buffer_items = partition_edge_buffer.iteritems()
-            except AttributeError:
-                partition_edge_buffer_items = partition_edge_buffer.items()
+                for hic_partition_key, edge_buffer in viewitems(partition_edge_buffer):
+                    hic_edge_table = hic._create_edge_table(hic_partition_key[0], hic_partition_key[1])
+                    row = hic_edge_table.row
 
-            for hic_partition_key, edge_buffer in partition_edge_buffer_items:
-                hic_edge_table = hic._create_edge_table(hic_partition_key[0], hic_partition_key[1])
-                row = hic_edge_table.row
-
-                try:
-                    # noinspection PyCompatibility
-                    edge_buffer_items = edge_buffer.iteritems()
-                except AttributeError:
-                    edge_buffer_items = edge_buffer.items()
-
-                for (source, sink), weight in edge_buffer_items:
-                    row['source'] = source
-                    row['sink'] = sink
-                    row[hic.default_field] = float(weight)
-                    row.append()
-                hic_edge_table.flush(update_index=False)
+                    for (source, sink), weight in viewitems(edge_buffer):
+                        row['source'] = source
+                        row['sink'] = sink
+                        row[hic.default_field] = float(weight)
+                        row.append()
+                    hic_edge_table.flush(update_index=False)
         hic.enable_indexes()
         hic.flush()
         return hic
