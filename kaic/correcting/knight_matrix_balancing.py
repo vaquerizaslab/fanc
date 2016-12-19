@@ -74,8 +74,8 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
 
     if hic_new is None:
         return hic
-    hic_new.enable_indexes()
     hic_new.flush()
+    hic_new.enable_indexes()
     return hic_new
 
 

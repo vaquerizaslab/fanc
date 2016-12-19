@@ -2426,8 +2426,8 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
                         row[hic.default_field] = float(weight)
                         row.append()
                     hic_edge_table.flush(update_index=False)
-        hic.enable_indexes()
         hic.flush()
+        hic.enable_indexes()
         return hic
 
     def pairs_by_chromosomes(self, chromosome1, chromosome2, lazy=False):

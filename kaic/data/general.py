@@ -600,10 +600,7 @@ class MaskedTable(t.Table):
 
     def disable_mask_index(self):
         mask_ix_col = getattr(self.cols, self._mask_index_field)
-        try:
-            mask_ix_col.remove_index()
-        except:
-            pass
+        mask_ix_col.remove_index()
 
     def enable_mask_index(self):
         mask_ix_col = getattr(self.cols, self._mask_index_field)

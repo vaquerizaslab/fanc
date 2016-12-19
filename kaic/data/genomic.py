@@ -2647,15 +2647,8 @@ class AccessOptimisedRegionPairs(RegionPairs):
 
     def disable_indexes(self):
         for edge_table in self._edge_table_iter():
-            try:
-                edge_table.cols.source.remove_index()
-            except:
-                pass
-
-            try:
-                edge_table.cols.sink.remove_index()
-            except:
-                pass
+            edge_table.cols.source.remove_index()
+            edge_table.cols.sink.remove_index()
             edge_table.disable_mask_index()
 
     def enable_indexes(self):
@@ -3815,8 +3808,9 @@ class Hic(RegionMatrixTable):
                         self.add_edge(Edge(source=source, sink=sink, weight=weight), replace=True, flush=False,
                                       check_nodes_exist=False)
                     self.flush(update_index=False)
-        self.enable_indexes()
+
         self.flush(update_index=True)
+        self.enable_indexes()
 
     def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
         """
@@ -3872,8 +3866,8 @@ class Hic(RegionMatrixTable):
                         for (source, sink), weight in viewitems(edges):
                             self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=False)
 
-            self.enable_indexes()
             self.flush(update_index=True)
+            self.enable_indexes()
 
     def copy(self, file_name, tmpdir=None):
         return Hic(data=self, file_name=file_name, tmpdir=tmpdir, mode='w')
@@ -4379,8 +4373,8 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
                             merged_row[merged_hic.default_field] = weight
                             merged_row.append()
                         merged_edge_table.flush(update_index=False)
-        merged_hic.enable_indexes()
         merged_hic.flush()
+        merged_hic.enable_indexes()
 
         return merged_hic
 
@@ -4446,8 +4440,8 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
                             merged_row.append()
                         this_edge_table.flush(update_index=False)
 
-            self.enable_indexes()
             self.flush(update_index=True)
+            self.enable_indexes()
 
     def filter(self, edge_filter, queue=False, log_progress=False):
         """
