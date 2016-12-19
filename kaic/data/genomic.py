@@ -3887,6 +3887,7 @@ class Hic(RegionMatrixTable):
         :return: :class:`~Hic` object
         """
         # find chromosome lengths
+        logging.info("Constructing binned genome...")
         chromosomes = self.chromosomes()
         chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
         for region in self.regions():
@@ -3898,9 +3899,11 @@ class Hic(RegionMatrixTable):
             chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lens[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = self.__class__(file_name=file_name, mode='w')
         regions = genome.get_regions(bin_size)
         genome.close()
+
+        logging.info("Binning edges...")
+        hic = self.__class__(file_name=file_name, mode='w')
         hic.add_regions(regions)
         regions.close()
         hic.load_from_hic(self)
