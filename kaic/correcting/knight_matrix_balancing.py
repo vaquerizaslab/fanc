@@ -1,12 +1,12 @@
 import warnings
 import numpy as np
 from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
-from kaic.data.genomic import Hic, AccessOptimisedHic
+from kaic.data.genomic import Hic, AccessOptimisedHic, Edge
 import logging
 logger = logging.getLogger(__name__)
 
 
-def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optimise=False):
+def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optimise=True):
     hic_new = None
     chromosome_starts = dict()
     last_chromosome = None
@@ -22,6 +22,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
                 chromosome_starts[region.chromosome] = i
             last_chromosome = region.chromosome
         hic_new.flush()
+        hic_new.disable_indexes()
 
     if only_intra_chromosomal:
         bias_vectors = []
@@ -40,7 +41,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
                     for j in nonzero_idx[nonzero_idx >= i]:
                         j_region = j + chromosome_offset
                         weight = m_corrected[i, j]
-                        hic_new.add_edge([i_region, j_region, weight], flush=False)
+                        hic_new.add_edge(Edge(source=i_region, sink=j_region, weight=weight), flush=False)
             bias_vectors.append(bias_vector_chromosome)
         logger.info("Done.")
         logger.info("Adding bias vector...")
@@ -73,6 +74,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
 
     if hic_new is None:
         return hic
+    hic_new.enable_indexes()
     hic_new.flush()
     return hic_new
 
