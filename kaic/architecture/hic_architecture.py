@@ -1090,8 +1090,8 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
     The directionality index (Dixon 2012 et al.) is a measure for up-/downstream biases of contact counts any
     given region displays.
 
-    :param hic: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
-    a :class:`~kaic.data.genomic.Hic`object
+    :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+                a :class:`~kaic.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Path to temporary directory
@@ -1247,8 +1247,8 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     should work well in many cases, it is highly recommended that you read through the options listed below
     to get the most out of your analysis.
 
-    :param hic: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
-    a :class:`~kaic.data.genomic.Hic`object
+    :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+                a :class:`~kaic.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Path to temporary directory
@@ -1534,7 +1534,7 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
     index window has a width of 1, region contact average can be as wide as required) and can be offset
     from the diagonal.
 
-    :param matrix: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+    :param matrix: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
                    a :class:`~kaic.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)

@@ -6,10 +6,11 @@ Getting started
    :depth: 2
 
 Kai-C offers access to its Hi-C processing pipeline on multiple levels, including
-a high-level executable and a low-level Python 2.7.xx API. Often the ``kaic``
-executable will cover the analysis needs of basic users, but its output is
-compatible with the API, which gives maximum flexibility with regards to
-integration of other data sets and custom analysis methods.
+a high-level executable and a low-level Python 2.7.x / 3.5.x API. Often the ``kaic``
+executable will cover the analysis needs of basic users. For more advanced use cases, the API
+is available, which gives maximum flexibility with regards to
+integration of other data sets and custom analysis methods. The output of the command line tool
+is fully compatible with the API.
 
 Installation
 ~~~~~~~~~~~~
@@ -22,7 +23,7 @@ Prerequisite: HDF5
 __________________
 
 If you are on Linux, download the source code of the latest version from
-the `HDF5 website<https://www.hdfgroup.org/HDF5/>`_ and unpack it.
+the `HDF5 website <https://www.hdfgroup.org/HDF5/>`_ and unpack it.
 There are two different HDF5 branches - note that the 1.10.x branch is not supported!
 
 .. code:: bash
@@ -36,6 +37,8 @@ There are two different HDF5 branches - note that the 1.10.x branch is not suppo
    tar xzf hdf5-1.8.xx.tar.gz
    cd hdf5-1.8.xx/
    # use --prefix to set the folder in which HDF5 should be installed
+   # alternatively, you can omit --prefix=... here and run
+   # sudo make install to install globally (requires admin rights)
    ./configure --prefix=/path/to/hdf5/dir
    make
    make install
@@ -88,5 +91,5 @@ The installation is then done via setup.py:
 Overview
 ~~~~~~~~
 
-Kai-C can be accessed via command line (``kaic`` for analysis, ``klot`` for plotting) or as a Python 2.7.x module (
-``import kaic``.
+Kai-C can be accessed via command line (``kaic`` for analysis, ``klot`` for plotting) or as a Python 2.7.x / 3.5.x
+module (``import kaic``).

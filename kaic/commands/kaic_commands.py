@@ -3402,7 +3402,7 @@ def optimise(argv):
     old_hic.close()
 
 
-def subset_parser():
+def subset_hic_parser():
     parser = argparse.ArgumentParser(
         prog="kaic subset",
         description='Create a new Hic object by subsetting'
@@ -3424,7 +3424,7 @@ def subset_parser():
 
 
 def subset_hic(argv):
-    parser = subset_parser()
+    parser = subset_hic_parser()
     args = parser.parse_args(argv[2:])
 
     import os.path
