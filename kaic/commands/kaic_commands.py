@@ -376,7 +376,9 @@ def auto(argv):
             iterative_mapping_command.append('-tmp')
 
         if args.bowtie_parallel:
-            iterative_mapping_command.append('-x')
+            iterative_mapping_command.append('--bowtie-parallel')
+        if args.split_fastq:
+            iterative_mapping_command.append('--split-fastq')
 
         return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
 
@@ -401,30 +403,7 @@ def auto(argv):
             tp = ThreadPool(1)
             bam_file = output_folder + 'sam/' + file_basenames[ix] + '.bam'
             bam_files.append(bam_file)
-            if not args.split_fastq:
-                fastq_results.append(mapping_worker(file_names[ix], index, bam_file, mapping_processes))
-            else:
-                logger.info("Splitting FASTQ files for mapping")
-                split_tmpdir = tempfile.mkdtemp(dir=output_folder)
-                try:
-                    split_fastq_tmpdir = mkdir(os.path.join(split_tmpdir, 'fastq'))
-                    split_sam_tmpdir = mkdir(os.path.join(split_tmpdir, 'sam'))
-                    split_bam_files = []
-                    split_fastq_results = []
-                    for split_file in split_fastq(file_names[ix], split_fastq_tmpdir):
-                        basename = os.path.basename(gzip_splitext(split_file)[0])
-                        split_bam_file = split_sam_tmpdir + '/{}.bam'.format(basename)
-                        split_bam_files.append(split_bam_file)
-
-                        split_fastq_results.append(mapping_worker(split_file, index, split_bam_file, mapping_processes))
-                    for rt in split_fastq_results:
-                        if rt != 0:
-                            raise RuntimeError("Bowtie mapping had non-zero exit status")
-
-                    logger.info("Merging BAM files into {}".format(bam_file))
-                    merge_sam(split_bam_files, bam_file, tmp=args.tmp)
-                finally:
-                    shutil.rmtree(split_tmpdir)
+            fastq_results.append(mapping_worker(file_names[ix], index, bam_file, mapping_processes))
         tp.close()
         tp.join()
 
@@ -950,10 +929,17 @@ def iterative_mapping_parser():
     )
 
     parser.add_argument(
-        '-x', '--split-fastq', dest='split_fastq',
+        '--bowtie-parallel', dest='bowtie_parallel',
         action='store_true',
         help='''Parallelise by spawning multiple bowtie2 processes rather than a
-                        single multi-core bowtie2 process.'''
+                            single multi-core bowtie2 process.'''
+    )
+    parser.set_defaults(bowtie_parallel=False)
+
+    parser.add_argument(
+        '--split-fastq', dest='split_fastq',
+        action='store_true',
+        help='''Split FASTQ file into 10M chunks before mapping. Easier on tmp partitions.'''
     )
     parser.set_defaults(split_fastq=False)
 
@@ -979,7 +965,7 @@ def iterative_mapping(argv):
     min_size = args.min_size
     threads = args.threads
     batch_size = args.batch_size
-    split_fastq = args.split_fastq
+    bowtie_parallel = args.bowtie_parallel
 
     from kaic.mapping.iterative_mapping import split_iteratively_map_reads
     from kaic.tools.general import mkdir
@@ -992,10 +978,44 @@ def iterative_mapping(argv):
             output_folder = mkdir(output_folder)
             basename, extension = os.path.splitext(os.path.basename(input_file))
             output_file = output_folder + basename + '.bam'
-        split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
-                                    quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
-                                    min_size=min_size, step_size=step_size, copy=args.copy,
-                                    restriction_enzyme=args.restriction_enzyme, bowtie_parallel=not split_fastq)
+
+        if not args.split_fastq:
+            split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
+                                        quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
+                                        min_size=min_size, step_size=step_size, copy=args.copy,
+                                        restriction_enzyme=args.restriction_enzyme, bowtie_parallel=not bowtie_parallel)
+        else:
+            from kaic.tools.files import split_fastq, merge_sam, gzip_splitext
+
+            logger.info("Splitting FASTQ files for mapping")
+            if os.path.isdir(output_folder):
+                split_tmpdir = tempfile.mkdtemp(dir=output_folder)
+            else:
+                split_tmpdir = tempfile.mkdtemp(dir=os.path.dirname(output_folder))
+            try:
+                split_fastq_tmpdir = mkdir(os.path.join(split_tmpdir, 'fastq'))
+                split_sam_tmpdir = mkdir(os.path.join(split_tmpdir, 'sam'))
+                split_bam_files = []
+                split_fastq_results = []
+                for split_file in split_fastq(input_file, split_fastq_tmpdir):
+                    basename = os.path.basename(gzip_splitext(split_file)[0])
+                    split_bam_file = split_sam_tmpdir + '/{}.bam'.format(basename)
+                    split_bam_files.append(split_bam_file)
+
+                    split_iteratively_map_reads(split_file, split_bam_file, index_path, work_dir=args.work_dir,
+                                                quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
+                                                min_size=min_size, step_size=step_size, copy=args.copy,
+                                                restriction_enzyme=args.restriction_enzyme,
+                                                bowtie_parallel=not bowtie_parallel)
+
+                for rt in split_fastq_results:
+                    if rt != 0:
+                        raise RuntimeError("Bowtie mapping had non-zero exit status")
+
+                logger.info("Merging BAM files into {}".format(output_file))
+                merge_sam(split_bam_files, output_file, tmp=args.copy)
+            finally:
+                shutil.rmtree(split_tmpdir)
 
 
 def load_reads_parser():
