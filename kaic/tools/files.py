@@ -183,7 +183,7 @@ def split_fastq(fastq_file, output_folder, chunk_size=10000000):
     return split_files
 
 
-def split_sam(sam_file, output_folder, chunk_size=1000):
+def split_sam(sam_file, output_folder, chunk_size=5000000):
     sam_file = os.path.expanduser(sam_file)
     output_folder = mkdir(output_folder)
 
