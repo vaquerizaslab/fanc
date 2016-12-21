@@ -3,10 +3,12 @@ import os.path
 import string
 import random
 import pysam
+import gzip
 import binascii
 from Bio import SeqIO
 import tempfile
 import shutil
+from kaic.tools.general import mkdir
 
 
 def create_temporary_copy(src_file_name, preserve_extension=False):
@@ -117,3 +119,57 @@ def read_chromosome_sizes(file_name):
                 chromosome, chromosome_length = line.split("\t")
                 chrom_sizes[chromosome] = int(chromosome_length)
     return chrom_sizes
+
+
+def fastq_reader(file_name):
+    """
+    Return appropriate 'open' method by filename extension.
+
+    :param file_name: Filename of the FASTQ or gzipped FASTQ
+                      file.
+    :return: gzip.open for '.gz' and '.gzip' files, 'os.open'
+             otherwise.
+    """
+    input_extension = os.path.splitext(file_name)[1]
+    if input_extension == ".gz" or input_extension == ".gzip":
+        return gzip.open
+    return open
+
+
+def gzip_splitext(file_name):
+    basepath, extension = os.path.splitext(file_name)
+    if extension == '.gz' or extension == '.gzip':
+        basepath, extension2 = os.path.splitext(basepath)
+        extension = extension2 + extension
+    return basepath, extension
+
+
+def split_fastq(fastq_file, output_folder, chunk_size=10000000):
+    fastq_file = os.path.expanduser(fastq_file)
+    output_folder = mkdir(output_folder)
+
+    basepath, extension = gzip_splitext(fastq_file)
+    basename = os.path.basename(basepath)
+
+    fastq_open = fastq_reader(fastq_file)
+
+    split_files = []
+    with fastq_open(fastq_file, 'r') as fastq:
+        current_chunk_number = 0
+        current_chunk_size = 0
+        current_file_name = '{}_{}{}'.format(current_chunk_number, basename, extension)
+        split_files.append(current_file_name)
+        current_split_file = fastq_open(os.path.join(output_folder, current_file_name), 'w')
+        for i, line in enumerate(fastq):
+            if i % 4 == 0:
+                if current_chunk_size >= chunk_size:
+                    current_split_file.close()
+                    current_chunk_size = 0
+                    current_chunk_number += 1
+                    current_file_name = '{}_{}{}'.format(current_chunk_number, basename, extension)
+                    split_files.append(current_file_name)
+                    current_split_file = fastq_open(os.path.join(output_folder, current_file_name), 'w')
+                current_chunk_size += 1
+            current_split_file.write(line)
+
+    return split_files

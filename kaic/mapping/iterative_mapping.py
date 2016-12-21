@@ -1,4 +1,3 @@
-import sys
 import os.path
 import tempfile
 import shutil
@@ -13,6 +12,7 @@ import glob
 from queue import Empty
 from future.utils import string_types
 import pysam
+from kaic.tools.files import fastq_reader
 import logging
 logger = logging.getLogger(__name__)
 
@@ -42,21 +42,6 @@ def ligation_site_pattern(restriction_enzyme):
 
     pattern = "(^.+?" + left_side_re + ')' + right_side_re
     return re.compile(pattern)
-
-
-def _get_fastq_reader(file_name):
-    """
-    Return appropriate 'open' method by filename extension.
-
-    :param file_name: Filename of the FASTQ or gzipped FASTQ
-                      file.
-    :return: gzip.open for '.gz' and '.gzip' files, 'os.open'
-             otherwise.
-    """
-    input_extension = os.path.splitext(file_name)[1]
-    if input_extension == ".gz" or input_extension == ".gzip":
-        return gzip.open
-    return open
 
 
 class SequenceMapper(object):
@@ -291,7 +276,7 @@ def _iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=N
     if work_dir is None:
         work_dir = os.path.split(file_name)[0]
 
-    reader = _get_fastq_reader(file_name)
+    reader = fastq_reader(file_name)
 
     if steps is None:
         logger.debug("Finding maximum read length...")
@@ -439,7 +424,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             working_input_file = input_file
             working_output_file = output_file
 
-        reader = _get_fastq_reader(working_input_file)
+        reader = fastq_reader(working_input_file)
         working_file = gzip.open(work_dir + '/full_reads_0.fastq.gz', 'wb')
         working_files = [working_file.name]
 
