@@ -3648,12 +3648,9 @@ class Hic(RegionMatrixTable):
         # parse potential unnamed argument
         if data is not None:
             # data is file name
-            if type(data) is str:
-                data = os.path.expanduser(data)
-
-                if os.path.isfile(data) and file_name is None:
-                    file_name = data
-                    data = None
+            if isinstance(data, str) and file_name is None:
+                file_name = data
+                data = None
 
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
@@ -4149,12 +4146,9 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         # parse potential unnamed argument
         if data is not None:
             # data is file name
-            if type(data) is str:
-                data = os.path.expanduser(data)
-
-                if os.path.isfile(data) and file_name is None:
-                    file_name = data
-                    data = None
+            if isinstance(data, str) and file_name is None:
+                file_name = data
+                data = None
 
         if file_name is not None:
             file_name = os.path.expanduser(file_name)
