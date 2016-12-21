@@ -374,6 +374,7 @@ class Reads(Maskable, FileBased):
         self._ref = sambam.references
 
         logger.info("Loading mapped reads...")
+        self._reads.disable_mask_index()
         with RareUpdateProgressBar(max_value=n_reads) as pb:
             last_name = ""
             for i, read in enumerate(sambam):
@@ -387,6 +388,7 @@ class Reads(Maskable, FileBased):
                 last_name = read.qname
                 pb.update(i)
         self.flush()
+        self._reads.enable_mask_index()
 
         logger.info("Done.")
 
