@@ -194,10 +194,19 @@ def auto_parser():
     parser.set_defaults(optimise=True)
 
     parser.add_argument(
-        '-x', '--split-fastq', dest='split_fastq',
+        '--bowtie_parallel', dest='bowtie_parallel',
         action='store_true',
         help='''Run multiple bowtie2 processes in split FASTQ files instead of a single multi-core bowtie2 process.
-                Faster, but uses more memory proportional to the number fo threads.'''
+                    Faster, but uses more memory proportional to the number fo threads.'''
+    )
+    parser.set_defaults(bowtie_parallel=False)
+
+    parser.add_argument(
+        '--split-fastq', dest='split_fastq',
+        action='store_true',
+        help='''Split fastq files into chunks of 10M reads. These will be merged again on the Reads level.
+                Splitting and merging bypasses the -tmp flag. This option reduces disk usage in tmp, in case
+                the system has a small tmp partition.'''
     )
     parser.set_defaults(split_fastq=False)
 
@@ -213,6 +222,8 @@ def auto_parser():
 
 def auto(argv):
     import os
+    from kaic.tools.files import split_fastq, gzip_splitext, merge_sam, split_sam
+    from kaic.tools.general import mkdir
 
     parser = auto_parser()
     args = parser.parse_args(argv[2:])
@@ -364,7 +375,7 @@ def auto(argv):
         if args.tmp:
             iterative_mapping_command.append('-tmp')
 
-        if args.split_fastq:
+        if args.bowtie_parallel:
             iterative_mapping_command.append('-x')
 
         return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
@@ -377,7 +388,6 @@ def auto(argv):
 
     if len(fastq_files) > 0:
         mapping_processes = threads
-        tp = ThreadPool(1)
 
         index = os.path.expanduser(args.genome_index)
         if index.endswith('.'):
@@ -385,18 +395,41 @@ def auto(argv):
         logger.info("Iteratively mapping FASTQ files...")
 
         bam_files = []
+
         fastq_results = []
         for i, ix in enumerate(fastq_files):
+            tp = ThreadPool(1)
             bam_file = output_folder + 'sam/' + file_basenames[ix] + '.bam'
             bam_files.append(bam_file)
+            if not args.split_fastq:
+                fastq_results.append(mapping_worker(file_names[ix], index, bam_file, mapping_processes))
+            else:
+                logger.info("Splitting FASTQ files for mapping")
+                split_tmpdir = tempfile.mkdtemp(dir=output_folder)
+                try:
+                    split_fastq_tmpdir = mkdir(os.path.join(split_tmpdir, 'fastq'))
+                    split_sam_tmpdir = mkdir(os.path.join(split_tmpdir, 'sam'))
+                    split_bam_files = []
+                    split_fastq_results = []
+                    for split_file in split_fastq(file_names[ix], split_fastq_tmpdir):
+                        basename = os.path.basename(gzip_splitext(split_file)[0])
+                        split_bam_file = split_sam_tmpdir + '/{}.bam'.format(basename)
+                        split_bam_files.append(split_bam_file)
 
-            fastq_results.append(tp.apply_async(mapping_worker,
-                                                (file_names[ix], index, bam_file, mapping_processes)))
+                        split_fastq_results.append(mapping_worker(split_file, index, split_bam_file, mapping_processes))
+                    for rt in split_fastq_results:
+                        if rt != 0:
+                            raise RuntimeError("Bowtie mapping had non-zero exit status")
+
+                    logger.info("Merging BAM files into {}".format(bam_file))
+                    merge_sam(split_bam_files, bam_file, tmp=args.tmp)
+                finally:
+                    shutil.rmtree(split_tmpdir)
         tp.close()
         tp.join()
 
         for rt in fastq_results:
-            if rt.get() != 0:
+            if rt != 0:
                 raise RuntimeError("Bowtie mapping had non-zero exit status")
 
         for ix, i in enumerate(fastq_files):
@@ -404,12 +437,18 @@ def auto(argv):
             file_types[i] = 'sam'
 
     # 3. SAM/BAM to Reads object conversion
-    def reads_worker(file_name, reads_file):
+    def reads_worker(file_names, reads_file):
         load_reads_command = ['kaic', 'load_reads', '-D']
         if args.tmp:
             load_reads_command.append('-tmp')
+        if args.split_fastq:
+            load_reads_command.append('--split-sam')
 
-        return subprocess.call(load_reads_command + [file_name, reads_file])
+        for file_name in file_names:
+            load_reads_command.append(file_name)
+        load_reads_command.append(reads_file)
+
+        return subprocess.call(load_reads_command)
 
     sam_files = []
     for i in range(len(file_names)):
@@ -418,15 +457,19 @@ def auto(argv):
         sam_files.append(i)
 
     if len(sam_files) > 0:
-        tp = ThreadPool(threads)
+        tp = ThreadPool(threads if not args.split_fastq else 1)
 
         reads_files = []
         reads_results = []
         for ix in sam_files:
             reads_file = output_folder + 'reads/' + file_basenames[ix] + '.reads'
             reads_files.append(reads_file)
-
-            rt = tp.apply_async(reads_worker, (file_names[ix], reads_file))
+            if not args.split_fastq:
+                rt = tp.apply_async(reads_worker, ([file_names[ix]], reads_file))
+            else:
+                split_tmpdir = tempfile.mkdtemp(dir=output_folder)
+                split_bams = split_sam(file_names[ix], split_tmpdir)
+                rt = tp.apply_async(reads_worker, (split_bams, reads_file))
             reads_results.append(rt)
         tp.close()
         tp.join()
@@ -963,6 +1006,7 @@ def load_reads_parser():
 
     parser.add_argument(
         'input',
+        nargs='+',
         help='''Input SAM file'''
     )
 
@@ -1014,6 +1058,14 @@ def load_reads_parser():
     parser.set_defaults(ignore_default=False)
 
     parser.add_argument(
+        '--split-sam', dest='split_sam',
+        action='store_true',
+        help='''Split SAM/BAM files into chunks of 10M alignments before loading. Useful in combination with tmp flag
+                to reduce tmp disk space usage.'''
+    )
+    parser.set_defaults(split_fastq=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -1028,14 +1080,10 @@ def load_reads(argv):
     args = parser.parse_args(argv[2:])
 
     import kaic
-    from kaic.tools.files import create_temporary_copy
 
-    input_path = os.path.expanduser(args.input)
-    if args.tmp:
-        logger.info("Creating copy to work in temporary folder...")
-        input_path = create_temporary_copy(input_path, preserve_extension=True)
-        logger.info("Copy created in %s" % input_path)
-
+    input_paths = []
+    for input_path in args.input:
+        input_paths.append(os.path.expanduser(input_path))
     output_path = os.path.expanduser(args.output)
     original_output_path = output_path
     if args.tmp:
@@ -1057,15 +1105,12 @@ def load_reads(argv):
         store_cigar = args.cigar
         store_tags = args.tags
 
-    logger.info("Starting to import file %s" % input_path)
     reads = kaic.Reads(file_name=output_path, mode='w')
-    reads.load(sambam=input_path, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
-               store_qual=store_qual, store_tags=store_tags, sample_size=100000)
+    reads.load(sambam=input_paths, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
+               store_qual=store_qual, store_tags=store_tags, sample_size=100000, tmp=args.tmp)
     reads.close()
 
     if args.tmp:
-        logger.info("Removing temporary file...")
-        os.unlink(input_path)
         logger.info("Moving output file to destination...")
         shutil.move(output_path, original_output_path)
     logger.info("All done.")

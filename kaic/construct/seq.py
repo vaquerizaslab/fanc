@@ -56,7 +56,7 @@ from __future__ import division
 import tables as t
 import pysam
 from kaic.tools.general import RareUpdateProgressBar
-from kaic.tools.files import is_sambam_file
+from kaic.tools.files import is_sambam_file, create_temporary_copy
 from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased
 import os
 from tables.exceptions import NoSuchNodeError
@@ -294,7 +294,37 @@ class Reads(Maskable, FileBased):
     def load(self, sambam, ignore_duplicates=True,
              store_qname=True, store_cigar=True,
              store_seq=True, store_tags=True,
-             store_qual=True, sample_size=None, mapper=None):
+             store_qual=True, sample_size=None,
+             mapper=None, tmp=None):
+        if isinstance(sambam, string_types):
+            sambam = [sambam]
+
+        logger.info("Loading mapped reads...")
+        silent = len(sambam) > 1
+        self._reads.disable_mask_index()
+        with RareUpdateProgressBar(max_value=len(sambam), silent=silent) as pb:
+            for i, sam_file in enumerate(sambam):
+                try:
+                    if tmp:
+                        sam_file = create_temporary_copy(sam_file, preserve_extension=True)
+                    self._load(sam_file, ignore_duplicates=ignore_duplicates, store_qname=store_qname,
+                               store_cigar=store_cigar, store_seq=store_seq, store_tags=store_tags,
+                               store_qual=store_qual, sample_size=sample_size, mapper=mapper, _first=i == 0,
+                               _silent=silent)
+                finally:
+                    if tmp:
+                        os.remove(sam_file)
+                pb.update(i)
+        self.flush()
+        self._reads.enable_mask_index()
+        logger.info("Done.")
+
+    def _load(self, sambam, ignore_duplicates=True,
+              store_qname=True, store_cigar=True,
+              store_seq=True, store_tags=True,
+              store_qual=True, sample_size=None,
+              mapper=None,
+              _first=True, _silent=False):
         """
         Load mapped reads from SAM/BAM file.
 
@@ -324,58 +354,58 @@ class Reads(Maskable, FileBased):
         sambam = pysam.AlignmentFile(file_name, 'rb')
         logger.info("Done.")
 
-        logger.info("Estimating field sizes")
-        qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, sample_size,
-                                                                                          store_qname=True,
-                                                                                          store_cigar=True,
-                                                                                          store_seq=True,
-                                                                                          store_tags=True,
-                                                                                          store_qual=True)
-        if sample_size is not None:
-            qname_length *= 2
-            seq_length *= 2
-            cigar_length *= 2
-            tags_length *= 2
+        if _first:
+            logger.info("Estimating field sizes")
+            qname_length, seq_length, cigar_length, tags_length = Reads.determine_field_sizes(file_name, sample_size,
+                                                                                              store_qname=True,
+                                                                                              store_cigar=True,
+                                                                                              store_seq=True,
+                                                                                              store_tags=True,
+                                                                                              store_qual=True)
+            if sample_size is not None:
+                qname_length *= 2
+                seq_length *= 2
+                cigar_length *= 2
+                tags_length *= 2
 
-        # create string tables if they do not yet exist
-        if self._qname is None and store_qname:
-            self._qname = self.file.create_earray(self._file_group, 'qname',
-                                                  t.StringAtom(itemsize=qname_length), (0,))
+            # create string tables if they do not yet exist
+            if self._qname is None and store_qname:
+                self._qname = self.file.create_earray(self._file_group, 'qname',
+                                                      t.StringAtom(itemsize=qname_length), (0,))
 
-        if self._cigar is None and store_cigar:
-            self._cigar = self.file.create_earray(self._file_group, 'cigar',
-                                                  t.StringAtom(itemsize=cigar_length), (0,))
+            if self._cigar is None and store_cigar:
+                self._cigar = self.file.create_earray(self._file_group, 'cigar',
+                                                      t.StringAtom(itemsize=cigar_length), (0,))
 
-        if self._seq is None and store_seq:
-            self._seq = self.file.create_earray(self._file_group, 'seq',
-                                                t.StringAtom(itemsize=seq_length), (0,))
+            if self._seq is None and store_seq:
+                self._seq = self.file.create_earray(self._file_group, 'seq',
+                                                    t.StringAtom(itemsize=seq_length), (0,))
 
-        if self._qual is None and store_qual:
-            self._qual = self.file.create_earray(self._file_group, 'qual',
-                                                 t.StringAtom(itemsize=seq_length), (0,))
+            if self._qual is None and store_qual:
+                self._qual = self.file.create_earray(self._file_group, 'qual',
+                                                     t.StringAtom(itemsize=seq_length), (0,))
 
-        if self._tags is None and store_tags:
-            self._tags = self.file.create_earray(self._file_group, 'tags',
-                                                 t.StringAtom(itemsize=tags_length), (0,))
+            if self._tags is None and store_tags:
+                self._tags = self.file.create_earray(self._file_group, 'tags',
+                                                     t.StringAtom(itemsize=tags_length), (0,))
 
-        # header
-        self._reads._v_attrs.header = {k: sambam.header[k]
-                                       for k in sambam.header
-                                       if k in ('HD', 'RG', 'PG')}
-        self._header = sambam.header
+            # header
+            self._reads._v_attrs.header = {k: sambam.header[k]
+                                           for k in sambam.header
+                                           if k in ('HD', 'RG', 'PG')}
+            self._header = sambam.header
 
-        # Tool used to map reads
-        self.mapper = mapper
-        if self.mapper == 'bwa':
-            ignore_duplicates = False
-        
-        # references
-        self._reads._v_attrs.ref = sambam.references
-        self._ref = sambam.references
+            # Tool used to map reads
+            self.mapper = mapper
 
-        logger.info("Loading mapped reads...")
-        self._reads.disable_mask_index()
-        with RareUpdateProgressBar(max_value=n_reads) as pb:
+            if self.mapper == 'bwa':
+                ignore_duplicates = False
+
+            # references
+            self._reads._v_attrs.ref = sambam.references
+            self._ref = sambam.references
+
+        with RareUpdateProgressBar(max_value=n_reads, silent=_silent) as pb:
             last_name = ""
             for i, read in enumerate(sambam):
                 if i % 1000000 == 0:
@@ -387,10 +417,7 @@ class Reads(Maskable, FileBased):
                               store_qname=store_qname, store_tags=store_tags)
                 last_name = read.qname
                 pb.update(i)
-        self.flush()
-        self._reads.enable_mask_index()
-
-        logger.info("Done.")
+        self.flush(update_index=False, update_csi=False)
 
     def _update_csi(self):
         if not self._reads.cols.qname_ix.is_indexed:

@@ -9,6 +9,11 @@ from Bio import SeqIO
 import tempfile
 import shutil
 from kaic.tools.general import mkdir
+from future.utils import string_types
+import logging
+
+# configure logging
+logger = logging.getLogger(__name__)
 
 
 def create_temporary_copy(src_file_name, preserve_extension=False):
@@ -157,19 +162,87 @@ def split_fastq(fastq_file, output_folder, chunk_size=10000000):
     with fastq_open(fastq_file, 'r') as fastq:
         current_chunk_number = 0
         current_chunk_size = 0
-        current_file_name = '{}_{}{}'.format(current_chunk_number, basename, extension)
+        current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                         basename, extension))
         split_files.append(current_file_name)
-        current_split_file = fastq_open(os.path.join(output_folder, current_file_name), 'w')
+        current_split_file = fastq_open(current_file_name, 'w')
         for i, line in enumerate(fastq):
             if i % 4 == 0:
                 if current_chunk_size >= chunk_size:
                     current_split_file.close()
                     current_chunk_size = 0
                     current_chunk_number += 1
-                    current_file_name = '{}_{}{}'.format(current_chunk_number, basename, extension)
+                    current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                                     basename, extension))
                     split_files.append(current_file_name)
-                    current_split_file = fastq_open(os.path.join(output_folder, current_file_name), 'w')
+                    current_split_file = fastq_open(current_file_name, 'w')
                 current_chunk_size += 1
             current_split_file.write(line)
+    current_split_file.close()
 
     return split_files
+
+
+def split_sam(sam_file, output_folder, chunk_size=1000):
+    sam_file = os.path.expanduser(sam_file)
+    output_folder = mkdir(output_folder)
+
+    basepath, extension = gzip_splitext(sam_file)
+    basename = os.path.basename(basepath)
+
+    split_files = []
+    with pysam.AlignmentFile(sam_file) as sambam:
+        mode = 'wb' if os.path.splitext(sam_file)[1] == '.bam' else 'wh'
+
+        current_chunk_number = 0
+        current_chunk_size = 0
+        current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                         basename, extension))
+        split_files.append(current_file_name)
+        current_split_file = pysam.AlignmentFile(current_file_name, mode, template=sambam)
+        for i, alignment in enumerate(sambam):
+            if current_chunk_size >= chunk_size:
+                current_split_file.close()
+                current_chunk_size = 0
+                current_chunk_number += 1
+                current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                                 basename, extension))
+                split_files.append(current_file_name)
+                current_split_file = pysam.AlignmentFile(current_file_name, mode, template=sambam)
+            current_chunk_size += 1
+            current_split_file.write(alignment)
+    current_split_file.close()
+
+    return split_files
+
+
+def merge_sam(input_sams, output_sam, tmp=None):
+    output_sam = os.path.expanduser(output_sam)
+    first_sam = os.path.expanduser(input_sams[0])
+
+    if tmp is not None:
+        if isinstance(tmp, string_types):
+            tmp = os.path.expanduser(tmp)
+        elif tmp:
+            tmp = tempfile.mkdtemp()
+
+        if tmp:
+            logger.info("Working from tmp dir {}".format(tmp))
+
+    try:
+        with pysam.AlignmentFile(first_sam) as fs:
+            mode = 'wb' if os.path.splitext(output_sam)[1] == '.bam' else 'wh'
+            with pysam.AlignmentFile(output_sam, mode, template=fs) as o:
+                for input_sam in input_sams:
+                    input_sam = os.path.expanduser(input_sam)
+                    if tmp:
+                        input_sam = shutil.copy(input_sam, tmp)
+                    with pysam.AlignmentFile(input_sam) as r:
+                        for alignment in r:
+                            o.write(alignment)
+                    if tmp:
+                        os.remove(input_sam)
+    finally:
+        if tmp:
+            shutil.rmtree(tmp)
+    return output_sam
