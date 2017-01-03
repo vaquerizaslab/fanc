@@ -89,7 +89,7 @@ class Kaic(object):
                 message = "Kai-C command (start date: {}): " \
                           "{}<br>failed with the following exception:<br>{}".format(start_date, kaic_command,
                                                                                     exception_message)
-                subject = "[Kai-C] {} ({}) failed".format(start_date, sys.argv[option_ix])
+                subject = "{} ({}) failed".format(start_date, sys.argv[option_ix])
                 emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
                                   server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
             raise ex
@@ -101,7 +101,7 @@ class Kaic(object):
 
             message = "Kai-C command (start date: {}): " \
                       "{}<br>executed successfully!".format(start_date, kaic_command)
-            subject = "[Kai-C] {} ({}) completed".format(start_date, sys.argv[option_ix])
+            subject = "{} ({}) completed".format(start_date, sys.argv[option_ix])
             emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
                               server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
 
