@@ -1,6 +1,6 @@
-====
-klot
-====
+============
+klot command
+============
 
 Kai-C provides a dedicated plotting executable (``klot``) for plotting Hi-C matrices and other kinds of genomic data.
 

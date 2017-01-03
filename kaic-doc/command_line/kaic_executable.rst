@@ -1,6 +1,8 @@
-====
-kaic
-====
+.. _kaic-executable:
+
+============
+kaic command
+============
 
 Kai-C provides a high-level executable (``kaic``) that can perform most Kai-C functions. Here
 is its help screen, which you can see by running ``kaic -h``:
@@ -16,6 +18,24 @@ to run. For example, ``kaic auto`` will invoke automatic processing of files in 
 get help on individual subcommands by simply appending ``-h`` to the command line call, e.g.
 ``kaic auto -h``.
 
+.. _kaic-tmp:
+
+***************
+The -tmp option
+***************
+
+Many ``kaic`` commands have a ``-tmp`` option. This can be very useful if you are
+working on a network file system (such as a cluster setup), where network I/O can become a bottleneck. With ``-tmp``,
+all input files will be copied to a temporary folder (which typically is a local disk), and all output files will
+equally be generated in that folder. On successful execution of the command, output files will be copied to their
+"proper" destination and all temporary files will be cleaned up. Kai-C also tries to remove temporary files in
+case of a premature termination of the command, but depending on the type of termination signal sent by your system,
+this may not always work.
+
+You can easily change the temporary folder by setting the ``$TMPDIR`` environment variable.
+
+
+.. _kaic-auto:
 
 Automatic processing
 ~~~~~~~~~~~~~~~~~~~~
@@ -27,7 +47,7 @@ run a complete Hi-C pipeline up until the generation of bias-corrected Hi-C matr
 .. argparse::
    :module: kaic.commands.kaic_commands
    :func: auto_parser
-   :prog: kaic
+   :prog: kaic auto
 
 Possible input files are:
 
@@ -52,6 +72,8 @@ Mapping
 ~~~~~~~
 
 The start of every Hi-C pipeline is mapping of sequencing reads to a reference genome.
+
+.. _iterative-mapping:
 
 iterative_mapping
 _________________
@@ -83,6 +105,8 @@ Reads
 Reads objects represent a list of mapped reads. ``kaic`` offers functionality to load reads from a SAM/BAM file and to
 filter reads based on several mapping criteria.
 
+.. _load-reads:
+
 load_reads
 __________
 
@@ -101,6 +125,8 @@ Example use:
 
     kaic load_reads /path/to/some.sam /path/to/output.reads
 
+
+.. _filter-reads:
 
 filter_reads
 ____________
@@ -130,6 +156,8 @@ Example use:
 Genome
 ~~~~~~
 
+.. _build-genome:
+
 build_genome
 ____________
 
@@ -150,6 +178,8 @@ Pairs
 
 A Pairs object represents pairs of mapped reads that have been assigned to regions in a reference genome. Typically,
 regions are restriction fragments, which mark the lowest achievable resolution in a Hi-C experiment.
+
+.. _load-pairs:
 
 reads_to_pairs
 ______________
@@ -173,6 +203,8 @@ Example:
 
     kaic reads_to_pairs /path/to/first.reads /path/to/second.reads /path/to/chr1.fa,/path/to/chr2.fa HindIII /path/to/output.pairs
 
+
+.. _filter-pairs:
 
 filter_pairs
 ____________
@@ -202,6 +234,7 @@ The Hic object represents a Hi-C matrix. This includes both variable-region matr
 fragments, and equi-distant regions, such as binned Hi-C matrices. It handles common tasks, such as binning or merging
 Hic objects, and can be used to `plot <Plotting>`_ Hi-C data in a variety of ways.
 
+.. _pairs-to-hic:
 
 pairs_to_hic
 ____________
@@ -243,6 +276,8 @@ Example:
     kaic merge_hic /path/to/old_1.hic /path/to/old2.hic /path/to/old3.hic /path/to/merged.hic
 
 
+.. _bin-hic:
+
 bin_hic
 _______
 
@@ -262,6 +297,21 @@ Example to bin an existing object at 50kb resolution:
 
     kaic bin_hic /path/to/old.hic /path/to/binned.hic 50000
 
+
+.. _filter-hic:
+
+filter_hic
+__________
+
+You can use this command to filter Hi-C matrices.
+
+.. argparse::
+   :module: kaic.commands.kaic_commands
+   :func: filter_hic_parser
+   :prog: kaic
+
+
+.. _correct-hic:
 
 correct_hic
 ___________
@@ -308,6 +358,8 @@ Plotting (statistics)
 quality control plots are provided by ``kaic`` - for plotting genomic data sets, take a look at the much
 more powerful ``klot`` command.
 
+.. _plot-ligation-error:
+
 plot_ligation_err
 _________________
 
@@ -330,6 +382,8 @@ Example:
 
     kaic plot_ligation_err /path/to/my.pairs /path/to/error.pdf
 
+
+.. _restriction-distance:
 
 plot_re_dist
 ____________
