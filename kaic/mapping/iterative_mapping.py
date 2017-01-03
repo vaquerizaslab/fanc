@@ -394,6 +394,16 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                 restriction_enzyme=None, adjust_batch_size=False, mapper=None,
                                 bowtie_parallel=True):
 
+    check_path = os.path.expanduser(index_path)
+    if check_path.endswith('.'):
+        check_path = check_path[:-1]
+    for i in range(1, 5):
+        if not os.path.exists(check_path + '.{}.bt2'.format(i)):
+            raise ValueError("Cannot find bowtie2 path!")
+    for i in range(1, 3):
+        if not os.path.exists(check_path + '.rev.{}.bt2'.format(i)):
+            raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
+
     bowtie_threads, worker_threads = (threads, 1) if bowtie_parallel else (1, threads)
 
     if work_dir is not None:
@@ -437,6 +447,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             re_pattern = ligation_site_pattern(restriction_enzyme)
 
         if adjust_batch_size:
+            logging.info("Counting lines to adjust batch size...")
             with reader(working_input_file, 'r') as fastq:
                 n_lines = sum(1 for _ in fastq)/4
 
