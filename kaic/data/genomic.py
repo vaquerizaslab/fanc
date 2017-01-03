@@ -872,6 +872,13 @@ class GenomicRegions(object):
         """
         if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
+
+        if region.start is None:
+            region.start = 0
+
+        if region.end is None:
+            region.end = self.chromosome_lens[region.chromosome]
+
         start_ix = None
         end_ix = None
         for r in self.regions:
