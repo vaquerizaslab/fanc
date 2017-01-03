@@ -196,8 +196,8 @@ def auto_parser():
     parser.add_argument(
         '--bowtie_parallel', dest='bowtie_parallel',
         action='store_true',
-        help='''Run multiple bowtie2 processes in split FASTQ files instead of a single multi-core bowtie2 process.
-                    Faster, but uses more memory proportional to the number fo threads.'''
+        help='''Use Bowtie2 parallelisation instead of spawning multiple Bowtie 2 processes.
+                Slower, but less of a memory overhead.'''
     )
     parser.set_defaults(bowtie_parallel=False)
 
@@ -222,8 +222,7 @@ def auto_parser():
 
 def auto(argv):
     import os
-    from kaic.tools.files import split_fastq, gzip_splitext, merge_sam, split_sam
-    from kaic.tools.general import mkdir
+    from kaic.tools.files import split_sam
 
     parser = auto_parser()
     args = parser.parse_args(argv[2:])
@@ -268,7 +267,7 @@ def auto(argv):
 
     def file_basename(file_name):
         basename = os.path.basename(os.path.splitext(file_name)[0])
-        if basename.endswith('.gz') or basename.endswith('.gzip'):
+        if file_name.endswith('.gz') or file_name.endswith('.gzip'):
             basename = os.path.splitext(basename)[0]
         return basename
 
@@ -931,8 +930,8 @@ def iterative_mapping_parser():
     parser.add_argument(
         '--bowtie-parallel', dest='bowtie_parallel',
         action='store_true',
-        help='''Parallelise by spawning multiple bowtie2 processes rather than a
-                            single multi-core bowtie2 process.'''
+        help='''Use bowtie parallelisation rather than spawning multiple Bowtie2 processes.
+                This is slower, but consumes a lot less memory.'''
     )
     parser.set_defaults(bowtie_parallel=False)
 
@@ -983,7 +982,9 @@ def iterative_mapping(argv):
             split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
                                         quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
                                         min_size=min_size, step_size=step_size, copy=args.copy,
-                                        restriction_enzyme=args.restriction_enzyme, bowtie_parallel=not bowtie_parallel)
+                                        restriction_enzyme=args.restriction_enzyme,
+                                        adjust_batch_size=True,
+                                        bowtie_parallel=bowtie_parallel)
         else:
             from kaic.tools.files import split_fastq, merge_sam, gzip_splitext
 
@@ -1006,7 +1007,8 @@ def iterative_mapping(argv):
                                                 quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
                                                 min_size=min_size, step_size=step_size, copy=args.copy,
                                                 restriction_enzyme=args.restriction_enzyme,
-                                                bowtie_parallel=not bowtie_parallel)
+                                                adjust_batch_size=True,
+                                                bowtie_parallel=bowtie_parallel)
 
                 for rt in split_fastq_results:
                     if rt != 0:
