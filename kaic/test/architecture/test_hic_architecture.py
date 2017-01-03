@@ -4,6 +4,7 @@ from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContact
     InsulationIndex, ObservedExpectedRatio
 import pytest
 import numpy as np
+from kaic.tools import dummy
 
 
 class TestHicArchitecture:
@@ -371,14 +372,12 @@ class TestInsulationIndex:
         self.hic.close()
 
     def test_insulation_index(self):
-        with InsulationIndex(self.hic, window_sizes=(2000, 3000)) as ins:
+        with InsulationIndex(self.hic, window_sizes=(2000, 3000), impute_missing=True) as ins:
             d = ins.insulation_index(window_size=2000)
 
             assert np.isnan(d[0])
-            assert np.isnan(d[1])
             assert d[2] == 50.0
             assert d[3] - 38.77083206176758 < 0.00001
-
             with pytest.raises(AttributeError):
                 ins.directionality_index(10000)
 
@@ -409,7 +408,41 @@ class TestInsulationIndex:
             with pytest.raises(AttributeError):
                 ins.directionality_index(10000)
 
-    def test_relative_insulation_index(self):
+    def test_sparse_insulation_index(self):
+        with dummy.sample_hic_matrix2() as hic:
+            with InsulationIndex(hic, window_sizes=(1000, 2000, 3000, 4000, 5000)) as ii:
+                ii_1000 = ii.insulation_index(1000)
+                assert np.isnan(ii_1000[0])
+                assert ii_1000[1] == 0
+                assert ii_1000[2] == 7
+                assert np.isnan(ii_1000[3])
+                assert ii_1000[4] == 8
+                assert np.isnan(ii_1000[5])
+                assert np.isnan(ii_1000[6])
+                assert ii_1000[7] == 0
+                assert np.isnan(ii_1000[8])
+                assert np.isnan(ii_1000[9])
 
-        with InsulationIndex(self.hic, window_sizes=(2000, 3000), relative=True) as ins:
-            pass
+                ii_2000 = ii.insulation_index(2000)
+                assert np.isnan(ii_2000[0])
+                assert np.isnan(ii_2000[1])
+                assert ii_2000[2] == (7 + 2) / 2
+                assert ii_2000[3] == (8 + 0) / 2
+                assert ii_2000[4] == (8 + 5 + 0 + 9) / 4
+                assert np.isnan(ii_2000[5])
+                assert np.isnan(ii_2000[6])
+                assert ii_2000[7] == (8 + 9 + 0 + 0) / 4
+                assert np.isnan(ii_2000[8])
+                assert np.isnan(ii_2000[9])
+
+                ii_3000 = ii.insulation_index(3000)
+                assert np.isnan(ii_3000[0])
+                assert np.isnan(ii_3000[1])
+                assert np.isnan(ii_3000[2])
+                assert ii_3000[3] < (3+8+5)/6 + 0.0001
+                assert ii_3000[4] < (8 + 8 + 5 + 9) / 6 + 0.0001
+                assert np.isnan(ii_3000[5])
+                assert np.isnan(ii_3000[6])
+                assert np.isnan(ii_3000[7])
+                assert np.isnan(ii_3000[8])
+                assert np.isnan(ii_3000[9])

@@ -1254,8 +1254,6 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     :param tmpdir: Path to temporary directory
     :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
-    :param relative: if True, will normalise the insuation index for any given region by
-                     dividing it by the insulation of neighboring regions (TODO: fix description by @chug)
     :param offset: Offset of the insulation square from the diagonal. Can be useful to avoid biases
                    stemming from very bright diagonals
     :param normalise: If True, will normalise the insulation values by the chromosome average. You can change
@@ -1275,7 +1273,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     _classid = 'INSULATIONINDEX'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None,
-                 regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
+                 regions=None, offset=0, normalise=False, impute_missing=False,
                  window_sizes=(200000,), log=False, _normalisation_window=300,
                  subtract_mean=False, _table_name='insulation_index'):
         self.region_selection = regions
@@ -1313,18 +1311,21 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
         self.offset = offset
         self.hic = hic
-        self.relative = relative
         self.impute_missing = impute_missing
         self.normalise = normalise
         self.normalisation_window = _normalisation_window
         self.subtract_mean = subtract_mean
         self.log = log
 
-    def _insulation_index(self, d1, d2, mask_thresh=.5, aggr_func=np.ma.mean, _mappable=None, _expected=None):
-        if self.region_selection is not None:
-            regions = self.hic.subset(self.region_selection)
-        else:
-            regions = self.hic.regions
+    def _insulation_index_lowmem(self, window_size, window_offset=0, aggr_func=None, _mappable=None,
+                                 _na_threshold=0.5, _expected=None):
+        lowmem = False
+        if aggr_func is None:
+            lowmem = True
+            aggr_func = np.ma.mean
+
+        chromosome_bins = self.hic.chromosome_bins
+        window_offset += 1
 
         if _mappable is None:
             _mappable = self.hic.mappable()
@@ -1332,98 +1333,149 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         if self.impute_missing and _expected is None:
             _expected = ExpectedContacts(self.hic, smooth=True)
 
-        nan_chromosome_counter = 0
-        nan_mask_counter = 0
-        nan_invalid_counter = 0
-        logger.debug("Starting processing")
-        skipped = 0
-        last_chromosome = None
-        ins_by_chromosome = []
-        for i, r in enumerate(regions):
-            if r.chromosome != last_chromosome:
-                logger.info("Processing chromosome {}".format(r.chromosome))
-                last_chromosome = r.chromosome
-                ins_by_chromosome.append(list())
-                unmasked = self.hic.as_matrix(key=(r.chromosome, r.chromosome),
-                                              mask_missing=False, impute_missing=False)
-                mask = np.zeros(unmasked.shape, dtype=bool)
-                for z, ix in enumerate(range(r.ix, r.ix + unmasked.shape[0])):
-                    if not _mappable[ix]:
-                        mask[z, :] = True
-                        mask[:, z] = True
-                hic_matrix = np.ma.MaskedArray(unmasked, mask=mask)
-                if self.impute_missing:
-                    hic_matrix = self.hic._impute_missing_contacts(hic_matrix=hic_matrix,
-                                                                   _expected_contacts=_expected)
-                logger.info("Matrix loaded.")
+        if _expected is not None:
+            intra_expected = _expected.intra_expected()
+        else:
+            intra_expected = None
 
-            rix = len(ins_by_chromosome[-1])
+        def _pair_to_bins(source, sink):
+            # correct index by chromosome and window offset
+            i = source - chromosome_start + window_offset
+            j = sink - chromosome_start - window_offset
 
-            if rix < d2 or hic_matrix.shape[0] - rix <= d2 + 1:
-                ins_by_chromosome[-1].append(np.nan)
-                nan_chromosome_counter += 1
-                continue
+            start = max(i, j - window_size + 1)
+            stop = min(j + 1, i + window_size)
+            for ii_bin in range(start, stop):
+                yield ii_bin
 
-            if not _mappable[i]:
-                ins_by_chromosome[-1].append(np.nan)
-                nan_mask_counter += 1
-                continue
-
-            up_rel_slice = (slice(rix - d2, rix - d1), slice(rix - d2, rix - d1))
-            down_rel_slice = (slice(rix + d1 + 1, rix + d2 + 1), slice(rix + d1 + 1, rix + d2 + 1))
-            ins_slice = (slice(rix + d1 + 1, rix + d2 + 1), slice(rix - d2, rix - d1))
-
-            if ((self.relative and np.sum(hic_matrix.mask[up_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
-                    (self.relative and np.sum(hic_matrix.mask[down_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
-                    np.sum(hic_matrix.mask[ins_slice]) > ((d2-d1)**2)*mask_thresh):
-                # If too close to the edge of chromosome or
-                # if more than half of the entries in this quadrant are masked (unmappable)
-                # exclude it from the analysis
-                skipped += 1
-                ins_by_chromosome[-1].append(np.nan)
-                nan_invalid_counter += 1
-                continue
-
-            if not self.relative:
-                s = aggr_func(hic_matrix[ins_slice].data
-                              if self.impute_missing else hic_matrix[ins_slice])
-                ins_by_chromosome[-1].append(s)
+        ii_list = []
+        chromosomes = self.hic.chromosomes()
+        for chromosome in chromosomes:
+            chromosome_start, chromosome_stop = chromosome_bins[chromosome]
+            if lowmem:
+                values_by_chromosome = [0 for _ in range(chromosome_start, chromosome_stop)]
             else:
-                if not self.impute_missing:
-                    s = (aggr_func(hic_matrix[ins_slice]) /
-                         aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
-                                                 hic_matrix[down_rel_slice]))))
-                    ins_by_chromosome[-1].append(s)
-                else:
-                    s = (aggr_func(hic_matrix[ins_slice].data) /
-                         aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
-                                                 hic_matrix[down_rel_slice].data))))
-                    ins_by_chromosome[-1].append(s)
+                values_by_chromosome = [list() for _ in range(chromosome_start, chromosome_stop)]
 
-        logger.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
+            # add each edge weight to every insulation window that contains it
+            for edge in self.hic.edge_subset((chromosome, chromosome), lazy=True):
+                for ii_bin in _pair_to_bins(edge.source, edge.sink):
+                    if lowmem:
+                        values_by_chromosome[ii_bin] += edge.weight
+                    else:
+                        values_by_chromosome[ii_bin].append(edge.weight)
 
-        for i in range(len(ins_by_chromosome)):
-            ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
+            # add imputed values, if requested
+            if intra_expected is not None:
+                covered = set()
+                for ix in range(chromosome_start, chromosome_stop):
+                    if not _mappable[ix]:
+                        sink = ix
+                        for source in range(max(chromosome_start, ix - window_size - window_offset - 2), ix):
+                            if (source, sink) in covered:
+                                continue
+                            covered.add((source, sink))
+                            weight = intra_expected[sink - source]
+                            for ii_bin in _pair_to_bins(source, sink):
+                                if lowmem:
+                                    values_by_chromosome[ii_bin] += weight
+                                else:
+                                    values_by_chromosome[ii_bin].append(weight)
+
+                        source = ix
+                        for sink in range(ix, min(chromosome_stop, ix + window_offset + window_size + 2)):
+                            if (source, sink) in covered:
+                                continue
+                            covered.add((source, sink))
+                            weight = intra_expected[sink - source]
+                            for ii_bin in _pair_to_bins(source, sink):
+                                if lowmem:
+                                    values_by_chromosome[ii_bin] += weight
+                                else:
+                                    values_by_chromosome[ii_bin].append(weight)
+
+                for k in range(len(values_by_chromosome)):
+                    if (k - window_offset < window_size - 1
+                            or k + window_offset > len(values_by_chromosome) - window_size):
+                        if lowmem:
+                            values_by_chromosome[k] = np.nan
+                        else:
+                            values_by_chromosome[k] = []
+                    else:
+                        if not lowmem:
+                            for _ in range(len(values_by_chromosome[k]), window_size**2):
+                                values_by_chromosome[k].append(0)
+                        else:
+                            values_by_chromosome[k] /= window_size**2
+            # count unmappable bins in every window
+            else:
+                unmappable_horizontal = [0 for _ in range(chromosome_start, chromosome_stop)]
+                unmappable_vertical = [0 for _ in range(chromosome_start, chromosome_stop)]
+
+                for ix in range(chromosome_start, chromosome_stop):
+                    if not _mappable[ix]:
+                        # horizontal
+                        start_bin = ix - chromosome_start + window_offset
+                        for ii_bin in range(start_bin, start_bin + window_size):
+                            if 0 <= ii_bin < len(unmappable_horizontal):
+                                unmappable_horizontal[ii_bin] += 1
+                        # vertical
+                        start_bin = ix - chromosome_start - window_offset
+                        for ii_bin in range(start_bin - window_size + 1, start_bin + 1):
+                            if 0 <= ii_bin < len(unmappable_vertical):
+                                unmappable_vertical[ii_bin] += 1
+
+                for k in range(len(values_by_chromosome)):
+                    values = values_by_chromosome[k]
+                    na_vertical = unmappable_vertical[k] * window_size
+                    na_horizontal = unmappable_horizontal[k] * window_size
+                    na_overlap = unmappable_horizontal[k] * unmappable_vertical[k]
+                    na_total = na_vertical + na_horizontal - na_overlap
+
+                    # take into account nan values when adding zeros
+                    if ((na_total > (window_size**2 * _na_threshold))
+                            or k - window_offset < window_size - 1
+                            or k + window_offset > len(values_by_chromosome) - window_size):
+                        if lowmem:
+                            values_by_chromosome[k] = np.nan
+                        else:
+                            values_by_chromosome[k] = []
+                    else:
+                        if not lowmem:
+                            for _ in range(len(values), window_size**2 - na_total):
+                                values_by_chromosome[k].append(0)
+                        else:
+                            values_by_chromosome[k] /= (window_size**2 - na_total)
+
+            if lowmem:
+                ii_by_chromosome = values_by_chromosome
+            else:
+                ii_by_chromosome = []
+                for values in values_by_chromosome:
+                    ii_by_chromosome.append(np.nan) if len(values) == 0 else ii_by_chromosome.append(aggr_func(values))
+
+            ii_by_chromosome = np.array(ii_by_chromosome)
             if self.normalise:
                 logger.info("Normalising insulation index")
                 if self.normalisation_window is not None:
                     logger.info("Sliding window average")
-                    mean_ins = apply_sliding_func(ins_by_chromosome[i], self.normalisation_window, func=np.nanmean)
+                    mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window, func=np.nanmean)
                 else:
                     logger.info("Whole chromosome mean")
-                    mean_ins = np.nanmean(ins_by_chromosome[i])
+                    mean_ins = np.nanmean(ii_by_chromosome)
                 if not self.subtract_mean:
                     logger.info("Dividing by mean")
-                    ins_by_chromosome[i] = ins_by_chromosome[i] / mean_ins
+                    ii_by_chromosome = ii_by_chromosome / mean_ins
                 else:
                     logger.info("Subtracting mean")
-                    ins_by_chromosome[i] = ins_by_chromosome[i] - mean_ins
+                    ii_by_chromosome = ii_by_chromosome - mean_ins
+            ii_list.append(ii_by_chromosome)
 
-        ins_matrix = np.array(list(itertools.chain.from_iterable(ins_by_chromosome)))
+        ins_matrix = np.array(list(itertools.chain.from_iterable(ii_list)))
 
-        logger.info("__nans__\nchromosome boundary: {}\nmasked region: {}\ninvalid balance: {}\n total: {}/{}".format(
-            nan_chromosome_counter, nan_mask_counter, nan_invalid_counter, np.sum(np.isnan(ins_matrix)), len(ins_matrix)
-        ))
+        if self.region_selection is not None:
+            ins_matrix = ins_matrix[self.hic.region_bins(self.region_selection)]
+
         if self.log:
             logger.info("Log-transforming insulation index")
             return np.log2(ins_matrix)
@@ -1437,11 +1489,13 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         else:
             ex = None
         offset_bins = self.hic.distance_to_bins(self.offset)
+
         for window_size in self.window_sizes:
             logger.info("Calculating insulation index for window size {}".format(window_size))
             bins = self.hic.distance_to_bins(window_size)
-            insulation_index = self._insulation_index(offset_bins, offset_bins+bins,
-                                                      _mappable=mappable, _expected=ex)
+            insulation_index = self._insulation_index_lowmem(bins, offset_bins,
+                                                             _mappable=mappable, _expected=ex)
+
             self.data("ii_%d" % window_size, insulation_index)
         if ex is not None:
             ex.close()
@@ -1778,7 +1832,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         if selection is None:
             selection = range(0, len(self.array.data_field_names))
 
-        if isinstance(selection, xrange):
+        if isinstance(selection, range):
             selection = list(selection)
 
         if isinstance(selection, int) or isinstance(selection, string_types):
