@@ -2,6 +2,7 @@ from __future__ import division, print_function
 from kaic.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator
+from kaic import load
 from kaic.data.genomic import GenomicRegion
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
 from kaic.plotting.hic_plotter import BasePlotterMatrix
@@ -1126,3 +1127,117 @@ class GenePlot(BasePlotter1D):
             del el
 
         self._plot_genes(region)
+
+
+class FeatureLayerPlot(BasePlotter1D):
+    """
+    Plot genomic features in layers grouped by name/type.
+
+        B1         -   -      -
+        B2      -   -     - -   -
+        L1       ---   ---     --
+            _____________________
+            0    10    20    30
+    """
+
+    def __init__(self, features, gff_grouping_attribute='feature',
+                 element_height=0.8, min_element_width=0.005,
+                 color_by='strand', colors=((1, 'r'), (-1, 'b')),
+                 title='', aspect=1., axes_style="ticks"):
+        """
+        :param features: Any input that pybedtools can parse. Can be a path to a
+                         GTF/BED file. If BED, elements will be grouped by name,
+                         if GFF will be grouped by feature type
+        :param gff_grouping_attribute: By default, GFF entries are grouped by feature type,
+                                       change this to any attribute using this parameter
+        :param element_height: Height of an individual element in the plot. A row's height
+                               is 1.0, so you should choose a value smaller than that.
+        :param min_element_width: Minimum width of an element in fraction of plotting region.
+                                  Some very small features won't be visible in this plot unless
+                                  you increase this parameter
+        :param color_by: element attribute to color the element by. Currently, only categorical
+                         values are supported
+        :param colors: List of (attribute, color) pairs to color elements according to some attribute
+        :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+                       the height_ratios in class:`~GenomicFigure`
+        :param axes_style: Choose the style of the figure axes
+        """
+        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+
+        self.features = load(features)
+        self.grouping_attribute = gff_grouping_attribute if self.features.file_type == 'gff' else 'name'
+        self.element_height = element_height
+        self.min_element_width = min_element_width
+        self.top_offset = (1. - self.element_height) / 2 if self.element_height < 1. else 0
+        self._patches = []
+        self._color_by = color_by
+        self.colors = dict(colors)
+
+    def _plot_elements(self, region):
+        elements = self.features[region]
+        groups = defaultdict(list)
+        for element in elements:
+            group = getattr(element, self.grouping_attribute)
+            groups[group].append(element)
+
+        region_width = region.end - region.start + 1
+
+        tick_positions = []
+        tick_labels = []
+        for i, name in enumerate(sorted(groups)):
+            y_offset = len(groups) - i
+            tick_positions.append(y_offset - .5)
+            tick_labels.append(name)
+            for element in groups[name]:
+                try:
+                    color = self.colors[element.strand]
+                except KeyError:
+                    color = 'grey'
+
+                element_width = element.end - element.start + 1
+                shadow_width = self.min_element_width * region_width
+                if shadow_width > element_width:
+                    shadow_start = element.start - (shadow_width - element_width) / 2
+                    shadow_patch = self.ax.add_patch(
+                        patches.Rectangle(
+                            (shadow_start, y_offset - self.top_offset - self.element_height),  # (x,y)
+                            shadow_width,  # width
+                            self.element_height,  # height
+                            facecolor=color,
+                            alpha=0.3,
+                            edgecolor="none"
+                        )
+                    )
+                    self._patches.append(shadow_patch)
+
+                patch = self.ax.add_patch(
+                    patches.Rectangle(
+                        (element.start, y_offset - self.top_offset - self.element_height),  # (x,y)
+                        element_width,  # width
+                        self.element_height,  # height
+                        facecolor=color,
+                        alpha=1.,
+                        edgecolor="none"
+                    )
+                )
+                self._patches.append(patch)
+
+        self.ax.set_ylim(0, len(groups))
+        self.ax.set_yticks(tick_positions)
+        self.ax.set_yticklabels(tick_labels)
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        self._plot_elements(region)
+        self.ax.spines['right'].set_visible(False)
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['left'].set_visible(False)
+        self.ax.yaxis.set_ticks_position('left')
+        self.ax.xaxis.set_ticks_position('bottom')
+
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
+        while len(self._patches) > 0:
+            patch = self._patches.pop()
+            patch.remove()
+            del patch
+        self._plot_elements(region)
