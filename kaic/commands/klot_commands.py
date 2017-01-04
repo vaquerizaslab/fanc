@@ -119,6 +119,7 @@ def type_parser():
             line         Line plot with values per region
             bigwig       Plot BigWig files
             gene         Genes plot (exon/intron structure)
+            layer        Layer plot grouping elements by attribute
         ''')
     )
     return parser
@@ -1070,4 +1071,52 @@ def gene(parameters):
                       group_by=args.group_by, text_position=args.text_position,
                       show_labels=args.show_labels, collapse=args.collapse)
 
+    return p, args
+
+
+def layer_parser():
+    parser = subplot_parser()
+    parser.description = '''Layered feature plot.'''
+
+    parser.add_argument(
+        'features',
+        help='''Features file (GFF, BED).'''
+    )
+
+    parser.add_argument(
+        '-g', '--grouping', dest='grouping_attribute',
+        default='feature',
+        help='''GFF attribute to use for grouping into layers. For BED this is always the name column.'''
+    )
+
+    parser.add_argument(
+        '-S', '--no-shadow', dest='shadow',
+        action='store_false',
+        help='''Assign color based on score value.'''
+    )
+    parser.set_defaults(shadow=True)
+
+    parser.add_argument(
+        '-w', '--shadow-width', dest='shadow_width',
+        type=float,
+        default=0.005,
+        help='''Vertical distance between rows of genes in the plot.'''
+    )
+
+    return parser
+
+
+def layer(parameters):
+    parser = layer_parser()
+    args = parser.parse_args(parameters)
+
+    features = args.features
+    grouping_attribute = args.grouping_attribute
+    shadow = args.shadow
+    shadow_width = args.shadow_width
+
+    import kaic.plotting as kplt
+
+    p = kplt.FeatureLayerPlot(features, gff_grouping_attribute=grouping_attribute,
+                              shadow=shadow, shadow_width=shadow_width)
     return p, args

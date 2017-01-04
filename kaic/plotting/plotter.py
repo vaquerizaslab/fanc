@@ -1238,6 +1238,7 @@ class FeatureLayerPlot(BasePlotter1D):
         self.ax.spines['left'].set_visible(False)
         self.ax.yaxis.set_ticks_position('left')
         self.ax.xaxis.set_ticks_position('bottom')
+        self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         while len(self._patches) > 0:

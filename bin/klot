@@ -143,6 +143,7 @@ class Klot(object):
                                                                                    region.start, region.end))
                 else:
                     kplt.sns.plt.show()
+                kplt.sns.plt.close(fig)
 
     def _plot_type(self, subplot_args):
 
