@@ -1141,8 +1141,9 @@ class FeatureLayerPlot(BasePlotter1D):
     """
 
     def __init__(self, features, gff_grouping_attribute='feature',
-                 element_height=0.8, min_element_width=0.005,
+                 element_height=0.8,
                  color_by='strand', colors=((1, 'r'), (-1, 'b')),
+                 shadow=True, shadow_width=0.005,
                  title='', aspect=1., axes_style="ticks"):
         """
         :param features: Any input that pybedtools can parse. Can be a path to a
@@ -1152,12 +1153,14 @@ class FeatureLayerPlot(BasePlotter1D):
                                        change this to any attribute using this parameter
         :param element_height: Height of an individual element in the plot. A row's height
                                is 1.0, so you should choose a value smaller than that.
-        :param min_element_width: Minimum width of an element in fraction of plotting region.
-                                  Some very small features won't be visible in this plot unless
-                                  you increase this parameter
         :param color_by: element attribute to color the element by. Currently, only categorical
                          values are supported
         :param colors: List of (attribute, color) pairs to color elements according to some attribute
+        :param shadow: Draws a translucent box under each element the is min_element_width wide.
+                       Useful if the size of elements is very small compared to plotting region
+        :param shadow_width: Width of the shadow of an element in fraction of plotting region.
+                             Some very small features won't be visible in this plot unless
+                             you increase this parameter
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
@@ -1168,7 +1171,8 @@ class FeatureLayerPlot(BasePlotter1D):
         self.features = load(features)
         self.grouping_attribute = gff_grouping_attribute if self.features.file_type == 'gff' else 'name'
         self.element_height = element_height
-        self.min_element_width = min_element_width
+        self.min_element_width = shadow_width
+        self.draw_shadow = shadow
         self.top_offset = (1. - self.element_height) / 2 if self.element_height < 1. else 0
         self._patches = []
         self._color_by = color_by
@@ -1197,7 +1201,7 @@ class FeatureLayerPlot(BasePlotter1D):
 
                 element_width = element.end - element.start + 1
                 shadow_width = self.min_element_width * region_width
-                if shadow_width > element_width:
+                if self.draw_shadow and shadow_width > element_width:
                     shadow_start = element.start - (shadow_width - element_width) / 2
                     shadow_patch = self.ax.add_patch(
                         patches.Rectangle(
