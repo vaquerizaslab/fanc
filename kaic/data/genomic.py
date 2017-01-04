@@ -159,6 +159,57 @@ class Bed(pybedtools.BedTool):
     def __enter__(self):
         return self
 
+    def __getitem__(self, item):
+        if isinstance(item, string_types):
+            item = GenomicRegion.from_string(item)
+
+        if not isinstance(item, GenomicRegion):
+            intervals = pybedtools.BedTool.__getitem__(self, item)
+            if isinstance(intervals, pybedtools.Interval):
+                return self._interval_to_region(intervals)
+            else:
+                regions = []
+                for interval in intervals:
+                    regions.append(self._interval_to_region(interval))
+                return regions
+
+        start = item.start if item.start is not None else 1
+
+        query_interval = pybedtools.cbedtools.Interval(chrom=item.chromosome,
+                                                       start=start,
+                                                       end=item.end)
+
+        regions = []
+        for interval in self.all_hits(query_interval):
+            region = self._interval_to_region(interval)
+            regions.append(region)
+        return regions
+
+    def _interval_to_region(self, interval):
+        score = float(interval.score) if interval.score != "." and interval.score != "" else None
+
+        if self.file_type == 'gff':
+            try:
+                attributes = {key: value for key, value in interval.attrs.items()}
+            except ValueError:
+                attributes = {}
+
+            attributes['chromosome'] = interval.chrom
+            attributes['start'] = interval.start
+            attributes['end'] = interval.end
+            attributes['name'] = interval.name
+            attributes['strand'] = interval.strand
+            attributes['score'] = score
+            attributes['fields'] = interval.fields
+            attributes['feature'] = interval.fields[2]
+
+            region = GenomicRegion(**attributes)
+        else:
+            region = GenomicRegion(chromosome=interval.chrom, start=interval.start, end=interval.end,
+                                   strand=interval.strand, score=score, fields=interval.fields,
+                                   name=interval.name)
+        return region
+
     @property
     def regions(self):
         class RegionIter(object):
@@ -166,26 +217,8 @@ class Bed(pybedtools.BedTool):
                 self.bed = bed
 
             def __iter__(self):
-                for region in self.bed:
-                    score = float(region.score) if region.score != "." else None
-
-                    if self.bed.file_type == 'gff':
-                        try:
-                            attributes = {key: value for key, value in region.attrs.items()}
-                        except ValueError:
-                            attributes = {}
-
-                        attributes['chromosome'] = region.chrom
-                        attributes['start'] = region.start
-                        attributes['end'] = region.end
-                        attributes['strand'] = region.strand
-                        attributes['score'] = score
-                        attributes['fields'] = region.fields
-
-                        gr = GenomicRegion(**attributes)
-                    else:
-                        gr = GenomicRegion(chromosome=region.chrom, start=region.start, end=region.end,
-                                           strand=region.strand, score=score, fields=region.fields)
+                for interval in self.bed:
+                    gr = self.bed._interval_to_region(interval)
 
                     yield gr
 
@@ -229,6 +262,7 @@ class Bed(pybedtools.BedTool):
 class BigWig(object):
     def __init__(self, bw):
         self.bw = bw
+        self.file_type= 'bw'
 
     def __exit__(self, exec_type, exec_val, exec_tb):
         pass
@@ -246,6 +280,15 @@ class BigWig(object):
             elif name == '__exit__':
                 return BigWig.__exit__
             raise
+
+    def __getitem__(self, item):
+        if isinstance(item, string_types):
+            item = GenomicRegion.from_string(item)
+
+        if not isinstance(item, GenomicRegion):
+            return self.bw[item]
+
+        return self.subset(item)
 
     @property
     def regions(self):
