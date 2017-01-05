@@ -923,6 +923,14 @@ def bigwig_parser():
         type=float,
         help='''Y-axis limits.'''
     )
+
+    parser.add_argument(
+        '-l', '--log', dest='log',
+        action='store_true',
+        help='''Log-transform y axis.'''
+    )
+    parser.set_defaults(log=False)
+
     return parser
 
 
@@ -937,7 +945,7 @@ def bigwig(parameters):
     for file_name in args.bigwig:
         bigwigs.append(kaic.load(file_name, mode='r'))
 
-    p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim)
+    p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim, log=args.log)
 
     return p, args
 
@@ -1097,6 +1105,13 @@ def layer_parser():
     parser.set_defaults(shadow=True)
 
     parser.add_argument(
+        '-C', '--collapse', dest='collapse',
+        action='store_true',
+        help='''Plot all elements in one row.'''
+    )
+    parser.set_defaults(collapse=False)
+
+    parser.add_argument(
         '-w', '--shadow-width', dest='shadow_width',
         type=float,
         default=0.005,
@@ -1114,9 +1129,10 @@ def layer(parameters):
     grouping_attribute = args.grouping_attribute
     shadow = args.shadow
     shadow_width = args.shadow_width
+    collapse = args.collapse
 
     import kaic.plotting as kplt
 
     p = kplt.FeatureLayerPlot(features, gff_grouping_attribute=grouping_attribute,
-                              shadow=shadow, shadow_width=shadow_width)
+                              shadow=shadow, shadow_width=shadow_width, collapse=collapse)
     return p, args

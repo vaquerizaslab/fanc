@@ -773,7 +773,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
 
 class BigWigPlot(ScalarDataPlot):
-    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None,
+    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None, log=False,
                  plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
         """
         Plot data from on or more BigWig files.
@@ -801,6 +801,7 @@ class BigWigPlot(ScalarDataPlot):
         self.ylim = ylim
         self.x = None
         self.y = None
+        self.log = log
 
     def _bin_intervals(self, region, intervals):
         """
@@ -849,6 +850,8 @@ class BigWigPlot(ScalarDataPlot):
         sns.despine(ax=self.ax, top=True, right=True)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
+        if self.log:
+            self.ax.set_yscale('log')
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
@@ -1144,6 +1147,7 @@ class FeatureLayerPlot(BasePlotter1D):
                  element_height=0.8,
                  color_by='strand', colors=((1, 'r'), (-1, 'b')),
                  shadow=True, shadow_width=0.005,
+                 collapse=False,
                  title='', aspect=1., axes_style="ticks"):
         """
         :param features: Any input that pybedtools can parse. Can be a path to a
@@ -1161,6 +1165,7 @@ class FeatureLayerPlot(BasePlotter1D):
         :param shadow_width: Width of the shadow of an element in fraction of plotting region.
                              Some very small features won't be visible in this plot unless
                              you increase this parameter
+        :param collapse: Collapse all rows onto a single one (ignore grouping)
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
@@ -1177,12 +1182,16 @@ class FeatureLayerPlot(BasePlotter1D):
         self._patches = []
         self._color_by = color_by
         self.colors = dict(colors)
+        self._collapse = collapse
 
     def _plot_elements(self, region):
         elements = self.features[region]
         groups = defaultdict(list)
         for element in elements:
-            group = getattr(element, self.grouping_attribute)
+            if not self._collapse:
+                group = getattr(element, self.grouping_attribute)
+            else:
+                group = ' '
             groups[group].append(element)
 
         region_width = region.end - region.start + 1
