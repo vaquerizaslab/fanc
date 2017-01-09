@@ -918,6 +918,13 @@ class Read(object):
                 return tag[1]
         return None
 
+    @property
+    def tags_dict(self):
+        tags_dict = dict()
+        for tag in self.tags:
+            tags_dict[tag[0]] = tag[1]
+        return tags_dict
+
     def __getitem__(self, key):
         """
         Retrieve attribute with bracket notation for convenience.
@@ -1235,9 +1242,15 @@ class UniquenessFilter(ReadFilter):
         If strict is disabled checks if a read has an XS tag and
         the value of the XS tag id different from 0.
         """
-        xs_tag = read.get_tag('XS')
-        if xs_tag is not None and (self.strict or xs_tag != 0):
+        tags = read.tags_dict
+        if 'XS' not in tags:
+            return True
+
+        if self.strict:
             return False
+        else:
+            if tags['AS'] == tags['XS']:
+                return False
         return True
 
 
