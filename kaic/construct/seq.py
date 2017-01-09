@@ -1242,13 +1242,14 @@ class UniquenessFilter(ReadFilter):
         If strict is disabled checks if a read has an XS tag and
         the value of the XS tag id different from 0.
         """
-        tags = read.tags_dict
-        if 'XS' not in tags:
-            return True
-
+        tags = read.tags
         if self.strict:
-            return False
+            for tag in tags:
+                if tag[0] == 'XS':
+                    return False
         else:
+            tags = {tag[0]: tag[1] for tag in tags}
+
             if tags['AS'] == tags['XS']:
                 return False
         return True
