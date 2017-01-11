@@ -1131,7 +1131,7 @@ def load_reads(argv):
         reads.load(sambam=input_paths, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
                    store_qual=store_qual, store_tags=store_tags, sample_size=100000, tmp=args.tmp)
     else:
-        output_folder = os.path.dirname(output_path)
+        output_folder = os.path.dirname(original_output_path)
         split_bams = []
         split_tmpdir = tempfile.mkdtemp(dir=output_folder)
         logger.info("Splitting SAM/BAM files before loading reads. Split directory: {}".format(split_tmpdir))
