@@ -419,6 +419,7 @@ def auto(argv):
         load_reads_command = ['kaic', 'load_reads', '-D']
         if args.tmp:
             load_reads_command.append('-tmp')
+
         if args.split_fastq:
             load_reads_command.append('--split-sam')
 
@@ -442,12 +443,7 @@ def auto(argv):
         for ix in sam_files:
             reads_file = output_folder + 'reads/' + file_basenames[ix] + '.reads'
             reads_files.append(reads_file)
-            if not args.split_fastq:
-                rt = tp.apply_async(reads_worker, ([file_names[ix]], reads_file))
-            else:
-                split_tmpdir = tempfile.mkdtemp(dir=output_folder)
-                split_bams = split_sam(file_names[ix], split_tmpdir)
-                rt = tp.apply_async(reads_worker, (split_bams, reads_file))
+            rt = tp.apply_async(reads_worker, ([file_names[ix]], reads_file))
             reads_results.append(rt)
         tp.close()
         tp.join()
@@ -1085,7 +1081,7 @@ def load_reads_parser():
         help='''Split SAM/BAM files into chunks of 10M alignments before loading. Useful in combination with tmp flag
                 to reduce tmp disk space usage.'''
     )
-    parser.set_defaults(split_fastq=False)
+    parser.set_defaults(split_sam=False)
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
@@ -1128,8 +1124,24 @@ def load_reads(argv):
         store_tags = args.tags
 
     reads = kaic.Reads(file_name=output_path, mode='w')
-    reads.load(sambam=input_paths, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
-               store_qual=store_qual, store_tags=store_tags, sample_size=100000, tmp=args.tmp)
+
+    from kaic.tools.files import split_sam
+
+    if not args.split_sam:
+        reads.load(sambam=input_paths, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
+                   store_qual=store_qual, store_tags=store_tags, sample_size=100000, tmp=args.tmp)
+    else:
+        output_folder = os.path.dirname(output_path)
+        split_bams = []
+        split_tmpdir = tempfile.mkdtemp(dir=output_folder)
+        logger.info("Splitting SAM/BAM files before loading reads. Split directory: {}".format(split_tmpdir))
+        try:
+            for file_name in input_paths:
+                split_bams += split_sam(file_name, split_tmpdir)
+            reads.load(sambam=split_bams, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
+                       store_qual=store_qual, store_tags=store_tags, sample_size=100000, tmp=args.tmp)
+        finally:
+            shutil.rmtree(split_tmpdir)
     reads.close()
 
     if args.tmp:
