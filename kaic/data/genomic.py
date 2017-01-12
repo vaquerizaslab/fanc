@@ -63,6 +63,7 @@ import tables as t
 import pandas as p
 import numpy as np
 import pybedtools
+import pyBigWig
 from kaic.tools.files import is_fasta_file
 from kaic.tools.matrix import apply_sliding_func
 from Bio import SeqIO, Restriction, Seq
@@ -1007,13 +1008,53 @@ class GenomicRegions(object):
 
         return regions
 
-    def to_bed(self, file_name):
+    def to_bed(self, file_name, score_field=None):
         """
         Export regions as BED file
         """
         with open(file_name, 'w') as f:
             for i, r in enumerate(self.regions):
-                print(r.chromosome, r.start - 1, r.end, i, sep="\t", file=f)
+                name = r.name if hasattr(r, 'name') else '.'
+                if score_field is not None:
+                    score = getattr(r, score_field)
+                else:
+                    score = r.score if hasattr(r, 'score') else '.'
+
+                strand = '.' if r.strand is None else r.strand
+
+                f.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                    r.chromosome, r.start - 1, r.end,
+                    name, score, strand
+                ))
+
+    def to_bigwig(self, file_name, score_field=None):
+        logging.info("Writing output...")
+        bw = pyBigWig.open(file_name, 'w')
+        # write header
+
+        chromosome_lengths = defaultdict(int)
+        interval_chromosomes = []
+        interval_starts = []
+        interval_ends = []
+        interval_values = []
+        for region in self.regions:
+            chromosome_lengths[region.chromosome] = region.end
+            interval_chromosomes.append(region.chromosome.encode())
+            interval_starts.append(region.start - 1)
+            interval_ends.append(region.end)
+            if score_field is not None:
+                score = getattr(region, score_field)
+            else:
+                score = region.score if hasattr(region, 'score') else '.'
+            interval_values.append(score)
+
+        header = []
+        for chromosome in self.chromosomes():
+            header.append((chromosome.encode(), chromosome_lengths[chromosome]))
+        bw.addHeader(header)
+        bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
+
+        bw.close()
 
     @property
     def regions_dict(self):
