@@ -302,9 +302,9 @@ class BigWig(object):
                 interval_starts.append(start)
                 interval_ends.append(end)
                 interval_values.append(score)
-            self._intervals[chromosome] = (np.array(interval_starts),
-                                           np.array(interval_ends),
-                                           np.array(interval_values))
+            self._intervals[chromosome] = (interval_starts,
+                                           interval_ends,
+                                           interval_values)
 
     @property
     def regions(self):
