@@ -1045,7 +1045,7 @@ class GenomicRegions(object):
             if score_field is not None:
                 score = getattr(region, score_field)
             else:
-                score = region.score if hasattr(region, 'score') else '.'
+                score = region.score if hasattr(region, 'score') else np.nan
             interval_values.append(score)
 
         header = []
