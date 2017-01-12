@@ -263,7 +263,8 @@ class Bed(pybedtools.BedTool):
 class BigWig(object):
     def __init__(self, bw):
         self.bw = bw
-        self.file_type= 'bw'
+        self.file_type = 'bw'
+        self._intervals = None
 
     def __exit__(self, exec_type, exec_val, exec_tb):
         pass
@@ -290,6 +291,20 @@ class BigWig(object):
             return self.bw[item]
 
         return self.subset(item)
+
+    def load_intervals_into_memory(self):
+        self._intervals = dict()
+        for chromosome in self.bw.chroms().keys():
+            interval_starts = []
+            interval_ends = []
+            interval_values = []
+            for start, end, score in self.bw.intervals(chromosome):
+                interval_starts.append(start)
+                interval_ends.append(end)
+                interval_values.append(score)
+            self._intervals[chromosome] = (np.array(interval_starts),
+                                           np.array(interval_ends),
+                                           np.array(interval_values))
 
     @property
     def regions(self):
@@ -320,6 +335,13 @@ class BigWig(object):
             for start, end, score in self.intervals(r):
                 yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
 
+    def _memory_intervals(self, chromosome, start, end):
+        all_intervals = self._intervals[chromosome]
+        start_ix = bisect_left(all_intervals[0], start)
+        end_ix = bisect_left(all_intervals[1], end)
+        return [(all_intervals[0][ix], all_intervals[1][ix], all_intervals[2][ix])
+                for ix in range(start_ix, end_ix+1)]
+
     def region_stats(self, region, bins=1, stat='mean'):
         if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
@@ -342,7 +364,11 @@ class BigWig(object):
                 end = chromosome.end if chromosome.end is not None else chroms[chromosome.chromosome]
             chromosome = chromosome.chromosome
 
-        intervals = self.bw.intervals(chromosome, start, end)
+        if self._intervals is None:
+            intervals = self.bw.intervals(chromosome, start, end)
+        else:
+            intervals = self._memory_intervals(chromosome, start, end)
+
         if intervals is None:
             intervals = ()
         return [(interval[0]+1, interval[1], interval[2]) for interval in intervals]
