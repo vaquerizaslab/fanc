@@ -216,6 +216,57 @@ class Bed(pybedtools.BedTool):
                                    name=interval.name)
         return region
 
+    def find_region(self, query_regions, _regions_dict=None, _region_ends=None, _chromosomes=None):
+        """
+        Find the region that is at the center of a region.
+
+        :param query_regions: Region selector string, :class:~GenomicRegion, or
+                              list of the former
+        :return: index (or list of indexes) of the region at the center of the
+                 query region
+        """
+        is_single = False
+        if isinstance(query_regions, string_types):
+            is_single = True
+            query_regions = [GenomicRegion.from_string(query_regions)]
+
+        if isinstance(query_regions, GenomicRegion):
+            is_single = True
+            query_regions = [query_regions]
+
+        if _regions_dict is None or _region_ends is None or _chromosomes is None:
+            regions_dict = defaultdict(list)
+            region_ends = defaultdict(list)
+            chromosomes = set()
+
+            for region in self.regions:
+                regions_dict[region.chromosome].append(region)
+                region_ends[region.chromosome].append(region.end)
+                chromosomes.add(region.chromosome)
+        else:
+            regions_dict = _regions_dict
+            region_ends = _region_ends
+            chromosomes = _chromosomes
+
+        hit_regions = []
+        for query_region in query_regions:
+            if isinstance(query_region, string_types):
+                query_region = GenomicRegion.from_string(query_region)
+
+            if query_region.chromosome not in chromosomes:
+                hit_regions.append(None)
+                continue
+
+            center = query_region.start + (query_region.end-query_region.start)/2
+            ix = bisect_left(region_ends[query_region.chromosome], center)
+            try:
+                hit_regions.append(regions_dict[query_region.chromosome][ix])
+            except IndexError:
+                hit_regions.append(None)
+        if is_single:
+            return hit_regions[0]
+        return hit_regions
+
     @property
     def regions(self):
         class RegionIter(object):
@@ -1109,7 +1160,7 @@ class GenomicRegions(object):
     def bins_to_distance(self, bins):
         return self.bin_size*bins
 
-    def find_region(self, query_regions):
+    def find_region(self, query_regions, _regions_dict=None, _region_ends=None, _chromosomes=None):
         """
         Find the region that is at the center of a region.
 
@@ -1127,14 +1178,19 @@ class GenomicRegions(object):
             is_single = True
             query_regions = [query_regions]
 
-        regions = defaultdict(list)
-        region_ends = defaultdict(list)
-        chromosomes = set()
+        if _regions_dict is None or _region_ends is None or _chromosomes is None:
+            regions_dict = defaultdict(list)
+            region_ends = defaultdict(list)
+            chromosomes = set()
 
-        for region in self.regions:
-            regions[region.chromosome].append(region)
-            region_ends[region.chromosome].append(region.end)
-            chromosomes.add(region.chromosome)
+            for region in self.regions:
+                regions_dict[region.chromosome].append(region)
+                region_ends[region.chromosome].append(region.end)
+                chromosomes.add(region.chromosome)
+        else:
+            regions_dict = _regions_dict
+            region_ends = _region_ends
+            chromosomes = _chromosomes
 
         hit_regions = []
         for query_region in query_regions:
@@ -1148,7 +1204,7 @@ class GenomicRegions(object):
             center = query_region.start + (query_region.end-query_region.start)/2
             ix = bisect_left(region_ends[query_region.chromosome], center)
             try:
-                hit_regions.append(regions[query_region.chromosome][ix])
+                hit_regions.append(regions_dict[query_region.chromosome][ix])
             except IndexError:
                 hit_regions.append(None)
         if is_single:
