@@ -188,6 +188,11 @@ class Bed(pybedtools.BedTool):
 
     def _interval_to_region(self, interval):
         score = float(interval.score) if interval.score != "." and interval.score != "" else None
+        if score is None and len(interval.fields) == 4:  # likely bedGraph!
+            try:
+                score = float(interval.fields[3])
+            except ValueError:
+                pass
 
         if self.file_type == 'gff':
             try:
