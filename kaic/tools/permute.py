@@ -5,30 +5,36 @@ from future.utils import string_types
 import random
 
 
-def iter_randiomized_regions(original_regions, iterations=1, chromosome_sizes=None, method='unconstrained'):
+def iter_randiomized_regions(original_regions, iterations=1, chromosome_sizes=None, method='unconstrained',
+                             preserve_attributes=False):
     if method == 'unconstrained':
         if chromosome_sizes is None:
             raise ValueError("Must provide chromosome_sizes dict when using unconstrained randomization method")
         for i in range(iterations):
-            yield _random_regions_unconstrained(original_regions, chromosome_sizes)
+            yield _random_regions_unconstrained(original_regions, chromosome_sizes,
+                                                preserve_attributes=preserve_attributes)
     elif method == 'spacing':
         chromosome_regions = _chromosome_regions(original_regions)
         for i in range(iterations):
-            yield _random_regions_spacing(chromosome_regions, sort=False)
+            yield _random_regions_spacing(chromosome_regions, sort=False,
+                                          preserve_attributes=preserve_attributes)
     else:
         raise ValueError("Unknown randomization method '{}'".format(method))
 
 
-def randomize_regions(original_regions, chromosome_sizes=None, method='unconstrained'):
+def randomize_regions(original_regions, chromosome_sizes=None, method='unconstrained',
+                      preserve_attributes=False):
     random_regions = []
 
     if method == 'unconstrained':
         if chromosome_sizes is None:
             raise ValueError("Must provide chromosome_sizes dict when using unconstrained randomization method")
-        random_regions = _random_regions_unconstrained(original_regions, chromosome_sizes)
+        random_regions = _random_regions_unconstrained(original_regions, chromosome_sizes,
+                                                       preserve_attributes=preserve_attributes)
     elif method == 'spacing':
         chromosome_regions = _chromosome_regions(original_regions)
-        random_regions = _random_regions_spacing(chromosome_regions, sort=False)
+        random_regions = _random_regions_spacing(chromosome_regions, sort=False,
+                                                 preserve_attributes=preserve_attributes)
 
     return random_regions
 
@@ -48,12 +54,13 @@ def _chromosome_regions(original_regions, sort=True):
     return chromosome_regions
 
 
-def _random_regions_unconstrained(original_regions, chromosome_sizes):
+def _random_regions_unconstrained(original_regions, chromosome_sizes, preserve_attributes=False):
     random_regions = []
 
     if isinstance(chromosome_sizes, string_types):
         chromosome_sizes = read_chromosome_sizes(chromosome_sizes)
 
+    protected_attributes = {'chromosome', 'start', 'end'}
     for region in original_regions:
         if region.chromosome not in chromosome_sizes:
             continue
@@ -62,11 +69,16 @@ def _random_regions_unconstrained(original_regions, chromosome_sizes):
         random_end = random_start + len(region)
 
         random_region = GenomicRegion(chromosome=region.chromosome, start=random_start, end=random_end)
+        if preserve_attributes:
+            for a in region.attributes:
+                if a not in protected_attributes:
+                    setattr(random_region, a, getattr(region, a))
+
         random_regions.append(random_region)
     return random_regions
 
 
-def _random_regions_spacing(original_regions, sort=True):
+def _random_regions_spacing(original_regions, sort=True, preserve_attributes=False):
     random_regions = []
     if isinstance(original_regions, dict):
         chromosome_regions = original_regions
@@ -77,18 +89,24 @@ def _random_regions_spacing(original_regions, sort=True):
         chromosome_regions = _chromosome_regions(original_regions, sort=sort)
 
     for chromosome, regions in chromosome_regions.items():
-        region_lens = []
         spacing_lens = []
         for i in range(len(regions) - 1):
-            region_lens.append(len(regions[i]))
             spacing_lens.append(regions[i + 1].start - regions[i].end)
 
-        random.shuffle(region_lens)
-        random.shuffle(spacing_lens)
         current_start = regions[0].start
-        for i in range(len(region_lens)):
-            random_region = GenomicRegion(start=current_start, end=current_start + region_lens[i],
+        random.shuffle(regions)
+        random.shuffle(spacing_lens)
+        protected_attributes = {'chromosome', 'start', 'end'}
+        for i in range(len(regions)):
+            region_len = len(regions[i])
+            random_region = GenomicRegion(start=current_start, end=current_start + region_len,
                                           chromosome=chromosome)
+
+            if preserve_attributes:
+                for a in regions[i].attributes:
+                    if a not in protected_attributes:
+                        setattr(random_region, a, getattr(regions[i], a))
+
             random_regions.append(random_region)
-            current_start += region_lens[i] + spacing_lens[i]
+            current_start += len(regions[i]) + spacing_lens[i]
     return random_regions
