@@ -675,7 +675,8 @@ class GenomicFeatureScorePlot(BasePlotter1D):
     Regions will be plotted as bars with the height equal to the score provided in the file.
     """
     def __init__(self, regions, title="", feature_types=None, aspect=.2, axes_style="ticks",
-                 color_neutral='grey', color_forward='red', color_reverse='blue', show_labels=True):
+                 color_neutral='grey', color_forward='red', color_reverse='blue', show_labels=True,
+                 ylim=None):
         """
         :param regions: Any input that pybedtools can parse. Can be a path to a
                         GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), ...]
@@ -702,6 +703,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         self.color_reverse = color_reverse
         self.color_neutral = color_neutral
         self.show_labels = show_labels
+        self.ylim = ylim
 
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
 
@@ -765,6 +767,8 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
         sns.despine(ax=self.ax, top=True, right=True)
         self.remove_colorbar_ax()
+        if self.ylim is not None:
+            self.ax.set_ylim(self.ylim)
         # self.ax.yaxis.set_major_locator(NullLocator())
         # self.remove_colorbar_ax()
 
