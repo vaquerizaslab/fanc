@@ -659,10 +659,12 @@ class GenomicRegion(TableObject):
         self.strand = strand
         self.chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
         self.ix = ix
+        self.attributes = ['chromosome', 'start', 'end', 'strand', 'ix']
 
         for name, value in kwargs.items():
             setattr(self, name.decode() if isinstance(name, bytes) else name,
                     value.decode() if isinstance(value, bytes) else value)
+            self.attributes.append(name)
 
     @classmethod
     def from_row(cls, row):
@@ -837,7 +839,7 @@ class BedElement(GenomicRegion):
 
 class LazyGenomicRegion(GenomicRegion):
     def __init__(self, row, ix=None, auto_update=True):
-        self.reserved = {'_row', 'static_ix', 'strand', 'auto_update'}
+        self.reserved = {'_row', 'static_ix', 'strand', 'auto_update', 'attributes'}
         self._row = row
         self.static_ix = ix
         self.auto_update = auto_update
@@ -875,6 +877,10 @@ class LazyGenomicRegion(GenomicRegion):
         if self.static_ix is None:
             return self._row["ix"]
         return self.static_ix
+
+    @property
+    def attributes(self):
+        return self._row.tables.colnames
 
 
 class GenomicRegions(object):
