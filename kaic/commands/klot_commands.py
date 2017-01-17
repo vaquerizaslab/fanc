@@ -812,6 +812,14 @@ def region_parser():
         action='store_false',
         help='''Do not show element labels.'''
     )
+
+    parser.add_argument(
+        '-y', '--ylim', dest='ylim',
+        nargs=2,
+        type=float,
+        help='''Y-axis limits.'''
+    )
+
     parser.set_defaults(show_labels=True)
     return parser
 
@@ -825,7 +833,8 @@ def region(parameters):
 
     p = kplt.GenomicFeatureScorePlot(os.path.expanduser(args.bed), feature_types=args.features,
                                      color_neutral=args.color_neutral, color_forward=args.color_forward,
-                                     color_reverse=args.color_reverse, show_labels=args.show_labels)
+                                     color_reverse=args.color_reverse, show_labels=args.show_labels,
+                                     ylim=args.ylim)
     return p, args
 
 
@@ -1001,29 +1010,29 @@ def gene_parser():
     parser.add_argument(
         '-b', '--box-height', dest='box_height',
         type=float,
-        default=0.5,
-        help='''Height of exon boxes.'''
+        default=0.1,
+        help='''Height of exon boxes. Default: 0.1'''
     )
 
     parser.add_argument(
         '-s', '--font-size', dest='font_size',
         type=float,
         default=9.,
-        help='''Font size for gene labels.'''
+        help='''Font size for gene labels. Default: 9'''
     )
 
     parser.add_argument(
         '-a', '--arrow-size', dest='arrow_size',
         type=float,
         default=8.,
-        help='''Size of directionality arrows.'''
+        help='''Size of directionality arrows. Defalt: 8'''
     )
 
     parser.add_argument(
         '-l', '--line-width', dest='line_width',
         type=float,
-        default=1.,
-        help='''Width of the line along the length of the gene.'''
+        default=2.,
+        help='''Width of the line along the length of the gene. Default: 2.'''
     )
 
     parser.add_argument(
