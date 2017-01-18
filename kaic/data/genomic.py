@@ -204,7 +204,6 @@ class Bed(pybedtools.BedTool):
             attributes['chromosome'] = interval.chrom
             attributes['start'] = interval.start
             attributes['end'] = interval.end
-            attributes['name'] = interval.name
             attributes['strand'] = interval.strand
             attributes['score'] = score
             attributes['fields'] = interval.fields
@@ -879,7 +878,7 @@ class GenomicRegion(TableObject):
             frame = '.'
 
         no_group_items = {'start', 'end', 'chromosome', 'source', 'feature',
-                          'frame', 'ix', 'strand', 'fields', 'score'}
+                          'frame', 'ix', 'strand', 'fields'}
         group = ''
         for attribute in self.attributes:
             if attribute not in no_group_items:
