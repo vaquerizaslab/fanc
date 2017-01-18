@@ -109,6 +109,7 @@ def _random_regions_spacing(original_regions, sort=False, preserve_attributes=Fa
                             setattr(random_region, a, getattr(regions[i], a))
 
                 random_regions.append(random_region)
-                current_start += len(regions[i]) + spacing_lens[i]
+                if i < len(spacing_lens):
+                    current_start += region_len + spacing_lens[i]
                 pb.update(i)
     return random_regions
