@@ -246,3 +246,17 @@ def merge_sam(input_sams, output_sam, tmp=None):
         if tmp:
             shutil.rmtree(tmp)
     return output_sam
+
+
+def write_bed(file_name, regions):
+    with open(file_name, 'w') as bed_file:
+        for region in regions:
+            bed_file.write(region.as_bed_line() + '\n')
+    return file_name
+
+
+def write_gff(file_name, regions):
+    with open(file_name, 'w') as gff_file:
+        for region in regions:
+            gff_file.write(region.as_gff_line() + '\n')
+    return file_name
