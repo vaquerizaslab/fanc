@@ -80,6 +80,7 @@ from collections import defaultdict
 import copy
 from kaic.tools.general import RareUpdateProgressBar, range_overlap
 from kaic.tools.lru import lru_cache
+import warnings
 from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
@@ -207,7 +208,9 @@ class Bed(pybedtools.BedTool):
             attributes['strand'] = interval.strand
             attributes['score'] = score
             attributes['fields'] = interval.fields
+            attributes['source'] = interval.fields[1]
             attributes['feature'] = interval.fields[2]
+            attributes['frame'] = interval.fields[7] if len(interval.fields) > 7 else '.'
 
             region = GenomicRegion(**attributes)
         else:
@@ -817,6 +820,10 @@ class GenomicRegion(TableObject):
         return False
 
     @property
+    def strand_string(self):
+        return '-' if self.is_reverse() else '+'
+
+    @property
     def center(self):
         return self.start + (self.end - self.start)/2
 
@@ -828,6 +835,59 @@ class GenomicRegion(TableObject):
 
     def __len__(self):
         return self.end - self.start
+
+    def as_bed_line(self, score_field='score', name_field='name'):
+        try:
+            score = getattr(self, score_field)
+        except AttributeError:
+            warnings.warn("Score field {} does not exist, using '.'".format(score_field))
+            score = '.'
+
+        try:
+            name = getattr(self, name_field)
+        except AttributeError:
+            warnings.warn("Name field {} does not exist, using '.'".format(name_field))
+            name = '.'
+
+        return "{}\t{}\t{}\t{}\t{}\t{}".format(self.chromosome, self.start, self.end,
+                                               name, score, self.strand_string)
+
+    def as_gff_line(self, source_field='source', feature_field='feature', score_field='score',
+                    frame_field='frame'):
+        try:
+            source = getattr(self, source_field)
+        except AttributeError:
+            warnings.warn("Source field {} does not exist, using '.'".format(source_field))
+            source = '.'
+
+        try:
+            feature = getattr(self, feature_field)
+        except AttributeError:
+            warnings.warn("Feature field {} does not exist, using '.'".format(feature_field))
+            feature = '.'
+
+        try:
+            score = getattr(self, score_field)
+        except AttributeError:
+            warnings.warn("Score field {} does not exist, using '.'".format(score_field))
+            score = '.'
+
+        try:
+            frame = getattr(self, frame_field)
+        except AttributeError:
+            warnings.warn("Score field {} does not exist, using '.'".format(frame_field))
+            frame = '.'
+
+        no_group_items = {'start', 'end', 'chromosome', 'source', 'feature',
+                          'frame', 'ix', 'strand', 'fields', 'score'}
+        group = ''
+        for attribute in self.attributes:
+            if attribute not in no_group_items:
+                group += "{} {}; ".format(attribute, getattr(self, attribute))
+
+        return "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.chromosome, source, feature, self.start,
+                                                           self.end, score, self.strand_string, frame,
+                                                           group)
 
 
 class BedElement(GenomicRegion):
