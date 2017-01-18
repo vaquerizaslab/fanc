@@ -248,15 +248,41 @@ def merge_sam(input_sams, output_sam, tmp=None):
     return output_sam
 
 
-def write_bed(file_name, regions):
-    with open(file_name, 'w') as bed_file:
+def write_bed(file_name, regions, mode='w'):
+    if hasattr(file_name, 'write'):
+        must_close = False
+        bed_file = file_name
+    else:
+        bed_file = open(file_name, mode)
+        must_close = True
+
+    try:
         for region in regions:
             bed_file.write(region.as_bed_line() + '\n')
+    finally:
+        if must_close:
+            bed_file.close()
+        else:
+            bed_file.flush()
+
     return file_name
 
 
-def write_gff(file_name, regions):
-    with open(file_name, 'w') as gff_file:
+def write_gff(file_name, regions, mode='w'):
+    if hasattr(file_name, 'write'):
+        must_close = False
+        gff_file = file_name
+    else:
+        gff_file = open(file_name, mode)
+        must_close = True
+
+    try:
         for region in regions:
             gff_file.write(region.as_gff_line() + '\n')
+    finally:
+        if must_close:
+            gff_file.close()
+        else:
+            gff_file.flush()
+
     return file_name
