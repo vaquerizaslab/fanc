@@ -211,6 +211,14 @@ def auto_parser():
     parser.set_defaults(split_fastq=False)
 
     parser.add_argument(
+        '--memory-map', dest='memory_map',
+        action='store_true',
+        help='''Map Bowtie2 index to memory (recommended if running on medium-memory systems and using many
+                    parallel threads. Use instead of --bowtie-parallel).'''
+    )
+    parser.set_defaults(memory_map=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Copy original files to temporary directory. Reduces network I/O.'''
@@ -378,6 +386,8 @@ def auto(argv):
             iterative_mapping_command.append('--bowtie-parallel')
         if args.split_fastq:
             iterative_mapping_command.append('--split-fastq')
+        if args.memory_map:
+            iterative_mapping_command.append('--memory-map')
 
         return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
 
@@ -939,6 +949,14 @@ def iterative_mapping_parser():
     parser.set_defaults(split_fastq=False)
 
     parser.add_argument(
+        '--memory-map', dest='memory_map',
+        action='store_true',
+        help='''Map Bowtie2 index to memory (recommended if running on medium-memory systems and using many
+                parallel threads. Use instead of --bowtie-parallel).'''
+    )
+    parser.set_defaults(memory_map=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='copy',
         action='store_true',
         help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
@@ -961,6 +979,7 @@ def iterative_mapping(argv):
     threads = args.threads
     batch_size = args.batch_size
     bowtie_parallel = args.bowtie_parallel
+    memory_map = args.memory_map
 
     from kaic.mapping.iterative_mapping import split_iteratively_map_reads
     from kaic.tools.general import mkdir
@@ -980,7 +999,8 @@ def iterative_mapping(argv):
                                         min_size=min_size, step_size=step_size, copy=args.copy,
                                         restriction_enzyme=args.restriction_enzyme,
                                         adjust_batch_size=True,
-                                        bowtie_parallel=bowtie_parallel)
+                                        bowtie_parallel=bowtie_parallel,
+                                        memory_map=memory_map)
         else:
             from kaic.tools.files import split_fastq, merge_sam, gzip_splitext
 

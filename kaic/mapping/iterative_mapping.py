@@ -109,7 +109,7 @@ class Bowtie2Mapper(SequenceMapper):
     :class:`~SequenceMapper` for Bowtie2 aligner.
     """
     def __init__(self, index, executable="bowtie2", options=('--very-sensitive', '--no-unal'),
-                 threads=1, quality_cutoff=0, verbose=False):
+                 threads=1, quality_cutoff=0, memory_map=False, verbose=False):
         """
         Initialize Bowtie2 aligner with reference genome index
         and options.
@@ -129,6 +129,7 @@ class Bowtie2Mapper(SequenceMapper):
         self.executable = executable
         self.options = options
         self.quality_cutoff = quality_cutoff
+        self.memory_map = memory_map
         self.verbose = verbose
 
     def threads(self, threads):
@@ -210,6 +211,9 @@ class Bowtie2Mapper(SequenceMapper):
         if output is not None:
             mapping_command += ['-S', output]
         mapping_command += self.options
+
+        if self.memory_map:
+            mapping_command += ['--mm']
 
         logger.debug("Mapping command: %s" % " ".join(mapping_command))
 
@@ -392,7 +396,7 @@ def _iteratively_map_reads(file_name, mapper=None, steps=None, min_read_length=N
 def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=None, quality_cutoff=30,
                                 batch_size=1000000, threads=1, min_size=25, step_size=2, copy=False,
                                 restriction_enzyme=None, adjust_batch_size=False, mapper=None,
-                                bowtie_parallel=True):
+                                bowtie_parallel=True, memory_map=False):
 
     check_path = os.path.expanduser(index_path)
     if check_path.endswith('.'):
@@ -439,7 +443,8 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         working_files = [working_file.name]
 
         if mapper is None:
-            mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=bowtie_threads)
+            mapper = Bowtie2Mapper(index=index_path, quality_cutoff=quality_cutoff, threads=bowtie_threads,
+                                   memory_map=memory_map)
 
         logger.info("Splitting files...")
         re_pattern = None
