@@ -668,6 +668,11 @@ class GenomicRegion(TableObject):
                     value.decode() if isinstance(value, bytes) else value)
             self.attributes.append(name)
 
+    def set_attribute(self, attribute, value):
+        setattr(self, attribute, value)
+        if attribute not in self.attributes:
+            self.attributes.append(attribute)
+
     @classmethod
     def from_row(cls, row):
         """

@@ -67,12 +67,13 @@ def _random_regions_unconstrained(original_regions, chromosome_sizes, preserve_a
         max_d = chromosome_sizes[region.chromosome] - len(region)
         random_start = random.randint(1, max_d)
         random_end = random_start + len(region)
-
-        random_region = GenomicRegion(chromosome=region.chromosome, start=random_start, end=random_end)
+        attributes = {}
         if preserve_attributes:
             for a in region.attributes:
                 if a not in protected_attributes:
-                    setattr(random_region, a, getattr(region, a))
+                    attributes[a] = getattr(region, a)
+
+        random_region = GenomicRegion(chromosome=region.chromosome, start=random_start, end=random_end)
 
         random_regions.append(random_region)
     return random_regions
@@ -100,13 +101,13 @@ def _random_regions_spacing(original_regions, sort=False, preserve_attributes=Fa
         with RareUpdateProgressBar(max_value=len(regions)) as pb:
             for i in range(len(regions)):
                 region_len = len(regions[i])
-                random_region = GenomicRegion(start=current_start, end=current_start + region_len,
-                                              chromosome=chromosome)
-
+                attributes = {}
                 if preserve_attributes:
                     for a in regions[i].attributes:
                         if a not in protected_attributes:
-                            setattr(random_region, a, getattr(regions[i], a))
+                            attributes[a] = getattr(regions[i], a)
+                random_region = GenomicRegion(start=current_start, end=current_start + region_len,
+                                              chromosome=chromosome, **attributes)
 
                 random_regions.append(random_region)
                 if i < len(spacing_lens):
