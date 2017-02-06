@@ -986,7 +986,7 @@ def iterative_mapping(argv):
 
     for input_file in args.input:
         input_file = os.path.expanduser(input_file)
-        if len(args.input) == 1:
+        if len(args.input) == 1 and not os.path.isdir(output_folder):
             output_file = output_folder
         else:
             output_folder = mkdir(output_folder)
