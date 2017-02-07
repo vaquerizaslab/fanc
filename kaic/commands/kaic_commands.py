@@ -1024,7 +1024,7 @@ def iterative_mapping(argv):
                                                 min_size=min_size, step_size=step_size, copy=args.copy,
                                                 restriction_enzyme=args.restriction_enzyme,
                                                 adjust_batch_size=True,
-                                                bowtie_parallel=bowtie_parallel)
+                                                bowtie_parallel=bowtie_parallel, memory_map=memory_map)
 
                 for rt in split_fastq_results:
                     if rt != 0:
