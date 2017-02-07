@@ -8,6 +8,8 @@ import binascii
 from Bio import SeqIO
 import tempfile
 import shutil
+import multiprocessing
+import threading
 from kaic.tools.general import mkdir
 from future.utils import string_types
 import logging
@@ -149,7 +151,7 @@ def gzip_splitext(file_name):
     return basepath, extension
 
 
-def split_fastq(fastq_file, output_folder, chunk_size=10000000):
+def _split_fastq_worker(fastq_file, output_folder, chunk_size=10000000, unzip=False, q=None):
     fastq_file = os.path.expanduser(fastq_file)
     output_folder = mkdir(output_folder)
 
@@ -157,30 +159,122 @@ def split_fastq(fastq_file, output_folder, chunk_size=10000000):
     basename = os.path.basename(basepath)
 
     fastq_open = fastq_reader(fastq_file)
+    fastq_write = fastq_open if not unzip else open
 
-    split_files = []
+    if unzip:
+        extension = '.fastq'
+
     with fastq_open(fastq_file, 'r') as fastq:
         current_chunk_number = 0
         current_chunk_size = 0
         current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
                                                                          basename, extension))
-        split_files.append(current_file_name)
-        current_split_file = fastq_open(current_file_name, 'w')
+        current_split_file = fastq_write(current_file_name, 'w')
         for i, line in enumerate(fastq):
             if i % 4 == 0:
                 if current_chunk_size >= chunk_size:
                     current_split_file.close()
+                    q.put(current_file_name)
                     current_chunk_size = 0
                     current_chunk_number += 1
                     current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
                                                                                      basename, extension))
-                    split_files.append(current_file_name)
-                    current_split_file = fastq_open(current_file_name, 'w')
+                    current_split_file = fastq_write(current_file_name, 'w')
                 current_chunk_size += 1
             current_split_file.write(line)
     current_split_file.close()
+    q.put(current_file_name)
+    q.put(None)
 
-    return split_files
+
+def _split_fastq_pair_worker(fastq_pair, output_folder, chunk_size=10000000, unzip=False, q=None):
+    fastq_file_1 = os.path.expanduser(fastq_pair[0])
+    fastq_file_2 = os.path.expanduser(fastq_pair[1])
+    output_folder = mkdir(output_folder)
+
+    basepath_1, extension_1 = gzip_splitext(fastq_file_1)
+    basename_1 = os.path.basename(basepath_1)
+
+    basepath_2, extension_2 = gzip_splitext(fastq_file_2)
+    basename_2 = os.path.basename(basepath_2)
+
+    fastq_open_1 = fastq_reader(fastq_file_1)
+    fastq_open_2 = fastq_reader(fastq_file_2)
+
+    fastq_write_1 = fastq_open_1 if not unzip else open
+    fastq_write_2 = fastq_open_2 if not unzip else open
+
+    if unzip:
+        extension_1 = '.fastq'
+        extension_2 = '.fastq'
+
+    with fastq_open_1(fastq_file_1, 'r') as fastq_1:
+        with fastq_open_2(fastq_file_2, 'r') as fastq_2:
+            current_chunk_number = 0
+            current_chunk_size = 0
+            current_file_name_1 = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                               basename_1, extension_1))
+            current_file_name_2 = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                               basename_2, extension_2))
+            current_split_file_1 = fastq_write_1(current_file_name_1, 'w')
+            current_split_file_2 = fastq_write_2(current_file_name_2, 'w')
+            fastq2_iter = iter(fastq_2)
+            for i, line_1 in enumerate(fastq_1):
+                line_2 = next(fastq2_iter)
+                if i % 4 == 0:
+                    if current_chunk_size >= chunk_size:
+                        current_split_file_1.close()
+                        current_split_file_2.close()
+                        q.put((current_file_name_1, current_file_name_2))
+                        current_chunk_size = 0
+                        current_chunk_number += 1
+                        current_file_name_1 = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                                           basename_1, extension_1))
+                        current_file_name_2 = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                                           basename_2, extension_2))
+                        current_split_file_1 = fastq_write_1(current_file_name_1, 'w')
+                        current_split_file_2 = fastq_write_2(current_file_name_2, 'w')
+                    current_chunk_size += 1
+                current_split_file_1.write(line_1)
+                current_split_file_2.write(line_2)
+    current_split_file_1.close()
+    current_split_file_2.close()
+    q.put((current_file_name_1, current_file_name_2))
+    q.put(None)
+
+
+def split_fastq(fastq_file, output_folder, chunk_size=10000000, parallel=True, unzip=False):
+    if isinstance(fastq_file, string_types):
+        _worker = _split_fastq_worker
+    else:
+        _worker = _split_fastq_pair_worker
+
+    q = multiprocessing.Queue()
+    t = None
+    if parallel:
+        t = threading.Thread(target=_worker, args=(
+            fastq_file, output_folder
+        ), kwargs={
+            'chunk_size': chunk_size,
+            'q': q,
+            'unzip': unzip
+        })
+        t.daemon = True
+        t.start()
+    else:
+        _worker(fastq_file, output_folder, chunk_size=chunk_size, q=q, unzip=unzip)
+
+    while True:
+        file_name = q.get()
+        if file_name is None:
+            break
+        yield file_name
+
+    q.close()
+    q.join_thread()
+
+    if parallel:
+        t.join()
 
 
 def split_sam(sam_file, output_folder, chunk_size=5000000):
