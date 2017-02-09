@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 try:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        os.environ["CREATE_PLOTS"] = "0"  # prevent gridmap from overriding the matplotlib backend
         import gridmap
     has_gridmap = True
 except ImportError:
