@@ -18,6 +18,14 @@ import warnings
 import logging
 logger = logging.getLogger(__name__)
 
+try:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        import gridmap
+    has_gridmap = True
+except ImportError:
+    has_gridmap = False
+
 
 class PeakCaller(object):
 
@@ -709,13 +717,6 @@ class RaoPeakCaller(PeakCaller):
         self.mpqueue = None
         self.cluster = cluster
         if self.cluster is True:
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    import gridmap
-                has_gridmap = True
-            except ImportError:
-                has_gridmap = False
             if not has_gridmap:
                 logger.warn("Cannot use the cluster because of previous error.")
                 self.cluster = False
