@@ -1,4 +1,5 @@
 from __future__ import division
+import os
 from abc import abstractmethod, ABCMeta
 import numpy as np
 from scipy.stats import poisson
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 try:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        os.environ["CREATE_PLOTS"] = "0"  # prevent gridmap from overriding the matplotlib backend
         import gridmap
     has_gridmap = True
 except ImportError:
