@@ -1,4 +1,5 @@
 from __future__ import division
+import os
 from abc import abstractmethod, ABCMeta
 import numpy as np
 from scipy.stats import poisson
@@ -23,7 +24,10 @@ try:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         os.environ["CREATE_PLOTS"] = "0"  # prevent gridmap from overriding the matplotlib backend
+        gridmap_logger = logging.getLogger('gridmap.conf')
+        gridmap_logger.disabled = True  # shut gridmap up about not having drmaa available
         import gridmap
+        gridmap_logger.disabled = False
     has_gridmap = True
 except ImportError:
     has_gridmap = False
