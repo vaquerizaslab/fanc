@@ -43,7 +43,8 @@ setup(
         'PyYAML',
         'tables>=3.2.3',
         'seaborn',
-        'future'
+        'future',
+        'gridmap'
     ],
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={
