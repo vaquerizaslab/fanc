@@ -983,6 +983,7 @@ def iterative_mapping(argv):
 
     from kaic.mapping.iterative_mapping import split_iteratively_map_reads
     from kaic.tools.general import mkdir
+    import subprocess
 
     for input_file in args.input:
         input_file = os.path.expanduser(input_file)
@@ -1019,12 +1020,22 @@ def iterative_mapping(argv):
                     split_bam_file = split_sam_tmpdir + '/{}.bam'.format(basename)
                     split_bam_files.append(split_bam_file)
 
-                    split_iteratively_map_reads(split_file, split_bam_file, index_path, work_dir=args.work_dir,
-                                                quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
-                                                min_size=min_size, step_size=step_size, copy=args.copy,
-                                                restriction_enzyme=args.restriction_enzyme,
-                                                adjust_batch_size=True,
-                                                bowtie_parallel=bowtie_parallel, memory_map=memory_map)
+                    split_command = ['kaic', 'iterative_mapping', split_file, index_path, split_bam_file,
+                                     '-m', str(min_size), '-s', str(step_size), '-t', str(threads),
+                                     '-q', str(args.quality), '-b', str(batch_size)]
+                    if args.restriction_enzyme is not None:
+                        split_command += ['-r', args.restriction_enzyme]
+                    if args.work_dir is not None:
+                        split_command += ['-w', args.work_dir]
+                    if args.copy:
+                        split_command += ['-tmp']
+                    if bowtie_parallel:
+                        split_command += ['--bowtie-parallel']
+                    if memory_map:
+                        split_command += ['--memory-map']
+
+                    rt = subprocess.call(split_command)
+                    split_fastq_results.append(rt)
 
                 for rt in split_fastq_results:
                     if rt != 0:
