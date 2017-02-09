@@ -1110,7 +1110,14 @@ def load_reads_parser():
         '--split-sam', dest='split_sam',
         action='store_true',
         help='''Split SAM/BAM files into chunks of 10M alignments before loading. Useful in combination with tmp flag
-                to reduce tmp disk space usage.'''
+                    to reduce tmp disk space usage.'''
+    )
+    parser.set_defaults(split_sam=False)
+
+    parser.add_argument(
+        '--append', dest='append',
+        action='store_true',
+        help='''Do not overwrite existing Reads object, but append to it instead.'''
     )
     parser.set_defaults(split_sam=False)
 
@@ -1129,10 +1136,16 @@ def load_reads(argv):
     args = parser.parse_args(argv[2:])
 
     import kaic
+    import glob
 
     input_paths = []
     for input_path in args.input:
-        input_paths.append(os.path.expanduser(input_path))
+        input_path = os.path.expanduser(input_path)
+        if os.path.isdir(input_path):
+            input_paths += glob.glob(os.path.join(input_path, '*.[sb]am'))
+        else:
+            input_paths.append(input_path)
+
     output_path = os.path.expanduser(args.output)
     original_output_path = output_path
     if args.tmp:
@@ -1154,7 +1167,8 @@ def load_reads(argv):
         store_cigar = args.cigar
         store_tags = args.tags
 
-    reads = kaic.Reads(file_name=output_path, mode='w')
+    mode = 'w' if not args.append else 'a'
+    reads = kaic.Reads(file_name=output_path, mode=mode)
 
     from kaic.tools.files import split_sam
 
