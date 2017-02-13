@@ -318,20 +318,27 @@ class ExpectedContacts(TableArchitecturalFeature):
         for i, region in enumerate(self.hic.regions(lazy=True)):
             chromosomes[i] = chromosome_map[region.chromosome]
 
+        bias_vector = self.hic.bias_vector()
         # get the number of reads at a given bin distance
+        uncorrected_reads_by_distance = [0.0] * (max_distance + 1)
         reads_by_distance = [0.0] * (max_distance + 1)
         inter_observed = 0
         for edge in self.hic.edges(lazy=True):
             source = edge.source
             sink = edge.sink
+            weight = getattr(edge, self.weight_column)
+            cf = bias_vector[source] * bias_vector[sink]
+            reads = int(weight / cf + 0.5)
+
             # skip excluded regions
             if source not in region_ix or sink not in region_ix:
                 continue
             # only intra-chromosomal distances
             if chromosomes[edge.source] == chromosomes[edge.sink]:
-                reads_by_distance[edge.sink - edge.source] += getattr(edge, self.weight_column)
+                uncorrected_reads_by_distance[edge.sink - edge.source] += reads
+                reads_by_distance[edge.sink - edge.source] += weight
             else:
-                inter_observed += getattr(edge, self.weight_column)
+                inter_observed += weight
 
         with PossibleContacts(self.hic, regions=self.regions, weight_column=self.weight_column) as pc:
             intra_possible, inter_possible = pc.intra_possible(), pc.inter_possible()
@@ -342,6 +349,7 @@ class ExpectedContacts(TableArchitecturalFeature):
             inter_expected = 0
 
         while len(reads_by_distance) < max_distance_t+1:
+            uncorrected_reads_by_distance.append(uncorrected_reads_by_distance[-1])
             reads_by_distance.append(reads_by_distance[-1])
             pixels_by_distance.append(pixels_by_distance[-1])
 
@@ -362,21 +370,24 @@ class ExpectedContacts(TableArchitecturalFeature):
         smoothed_reads_by_distance = np.zeros(len(reads_by_distance))
         smoothed_pixels_by_distance = np.zeros(len(pixels_by_distance))
         for i in range(len(reads_by_distance)):
+            uncorrected_reads = uncorrected_reads_by_distance[i]
             smoothed_reads = reads_by_distance[i]
             smoothed_pixels = pixels_by_distance[i]
             window_size = 0
             can_extend = True
             # smooth to a minimum number of reads per distance
-            while smoothed_reads < self.min_reads and can_extend:
+            while uncorrected_reads < self.min_reads and can_extend:
                 window_size += 1
                 can_extend = False
                 # check if we can increase the window to the left
                 if i - window_size >= 0:
+                    uncorrected_reads += uncorrected_reads_by_distance[i-window_size]
                     smoothed_reads += reads_by_distance[i-window_size]
                     smoothed_pixels += pixels_by_distance[i-window_size]
                     can_extend = True
                 # check if we can increase the window to the right
                 if i + window_size < len(reads_by_distance):
+                    uncorrected_reads += uncorrected_reads_by_distance[i + window_size]
                     smoothed_reads += reads_by_distance[i+window_size]
                     smoothed_pixels += pixels_by_distance[i+window_size]
                     can_extend = True
