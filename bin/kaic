@@ -4,6 +4,7 @@ import os.path
 import sys
 from kaic.commands import kaic_commands as commands
 from kaic.tools.general import enable_signal_traps, disable_signal_traps
+from kaic.config import config
 
 import logging
 logger = logging.getLogger('')
@@ -79,7 +80,8 @@ class Kaic(object):
         from datetime import datetime
         start_date = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
         try:
-            enable_signal_traps()
+            if config.raise_exception_on_trapped_signal:
+                enable_signal_traps()
             getattr(commands, args.command)([sys.argv[0]] + sys.argv[option_ix:])
             disable_signal_traps()
         except Exception as ex:
