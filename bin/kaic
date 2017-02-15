@@ -3,7 +3,7 @@
 import os.path
 import sys
 from kaic.commands import kaic_commands as commands
-from kaic.tools.general import enable_signal_traps, disable_signal_traps
+from kaic.tools.signal_handling import enable_signal_traps, disable_signal_traps
 from kaic.config import config
 
 import logging
