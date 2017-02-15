@@ -84,7 +84,7 @@ import warnings
 from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
-from pandas import DataFrame, Series
+from pandas import DataFrame, read_table
 import logging
 logger = logging.getLogger(__name__)
 
@@ -512,7 +512,7 @@ class GenomicDataFrame(DataFrame):
                 self.df = df
 
             def __iter__(self):
-                for ix, row in self.iterrows():
+                for ix, row in self.df.iterrows():
                     yield self.df._row_to_region(row, ix=ix)
 
             def __call__(self):
@@ -555,6 +555,10 @@ class GenomicDataFrame(DataFrame):
         for key, value in row.items():
             attributes[key] = value
         return GenomicRegion(**attributes)
+
+    @classmethod
+    def read_table(cls, file_name, **kwargs):
+        return cls(read_table(file_name, **kwargs))
 
 
 class Chromosome(object):
