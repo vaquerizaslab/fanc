@@ -20,6 +20,14 @@ email_smtp_server:
 email_smtp_port:
 email_smtp_username:
 email_smtp_password:
+
+#
+# ERROR HANDLING
+#
+trap_signals:
+    - SIGUSR1
+    - SIGUSR2
+raise_exception_on_trapped_signal: True
 """
 default_config = yaml.load(_default_config_content)
 
