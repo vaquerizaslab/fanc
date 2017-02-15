@@ -30,7 +30,7 @@ setup(
         'numpy',
         'scipy',
         'matplotlib',
-        'pandas',
+        'pandas>=0.15.0',
         'pysam',
         'biopython',
         'pytest',

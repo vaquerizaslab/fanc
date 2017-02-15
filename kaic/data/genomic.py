@@ -84,6 +84,7 @@ import warnings
 from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
+from pandas import DataFrame, Series
 import logging
 logger = logging.getLogger(__name__)
 
@@ -501,6 +502,59 @@ class BigWig(object):
         return BigWig.bin_intervals(self.intervals(chromosome, start, end),
                                     bins, interval_range=(start, end),
                                     smoothing_window=smoothing_window)
+
+
+class GenomicDataFrame(DataFrame):
+    @property
+    def regions(self):
+        class RegionIter(object):
+            def __init__(self, df):
+                self.df = df
+
+            def __iter__(self):
+                for ix, row in self.iterrows():
+                    yield self.df._row_to_region(row, ix=ix)
+
+            def __call__(self):
+                return iter(self)
+
+        return RegionIter(self)
+
+    def subset(self, region):
+        for ix, row in self._sub_rows(region):
+            yield self._row_to_region(row, ix=ix)
+
+    def _sub_rows(self, region):
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+
+        if isinstance(region, GenomicRegion):
+            regions = [region]
+        else:
+            regions = region
+
+        for r in regions:
+            if isinstance(r, string_types):
+                r = GenomicRegion.from_string(r)
+
+            query = ''
+            if r.chromosome is not None:
+                query += 'chromosome == "{}" and '.format(r.chromosome)
+            if r.start is not None:
+                query += 'start >= {} and '.format(r.start)
+            if r.end is not None:
+                query += 'end <= {} and '.format(r.end)
+            query = query[:-5]
+
+            sub_df = self.query(query)
+            for ix, row in sub_df.iterrows():
+                yield ix, row
+
+    def _row_to_region(self, row, ix=None):
+        attributes = {'ix': ix}
+        for key, value in row.items():
+            attributes[key] = value
+        return GenomicRegion(**attributes)
 
 
 class Chromosome(object):
