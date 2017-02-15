@@ -12,7 +12,7 @@ from .version import __version__
 
 from kaic.config import config
 from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion, \
-    BigWig
+    BigWig, GenomicDataFrame
 from kaic.data.general import FileBased
 from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -28,13 +28,7 @@ import logging
 
 # configure logging
 logger = logging.getLogger(__name__)
-try:  # Python 2.7+
-    from logging import NullHandler
-except ImportError:
-    class NullHandler(logging.Handler):
-        def emit(self, record):
-            pass
-logger.addHandler(NullHandler())
+logger.addHandler(logging.NullHandler())
 
 
 def load(file_name, mode='a', tmpdir=None):
