@@ -3,7 +3,7 @@ from kaic.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator
 from kaic import load
-from kaic.data.genomic import GenomicRegion
+from kaic.data.genomic import GenomicRegion, GenomicDataFrame
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
@@ -1259,3 +1259,56 @@ class FeatureLayerPlot(BasePlotter1D):
             patch.remove()
             del patch
         self._plot_elements(region)
+
+
+class GenomicDataFramePlot(ScalarDataPlot):
+    def __init__(self, genomic_data_frame, names=None, style="step", title='', log=False,
+                 plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
+        """
+        Plot data from a table.
+
+        :param genomic_data_frame: :class:`~GenomicDataFrame`
+        :param names: List of column names to plot (on the same axis)
+        :param style: 'step' Draw values in a step-wise manner for each bin
+                      'mid' Draw values connecting mid-points of bins
+        :param title: Title of the plot
+        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
+        :param ylim: Tuple to set y-axis limits
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+               the height_ratios in class:`~GenomicFigure`
+        """
+        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
+                                axes_style=axes_style)
+        if isinstance(genomic_data_frame, string_types):
+            genomic_data_frame = GenomicDataFrame.read_table(genomic_data_frame)
+        self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
+        self.genomic_data_frame = genomic_data_frame
+        if names is None:
+            names = genomic_data_frame.columns[3]
+        if isinstance(names, string_types):
+            names = [names]
+        self.names = names
+        self.ylim = ylim
+        self.log = log
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        x = []
+        ys = [[] for _ in self.names]
+        for r in self.genomic_data_frame.subset(region):
+            x.append(r.center)
+            for i, name in enumerate(self.names):
+                value = getattr(r, name)
+                ys[i].append(value)
+
+        for i, name in enumerate(self.names):
+            self.ax.plot(x, ys[i], label=name, **self.plot_kwargs)
+
+        self.remove_colorbar_ax()
+        sns.despine(ax=self.ax, top=True, right=True)
+        if self.ylim:
+            self.ax.set_ylim(self.ylim)
+        if self.log:
+            self.ax.set_yscale('log')
+
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
+        pass
