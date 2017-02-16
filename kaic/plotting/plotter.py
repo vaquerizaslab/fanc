@@ -1290,8 +1290,9 @@ class GenomicDataFramePlot(ScalarDataPlot):
         self.names = names
         self.ylim = ylim
         self.log = log
+        self.lines = []
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _draw_lines(self, region):
         x = []
         ys = [[] for _ in self.names]
         for r in self.genomic_data_frame.subset(region):
@@ -1301,7 +1302,11 @@ class GenomicDataFramePlot(ScalarDataPlot):
                 ys[i].append(value)
 
         for i, name in enumerate(self.names):
-            self.ax.plot(x, ys[i], label=name, **self.plot_kwargs)
+            for line in self.ax.plot(x, ys[i], label=name, **self.plot_kwargs):
+                self.lines.append(line)
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        self._draw_lines(region)
 
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
@@ -1311,4 +1316,7 @@ class GenomicDataFramePlot(ScalarDataPlot):
             self.ax.set_yscale('log')
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
-        pass
+        while len(self.lines) > 0:
+            self.lines.pop(0).remove()
+        plt.gca().set_prop_cycle(plt.matplotlib.rcParams['axes.prop_cycle'])
+        self._draw_lines(region)

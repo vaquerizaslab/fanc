@@ -56,8 +56,8 @@ def klot_parser():
     parser.add_argument(
         '--width', dest='width',
         type=int,
-        default=6,
-        help='''Width of the figure in inches. Default: 6'''
+        default=10,
+        help='''Width of the figure in inches. Default: 10'''
     )
 
     parser.add_argument(
@@ -120,6 +120,7 @@ def type_parser():
             bigwig       Plot BigWig files
             gene         Genes plot (exon/intron structure)
             layer        Layer plot grouping elements by attribute
+            table        Plot table-based data (BED-style with header)
         ''')
     )
     return parser
@@ -1144,4 +1145,50 @@ def layer(parameters):
 
     p = kplt.FeatureLayerPlot(features, gff_grouping_attribute=grouping_attribute,
                               shadow=shadow, shadow_width=shadow_width, collapse=collapse)
+    return p, args
+
+
+def table_parser():
+    parser = subplot_parser()
+    parser.description = '''Table plot.'''
+
+    parser.add_argument(
+        'table',
+        help='''Table, BED-style with arbitrary columns (must include header,
+                first three columns must be 'chromosome', 'start', 'end').'''
+    )
+
+    parser.add_argument(
+        '-n', '--names', dest='names',
+        nargs='+',
+        help='''Names for each column (must be same length as number of bigWigs).'''
+    )
+
+    parser.add_argument(
+        '-y', '--ylim', dest='ylim',
+        nargs=2,
+        type=float,
+        help='''Y-axis limits.'''
+    )
+
+    parser.add_argument(
+        '-l', '--log', dest='log',
+        action='store_true',
+        help='''Log-transform y axis.'''
+    )
+    parser.set_defaults(log=False)
+
+    return parser
+
+
+def table(parameters):
+    parser = table_parser()
+    args = parser.parse_args(parameters)
+
+    table_file = args.table
+
+    import kaic.plotting as kplt
+
+    p = kplt.GenomicDataFramePlot(table_file, names=args.names, ylim=args.ylim, log=args.log)
+
     return p, args
