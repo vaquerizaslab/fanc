@@ -1252,8 +1252,10 @@ class GenomicRegions(object):
         interval_ends = []
         interval_values = []
         for region in self.regions:
-            chromosome_lengths[region.chromosome] = region.end
-            interval_chromosomes.append(region.chromosome.encode())
+            chromosome = region.chromosome.decode() if isinstance(region.chromosome, bytes) else region.chromosome
+            chromosome_lengths[chromosome] = region.end
+
+            interval_chromosomes.append(chromosome)
             interval_starts.append(region.start - 1)
             interval_ends.append(region.end)
             if score_field is not None:
@@ -1264,7 +1266,8 @@ class GenomicRegions(object):
 
         header = []
         for chromosome in self.chromosomes():
-            header.append((chromosome.encode(), chromosome_lengths[chromosome]))
+            chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
+            header.append((chromosome, chromosome_lengths[chromosome]))
         bw.addHeader(header)
         bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
 
