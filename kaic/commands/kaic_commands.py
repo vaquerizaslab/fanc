@@ -3436,13 +3436,6 @@ def insulation_parser():
     )
 
     parser.add_argument(
-        '-l', '--relative', dest='relative',
-        action='store_true',
-        help='''Calculate II relative to surrounding region'''
-    )
-    parser.set_defaults(relative=False)
-
-    parser.add_argument(
         '-log', '--log', dest='log',
         action='store_true',
         help='''Log2-transform II'''
@@ -3493,7 +3486,7 @@ def insulation(argv):
 
     with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                          impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
-                         relative=args.relative, mode='w', subtract_mean=args.subtract, log=args.log,
+                         mode='w', subtract_mean=args.subtract, log=args.log,
                          _normalisation_window=args.normalisation_window) as ii:
         ii.calculate()
 
