@@ -7,10 +7,8 @@ from kaic.plotting.helpers import append_axes, absolute_wspace_hspace, Symmetric
 
 from kaic.plotting.colormaps import *
 import seaborn as sns
-import logging
 
 sns.set_style("ticks")
-logging.basicConfig(level=logging.INFO)
 
 sns.plt.register_cmap(name='viridis', cmap=viridis)
 sns.plt.register_cmap(name='plasma', cmap=plasma)

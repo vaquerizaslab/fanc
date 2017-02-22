@@ -450,7 +450,7 @@ class BigWig(object):
             interval_range = (interval_range.start, interval_range.end)
 
         bin_size = (interval_range[1] - interval_range[0] + 1) / bins
-        logging.debug("Bin size: {}".format(bin_size))
+        logger.debug("Bin size: {}".format(bin_size))
 
         current_interval = 0
         bin_coordinates = []
@@ -1242,7 +1242,7 @@ class GenomicRegions(object):
                 ))
 
     def to_bigwig(self, file_name, score_field=None):
-        logging.info("Writing output...")
+        logger.info("Writing output...")
         bw = pyBigWig.open(file_name, 'w')
         # write header
 
@@ -4100,7 +4100,7 @@ class Hic(RegionMatrixTable):
                 chromosome1 = chromosomes[ix1]
                 for ix2 in range(ix1, len(chromosomes)):
                     chromosome2 = chromosomes[ix2]
-                    logging.info("Processing pair {}-{}".format(chromosome1, chromosome2))
+                    logger.info("Processing pair {}-{}".format(chromosome1, chromosome2))
                     edge_buffer = defaultdict(int)
                     for pair in pairs.pairs_by_chromosomes(chromosome1, chromosome2):
                         source, sink = pair.left.fragment.ix, pair.right.fragment.ix
@@ -4192,7 +4192,7 @@ class Hic(RegionMatrixTable):
         :return: :class:`~Hic` object
         """
         # find chromosome lengths
-        logging.info("Constructing binned genome...")
+        logger.info("Constructing binned genome...")
         chromosomes = self.chromosomes()
         chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
         for region in self.regions():
@@ -4207,7 +4207,7 @@ class Hic(RegionMatrixTable):
         regions = genome.get_regions(bin_size)
         genome.close()
 
-        logging.info("Binning edges...")
+        logger.info("Binning edges...")
         hic = self.__class__(file_name=file_name, mode='w')
         hic.add_regions(regions)
         regions.close()
@@ -4781,7 +4781,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
                         total += stats[key]
                     pb.update(i)
             if log_progress:
-                logging.info("Total: {}. Filtered: {}".format(total, filtered))
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
         else:
             for edge_table in self._edge_table_iter():
                 edge_table.queue_filter(edge_filter)
@@ -4805,7 +4805,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
                     total += stats[key]
                 pb.update(i)
         if log_progress:
-            logging.info("Total: {}. Filtered: {}".format(total, filtered))
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
 
 
 def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):

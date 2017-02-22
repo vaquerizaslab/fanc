@@ -452,7 +452,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
             re_pattern = ligation_site_pattern(restriction_enzyme)
 
         if adjust_batch_size:
-            logging.info("Counting lines to adjust batch size...")
+            logger.info("Counting lines to adjust batch size...")
             with reader(working_input_file, 'r') as fastq:
                 n_lines = sum(1 for _ in fastq)/4
 

@@ -64,14 +64,14 @@ def read_file_configs(config_file_locations):
 
         config_path = os.path.expanduser(location)
         if os.path.exists(config_path):
-            logging.debug("Loading config from {}".format(config_path))
+            logger.debug("Loading config from {}".format(config_path))
             try:
                 with open(config_path, 'r') as config_file:
                     config_file_content = config_file.read()
                     file_config = yaml.safe_load(config_file_content)
                     configs.append((config_path, file_config))
             except IOError as e:
-                logging.error("Could not read config file {}".format(config_path), e)
+                logger.error("Could not read config file {}".format(config_path), e)
                 pass
     return configs
 

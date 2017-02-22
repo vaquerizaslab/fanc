@@ -2386,7 +2386,7 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
                         total += stats[key]
                     pb.update(i)
             if log_progress:
-                logging.info("Total: {}. Filtered: {}".format(total, filtered))
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
         else:
             for edge_table in self._edge_table_iter():
                 edge_table.queue_filter(pair_filter)
@@ -2410,7 +2410,7 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
                     total += stats[key]
                 pb.update(i)
         if log_progress:
-            logging.info("Total: {}. Filtered: {}".format(total, filtered))
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
 
     def filter_pcr_duplicates(self, threshold=3, queue=False):
         """
