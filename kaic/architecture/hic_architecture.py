@@ -39,6 +39,7 @@ import itertools
 from bisect import bisect_left
 from kaic.tools.general import RareUpdateProgressBar
 from future.utils import string_types
+import warnings
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1465,21 +1466,25 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                 for values in values_by_chromosome:
                     ii_by_chromosome.append(np.nan) if len(values) == 0 else ii_by_chromosome.append(aggr_func(values))
 
-            ii_by_chromosome = np.array(ii_by_chromosome)
-            if self.normalise:
-                logger.info("Normalising insulation index")
-                if self.normalisation_window is not None:
-                    logger.info("Sliding window average")
-                    mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window, func=np.nanmean)
-                else:
-                    logger.info("Whole chromosome mean")
-                    mean_ins = np.nanmean(ii_by_chromosome)
-                if not self.subtract_mean:
-                    logger.info("Dividing by mean")
-                    ii_by_chromosome = ii_by_chromosome / mean_ins
-                else:
-                    logger.info("Subtracting mean")
-                    ii_by_chromosome = ii_by_chromosome - mean_ins
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+
+                ii_by_chromosome = np.array(ii_by_chromosome)
+                if self.normalise:
+                    logger.info("Normalising insulation index")
+                    if self.normalisation_window is not None:
+                        logger.info("Sliding window average")
+                        mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window,
+                                                      func=np.nanmean)
+                    else:
+                        logger.info("Whole chromosome mean")
+                        mean_ins = np.nanmean(ii_by_chromosome)
+                    if not self.subtract_mean:
+                        logger.info("Dividing by mean")
+                        ii_by_chromosome = ii_by_chromosome / mean_ins
+                    else:
+                        logger.info("Subtracting mean")
+                        ii_by_chromosome = ii_by_chromosome - mean_ins
             ii_list.append(ii_by_chromosome)
 
         ins_matrix = np.array(list(itertools.chain.from_iterable(ii_list)))
