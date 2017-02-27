@@ -439,6 +439,22 @@ class BigWig(object):
     @staticmethod
     def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean,
                       nan_replacement=None):
+
+        if interval_range is None:
+            if intervals is None or len(intervals) == 0:
+                raise ValueError("intervals cannot be None or length 0 if not providing interval_range!")
+            interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
+
+        bin_size = (interval_range[1] - interval_range[0] + 1) / bins
+        logger.debug("Bin size: {}".format(bin_size))
+
+        return BigWig._bin_intervals_equidist(intervals, bin_size, interval_range, bins=bins,
+                                              smoothing_window=smoothing_window, stat=stat,
+                                              nan_replacement=nan_replacement)
+
+    @staticmethod
+    def bin_intervals_equidistant(intervals, bin_size, interval_range=None, smoothing_window=None,
+                                  stat=_weighted_mean, nan_replacement=None):
         intervals = np.array(intervals)
 
         if interval_range is None:
@@ -449,8 +465,15 @@ class BigWig(object):
         if isinstance(interval_range, GenomicRegion):
             interval_range = (interval_range.start, interval_range.end)
 
-        bin_size = (interval_range[1] - interval_range[0] + 1) / bins
-        logger.debug("Bin size: {}".format(bin_size))
+        return BigWig._bin_intervals_equidist(intervals, bin_size, interval_range,
+                                              smoothing_window=smoothing_window, stat=stat,
+                                              nan_replacement=nan_replacement)
+
+    @staticmethod
+    def _bin_intervals_equidist(intervals, bin_size, interval_range, bins=None, smoothing_window=None,
+                                stat=_weighted_mean, nan_replacement=None):
+        if bins is None:
+            bins = int((interval_range[1] - interval_range[0] + 1) / bin_size + .5)
 
         current_interval = 0
         bin_coordinates = []
@@ -502,6 +525,17 @@ class BigWig(object):
         return BigWig.bin_intervals(self.intervals(chromosome, start, end),
                                     bins, interval_range=(start, end),
                                     smoothing_window=smoothing_window)
+
+    def binned_values_equidistant(self, region, bin_size, smoothing_window=None):
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+        chroms = self.chroms()
+        chromosome = region.chromosome
+        start = region.start if region.start is not None else 1
+        end = region.end if region.end is not None else chroms[chromosome]
+        return BigWig.bin_intervals_equidistant(self.intervals(chromosome, start, end),
+                                                bin_size, interval_range=(start, end),
+                                                smoothing_window=smoothing_window)
 
 
 class GenomicDataFrame(DataFrame):
