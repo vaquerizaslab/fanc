@@ -6,8 +6,8 @@ from future.utils import string_types
 import random
 
 
-def iter_randiomized_regions(original_regions, iterations=1, chromosome_sizes=None, method='unconstrained',
-                             preserve_attributes=False, sort=False):
+def iter_randomized_regions(original_regions, iterations=1, chromosome_sizes=None, method='unconstrained',
+                            preserve_attributes=False, sort=False):
     if method == 'unconstrained':
         if chromosome_sizes is None:
             raise ValueError("Must provide chromosome_sizes dict when using unconstrained randomization method")
