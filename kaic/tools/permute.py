@@ -7,7 +7,7 @@ import random
 
 
 def iter_randomized_regions(original_regions, iterations=1, chromosome_sizes=None, method='unconstrained',
-                            preserve_attributes=False, sort=False):
+                            preserve_attributes=False, sort=False, silent=True):
     if method == 'unconstrained':
         if chromosome_sizes is None:
             raise ValueError("Must provide chromosome_sizes dict when using unconstrained randomization method")
@@ -18,13 +18,13 @@ def iter_randomized_regions(original_regions, iterations=1, chromosome_sizes=Non
         chromosome_regions = _chromosome_regions(original_regions, sort=sort)
         for i in range(iterations):
             yield _random_regions_spacing(chromosome_regions, sort=False,
-                                          preserve_attributes=preserve_attributes)
+                                          preserve_attributes=preserve_attributes, silent=silent)
     else:
         raise ValueError("Unknown randomization method '{}'".format(method))
 
 
 def randomize_regions(original_regions, chromosome_sizes=None, method='unconstrained',
-                      preserve_attributes=False, sort=False):
+                      preserve_attributes=False, sort=False, silent=True):
     random_regions = []
 
     if method == 'unconstrained':
@@ -35,7 +35,7 @@ def randomize_regions(original_regions, chromosome_sizes=None, method='unconstra
     elif method == 'spacing':
         chromosome_regions = _chromosome_regions(original_regions, sort=sort)
         random_regions = _random_regions_spacing(chromosome_regions,
-                                                 preserve_attributes=preserve_attributes)
+                                                 preserve_attributes=preserve_attributes, silent=silent)
 
     return random_regions
 
@@ -79,7 +79,7 @@ def _random_regions_unconstrained(original_regions, chromosome_sizes, preserve_a
     return random_regions
 
 
-def _random_regions_spacing(original_regions, sort=False, preserve_attributes=False):
+def _random_regions_spacing(original_regions, sort=False, preserve_attributes=False, silent=True):
     random_regions = []
     if isinstance(original_regions, dict):
         chromosome_regions = original_regions
@@ -98,7 +98,7 @@ def _random_regions_spacing(original_regions, sort=False, preserve_attributes=Fa
         random.shuffle(regions)
         random.shuffle(spacing_lens)
         protected_attributes = {'chromosome', 'start', 'end'}
-        with RareUpdateProgressBar(max_value=len(regions)) as pb:
+        with RareUpdateProgressBar(max_value=len(regions), silent=silent) as pb:
             for i in range(len(regions)):
                 region_len = len(regions[i])
                 attributes = {}

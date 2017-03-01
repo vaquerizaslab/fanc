@@ -428,7 +428,9 @@ class BigWig(object):
             chromosome = chromosome.chromosome
 
         if self._intervals is None:
-            intervals = self.bw.intervals(chromosome, start, end)
+            with warnings.catch_warnings() as w:
+                warnings.simplefilter('ignore')
+                intervals = self.bw.intervals(chromosome, start, end)
         else:
             intervals = self._memory_intervals(chromosome, start, end)
 
@@ -511,7 +513,9 @@ class BigWig(object):
             result[np.isnan(result)] = nan_replacement
 
         if smoothing_window is not None:
-            result = apply_sliding_func(result, smoothing_window)
+            with warnings.catch_warnings() as w:
+                warnings.simplefilter('ignore')
+                result = apply_sliding_func(result, smoothing_window)
 
         return tuple((bin_coordinates[i][0], bin_coordinates[i][1], result[i]) for i in range(len(result)))
 
