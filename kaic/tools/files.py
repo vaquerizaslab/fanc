@@ -39,9 +39,9 @@ def get_number_of_lines(file_name):
 
 
 def tmp_file_name(tmpdir, prefix='tmp_kaic', extension='h5'):
-    name = os.path.join(tmpdir, "{}_{}.{}".format(prefix, binascii.b2a_hex(os.urandom(15)), extension))
+    name = os.path.join(tmpdir, "{}_{}.{}".format(prefix, binascii.b2a_hex(os.urandom(15).decode()), extension))
     while os.path.exists(name):
-        name = os.path.join(tmpdir, "{}_{}.{}".format(prefix, binascii.b2a_hex(os.urandom(15)), extension))
+        name = os.path.join(tmpdir, "{}_{}.{}".format(prefix, binascii.b2a_hex(os.urandom(15).decode()), extension))
     return name
 
 
