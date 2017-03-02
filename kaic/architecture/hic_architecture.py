@@ -261,12 +261,10 @@ class ExpectedContacts(TableArchitecturalFeature):
                         regions.append(r)
                         region_ix.add(r.ix)
 
-        # count the number of regions per chromosome
         # and find the first and last region in each chromosome
-        regions_by_chromosome = defaultdict(int)
         min_region_by_chromosome = dict()
         max_region_by_chromosome = dict()
-        for region in regions:
+        for region in all_regions:
             if (region.chromosome not in max_region_by_chromosome or
                     max_region_by_chromosome[region.chromosome] < region.ix):
                 max_region_by_chromosome[region.chromosome] = region.ix
@@ -275,6 +273,9 @@ class ExpectedContacts(TableArchitecturalFeature):
                     min_region_by_chromosome[region.chromosome] > region.ix):
                 min_region_by_chromosome[region.chromosome] = region.ix
 
+        # count the number of regions per chromosome
+        regions_by_chromosome = defaultdict(int)
+        for region in regions:
             regions_by_chromosome[region.chromosome] += 1
 
         # find the largest distance between two regions
