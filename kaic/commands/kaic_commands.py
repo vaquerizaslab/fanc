@@ -1515,7 +1515,7 @@ def filter_pairs_parser():
         action='store_true',
         help='''Remove read pairs representing self-ligated fragments'''
     )
-    parser.set_defaults(self_ligated=False)
+    parser.set_defaults(self_ligated=True)
 
     parser.add_argument(
         '-d', '--duplicate', dest='dup_thresh',
