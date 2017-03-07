@@ -451,9 +451,9 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
         if restriction_enzyme is not None:
             re_pattern = ligation_site_pattern(restriction_enzyme)
 
-        if adjust_batch_size:
+        if adjust_batch_size and threads > 1:
             logger.info("Counting lines to adjust batch size...")
-            with reader(working_input_file, 'r') as fastq:
+            with reader(working_input_file, 'rb') as fastq:
                 n_lines = sum(1 for _ in fastq)/4
 
             if n_lines/threads < batch_size*threads:
@@ -484,7 +484,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                 os.makedirs(process_work_dir)
 
                 _iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
-                                      partial_output_file, True)
+                                       partial_output_file, True)
 
                 logger.info("Done mapping %s" % file_name)
 
@@ -535,7 +535,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                             try:
                                 partial_output_file = output_queue.get(False)
                                 logger.info("Processing %s..." % partial_output_file)
-                                with pysam.AlignmentFile(partial_output_file, 'r') as p:
+                                with pysam.AlignmentFile(partial_output_file) as p:
                                     if o is None:
                                         if os.path.splitext(output_file)[1] == '.bam':
                                             o = pysam.AlignmentFile(working_output_file, 'wb', template=p)
@@ -551,7 +551,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
                         max_length = 0
                         batch_count += 1
-                        working_file = gzip.open(work_dir + '/full_reads_' + str(batch_count) + '.fastq.gz', 'w')
+                        working_file = gzip.open(work_dir + '/full_reads_' + str(batch_count) + '.fastq.gz', 'wb')
                         working_files.append(working_file.name)
 
                 working_file.close()
