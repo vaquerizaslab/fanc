@@ -531,8 +531,8 @@ def hicvhic(parameters):
     colormap_lower = config.colormap_hic if args.colormap_lower is None else args.colormap_lower
     colormap_upper = config.colormap_hic if args.colormap_upper is None else args.colormap_upper
 
-    matrix_upper = kaic.load_hic(os.path.expanduser(args.hic_upper), mode='r')
-    matrix_lower = kaic.load_hic(os.path.expanduser(args.hic_lower), mode='r')
+    matrix_upper = kaic.load(os.path.expanduser(args.hic_upper), mode='r')
+    matrix_lower = kaic.load(os.path.expanduser(args.hic_lower), mode='r')
 
     norm_upper = "lin" if not args.log_upper else "log"
     upper_plot = kplt.HicPlot(matrix_upper, colormap=colormap_upper, max_dist=args.max_dist, norm=norm_upper,
