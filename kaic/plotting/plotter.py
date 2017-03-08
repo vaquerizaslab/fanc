@@ -1147,7 +1147,7 @@ class FeatureLayerPlot(BasePlotter1D):
             0    10    20    30
     """
 
-    def __init__(self, features, gff_grouping_attribute='feature',
+    def __init__(self, features, gff_grouping_attribute=None,
                  element_height=0.8,
                  color_by='strand', colors=((1, 'r'), (-1, 'b')),
                  shadow=True, shadow_width=0.005,
@@ -1178,7 +1178,10 @@ class FeatureLayerPlot(BasePlotter1D):
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
 
         self.features = load(features)
-        self.grouping_attribute = gff_grouping_attribute if self.features.file_type == 'gff' else 'name'
+        if gff_grouping_attribute is None:
+            self.grouping_attribute = 'feature' if self.features.file_type == 'gff' else 'name'
+        else:
+            self.grouping_attribute = gff_grouping_attribute
         self.element_height = element_height
         self.min_element_width = shadow_width
         self.draw_shadow = shadow
@@ -1199,7 +1202,7 @@ class FeatureLayerPlot(BasePlotter1D):
             groups[group].append(element)
 
         region_width = region.end - region.start + 1
-
+        print('plot')
         tick_positions = []
         tick_labels = []
         for i, name in enumerate(sorted(groups)):

@@ -1103,14 +1103,13 @@ def layer_parser():
 
     parser.add_argument(
         '-g', '--grouping', dest='grouping_attribute',
-        default='feature',
         help='''GFF attribute to use for grouping into layers. For BED this is always the name column.'''
     )
 
     parser.add_argument(
         '-S', '--no-shadow', dest='shadow',
         action='store_false',
-        help='''Assign color based on score value.'''
+        help='''Plot element size 'as is' without surrounding box to make it more visible.'''
     )
     parser.set_defaults(shadow=True)
 
