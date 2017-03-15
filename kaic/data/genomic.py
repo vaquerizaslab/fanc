@@ -400,7 +400,7 @@ class BigWig(object):
 
     def _memory_intervals(self, chromosome, start, end):
         all_intervals = self._intervals[chromosome]
-        start_ix = bisect_left(all_intervals[0], start)
+        start_ix = bisect_right(all_intervals[0], start) - 1
         end_ix = bisect_left(all_intervals[1], end)
         return [(all_intervals[0][ix], all_intervals[1][ix], all_intervals[2][ix])
                 for ix in range(start_ix, end_ix+1)]
@@ -415,7 +415,8 @@ class BigWig(object):
 
         return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
 
-    def intervals(self, chromosome, start=None, end=None):
+    def intervals(self, chromosome, start=None, end=None, bins=None, bin_size=None,
+                  smoothing_window=None, nan_replacement=None):
         chroms = self.chroms()
         if isinstance(chromosome, string_types):
             chromosome = GenomicRegion.from_string(chromosome)
@@ -428,7 +429,7 @@ class BigWig(object):
             chromosome = chromosome.chromosome
 
         if self._intervals is None:
-            with warnings.catch_warnings() as w:
+            with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
                 intervals = self.bw.intervals(chromosome, start, end)
         else:
@@ -436,7 +437,18 @@ class BigWig(object):
 
         if intervals is None:
             intervals = ()
-        return [(interval[0]+1, interval[1], interval[2]) for interval in intervals]
+
+        if bins is None and bin_size is None:
+            return [(interval[0]+1, interval[1], interval[2]) for interval in intervals]
+
+        if bins is not None:
+            return BigWig.bin_intervals(intervals, bins, interval_range=[start, end],
+                                        smoothing_window=smoothing_window, nan_replacement=nan_replacement)
+
+        if bin_size is not None:
+            return BigWig.bin_intervals_equidistant(intervals, bin_size, interval_range=[start, end],
+                                                    smoothing_window=smoothing_window,
+                                                    nan_replacement=nan_replacement)
 
     @staticmethod
     def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean,
@@ -513,7 +525,7 @@ class BigWig(object):
             result[np.isnan(result)] = nan_replacement
 
         if smoothing_window is not None:
-            with warnings.catch_warnings() as w:
+            with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
                 result = apply_sliding_func(result, smoothing_window)
 
