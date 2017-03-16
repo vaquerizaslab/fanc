@@ -403,7 +403,7 @@ class BigWig(object):
         start_ix = bisect_right(all_intervals[0], start) - 1
         end_ix = bisect_left(all_intervals[1], end)
         return [(all_intervals[0][ix], all_intervals[1][ix], all_intervals[2][ix])
-                for ix in range(start_ix, end_ix+1)]
+                for ix in range(max(0, start_ix), min(len(all_intervals[0]), end_ix+1))]
 
     def region_stats(self, region, bins=1, stat='mean'):
         if isinstance(region, string_types):
