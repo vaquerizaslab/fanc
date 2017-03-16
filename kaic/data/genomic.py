@@ -194,10 +194,13 @@ class Bed(pybedtools.BedTool):
         except (TypeError, ValueError):
             score = None
 
-        if score is None and len(interval.fields) == 4:  # likely bedGraph!
-            try:
-                score = float(interval.fields[3])
-            except ValueError:
+        if score is None:
+            if len(interval.fields) == 4:  # likely bedGraph!
+                try:
+                    score = float(interval.fields[3])
+                except ValueError:
+                    score = np.nan
+            else:
                 score = np.nan
 
         if self.file_type == 'gff':
