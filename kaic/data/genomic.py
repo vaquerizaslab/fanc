@@ -454,7 +454,7 @@ class BigWig(object):
                                                     nan_replacement=nan_replacement)
 
     @staticmethod
-    def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean,
+    def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None,
                       nan_replacement=None):
 
         if interval_range is None:
@@ -466,12 +466,12 @@ class BigWig(object):
         logger.debug("Bin size: {}".format(bin_size))
 
         return BigWig._bin_intervals_equidist(intervals, bin_size, interval_range, bins=bins,
-                                              smoothing_window=smoothing_window, stat=stat,
+                                              smoothing_window=smoothing_window,
                                               nan_replacement=nan_replacement)
 
     @staticmethod
     def bin_intervals_equidistant(intervals, bin_size, interval_range=None, smoothing_window=None,
-                                  stat=_weighted_mean, nan_replacement=None):
+                                  nan_replacement=None):
         intervals = np.array(intervals)
 
         if interval_range is None:
@@ -483,20 +483,21 @@ class BigWig(object):
             interval_range = (interval_range.start, interval_range.end)
 
         return BigWig._bin_intervals_equidist(intervals, bin_size, interval_range,
-                                              smoothing_window=smoothing_window, stat=stat,
+                                              smoothing_window=smoothing_window,
                                               nan_replacement=nan_replacement)
 
     @staticmethod
     def _bin_intervals_equidist(intervals, bin_size, interval_range, bins=None, smoothing_window=None,
-                                stat=_weighted_mean, nan_replacement=None):
+                                nan_replacement=None):
         if bins is None:
             bins = int((interval_range[1] - interval_range[0] + 1) / bin_size + .5)
 
         current_interval = 0
         bin_coordinates = []
-        binned_intervals = [list() for _ in range(0, bins)]
+        bin_weighted_sum = [0.0] * bins
+        bin_weighted_count = [0.0] * bins
         bin_start = interval_range[0]
-        for bin_counter in range(len(binned_intervals)):
+        for bin_counter in range(bins):
             bin_end = int(interval_range[0] + bin_size + (bin_size * bin_counter) + 0.5) - 1
             bin_coordinates.append((bin_start, bin_end))
 
@@ -507,7 +508,17 @@ class BigWig(object):
 
             # add all successive, fully-contained intervals to bin
             while interval is not None and (interval[0] <= interval[1] <= bin_end and interval[1] >= bin_start):
-                binned_intervals[bin_counter].append((max(bin_start, interval[0]), interval[1], interval[2]))
+                if np.isfinite(interval[2]):
+                    value = interval[2]
+                elif nan_replacement is not None:
+                    value = nan_replacement
+                else:
+                    value = None
+
+                if value is not None:
+                    f = (interval[1] - interval[0]) / bin_size
+                    bin_weighted_sum[bin_counter] += f * value
+                    bin_weighted_count[bin_counter] += f
 
                 current_interval += 1
                 if current_interval < len(intervals):
@@ -517,15 +528,25 @@ class BigWig(object):
 
             # add partially-contained interval to bin
             if interval is not None and (interval[0] <= bin_end and interval[1] >= bin_start):
-                binned_intervals[bin_counter].append((max(bin_start, interval[0]),
-                                                      min(bin_end, interval[1]),
-                                                      interval[2]))
+                if np.isfinite(interval[2]):
+                    value = interval[2]
+                elif nan_replacement is not None:
+                    value = nan_replacement
+                else:
+                    value = None
+
+                if value is not None:
+                    f = (min(bin_end, interval[1]) - max(bin_start, interval[0])) / bin_size
+                    bin_weighted_sum[bin_counter] += f * value
+                    bin_weighted_count[bin_counter] += f
 
             bin_start = bin_end + 1
 
-        result = np.array([stat(interval_bins) for interval_bins in binned_intervals])
-        if nan_replacement is not None:
-            result[np.isnan(result)] = nan_replacement
+        with np.errstate(divide='ignore', invalid='ignore'):
+            result = np.true_divide(bin_weighted_sum, bin_weighted_count)
+
+            if nan_replacement is not None:
+                result[~ np.isfinite(result)] = nan_replacement  # -inf inf NaN
 
         if smoothing_window is not None:
             with warnings.catch_warnings():
