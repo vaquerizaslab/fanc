@@ -188,6 +188,9 @@ class Bed(pybedtools.BedTool):
             regions.append(region)
         return regions
 
+    def __len__(self):
+        return sum(1 for _ in self)
+
     def _interval_to_region(self, interval):
         try:
             score = float(interval.score)
