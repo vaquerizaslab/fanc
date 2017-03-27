@@ -941,6 +941,13 @@ def bigwig_parser():
     )
     parser.set_defaults(log=False)
 
+    parser.add_argument(
+        '-c', '--condensed', dest='condensed',
+        action='store_true',
+        help='''Condense plot along y axis.'''
+    )
+    parser.set_defaults(condensed=False)
+
     return parser
 
 
@@ -955,7 +962,8 @@ def bigwig(parameters):
     for file_name in args.bigwig:
         bigwigs.append(kaic.load(file_name, mode='r'))
 
-    p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim, log=args.log)
+    p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim, log=args.log,
+                        condensed=args.condensed)
 
     return p, args
 
