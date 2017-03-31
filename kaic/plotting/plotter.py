@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 from kaic.config import config
 import matplotlib as mpl
-from matplotlib.ticker import NullLocator
+from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
 from kaic.data.genomic import GenomicRegion, GenomicDataFrame
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
@@ -301,6 +301,76 @@ class GenomicRegionsPlot(ScalarDataPlot):
                 self.lines[current_line].set_xdata(x)
                 self.lines[current_line].set_ydata(y)
                 current_line += 1
+
+
+class RegionsValuesPlot(ScalarDataPlot):
+    def __init__(self, regions, values, symmetry=None, style="step", title='', aspect=.2,
+                 axes_style=style_ticks_whitegrid, ylim=None):
+        """
+        Plot scalar values from one or more class:`~GenomicTrack` objects
+
+        :param regions: class:`~GenomicRegions`
+        :param style: 'step' Draw values in a step-wise manner for each bin
+              'mid' Draw values connecting mid-points of bins
+        :param attributes: Only draw attributes from the track objects
+                           which match this description.
+                           Should be a list of names. Supports wildcard matching
+                           and regex.
+        :param title: Used as title for plot
+        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+               the height_ratios in class:`~GenomicFigure`
+        """
+        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
+                                axes_style=axes_style)
+
+        self.regions = regions
+        self.values = values
+        self.line = None
+        self.ylim = ylim
+        self.symmetry = symmetry
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        regions = []
+        values = []
+        for i, r in enumerate(self.regions):
+            if r.chromosome != region.chromosome:
+                continue
+            if r.end < region.start or r.start > region.end:
+                continue
+
+            regions.append(r)
+            values.append(self.values[i])
+
+            x, y = self.get_plot_values(values, regions)
+            l = self.ax.plot(x, y)
+            self.line = l[0]
+
+        if self.ylim is not None:
+            self.ax.set_ylim(self.ylim)
+
+        if self.symmetry is not None:
+            ylim = self.ax.get_ylim()
+            d = max(abs(np.array(ylim) - self.symmetry))
+            new_ylim = (self.symmetry - d, self.symmetry + d)
+            self.ax.set_ylim(new_ylim)
+
+        self.remove_colorbar_ax()
+
+    def _refresh(self, region=None, ax=None, *args, **kwargs):
+        regions = []
+        values = []
+        for i, r in self.regions:
+            if r.chromosome != region.chromosome:
+                continue
+            if r.end < region.start or r.start > region.end:
+                continue
+
+            regions.append(r)
+            values.append(self.values[i])
+
+            x, y = self.get_plot_values(values, regions)
+            self.line.set_xdata(x)
+            self.line.set_ydata(y)
 
 
 class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
