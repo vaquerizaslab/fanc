@@ -996,7 +996,7 @@ class GenomicRegion(TableObject):
                                                name, score, self.strand_string)
 
     def as_gff_line(self, source_field='source', feature_field='feature', score_field='score',
-                    frame_field='frame'):
+                    frame_field='frame', float_format='.2f'):
         try:
             source = getattr(self, source_field)
         except AttributeError:
@@ -1010,7 +1010,7 @@ class GenomicRegion(TableObject):
             feature = '.'
 
         try:
-            score = getattr(self, score_field)
+            score = "{:{float_format}}".format(getattr(self, score_field), float_format=float_format)
         except AttributeError:
             warnings.warn("Score field {} does not exist, using '.'".format(score_field))
             score = '.'
@@ -1026,10 +1026,15 @@ class GenomicRegion(TableObject):
         group = ''
         for attribute in self.attributes:
             if attribute not in no_group_items:
-                group += "{} {}; ".format(attribute, getattr(self, attribute))
+                a = getattr(self, attribute)
+                if isinstance(a, float):
+                    a = "{:{float_format}}".format(a, float_format=float_format)
+                group += "{} {}; ".format(attribute, a)
 
-        return "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.chromosome, source, feature, self.start,
-                                                           self.end, score, self.strand_string, frame,
+        return "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.chromosome, source,
+                                                           feature, self.start + 1,
+                                                           self.end, score,
+                                                           self.strand_string, frame,
                                                            group)
 
 
