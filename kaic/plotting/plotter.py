@@ -324,26 +324,36 @@ class RegionsValuesPlot(ScalarDataPlot):
                                 axes_style=axes_style)
 
         self.regions = regions
-        self.values = values
-        self.line = None
+        self.legend = True
+        if not isinstance(values, dict):
+            self.values = {'data': values}
+            self.legend = False
+        else:
+            self.values = values
+        self.lines = []
         self.ylim = ylim
         self.symmetry = symmetry
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
-        regions = []
-        values = []
-        for i, r in enumerate(self.regions):
-            if r.chromosome != region.chromosome:
-                continue
-            if r.end < region.start or r.start > region.end:
-                continue
+    def _plot_values(self, region=None):
+        for label, region_values in self.values.items():
+            regions = []
+            values = []
+            for i, r in enumerate(self.regions):
+                if r.chromosome != region.chromosome:
+                    continue
+                if r.end < region.start or r.start > region.end:
+                    continue
 
-            regions.append(r)
-            values.append(self.values[i])
+                regions.append(r)
+                values.append(region_values[i])
 
             x, y = self.get_plot_values(values, regions)
-            l = self.ax.plot(x, y)
-            self.line = l[0]
+            yield label, x, y
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        for label, x, y in self._plot_values(region):
+            l = self.ax.plot(x, y, label=label)
+            self.lines.append(l[0])
 
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim)
@@ -354,23 +364,15 @@ class RegionsValuesPlot(ScalarDataPlot):
             new_ylim = (self.symmetry - d, self.symmetry + d)
             self.ax.set_ylim(new_ylim)
 
+        if self.legend:
+            self.add_legend()
+
         self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
-        regions = []
-        values = []
-        for i, r in self.regions:
-            if r.chromosome != region.chromosome:
-                continue
-            if r.end < region.start or r.start > region.end:
-                continue
-
-            regions.append(r)
-            values.append(self.values[i])
-
-            x, y = self.get_plot_values(values, regions)
-            self.line.set_xdata(x)
-            self.line.set_ydata(y)
+        for i, (label, x, y) in enumerate(self._plot_values(region)):
+            self.lines[i].set_xdata(x)
+            self.lines[i].set_ydata(y)
 
 
 class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
