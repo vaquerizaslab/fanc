@@ -1201,18 +1201,13 @@ class RaoPeakCaller(PeakCaller):
         peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True), mode='w')
 
         # mappability
-        logger.info("Calculating visibility of regions...")
-        mappable = hic.mappable()
-        logger.info("Done.")
-
         calculated_expected = False
         if expected is None:
+            logger.info("Expected values...")
             calculated_expected = True
-            logger.info("Calculating expected values...")
             expected = ExpectedContacts(hic, smooth=True)
         intra_expected = expected.intra_expected()
         inter_expected = expected.inter_expected()
-        logger.info("Done.")
 
         intra_possible, inter_possible = hic.possible_contacts()
 
