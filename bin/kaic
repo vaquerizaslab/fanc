@@ -2184,6 +2184,11 @@ class Kaic(object):
         parser.set_defaults(inter=False)
 
         parser.add_argument(
+            '-e', '--expected', dest='expected',
+            help='''ExpectedContacts object (provide to skip expected contacts calculations).'''
+        )
+
+        parser.add_argument(
             '-tmp', '--work-in-tmp', dest='tmp',
             action='store_true',
             help='''Work in temporary directory'''
@@ -2225,6 +2230,10 @@ class Kaic(object):
                               cluster=args.sge)
 
         hic = kaic.load_hic(input_path, mode='r')
+        if args.expected is not None:
+            expected = kaic.load(os.path.expanduser(args.expected), mode='r')
+        else:
+            expected = None
 
         if args.chromosomes is None:
             chromosome_pairs = None
@@ -2236,7 +2245,8 @@ class Kaic(object):
                     chromosome2 = args.chromosomes[j]
                     chromosome_pairs.append((chromosome1, chromosome2))
 
-        peaks = pk.call_peaks(hic, chromosome_pairs=chromosome_pairs, file_name=output_path)
+        peaks = pk.call_peaks(hic, chromosome_pairs=chromosome_pairs, file_name=output_path,
+                              expected=expected)
 
         logger.info("Found %d potential peaks" % len(peaks))
         peaks.close()

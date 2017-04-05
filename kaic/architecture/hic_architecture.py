@@ -218,13 +218,23 @@ class ExpectedContacts(TableArchitecturalFeature):
         else:
             self.weight_column = weight_column
 
+        if self._calculated:
+            self._marginals_array = self._group.marginals
+
     def _calculate(self):
         """
         Get intra- and inter-chromosomal expected contact counts.
         """
 
         # extract mappable regions from Hic object
-        marginals = self.hic.marginals(weight_column=self.weight_column)
+        marginals = np.array(self.hic.marginals(weight_column=self.weight_column))
+
+        # save marginals in object
+        self._marginals_array = self.file.create_carray(self._group, 'marginals',
+                                                        t.Atom.from_dtype(marginals.dtype),
+                                                        marginals.shape)
+        self._marginals_array[:] = marginals
+
         regions = []
         all_regions = []
         region_ix = set()
@@ -388,6 +398,10 @@ class ExpectedContacts(TableArchitecturalFeature):
         self.data('contacts', smoothed_reads_by_distance)
         self.data('pixels', smoothed_pixels_by_distance)
         self._table.attrs['inter'] = inter_expected
+
+    @calculateondemand
+    def marginals(self):
+        return self._marginals_array[:]
 
     @calculateondemand
     def intra_expected(self):
