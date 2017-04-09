@@ -22,6 +22,8 @@ import re
 import warnings
 from collections import defaultdict
 from future.utils import string_types
+import pyBigWig
+import kaic
 import logging
 logger = logging.getLogger(__name__)
 
@@ -871,13 +873,19 @@ class BigWigPlot(ScalarDataPlot):
         if isinstance(bigwigs, string_types):
             bigwigs = [bigwigs]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
-        self.bigwigs = bigwigs
+        self.bigwigs = []
+        for bw in bigwigs:
+            if isinstance(bw, string_types):
+                bw = kaic.load(bw)
+            if isinstance(bw, kaic.BigWig):
+                self.bigwigs.append(bw.bw)
+            else:
+                self.bigwigs.append(bw)
         self.names = names
         self.bin_size = bin_size
         self.ylim = ylim
-        self.x = None
-        self.y = None
         self.log = log
+        self.lines = []
         self.condensed = condensed
 
     def _bin_intervals(self, region, intervals):
@@ -901,26 +909,22 @@ class BigWigPlot(ScalarDataPlot):
                        for s, e in zip(bin_coords[:-1], bin_coords[1:])]
         return bin_regions, out_values
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
-        import pyBigWig
-
+    def _line_values(self, region):
         for i, b in enumerate(self.bigwigs):
-            if isinstance(b, string_types):
-                try:
-                    bw = pyBigWig.open(b)
-                    intervals = bw.intervals(region.chromosome, region.start - 1, region.end)
-                finally:
-                    bw.close()
-            else:
-                intervals = b.intervals(region.chromosome, region.start - 1, region.end)
+            intervals = b.intervals(region.chromosome, region.start - 1, region.end)
 
             if self.bin_size:
                 regions, bw_values = self._bin_intervals(region, intervals)
             else:
                 regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
                 bw_values = [v for s, e, v in intervals]
-            self.x, self.y = self.get_plot_values(bw_values, regions)
-            self.ax.plot(self.x, self.y, label=self.names[i] if self.names else "", **self.plot_kwargs)
+            x, y = self.get_plot_values(bw_values, regions)
+            yield i, x, y
+
+    def _plot(self, region=None, ax=None, *args, **kwargs):
+        for i, x, y in self._line_values(region):
+            self.lines.append(self.ax.plot(x, y, label=self.names[i] if self.names else "",
+                                           **self.plot_kwargs)[0])
         if self.names:
             self.add_legend()
         self.remove_colorbar_ax()
@@ -934,7 +938,10 @@ class BigWigPlot(ScalarDataPlot):
             self.ax.set_yticklabels([self.ax.get_ylim()[1]], va='top', size='x-large')
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
-        pass
+        for i, x, y in self._line_values(region):
+            print(i, region)
+            self.lines[i].set_xdata(x)
+            self.lines[i].set_ydata(y)
 
 
 class GenePlot(BasePlotter1D):
