@@ -3,11 +3,13 @@ from kaic.data.genomic import GenomicRegion
 from kaic.tools.files import read_chromosome_sizes
 from kaic.tools.general import RareUpdateProgressBar
 from future.utils import string_types
+from pybedtools.helpers import chromsizes
+import os
 import random
 
 
 def iter_randomized_regions(original_regions, iterations=1, chromosome_sizes=None, method='unconstrained',
-                            preserve_attributes=False, sort=False, silent=True):
+                            preserve_attributes=False, sort=False, silent=True, _chromosome_regions=None):
     if method == 'unconstrained':
         if chromosome_sizes is None:
             raise ValueError("Must provide chromosome_sizes dict when using unconstrained randomization method")
@@ -15,16 +17,17 @@ def iter_randomized_regions(original_regions, iterations=1, chromosome_sizes=Non
             yield _random_regions_unconstrained(original_regions, chromosome_sizes,
                                                 preserve_attributes=preserve_attributes)
     elif method == 'spacing':
-        chromosome_regions = _chromosome_regions(original_regions, sort=sort)
+        if _chromosome_regions is None:
+            _chromosome_regions = chromosome_regions(original_regions, sort=sort)
         for i in range(iterations):
-            yield _random_regions_spacing(chromosome_regions, sort=False,
+            yield _random_regions_spacing(_chromosome_regions, sort=False,
                                           preserve_attributes=preserve_attributes, silent=silent)
     else:
         raise ValueError("Unknown randomization method '{}'".format(method))
 
 
 def randomize_regions(original_regions, chromosome_sizes=None, method='unconstrained',
-                      preserve_attributes=False, sort=False, silent=True):
+                      preserve_attributes=False, sort=False, silent=True, _chromosome_regions=None):
     random_regions = []
 
     if method == 'unconstrained':
@@ -33,32 +36,39 @@ def randomize_regions(original_regions, chromosome_sizes=None, method='unconstra
         random_regions = _random_regions_unconstrained(original_regions, chromosome_sizes,
                                                        preserve_attributes=preserve_attributes)
     elif method == 'spacing':
-        chromosome_regions = _chromosome_regions(original_regions, sort=sort)
-        random_regions = _random_regions_spacing(chromosome_regions,
+        if _chromosome_regions is None:
+            _chromosome_regions = chromosome_regions(original_regions, sort=sort)
+        random_regions = _random_regions_spacing(_chromosome_regions,
                                                  preserve_attributes=preserve_attributes, silent=silent)
 
     return random_regions
 
 
-def _chromosome_regions(original_regions, sort=True):
+def chromosome_regions(original_regions, sort=True):
     if not isinstance(original_regions, dict):
-        chromosome_regions = defaultdict(list)
+        cr = defaultdict(list)
         for region in original_regions:
-            chromosome_regions[region.chromosome].append(region)
+            cr[region.chromosome].append(region)
     else:
-        chromosome_regions = original_regions
+        cr = original_regions
 
     if sort:
-        for chromosome, regions in chromosome_regions.items():
+        for chromosome, regions in cr.items():
             regions.sort(key=lambda x: x.start)
-    return chromosome_regions
+    return cr
 
 
 def _random_regions_unconstrained(original_regions, chromosome_sizes, preserve_attributes=False):
     random_regions = []
 
     if isinstance(chromosome_sizes, string_types):
-        chromosome_sizes = read_chromosome_sizes(chromosome_sizes)
+        if os.path.isfile(os.path.expanduser(chromosome_sizes)):
+            chromosome_sizes = read_chromosome_sizes(chromosome_sizes)
+        else:
+            genome = chromosome_sizes
+            chromosome_sizes = dict()
+            for chromosome, (start, end) in chromsizes(genome).items():
+                chromosome_sizes[chromosome] = end
 
     protected_attributes = {'chromosome', 'start', 'end'}
     for region in original_regions:
@@ -82,14 +92,14 @@ def _random_regions_unconstrained(original_regions, chromosome_sizes, preserve_a
 def _random_regions_spacing(original_regions, sort=False, preserve_attributes=False, silent=True):
     random_regions = []
     if isinstance(original_regions, dict):
-        chromosome_regions = original_regions
+        cr = original_regions
         if sort:
-            for chromosome, regions in chromosome_regions.items():
+            for chromosome, regions in cr.items():
                 regions.sort(key=lambda x: x.start)
     else:
-        chromosome_regions = _chromosome_regions(original_regions, sort=sort)
+        cr = chromosome_regions(original_regions, sort=sort)
 
-    for chromosome, regions in chromosome_regions.items():
+    for chromosome, regions in cr.items():
         spacing_lens = []
         for i in range(len(regions) - 1):
             spacing_lens.append(regions[i + 1].start - regions[i].end)
