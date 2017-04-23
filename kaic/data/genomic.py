@@ -422,7 +422,7 @@ class BigWig(object):
         return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
 
     def intervals(self, chromosome, start=None, end=None, bins=None, bin_size=None,
-                  smoothing_window=None, nan_replacement=None):
+                  smoothing_window=None, nan_replacement=None, zero_to_nan=False):
         chroms = self.chroms()
         if isinstance(chromosome, string_types):
             chromosome = GenomicRegion.from_string(chromosome)
@@ -449,16 +449,18 @@ class BigWig(object):
 
         if bins is not None:
             return BigWig.bin_intervals(intervals, bins, interval_range=[start, end],
-                                        smoothing_window=smoothing_window, nan_replacement=nan_replacement)
+                                        smoothing_window=smoothing_window, nan_replacement=nan_replacement,
+                                        zero_to_nan=zero_to_nan)
 
         if bin_size is not None:
             return BigWig.bin_intervals_equidistant(intervals, bin_size, interval_range=[start, end],
                                                     smoothing_window=smoothing_window,
-                                                    nan_replacement=nan_replacement)
+                                                    nan_replacement=nan_replacement,
+                                                    zero_to_nan=zero_to_nan)
 
     @staticmethod
     def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None,
-                      nan_replacement=None):
+                      nan_replacement=None, zero_to_nan=False):
 
         if interval_range is None:
             if intervals is None or len(intervals) == 0:
@@ -470,11 +472,12 @@ class BigWig(object):
 
         return BigWig._bin_intervals_equidist(intervals, bin_size, interval_range, bins=bins,
                                               smoothing_window=smoothing_window,
-                                              nan_replacement=nan_replacement)
+                                              nan_replacement=nan_replacement,
+                                              zero_to_nan=zero_to_nan)
 
     @staticmethod
     def bin_intervals_equidistant(intervals, bin_size, interval_range=None, smoothing_window=None,
-                                  nan_replacement=None):
+                                  nan_replacement=None, zero_to_nan=False):
         intervals = np.array(intervals)
 
         if interval_range is None:
@@ -487,11 +490,65 @@ class BigWig(object):
 
         return BigWig._bin_intervals_equidist(intervals, bin_size, interval_range,
                                               smoothing_window=smoothing_window,
-                                              nan_replacement=nan_replacement)
+                                              nan_replacement=nan_replacement,
+                                              zero_to_nan=zero_to_nan)
+
+    @staticmethod
+    def _bin_intervals_equidist_alt(intervals, bin_size, interval_range, bins=None, smoothing_window=None,
+                                nan_replacement=None):
+        if bins is None:
+            bins = int((interval_range[1] - interval_range[0] + 1) / bin_size + .5)
+
+        # binned intervals
+        binned_intervals = []
+        for i in range(bins):
+            bin_start = int(interval_range[0] + bin_size * i + 0.5)
+            bin_end = int(bin_start + bin_size + 0.5)
+            binned_intervals.append((bin_start, bin_end))
+
+        # weights vectors
+        bin_weighted_sum = np.zeros(bins)
+        bin_weighted_count = np.zeros(bins)
+
+        # weighted sum of unbinned intervals
+        for start, end, score in intervals:
+            if not np.isfinite(score):
+                score = nan_replacement
+
+            if score is None:
+                continue
+
+            start_ix = 0 if start < interval_range[0] else int((start - interval_range[0]) / bin_size)
+            end_ix = bins - 1 if end > interval_range[1] else int((end - interval_range[0]) / bin_size)
+
+            if start_ix == end_ix:
+                r = min(1.0, (end - start) / bin_size)
+                bin_weighted_count[start_ix] += r
+                bin_weighted_sum[start_ix] += r * score
+            else:
+                for ix in range(start_ix, end_ix + 1):
+                    r = (min(end, binned_intervals[ix][1]) - max(binned_intervals[ix][0], start)) / bin_size
+                    bin_weighted_count[ix] += r
+                    bin_weighted_sum[ix] += r * score
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            result = np.true_divide(bin_weighted_sum, bin_weighted_count)
+
+            if nan_replacement is not None:
+                result[~ np.isfinite(result)] = nan_replacement  # -inf inf NaN
+
+        if smoothing_window is not None:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                result = apply_sliding_func(result, smoothing_window)
+
+        return tuple((binned_intervals[i][0], binned_intervals[i][1], result[i])
+                         for i in range(len(binned_intervals)))
+
 
     @staticmethod
     def _bin_intervals_equidist(intervals, bin_size, interval_range, bins=None, smoothing_window=None,
-                                nan_replacement=None):
+                                nan_replacement=None, zero_to_nan=False):
         if bins is None:
             bins = int((interval_range[1] - interval_range[0] + 1) / bin_size + .5)
 
@@ -511,12 +568,15 @@ class BigWig(object):
 
             # add all successive, fully-contained intervals to bin
             while interval is not None and (interval[0] <= interval[1] <= bin_end and interval[1] >= bin_start):
-                if np.isfinite(interval[2]):
-                    value = interval[2]
-                elif nan_replacement is not None:
-                    value = nan_replacement
-                else:
-                    value = None
+                value = interval[2]
+                if zero_to_nan and value < 10e-8:
+                    value = np.nan
+
+                if not np.isfinite(value):
+                    if nan_replacement is not None:
+                        value = nan_replacement
+                    else:
+                        value = None
 
                 if value is not None:
                     f = (interval[1] - interval[0]) / bin_size
@@ -531,12 +591,15 @@ class BigWig(object):
 
             # add partially-contained interval to bin
             if interval is not None and (interval[0] <= bin_end and interval[1] >= bin_start):
-                if np.isfinite(interval[2]):
-                    value = interval[2]
-                elif nan_replacement is not None:
-                    value = nan_replacement
-                else:
-                    value = None
+                value = interval[2]
+                if zero_to_nan and value < 10e-8:
+                    value = np.nan
+
+                if not np.isfinite(value):
+                    if nan_replacement is not None:
+                        value = nan_replacement
+                    else:
+                        value = None
 
                 if value is not None:
                     f = (min(bin_end, interval[1]) - max(bin_start, interval[0])) / bin_size
@@ -550,6 +613,8 @@ class BigWig(object):
 
             if nan_replacement is not None:
                 result[~ np.isfinite(result)] = nan_replacement  # -inf inf NaN
+            else:
+                result[~ np.isfinite(result)] = np.nan  # -inf inf NaN
 
         if smoothing_window is not None:
             with warnings.catch_warnings():
@@ -558,7 +623,7 @@ class BigWig(object):
 
         return tuple((bin_coordinates[i][0], bin_coordinates[i][1], result[i]) for i in range(len(result)))
 
-    def binned_values(self, region, bins, smoothing_window=None):
+    def binned_values(self, region, bins, smoothing_window=None, zero_to_nan=False):
         if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
         chroms = self.chroms()
@@ -567,9 +632,10 @@ class BigWig(object):
         end = region.end if region.end is not None else chroms[chromosome]
         return BigWig.bin_intervals(self.intervals(chromosome, start, end),
                                     bins, interval_range=(start, end),
-                                    smoothing_window=smoothing_window)
+                                    smoothing_window=smoothing_window,
+                                    zero_to_nan=zero_to_nan)
 
-    def binned_values_equidistant(self, region, bin_size, smoothing_window=None):
+    def binned_values_equidistant(self, region, bin_size, smoothing_window=None, zero_to_nan=False):
         if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
         chroms = self.chroms()
@@ -578,7 +644,8 @@ class BigWig(object):
         end = region.end if region.end is not None else chroms[chromosome]
         return BigWig.bin_intervals_equidistant(self.intervals(chromosome, start, end),
                                                 bin_size, interval_range=(start, end),
-                                                smoothing_window=smoothing_window)
+                                                smoothing_window=smoothing_window,
+                                                zero_to_nan=zero_to_nan)
 
 
 class GenomicDataFrame(DataFrame):
@@ -2519,7 +2586,7 @@ class RegionPairs(Maskable, RegionsTable):
             self._edges.flush(update_index=update_index)
 
     def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True,
-                    only_intrachromosomal=False):
+                    only_intrachromosomal=False, **kwargs):
         """
         Get a subset of edges.
 
@@ -2580,7 +2647,7 @@ class RegionPairs(Maskable, RegionsTable):
                 for edge_row in self._edge_row_range(row_range[0], row_range[1],
                                                      col_range[0], col_range[1],
                                                      only_intrachromosomal=only_intrachromosomal):
-                    yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update)
+                    yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update, **kwargs)
 
     def _get_nodes_from_key(self, key, as_index=False):
         if isinstance(key, tuple):
@@ -2723,7 +2790,7 @@ class RegionPairs(Maskable, RegionsTable):
         """
         return self._getitem_nodes(key)
 
-    def _row_to_edge(self, row, lazy=False, auto_update=True):
+    def _row_to_edge(self, row, lazy=False, auto_update=True, **kwargs):
         if not lazy:
             source = row["source"]
             sink = row["sink"]
