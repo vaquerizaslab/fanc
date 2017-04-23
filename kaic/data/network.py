@@ -994,6 +994,7 @@ class RaoPeakCaller(PeakCaller):
             (region_pairs, observed_list, e_ll_list,
              e_h_list, e_v_list, e_d_list,
              observed_chunk_distribution_part) = msgpack.loads(rv)
+            logger.info("Got output")
 
             # intra-chromosomal
             if observed_chunk_distribution_part is not None:
@@ -1212,6 +1213,11 @@ class RaoPeakCaller(PeakCaller):
 
         intra_possible, inter_possible = hic.possible_contacts()
 
+        # mappability
+        mappable = expected.marginals() > 0
+
+        logger.info("Done.")
+        
         # initialize peak parameters
         p = self.p
         w_init = self.w_init
