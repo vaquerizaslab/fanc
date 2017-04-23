@@ -1,6 +1,9 @@
 import argparse
 import textwrap
 import os
+import kaic
+from kaic.config import config
+import kaic.plotting as kplt
 
 
 def klot_parser():
@@ -223,8 +226,6 @@ def fc(parameters):
 
     args = parser.parse_args(parameters)
 
-    import kaic
-    import kaic.plotting as kplt
     matrix = kaic.FoldChangeMatrix(os.path.expanduser(args.fc_matrix), mode='r')
     norm = "lin" if not args.log else "log"
     colorbar_symmetry = 0 if args.symmetry else None
@@ -292,9 +293,6 @@ def hic(parameters):
     parser = hic_parser()
     args = parser.parse_args(parameters)
 
-    import kaic
-    from kaic.config import config
-    import kaic.plotting as kplt
     colormap = config.colormap_hic if args.colormap is None else args.colormap
 
     matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
@@ -359,9 +357,6 @@ def hic2d(parameters):
     args = parser.parse_args(parameters)
     norm = "lin" if not args.log else "log"
 
-    import kaic
-    from kaic.config import config
-    import kaic.plotting as kplt
     colormap = config.colormap_hic if args.colormap is None else args.colormap
 
     matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
@@ -429,9 +424,6 @@ def hicsplit(parameters):
 
     args = parser.parse_args(parameters)
 
-    import kaic
-    from kaic.config import config
-    import kaic.plotting as kplt
     colormap = config.colormap_hic if args.colormap is None else args.colormap
 
     matrix_bottom = kaic.load_hic(os.path.expanduser(args.hic_bottom), mode='r')
@@ -525,9 +517,6 @@ def hicvhic(parameters):
 
     args = parser.parse_args(parameters)
 
-    import kaic
-    from kaic.config import config
-    import kaic.plotting as kplt
     colormap_lower = config.colormap_hic if args.colormap_lower is None else args.colormap_lower
     colormap_upper = config.colormap_hic if args.colormap_upper is None else args.colormap_upper
 
@@ -643,10 +632,6 @@ def hicvfc(parameters):
 
     args = parser.parse_args(parameters)
 
-    import kaic
-    from kaic.config import config
-    import kaic.plotting as kplt
-
     colormap_hic = config.colormap_hic if args.colormap_hic is None else args.colormap_hic
 
     hic = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
@@ -751,9 +736,6 @@ def array(parameters):
 
     args = parser.parse_args(parameters)
 
-    import kaic
-    import kaic.plotting as kplt
-
     array = kaic.load(os.path.expanduser(args.array), mode='r')
     norm = "linear" if not args.log else "log"
 
@@ -788,6 +770,12 @@ def region_parser():
         '-f', '--features', dest='features',
         nargs='+',
         help='''(Only for GTF) Plot only the specified feature types (3rd GTF column).'''
+    )
+
+    parser.add_argument(
+        '-a', '--attribute', dest='attribute',
+        default='score',
+        help='''Attribute of each region to plot. Default: score.'''
     )
 
     parser.add_argument(
@@ -830,9 +818,8 @@ def region(parameters):
 
     args = parser.parse_args(parameters)
 
-    import kaic.plotting as kplt
-
-    p = kplt.GenomicFeatureScorePlot(os.path.expanduser(args.bed), feature_types=args.features,
+    p = kplt.GenomicFeatureScorePlot(os.path.expanduser(args.bed),
+                                     attribute=args.attribute, feature_types=args.features,
                                      color_neutral=args.color_neutral, color_forward=args.color_forward,
                                      color_reverse=args.color_reverse, show_labels=args.show_labels,
                                      ylim=args.ylim)
@@ -880,9 +867,6 @@ def line_parser():
 def line(parameters):
     parser = line_parser()
     args = parser.parse_args(parameters)
-
-    import kaic
-    import kaic.plotting as kplt
 
     array = kaic.load(args.array, mode='r')
 
@@ -954,9 +938,6 @@ def bigwig_parser():
 def bigwig(parameters):
     parser = bigwig_parser()
     args = parser.parse_args(parameters)
-
-    import kaic
-    import kaic.plotting as kplt
 
     bigwigs = []
     for file_name in args.bigwig:
@@ -1085,8 +1066,6 @@ def gene(parameters):
     parser = gene_parser()
     args = parser.parse_args(parameters)
 
-    import kaic.plotting as kplt
-
     genes_file = os.path.expanduser(args.genes)
 
     p = kplt.GenePlot(genes_file, feature_types=args.feature_types,
@@ -1148,8 +1127,6 @@ def layer(parameters):
     shadow_width = args.shadow_width
     collapse = args.collapse
 
-    import kaic.plotting as kplt
-
     p = kplt.FeatureLayerPlot(features, gff_grouping_attribute=grouping_attribute,
                               shadow=shadow, shadow_width=shadow_width, collapse=collapse)
     return p, args
@@ -1193,8 +1170,6 @@ def table(parameters):
     args = parser.parse_args(parameters)
 
     table_file = args.table
-
-    import kaic.plotting as kplt
 
     p = kplt.GenomicDataFramePlot(table_file, names=args.names, ylim=args.ylim, log=args.log)
 

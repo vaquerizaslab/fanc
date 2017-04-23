@@ -555,7 +555,7 @@ class HicPeakPlot(BaseOverlayPlotter):
     """
     Overlay peaks onto Hicplot or HicPlot2D
     """
-    def __init__(self, peaks, radius):
+    def __init__(self, peaks, radius=None):
         """
         :param peaks: Kaic peaks instance
         :param radius: Radius in bp for plotted circles
@@ -588,9 +588,9 @@ class HicPeakPlot(BaseOverlayPlotter):
         }
 
         base_plot_class = base_plot.__class__.__name__
-        peaks_gen = self.peaks.edge_subset((region, region))
+        peaks_gen = self.peaks.edge_subset((region, region), distances_in_bp=True)
         for p in peaks_gen:
-            plot_dispatch[base_plot_class](p.source_node.start, p.sink_node.end, self.radius)
+            plot_dispatch[base_plot_class](p.source_node.start, p.sink_node.end, p.radius)
 
 
 class VerticalSplitPlot(BasePlotter1D):
@@ -748,7 +748,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
     Regions will be plotted as bars with the height equal to the score provided in the file.
     """
-    def __init__(self, regions, title="", feature_types=None, aspect=.2, axes_style="ticks",
+    def __init__(self, regions, title="", attribute='score', feature_types=None, aspect=.2, axes_style="ticks",
                  color_neutral='grey', color_forward='red', color_reverse='blue', show_labels=True,
                  ylim=None):
         """
@@ -777,6 +777,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         self.color_reverse = color_reverse
         self.color_neutral = color_neutral
         self.show_labels = show_labels
+        self.attribute = attribute
         self.ylim = ylim
 
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
@@ -802,7 +803,11 @@ class GenomicFeatureScorePlot(BasePlotter1D):
             x.append(f.start)
             width.append(f.end-f.start)
             try:
-                score = float(f.score)
+                try:
+                    score = getattr(f, self.attribute)
+                except AttributeError:
+                    continue
+                score = float(score)
             except ValueError:
                 score = 1
             y.append(score)
