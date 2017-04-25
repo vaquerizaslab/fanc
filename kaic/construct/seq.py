@@ -138,6 +138,10 @@ class Reads(Maskable, FileBased):
         tags = t.Int32Col(pos=12, dflt=-1)
         qname_ix = t.Float64Col(pos=13, dflt=-1)
 
+    class RefDefinition(t.IsDescription):
+        ix = t.Int32Col(pos=0)
+        ref = t.StringCol(255, pos=1)
+
     def __init__(self, sambam_file=None, file_name=None, mode='a',
                  _group_name='reads', mapper=None, tmpdir=None):
         """
@@ -202,19 +206,28 @@ class Reads(Maskable, FileBased):
         except NoSuchNodeError:
             self._reads = MaskedTable(self._file_group, 'main', Reads.ReadsDefinition)
 
+        # Refs or ref table
+        try:
+            self._ref_table = self._file_group.ref
+            self._ref = []
+            for row in self._ref_table:
+                self._ref.append(row['ref'])
+        except NoSuchNodeError:
+            try:
+                self._ref = self._reads.attrs.ref
+            except AttributeError:
+                try:
+                    self._ref_table = MaskedTable(self._file_group, 'ref', Reads.RefDefinition)
+                except t.FileModeError:
+                    logger.warning("Cannot create reference table, no ref attribute found")
+                    self._ref = None
+
         # Header attribute
         try:
-            self._header = self._reads._v_attrs.header
+            self._header = self._reads.attrs.header
         except AttributeError:
             logger.warn("No header attributes found in existing table")
             self._header = None
-
-        # Reference names
-        try:
-            self._ref = self._reads._v_attrs.ref
-        except AttributeError:
-            logger.warn("No ref attributes found in existing table")
-            self._ref = None
 
         # Qname table
         try:
@@ -390,9 +403,13 @@ class Reads(Maskable, FileBased):
                                                      t.StringAtom(itemsize=tags_length), (0,))
 
             # header
-            self._reads._v_attrs.header = {k: sambam.header[k]
-                                           for k in sambam.header
-                                           if k in ('HD', 'RG', 'PG')}
+            try:
+                self._reads._v_attrs.header = {k: sambam.header[k]
+                                               for k in sambam.header
+                                               if k in ('HD', 'RG', 'PG')}
+            except t.HDF5ExtError:
+                logger.warning("Header too large to save (this is only a problem "
+                               "if you are planning on using it downstream)")
             self._header = sambam.header
 
             # Tool used to map reads
@@ -402,7 +419,12 @@ class Reads(Maskable, FileBased):
                 ignore_duplicates = False
 
             # references
-            self._reads._v_attrs.ref = sambam.references
+            for i, ref in enumerate(sambam.references):
+                self._ref_table.row['ix'] = i
+                self._ref_table.row['ref'] = ref
+                self._ref_table.row.append()
+            self._ref_table.flush()
+
             self._ref = sambam.references
 
         with RareUpdateProgressBar(max_value=n_reads, silent=_silent) as pb:
