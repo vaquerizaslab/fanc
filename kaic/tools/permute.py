@@ -48,7 +48,7 @@ def chromosome_regions(original_regions, sort=True):
     if not isinstance(original_regions, dict):
         cr = defaultdict(list)
         for region in original_regions:
-            cr[region.chromosome].append(region)
+            cr[region.chromosome].append(region.copy())
     else:
         cr = original_regions
 

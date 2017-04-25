@@ -843,7 +843,7 @@ class GenomicRegion(TableObject):
 
     """
 
-    def __init__(self, start, end=None, chromosome=None, strand=None, ix=None, **kwargs):
+    def __init__(self, start=None, end=None, chromosome=None, strand=None, ix=None, **kwargs):
         """
         Initialize this object.
 
@@ -854,6 +854,8 @@ class GenomicRegion(TableObject):
         :param ix: Index of the region in the context of all genomic
                    regions.
         """
+        if start is None:
+            start = 1
         self.start = start
         if end is None:
             end = start
@@ -1036,6 +1038,10 @@ class GenomicRegion(TableObject):
     @property
     def center(self):
         return self.start + (self.end - self.start)/2
+
+    def copy(self):
+        d = {attribute: getattr(self, attribute) for attribute in self.attributes}
+        return GenomicRegion(**d)
 
     def __eq__(self, other):
         return self._equals(other)
