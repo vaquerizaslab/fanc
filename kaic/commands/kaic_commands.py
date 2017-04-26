@@ -2558,7 +2558,7 @@ def filter_peaks(argv):
                                                  v_ratio=args.enrichment_vertical,
                                                  h_ratio=args.enrichment_horizontal,
                                                  queue=True)
-            peaks.peak_table.run_queued_filters()
+        peaks.peak_table.run_queued_filters()
     peaks.close()
 
     if args.tmp:
