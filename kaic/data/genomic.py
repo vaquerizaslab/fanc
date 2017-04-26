@@ -1829,6 +1829,10 @@ class Genome(FileGroup):
     This object can be saved to file.
     """
 
+    class ChromosomeDefinition(t.IsDescription):
+        name = t.StringCol(255, pos=0)
+        length = t.Int64Col(pos=1)
+
     def __init__(self, file_name=None, chromosomes=None, mode='a', tmpdir=None,
                  _table_name_chromosomes='chromosomes'):
         """
@@ -1847,6 +1851,16 @@ class Genome(FileGroup):
         except t.NoSuchNodeError:
             self._sequences = self.file.create_vlarray(self._group, 'sequences', t.VLStringAtom())
 
+        try:
+            self._chromosome_table = self._group.chromosomes
+        except t.NoSuchNodeError:
+            try:
+                self._chromosome_table = self.file.create_table(self._group, 'chromosomes',
+                                                                Genome.ChromosomeDefinition)
+            except t.FileModeError:
+                self._chromosome_table = None
+                pass
+
         if chromosomes is not None:
             if isinstance(chromosomes, Chromosome):
                 chromosomes = [chromosomes]
@@ -1859,24 +1873,54 @@ class Genome(FileGroup):
 
     @property
     def _names(self):
-        try:
-            return self.meta['chromosome_names']
-        except KeyError:
-            return []
+        if self._chromosome_table is None:
+            try:
+                return self.meta['chromosome_names']
+            except KeyError:
+                return []
+        else:
+            return [row['name'].decode() if isinstance(row['name'], bytes) else row['name']
+                    for row in self._chromosome_table]
 
     @_names.setter
     def _names(self, names):
-        self.meta['chromosome_names'] = names
+        if self._chromosome_table is None:
+            self.meta['chromosome_names'] = names
+        else:
+            counter = 0
+            for i, row in enumerate(self._chromosome_table):
+                row['name'] = names[i]
+                row.update()
+                counter += 1
+            for i in range(counter, len(names)):
+                self._chromosome_table.row['name'] = names[i]
+                self._chromosome_table.row.append()
+        self._chromosome_table.flush()
 
     @property
     def _lengths(self):
-        try:
-            return self.meta['chromosome_lengths']
-        except KeyError:
-            return []
+        if self._chromosome_table is None:
+            try:
+                return self.meta['chromosome_lengths']
+            except KeyError:
+                return []
+        else:
+            return [row['length'] for row in self._chromosome_table]
 
     @_lengths.setter
     def _lengths(self, lengths):
+        if self._chromosome_table is None:
+            self.meta['chromosome_lengths'] = lengths
+        else:
+            counter = 0
+            for i, row in enumerate(self._chromosome_table):
+                row['length'] = lengths[i]
+                row.update()
+                counter += 1
+            for i in range(counter, len(lengths)):
+                self._chromosome_table.row['length'] = lengths[i]
+                self._chromosome_table.row.append()
+        self._chromosome_table.flush()
         self.meta['chromosome_lengths'] = lengths
 
     @classmethod
@@ -2024,10 +2068,15 @@ class Genome(FileGroup):
             if l == 0:
                 l = len(s)
 
-        self._names = self._names + [n]
-        self._lengths = self._lengths + [l]
+        self._chromosome_table.row['name'] = n
+        self._chromosome_table.row['length'] = l
+        self._chromosome_table.row.append()
+
+        # self._names = self._names + [n]
+        # self._lengths = self._lengths + [l]
         self._sequences.append(s)
         self._sequences.flush()
+        self._chromosome_table.flush()
 
     def get_regions(self, split, file_name=None):
         """
