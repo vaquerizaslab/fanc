@@ -854,8 +854,6 @@ class GenomicRegion(TableObject):
         :param ix: Index of the region in the context of all genomic
                    regions.
         """
-        if start is None:
-            start = 1
         self.start = start
         if end is None:
             end = start
