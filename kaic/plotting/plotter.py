@@ -767,7 +767,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         if isinstance(regions, string_types):
             self.regions = kaic.load(regions)
         else:
-            self.region = regions
+            self.regions = regions
 
         if isinstance(feature_types, string_types):
             feature_types = [feature_types]
@@ -829,7 +829,9 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
             annotations.append(annotation)
 
-        rects = self.ax.bar(x, y, width=width, color=colors, edgecolor=colors)
+        for i in range(len(x)):
+            x[i] += width[i]/2
+        rects = self.ax.bar(x, y, width=width, color=colors, edgecolor=colors, alpha=0.5)
 
         for i, rect in enumerate(rects):
             if i % 2 == 0:
