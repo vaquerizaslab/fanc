@@ -211,7 +211,9 @@ class Reads(Maskable, FileBased):
             self._ref_table = self._file_group.ref
             self._ref = []
             for row in self._ref_table:
-                self._ref.append(row['ref'])
+                r = row['ref']
+
+                self._ref.append(r.decode() if isinstance(r, bytes) else r)
         except NoSuchNodeError:
             try:
                 self._ref = self._reads.attrs.ref
