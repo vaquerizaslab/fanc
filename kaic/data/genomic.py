@@ -4089,7 +4089,8 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
     _classid = 'ACCESSOPTIMISEDREGIONMATRIXTABLE'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
-                 default_field=None, _table_name_nodes='nodes', _table_name_edges='edges'):
+                 default_field=None, default_value=0.0,
+                 _table_name_nodes='nodes', _table_name_edges='edges'):
         """
         Initialize a :class:`~AccessOptimisedRegionMatrixTable` object.
 
@@ -4101,6 +4102,7 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
 
         # private variables
         self.default_field = default_field
+        self.default_value = default_value
         AccessOptimisedRegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields,
                                             tmpdir=tmpdir, _table_name_nodes=_table_name_nodes,
                                             _table_name_edges=_table_name_edges)
