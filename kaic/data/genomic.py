@@ -2954,7 +2954,8 @@ class RegionMatrixTable(RegionPairs):
     _classid = 'REGIONMATRIXTABLE'
 
     def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
-                 default_field=None, _table_name_nodes='nodes', _table_name_edges='edges'):
+                 default_field=None, default_value=0.0,
+                 _table_name_nodes='nodes', _table_name_edges='edges'):
 
         """
         Initialize a :class:`~RegionMatrixTable` object.
@@ -2967,6 +2968,7 @@ class RegionMatrixTable(RegionPairs):
 
         # private variables
         self.default_field = default_field
+        self.default_value = default_value
         RegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields, tmpdir=tmpdir,
                              _table_name_nodes=_table_name_nodes, _table_name_edges=_table_name_edges)
 
@@ -3018,7 +3020,8 @@ class RegionMatrixTable(RegionPairs):
     def __getitem__(self, key):
         return self.as_matrix(key)
 
-    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False):
+    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False,
+                  impute_missing=False, default_value=None):
         """
         Get a chunk of the matrix.
 
@@ -3077,7 +3080,7 @@ class RegionMatrixTable(RegionPairs):
         row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
         col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
 
-        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from)
+        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from, default_value=default_value)
 
         # select the correct output format
         # empty result: matrix
@@ -3163,7 +3166,9 @@ class RegionMatrixTable(RegionPairs):
 
         return hic_matrix
 
-    def _get_matrix(self, row_ranges, col_ranges, weight_column=None):
+    def _get_matrix(self, row_ranges, col_ranges, weight_column=None, default_value=None):
+        if default_value is None:
+            default_value = self.default_value
         if weight_column is None:
             weight_column = self.default_field
 
@@ -3176,7 +3181,7 @@ class RegionMatrixTable(RegionPairs):
             n_cols += col_range[1]-col_range[0]+1
 
         # create empty matrix
-        m = np.zeros((n_rows, n_cols))
+        m = np.full((n_rows, n_cols), default_value)
 
         # fill matrix with weights
         row_offset = 0
