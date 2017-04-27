@@ -27,7 +27,7 @@ setup(
     description='Hi-C data analysis tools.',
     packages=find_packages(exclude=["test"]),
     install_requires=[
-        'numpy',
+        'numpy>=1.8.0',
         'scipy',
         'matplotlib',
         'pandas',
@@ -41,7 +41,7 @@ setup(
         'pybedtools',
         'pyBigWig',
         'PyYAML',
-        'tables>=3.2.3',
+        'tables>=3.2.3,<=3.4.0',
         'seaborn',
         'gridmap'
     ],
