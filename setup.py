@@ -27,7 +27,7 @@ setup(
     description='Hi-C data analysis tools.',
     packages=find_packages(exclude=["test"]),
     install_requires=[
-        'numpy',
+        'numpy>=1.8.0',
         'scipy',
         'matplotlib',
         'pandas>=0.15.0',
