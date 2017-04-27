@@ -41,7 +41,7 @@ setup(
         'pybedtools',
         'pyBigWig',
         'PyYAML',
-        'tables>=3.2.3',
+        'tables>=3.2.3,<=3.4.0',
         'seaborn',
         'gridmap'
     ],
