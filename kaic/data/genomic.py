@@ -1394,7 +1394,7 @@ class GenomicRegions(object):
                     name, score, strand
                 ))
 
-    def to_bigwig(self, file_name, score_field=None):
+    def to_bigwig(self, file_name, score_field='score'):
         logger.info("Writing output...")
         bw = pyBigWig.open(file_name, 'w')
         # write header
@@ -1411,10 +1411,10 @@ class GenomicRegions(object):
             interval_chromosomes.append(chromosome)
             interval_starts.append(region.start - 1)
             interval_ends.append(region.end)
-            if score_field is not None:
-                score = getattr(region, score_field)
-            else:
-                score = region.score if hasattr(region, 'score') else np.nan
+            try:
+                score = float(getattr(region, score_field))
+            except AttributeError:
+                score = np.nan
             interval_values.append(score)
 
         header = []
@@ -1422,9 +1422,13 @@ class GenomicRegions(object):
             chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
             header.append((chromosome, chromosome_lengths[chromosome]))
         bw.addHeader(header)
+        print(file_name, header)
+        print(len(interval_values), len(interval_starts), len(interval_ends), len(interval_chromosomes))
+
         bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
 
         bw.close()
+        return file_name
 
     @property
     def regions_dict(self):
