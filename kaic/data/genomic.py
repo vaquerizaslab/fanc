@@ -1422,8 +1422,6 @@ class GenomicRegions(object):
             chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
             header.append((chromosome, chromosome_lengths[chromosome]))
         bw.addHeader(header)
-        print(file_name, header)
-        print(len(interval_values), len(interval_starts), len(interval_ends), len(interval_chromosomes))
 
         bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
 
