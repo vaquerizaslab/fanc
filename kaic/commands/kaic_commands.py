@@ -575,7 +575,7 @@ def auto(argv):
         if p1 != 0:
             logger.error("Filtering failed for some reason, trying again with fixed thresholds...")
             filter_pairs_command = ['kaic', 'filter_pairs', '-i', '10000',
-                                    '10000', '-r', '5000', '-l', '-d', '2']
+                                    '-o', '10000', '-r', '5000', '-l', '-d', '2']
             if args.tmp:
                 filter_pairs_command.append('-tmp')
             filter_pairs_command.append('-s')
