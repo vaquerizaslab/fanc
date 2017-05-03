@@ -853,7 +853,8 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
 
 class BigWigPlot(ScalarDataPlot):
-    def __init__(self, bigwigs, names=None, style="step", title='', bin_size=None, log=False, condensed=False,
+    def __init__(self, bigwigs, names=None, style="step", title='',
+                 bin_size=None, log=False, condensed=False,
                  plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
         """
         Plot data from on or more BigWig files.
@@ -888,6 +889,7 @@ class BigWigPlot(ScalarDataPlot):
         self.ylim = ylim
         self.log = log
         self.lines = []
+        self.title = title
         self.condensed = condensed
 
     def _bin_intervals(self, region, intervals):
@@ -925,8 +927,10 @@ class BigWigPlot(ScalarDataPlot):
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
         for i, x, y in self._line_values(region):
-            self.lines.append(self.ax.plot(x, y, label=self.names[i] if self.names else "",
-                                           **self.plot_kwargs)[0])
+            l = self.ax.plot(x, y, label=self.names[i] if self.names else "",
+                             **self.plot_kwargs)[0]
+            self.lines.append(l)
+            self.ax.fill_between(x, [0] * len(y), y, color=l.get_color())
         if self.names:
             self.add_legend()
         self.remove_colorbar_ax()
@@ -936,8 +940,11 @@ class BigWigPlot(ScalarDataPlot):
         if self.log:
             self.ax.set_yscale('log')
         if self.condensed:
-            self.ax.set_yticks([self.ax.get_ylim()[1]])
-            self.ax.set_yticklabels([self.ax.get_ylim()[1]], va='top', size='x-large')
+            low, high = self.ax.get_ylim()
+            # self.ax.set_yticks([low, high])
+            # self.ax.set_yticklabels([self.title, high], va='top', size='large')
+            self.ax.set_yticks([high])
+            self.ax.set_yticklabels([high], va='top', size='large')
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         for i, x, y in self._line_values(region):
