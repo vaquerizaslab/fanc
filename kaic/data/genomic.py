@@ -1395,7 +1395,7 @@ class GenomicRegions(object):
                 ))
 
     def to_bigwig(self, file_name, score_field='score'):
-        logger.info("Writing output...")
+        logger.debug("Writing output...")
         bw = pyBigWig.open(file_name, 'w')
         # write header
 
