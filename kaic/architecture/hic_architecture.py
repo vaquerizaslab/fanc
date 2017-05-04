@@ -1387,10 +1387,11 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             # add each edge weight to every insulation window that contains it
             for edge in self.hic.edge_subset((chromosome, chromosome), lazy=True):
                 for ii_bin in _pair_to_bins(edge.source, edge.sink):
+                    weight = getattr(edge, self.hic.default_field)
                     if lowmem:
-                        values_by_chromosome[ii_bin] += edge.weight
+                        values_by_chromosome[ii_bin] += weight
                     else:
-                        values_by_chromosome[ii_bin].append(edge.weight)
+                        values_by_chromosome[ii_bin].append(weight)
 
             # add imputed values, if requested
             if intra_expected is not None:
