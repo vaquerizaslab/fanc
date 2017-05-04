@@ -2906,6 +2906,20 @@ class RegionPairs(Maskable, RegionsTable):
             return False
         return True
 
+    def create_cs_index(self, field):
+        column = getattr(self._edges.cols, field)
+
+        if not self._is_sorted(field):
+            try:
+                logger.info("Sorting {}...".format(field))
+                if not column.is_indexed:
+                    column.create_csindex()
+                elif not column.index.is_csi:
+                    column.reindex()
+            except t.exceptions.FileModeError:
+                raise RuntimeError("This object is not sorted by requested column! "
+                                   "Cannot sort manually, because file is in read-only mode.")
+
     def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
         """
         Iterate over edges sorted by a specific column.
@@ -2915,18 +2929,8 @@ class RegionPairs(Maskable, RegionsTable):
         :return: EdgeIter iterator
         """
         # ensure sorting on qname_ix column
-        column = getattr(self._edges.cols, sortby)
+        self.create_cs_index(sortby)
 
-        if not self._is_sorted(sortby):
-            try:
-                logger.info("Sorting %s..." % sortby)
-                if not column.is_indexed:
-                    column.create_csindex()
-                elif not column.index.is_csi:
-                    column.reindex()
-            except t.exceptions.FileModeError:
-                raise RuntimeError("This object is not sorted by requested column! "
-                                   "Cannot sort manually, because file is in read-only mode.")
         if reverse:
             step = -1
         else:
@@ -3444,17 +3448,14 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 del table_iterators[current_ix]
                 del rows[current_ix]
 
-    def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
-        """
-        Iterate over edges sorted by *sortby*.
-        """
+    def create_cs_index(self, field):
         for edge_table in self._edge_table_iter():
             # ensure sorting on sortby column
-            column = getattr(edge_table.cols, sortby)
+            column = getattr(edge_table.cols, field)
 
-            if not self._is_sorted(sortby):
+            if not self._is_sorted(field):
                 try:
-                    logger.info("Sorting %s..." % sortby)
+                    logger.info("Sorting %s..." % field)
                     if not column.is_indexed:
                         column.create_csindex()
                     elif not column.index.is_csi:
@@ -3462,6 +3463,12 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 except t.exceptions.FileModeError:
                     raise RuntimeError("This object is not sorted by requested column! "
                                        "Cannot sort manually, because file is in read-only mode.")
+
+    def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
+        """
+        Iterate over edges sorted by *sortby*.
+        """
+        self.create_cs_index(sortby)
         if reverse:
             step = -1
         else:

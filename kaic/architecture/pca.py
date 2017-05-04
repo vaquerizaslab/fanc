@@ -48,7 +48,7 @@ class HicCollectionWeightMeanVariance(HicEdgeCollection):
                     setattr(edge, 'weight_' + str(i), weight/weight_ratios[i])
         self.flush()
 
-        self._edges.cols.var.create_csindex()
+        self.create_cs_index('var')
 
 
 class PairSelection(with_metaclass(ABCMeta, object)):

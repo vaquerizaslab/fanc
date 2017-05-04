@@ -2,6 +2,7 @@ from __future__ import division
 from kaic.data.genomic import AccessOptimisedRegionMatrixTable, RegionsTable, GenomicRegion
 from kaic.architecture.architecture import ArchitecturalFeature, calculateondemand, _get_pytables_data_type
 from kaic.data.general import MaskFilter
+from kaic.tools.general import RareUpdateProgressBar
 import tables as t
 import numpy as np
 from collections import defaultdict
@@ -132,7 +133,19 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
         :param log_progress: If true, process iterating through all edges
                              will be continuously reported.
         """
-        self._edges.run_queued_filters(_logging=log_progress)
+        total = 0
+        filtered = 0
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                   silent=not log_progress) as pb:
+            for i, edge_table in enumerate(self._edge_table_iter()):
+                stats = edge_table.run_queued_filters(_logging=False)
+                for key, value in stats.items():
+                    if key != 0:
+                        filtered += stats[key]
+                    total += stats[key]
+                pb.update(i)
+        if log_progress:
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
 
 
 class MatrixArchitecturalRegionFeatureFilter(with_metaclass(ABCMeta, MaskFilter)):
