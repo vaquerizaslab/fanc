@@ -32,7 +32,7 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
                                                   _table_name_edges=_table_name_edges)
         ArchitecturalFeature.__init__(self)
 
-        if len(self._edges) > 0:
+        if (0, 0) in self._edge_table_dict and len(self._edge_table_dict[(0, 0)]) > 0:
             self._calculated = True
 
         if regions is not None:
@@ -43,7 +43,8 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
             self.add_edges(edges)
 
     @calculateondemand
-    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False):
+    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False,
+                  impute_missing=False, default_value=0.0):
         """
         See :class:`~RegionMatrixTable`
         """
@@ -78,7 +79,7 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
         return AccessOptimisedRegionMatrixTable.get_node(self, key)
 
     @calculateondemand
-    def get_edge(self, ix, lazy=False):
+    def get_edge(self, ix, lazy=False, **kwargs):
         """
         See :class:`~RegionMatrixTable`
         """
