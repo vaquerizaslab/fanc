@@ -63,6 +63,8 @@ def kaic_parser():
             average_tracks     Calculate average Hi-C contact profiles per region
             directionality     Calculate directionality index for Hic object
             insulation         Calculate insulation index for Hic object
+            ab                 Calculate AB domain matrix for a Hi-C object
+            distance_decay     Calculate distance decay for a Hi-C object
             diff               Calculate difference between two vectors
 
             --- Other
@@ -3489,6 +3491,98 @@ def insulation(argv):
                          mode='w', subtract_mean=args.subtract, log=args.log,
                          _normalisation_window=args.normalisation_window) as ii:
         ii.calculate()
+
+
+def ab_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic ab",
+        description='Calculate AB compartment matrix'
+    )
+    parser.add_argument(
+        'input',
+        help='Input matrix (Hi-C, fold-change map, ...)'
+    )
+    parser.add_argument(
+        'output',
+        help='Output AB matrix file.'
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def ab(argv):
+    parser = insulation_parser()
+
+    args = parser.parse_args(argv[2:])
+
+    import kaic
+    from kaic.architecture.hic_architecture import ABDomainMatrix
+    import os.path
+    import tempfile
+
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    tmpdir = None
+    if args.tmp:
+        tmpdir = tempfile.gettempdir()
+
+    matrix = kaic.load(input_file, mode='r')
+
+    with ABDomainMatrix(matrix, file_name=output_file, tmpdir=tmpdir) as ab:
+        ab.calculate()
+
+
+def distance_decay_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic distance_decay",
+        description='Calculate Hi-C distance decay (expected values)'
+    )
+    parser.add_argument(
+        'input',
+        help='Input matrix (Hi-C, fold-change map, ...)'
+    )
+    parser.add_argument(
+        'output',
+        help='Output distance decay file.'
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def distance_decay(argv):
+    parser = insulation_parser()
+
+    args = parser.parse_args(argv[2:])
+
+    import kaic
+    from kaic.architecture.hic_architecture import ExpectedContacts
+    import os.path
+    import tempfile
+
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    tmpdir = None
+    if args.tmp:
+        tmpdir = tempfile.gettempdir()
+
+    matrix = kaic.load(input_file, mode='r')
+
+    with ExpectedContacts(matrix, file_name=output_file, smooth=False, tmpdir=tmpdir) as ex:
+        ex.calculate()
 
 
 def optimise_parser():
