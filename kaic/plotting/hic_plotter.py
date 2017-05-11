@@ -287,6 +287,9 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
         if self.show_colorbar:
             self.add_colorbar()
+        else:
+            self.remove_colorbar_ax()
+
         if self.adjust_range:
             self.add_adj_slider()
 
