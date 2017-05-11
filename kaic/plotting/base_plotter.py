@@ -39,7 +39,10 @@ class GenomeCoordFormatter(Formatter):
             oom_loc = int(math.floor(math.log10(abs(x))))
         view_range = self.axis.axes.get_xlim()
         oom_range = int(math.floor(math.log10(abs(view_range[1] - view_range[0]))))
-        if oom_loc >= 3:
+
+        if oom_loc >= 6:
+            return "{:.{prec}f}Mb".format(x / 1000000, prec=max(0, 6 + prec_offset - oom_range))
+        elif oom_loc >= 3:
             return "{:.{prec}f}kb".format(x/1000, prec=max(0, 3 + prec_offset - oom_range))
         return "{:.0f}b".format(x)
 
