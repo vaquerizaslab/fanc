@@ -109,9 +109,9 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
     def filter(self, edge_filter, queue=False, log_progress=False):
         """
         Filter edges in this object by using a
-        :class:`~MatrixArchitecturalRegionFeatureFilter`.
+        :class:`~HicEdgeFilter`.
 
-        :param edge_filter: Class implementing :class:`~MatrixArchitecturalRegionFeatureFilter`.
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
                             Must override valid_edge method, ideally sets mask parameter
                             during initialization.
         :param queue: If True, filter will be queued and can be executed
@@ -121,11 +121,26 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
                              will be continuously reported.
         """
         edge_filter.set_matrix_object(self)
-        if not queue:
-            self._edges.filter(edge_filter, _logging=log_progress)
-        else:
-            self._edges.queue_filter(edge_filter)
 
+        total = 0
+        filtered = 0
+        if not queue:
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                       silent=not log_progress) as pb:
+                for i, edge_table in enumerate(self._edge_table_iter()):
+                    stats = edge_table.filter(edge_filter, _logging=False)
+                    for key, value in stats.items():
+                        if key != 0:
+                            filtered += stats[key]
+                        total += stats[key]
+                    pb.update(i)
+            if log_progress:
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        else:
+            for edge_table in self._edge_table_iter():
+                edge_table.queue_filter(edge_filter)
+
+    @calculateondemand
     def run_queued_filters(self, log_progress=False):
         """
         Run queued filters.
