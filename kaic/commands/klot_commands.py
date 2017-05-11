@@ -779,6 +779,11 @@ def region_parser():
     )
 
     parser.add_argument(
+        '-l', '--label', dest='label',
+        help='''Attribute used to label each bar in the plot.'''
+    )
+
+    parser.add_argument(
         '-cn', '--color-neutral', dest='color_neutral',
         default='grey',
         help='''Neutral color (no strand information)'''
@@ -797,12 +802,6 @@ def region_parser():
     )
 
     parser.add_argument(
-        '-L', '--no-labels', dest='show_labels',
-        action='store_false',
-        help='''Do not show element labels.'''
-    )
-
-    parser.add_argument(
         '-y', '--ylim', dest='ylim',
         nargs=2,
         type=float,
@@ -818,10 +817,10 @@ def region(parameters):
 
     args = parser.parse_args(parameters)
 
-    p = kplt.GenomicFeatureScorePlot(os.path.expanduser(args.bed),
+    p = kplt.GenomicFeatureScorePlot(os.path.expanduser(args.bed), annotation_field=args.label,
                                      attribute=args.attribute, feature_types=args.features,
                                      color_neutral=args.color_neutral, color_forward=args.color_forward,
-                                     color_reverse=args.color_reverse, show_labels=args.show_labels,
+                                     color_reverse=args.color_reverse,
                                      ylim=args.ylim)
     return p, args
 
@@ -1094,6 +1093,18 @@ def layer_parser():
     )
 
     parser.add_argument(
+        '-i', '--include', dest='include',
+        nargs='+',
+        help='''Include only these groups.'''
+    )
+
+    parser.add_argument(
+        '-e', '--exclude', dest='exclude',
+        nargs='+',
+        help='''Exclude these groups.'''
+    )
+
+    parser.add_argument(
         '-S', '--no-shadow', dest='shadow',
         action='store_false',
         help='''Plot element size 'as is' without surrounding box to make it more visible.'''
@@ -1114,6 +1125,13 @@ def layer_parser():
         help='''Vertical distance between rows of genes in the plot.'''
     )
 
+    parser.add_argument(
+        '--no-colors', dest='colors',
+        action='store_false',
+        help='''Do not add color to plots.'''
+    )
+    parser.set_defaults(colors=True)
+
     return parser
 
 
@@ -1124,10 +1142,17 @@ def layer(parameters):
     features = args.features
     grouping_attribute = args.grouping_attribute
     shadow = args.shadow
+    include = args.include
+    exclude = args.exclude
     shadow_width = args.shadow_width
     collapse = args.collapse
+    if args.colors:
+        colors = ((1, 'red'), (-1, 'blue'))
+    else:
+        colors = None
 
-    p = kplt.FeatureLayerPlot(features, gff_grouping_attribute=grouping_attribute,
+    p = kplt.FeatureLayerPlot(features, gff_grouping_attribute=grouping_attribute, colors=colors,
+                              include=include, exclude=exclude,
                               shadow=shadow, shadow_width=shadow_width, collapse=collapse)
     return p, args
 
