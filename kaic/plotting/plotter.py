@@ -118,7 +118,8 @@ class GenomicFigure(object):
                 else:
                     ax = plt.subplot(gs[i, 0])
             plots[i].ax = ax
-            plots[i].cax = plt.subplot(gs[i, 1])
+            if not hasattr(plots[i], 'show_colorbar') or plots[i].show_colorbar:
+                plots[i].cax = plt.subplot(gs[i, 1])
 
         # fix chromosome identifiers
         if fix_chromosome is None:
@@ -245,7 +246,7 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 
 class GenomicRegionsPlot(ScalarDataPlot):
-    def __init__(self, regions, style="step", attributes=None, title='', aspect=.2,
+    def __init__(self, regions, style="mid", attributes=None, title='', aspect=.2,
                  axes_style=style_ticks_whitegrid, ylim=None):
         """
         Plot scalar values from one or more class:`~GenomicTrack` objects
@@ -258,7 +259,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
                            Should be a list of names. Supports wildcard matching
                            and regex.
         :param title: Used as title for plot
-        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
+        :param aspect: Default aspect ratio of the plot. Can be overridden by setting
                the height_ratios in class:`~GenomicFigure`
         """
         ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
@@ -514,8 +515,7 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
         self.collection._A = None
         self._update_mesh_colors()
         self.ax.set_yscale(self.y_scale)
-        if self.y_coords is not None:
-            self.ax.set_ylim(self.y_coords[0], self.y_coords[-1])
+        self.ax.set_ylim(self.hm.y_values[0], self.hm.y_values[-1])
 
         if self.show_colorbar:
             self.add_colorbar()
@@ -527,10 +527,8 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
 
     def _mesh_data(self, region):
         hm = self.array.as_matrix(regions=region, keys=self.keys)
-        regions = hm.regions
-        bin_coords = np.r_[[(x.start - 1) for x in regions], regions[-1].end]
-        x, y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None
-                                        else np.arange(hm.shape[1] + 1)))
+        bin_coords = np.r_[[(x.start - 1) for x in hm.regions], hm.regions[-1].end]
+        x, y = np.meshgrid(bin_coords, hm.y_values)
         return x, y, hm
 
     def _update_mesh_colors(self):
@@ -748,8 +746,9 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
     Regions will be plotted as bars with the height equal to the score provided in the file.
     """
-    def __init__(self, regions, title="", attribute='score', feature_types=None, aspect=.2, axes_style="ticks",
-                 color_neutral='grey', color_forward='red', color_reverse='blue', show_labels=True,
+    def __init__(self, regions, title="", attribute='score', feature_types=None,
+                 annotation_field=None, aspect=.2, axes_style="ticks",
+                 color_neutral='grey', color_forward='red', color_reverse='blue',
                  ylim=None):
         """
         :param regions: Any input that pybedtools can parse. Can be a path to a
@@ -775,8 +774,8 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         self.color_forward = color_forward
         self.color_reverse = color_reverse
         self.color_neutral = color_neutral
-        self.show_labels = show_labels
         self.attribute = attribute
+        self.annotation_field = annotation_field
         self.ylim = ylim
 
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
@@ -807,44 +806,50 @@ class GenomicFeatureScorePlot(BasePlotter1D):
                 score = 1
             y.append(score)
 
-            try:
-                if f.name != '.' and f.name is not None:
-                    annotation = f.name
+            if self.annotation_field is not None:
+                if self.annotation_field != 'strand':
+                    try:
+                        annotation = getattr(f, self.annotation_field)
+                        if annotation is None or annotation == '.':
+                            annotation = ''
+                        else:
+                            try:
+                                annotation = "{:.3f}".format(float(annotation))
+                            except ValueError:
+                                annotation = "{}".format(annotation)
+                    except AttributeError:
+                        annotation = ''
+
                 else:
                     annotation = ''
-            except ValueError:
-                annotation = ''
-
-            if f.strand == '+' or f.strand == 1:
-                colors.append(self.color_forward)
-                annotation += ' (+)' if annotation != '' else '+'
-            elif f.strand == '-' or f.strand == -1:
-                colors.append(self.color_reverse)
-                annotation += ' (-)' if annotation != '' else '-'
+                    if f.strand == '+' or f.strand == 1:
+                        colors.append(self.color_forward)
+                        annotation += ' (+)' if annotation != '' else '+'
+                    elif f.strand == '-' or f.strand == -1:
+                        colors.append(self.color_reverse)
+                        annotation += ' (-)' if annotation != '' else '-'
+                    else:
+                        colors.append(self.color_neutral)
             else:
-                colors.append(self.color_neutral)
-
-            if not self.show_labels:
                 annotation = ''
-
             annotations.append(annotation)
 
         for i in range(len(x)):
             x[i] += width[i]/2
         rects = self.ax.bar(x, y, width=width, color=colors, edgecolor=colors, alpha=0.5)
 
-        for i, rect in enumerate(rects):
-            if i % 2 == 0:
-                offset = 1.05
-            else:
-                offset = 1.25
-            self.ax.text(rect.get_x() + rect.get_width() / 2., offset * rect.get_height(),
-                         annotations[i], ha='center', va='bottom')
-
         sns.despine(ax=self.ax, top=True, right=True)
         self.remove_colorbar_ax()
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim)
+
+        for i, rect in enumerate(rects):
+            if i % 2 == 0:
+                offset = 0.85
+            else:
+                offset = 1.0
+            self.ax.text(rect.get_x() + rect.get_width() / 2., self.ax.get_ylim()[1] * offset,
+                         annotations[i], ha='center', va='bottom', fontsize='x-small', alpha=0.5)
         # self.ax.yaxis.set_major_locator(NullLocator())
         # self.remove_colorbar_ax()
 
@@ -948,7 +953,6 @@ class BigWigPlot(ScalarDataPlot):
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         for i, x, y in self._line_values(region):
-            print(i, region)
             self.lines[i].set_xdata(x)
             self.lines[i].set_ydata(y)
 
@@ -1240,7 +1244,7 @@ class FeatureLayerPlot(BasePlotter1D):
     """
 
     def __init__(self, features, gff_grouping_attribute=None,
-                 element_height=0.8,
+                 element_height=0.8, include=None, exclude=None,
                  color_by='strand', colors=((1, 'r'), (-1, 'b')),
                  shadow=True, shadow_width=0.005,
                  collapse=False,
@@ -1280,8 +1284,13 @@ class FeatureLayerPlot(BasePlotter1D):
         self.top_offset = (1. - self.element_height) / 2 if self.element_height < 1. else 0
         self._patches = []
         self._color_by = color_by
-        self.colors = dict(colors)
+        if colors is not None:
+            self.colors = dict(colors)
+        else:
+            self.colors = dict()
         self._collapse = collapse
+        self.include = set(include) if include is not None else None
+        self.exclude = set(exclude) if exclude is not None else None
 
     def _plot_elements(self, region):
         elements = self.features[region]
@@ -1291,6 +1300,15 @@ class FeatureLayerPlot(BasePlotter1D):
                 group = getattr(element, self.grouping_attribute)
             else:
                 group = ' '
+
+            if self.include is not None:
+                if group not in self.include:
+                    continue
+
+            if self.exclude is not None:
+                if group in self.exclude:
+                    continue
+
             groups[group].append(element)
 
         region_width = region.end - region.start + 1
