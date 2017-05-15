@@ -2378,5 +2378,6 @@ class ExpectedObservedEnrichmentFilter(HicEdgeFilter):
             expected = self.inter_expected
 
         if edge.weight < self.fold_change*expected:
+            print(expected)
             return False
         return True
