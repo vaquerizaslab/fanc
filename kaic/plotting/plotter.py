@@ -246,7 +246,7 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 
 class GenomicRegionsPlot(ScalarDataPlot):
-    def __init__(self, regions, style="mid", attributes=None, title='', aspect=.2,
+    def __init__(self, regions, style="mid", attributes=None, names=None, title='', aspect=.2,
                  axes_style=style_ticks_whitegrid, ylim=None):
         """
         Plot scalar values from one or more class:`~GenomicTrack` objects
@@ -269,8 +269,10 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.attributes = attributes
         self.lines = []
         self.ylim = ylim
+        self.names = names
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
+        line_counter = 0
         for i, name in enumerate(self.regions.data_field_names):
             if not self.attributes or any(re.match("^" + a.replace("*", ".*") + "$", name) for a in self.attributes):
                 regions = []
@@ -279,11 +281,15 @@ class GenomicRegionsPlot(ScalarDataPlot):
                     regions.append(r)
                     values.append(getattr(r, name))
                 x, y = self.get_plot_values(values, regions)
-                if self.regions.y_values is not None:
-                    l = self.ax.plot(x, y, label="{}".format(self.regions.y_values[i]))
+                if self.names is not None:
+                    label = self.names[line_counter]
+                elif self.regions.y_values is not None:
+                    label = "{}".format(self.regions.y_values[i])
                 else:
-                    l = self.ax.plot(x, y, label="{}".format(name))
+                    label = "{}".format(name)
+                l = self.ax.plot(x, y, label=label)
                 self.lines.append(l[0])
+                line_counter += 1
 
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim)
@@ -468,7 +474,7 @@ class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
                  unmappable_color=".9", illegal_color=None, aspect=.3,
                  axes_style="ticks"):
         """
-        Plot matrix from a class:`~GenomicTrack` objects
+        Plot matrix from a class:`~MultiVectorArchitecturalRegionFeature` objects
 
         :param array: class:`~MultiVectorArchitecturalRegionFeature`
         :param keys: keys for which vectors to use for array. None indicates all vectors will be used.
