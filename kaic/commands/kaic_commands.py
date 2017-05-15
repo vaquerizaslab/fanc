@@ -3518,7 +3518,7 @@ def ab_parser():
 
 
 def ab(argv):
-    parser = insulation_parser()
+    parser = ab_parser()
 
     args = parser.parse_args(argv[2:])
 
@@ -3564,7 +3564,7 @@ def distance_decay_parser():
 
 
 def distance_decay(argv):
-    parser = insulation_parser()
+    parser = distance_decay_parser()
 
     args = parser.parse_args(argv[2:])
 
