@@ -119,7 +119,7 @@ class Klot(object):
                 plot_region = region
 
             with kplt.GenomicFigure(plots, figsize=(figure_width, figure_height), fix_chromosome=fix_chromosome,
-                                    height_ratios=height_ratios, gridspec_args={'hspace': global_args.hspace},
+                                    height_ratios=height_ratios, hspace=global_args.hspace,
                                     invert_x=global_args.invert_x, hide_x=hide_x) as gf:
                 try:
                     fig, axes = gf.plot(plot_region)
