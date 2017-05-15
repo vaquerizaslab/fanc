@@ -41,7 +41,8 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
             self.add_edges(edges)
 
     @calculateondemand
-    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False):
+    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False,
+                  default_value=0.0):
         """
         See :class:`~RegionMatrixTable`
         """
@@ -53,7 +54,7 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
         return RegionMatrixTable._get_nodes_from_key(self, key, as_index=as_index)
 
     @calculateondemand
-    def _get_matrix(self, row_ranges=None, col_ranges=None, weight_column=None):
+    def _get_matrix(self, row_ranges=None, col_ranges=None, weight_column=None, default_value=0.0):
         return RegionMatrixTable._get_matrix(self, row_ranges=row_ranges, col_ranges=col_ranges,
                                              weight_column=weight_column)
 
