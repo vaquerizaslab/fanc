@@ -281,6 +281,12 @@ def hic_parser():
     )
 
     parser.add_argument(
+        '-y', '--ylabel', dest='ylabel',
+        default='',
+        help='''Label for y axis'''
+    )
+
+    parser.add_argument(
         '-C', '--no-colorbar', dest='show_colorbar',
         action='store_false',
         help='''Do not show colorbar in plot'''
@@ -299,7 +305,8 @@ def hic(parameters):
 
     norm = "lin" if not args.log else "log"
     return kplt.HicPlot(matrix, colormap=colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
-                        vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range), args
+                        vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
+                        ylabel=args.ylabel), args
 
 
 def hic2d_parser():

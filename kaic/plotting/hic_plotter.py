@@ -427,7 +427,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap=config.colormap_hic, max_dist=None, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, adjust_range=False, colorbar_symmetry=None,
                  buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9", illegal_color=None, aspect=.5,
+                 unmappable_color=".9", illegal_color=None, aspect=.5, ylabel='',
                  axes_style="ticks"):
         """
         Initialize a triangle Hi-C heatmap plot.
@@ -462,6 +462,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
 
         self.max_dist = max_dist
         self.hm = None
+        self.ylabel = ylabel
 
     def _plot(self, region=None, *args, **kwargs):
         logger.debug("Generating matrix from hic object")
@@ -485,6 +486,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # remove outline everywhere except at bottom
         sns.despine(ax=self.ax, top=True, right=True, left=True)
         self.ax.set_yticks([])
+        self.ax.set_ylabel(self.ylabel, rotation=0, horizontalalignment='right')
+
         # hide background patch
         self.ax.patch.set_visible(False)
         if self.show_colorbar:
