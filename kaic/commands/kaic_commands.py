@@ -3535,7 +3535,7 @@ def ab(argv):
 
     matrix = kaic.load(input_file, mode='r')
 
-    with ABDomainMatrix(matrix, file_name=output_file, tmpdir=tmpdir) as ab:
+    with ABDomainMatrix(matrix, file_name=output_file, mode='w', tmpdir=tmpdir) as ab:
         ab.calculate()
 
 
@@ -3593,7 +3593,7 @@ def distance_decay(argv):
 
     matrix = kaic.load(input_file, mode='r')
 
-    with ExpectedContacts(matrix, file_name=output_file, smooth=args.smooth,
+    with ExpectedContacts(matrix, file_name=output_file, smooth=args.smooth, mode='w',
                           regions=args.regions, tmpdir=tmpdir) as ex:
         ex.calculate()
 
