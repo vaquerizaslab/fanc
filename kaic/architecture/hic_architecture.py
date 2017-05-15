@@ -338,13 +338,15 @@ class ExpectedContacts(TableArchitecturalFeature):
         for edge in self.hic.edges(lazy=True):
             source = edge.source
             sink = edge.sink
-            weight = getattr(edge, self.weight_column)
-            cf = bias_vector[source] * bias_vector[sink]
-            reads = int(weight / cf + 0.5)
 
             # skip excluded regions
             if source not in region_ix or sink not in region_ix:
                 continue
+
+            weight = getattr(edge, self.weight_column)
+            cf = bias_vector[source] * bias_vector[sink]
+            reads = int(weight / cf + 0.5)
+
             # only intra-chromosomal distances
             if chromosomes[edge.source] == chromosomes[edge.sink]:
                 uncorrected_reads_by_distance[edge.sink - edge.source] += reads

@@ -3554,6 +3554,18 @@ def distance_decay_parser():
     )
 
     parser.add_argument(
+        '-r', '--regions', dest='regions',
+        help='''Region subset for expected value calculation.'''
+    )
+
+    parser.add_argument(
+        '-s', '--smooth', dest='smooth',
+        action='store_true',
+        help='''Smoothe expected value curve'''
+    )
+    parser.set_defaults(smooth=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -3581,7 +3593,8 @@ def distance_decay(argv):
 
     matrix = kaic.load(input_file, mode='r')
 
-    with ExpectedContacts(matrix, file_name=output_file, smooth=False, tmpdir=tmpdir) as ex:
+    with ExpectedContacts(matrix, file_name=output_file, smooth=args.smooth,
+                          regions=args.regions, tmpdir=tmpdir) as ex:
         ex.calculate()
 
 
