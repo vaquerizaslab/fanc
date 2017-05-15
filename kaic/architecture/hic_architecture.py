@@ -208,7 +208,7 @@ class ExpectedContacts(TableArchitecturalFeature):
     """
     _classid = 'EXPECTEDCONTACTS'
 
-    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
+    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, smooth=False, min_reads=400,
                  regions=None, weight_column=None, _table_name='distance_decay'):
         """
         Initialize an :class:`~ExpectedContacts` object.
@@ -239,154 +239,95 @@ class ExpectedContacts(TableArchitecturalFeature):
         Get intra- and inter-chromosomal expected contact counts.
         """
 
-        # extract mappable regions from Hic object
-        marginals = np.array(self.hic.marginals(weight_column=self.weight_column))
+        if self.regions is None:
+            regions = [region for region in self.hic.regions]
+            edges_iter = self.hic.edges(lazy=True)
+        else:
+            regions = [region for region in self.hic.subset(self.regions)]
+            edges_iter = self.hic.edge_subset(key=(self.regions, self.regions))
+
+        regions_dict = dict()
+        for i, r in enumerate(regions):
+            regions_dict[r.ix] = (i, r.chromosome)
+
+        bias_vector = self.hic.bias_vector()
+
+        # get the sums of edges at any given distance
+        marginals = [0.0] * len(regions)
+        inter_sums = 0.0
+        intra_sums = defaultdict(float)
+        intra_uncorrected = defaultdict(int)
+        for edge in edges_iter:
+            source, sink = edge.source, edge.sink
+            weight = getattr(edge, self.weight_column)
+
+            source_i, source_chromosome = regions_dict[source]
+            sink_i, sink_chromosome = regions_dict[sink]
+
+            marginals[source_i] += weight
+            marginals[sink_i] += weight
+
+            if sink_chromosome != source_chromosome:
+                inter_sums += weight
+            else:
+                distance = sink - source
+                intra_sums[distance] += weight
+                intra_uncorrected[distance] += int(weight / (bias_vector[source] * bias_vector[sink]) + 0.5)
+
+        # figure out how many contacts are actually mappable
+        chromosome_counts = defaultdict(int)
+        for i, marginal in enumerate(marginals):
+            chromosome_counts[regions[i].chromosome] += 1
+
+        intra_total = defaultdict(int)
+        inter_total = 0
+        chromosomes = list(chromosome_counts.keys())
+        for i in range(len(chromosomes)):
+            count = chromosome_counts[chromosomes[i]]
+
+            # intra-chromosomal
+            for distance in range(0, count):
+                intra_total[distance] += count - distance
+
+            # inter-chromosomal
+            for j in range(i + 1, len(chromosomes)):
+                count2 = chromosome_counts[chromosomes[j]]
+                inter_total += count * count2
+        try:
+            inter_expected = inter_sums / inter_total
+        except ZeroDivisionError:
+            inter_expected = 0.0
+
+        intra_expected = [0.0] * len(intra_total)
+        bin_size = self.hic.bin_size
+        distances = [d * bin_size for d in intra_total.keys()]
+        for distance, count in intra_total.items():
+            intra_expected[distance] = intra_sums[distance] / count
 
         # save marginals in object
+        marginals = np.array(marginals)
         self._marginals_array = self.file.create_carray(self._group, 'marginals',
                                                         t.Atom.from_dtype(marginals.dtype),
                                                         marginals.shape)
         self._marginals_array[:] = marginals
 
-        regions = []
-        all_regions = []
-        region_ix = set()
-        if self.regions is None:
-            for region in self.hic.regions(lazy=False):
-                all_regions.append(region)
-                if marginals[region.ix] > 0:
-                    regions.append(region)
-                    region_ix.add(region.ix)
-        else:
-            if isinstance(self.regions, string_types) or isinstance(self.regions, GenomicRegion):
-                self.regions = [self.regions]
-
-            for region in self.regions:
-                if isinstance(region, string_types):
-                    region = GenomicRegion.from_string(region)
-
-                for r in self.hic.subset(region, lazy=False):
-                    all_regions.append(r)
-                    if marginals[r.ix] > 0:
-                        regions.append(r)
-                        region_ix.add(r.ix)
-
-        # and find the first and last region in each chromosome
-        min_region_by_chromosome = dict()
-        max_region_by_chromosome = dict()
-        for region in all_regions:
-            if (region.chromosome not in max_region_by_chromosome or
-                    max_region_by_chromosome[region.chromosome] < region.ix):
-                max_region_by_chromosome[region.chromosome] = region.ix
-
-            if (region.chromosome not in min_region_by_chromosome or
-                    min_region_by_chromosome[region.chromosome] > region.ix):
-                min_region_by_chromosome[region.chromosome] = region.ix
-
-        # count the number of regions per chromosome
-        regions_by_chromosome = defaultdict(int)
-        for region in regions:
-            regions_by_chromosome[region.chromosome] += 1
-
-        # find the largest distance between two regions
-        # in the entire intra-chromosomal genome
-        max_distance = 0
-        for chromosome in min_region_by_chromosome:
-            max_distance = max(max_distance,
-                               max_region_by_chromosome[chromosome] - min_region_by_chromosome[chromosome])
-
-        # find maximum theoretical distance, even if unmappable
-        min_region_by_chromosome_t = dict()
-        max_region_by_chromosome_t = dict()
-        for region in all_regions:
-            if (region.chromosome not in max_region_by_chromosome_t or
-                    max_region_by_chromosome_t[region.chromosome] < region.ix):
-                max_region_by_chromosome_t[region.chromosome] = region.ix
-
-            if (region.chromosome not in min_region_by_chromosome_t or
-                    min_region_by_chromosome_t[region.chromosome] > region.ix):
-                min_region_by_chromosome_t[region.chromosome] = region.ix
-
-        # find the largest distance between two regions
-        # in the entire intra-chromosomal genome
-        max_distance_t = 0
-        for chromosome in min_region_by_chromosome_t:
-            max_distance_t = max(max_distance_t,
-                                 max_region_by_chromosome_t[chromosome] - min_region_by_chromosome_t[chromosome])
-
-        # get the number of pixels at a given bin distance
-        pixels_by_distance = [0.0] * (max_distance + 1)
-        for chromosome, n in regions_by_chromosome.items():
-            for distance in range(0, n):
-                pixels_by_distance[distance] += n-distance
-
-        # build a reverse-lookup chromosome map to quickly
-        # determine if an edge is intra-chromosomal
-        chromosome_map = dict()
-        for i, chromosome in enumerate(self.hic.chromosomes()):
-            chromosome_map[chromosome] = i
-
-        chromosomes = np.zeros(len(self.hic.regions), dtype=int)
-        for i, region in enumerate(self.hic.regions(lazy=True)):
-            chromosomes[i] = chromosome_map[region.chromosome]
-
-        bias_vector = self.hic.bias_vector()
-        # get the number of reads at a given bin distance
-        uncorrected_reads_by_distance = [0.0] * (max_distance + 1)
-        reads_by_distance = [0.0] * (max_distance + 1)
-        inter_observed = 0
-        for edge in self.hic.edges(lazy=True):
-            source = edge.source
-            sink = edge.sink
-
-            # skip excluded regions
-            if source not in region_ix or sink not in region_ix:
-                continue
-
-            weight = getattr(edge, self.weight_column)
-            cf = bias_vector[source] * bias_vector[sink]
-            reads = int(weight / cf + 0.5)
-
-            # only intra-chromosomal distances
-            if chromosomes[edge.source] == chromosomes[edge.sink]:
-                uncorrected_reads_by_distance[edge.sink - edge.source] += reads
-                reads_by_distance[edge.sink - edge.source] += weight
-            else:
-                inter_observed += weight
-
-        with PossibleContacts(self.hic, regions=self.regions, weight_column=self.weight_column) as pc:
-            intra_possible, inter_possible = pc.intra_possible(), pc.inter_possible()
-
-        try:
-            inter_expected = inter_observed/inter_possible
-        except ZeroDivisionError:
-            inter_expected = 0
-
-        while len(reads_by_distance) < max_distance_t+1:
-            uncorrected_reads_by_distance.append(uncorrected_reads_by_distance[-1])
-            reads_by_distance.append(reads_by_distance[-1])
-            pixels_by_distance.append(pixels_by_distance[-1])
-
-        distance = np.arange(len(reads_by_distance)) * self.hic.bin_size
-        self.data('distance', distance)
+        self.data('distance', distances)
+        self.meta['inter'] = inter_expected
 
         # return here if smoothing not requested
         if not self.smooth:
-            intra_expected = np.array(reads_by_distance)/np.array(pixels_by_distance)
-
             self.data('intra', intra_expected)
-            self.data('contacts', reads_by_distance)
-            self.data('pixels', pixels_by_distance)
-            self._table.attrs['inter'] = inter_expected
+            self.data('contacts', intra_sums)
+            self.data('pixels', intra_total)
             return
 
         # smoothing
-        smoothed_reads_by_distance = np.zeros(len(reads_by_distance))
-        smoothed_pixels_by_distance = np.zeros(len(pixels_by_distance))
-        for i in range(len(reads_by_distance)):
-            uncorrected_reads = uncorrected_reads_by_distance[i]
-            smoothed_reads = reads_by_distance[i]
-            smoothed_pixels = pixels_by_distance[i]
+        smoothed_intra_sums = np.zeros(len(intra_sums))
+        smoothed_intra_total = np.zeros(len(intra_total))
+        for i in range(len(intra_sums)):
+            uncorrected_reads = intra_uncorrected[i]
+            smoothed_reads = intra_sums[i]
+            smoothed_pixels = intra_total[i]
             window_size = 0
             can_extend = True
             # smooth to a minimum number of reads per distance
@@ -395,25 +336,24 @@ class ExpectedContacts(TableArchitecturalFeature):
                 can_extend = False
                 # check if we can increase the window to the left
                 if i - window_size >= 0:
-                    uncorrected_reads += uncorrected_reads_by_distance[i-window_size]
-                    smoothed_reads += reads_by_distance[i-window_size]
-                    smoothed_pixels += pixels_by_distance[i-window_size]
+                    uncorrected_reads += intra_uncorrected[i-window_size]
+                    smoothed_reads += intra_sums[i-window_size]
+                    smoothed_pixels += intra_total[i-window_size]
                     can_extend = True
                 # check if we can increase the window to the right
-                if i + window_size < len(reads_by_distance):
-                    uncorrected_reads += uncorrected_reads_by_distance[i + window_size]
-                    smoothed_reads += reads_by_distance[i+window_size]
-                    smoothed_pixels += pixels_by_distance[i+window_size]
+                if i + window_size < len(intra_sums):
+                    uncorrected_reads += intra_uncorrected[i + window_size]
+                    smoothed_reads += intra_sums[i+window_size]
+                    smoothed_pixels += intra_total[i+window_size]
                     can_extend = True
-            smoothed_reads_by_distance[i] = smoothed_reads
-            smoothed_pixels_by_distance[i] = smoothed_pixels
+            smoothed_intra_sums[i] = smoothed_reads
+            smoothed_intra_total[i] = smoothed_pixels
 
-        intra_expected = smoothed_reads_by_distance/smoothed_pixels_by_distance
+        intra_expected = smoothed_intra_sums/smoothed_intra_total
 
         self.data('intra', intra_expected)
-        self.data('contacts', smoothed_reads_by_distance)
-        self.data('pixels', smoothed_pixels_by_distance)
-        self._table.attrs['inter'] = inter_expected
+        self.data('contacts', smoothed_intra_sums)
+        self.data('pixels', smoothed_intra_total)
 
     @calculateondemand
     def marginals(self):
@@ -433,7 +373,7 @@ class ExpectedContacts(TableArchitecturalFeature):
         Get the inter-chromosomal expected (normalized) contact count
         :return: float
         """
-        return self._table.attrs['inter']
+        return self.meta['inter']
 
     @calculateondemand
     def distance(self):
