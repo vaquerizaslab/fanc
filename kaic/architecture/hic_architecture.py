@@ -247,16 +247,19 @@ class ExpectedContacts(TableArchitecturalFeature):
             edges_iter = self.hic.edge_subset(key=(self.regions, self.regions))
 
         regions_dict = dict()
+        chromosome_total_counts = defaultdict(int)
         for i, r in enumerate(regions):
             regions_dict[r.ix] = (i, r.chromosome)
+            chromosome_total_counts[r.chromosome] += 1
+        max_distance = max(chromosome_total_counts.values())
 
         bias_vector = self.hic.bias_vector()
 
         # get the sums of edges at any given distance
         marginals = [0.0] * len(regions)
         inter_sums = 0.0
-        intra_sums = defaultdict(float)
-        intra_uncorrected = defaultdict(int)
+        intra_sums = [0.0] * max_distance
+        intra_uncorrected = [0] * max_distance
         for edge in edges_iter:
             source, sink = edge.source, edge.sink
             weight = getattr(edge, self.weight_column)
@@ -280,7 +283,7 @@ class ExpectedContacts(TableArchitecturalFeature):
             if marginal > 10**-10:
                 chromosome_counts[regions[i].chromosome] += 1
 
-        intra_total = defaultdict(int)
+        intra_total = [0] * max_distance
         inter_total = 0
         chromosomes = list(chromosome_counts.keys())
         for i in range(len(chromosomes)):
@@ -299,11 +302,14 @@ class ExpectedContacts(TableArchitecturalFeature):
         except ZeroDivisionError:
             inter_expected = 0.0
 
-        intra_expected = [0.0] * len(intra_total)
+        intra_expected = [0.0] * max_distance
         bin_size = self.hic.bin_size
-        distances = [d * bin_size for d in intra_total.keys()]
-        for distance, count in intra_total.items():
-            intra_expected[distance] = intra_sums[distance] / count
+        distances = []
+        for distance in range(max_distance):
+            distances.append(bin_size * distance)
+            count = intra_total[distance]
+            if count > 0:
+                intra_expected[distance] = intra_sums[distance] / count
 
         # save marginals in object
         marginals = np.array(marginals)
@@ -324,7 +330,7 @@ class ExpectedContacts(TableArchitecturalFeature):
 
         # smoothing
         smoothed_intra_sums = np.zeros(len(intra_sums))
-        smoothed_intra_total = np.zeros(len(intra_total))
+        smoothed_intra_total = np.zeros(len(intra_sums))
         for i in range(len(intra_sums)):
             uncorrected_reads = intra_uncorrected[i]
             smoothed_reads = intra_sums[i]
