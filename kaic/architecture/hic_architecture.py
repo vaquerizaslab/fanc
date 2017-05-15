@@ -277,7 +277,8 @@ class ExpectedContacts(TableArchitecturalFeature):
         # figure out how many contacts are actually mappable
         chromosome_counts = defaultdict(int)
         for i, marginal in enumerate(marginals):
-            chromosome_counts[regions[i].chromosome] += 1
+            if marginal > 10**-10:
+                chromosome_counts[regions[i].chromosome] += 1
 
         intra_total = defaultdict(int)
         inter_total = 0
@@ -2378,6 +2379,5 @@ class ExpectedObservedEnrichmentFilter(HicEdgeFilter):
             expected = self.inter_expected
 
         if edge.weight < self.fold_change*expected:
-            print(expected)
             return False
         return True
