@@ -1462,7 +1462,7 @@ class TestHicBasic:
         eof = ExpectedObservedEnrichmentFilter(self.hic, fold_change=1)
         previous = len(self.hic.edges)
         self.hic.filter(eof)
-        assert len(self.hic.edges) == previous - 15 - 23  # 15 intra, 23 inter filtered
+        assert len(self.hic.edges) == previous - 14 - 23  # 15 intra, 23 inter filtered
 
 
 class TestAccessOptimisedHic(TestHicBasic):
