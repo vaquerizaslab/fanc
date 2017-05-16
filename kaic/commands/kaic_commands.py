@@ -3807,13 +3807,6 @@ def stats(argv):
         logger.info("Processing FASTQ files.")
         import gzip
 
-        def blocks(files, size=65536):
-            while True:
-                b = files.read(size)
-                if not b:
-                    break
-                yield b
-
         fastq_files = get_files(args.fastq, ('.fq', '.fastq', '.fq.gz', '.fastq.gz'))
 
         total_count = 0
@@ -3824,8 +3817,8 @@ def stats(argv):
             else:
                 read = open
 
-            with read(fastq_file, 'rb') as f:
-                line_count = sum(bl.count("\n") for bl in blocks(f))
+            with read(fastq_file, 'r') as f:
+                line_count = sum(1 for line in f)
             total_count += line_count/4
 
             with open(output_file, 'a') as o:
