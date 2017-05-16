@@ -215,7 +215,7 @@ class TestObservedExpectedRatio:
                     else:
                         ex[i, j] = inter_expected
 
-        with ObservedExpectedRatio(self.hic) as oer:
+        with ObservedExpectedRatio(self.hic, per_chromosome=False) as oer:
             oer_m = oer[:]
             assert oer_m.shape == obs.shape
 

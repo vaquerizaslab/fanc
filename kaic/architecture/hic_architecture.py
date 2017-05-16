@@ -425,7 +425,7 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
     _classid = 'OBSERVEDEXPECTEDRATIO'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
-                 weight_column='weight', _table_name='observed_expected'):
+                 weight_column='weight', per_chromosome=True, _table_name='observed_expected'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -448,26 +448,58 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
                                                       default_field='ratio', _table_name_edges=_table_name)
         self.hic = hic
         self.weight_column = weight_column
+        self.per_chromosome = per_chromosome
+        self._expected_by_chromosome = dict()
+        self._expected_inter = None
+        self._expected_intra = None
+
+    def _expected(self, chromosome1, chromosome2):
+        try:
+            return self._expected_by_chromosome[(chromosome1, chromosome2)]
+        except KeyError:
+            if self.per_chromosome:
+                if chromosome1 == chromosome2:
+                    with ExpectedContacts(self.hic, regions=chromosome1, weight_column=self.weight_column) as ex:
+                        e = ex.intra_expected()
+                else:
+                    if self._expected_inter is None:
+                        with ExpectedContacts(self.hic, weight_column=self.weight_column) as ex_inter:
+                            self._expected_inter = ex_inter.inter_expected()
+                    e = self._expected_inter
+            else:
+                if self._expected_inter is None or self._expected_intra is None:
+                    with ExpectedContacts(self.hic, regions=self.region_selection,
+                                          weight_column=self.weight_column) as ex_inter:
+                        self._expected_inter = ex_inter.inter_expected()
+                        self._expected_intra = ex_inter.intra_expected()
+                if chromosome1 == chromosome2:
+                    e = self._expected_intra
+                else:
+                    e = self._expected_inter
+            self._expected_by_chromosome[(chromosome1, chromosome2)] = e
+
+            return e
 
     def _calculate(self):
-        with ExpectedContacts(self.hic, regions=self.region_selection, weight_column=self.weight_column) as ex:
-            inter_expected = ex.inter_expected()
-            intra_expected = ex.intra_expected()
+        region_selection = self.region_selection if self.region_selection is not None else slice(0, None, None)
+        regions_dict = self.hic.regions_dict
 
-            regions_dict = self.hic.regions_dict
-            region_selection = self.region_selection if self.region_selection is not None else slice(0, None, None)
-            for edge in self.hic.edge_subset(key=(region_selection, region_selection), lazy=True):
-                source = edge.source
-                new_source = self.region_conversion[source]
-                sink = edge.sink
-                new_sink = self.region_conversion[sink]
-                weight = getattr(edge, self.weight_column)
-                if regions_dict[source].chromosome == regions_dict[sink].chromosome:
-                    expected = intra_expected[new_sink-new_source]
-                else:
-                    expected = inter_expected
-                self.add_edge(Edge(new_source, new_sink, ratio=weight/expected), flush=False)
-            self.flush()
+        for edge in self.hic.edge_subset(key=(region_selection, region_selection), lazy=True):
+            source = edge.source
+            new_source = self.region_conversion[source]
+            sink = edge.sink
+            new_sink = self.region_conversion[sink]
+            weight = getattr(edge, self.weight_column)
+
+            e = self._expected(regions_dict[source].chromosome, regions_dict[sink].chromosome)
+            try:
+                d = new_sink - new_source
+                e = e[d]
+            except (TypeError, IndexError):
+                pass
+
+            self.add_edge(Edge(new_source, new_sink, ratio=weight/e), flush=False)
+        self.flush()
 
 
 class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
@@ -563,7 +595,7 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
 
 class ABDomainMatrix(MatrixArchitecturalRegionFeature):
     """
-    Calculate the AB domain/compartent matrix by first calculating the observed/expected matrix
+    Calculate the AB domain/compartment matrix by first calculating the observed/expected matrix
     and then returning a matrix in which every entry m_ij is the correlation between row i and row j
     of the observed/expected matrix.
     You can also directly calculate the Hi-C correlation matrix by setting 'ratio' to False.
@@ -597,6 +629,7 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
             MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                       _table_name_edges=_table_name)
         else:
+            self._region_selection = regions
             if regions is None:
                 regions = hic.regions
                 self.region_conversion = {region.ix: region.ix for region in hic.regions}
@@ -614,24 +647,25 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
     def _calculate(self):
         oer = self.hic
         if self.ratio:
-            oer = ObservedExpectedRatio(self.hic, weight_column=self.weight_column)
+            oer = ObservedExpectedRatio(self.hic, weight_column=self.weight_column,
+                                        regions=self._region_selection, per_chromosome=self.per_chromosome)
 
         if self.per_chromosome:
             chromosomes = self.chromosomes()
             for chromosome in chromosomes:
-                    m = oer[chromosome, chromosome]
-                    corr_m = np.corrcoef(m)
-                    logger.info("Chromosome {}".format(chromosome))
-                    with RareUpdateProgressBar(max_value=m.shape[0]) as pb:
-                        for i, row_region in enumerate(m.row_regions):
-                            for j, col_region in enumerate(m.col_regions):
-                                if j < i:
-                                    continue
+                m = oer[chromosome, chromosome]
+                corr_m = np.corrcoef(m)
+                logger.info("Chromosome {}".format(chromosome))
+                with RareUpdateProgressBar(max_value=m.shape[0]) as pb:
+                    for i, row_region in enumerate(m.row_regions):
+                        for j, col_region in enumerate(m.col_regions):
+                            if j < i:
+                                continue
 
-                                source = self.region_conversion[row_region.ix]
-                                sink = self.region_conversion[col_region.ix]
-                                self.add_edge([source, sink, corr_m[i, j]], flush=False)
-                            pb.update(i)
+                            source = self.region_conversion[row_region.ix]
+                            sink = self.region_conversion[col_region.ix]
+                            self.add_edge([source, sink, corr_m[i, j]], flush=False)
+                        pb.update(i)
         else:
             m = oer[:]
             corr_m = np.corrcoef(m)
@@ -643,10 +677,10 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
                         sink = self.region_conversion[col_region.ix]
                         self.add_edge([source, sink, corr_m[i, j]], flush=False)
                     pb.update(i)
-        self.flush()
-
         if self.ratio:
             oer.close()
+
+        self.flush()
 
 
 class ABDomains(VectorArchitecturalRegionFeature):
