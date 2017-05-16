@@ -498,7 +498,8 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
             except (TypeError, IndexError):
                 pass
 
-            self.add_edge(Edge(new_source, new_sink, ratio=weight/e), flush=False)
+            if e != 0:
+                self.add_edge(Edge(new_source, new_sink, ratio=weight/e), flush=False)
         self.flush()
 
 
