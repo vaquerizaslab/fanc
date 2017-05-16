@@ -740,14 +740,14 @@ class ABDomains(VectorArchitecturalRegionFeature):
                 m = ab_data[chromosome, chromosome]
                 m[np.isnan(m)] = 0
                 w, v = np.linalg.eig(m)
-                ab_vector = v[:, 1]
+                ab_vector = v[:, 0]
                 for i, region in enumerate(m.row_regions):
                     ab_results[region.ix] = ab_vector[i]
         else:
             m = ab_data[:]
             m[np.isnan(m)] = 0
             w, v = np.linalg.eig(m)
-            ab_vector = v[:, 1]
+            ab_vector = v[:, 0]
             for i, region in enumerate(m.row_regions):
                 ab_results[region.ix] = ab_vector[i]
 
