@@ -3824,7 +3824,7 @@ def stats(argv):
             else:
                 read = open
 
-            with read(fastq_file, 'r') as f:
+            with read(fastq_file, 'rb') as f:
                 line_count = sum(bl.count("\n") for bl in blocks(f))
             total_count += line_count/4
 
