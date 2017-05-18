@@ -243,7 +243,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
     def __init__(self, hic_data, title='', colormap=config.colormap_hic, norm="log",
                  vmin=None, vmax=None, show_colorbar=True, colorbar_symmetry=None,
                  adjust_range=True, buffering_strategy="relative", buffering_arg=1,
-                 blend_zero=True, unmappable_color=".9",
+                 blend_zero=True, unmappable_color=".9", flip=False,
                  aspect=1., axes_style="ticks"):
         """
         Initialize a 2D Hi-C heatmap plot.
@@ -273,10 +273,16 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
                                 unmappable_color=unmappable_color, colorbar_symmetry=colorbar_symmetry)
         self.vmax_slider = None
         self.current_matrix = None
+        self.flip = flip
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
-        self.im = self.ax.imshow(self.get_color_matrix(self.current_matrix), interpolation='none',
+        self.current_matrix[np.isnan(self.current_matrix)] = 0
+        color_matrix = self.get_color_matrix(self.current_matrix)
+
+        if self.flip:
+            color_matrix = np.flipud(color_matrix)
+        self.im = self.ax.imshow(color_matrix, interpolation='none',
                                  cmap=self.colormap, norm=self.norm, origin="upper",
                                  extent=[self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
                                          self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start])
