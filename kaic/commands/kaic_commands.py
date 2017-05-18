@@ -3660,6 +3660,9 @@ def subset_hic(argv):
     old_hic = kaic.load_hic(input_file, mode='r')
     new_hic = kaic.AccessOptimisedHic(file_name=output_file, mode='w')
 
+    bias_vector = old_hic.bias_vector()
+
+    new_bias_vector = []
     ix_converter = {}
     ix = 0
     for region_string in args.regions:
@@ -3668,6 +3671,7 @@ def subset_hic(argv):
             ix += 1
 
             new_hic.add_region(region, flush=False)
+            new_bias_vector.append(bias_vector[region.ix])
     new_hic.flush()
 
     for region_string in args.regions:
@@ -3676,6 +3680,8 @@ def subset_hic(argv):
             sink = ix_converter[edge.sink]
             new_hic.add_edge([source, sink, edge.weight], flush=False)
     new_hic.flush()
+
+    new_hic.bias_vector(new_bias_vector)
 
 
 def diff_parser():
