@@ -40,8 +40,9 @@ def kaic_parser():
             bin_hic             Bin a Hic object into same-size regions
             correct_hic         Correct a Hic object for biases
             hic_pca             Do a PCA on multiple Hi-C objects
-            optimise           Optimise an existing Hic object for faster access
-            subset_hic         Create a new Hic object by subsetting
+            optimise            Optimise an existing Hic object for faster access
+            subset_hic          Create a new Hic object by subsetting
+            cis_trans           Calculate cis/trans ratio
 
             --- Network
             call_peaks          Call enriched peaks in a Hic object
@@ -3954,3 +3955,59 @@ def write_config(argv):
     from kaic.config import write_default_config
     write_default_config(os.path.expanduser(args.config_file), overwrite=args.force)
 
+
+def cis_trans_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic cis_trans",
+        description='Calculate cis/trans ratio of this Hi-C object.'
+    )
+
+    parser.add_argument(
+        'hic',
+        nargs='+',
+        help="Hic object(s) for cis/trans calculation."
+    )
+
+    parser.add_argument(
+        '-o', '--output', dest='output',
+        help="Output file."
+    )
+
+    parser.add_argument(
+        '-n', '--norm', dest='normalise',
+        action='store_true',
+        help='''Normalise ratio to the prior ratio of possible cis / trans contacts.'''
+    )
+    parser.set_defaults(normalise=False)
+    return parser
+
+
+def cis_trans(argv):
+    parser = cis_trans_parser()
+
+    args = parser.parse_args(argv[2:])
+    hic_files = [os.path.expanduser(f) for f in args.hic]
+    output_file = os.path.expanduser(args.output) if args.output is not None else None
+    normalise = args.normalise
+
+    import kaic
+    from kaic.architecture.hic_architecture import cis_trans_ratio
+
+    if output_file:
+        with open(output_file, 'w') as o:
+            o.write("file\tcis\ttrans\tratio\tfactor\n")
+
+    for hic_file in hic_files:
+        hic = kaic.load(hic_file, mode='r')
+
+        r, cis, trans, f = cis_trans_ratio(hic, normalise)
+
+        if output_file:
+            with open(output_file, 'a') as o:
+                o.write("{}\t{}\t{}\t{:.3f}\t{:.3f}\n".format(hic_file, cis, trans, r, f))
+        print("{}".format(hic_file))
+        print("\tcis: {}".format(cis))
+        print("\ttrans: {}".format(trans))
+        print("\tratio: {:.3f}".format(r))
+        print("\tfactor: {:.3f}".format(f))
+        hic.close()
