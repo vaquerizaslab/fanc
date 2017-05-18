@@ -702,7 +702,7 @@ class ABDomains(VectorArchitecturalRegionFeature):
     _classid = 'ABDOMAINS'
 
     def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
-                 per_chromosome=True, regions=None, _table_name='ab_domains'):
+                 per_chromosome=True, regions=None, eigenvector=0, _table_name='ab_domains'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -727,6 +727,10 @@ class ABDomains(VectorArchitecturalRegionFeature):
 
         self.per_chromosome = per_chromosome
         self.data = data
+        try:
+            self._eigenvector = self.meta.eigenvector
+        except AttributeError:
+            self._eigenvector = eigenvector
 
     def _calculate(self):
         if isinstance(self.data, Hic):
@@ -740,14 +744,14 @@ class ABDomains(VectorArchitecturalRegionFeature):
                 m = ab_data[chromosome, chromosome]
                 m[np.isnan(m)] = 0
                 w, v = np.linalg.eig(m)
-                ab_vector = v[:, 0]
+                ab_vector = v[:, self._eigenvector]
                 for i, region in enumerate(m.row_regions):
                     ab_results[region.ix] = ab_vector[i]
         else:
             m = ab_data[:]
             m[np.isnan(m)] = 0
             w, v = np.linalg.eig(m)
-            ab_vector = v[:, 0]
+            ab_vector = v[:, self._eigenvector]
             for i, region in enumerate(m.row_regions):
                 ab_results[region.ix] = ab_vector[i]
 
@@ -756,12 +760,15 @@ class ABDomains(VectorArchitecturalRegionFeature):
         self.flush()
 
     @calculateondemand
-    def ab_domain_eigenvector(self):
+    def ab_domain_eigenvector(self, region=None):
         """
         Get the eigenvector of the :class:`~ABDomainMatrix`
         :return: list of floats
         """
-        return self[:, 'ev']
+        if region is None:
+            return self[:, 'ev']
+
+        return [r.ev for r in self.subset(region, lazy=True)]
 
     @calculateondemand
     def ab_regions(self):
