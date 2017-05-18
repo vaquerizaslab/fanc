@@ -44,6 +44,33 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def cis_trans_ratio(hic, normalise=False):
+    """
+    Calculate the cis/trans ratio for a Hic object.
+    
+    :param hic: :class:`~kaic,data.genomic.Hic` object
+    :param normalise: If True, will normalise ratio to the possible number of cis/trans contacts
+                      in this genome. Makes ratio comparable across different genomes
+    :return: tuple (ratio, cis, trans, factor)
+    """
+    cis = 0
+    trans = 0
+    regions_dict = hic.regions_dict
+    for edge in hic.edges(lazy=True):
+        if regions_dict[edge.source].chromosome == regions_dict[edge.sink].chromosome:
+            cis += edge.weight
+        else:
+            trans += edge.weight
+    if not normalise:
+        return cis / (cis + trans), cis, trans, 1.0
+    with PossibleContacts(hic) as possible:
+        possible_intra = possible.intra_possible()
+        possible_inter = possible.inter_possible()
+        f = possible_intra / possible_inter
+
+        return cis / (cis + trans * f), cis, trans, f
+
+
 class HicArchitecture(object):
     """
     Convenience class to access Hi-C architectural features.
