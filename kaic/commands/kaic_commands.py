@@ -234,6 +234,7 @@ def auto_parser():
 def auto(argv):
     import os
     from kaic.tools.files import split_sam
+    from kaic.tools.general import which
 
     parser = auto_parser()
     args = parser.parse_args(argv[2:])
@@ -343,6 +344,9 @@ def auto(argv):
             for i in range(1, 3):
                 if not os.path.exists(check_path + '.rev.{}.bt2'.format(i)):
                     raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
+
+        if not which('bowtie2'):
+            raise ValueError("bowtie2 must be in PATH for iterative mapping!")
 
     if 'fastq' in file_types or 'sam' in file_types or 'reads' in file_types:
         if args.genome is None:

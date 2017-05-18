@@ -170,6 +170,31 @@ def mkdir(dir_name):
     return dir_name
 
 
+def which(program):
+    """
+    Check if executable exists in PATH
+    :param program: executable name or path to executable
+    :return: full path if found, None if not
+    """
+    import os
+
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
+
 class RareUpdateProgressBar(progressbar.ProgressBar):
     def __init__(self, min_value=0, max_value=None, widgets=None,
                  left_justify=True, initial_value=0, poll_interval=None,
