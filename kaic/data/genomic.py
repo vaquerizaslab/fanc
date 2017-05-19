@@ -3109,13 +3109,14 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 self.partitions.append(i)
             previous_chromosome = region.chromosome
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, silent=False):
         """
         Write data to file and flush buffers.
 
         :param flush_nodes: Flush nodes tables
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
+        :param silent: do not print flush progress
         """
         if flush_nodes:
             self._regions.flush()
@@ -3125,7 +3126,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         if flush_edges:
             if update_index:
                 logger.info("Updating mask indices...")
-            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges)) as pb:
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges), silent=silent) as pb:
                 for i, edge_table in enumerate(self._edges):
                     edge_table.flush(update_index=update_index, log_progress=False)
                     pb.update(i)
@@ -4685,7 +4686,8 @@ class Hic(RegionMatrixTable):
 
         if vector is not None:
             if len(vector) != len(self.regions()):
-                raise ValueError("Bias vector must be the same length as number of regions (%d)" % len(self.regions()))
+                raise ValueError("Bias vector must be the same length as number of regions "
+                                 "(is: {}, should: {})".format(len(vector), len(self.regions())))
 
             # overwrite biases
             if len(self._node_annotations) == len(vector):
@@ -4793,7 +4795,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         # add data
         self._add_data(data)
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, silent=False):
         """
         Write data to file and flush buffers.
 
@@ -4802,7 +4804,8 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         :param update_index: Update mask indices in edges table
         """
         AccessOptimisedRegionMatrixTable.flush(self, flush_nodes=flush_nodes,
-                                               flush_edges=flush_edges, update_index=update_index)
+                                               flush_edges=flush_edges, update_index=update_index,
+                                               silent=silent)
         self._node_annotations.flush()
 
     @classmethod

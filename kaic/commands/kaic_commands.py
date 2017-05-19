@@ -1960,8 +1960,7 @@ def correct_hic_parser():
 
     parser.add_argument(
         'output',
-        nargs="?",
-        help='''Output Hic file. If not provided will filter existing file in place.'''
+        help='''Output Hic file.'''
     )
 
     parser.add_argument(
@@ -2019,12 +2018,15 @@ def correct_hic(argv):
 
     if args.ice:
         import kaic.correcting.ice_matrix_balancing as ice
-        hic = kaic.load_hic(file_name=input_path, mode='a')
-        ice.correct(hic)
+
+        hic = kaic.load_hic(file_name=input_path, mode='r')
+        ice.correct(hic, only_intra_chromosomal=args.chromosome, copy=True, optimise=args.optimise,
+                    file_name=output_path)
         hic.close()
         if args.tmp:
             logger.info("Moving temporary output file to destination %s" % original_output_path)
-            shutil.move(input_path, original_output_path)
+            os.unlink(input_path)
+            shutil.move(output_path, original_output_path)
     else:
         import kaic.correcting.knight_matrix_balancing as knight
 
