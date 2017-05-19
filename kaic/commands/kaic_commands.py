@@ -217,9 +217,16 @@ def auto_parser():
         '--memory-map', dest='memory_map',
         action='store_true',
         help='''Map Bowtie2 index to memory (recommended if running on medium-memory systems and using many
-                    parallel threads. Use instead of --bowtie-parallel).'''
+                        parallel threads. Use instead of --bowtie-parallel).'''
     )
     parser.set_defaults(memory_map=False)
+
+    parser.add_argument(
+        '--ice', dest='ice',
+        action='store_true',
+        help='''Use ICE iterative matrix balancing rather than Knight-Ruiz.'''
+    )
+    parser.set_defaults(ice=False)
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
@@ -729,6 +736,8 @@ def auto(argv):
             correct_hic_command.append('-tmp')
         if not args.optimise:
             correct_hic_command.append('-O')
+        if args.ice:
+            correct_hic_command.append('-i')
 
         ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file, chromosome_corrected_hic_file])
         if ret3 != 0:
