@@ -195,6 +195,21 @@ def which(program):
     return None
 
 
+def human_format(num, precision=0):
+    """
+    Format a number as a string, suffixing letter for 1000 (K), 100000 (M), ...
+    :param num: any number larger than zero
+    :param precision: number of positions after decimal point
+    :return: string representing the number
+    """
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    # add more suffixes if you need them
+    return '{:.{prec}f}{}'.format(num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude], prec=precision)
+
+
 class RareUpdateProgressBar(progressbar.ProgressBar):
     def __init__(self, min_value=0, max_value=None, widgets=None,
                  left_justify=True, initial_value=0, poll_interval=None,
