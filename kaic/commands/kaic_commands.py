@@ -380,7 +380,8 @@ def auto(argv):
         logger.info("Final basename: %s (you can change this with the -n option!)" % basename)
 
     import subprocess
-    from multiprocessing.pool import ThreadPool
+    # from multiprocessing.pool import ThreadPool as Pool
+    from multiprocessing import Pool
 
     # 1. create default folders in root directory
     logger.info("Creating output folders...")
@@ -423,7 +424,7 @@ def auto(argv):
 
         fastq_results = []
         for i, ix in enumerate(fastq_files):
-            tp = ThreadPool(1)
+            tp = Pool(1)
             bam_file = output_folder + 'sam/' + file_basenames[ix] + '.bam'
             bam_files.append(bam_file)
             fastq_results.append(mapping_worker(file_names[ix], index, bam_file, mapping_processes))
@@ -460,7 +461,7 @@ def auto(argv):
         sam_files.append(i)
 
     if len(sam_files) > 0:
-        tp = ThreadPool(threads if not args.split_fastq else 1)
+        tp = Pool(threads if not args.split_fastq else 1)
 
         reads_files = []
         reads_results = []
@@ -496,7 +497,7 @@ def auto(argv):
         reads_files.append(i)
 
     if len(reads_files) > 0:
-        tp = ThreadPool(threads)
+        tp = Pool(threads)
 
         filtered_reads_files = []
         filter_reads_results = []
@@ -541,7 +542,7 @@ def auto(argv):
     pair_basenames = [basename + '_' + str(i) for i in range(len(reads_file_pairs))]
 
     if len(reads_file_pairs) > 0:
-        tp = ThreadPool(threads)
+        tp = Pool(threads)
         genome = args.genome
         restriction_enzyme = args.restriction_enzyme
 
@@ -604,7 +605,7 @@ def auto(argv):
         pairs_files.append(i)
 
     if len(pairs_files) > 0:
-        tp = ThreadPool(threads)
+        tp = Pool(threads)
 
         filtered_pairs_files = []
         filter_pairs_results = []
@@ -647,7 +648,7 @@ def auto(argv):
         pairs_files.append(i)
 
     if len(pairs_files) > 0:
-        tp = ThreadPool(threads)
+        tp = Pool(threads)
 
         hic_files = []
         hic_results = []
@@ -764,7 +765,7 @@ def auto(argv):
         hic_files.append(i)
 
     if len(hic_files) > 0:
-        tp = ThreadPool(threads)
+        tp = Pool(threads)
 
         hic_results = []
         for ix in hic_files:
