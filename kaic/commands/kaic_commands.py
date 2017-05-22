@@ -5,9 +5,65 @@ import os.path
 import textwrap
 import shutil
 import tempfile
+import subprocess
 
 # configure logging
 logger = logging.getLogger(__name__)
+
+# batch worker to:
+# * bin
+# * filter
+# * correct
+def batch_hic_worker(hic_file, bin_size, binned_hic_file, filtered_hic_file, filtered_hic_stats_file,
+                     corrected_hic_file, chromosome_corrected_hic_file, args):
+    import kaic
+    logger.info("Binning Hic {} at {}...".format(hic_file, bin_size))
+    bin_hic_command = ['kaic', 'bin_hic']
+    if args.tmp:
+        bin_hic_command.append('-tmp')
+
+    ret1 = subprocess.call(bin_hic_command + [hic_file, binned_hic_file, str(bin_size)])
+    if ret1 != 0:
+        return ret1
+
+    logger.info("Filtering Hic {}...".format(binned_hic_file))
+    filter_hic_command = ['kaic', 'filter_hic']
+    if args.tmp:
+        filter_hic_command.append('-tmp')
+    filter_hic_command.append('-rl')
+    filter_hic_command.append('0.1')
+    filter_hic_command.append('-s')
+
+    ret2 = subprocess.call(filter_hic_command + [filtered_hic_stats_file, binned_hic_file, filtered_hic_file])
+    if ret2 != 0:
+        return ret2
+
+    logger.info("Correcting Hic {}...".format(filtered_hic_file))
+    correct_hic_command = ['kaic', 'correct_hic']
+    if args.tmp:
+        correct_hic_command.append('-tmp')
+    if not args.optimise:
+        correct_hic_command.append('-O')
+    if args.ice:
+        correct_hic_command.append('-i')
+
+    ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file, chromosome_corrected_hic_file])
+    if ret3 != 0:
+        return ret3
+
+    hic = kaic.load(filtered_hic_file, mode='r')
+    n_regions = len(hic.regions)
+    hic.close()
+
+    if n_regions <= 50000:
+        ret4 = subprocess.call(correct_hic_command + [filtered_hic_file, corrected_hic_file])
+    else:
+        ret4 = 0
+
+    if ret4 != 0:
+        return ret4
+
+    return 0
 
 
 def kaic_parser():
@@ -704,60 +760,6 @@ def auto(argv):
 
     import kaic
 
-    # batch worker to:
-    # * bin
-    # * filter
-    # * correct
-    def batch_hic_worker(hic_file, bin_size, binned_hic_file, filtered_hic_file, filtered_hic_stats_file,
-                         corrected_hic_file, chromosome_corrected_hic_file):
-        logger.info("Binning Hic {} at {}...".format(hic_file, bin_size))
-        bin_hic_command = ['kaic', 'bin_hic']
-        if args.tmp:
-            bin_hic_command.append('-tmp')
-
-        ret1 = subprocess.call(bin_hic_command + [hic_file, binned_hic_file, str(bin_size)])
-        if ret1 != 0:
-            return ret1
-
-        logger.info("Filtering Hic {}...".format(binned_hic_file))
-        filter_hic_command = ['kaic', 'filter_hic']
-        if args.tmp:
-            filter_hic_command.append('-tmp')
-        filter_hic_command.append('-rl')
-        filter_hic_command.append('0.1')
-        filter_hic_command.append('-s')
-
-        ret2 = subprocess.call(filter_hic_command + [filtered_hic_stats_file, binned_hic_file, filtered_hic_file])
-        if ret2 != 0:
-            return ret2
-
-        logger.info("Correcting Hic {}...".format(filtered_hic_file))
-        correct_hic_command = ['kaic', 'correct_hic']
-        if args.tmp:
-            correct_hic_command.append('-tmp')
-        if not args.optimise:
-            correct_hic_command.append('-O')
-        if args.ice:
-            correct_hic_command.append('-i')
-
-        ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file, chromosome_corrected_hic_file])
-        if ret3 != 0:
-            return ret3
-
-        hic = kaic.load(filtered_hic_file, mode='r')
-        n_regions = len(hic.regions)
-        hic.close()
-
-        if n_regions <= 50000:
-            ret4 = subprocess.call(correct_hic_command + [filtered_hic_file, corrected_hic_file])
-        else:
-            ret4 = 0
-
-        if ret4 != 0:
-            return ret4
-
-        return 0
-
     hic_files = []
     for i in range(len(file_names)):
         if file_types[i] != 'hic':
@@ -787,7 +789,8 @@ def auto(argv):
                                                        filtered_hic_file,
                                                        filtered_hic_stats_file,
                                                        corrected_hic_file,
-                                                       chromosome_corrected_hic_file))
+                                                       chromosome_corrected_hic_file,
+                                                       args))
                 hic_results.append(rt)
         tp.close()
         tp.join()
