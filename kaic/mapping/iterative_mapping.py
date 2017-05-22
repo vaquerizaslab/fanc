@@ -529,9 +529,9 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                          max_length, step_size, work_dir))
 
                         # write output if any
-                        logger.info("Merging output files...")
+                        logger.debug("Merging output files...")
                         while True:
-                            logger.info("Trying to collect results")
+                            logger.debug("Trying to collect results")
                             try:
                                 partial_output_file = output_queue.get(False)
                                 logger.info("Processing %s..." % partial_output_file)
@@ -546,7 +546,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                                 output_count += 1
                                 os.unlink(partial_output_file)
                             except Empty:
-                                logger.info("No results found")
+                                logger.debug("No results found")
                                 break
 
                         max_length = 0
