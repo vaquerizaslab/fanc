@@ -63,14 +63,13 @@ import tables as t
 import pandas as p
 import numpy as np
 import pybedtools
-import pyBigWig
-from kaic.tools.files import is_fasta_file
+from kaic.tools.files import is_fasta_file, write_bigwig
 from kaic.tools.matrix import apply_sliding_func
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
 import os.path
-from kaic.tools.general import ranges, distribute_integer, create_col_index
+from kaic.tools.general import ranges, distribute_integer, create_col_index, RareUpdateProgressBar, range_overlap
 try:
     from itertools import izip as zip
 except ImportError:
@@ -78,7 +77,6 @@ except ImportError:
 import pickle
 from collections import defaultdict
 import copy
-from kaic.tools.general import RareUpdateProgressBar, range_overlap
 from kaic.tools.lru import lru_cache
 import warnings
 from bisect import bisect_right, bisect_left
@@ -1395,38 +1393,7 @@ class GenomicRegions(object):
                 ))
 
     def to_bigwig(self, file_name, score_field='score'):
-        logger.debug("Writing output...")
-        bw = pyBigWig.open(file_name, 'w')
-        # write header
-
-        chromosome_lengths = defaultdict(int)
-        interval_chromosomes = []
-        interval_starts = []
-        interval_ends = []
-        interval_values = []
-        for region in self.regions:
-            chromosome = region.chromosome.decode() if isinstance(region.chromosome, bytes) else region.chromosome
-            chromosome_lengths[chromosome] = region.end
-
-            interval_chromosomes.append(chromosome)
-            interval_starts.append(region.start - 1)
-            interval_ends.append(region.end)
-            try:
-                score = float(getattr(region, score_field))
-            except AttributeError:
-                score = np.nan
-            interval_values.append(score)
-
-        header = []
-        for chromosome in self.chromosomes():
-            chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
-            header.append((chromosome, chromosome_lengths[chromosome]))
-        bw.addHeader(header)
-
-        bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
-
-        bw.close()
-        return file_name
+        write_bigwig(file_name, self.regions, mode='w', score_field=score_field)
 
     @property
     def regions_dict(self):

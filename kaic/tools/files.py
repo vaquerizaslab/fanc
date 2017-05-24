@@ -5,6 +5,7 @@ import random
 import pysam
 import gzip
 import binascii
+import pyBigWig
 from Bio import SeqIO
 import tempfile
 import shutil
@@ -12,6 +13,8 @@ import multiprocessing
 import threading
 from kaic.tools.general import mkdir
 from future.utils import string_types
+from collections import defaultdict
+import numpy as np
 import logging
 
 # configure logging
@@ -378,4 +381,42 @@ def write_gff(file_name, regions, mode='w'):
         else:
             gff_file.flush()
 
+    return file_name
+
+
+def write_bigwig(file_name, regions, mode='w', score_field='score'):
+    logger.debug("Writing output...")
+    bw = pyBigWig.open(file_name, mode)
+    # write header
+
+    chromosomes = []
+    chromosome_lengths = defaultdict(int)
+    interval_chromosomes = []
+    interval_starts = []
+    interval_ends = []
+    interval_values = []
+    for region in regions:
+        chromosome = region.chromosome.decode() if isinstance(region.chromosome, bytes) else region.chromosome
+        if chromosome not in chromosome_lengths:
+            chromosomes.append(chromosome)
+        chromosome_lengths[chromosome] = region.end
+
+        interval_chromosomes.append(chromosome)
+        interval_starts.append(region.start - 1)
+        interval_ends.append(region.end)
+        try:
+            score = float(getattr(region, score_field))
+        except AttributeError:
+            score = np.nan
+        interval_values.append(score)
+
+    header = []
+    for chromosome in chromosomes:
+        chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
+        header.append((chromosome, chromosome_lengths[chromosome]))
+    bw.addHeader(header)
+
+    bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
+
+    bw.close()
     return file_name
