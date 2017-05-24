@@ -462,7 +462,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
 
         def _mapping_process_with_queue(input_queue, output_queue):
             while True:
-                logger.info("Waiting for input...")
+                logger.debug("Waiting for input...")
                 p_number, file_name, mapper, min_size, max_length, step_size, work_dir = input_queue.get(True)
                 steps = list(range(min_size, max_length+1, step_size))
                 if len(steps) == 0 or steps[-1] != max_length:
@@ -478,7 +478,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                         current += 1
                 steps = [steps[ix] for ix in ixs]
 
-                logger.info("Mapping %s" % file_name)
+                logger.debug("Mapping %s" % file_name)
                 partial_output_file = work_dir + '/mapped_reads_' + str(p_number) + '.sam'
                 process_work_dir = work_dir + "/mapping_%d/" % p_number
                 os.makedirs(process_work_dir)
@@ -486,7 +486,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                 _iteratively_map_reads(file_name, mapper, steps, None, None, process_work_dir,
                                        partial_output_file, True)
 
-                logger.info("Done mapping %s" % file_name)
+                logger.debug("Done mapping %s" % file_name)
 
                 os.unlink(file_name)
                 shutil.rmtree(process_work_dir)
@@ -534,7 +534,7 @@ def split_iteratively_map_reads(input_file, output_file, index_path, work_dir=No
                             logger.debug("Trying to collect results")
                             try:
                                 partial_output_file = output_queue.get(False)
-                                logger.info("Processing %s..." % partial_output_file)
+                                logger.debug("Processing %s..." % partial_output_file)
                                 with pysam.AlignmentFile(partial_output_file) as p:
                                     if o is None:
                                         if os.path.splitext(output_file)[1] == '.bam':
