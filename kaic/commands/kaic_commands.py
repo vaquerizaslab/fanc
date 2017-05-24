@@ -3177,12 +3177,12 @@ def stats(argv):
         logger.info("Processing FASTQ files.")
         import gzip
 
-        fastq_files = get_files(args.fastq, ('.fq', '.fastq', '.fq.gz', '.fastq.gz'))
+        fastq_files = get_files(args.fastq, ('.fq', '.fastq', '.fq.gz', '.fastq.gz', 'fq.gzip', 'fastq.gzip'))
 
         total_count = 0
         for fastq_file in fastq_files:
             logger.info("{}".format(fastq_file))
-            if fastq_file.endswith('gz'):
+            if fastq_file.endswith('gz') or fastq_file.endswith('gzip'):
                 read = gzip.open
             else:
                 read = open
