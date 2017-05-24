@@ -245,8 +245,8 @@ class ExpectedContacts(TableArchitecturalFeature):
             hic = None
 
         TableArchitecturalFeature.__init__(self, _table_name,
-                                           {'distance': t.Int64Col(), 'intra': t.Float32Col(),
-                                            'contacts': t.Float32Col(), 'pixels': t.Float32Col()},
+                                           {'distance': t.Int64Col(), 'intra': t.Float64Col(),
+                                            'contacts': t.Float64Col(), 'pixels': t.Float64Col()},
                                            file_name=file_name, mode=mode, tmpdir=tmpdir)
 
         self.hic = hic
