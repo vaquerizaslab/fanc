@@ -319,17 +319,6 @@ class ExpectedContacts(TableArchitecturalFeature):
                 else:
                     inter_total += 1
 
-        for chromosome, regions in chromosome_regions.items():
-            for i in range(len(regions)):
-                if marginals[regions[i].ix] < 10e-10:
-                    continue
-
-                for j in range(i, len(regions)):
-                    if marginals[regions[j].ix] < 10e-10:
-                        continue
-
-                    intra_total[j-i] += 1
-
         try:
             inter_expected = inter_sums / inter_total
         except ZeroDivisionError:
