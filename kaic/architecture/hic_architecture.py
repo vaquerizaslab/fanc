@@ -273,12 +273,12 @@ class ExpectedContacts(TableArchitecturalFeature):
             regions = [region for region in self.hic.subset(self.regions)]
             edges_iter = self.hic.edge_subset(key=(self.regions, self.regions))
 
+        chromosome_regions = defaultdict(list)
         regions_dict = dict()
-        chromosome_total_counts = defaultdict(int)
         for i, r in enumerate(regions):
             regions_dict[r.ix] = (i, r.chromosome)
-            chromosome_total_counts[r.chromosome] += 1
-        max_distance = max(chromosome_total_counts.values())
+            chromosome_regions[r.chromosome].append(r)
+        max_distance = max([len(chromosome_regions[chromosome]) for chromosome in chromosome_regions])
 
         bias_vector = self.hic.bias_vector()
 
@@ -304,26 +304,32 @@ class ExpectedContacts(TableArchitecturalFeature):
                 intra_sums[distance] += weight
                 intra_uncorrected[distance] += int(weight / (bias_vector[source] * bias_vector[sink]) + 0.5)
 
-        # figure out how many contacts are actually mappable
-        chromosome_counts = defaultdict(int)
-        for i, marginal in enumerate(marginals):
-            if marginal > 10**-10:
-                chromosome_counts[regions[i].chromosome] += 1
-
+        logger.info("Calculating possible counts")
         intra_total = [0] * max_distance
         inter_total = 0
-        chromosomes = list(chromosome_counts.keys())
-        for i in range(len(chromosomes)):
-            count = chromosome_counts[chromosomes[i]]
+        for i in range(len(regions)):
+            if marginals[i] < 10e-10:
+                continue
+            for j in range(i, len(regions)):
+                if marginals[j] < 10e-10:
+                    continue
 
-            # intra-chromosomal
-            for distance in range(0, count):
-                intra_total[distance] += count - distance
+                if regions[i].chromosome == regions[j].chromosome:
+                    intra_total[j-i] += 1
+                else:
+                    inter_total += 1
 
-            # inter-chromosomal
-            for j in range(i + 1, len(chromosomes)):
-                count2 = chromosome_counts[chromosomes[j]]
-                inter_total += count * count2
+        for chromosome, regions in chromosome_regions.items():
+            for i in range(len(regions)):
+                if marginals[regions[i].ix] < 10e-10:
+                    continue
+
+                for j in range(i, len(regions)):
+                    if marginals[regions[j].ix] < 10e-10:
+                        continue
+
+                    intra_total[j-i] += 1
+
         try:
             inter_expected = inter_sums / inter_total
         except ZeroDivisionError:
