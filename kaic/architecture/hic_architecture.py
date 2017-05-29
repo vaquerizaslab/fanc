@@ -273,11 +273,14 @@ class ExpectedContacts(TableArchitecturalFeature):
             regions = [region for region in self.hic.subset(self.regions)]
             edges_iter = self.hic.edge_subset(key=(self.regions, self.regions))
 
+        chromosome_offsets = dict()
         chromosome_regions = defaultdict(list)
         regions_dict = dict()
         for i, r in enumerate(regions):
             regions_dict[r.ix] = (i, r.chromosome)
             chromosome_regions[r.chromosome].append(r)
+            if r.chromosome not in chromosome_offsets:
+                chromosome_offsets[r.chromosome] = i
         max_distance = max([len(chromosome_regions[chromosome]) for chromosome in chromosome_regions])
 
         bias_vector = self.hic.bias_vector()
@@ -305,19 +308,45 @@ class ExpectedContacts(TableArchitecturalFeature):
                 intra_uncorrected[distance] += int(weight / (bias_vector[source] * bias_vector[sink]) + 0.5)
 
         logger.info("Calculating possible counts")
-        intra_total = [0] * max_distance
-        inter_total = 0
-        for i in range(len(regions)):
-            if marginals[i] < 10e-10:
-                continue
-            for j in range(i, len(regions)):
-                if marginals[j] < 10e-10:
-                    continue
+        # getting per-chromosome subtractions
+        chromosome_subtractions = dict()
+        chromosomes = list(chromosome_regions.keys())
+        for chromosome in chromosomes:
+            chromosome_subtractions[chromosome] = np.zeros(len(chromosome_regions[chromosome]), dtype='int32')
 
-                if regions[i].chromosome == regions[j].chromosome:
-                    intra_total[j-i] += 1
-                else:
-                    inter_total += 1
+        chromosome_mappable = defaultdict(int)
+        chromosome_unmappable = defaultdict(set)
+        for i, marginal in enumerate(marginals):
+            chromosome = regions[i].chromosome
+            if marginal < 10e-10:  # unmappable
+                s = chromosome_subtractions[chromosome]
+                o = chromosome_offsets[chromosome]
+                ix = i - o
+                # horizontal
+                s[0: len(s) - ix] += 1
+                # vertical
+                for j in range(1, ix + 1):
+                    if ix - j not in chromosome_unmappable[chromosome]:
+                        s[j] += 1
+                chromosome_unmappable[chromosome].add(ix)
+            else:
+                chromosome_mappable[chromosome] += 1
+
+        inter_total = 0
+        intra_total = [0] * max_distance
+        for i in range(len(chromosomes)):
+            count = len(chromosome_regions[chromosomes[i]])
+
+            # intra-chromosomal
+            s = chromosome_subtractions[chromosomes[i]]
+            for distance in range(0, count):
+                intra_total[distance] += count - distance - s[distance]
+
+            # inter-chromosomal
+            for j in range(i + 1, len(chromosomes)):
+                count_mappable = chromosome_mappable[chromosomes[i]]
+                count2_mappable = chromosome_mappable[chromosomes[j]]
+                inter_total += count_mappable * count2_mappable
 
         try:
             inter_expected = inter_sums / inter_total

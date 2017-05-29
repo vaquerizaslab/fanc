@@ -377,7 +377,7 @@ class TestInsulationIndex:
 
             assert np.isnan(d[0])
             assert d[2] == 50.0
-            assert d[3] - 38.77083206176758 < 0.00001
+            assert d[3] - 40.13888931274414 < 0.00001
             with pytest.raises(AttributeError):
                 ins.directionality_index(10000)
 
