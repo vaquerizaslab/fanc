@@ -461,10 +461,10 @@ class Maskable(FileBased):
         if include_unmasked:
             masks['unmasked'] = 0
 
-        stats = defaultdict(int)
-
-        for row in table._iter_visible_and_masked():
-            stats[row[table._mask_field]] += 1
+        if 'mask_stats' in table.attrs:
+            stats = table.attrs['mask_stats']
+        else:
+            stats = table.mask_stats()
 
         for mask_bit, count in stats.items():
             row_masks = self.get_masks(mask_bit)
@@ -480,8 +480,6 @@ class Maskable(FileBased):
 
     def _mask_statistics_group(self, group, include_unmasked=True):
         masks = defaultdict(int)
-        if include_unmasked:
-            masks['unmasked'] = 0
 
         for table in group:
             for mask, count in self._mask_statistics_table(table, include_unmasked=include_unmasked).items():
@@ -495,7 +493,7 @@ class Maskable(FileBased):
         elif isinstance(table, MaskedTable):
             return self._mask_statistics_table(table, include_unmasked=include_unmasked)
         else:
-            raise ValueError("Fisrt arg must be PyTable Group or MaskedTable!")
+            raise ValueError("First arg must be PyTable Group or MaskedTable!")
 
 
 class MaskedTableView(object):
@@ -756,14 +754,19 @@ class MaskedTable(t.Table):
         """
 
         if log_progress:
-            logger.info("Updating mask indices")
+            logger.debug("Updating mask indices")
+
+        stats = defaultdict(int)
 
         l = self._original_len()
         with RareUpdateProgressBar(max_value=l, silent=not log_progress) as pb:
             ix = 0
             masked_ix = -1
             for i, row in enumerate(self._iter_visible_and_masked()):
-                if row[self._mask_field] > 0:
+                m = row[self._mask_field]
+                stats[m] += 1
+
+                if m > 0:
                     row[self._mask_index_field] = masked_ix
                     masked_ix -= 1
                 else:
@@ -772,6 +775,22 @@ class MaskedTable(t.Table):
                 row.update()
                 pb.update(i)
             self.attrs['masked_length'] = ix
+        try:
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
+
+    def mask_stats(self):
+        stats = defaultdict(int)
+        for row in self._iter_visible_and_masked():
+            stats[row[self._mask_field]] += 1
+
+        try:
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
+
+        return stats
     
     @lru_cache(maxsize=1000)
     def _get_masks(self, binary_mask):
