@@ -676,10 +676,6 @@ class VerticalSplitPlot(BasePlotter1D):
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
 
-    def remove_genome_ticks(self):
-        plt.setp(self.ax.get_xticklabels(), visible=False)
-        self.ax.xaxis.offsetText.set_visible(False)
-
 
 class GenomicFeaturePlot(BasePlotter1D):
     """

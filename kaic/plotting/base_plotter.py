@@ -164,6 +164,8 @@ class BasePlotter(with_metaclass(ABCMeta, object)):
         self.cax = None
         self.title = title
         self.has_legend = False
+        self._has_ticks = True
+        self._has_ticklabels = True
         self._aspect = aspect
         self.axes_style = axes_style
         self.overlays = []
@@ -174,6 +176,10 @@ class BasePlotter(with_metaclass(ABCMeta, object)):
     def _after_plot(self, region=None, *args, **kwargs):
         for o in self.overlays:
             o.plot(self, region)
+        if not self._has_ticks:
+            self.remove_genome_ticks()
+        if not self._has_ticklabels:
+            self.remove_genome_labels()
 
     @abstractmethod
     def _plot(self, region=None, *args, **kwargs):
@@ -208,8 +214,24 @@ class BasePlotter(with_metaclass(ABCMeta, object)):
         return self._aspect
 
     def remove_genome_ticks(self):
-        plt.setp(self.ax.get_xticklabels(), visible=False)
-        self.ax.xaxis.offsetText.set_visible(False)
+        """
+        Remove all genome coordinate tickmarks.
+        """
+        if self.ax:
+            plt.setp(self.ax.get_xticklines(), visible=False)
+            self.ax.xaxis.set_visible(False)
+        else:
+            self._has_ticks = False
+
+    def remove_genome_labels(self):
+        """
+        Remove all genome coordinate labels.
+        """
+        if self.ax:
+            plt.setp(self.ax.get_xticklabels(), visible=False)
+            self.ax.xaxis.offsetText.set_visible(False)
+        else:
+            self._has_ticklabels = False
 
     def remove_colorbar_ax(self):
         if self.cax is None:
