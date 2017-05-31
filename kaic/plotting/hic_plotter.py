@@ -223,14 +223,9 @@ class BasePlotterHic(with_metaclass(ABCMeta, BasePlotterMatrix)):
     Makes use of matrix buffering by :class:`~BufferedMatrix` internally.
     """
 
-    def __init__(self, hic_data, colormap=config.colormap_hic, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
-                 buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
-        BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm,
-                                   vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
-                                   blend_zero=blend_zero, unmappable_color=unmappable_color,
-                                   illegal_color=illegal_color, colorbar_symmetry=colorbar_symmetry)
+    def __init__(self, hic_data, adjust_range=True, buffering_strategy="relative",
+                 buffering_arg=1, **kwargs):
+        BasePlotterMatrix.__init__(self, **kwargs)
         self.hic_data = hic_data
         self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
                                              buffering_arg=buffering_arg)
@@ -240,15 +235,12 @@ class BasePlotterHic(with_metaclass(ABCMeta, BasePlotterMatrix)):
 
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
-    def __init__(self, hic_data, title='', colormap=config.colormap_hic, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, colorbar_symmetry=None,
-                 adjust_range=True, buffering_strategy="relative", buffering_arg=1,
-                 blend_zero=True, unmappable_color=".9", flip=False,
-                 aspect=1., axes_style="ticks"):
+    def __init__(self, hic_data, flip=False, **kwargs):
         """
         Initialize a 2D Hi-C heatmap plot.
 
         :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
+        :param flip: Transpose matrix before plotting
         :param title: Title drawn on top of the figure panel
         :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
         :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
@@ -265,21 +257,15 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
         """
-        BasePlotter2D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-        BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
-                                norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
-                                adjust_range=adjust_range, buffering_strategy=buffering_strategy,
-                                buffering_arg=buffering_arg, blend_zero=blend_zero,
-                                unmappable_color=unmappable_color, colorbar_symmetry=colorbar_symmetry)
+        BasePlotter2D.__init__(self, **kwargs)
+        BasePlotterHic.__init__(self, hic_data=hic_data, **kwargs)
         self.vmax_slider = None
         self.current_matrix = None
         self.flip = flip
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
-        self.current_matrix[np.isnan(self.current_matrix)] = 0
         color_matrix = self.get_color_matrix(self.current_matrix)
-
         if self.flip:
             color_matrix = np.flipud(color_matrix)
         self.im = self.ax.imshow(color_matrix, interpolation='none',
@@ -352,14 +338,9 @@ class HicSideBySidePlot2D(object):
 
 
 class HicComparisonPlot2D(HicPlot2D):
-    def __init__(self, hic_top, hic_bottom, colormap=config.colormap_hic, norm='log',
-                 vmin=None, vmax=None, scale_matrices=True, show_colorbar=True,
-                 buffering_strategy="relative", buffering_arg=1, aspect=1.,
-                 axes_style="ticks"):
-        super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm,
-                                                  vmin=vmin, vmax=vmax,
-                                                  show_colorbar=show_colorbar, aspect=aspect,
-                                                  axes_style=axes_style)
+    def __init__(self, hic_top, hic_bottom, buffering_strategy="relative", 
+                 buffering_arg=1., scale_matrices=True, **kwargs):
+        super(HicComparisonPlot2D, self).__init__(hic_top, **kwargs)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
         self.hic_buffer = BufferedCombinedMatrix(hic_bottom, hic_top, scale_matrices,
@@ -367,9 +348,8 @@ class HicComparisonPlot2D(HicPlot2D):
 
 
 class HicSlicePlot(ScalarDataPlot):
-    def __init__(self, hic_data, slice_region, names=None, style="step", title='',
-                 aspect=.3, axes_style=style_ticks_whitegrid, ylim=None, yscale="linear",
-                 buffering_strategy="relative", buffering_arg=1):
+    def __init__(self, hic_data, slice_region, names=None, ylim=None, yscale="linear",
+                 buffering_strategy="relative", buffering_arg=1, **kwargs):
         """
         Initialize a plot which draws Hi-C data as virtual 4C-plot. All interactions that
         involve the slice region are shown.
@@ -391,8 +371,8 @@ class HicSlicePlot(ScalarDataPlot):
         :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
         :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
         """
-        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
-                                axes_style=axes_style)
+        kwargs.setdefault("aspect", .3)
+        ScalarDataPlot.__init__(self, **kwargs)
         if not isinstance(hic_data, (list, tuple)):
             hic_data = [hic_data]
         self.hic_buffers = []
@@ -430,11 +410,7 @@ class HicSlicePlot(ScalarDataPlot):
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
-    def __init__(self, hic_data, title='', colormap=config.colormap_hic, max_dist=None, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=False, colorbar_symmetry=None,
-                 buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9", illegal_color=None, aspect=.5, ylabel='',
-                 axes_style="ticks"):
+    def __init__(self, hic_data, max_dist=None, **kwargs):
         """
         Initialize a triangle Hi-C heatmap plot.
 
@@ -458,17 +434,12 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                        the height_ratios in class:`~GenomicFigure`
         """
-
-        BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
-                                show_colorbar=show_colorbar, adjust_range=adjust_range,
-                                buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
-                                norm=norm, blend_zero=blend_zero, unmappable_color=unmappable_color,
-                                illegal_color=illegal_color, colorbar_symmetry=colorbar_symmetry)
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+        kwargs.setdefault("aspect", .5)
+        BasePlotterHic.__init__(self, hic_data=hic_data, **kwargs)
+        BasePlotter1D.__init__(self, **kwargs)
 
         self.max_dist = max_dist
         self.hm = None
-        self.ylabel = ylabel
 
     def _plot(self, region=None, *args, **kwargs):
         logger.debug("Generating matrix from hic object")
@@ -492,8 +463,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         # remove outline everywhere except at bottom
         sns.despine(ax=self.ax, top=True, right=True, left=True)
         self.ax.set_yticks([])
-        self.ax.set_ylabel(self.ylabel, rotation=0, horizontalalignment='right')
-
         # hide background patch
         self.ax.patch.set_visible(False)
         if self.show_colorbar:

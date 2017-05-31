@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 from kaic.config import config
-from kaic.plotting.helpers import style_ticks_whitegrid
+from kaic.plotting.helpers import style_ticks_whitegrid, check_kwargs
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
@@ -159,7 +159,8 @@ def _prepare_normalization(norm="lin", vmin=None, vmax=None):
 
 class BasePlotter(with_metaclass(ABCMeta, object)):
 
-    def __init__(self, title='', aspect=1., axes_style="ticks"):
+    def __init__(self, title='', aspect=1., axes_style="ticks", **kwargs):
+        check_kwargs(self, kwargs)
         self.ax = None
         self.cax = None
         self.title = title
@@ -252,9 +253,8 @@ class BasePlotter(with_metaclass(ABCMeta, object)):
 
 class BasePlotter1D(with_metaclass(ABCMeta, BasePlotter)):
 
-    def __init__(self, title='', aspect=1., axes_style="ticks"):
-        BasePlotter.__init__(self, title=title, aspect=aspect,
-                             axes_style=axes_style)
+    def __init__(self, **kwargs):
+        BasePlotter.__init__(self, **kwargs)
         self._mouse_release_handler = None
         self._last_xlim = None
         self._current_chromosome = None
@@ -301,8 +301,10 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, style="step", title='', aspect=.2, axes_style=style_ticks_whitegrid):
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+    def __init__(self, style="step", **kwargs):
+        kwargs.setdefault("aspect", .2)
+        kwargs.setdefault("axes_style", style_ticks_whitegrid)
+        BasePlotter1D.__init__(self, **kwargs)
         self.style = style
         if style not in self._STYLES:
             raise ValueError("Only the styles {} are supported.".format(list(self._STYLES.keys())))
@@ -347,11 +349,10 @@ class BasePlotterMatrix(with_metaclass(ABCMeta, object)):
 
     def __init__(self, colormap=config.colormap_hic, norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, replacement_color=None,
-                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
-
+                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None, **kwargs):
+        check_kwargs(self, kwargs)
         if isinstance(colormap, string_types):
             colormap = mpl.cm.get_cmap(colormap)
-
         self.colormap = colormap
         self._vmin = vmin
         self._vmax = vmax
@@ -452,9 +453,9 @@ class BasePlotterMatrix(with_metaclass(ABCMeta, object)):
 
 class BasePlotter2D(with_metaclass(ABCMeta, BasePlotter)):
 
-    def __init__(self, title, aspect=1., axes_style="ticks"):
-        BasePlotter.__init__(self, title=title, aspect=aspect,
-                             axes_style=axes_style)
+    def __init__(self, **kwargs):
+        kwargs.setdefault("aspect", 1.)
+        BasePlotter.__init__(self, **kwargs)
         self._mouse_release_handler = None
         self._current_chromosome_x = None
         self._current_chromosome_y = None
@@ -537,8 +538,8 @@ class BasePlotter2D(with_metaclass(ABCMeta, BasePlotter)):
 
 class BaseOverlayPlotter(with_metaclass(ABCMeta, object)):
 
-    def __init__(self):
-        pass
+    def __init__(self, **kwargs):
+        check_kwargs(self, kwargs)
 
     @abstractproperty
     def compatibility(self):
