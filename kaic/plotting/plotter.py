@@ -857,7 +857,6 @@ class BigWigPlot(ScalarDataPlot):
         self.names = names
         self.bin_size = bin_size
         self.lines = []
-        self.condensed = condensed
         self.fill = fill
 
     def _bin_intervals(self, region, intervals):
@@ -907,12 +906,6 @@ class BigWigPlot(ScalarDataPlot):
             self.add_legend()
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
-        if self.condensed:
-            low, high = self.ax.get_ylim()
-            # self.ax.set_yticks([low, high])
-            # self.ax.set_yticklabels([self.title, high], va='top', size='large')
-            self.ax.set_yticks([high])
-            self.ax.set_yticklabels([high], va='top', size='large')
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         for i, x, y in self._line_values(region):

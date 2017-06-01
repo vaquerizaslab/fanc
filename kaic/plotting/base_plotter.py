@@ -339,7 +339,8 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, style="step", ylim=None, yscale="linear", **kwargs):
+    def __init__(self, style="step", ylim=None, yscale="linear",
+                 condensed=False, n_yticks=2, **kwargs):
         """
         :param style: 'step' Draw values in a step-wise manner for each bin
                       'mid' Draw values connecting mid-points of bins
@@ -349,6 +350,11 @@ class ScalarDataPlot(BasePlotter1D):
         :param yscale: Scale of y-axis. Is passed to Matplotlib set_yscale,
                        so any valid argument ("linear", "log", etc.) works
                        Default: "linear"
+        :param condensed: Only show maximum y-axis tick.
+                          Default: False
+        :param n_yticks: Number of y-axis ticks. If only the maximum
+                         tick should be displayed set condensed to True.
+                         Default: 2
         """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
@@ -356,14 +362,26 @@ class ScalarDataPlot(BasePlotter1D):
         self.style = style
         self.ylim = ylim
         self.yscale = yscale
+        self.condensed = condensed
+        if n_yticks < 2:
+            raise ValueError("At least 2 ticks needed. Use condensed argument for only one.")
+        self.n_ybins = n_yticks - 1
         if style not in self._STYLES:
             raise ValueError("Only the styles {} are supported.".format(list(self._STYLES.keys())))
+
+    def _before_plot(self, region=None, *args, **kwargs):
+        BasePlotter1D._before_plot(self, region=region, *args, **kwargs)
+        self.ax.yaxis.set_major_locator(MaxNLocator(self.n_ybins))
 
     def _after_plot(self, region=None, *args, **kwargs):
         BasePlotter1D._after_plot(self, region=region, *args, **kwargs)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
         self.ax.set_yscale(self.yscale)
+        if self.condensed:
+            low, high = self.ax.get_ylim()
+            self.ax.set_yticks([high])
+            self.ax.set_yticklabels([high], va='top', size='large')
 
     def _get_values_per_step(self, values, region_list):
         x = np.empty(len(region_list)*2)
