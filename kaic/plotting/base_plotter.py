@@ -160,24 +160,20 @@ def _prepare_normalization(norm="lin", vmin=None, vmax=None):
 class PlotMeta(ABCMeta):
     """
     Metaclass for all plotting classes. Automatically adds
-    all parent classes' docstrings to the subclasses.
+    all parent classes' __init__ method docstrings to the subclasses'
+    __init__ method docstring.
     """
     def __new__(cls, clsname, bases, dct):
-        new_init_doc = ""
-        new_doc = ""
+        new_init_doc = dct["__init__"].__doc__
+        if new_init_doc is None:
+            new_init_doc = ""
         for b in bases:
+            if b.__name__ == "object":
+                continue
             if b.__init__.__doc__ is not None:
                 new_init_doc += b.__init__.__doc__
-            if b.__doc__ is not None:
-                new_doc += b.__doc__
-        if dct.get("__doc__", None) is not None:
-            new_doc += dct["__doc__"]
-        if dct["__init__"].__doc__ is not None:
-            new_init_doc += dct["__init__"].__doc__
         if len(new_init_doc) > 0:
             dct["__init__"].__doc__ = new_init_doc
-        if len(new_doc) < 1:
-            dct["__doc__"] = new_doc
         return super(PlotMeta, cls).__new__(cls, clsname, bases, dct)
 
 class BasePlotter(with_metaclass(PlotMeta, object)):
@@ -325,6 +321,10 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_MID = "mid"
 
     def __init__(self, style="step", **kwargs):
+        """
+        :param style: 'step' Draw values in a step-wise manner for each bin
+                      'mid' Draw values connecting mid-points of bins
+        """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
         BasePlotter1D.__init__(self, **kwargs)
@@ -373,6 +373,23 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
     def __init__(self, colormap=config.colormap_hic, norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, replacement_color=None,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None, **kwargs):
+        """
+        :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
+        :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
+        :param vmin: Clip interactions below this value
+        :param vmax: Clip interactions above this value
+        :param show_colorbar: Draw a colorbar
+        :param blend_zero: If True then zero count bins will be drawn using replacement_color
+        :param replacement_color: If None use the lowest color in the colormap, otherwise
+                                  use the specified color. Can be any valid matplotlib
+                                  color name or specification.
+        :param unmappable_color: Draw unmappable bins using this color. Defaults to
+                                 light gray (".9")
+        :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+                                 None (no special color).
+        :param colorbar_symmetry: Set to enforce that the colorbar is symemtric around
+                                  this value. Default: None
+        """
         check_kwargs(self, kwargs)
         if isinstance(colormap, string_types):
             colormap = mpl.cm.get_cmap(colormap)
@@ -425,7 +442,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         """
         Add colorbar to the plot.
 
-        :param ax: Optional axis on which to draw the colorbar
+        :param ax: Optional axis on which to draw the colorbar. Default: colorbar ax
         :param baseline: symmetric axis around this value. Asymmetric if None.
         """
         if baseline is None and self.colorbar_symmetry is not None:

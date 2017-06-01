@@ -226,6 +226,12 @@ class BasePlotterHic(with_metaclass(PlotMeta, BasePlotterMatrix)):
 
     def __init__(self, hic_data, adjust_range=True, buffering_strategy="relative",
                  buffering_arg=1, **kwargs):
+        """
+        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
+        :param adjust_range: Draw a slider to adjust vmin/vmax interactively
+        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
+        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
+        """
         BasePlotterMatrix.__init__(self, **kwargs)
         self.hic_data = hic_data
         self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
@@ -236,27 +242,12 @@ class BasePlotterHic(with_metaclass(PlotMeta, BasePlotterMatrix)):
 
 
 class HicPlot2D(BasePlotter2D, BasePlotterHic):
+    """
+    Plot Hi-C map as a square matrix.
+    """
     def __init__(self, hic_data, flip=False, **kwargs):
         """
-        Initialize a 2D Hi-C heatmap plot.
-
-        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
         :param flip: Transpose matrix before plotting
-        :param title: Title drawn on top of the figure panel
-        :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
-        :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
-        :param vmin: Clip interactions below this value
-        :param vmax: Clip interactions above this value
-        :param show_colorbar: Draw a colorbar
-        :param adjust_range: Draw a slider to adjust vmin/vmax interactively
-        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
-        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
-        :param blend_zero: If True then zero count bins will be drawn using the minimum
-                           value in the colormap, otherwise transparent
-        :param unmappable_color: Draw unmappable bins using this color. Defaults to
-                                 light gray (".9")
-        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-                       the height_ratios in class:`~GenomicFigure`
         """
         BasePlotter2D.__init__(self, **kwargs)
         BasePlotterHic.__init__(self, hic_data=hic_data, **kwargs)
@@ -349,11 +340,15 @@ class HicComparisonPlot2D(HicPlot2D):
 
 
 class HicSlicePlot(ScalarDataPlot):
+    """
+    Draw a Hi-C data as virtual 4C-plot. All interactions that 
+    involve the slice region are shown.
+    """
+
     def __init__(self, hic_data, slice_region, names=None, ylim=None, yscale="linear",
                  buffering_strategy="relative", buffering_arg=1, **kwargs):
         """
-        Initialize a plot which draws Hi-C data as virtual 4C-plot. All interactions that
-        involve the slice region are shown.
+        Initialize a plot which 
 
         :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`. Can be list of
                          multiple Hi-C datasets.
@@ -361,11 +356,6 @@ class HicSlicePlot(ScalarDataPlot):
                              All interactions involving this region are shown.
         :param names: If multiple Hi-C datasets are provided, can pass a list of names.
                       Are used as names in the legend of the plot.
-        :param style: 'step' Draw values in a step-wise manner for each bin
-                      'mid' Draw values connecting mid-points of bins
-        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-                       the height_ratios in class:`~GenomicFigure`
-        :param title: Title drawn on top of the figure panel
         :param ylim: Tuple to set y-axis limits
         :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
                         valid argument ("linear", "log", etc.) works
@@ -411,29 +401,13 @@ class HicSlicePlot(ScalarDataPlot):
 
 
 class HicPlot(BasePlotter1D, BasePlotterHic):
+    """
+    A triangle Hi-C heatmap plot.
+    """
+
     def __init__(self, hic_data, max_dist=None, **kwargs):
         """
-        Initialize a triangle Hi-C heatmap plot.
-
-        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
-        :param title: Title drawn on top of the figure panel
-        :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
-        :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
         :param max_dist: Only draw interactions up to this distance
-        :param vmin: Clip interactions below this value
-        :param vmax: Clip interactions above this value
-        :param show_colorbar: Draw a colorbar
-        :param adjust_range: Draw a slider to adjust vmin/vmax interactively
-        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
-        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
-        :param blend_zero: If True then zero count bins will be drawn using the minimum
-                           value in the colormap, otherwise transparent
-        :param unmappable_color: Draw unmappable bins using this color. Defaults to
-                                 light gray (".9")
-        :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
-                                 None (no special color).
-        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-                       the height_ratios in class:`~GenomicFigure`
         """
         kwargs.setdefault("aspect", .5)
         BasePlotterHic.__init__(self, hic_data=hic_data, **kwargs)
