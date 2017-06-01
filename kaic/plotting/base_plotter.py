@@ -252,6 +252,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         if self.ax:
             plt.setp(self.ax.get_xticklines(), visible=False)
             self.ax.xaxis.set_visible(False)
+            self.ax.spines["bottom"].set_visible(False)
         else:
             self._has_ticks = False
 

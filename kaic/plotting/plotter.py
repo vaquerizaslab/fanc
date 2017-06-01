@@ -246,7 +246,7 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 class GenomicRegionsPlot(ScalarDataPlot):
     """
-    Plot scalar values from one or more class:`~GenomicTrack` objects
+    Plot scalar values from one or more class:`~GenomicRegions` objects
     """
 
     def __init__(self, regions, attributes=None, names=None, **kwargs):
@@ -530,15 +530,19 @@ class HicPeakPlot(BaseOverlayPlotter):
     """
     Overlay peaks onto Hicplot or HicPlot2D
     """
-    def __init__(self, peaks, radius=None, **kwargs):
+    def __init__(self, peaks, radius=None, circle_props={}, **kwargs):
         """
         :param peaks: Kaic peaks instance
         :param radius: Radius in bp for plotted circles
+        :param circe_props: Dictionary with properties for the plotted circles
+                            for the matplotlib.patches.Circle constructor.
+                            Default: Black edges, no fill
         """
         BaseOverlayPlotter.__init__(self, **kwargs)
         self.peaks = peaks
         self.radius = radius
         self.circle_props = {"edgecolor": "black", "fill": False}
+        self.circle_props.update(circe_props)
 
     @property
     def compatibility(self):
