@@ -284,13 +284,15 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
 
 class BasePlotter1D(with_metaclass(PlotMeta, BasePlotter)):
 
-    def __init__(self, n_ticks=3, n_minor_ticks=5, **kwargs):
+    def __init__(self, n_ticks=5, n_minor_ticks=5, **kwargs):
         """
-        :param n_ticks: Number of major ticks
+        :param n_ticks: Number of major x-axis genome coordinate ticks
         :param n_minor_ticks: Number of minor ticks per major tick
         """
         BasePlotter.__init__(self, **kwargs)
-        self.n_tick_bins = n_ticks + 2
+        if n_ticks < 2:
+            raise ValueError("Need at least two ticks. Set draw_ticks to False to hide all ticks.")
+        self.n_tick_bins = n_ticks - 1
         self.n_minor_ticks = n_minor_ticks
         self._mouse_release_handler = None
         self._last_xlim = None
