@@ -284,8 +284,14 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
 
 class BasePlotter1D(with_metaclass(PlotMeta, BasePlotter)):
 
-    def __init__(self, **kwargs):
+    def __init__(self, n_ticks=3, n_minor_ticks=5, **kwargs):
+        """
+        :param n_ticks: Number of major ticks
+        :param n_minor_ticks: Number of minor ticks per major tick
+        """
         BasePlotter.__init__(self, **kwargs)
+        self.n_tick_bins = n_ticks + 2
+        self.n_minor_ticks = n_minor_ticks
         self._mouse_release_handler = None
         self._last_xlim = None
         self._current_chromosome = None
@@ -293,8 +299,8 @@ class BasePlotter1D(with_metaclass(PlotMeta, BasePlotter)):
     def _before_plot(self, region=None, *args, **kwargs):
         BasePlotter._before_plot(self, region=region, *args, **kwargs)
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
-        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=5))
-        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
+        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
+        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self._current_chromosome = region.chromosome
 
     def _after_plot(self, region=None, *args, **kwargs):
@@ -519,9 +525,15 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
 
 class BasePlotter2D(with_metaclass(PlotMeta, BasePlotter)):
 
-    def __init__(self, **kwargs):
+    def __init__(self, n_ticks=3, n_minor_ticks=5, **kwargs):
+        """
+        :param n_ticks: Number of major ticks
+        :param n_minor_ticks: Number of minor ticks per major tick
+        """
         kwargs.setdefault("aspect", 1.)
         BasePlotter.__init__(self, **kwargs)
+        self.n_tick_bins = n_ticks + 2
+        self.n_minor_ticks = n_minor_ticks
         self._mouse_release_handler = None
         self._current_chromosome_x = None
         self._current_chromosome_y = None
@@ -532,11 +544,11 @@ class BasePlotter2D(with_metaclass(PlotMeta, BasePlotter)):
         x_region, y_region = region
         BasePlotter._before_plot(self, region=x_region, *args, **kwargs)
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
-        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=5))
-        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
+        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
+        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
-        self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=5))
-        self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
+        self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
+        self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self._current_chromosome_x = x_region.chromosome
         self._current_chromosome_y = y_region.chromosome
 
