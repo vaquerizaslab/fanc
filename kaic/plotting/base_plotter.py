@@ -157,7 +157,30 @@ def _prepare_normalization(norm="lin", vmin=None, vmax=None):
         raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
 
-class BasePlotter(with_metaclass(ABCMeta, object)):
+class PlotMeta(ABCMeta):
+    """
+    Metaclass for all plotting classes. Automatically adds
+    all parent classes' docstrings to the subclasses.
+    """
+    def __new__(cls, clsname, bases, dct):
+        new_init_doc = ""
+        new_doc = ""
+        for b in bases:
+            if b.__init__.__doc__ is not None:
+                new_init_doc += b.__init__.__doc__
+            if b.__doc__ is not None:
+                new_doc += b.__doc__
+        if dct.get("__doc__", None) is not None:
+            new_doc += dct["__doc__"]
+        if dct["__init__"].__doc__ is not None:
+            new_init_doc += dct["__init__"].__doc__
+        if len(new_init_doc) > 0:
+            dct["__init__"].__doc__ = new_init_doc
+        if len(new_doc) < 1:
+            dct["__doc__"] = new_doc
+        return super(PlotMeta, cls).__new__(cls, clsname, bases, dct)
+
+class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks", **kwargs):
         check_kwargs(self, kwargs)
@@ -251,7 +274,7 @@ class BasePlotter(with_metaclass(ABCMeta, object)):
         self.overlays.append(overlay)
 
 
-class BasePlotter1D(with_metaclass(ABCMeta, BasePlotter)):
+class BasePlotter1D(with_metaclass(PlotMeta, BasePlotter)):
 
     def __init__(self, **kwargs):
         BasePlotter.__init__(self, **kwargs)
@@ -339,7 +362,7 @@ class ScalarDataPlot(BasePlotter1D):
                _STYLE_MID: _get_values_per_mid}
 
 
-class BasePlotterMatrix(with_metaclass(ABCMeta, object)):
+class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
     """
     Mix-in class to provide methods for mapping colorvalues
     in special areas in the plots etc.
@@ -451,7 +474,7 @@ class BasePlotterMatrix(with_metaclass(ABCMeta, object)):
         self.norm = _prepare_normalization(norm, vmin, vmax)
 
 
-class BasePlotter2D(with_metaclass(ABCMeta, BasePlotter)):
+class BasePlotter2D(with_metaclass(PlotMeta, BasePlotter)):
 
     def __init__(self, **kwargs):
         kwargs.setdefault("aspect", 1.)
@@ -536,7 +559,7 @@ class BasePlotter2D(with_metaclass(ABCMeta, BasePlotter)):
         return plot_output
 
 
-class BaseOverlayPlotter(with_metaclass(ABCMeta, object)):
+class BaseOverlayPlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, **kwargs):
         check_kwargs(self, kwargs)

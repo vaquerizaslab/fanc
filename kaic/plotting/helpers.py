@@ -193,5 +193,5 @@ class SymmetricNorm(mpl.colors.Normalize):
 def check_kwargs(instance, kwargs):
     if len(kwargs) > 0:
         logger.warning(
-            "Unused keyword args provided to class {} {}".format(repr(instance)), repr(kwargs)
+            "Unused keyword args provided to class {} {}".format(repr(instance), repr(kwargs))
         )

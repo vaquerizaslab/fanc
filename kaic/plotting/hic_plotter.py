@@ -1,6 +1,7 @@
 import kaic
 from kaic.config import config
-from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot
+from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot, \
+                                       PlotMeta
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
 from kaic.data.genomic import GenomicRegion
 import matplotlib as mpl
@@ -216,7 +217,7 @@ class BufferedCombinedMatrix(BufferedMatrix):
         self.data = CombinedData(top_matrix, bottom_matrix, scaling_factor)
 
 
-class BasePlotterHic(with_metaclass(ABCMeta, BasePlotterMatrix)):
+class BasePlotterHic(with_metaclass(PlotMeta, BasePlotterMatrix)):
     """
     Base class for plotting Hi-C data.
 
