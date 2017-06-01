@@ -249,7 +249,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
     Plot scalar values from one or more class:`~GenomicTrack` objects
     """
 
-    def __init__(self, regions, attributes=None, ylim=None, names=None, legend=True, **kwargs):
+    def __init__(self, regions, attributes=None, names=None, **kwargs):
         """
         :param regions: class:`~GenomicRegions`
         :param attributes: Only draw attributes from the track objects
@@ -265,7 +265,6 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.regions = regions
         self.attributes = attributes
         self.lines = []
-        self.ylim = ylim
         self.names = names
         self.legend = legend
 
@@ -292,9 +291,6 @@ class GenomicRegionsPlot(ScalarDataPlot):
                 self.lines.append(l[0])
                 line_counter += 1
 
-        if self.ylim is not None:
-            self.ax.set_ylim(self.ylim)
-
         if self.legend:
             self.add_legend()
         self.remove_colorbar_ax()
@@ -315,11 +311,11 @@ class GenomicRegionsPlot(ScalarDataPlot):
 
 
 class RegionsValuesPlot(ScalarDataPlot):
-    def __init__(self, regions, values, symmetry=None, style="step", title='', aspect=.2,
-                 axes_style=style_ticks_whitegrid, ylim=None):
+    """
+    Plot scalar values from one or more class:`~GenomicTrack` objects
+    """
+    def __init__(self, regions, values, symmetry=None, **kwargs):
         """
-        Plot scalar values from one or more class:`~GenomicTrack` objects
-
         :param regions: class:`~GenomicRegions`
         :param style: 'step' Draw values in a step-wise manner for each bin
               'mid' Draw values connecting mid-points of bins
@@ -331,8 +327,9 @@ class RegionsValuesPlot(ScalarDataPlot):
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
                the height_ratios in class:`~GenomicFigure`
         """
-        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
-                                axes_style=axes_style)
+        kwargs.setdefault("axes_style", style_ticks_whitegrid)
+        kwargs.setdefault("aspect", .2)
+        ScalarDataPlot.__init__(self, **kwargs)
 
         self.regions = regions
         self.legend = True
@@ -342,7 +339,6 @@ class RegionsValuesPlot(ScalarDataPlot):
         else:
             self.values = values
         self.lines = []
-        self.ylim = ylim
         self.symmetry = symmetry
 
     def _plot_values(self, region=None):
@@ -365,9 +361,6 @@ class RegionsValuesPlot(ScalarDataPlot):
         for label, x, y in self._plot_values(region):
             l = self.ax.plot(x, y, label=label)
             self.lines.append(l[0])
-
-        if self.ylim is not None:
-            self.ax.set_ylim(self.ylim)
 
         if self.symmetry is not None:
             ylim = self.ax.get_ylim()
@@ -459,7 +452,7 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
 
 class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
     """
-    Plot matrix from a class:`~MultiVectorArchitecturalRegionFeature` objects
+    Plot matrix from a class:`~MultiVectorArchitecturalRegionFeature` object.
     """
 
     def __init__(self, array, keys=None, y_coords=None, y_scale='linear', plot_kwargs=None,
@@ -834,8 +827,8 @@ class BigWigPlot(ScalarDataPlot):
     Plot data from on or more BigWig files.
     """
 
-    def __init__(self, bigwigs, names=None, bin_size=None, fill=True, plot_kwargs=None,
-                 ylim=None, **kwargs):
+    def __init__(self, bigwigs, names=None, bin_size=None, fill=True,
+                 plot_kwargs=None, **kwargs):
         """
         :param bigwigs: Path or list of paths to bigwig files
         :param names: List of names for each bigwig. Used as label in the legend.
@@ -860,7 +853,6 @@ class BigWigPlot(ScalarDataPlot):
         self.names = names
         self.bin_size = bin_size
         self.lines = []
-        self.title = title
         self.condensed = condensed
         self.fill = fill
 
@@ -925,7 +917,7 @@ class GenePlot(BasePlotter1D):
     """
     Plot genes including exon/intron structure from BED, GTF files or similar.
     """
-    
+
     def __init__(self, genes, title="", feature_types=('exon',), color_neutral='gray',
                  color_forward='orangered', color_reverse='darkturquoise',
                  color_score=False, vdist=0.2, box_height=0.1, show_labels=True, font_size=9, arrow_size=8,

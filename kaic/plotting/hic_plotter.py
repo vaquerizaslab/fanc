@@ -345,7 +345,7 @@ class HicSlicePlot(ScalarDataPlot):
     involve the slice region are shown.
     """
 
-    def __init__(self, hic_data, slice_region, names=None, ylim=None, yscale="linear",
+    def __init__(self, hic_data, slice_region, names=None,
                  buffering_strategy="relative", buffering_arg=1, **kwargs):
         """
         Initialize a plot which 
@@ -356,9 +356,6 @@ class HicSlicePlot(ScalarDataPlot):
                              All interactions involving this region are shown.
         :param names: If multiple Hi-C datasets are provided, can pass a list of names.
                       Are used as names in the legend of the plot.
-        :param ylim: Tuple to set y-axis limits
-        :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
-                        valid argument ("linear", "log", etc.) works
         :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
         :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
         """
@@ -376,8 +373,6 @@ class HicSlicePlot(ScalarDataPlot):
         if isinstance(slice_region, string_types):
             slice_region = GenomicRegion.from_string(slice_region)
         self.slice_region = slice_region
-        self.yscale = yscale
-        self.ylim = ylim
         self.x = None
         self.y = None
 
@@ -392,9 +387,6 @@ class HicSlicePlot(ScalarDataPlot):
             self.add_legend()
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
-        self.ax.set_yscale(self.yscale)
-        if self.ylim:
-            self.ax.set_ylim(self.ylim)
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
         pass
