@@ -170,10 +170,9 @@ class PlotMeta(ABCMeta):
         for b in bases:
             if b.__name__ == "object":
                 continue
-            if b.__init__.__doc__ is not None:
-                # Remove last line return to avoid empty lines in
-                # assembled docstring
-                new_init_doc += b.__init__.__doc__[:-1]
+            if b.__init__.__doc__ is not None and len(b.__init__.__doc__) > 1:
+                new_init_doc += "\nArguments from {}:".format(b.__name__)
+                new_init_doc += b.__init__.__doc__
         if len(new_init_doc) > 0:
             dct["__init__"].__doc__ = new_init_doc
         return super(PlotMeta, cls).__new__(cls, clsname, bases, dct)
