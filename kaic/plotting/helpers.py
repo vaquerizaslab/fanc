@@ -2,8 +2,6 @@ from __future__ import division
 import matplotlib as mpl
 import numpy as np
 import pybedtools as pbt
-import logging
-logger = logging.getLogger(__name__)
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,
@@ -189,9 +187,3 @@ class SymmetricNorm(mpl.colors.Normalize):
         abs_max = max(abs(vmin), abs(vmax))
         self.vmin = -1.*abs_max
         self.vmax = abs_max
-
-def check_kwargs(instance, kwargs):
-    if len(kwargs) > 0:
-        logger.warning(
-            "Unused keyword args provided to class {} {}".format(repr(instance), repr(kwargs))
-        )

@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 from kaic.config import config
-from kaic.plotting.helpers import style_ticks_whitegrid, check_kwargs
+from kaic.plotting.helpers import style_ticks_whitegrid
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
@@ -191,7 +191,6 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         :param draw_ticks: Draw tickmarks. Default: True
         :param draw_tick_labels: Draw tick labels. Default: True
         """
-        check_kwargs(self, kwargs)
         self.ax = None
         self.cax = None
         self.title = title
@@ -441,7 +440,6 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         :param colorbar_symmetry: Set to enforce that the colorbar is symemtric around
                                   this value. Default: None
         """
-        check_kwargs(self, kwargs)
         if isinstance(colormap, string_types):
             colormap = mpl.cm.get_cmap(colormap)
         self.colormap = colormap
@@ -636,7 +634,7 @@ class BasePlotter2D(with_metaclass(PlotMeta, BasePlotter)):
 class BaseOverlayPlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, **kwargs):
-        check_kwargs(self, kwargs)
+        pass
 
     @abstractproperty
     def compatibility(self):
