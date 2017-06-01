@@ -331,7 +331,7 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, style="step", ylim=None, yscale="lin", **kwargs):
+    def __init__(self, style="step", ylim=None, yscale="linear", **kwargs):
         """
         :param style: 'step' Draw values in a step-wise manner for each bin
                       'mid' Draw values connecting mid-points of bins
@@ -340,7 +340,7 @@ class ScalarDataPlot(BasePlotter1D):
                      Default: Automatically determined by data limits
         :param yscale: Scale of y-axis. Is passed to Matplotlib set_yscale,
                        so any valid argument ("linear", "log", etc.) works
-                       Default: "lin"
+                       Default: "linear"
         """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", style_ticks_whitegrid)

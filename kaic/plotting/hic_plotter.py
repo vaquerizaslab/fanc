@@ -378,7 +378,6 @@ class HicSlicePlot(ScalarDataPlot):
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
         for i, b in enumerate(self.hic_buffers):
-            hm = b.get_matrix(self.slice_region, region).T
             hm = np.mean(b.get_matrix(self.slice_region, region).T, axis=0)
             bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]
             bin_coords = (bin_coords[1:] + bin_coords[:-1])/2
