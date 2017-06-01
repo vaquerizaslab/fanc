@@ -178,14 +178,25 @@ class PlotMeta(ABCMeta):
 
 class BasePlotter(with_metaclass(PlotMeta, object)):
 
-    def __init__(self, title='', aspect=1., axes_style="ticks", **kwargs):
+    def __init__(self, title='', aspect=1., axes_style="ticks",
+                 draw_ticks=True, draw_tick_labels=True, **kwargs):
+        """
+        :param title: Title drawn on top of the figure panel
+        :param aspect: Aspect ratio of the plot. Can be overriden by setting
+-                      the height_ratios in class:`~GenomicFigure`
+        :param axes_style: Set styling of the axes, can be anything
+                           that seaborn supports. See
+                           http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
+        :param draw_ticks: Draw tickmarks. Default: True
+        :param draw_tick_labels: Draw tick labels. Default: True
+        """
         check_kwargs(self, kwargs)
         self.ax = None
         self.cax = None
         self.title = title
         self.has_legend = False
-        self._has_ticks = True
-        self._has_ticklabels = True
+        self._has_ticks = draw_ticks
+        self._has_tick_labels = draw_tick_labels
         self._aspect = aspect
         self.axes_style = axes_style
         self.overlays = []
@@ -198,7 +209,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             o.plot(self, region)
         if not self._has_ticks:
             self.remove_genome_ticks()
-        if not self._has_ticklabels:
+        if not self._has_tick_labels:
             self.remove_genome_labels()
 
     @abstractmethod
