@@ -19,6 +19,11 @@ def get_example_bigwig():
     h = directory + "/../data/test_plotting/sample_bigwig.bigwig"
     return h
 
+def get_example_bedgraph():
+    directory = os.path.dirname(os.path.realpath(__file__))
+    h = directory + "/../data/test_plotting/sample_bigwig.bedgraph"
+    return h
+
 @pytest.mark.plotting
 class TestHicPlot:
     def setup_method(self, method):
@@ -154,18 +159,21 @@ class TestPlots:
         self.bigwig_path = get_example_bigwig()
         self.pyBigWig = pytest.importorskip("pyBigWig")
         self.bigwig = self.pyBigWig.open(self.bigwig_path)
+        self.bedgraph_path = get_example_bedgraph()
 
     def teardown_method(self, method):
         self.bigwig.close()
 
+    @pytest.mark.parametrize("file", ["bigwig", "bedgraph"])
     @pytest.mark.parametrize("crange", [(10, 700)])
     @pytest.mark.parametrize("n_bw", [1, 3])
     @pytest.mark.parametrize("ylim", [(0, 10), (None, 5)])
     @pytest.mark.parametrize("yscale", ["linear", "log"])
     @pytest.mark.parametrize("names", [None, True])
     @pytest.mark.parametrize("bin_size", [50, 2])
-    def test_bigwig_plot(self, crange, n_bw, ylim, yscale, names, bin_size):
-        bw_data = self.bigwig_path if n_bw == 1 else [self.bigwig_path]*n_bw
+    def test_bigwig_plot(self, file, crange, n_bw, ylim, yscale, names, bin_size):
+        path = getattr(self, "{}_path".format(file))
+        bw_data = path if n_bw == 1 else [path]*n_bw
         names_passed = None if names is None else ["bw{}".format(i) for i in range(n_bw)]
         bplot = kplot.BigWigPlot(bw_data, names=names_passed, bin_size=bin_size,
                                   ylim=ylim, yscale=yscale)
@@ -176,4 +184,5 @@ class TestPlots:
             assert a is None or a == b
         if names is not None:
             assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), names_passed))
-
+        # Should figure out exactly how many data points I expect instead...
+        assert all(len(l.get_ydata()) > 5 for l in axes[0].get_lines())

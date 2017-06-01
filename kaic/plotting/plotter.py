@@ -828,13 +828,13 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
 class BigWigPlot(ScalarDataPlot):
     """
-    Plot data from on or more BigWig files.
+    Plot data from on or more BigWig or Bedgraph files.
     """
 
     def __init__(self, bigwigs, names=None, bin_size=None, fill=True,
                  plot_kwargs=None, **kwargs):
         """
-        :param bigwigs: Path or list of paths to bigwig files
+        :param bigwigs: Path or list of paths to bigwig or bedgraph files
         :param names: List of names for each bigwig. Used as label in the legend.
         :param bin_size: Bin BigWig values using fixed size bins of the given size.
                          If None, will plot values as they are in the BigWig file
@@ -883,7 +883,10 @@ class BigWigPlot(ScalarDataPlot):
 
     def _line_values(self, region):
         for i, b in enumerate(self.bigwigs):
-            intervals = b.intervals(region.chromosome, region.start - 1, region.end)
+            if isinstance(b, kaic.Bed):
+                intervals = [(r.start, r.end, r.score) for r in b[region]]
+            else:
+                intervals = b.intervals(region.chromosome, region.start - 1, region.end)
 
             if self.bin_size:
                 regions, bw_values = self._bin_intervals(region, intervals)
