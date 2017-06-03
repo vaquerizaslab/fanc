@@ -180,7 +180,9 @@ class PlotMeta(ABCMeta):
 class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks",
-                 draw_ticks=True, draw_tick_labels=True, **kwargs):
+                 draw_ticks=True, draw_tick_labels=True, draw_tick_legend=True,
+                 draw_genome_axis=True, padding=None,
+                 extra_padding=0, **kwargs):
         """
         :param title: Title drawn on top of the figure panel
         :param aspect: Aspect ratio of the plot. Can be overriden by setting
@@ -190,14 +192,25 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
                            http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
         :param draw_ticks: Draw tickmarks. Default: True
         :param draw_tick_labels: Draw tick labels. Default: True
+        :param draw_genome_axis: If False, remove genome x-axis completely.
+                                 Default: False
+        :param draw_tick_legend: Draw legend for the tick distances. Default: True
+        :param padding: Padding in inches to the next plot. Default: None,
+                        automatically calculated.
+        :param extra_padding: Add or subtract the specified inches from
+                              the automatically calculated padding.
         """
         self.ax = None
         self.cax = None
         self.title = title
-        self.has_legend = False
+        self._has_legend = False
         self._has_ticks = draw_ticks
         self._has_tick_labels = draw_tick_labels
-        self._aspect = aspect
+        self._has_genome_axis = draw_genome_axis
+        self._has_tick_legend = draw_tick_legend
+        self.aspect = aspect
+        self.padding = padding
+        self.extra_padding = extra_padding
         self.axes_style = axes_style
         self.overlays = []
 
@@ -211,6 +224,10 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             self.remove_genome_ticks()
         if not self._has_tick_labels:
             self.remove_genome_labels()
+        if not self._has_genome_axis:
+            self.remove_genome_axis()
+        if not self._has_tick_legend:
+            self.remove_tick_legend()
 
     @abstractmethod
     def _plot(self, region=None, *args, **kwargs):
@@ -238,11 +255,9 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         return self.ax.figure
 
     def add_legend(self, *args, **kwargs):
-        if not self.has_legend:
+        if not self._has_legend:
             self.ax.legend(*args, **kwargs)
-
-    def get_default_aspect(self):
-        return self._aspect
+            self._has_legend = True
 
     def remove_genome_ticks(self):
         """
@@ -250,8 +265,6 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if self.ax:
             plt.setp(self.ax.get_xticklines(), visible=False)
-            self.ax.xaxis.set_visible(False)
-            self.ax.spines["bottom"].set_visible(False)
         else:
             self._has_ticks = False
 
@@ -261,9 +274,27 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if self.ax:
             plt.setp(self.ax.get_xticklabels(), visible=False)
-            self.ax.xaxis.offsetText.set_visible(False)
         else:
             self._has_ticklabels = False
+
+    def remove_genome_axis(self):
+        """
+        Remove the genome coordinate x-axis.
+        """
+        if self.ax:
+            self.ax.xaxis.set_visible(False)
+            self.ax.spines["bottom"].set_visible(False)
+        else:
+            self._has_genome_axis = False
+
+    def remove_tick_legend(self):
+        """
+        Remove the tick mark legend.
+        """
+        if self.ax:
+            self.ax.xaxis.offsetText.set_visible(False)
+        else:
+            self._has_tick_legend = False
 
     def remove_colorbar_ax(self):
         if self.cax is None:
@@ -282,7 +313,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self.overlays.append(overlay)
 
 
-class BasePlotter1D(with_metaclass(PlotMeta, BasePlotter)):
+class BasePlotter1D(BasePlotter):
 
     def __init__(self, n_ticks=5, n_minor_ticks=5, **kwargs):
         """
@@ -542,7 +573,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         self.norm = _prepare_normalization(norm, vmin, vmax)
 
 
-class BasePlotter2D(with_metaclass(PlotMeta, BasePlotter)):
+class BasePlotter2D(BasePlotter):
 
     def __init__(self, n_ticks=3, n_minor_ticks=5, **kwargs):
         """

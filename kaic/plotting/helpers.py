@@ -187,3 +187,11 @@ class SymmetricNorm(mpl.colors.Normalize):
         abs_max = max(abs(vmin), abs(vmax))
         self.vmin = -1.*abs_max
         self.vmax = abs_max
+
+def box_coords_abs_to_rel(top, left, width, height, figsize):
+    f_width, f_height = figsize
+    rel_bottom = (f_height - top - height)/f_height
+    rel_left = left/f_width
+    rel_width = width/f_width
+    rel_height = height/f_height
+    return (rel_left, rel_bottom, rel_width, rel_height)

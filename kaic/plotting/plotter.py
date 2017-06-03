@@ -7,7 +7,8 @@ from kaic.data.genomic import GenomicRegion, GenomicDataFrame
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
-                                  region_to_pbt_interval, absolute_wspace_hspace
+                                  region_to_pbt_interval, absolute_wspace_hspace, \
+                                  box_coords_abs_to_rel
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import types
@@ -29,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 plt = sns.plt
 
+PAD_EMPTY_AXIS = .2
+PAD_WITH_LABEL = .3
+PAD_WITH_TICKS = .2
 
 def hide_axis(ax):
     """
@@ -64,64 +68,38 @@ class GenomicFigure(object):
     GenomicFigure composed of one or more plots.
     All plots are arranged in a single column, their genomic coordinates aligned.
     """
+    _unused_args = ["hspace", "figsize", "height_ratios", "gridspec_args", "hide_x"]
 
-    def __init__(self, plots, height_ratios=None, figsize=None, hspace=.5,
-                 gridspec_args=None, ticks_last=False, fix_chromosome=None,
-                 invert_x=False, hide_x=None):
+    def __init__(self, plots, width=5., ticks_last=False, fix_chromosome=None,
+                 invert_x=False, cax_padding=.3, cax_width=.5, fig_padding=(.5, .5, .5, .5),
+                 hspace=None, figsize=None, height_ratios=None, hide_x=None,
+                 gridspec_args=None):
         """
         :param plots: List of plot instances, which should inherit
                       from :class:`~BasePlotter`
-        :param height_ratios: Usually the aspect ratio of all plots is already specified
-                              using the "aspect" argument when constructing the plot instances.
-                              Alternatively, the aspect ratios can be overriden here by supplying
-                              a list of aspect ratios, one for each plot.
-                              The sum of this list is also used to calculate the total height of
-                              the plot in inches height = width*sum(height_ratios).
-                              If any or all entries are None, the aspect ratio of these
-                              plots default to the value specified in the plot instances
-                              using the aspect argument.
-        :param figsize: Specify figure size directly (width, height) of figure in inches.
-                        Defaults is (6, 6*sum(height_ratios))
-                        None can be used to as a placeholder for the default value, eg.
-                        (8, None) is converted to (8, 8*sum(height_rations))
-        :param hspace: Distance between plot panels in inches
-        :param gridspec_args: Optional keyword-arguments passed directly to GridSpec constructor
+        :param width: Width of the plots in inches. Height is automatically determined
+                      from the specified aspect ratios of the Plots.
+                      Default: 5.
         :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
         :param fix_chromosome: boolean list, same length as plots. If an element is True, the corresponding plot
                                will receive a modified chromosome identifier (omitting or adding 'chr' as necessary)
+        :param invert_x: Invert x-axis. Default: False
+        :param cax_padding: Distance between plots and the colorbar in inches. Default: 0.3
+        :param cax_width: Width of colorbar in inches. Default: 0.5
+        :param fig_padding: Distance between the edges of the plots and the figure borders
+                            in inches (bottom, top, left, right). Default: (.5, .5, .5, .5)
         """
+        for a in self._unused_args:
+            if locals()[a] is not None:
+                logger.warning("{} is no longer used!".format(a))
         self.plots = plots
         self.n = len(plots)
         self.ticks_last = ticks_last
-        if height_ratios is None:
-            height_ratios = [None]*self.n
-        for i in range(self.n):
-            if height_ratios[i] is None:
-                height_ratios[i] = self.plots[i].get_default_aspect()
-        self.height_ratios = height_ratios
-        if figsize is None:
-            figsize = (None, None)
-        width, height = figsize
-        if width is None:
-            width = 6
-        if height is None:
-            height = width*sum(height_ratios) + hspace*self.n
-        self.figsize = width, height
-        if not gridspec_args:
-            gridspec_args = {}
-        gs = gridspec.GridSpec(self.n, 2, height_ratios=self.height_ratios, width_ratios=[1, .05], **gridspec_args)
-        self.gs = gs
-        fig = plt.figure(figsize=self.figsize)
-        absolute_wspace_hspace(fig, gs, .3, hspace)
-        for i in range(self.n):
-            with sns.axes_style("ticks" if plots[i].axes_style is None else
-                                plots[i].axes_style):
-                if i > 0:
-                    ax = plt.subplot(gs[i, 0], sharex=self.axes[0])
-                else:
-                    ax = plt.subplot(gs[i, 0])
-            plots[i].ax = ax
-            plots[i].cax = plt.subplot(gs[i, 1])
+        self._width = width
+        self._cax_padding = cax_padding
+        self._cax_width = cax_width
+        self._fig_padding = fig_padding
+        self._figure_setup()
 
         # fix chromosome identifiers
         if fix_chromosome is None:
@@ -142,6 +120,38 @@ class GenomicFigure(object):
         if len(self.hide_x) != self.n:
             raise ValueError("hide_x ({}) must be the same length "
                              "as plots ({})".format(len(self.hide_x), self.n))
+
+    def _figure_setup(self):
+        aspects = [p.aspect for p in self.plots]
+        pad_b, pad_t, pad_l, pad_r = self._fig_padding
+        total_width = pad_l + pad_r + self._width + self._cax_width + self._cax_padding
+        plot_heights = [a*self._width for a in aspects]
+        plot_pads = []
+        for p in self.plots:
+            if p.padding is not None:
+                pad = p.padding
+            else:
+                pad = PAD_EMPTY_AXIS + p.extra_padding
+                if p._has_tick_labels:
+                    pad += PAD_WITH_LABEL
+                if p._has_ticks:
+                    pad += PAD_WITH_TICKS
+            plot_pads.append(pad)
+        total_height = pad_t + pad_b + sum(plot_heights) + sum(plot_pads)
+        figsize = (total_width, total_height)
+        cax_l = pad_l + self._width + self._cax_padding
+        fig = plt.figure(figsize=figsize)
+        cur_top = pad_t
+        for i in range(self.n):
+            ax_specs = box_coords_abs_to_rel(cur_top, pad_l, self._width, plot_heights[i], figsize)
+            with sns.axes_style("ticks" if self.plots[i].axes_style is None else
+                                self.plots[i].axes_style):
+                ax = fig.add_axes(list(ax_specs), sharex=self.axes[0] if i > 0 else None)
+            cax_specs = box_coords_abs_to_rel(cur_top, cax_l, self._cax_width, plot_heights[i], figsize)
+            cax = fig.add_axes(list(cax_specs))
+            self.plots[i].ax = ax
+            self.plots[i].cax = cax
+            cur_top += plot_heights[i] + plot_pads[i]
 
     @property
     def fig(self):

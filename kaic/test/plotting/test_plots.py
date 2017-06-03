@@ -24,6 +24,12 @@ def get_example_bedgraph():
     h = directory + "/../data/test_plotting/sample_bigwig.bedgraph"
     return h
 
+def abs_ax_aspect(ax):
+    bbox = ax.get_position()
+    fig = ax.figure
+    aspect = (bbox.height*fig.get_figheight())/(bbox.width*fig.get_figwidth())
+    return aspect
+
 @pytest.mark.plotting
 class TestHicPlot:
     def setup_method(self, method):
@@ -63,7 +69,8 @@ class TestHicPlot:
             assert hplot.collection.norm.vmin == vmin
         if vmax is not None:
             assert hplot.collection.norm.vmax == vmax
-        assert hplot.get_default_aspect() == aspect
+        assert hplot.aspect == aspect
+        assert abs_ax_aspect(axes[0]) == pytest.approx(aspect)
         colorbar_values = {True: mpl.colorbar.Colorbar,
                            False: type(None)}
         assert isinstance(hplot.colorbar, colorbar_values[colorbar])
@@ -112,7 +119,8 @@ class TestHicPlot:
             assert hplot.im.norm.vmin == vmin
         if vmax is not None:
             assert hplot.im.norm.vmax == vmax
-        assert hplot.get_default_aspect() == aspect
+        assert hplot.aspect == aspect
+        assert abs_ax_aspect(axes[0]) == pytest.approx(aspect)
         colorbar_values = {True: mpl.colorbar.Colorbar,
                            False: type(None)}
         assert isinstance(hplot.colorbar, colorbar_values[colorbar])
