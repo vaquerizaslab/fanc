@@ -17,8 +17,6 @@ logger = logging.getLogger(__name__)
 
 plt = sns.plt
 
-ADJUSTMENT_SLIDER_HEIGHT=.2
-
 def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1):
     """
     Prepare :class:`~BufferedMatrix` from hic data.
@@ -280,7 +278,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
     def add_adj_slider(self, ax=None):
         if ax is None:
-            ax = append_axes(self.ax, 'bottom', ADJUSTMENT_SLIDER_HEIGHT, self._total_padding)
+            ax = append_axes(self.ax, 'bottom', config.adjustment_slider_height, self._total_padding)
 
         vmin = self.hic_buffer.buffered_min
         vmax = self.hic_buffer.buffered_max
@@ -481,7 +479,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
 
     def add_adj_slider(self, ax=None):
         if ax is None:
-            ax = append_axes(self.ax, 'bottom', ADJUSTMENT_SLIDER_HEIGHT, self._total_padding)
+            ax = append_axes(self.ax, 'bottom', config.adjustment_slider_height, self._total_padding)
 
         self.vmax_slider = Slider(ax, 'vmax', self.hic_buffer.buffered_min,
                                   self.hic_buffer.buffered_max, valinit=self.vmax,

@@ -5,7 +5,7 @@ from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
 from kaic.data.genomic import GenomicRegion, GenomicDataFrame
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
-from kaic.plotting.hic_plotter import BasePlotterMatrix, ADJUSTMENT_SLIDER_HEIGHT
+from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
                                   box_coords_abs_to_rel
@@ -29,11 +29,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 plt = sns.plt
-
-PAD_EMPTY_AXIS = .1
-PAD_WITH_LABEL = .3
-PAD_WITH_TICKS = .2
-PAD_NEXT_TITLE = .1
 
 def hide_axis(ax):
     """
@@ -135,16 +130,16 @@ class GenomicFigure(object):
             if p.padding is not None:
                 pad = p.padding
             else:
-                pad = PAD_EMPTY_AXIS + p.extra_padding
+                pad = config.pad_empty_axis + p.extra_padding
                 if p._has_tick_labels:
-                    pad += PAD_WITH_LABEL
+                    pad += config.pad_with_label
                 if p._has_ticks:
-                    pad += PAD_WITH_TICKS
+                    pad += config.pad_with_ticks
                 p._total_padding = pad
                 # Add a bit of space if adjustment slider is present
-                pad_adj_slider = ADJUSTMENT_SLIDER_HEIGHT if getattr(p, "adjust_range", False) else 0.
+                pad_adj_slider = config.adjustment_slider_height if getattr(p, "adjust_range", False) else 0.
                 # Add a bit of space if next plot hs title
-                pad_title = PAD_NEXT_TITLE if i < self.n - 1 and len(self.plots[i + 1].title) > 0 else 0.
+                pad_title = config.pad_next_title if i < self.n - 1 and len(self.plots[i + 1].title) > 0 else 0.
                 pad += pad_adj_slider + pad_title
             plot_pads.append(pad)
         total_height = pad_t + pad_b + sum(plot_heights) + sum(plot_pads)
