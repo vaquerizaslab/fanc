@@ -224,7 +224,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def _before_plot(self, region=None, *args, **kwargs):
         self.ax.set_title(self.title)
-        if self.ylabel and len(self.ylabel > 0):
+        if self.ylabel and len(self.ylabel) > 0:
             self.ax.set_ylabel(self.ylabel, rotation=0, horizontalalignment='right')
 
     def _after_plot(self, region=None, *args, **kwargs):

@@ -2,6 +2,7 @@
 
 import warnings
 import sys
+import traceback
 import os
 from itertools import groupby
 from kaic.commands import klot_commands as commands
@@ -114,10 +115,11 @@ class Klot(object):
                 try:
                     fig, axes = gf.plot(plot_region)
                 except Exception as error:
+                    tb = traceback.format_exc()
                     warnings.warn("There was an error with plot {}, region {}:{}-{} ({})".format(i, region.chromosome,
                                                                                                  region.start,
                                                                                                  region.end,
-                                                                                                 error))
+                                                                                                 tb))
                     logging.warning(error)
                     continue
 
