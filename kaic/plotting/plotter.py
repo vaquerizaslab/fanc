@@ -108,15 +108,6 @@ class GenomicFigure(object):
 
         self.invert_x = invert_x
 
-        # hide x axes
-        if hide_x is None:
-            self.hide_x = [False] * self.n
-        else:
-            self.hide_x = hide_x
-        if len(self.hide_x) != self.n:
-            raise ValueError("hide_x ({}) must be the same length "
-                             "as plots ({})".format(len(self.hide_x), self.n))
-
     def _calc_figure_setup(self):
         aspects = [p.aspect for p in self.plots]
         pad_b, pad_t, pad_l, pad_r = self._fig_padding
@@ -202,9 +193,6 @@ class GenomicFigure(object):
 
             if self.invert_x:
                 a.invert_xaxis()
-
-            if self.hide_x[i]:
-                a.xaxis.set_visible(False)
 
         return self.fig, self.axes
 

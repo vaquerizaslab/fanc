@@ -182,7 +182,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks",
                  draw_ticks=True, draw_tick_labels=True, draw_tick_legend=True,
-                 draw_genome_axis=True, padding=None,
+                 draw_x_axis=True, padding=None,
                  extra_padding=0, **kwargs):
         """
         :param title: Title drawn on top of the figure panel
@@ -193,8 +193,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
                            http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
         :param draw_ticks: Draw tickmarks. Default: True
         :param draw_tick_labels: Draw tick labels. Default: True
-        :param draw_genome_axis: If False, remove genome x-axis completely.
-                                 Default: False
+        :param draw_x_axis: If False, remove genome x-axis completely.
+                            Default: False
         :param draw_tick_legend: Draw legend for the tick distances. Default: True
         :param padding: Padding in inches to the next plot. Default: None,
                         automatically calculated.
@@ -207,7 +207,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self._has_legend = False
         self._has_ticks = draw_ticks
         self._has_tick_labels = draw_tick_labels
-        self._has_genome_axis = draw_genome_axis
+        self._has_x_axis = draw_x_axis
         self._has_tick_legend = draw_tick_legend
         self.aspect = aspect
         self.padding = padding
@@ -227,7 +227,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             self.remove_genome_ticks()
         if not self._has_tick_labels:
             self.remove_genome_labels()
-        if not self._has_genome_axis:
+        if not self._has_x_axis:
             self.remove_genome_axis()
         if not self._has_tick_legend:
             self.remove_tick_legend()
@@ -269,8 +269,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         if self.ax:
             plt.setp(self.ax.xaxis.get_majorticklines(), visible=False)
             plt.setp(self.ax.xaxis.get_minorticklines(), visible=False)
-        else:
-            self._has_ticks = False
+        self._has_ticks = False
 
     def remove_genome_labels(self):
         """
@@ -278,8 +277,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if self.ax:
             plt.setp(self.ax.get_xticklabels(), visible=False)
-        else:
-            self._has_ticklabels = False
+        self._has_tick_labels = False
 
     def remove_genome_axis(self):
         """
@@ -288,8 +286,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         if self.ax:
             self.ax.xaxis.set_visible(False)
             self.ax.spines["bottom"].set_visible(False)
-        else:
-            self._has_genome_axis = False
+        self._has_x_axis = False
 
     def remove_tick_legend(self):
         """
@@ -297,8 +294,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if self.ax:
             self.ax.xaxis.offsetText.set_visible(False)
-        else:
-            self._has_tick_legend = False
+        self._has_tick_legend = False
 
     def remove_colorbar_ax(self):
         if self.cax is None:
