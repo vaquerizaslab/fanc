@@ -77,8 +77,6 @@ class GenomicFigure(object):
                       from the specified aspect ratios of the Plots.
                       Default: 5.
         :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
-        :param fix_chromosome: boolean list, same length as plots. If an element is True, the corresponding plot
-                               will receive a modified chromosome identifier (omitting or adding 'chr' as necessary)
         :param invert_x: Invert x-axis. Default: False
         :param cax_padding: Distance between plots and the colorbar in inches. Default: 0.3
         :param cax_width: Width of colorbar in inches. Default: 0.5
@@ -181,14 +179,6 @@ class GenomicFigure(object):
         for i, (p, a) in enumerate(zip(self.plots, self.axes)):
 
             plot_region = region
-            if self.fix_chromosome[i]:
-                chromosome = region.chromosome
-                if chromosome.startswith('chr'):
-                    chromosome = chromosome[3:]
-                else:
-                    chromosome = 'chr' + chromosome
-                plot_region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
-
             p.plot(plot_region, ax=a)
 
             if self.invert_x:

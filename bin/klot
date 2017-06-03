@@ -54,26 +54,20 @@ class Klot(object):
             matplotlib.use("pdf")
             output_file = os.path.expanduser(global_args.output)
 
-        height_ratios = []
         plots = []
-        fix_chromosome = []
-        hide_x = []
         for plot_method, args in subplot_data:
             # create plot
             plot, plot_args = plot_method(args)
             plots.append(plot)
 
             # register aspect ratio
-            if plot_args.aspect_ratio is None:
-                if hasattr(plot, 'get_default_aspect'):
-                    height_ratios.append(plot.get_default_aspect())
-                else:
-                    height_ratios.append(1.)
-            else:
-                height_ratios.append(plot_args.aspect_ratio)
+            if plot_args.aspect_ratio is not None:
+                plot.aspect = plot_args.aspect_ratio
 
-            fix_chromosome.append(plot_args.fix_chromosome)
-            hide_x.append(plot_args.hide_x)
+            plot.fix_chromosome = plot_args.fix_chromosome
+
+            if plot_args.hide_x:
+                plot.remove_genome_axis()
 
             # set plot title
             plot.title = plot_args.title
@@ -104,8 +98,6 @@ class Klot(object):
             mkdir(output_file)
 
         figure_width = global_args.width
-        figure_height = sum(global_args.width*aspect+global_args.hspace for aspect in height_ratios) \
-            if global_args.height is None else global_args.height
 
         import kaic.plotting as kplt
         for i, region in enumerate(regions):
@@ -118,9 +110,7 @@ class Klot(object):
             else:
                 plot_region = region
 
-            with kplt.GenomicFigure(plots, figsize=(figure_width, figure_height), fix_chromosome=fix_chromosome,
-                                    height_ratios=height_ratios, hspace=global_args.hspace,
-                                    invert_x=global_args.invert_x, hide_x=hide_x) as gf:
+            with kplt.GenomicFigure(plots, width=figure_width, invert_x=global_args.invert_x) as gf:
                 try:
                     fig, axes = gf.plot(plot_region)
                 except Exception as error:

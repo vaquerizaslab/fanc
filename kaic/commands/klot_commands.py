@@ -50,17 +50,10 @@ def klot_parser():
     )
 
     parser.add_argument(
-        '--height', dest='height',
-        type=int,
-        help='''Height of the figure in inches. Default is proportional to figure width, dependent on number
-                of subplots.'''
-    )
-
-    parser.add_argument(
         '--width', dest='width',
         type=int,
-        default=10,
-        help='''Width of the figure in inches. Default: 10'''
+        default=4,
+        help='''Width of the figure in inches. Default: 4'''
     )
 
     parser.add_argument(
@@ -69,13 +62,6 @@ def klot_parser():
         help='''Plotting region size in base pairs. If provided, the actual size of the given region is
                 ignored and instead a region
                 <chromosome>:<region center - window size/2>-<region center + window size/2> will be plotted.'''
-    )
-
-    parser.add_argument(
-        '-vs', '--vertical-space', dest='hspace',
-        type=float,
-        default=.5,
-        help='''Vertical distance between plots in fraction of figure.'''
     )
 
     parser.add_argument(

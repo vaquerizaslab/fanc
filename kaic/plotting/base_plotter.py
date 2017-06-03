@@ -180,10 +180,10 @@ class PlotMeta(ABCMeta):
 
 class BasePlotter(with_metaclass(PlotMeta, object)):
 
-    def __init__(self, title='', aspect=1., axes_style="ticks",
+    def __init__(self, title='', aspect=1., axes_style="ticks", ylabel=None,
                  draw_ticks=True, draw_tick_labels=True, draw_tick_legend=True,
                  draw_x_axis=True, padding=None,
-                 extra_padding=0, **kwargs):
+                 extra_padding=0, fix_chromosome=False, **kwargs):
         """
         :param title: Title drawn on top of the figure panel
         :param aspect: Aspect ratio of the plot. Can be overriden by setting
@@ -191,15 +191,18 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         :param axes_style: Set styling of the axes, can be anything
                            that seaborn supports. See
                            http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
+        :param ylabel: Label for y-axis. Default: None
         :param draw_ticks: Draw tickmarks. Default: True
         :param draw_tick_labels: Draw tick labels. Default: True
         :param draw_x_axis: If False, remove genome x-axis completely.
-                            Default: False
+                            Default: True
         :param draw_tick_legend: Draw legend for the tick distances. Default: True
         :param padding: Padding in inches to the next plot. Default: None,
                         automatically calculated.
         :param extra_padding: Add or subtract the specified inches from
                               the automatically calculated padding.
+        :param fix_chromosome: If True modify chromosome identifiers for this plot,
+                               removing or adding 'chr' as necessary. Default: False
         """
         self.ax = None
         self.cax = None
@@ -216,9 +219,13 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self.extra_padding = extra_padding
         self.axes_style = axes_style
         self.overlays = []
+        self.ylabel = ylabel
+        self.fix_chromosome = fix_chromosome
 
     def _before_plot(self, region=None, *args, **kwargs):
         self.ax.set_title(self.title)
+        if self.ylabel and len(self.ylabel > 0):
+            self.ax.set_ylabel(self.ylabel, rotation=0, horizontalalignment='right')
 
     def _after_plot(self, region=None, *args, **kwargs):
         for o in self.overlays:
@@ -237,13 +244,19 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         raise NotImplementedError("Subclasses need to override _plot function")
 
     def plot(self, region=None, ax=None, *args, **kwargs):
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+        if self.fix_chromosome:
+            chromosome = region.chromosome
+            if chromosome.startswith('chr'):
+                chromosome = chromosome[3:]
+            else:
+                chromosome = 'chr' + chromosome
+            region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
         if ax is None:
             self.ax = plt.gca()
         else:
             self.ax = ax
-
-        if isinstance(region, string_types):
-            region = GenomicRegion.from_string(region)
 
         self._before_plot(region=region, *args, **kwargs)
         plot_output = self._plot(region=region, *args, **kwargs)
@@ -281,12 +294,15 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def remove_genome_axis(self):
         """
-        Remove the genome coordinate x-axis.
+        Remove the genome x-axis completely.
         """
         if self.ax:
             self.ax.xaxis.set_visible(False)
             self.ax.spines["bottom"].set_visible(False)
         self._has_x_axis = False
+        self.remove_genome_labels()
+        self.remove_genome_ticks()
+        self.remove_tick_legend()
 
     def remove_tick_legend(self):
         """
