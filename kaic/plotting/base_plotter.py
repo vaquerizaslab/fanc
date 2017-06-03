@@ -177,6 +177,7 @@ class PlotMeta(ABCMeta):
             dct["__init__"].__doc__ = new_init_doc
         return super(PlotMeta, cls).__new__(cls, clsname, bases, dct)
 
+
 class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks",
@@ -210,6 +211,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self._has_tick_legend = draw_tick_legend
         self.aspect = aspect
         self.padding = padding
+        # Total padding excl title and adj slider padding, set from GenomicFigure
+        self._total_padding = None
         self.extra_padding = extra_padding
         self.axes_style = axes_style
         self.overlays = []
@@ -264,7 +267,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         Remove all genome coordinate tickmarks.
         """
         if self.ax:
-            plt.setp(self.ax.get_xticklines(), visible=False)
+            plt.setp(self.ax.xaxis.get_majorticklines(), visible=False)
+            plt.setp(self.ax.xaxis.get_minorticklines(), visible=False)
         else:
             self._has_ticks = False
 

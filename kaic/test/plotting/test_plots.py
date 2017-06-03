@@ -97,14 +97,16 @@ class TestHicPlot:
     @pytest.mark.parametrize("blend_zero", [True, False])
     @pytest.mark.parametrize("aspect", [.345])
     @pytest.mark.parametrize("vrange", [(None, .3), (.01, .4)])
-    @pytest.mark.parametrize("crange", [(77390001, 78600000), (77800000, 78000000)])
+    @pytest.mark.parametrize("crange", [(77390001, 78600000)])
     @pytest.mark.parametrize("unmappable_color", [".345"])
+    @pytest.mark.parametrize("adjust_range", [True, False])
     def test_hicplot2d_inputs(self, norm, colormap, colorbar,
-                            blend_zero, aspect, vrange, crange, unmappable_color):
+                              blend_zero, aspect, vrange, crange, unmappable_color,
+                              adjust_range):
         start, end = crange
         vmin, vmax = vrange
         hplot = kplot.HicPlot2D(hic_data=self.hic_matrix, title="quark", norm=norm, vmin=vmin, vmax=vmax,
-                                colormap=colormap, show_colorbar=colorbar,
+                                colormap=colormap, show_colorbar=colorbar, adjust_range=adjust_range,
                                 blend_zero=blend_zero, aspect=aspect, unmappable_color=unmappable_color)
         gfig = kplot.GenomicFigure([hplot])
         selector = "chr11:{}-{}".format(start, end)
@@ -159,6 +161,7 @@ class TestHicPlot:
             assert a is None or a == b
         if names is not None:
             assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), names_passed))
+        plt.close(fig)
 
 
 @pytest.mark.plotting
@@ -194,3 +197,4 @@ class TestPlots:
             assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), names_passed))
         # Should figure out exactly how many data points I expect instead...
         assert all(len(l.get_ydata()) > 5 for l in axes[0].get_lines())
+        plt.close(fig)

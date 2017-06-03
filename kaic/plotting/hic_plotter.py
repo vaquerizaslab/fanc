@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 plt = sns.plt
 
+ADJUSTMENT_SLIDER_HEIGHT=.2
 
 def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1):
     """
@@ -224,11 +225,11 @@ class BasePlotterHic(with_metaclass(PlotMeta, BasePlotterMatrix)):
     Makes use of matrix buffering by :class:`~BufferedMatrix` internally.
     """
 
-    def __init__(self, hic_data, adjust_range=True, buffering_strategy="relative",
+    def __init__(self, hic_data, adjust_range=False, buffering_strategy="relative",
                  buffering_arg=1, **kwargs):
         """
         :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
-        :param adjust_range: Draw a slider to adjust vmin/vmax interactively
+        :param adjust_range: Draw a slider to adjust vmin/vmax interactively. Default: False
         :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
         :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
         """
@@ -279,7 +280,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
 
     def add_adj_slider(self, ax=None):
         if ax is None:
-            ax = append_axes(self.ax, 'top', 0.2, 0.25)
+            ax = append_axes(self.ax, 'bottom', ADJUSTMENT_SLIDER_HEIGHT, self._total_padding)
 
         vmin = self.hic_buffer.buffered_min
         vmax = self.hic_buffer.buffered_max
@@ -480,7 +481,7 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
 
     def add_adj_slider(self, ax=None):
         if ax is None:
-            ax = append_axes(self.ax, 'top', 1, 0.05)
+            ax = append_axes(self.ax, 'bottom', ADJUSTMENT_SLIDER_HEIGHT, self._total_padding)
 
         self.vmax_slider = Slider(ax, 'vmax', self.hic_buffer.buffered_min,
                                   self.hic_buffer.buffered_max, valinit=self.vmax,

@@ -5,7 +5,7 @@ from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
 from kaic.data.genomic import GenomicRegion, GenomicDataFrame
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
-from kaic.plotting.hic_plotter import BasePlotterMatrix
+from kaic.plotting.hic_plotter import BasePlotterMatrix, ADJUSTMENT_SLIDER_HEIGHT
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
                                   box_coords_abs_to_rel
@@ -30,9 +30,10 @@ logger = logging.getLogger(__name__)
 
 plt = sns.plt
 
-PAD_EMPTY_AXIS = .2
+PAD_EMPTY_AXIS = .1
 PAD_WITH_LABEL = .3
 PAD_WITH_TICKS = .2
+PAD_NEXT_TITLE = .1
 
 def hide_axis(ax):
     """
@@ -70,8 +71,8 @@ class GenomicFigure(object):
     """
     _unused_args = ["hspace", "figsize", "height_ratios", "gridspec_args", "hide_x"]
 
-    def __init__(self, plots, width=5., ticks_last=False, fix_chromosome=None,
-                 invert_x=False, cax_padding=.3, cax_width=.5, fig_padding=(.5, .5, .5, .5),
+    def __init__(self, plots, width=4., ticks_last=False, fix_chromosome=None,
+                 invert_x=False, cax_padding=.3, cax_width=.3, fig_padding=(.5, .5, .5, .5),
                  hspace=None, figsize=None, height_ratios=None, hide_x=None,
                  gridspec_args=None):
         """
@@ -121,13 +122,16 @@ class GenomicFigure(object):
             raise ValueError("hide_x ({}) must be the same length "
                              "as plots ({})".format(len(self.hide_x), self.n))
 
-    def _figure_setup(self):
+    def _calc_figure_setup(self):
         aspects = [p.aspect for p in self.plots]
         pad_b, pad_t, pad_l, pad_r = self._fig_padding
         total_width = pad_l + pad_r + self._width + self._cax_width + self._cax_padding
         plot_heights = [a*self._width for a in aspects]
         plot_pads = []
-        for p in self.plots:
+        for i, p in enumerate(self.plots):
+            if self.ticks_last and i < len(self.axes) - 1:
+                p.remove_genome_labels()
+                p.remove_tick_legend()
             if p.padding is not None:
                 pad = p.padding
             else:
@@ -136,22 +140,42 @@ class GenomicFigure(object):
                     pad += PAD_WITH_LABEL
                 if p._has_ticks:
                     pad += PAD_WITH_TICKS
+                p._total_padding = pad
+                # Add a bit of space if adjustment slider is present
+                pad_adj_slider = ADJUSTMENT_SLIDER_HEIGHT if getattr(p, "adjust_range", False) else 0.
+                # Add a bit of space if next plot hs title
+                pad_title = PAD_NEXT_TITLE if i < self.n - 1 and len(self.plots[i + 1].title) > 0 else 0.
+                pad += pad_adj_slider + pad_title
             plot_pads.append(pad)
         total_height = pad_t + pad_b + sum(plot_heights) + sum(plot_pads)
         figsize = (total_width, total_height)
         cax_l = pad_l + self._width + self._cax_padding
-        fig = plt.figure(figsize=figsize)
         cur_top = pad_t
+        ax_specs = []
         for i in range(self.n):
-            ax_specs = box_coords_abs_to_rel(cur_top, pad_l, self._width, plot_heights[i], figsize)
+            specs = {}
+            specs["ax"]  = list(box_coords_abs_to_rel(cur_top, pad_l, self._width, plot_heights[i], figsize))
+            specs["cax"] = list(box_coords_abs_to_rel(cur_top, cax_l, self._cax_width, plot_heights[i], figsize))
+            ax_specs.append(specs)
+            cur_top += plot_heights[i] + plot_pads[i]
+        return ax_specs, figsize
+
+    def _figure_setup(self):
+        ax_specs, figsize = self._calc_figure_setup()
+        fig = plt.figure(figsize=figsize)
+        for i in range(self.n):
             with sns.axes_style("ticks" if self.plots[i].axes_style is None else
                                 self.plots[i].axes_style):
-                ax = fig.add_axes(list(ax_specs), sharex=self.axes[0] if i > 0 else None)
-            cax_specs = box_coords_abs_to_rel(cur_top, cax_l, self._cax_width, plot_heights[i], figsize)
-            cax = fig.add_axes(list(cax_specs))
+                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 else None)
+            cax = fig.add_axes(ax_specs[i]["cax"])
             self.plots[i].ax = ax
             self.plots[i].cax = cax
-            cur_top += plot_heights[i] + plot_pads[i]
+
+    def _update_figure_setup(self):
+        ax_specs, figsize = self._calc_figure_setup()
+        for i in range(self.n):
+            self.plots[i].ax.set_position(ax_specs[i]["ax"])
+            self.plots[i].cax.set_position(ax_specs[i]["cax"])
 
     @property
     def fig(self):
@@ -176,8 +200,6 @@ class GenomicFigure(object):
                 plot_region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
 
             p.plot(plot_region, ax=a)
-            if self.ticks_last and i < len(self.axes) - 1:
-                p.remove_genome_ticks()
 
             if self.invert_x:
                 a.invert_xaxis()
