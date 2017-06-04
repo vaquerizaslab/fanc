@@ -163,6 +163,42 @@ class TestHicPlot:
             assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), names_passed))
         plt.close(fig)
 
+    @pytest.mark.parametrize("width", [3.7])
+    @pytest.mark.parametrize("cax_width", [.42])
+    @pytest.mark.parametrize("ticks_last", [True, False])
+    @pytest.mark.parametrize("draw_labels", [True, False])
+    @pytest.mark.parametrize("draw_ticks", [True, False])
+    @pytest.mark.parametrize("draw_x_axis", [True, False])
+    def test_tick_removal(self, width, cax_width, ticks_last, draw_labels, draw_ticks, draw_x_axis):
+        splot = kplot.HicSlicePlot(self.hic_matrix, "chr11:77800000-77850000")
+        hplot = kplot.HicPlot2D(hic_data=self.hic_matrix,
+                                draw_ticks=draw_ticks, draw_tick_labels=draw_labels,
+                                draw_x_axis=draw_x_axis)
+        hplot2 = kplot.HicPlot(hic_data=self.hic_matrix)
+        gfig = kplot.GenomicFigure([splot, hplot, hplot2],
+                                   width=width, ticks_last=ticks_last, cax_width=cax_width)
+        selector = "chr11:{}-{}".format(77400000, 78600000)
+        fig, axes = gfig.plot(selector)
+        # hplot2 should only be affected by ticks_last
+        assert ~(ticks_last ^ all(l.get_visible() for l in axes[2].get_xticklabels()))
+        # hplot is affected by the three draw parameters
+        should_have_labels = draw_x_axis & draw_labels
+        assert ~(should_have_labels ^ all(l.get_visible() for l in axes[1].get_xticklabels()))
+        should_have_ticks = draw_x_axis & draw_ticks
+        assert ~(should_have_ticks ^ all(l.get_visible() for l in axes[1].xaxis.get_majorticklines()))
+        assert ~(should_have_ticks ^ all(l.get_visible() for l in axes[1].xaxis.get_minorticklines()))
+        # splot should always have ticks and lines
+        assert all(l.get_visible() for l in axes[0].xaxis.get_majorticklines())
+        assert all(l.get_visible() for l in axes[0].xaxis.get_minorticklines())
+        # splot only labels if ticks_last=False
+        assert ticks_last ^ all(l.get_visible() for l in axes[0].get_xticklabels())
+        bbox = axes[0].get_position()
+        figsize = fig.get_size_inches()
+        assert bbox.width*figsize[0] == pytest.approx(width)
+        bbox = hplot.cax.get_position()
+        assert bbox.width*figsize[0] == pytest.approx(cax_width)
+        plt.close(fig)
+
 
 @pytest.mark.plotting
 class TestPlots:
