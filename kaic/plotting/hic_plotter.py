@@ -501,18 +501,25 @@ class HicPeakPlot(BaseOverlayPlotter):
     class:`~kaic.data.network.PeakInfo`.
     Add to HicPlot or HicPlot2D using add_overlay method.
     """
-    def __init__(self, peaks, radius=20000, circle_props={}, **kwargs):
+    def __init__(self, peaks, radius=None, circle_props={}, **kwargs):
         """
         :param peaks: Kaic peaks instance
-        :param radius: Radius in bp for plotted circles. Default: 20000
+        :param radius: Radius in bp for plotted circles.
+                       If not specified (default), use the radius of the
+                       peak itself. This is often too small to see,
+                       providing a value like 50000 helps. Default: None
         :param circe_props: Dictionary with properties for the plotted circles
                             for the matplotlib.patches.Circle constructor.
-                            Default: Black edges, no fill
+                            Default: Black edges, no fill, linewidth 3 pt
         """
         BaseOverlayPlotter.__init__(self, **kwargs)
         self.peaks = peaks
         self.radius = radius
-        self.circle_props = {"edgecolor": "black", "fill": False}
+        self.circle_props = {
+            "edgecolor": "black",
+            "fill": False,
+            "linewidth": 3,
+        }
         self.circle_props.update(circle_props)
 
     @property
@@ -536,8 +543,10 @@ class HicPeakPlot(BaseOverlayPlotter):
             "HicPlot": plot_hicplot,
             "HicPlot2D": plot_hicplot2d
         }
-
         base_plot_class = base_plot.__class__.__name__
+        plot_func = plot_dispatch[base_plot_class]
         peaks_gen = self.peaks.edge_subset((region, region), distances_in_bp=True)
         for p in peaks_gen:
-            plot_dispatch[base_plot_class](p.source_node.start, p.sink_node.end, p.radius)
+            plot_func((p.source_node.start + p.source_node.end)/2,
+                      (p.sink_node.start + p.sink_node.end)/2,
+                      self.radius if self.radius is not None else p.radius)
