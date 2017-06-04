@@ -1002,9 +1002,10 @@ class GenePlot(BasePlotter1D):
         # Squash transcripts
         if self.squash:
             for group_id, exons in genes.items():
-                exon_bed = pbt.BedTool(exons).merge(s=True, c=7, o="distinct").saveas()
+                strand = exons[0].strand
+                exon_bed = pbt.BedTool(exons).sort().merge().saveas()
                 genes[group_id] = [GenomicRegion(chromosome=e.chrom, start=e.start + 1,
-                                                 end=e.end, name=group_id, strand=e[4]) for e in exon_bed]
+                                                 end=e.end, name=group_id, strand=strand) for e in exon_bed]
 
         # sort exons
         for transcript_id, exons in genes.items():
