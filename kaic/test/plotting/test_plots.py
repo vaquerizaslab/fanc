@@ -24,6 +24,11 @@ def get_example_bedgraph():
     h = directory + "/../data/test_plotting/sample_bigwig.bedgraph"
     return h
 
+def get_example_gtf():
+    directory = os.path.dirname(os.path.realpath(__file__))
+    h = directory + "/../data/test_plotting/dmel-2L-50k-100k.gtf"
+    return h
+
 def abs_ax_aspect(ax):
     bbox = ax.get_position()
     fig = ax.figure
@@ -207,6 +212,7 @@ class TestPlots:
         self.pyBigWig = pytest.importorskip("pyBigWig")
         self.bigwig = self.pyBigWig.open(self.bigwig_path)
         self.bedgraph_path = get_example_bedgraph()
+        self.gtf_path = get_example_gtf()
 
     def teardown_method(self, method):
         self.bigwig.close()
@@ -233,4 +239,18 @@ class TestPlots:
             assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), names_passed))
         # Should figure out exactly how many data points I expect instead...
         assert all(len(l.get_ydata()) > 5 for l in axes[0].get_lines())
+        plt.close(fig)
+
+    @pytest.mark.parametrize("collapse", [True, False])
+    @pytest.mark.parametrize("squash_group", [(True, "gene_id"), (False, "transcript_id")])
+    def test_geneplot(self, collapse, squash_group):
+        squash, group_by = squash_group
+        gplot = kplot.GenePlot(self.gtf_path,
+                               collapse=collapse,
+                               squash=squash,
+                               group_by=group_by)
+        gfig = kplot.GenomicFigure([gplot])
+        selector = "2L:65900-71000"
+        fig, axes = gfig.plot(selector)
+        assert len(axes[0].patches) == (9 if squash else 31)
         plt.close(fig)

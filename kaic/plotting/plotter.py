@@ -927,11 +927,12 @@ class GenePlot(BasePlotter1D):
     Plot genes including exon/intron structure from BED, GTF files or similar.
     """
 
-    def __init__(self, genes, title="", feature_types=('exon',), color_neutral='gray',
+    def __init__(self, genes, feature_types=('exon',), color_neutral='gray',
                  color_forward='orangered', color_reverse='darkturquoise',
-                 color_score=False, vdist=0.2, box_height=0.1, show_labels=True, font_size=9, arrow_size=8,
-                 line_width=1, group_by='transcript_id', text_position='alternate', collapse=False,
-                 min_gene_size=None, **kwargs):
+                 color_score=False, vdist=0.2, box_height=0.1, show_labels=True,
+                 label_field='name', font_size=9, arrow_size=8,
+                 line_width=1, group_by='transcript_id', text_position='alternate',
+                 collapse=False, squash=False, min_gene_size=None, **kwargs):
         """
         :param genes: Any input that pybedtools can parse. Can be a path to a
                       GTF/BED file
@@ -940,6 +941,11 @@ class GenePlot(BasePlotter1D):
                               If None, automatically draw different feature types on separate tracks
                               If a list, draw only the feature types in the list on separate tracks,
                               don't draw the rest.
+        :param label_field: Field of input file for labelling transcripts/genes. Default: name
+        :param collapse: Draw all transcripts on a single row. Everyting will overlap. Default: False
+        :param squash: Squash all exons belonging to a single grouping unit (merging overlapping exons).
+                       Useful especially when setting group_by="gene_id" or "gene_symbol".
+                       Genes will still draw on separate rows, if necessary. Default: False
         """
         kwargs.setdefault("aspect", .5)
         kwargs.setdefault("axes_style", "ticks")
@@ -977,7 +983,9 @@ class GenePlot(BasePlotter1D):
         self.text_position = text_position
         self.line_width = line_width
         self.show_labels = show_labels
+        self.label_field = label_field
         self.collapse = collapse
+        self.squash = squash
         self.min_gene_size = min_gene_size
 
         self.lines = []
@@ -1004,14 +1012,14 @@ class GenePlot(BasePlotter1D):
 
             # get gene name
             try:
-                name = exon.name
+                name = get_region_field(exon, self.label_field)
             except ValueError:
                 name = None
 
             # get transcript id for grouping
             try:
-                transcript_id = exon.attrs[self.group_by]
-            except KeyError:
+                transcript_id = get_region_field(exon, self.group_by)
+            except ValueError:
                 transcript_id = name
 
             if name is None and transcript_id is None:
@@ -1023,18 +1031,26 @@ class GenePlot(BasePlotter1D):
             elif transcript_id is None:
                 transcript_id = name
 
-            exon_region = GenomicRegion(chromosome=region.chromosome, start=exon.start + 1, end=exon.end,
-                                        name=name, id=transcript_id, strand=exon.strand)
-
-            # get gene score
-            if self.color_score:
-                try:
-                    exon_region.score = float(exon.score)
-                except ValueError:
-                    exon_region.score = None
-
-            genes[transcript_id].append(exon_region)
+            if not self.squash:
+                exon_region = GenomicRegion(chromosome=region.chromosome, start=exon.start + 1, end=exon.end,
+                                            name=name, id=transcript_id, strand=exon.strand)
+                # get gene score
+                if self.color_score:
+                    try:
+                        exon_region.score = float(exon.score)
+                    except ValueError:
+                        exon_region.score = None
+                genes[transcript_id].append(exon_region)
+            else:
+                genes[transcript_id].append(exon)
             gene_number = len(genes)
+
+        # Squash transcripts
+        if self.squash:
+            for group_id, exons in genes.items():
+                exon_bed = pbt.BedTool(exons).merge(s=True, c=7, o="distinct").saveas()
+                genes[group_id] = [GenomicRegion(chromosome=e.chrom, start=e.start + 1,
+                                                 end=e.end, name=group_id, strand=e[4]) for e in exon_bed]
 
         # sort exons
         for transcript_id, exons in genes.items():
@@ -1136,9 +1152,9 @@ class GenePlot(BasePlotter1D):
                 else:
                     raise ValueError("Text position '{}' not supported".format(text_position))
 
-                text = self.ax.text(exons[0].start, text_y, exons[0].name, verticalalignment=text_valign,
-                                    horizontalalignment='left', fontsize=self.font_size, family='monospace',
-                                    color='gray')
+                text = self.ax.text(exons[0].start, text_y, exons[0].name,
+                                    verticalalignment=text_valign, horizontalalignment='left',
+                                    fontsize=self.font_size, family='monospace', color='gray')
                 self.texts.append(text)
 
         def _set_gene_color(exons, color_score=False):
