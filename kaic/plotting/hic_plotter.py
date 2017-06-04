@@ -1,11 +1,12 @@
 import kaic
 from kaic.config import config
 from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot, \
-                                       PlotMeta
+                                       PlotMeta, BaseOverlayPlotter
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
 from kaic.data.genomic import GenomicRegion
 import matplotlib as mpl
 from matplotlib.widgets import Slider
+import matplotlib.patches as patches
 from abc import ABCMeta
 import numpy as np
 import itertools as it
@@ -492,3 +493,51 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         self._update_mesh_colors()
         if self.colorbar is not None:
             self.update_colorbar(vmax=new_vmax)
+
+
+class HicPeakPlot(BaseOverlayPlotter):
+    """
+    Overlay peaks onto Hicplot or HicPlot2D. Accepts
+    class:`~kaic.data.network.PeakInfo`.
+    Add to HicPlot or HicPlot2D using add_overlay method.
+    """
+    def __init__(self, peaks, radius=20000, circle_props={}, **kwargs):
+        """
+        :param peaks: Kaic peaks instance
+        :param radius: Radius in bp for plotted circles. Default: 20000
+        :param circe_props: Dictionary with properties for the plotted circles
+                            for the matplotlib.patches.Circle constructor.
+                            Default: Black edges, no fill
+        """
+        BaseOverlayPlotter.__init__(self, **kwargs)
+        self.peaks = peaks
+        self.radius = radius
+        self.circle_props = {"edgecolor": "black", "fill": False}
+        self.circle_props.update(circle_props)
+
+    @property
+    def compatibility(self):
+        return ["HicPlot", "HicPlot2D"]
+
+    def _plot(self, base_plot, region):
+        def plot_hicplot(start, end, radius):
+            x = .5*(start + end)
+            y = .5*(end - start)
+            circle = patches.Circle((x, y), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+
+        def plot_hicplot2d(start, end, radius):
+            circle = patches.Circle((start, end), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+            circle = patches.Circle((end, start), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+
+        plot_dispatch = {
+            "HicPlot": plot_hicplot,
+            "HicPlot2D": plot_hicplot2d
+        }
+
+        base_plot_class = base_plot.__class__.__name__
+        peaks_gen = self.peaks.edge_subset((region, region), distances_in_bp=True)
+        for p in peaks_gen:
+            plot_dispatch[base_plot_class](p.source_node.start, p.sink_node.end, p.radius)
