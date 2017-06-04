@@ -388,7 +388,7 @@ class RegionsValuesPlot(ScalarDataPlot):
             self.lines[i].set_ydata(y)
 
 
-class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
+class GenomicMatrixPlot(BasePlotterMatrix, BasePlotter1D):
     """
     Plot matrix from a class:`~GenomicTrack` objects.
     """
@@ -459,7 +459,7 @@ class GenomicMatrixPlot(BasePlotter1D, BasePlotterMatrix):
         self._update_mesh_colors()
 
 
-class GenomicVectorArrayPlot(BasePlotter1D, BasePlotterMatrix):
+class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
     """
     Plot matrix from a class:`~MultiVectorArchitecturalRegionFeature` object.
     """

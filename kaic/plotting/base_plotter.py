@@ -346,14 +346,14 @@ class BasePlotter1D(BasePlotter):
         self._current_chromosome = None
 
     def _before_plot(self, region=None, *args, **kwargs):
-        BasePlotter._before_plot(self, region=region, *args, **kwargs)
+        super(BasePlotter1D, self)._before_plot(region=region, *args, **kwargs)
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self._current_chromosome = region.chromosome
 
     def _after_plot(self, region=None, *args, **kwargs):
-        BasePlotter._after_plot(self, region=region, *args, **kwargs)
+        super(BasePlotter1D, self)._after_plot(region=region, *args, **kwargs)
         self.ax.set_xlim(region.start, region.end)
         self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
 
@@ -418,11 +418,11 @@ class ScalarDataPlot(BasePlotter1D):
             raise ValueError("Only the styles {} are supported.".format(list(self._STYLES.keys())))
 
     def _before_plot(self, region=None, *args, **kwargs):
-        BasePlotter1D._before_plot(self, region=region, *args, **kwargs)
+        super(ScalarDataPlot, self)._before_plot(region=region, *args, **kwargs)
         self.ax.yaxis.set_major_locator(MaxNLocator(self.n_ybins))
 
     def _after_plot(self, region=None, *args, **kwargs):
-        BasePlotter1D._after_plot(self, region=region, *args, **kwargs)
+        super(ScalarDataPlot, self)._after_plot(region=region, *args, **kwargs)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
         self.ax.set_yscale(self.yscale)
@@ -477,7 +477,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
         :param vmin: Clip interactions below this value
         :param vmax: Clip interactions above this value
-        :param show_colorbar: Draw a colorbar
+        :param show_colorbar: Draw a colorbar. Default: True
         :param blend_zero: If True then zero count bins will be drawn using replacement_color
         :param replacement_color: If None use the lowest color in the colormap, otherwise
                                   use the specified color. Can be any valid matplotlib
@@ -503,8 +503,13 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         self.colorbar = None
         self.replacement_color = replacement_color
         self.cax = None
-        if isinstance(self.show_colorbar, mpl.axes.Axes):
-            self.cax = self.show_colorbar
+
+    def _after_plot(self, region=None, *args, **kwargs):
+        super(BasePlotterMatrix, self)._after_plot(region=region, *args, **kwargs)
+        if self.show_colorbar:
+            self.add_colorbar()
+        else:
+            self.remove_colorbar_ax()
 
     def get_color_matrix(self, matrix):
         """
@@ -608,7 +613,7 @@ class BasePlotter2D(BasePlotter):
 
     def _before_plot(self, region=None, *args, **kwargs):
         x_region, y_region = region
-        BasePlotter._before_plot(self, region=x_region, *args, **kwargs)
+        super(BasePlotter2D, self)._before_plot(region=x_region, *args, **kwargs)
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
@@ -620,7 +625,7 @@ class BasePlotter2D(BasePlotter):
 
     def _after_plot(self, region=None, *args, **kwargs):
         x_region, y_region = region
-        BasePlotter._after_plot(self, region=x_region, *args, **kwargs)
+        super(BasePlotter2D, self)._after_plot(region=x_region, *args, **kwargs)
         self.ax.set_xlim(x_region.start, x_region.end)
         self.ax.set_ylim(y_region.start, y_region.end)
         self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)

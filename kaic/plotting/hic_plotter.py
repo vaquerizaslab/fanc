@@ -216,9 +216,12 @@ class BufferedCombinedMatrix(BufferedMatrix):
         self.data = CombinedData(top_matrix, bottom_matrix, scaling_factor)
 
 
-class BasePlotterHic(with_metaclass(PlotMeta, BasePlotterMatrix)):
+class BasePlotterHic(BasePlotterMatrix):
     """
     Base class for plotting Hi-C data.
+
+    **warning: should always be inherited from first, before the other
+    base classed**
 
     Makes use of matrix buffering by :class:`~BufferedMatrix` internally.
     """
@@ -240,7 +243,7 @@ class BasePlotterHic(with_metaclass(PlotMeta, BasePlotterMatrix)):
         self.vmax_slider = None
 
 
-class HicPlot2D(BasePlotter2D, BasePlotterHic):
+class HicPlot2D(BasePlotterHic, BasePlotter2D):
     """
     Plot Hi-C map as a square matrix.
     """
@@ -267,11 +270,6 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
         self.ax.spines['top'].set_visible(False)
         self.ax.xaxis.set_ticks_position('bottom')
         self.ax.yaxis.set_ticks_position('left')
-
-        if self.show_colorbar:
-            self.add_colorbar()
-        else:
-            self.remove_colorbar_ax()
 
         if self.adjust_range:
             self.add_adj_slider()
@@ -388,7 +386,7 @@ class HicSlicePlot(ScalarDataPlot):
         pass
 
 
-class HicPlot(BasePlotter1D, BasePlotterHic):
+class HicPlot(BasePlotterHic, BasePlotter1D):
     """
     A triangle Hi-C heatmap plot.
     """
@@ -428,8 +426,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.ax.set_yticks([])
         # hide background patch
         self.ax.patch.set_visible(False)
-        if self.show_colorbar:
-            self.add_colorbar(ax=None)
         if self.adjust_range:
             self.add_adj_slider()
 
