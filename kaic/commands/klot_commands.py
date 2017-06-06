@@ -1048,9 +1048,18 @@ def gene_parser():
     parser.add_argument(
         '-C', '--collapse', dest='collapse',
         action='store_true',
-        help='''Collapse all genes onto one row.'''
+        help='''Collapse all genes onto a single row.'''
     )
     parser.set_defaults(collapse=False)
+
+    parser.add_argument(
+        '-sq', '--squash', dest='squash',
+        action='store_true',
+        help='''Merge all exons of each grouping unit together.
+                Useful especially when setting --group-by to "gene_id" or "gene_symbol".
+                Overlapping genes will still draw on separate rows in contrast to --collapse'''
+    )
+    parser.set_defaults(squash=False)
     return parser
 
 
@@ -1066,7 +1075,8 @@ def gene(parameters):
                       vdist=args.vdist, box_height=args.box_height, font_size=args.font_size,
                       arrow_size=args.arrow_size, line_width=args.line_width,
                       group_by=args.group_by, text_position=args.text_position,
-                      show_labels=args.show_labels, collapse=args.collapse)
+                      show_labels=args.show_labels, collapse=args.collapse,
+                      squash=args.squash)
 
     return p, args
 
