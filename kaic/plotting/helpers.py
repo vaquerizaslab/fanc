@@ -195,3 +195,18 @@ def box_coords_abs_to_rel(top, left, width, height, figsize):
     rel_width = width/f_width
     rel_height = height/f_height
     return (rel_left, rel_bottom, rel_width, rel_height)
+
+# Borrowed from figure.text method
+# https://github.com/matplotlib/matplotlib/blob/a4999acbbf6ebd6fa211f70becd49887dce663ab/lib/matplotlib/figure.py#L1495
+def figure_line(fig, xdata, ydata, **kwargs):
+    """
+    Add a line to the figure, independent of axes.
+    Coordinates in (0, 1) relative to bottom left.
+    All kwargs are passed to Line2D constructor.
+    """
+    l = mpl.lines.Line2D(xdata, ydata, **kwargs)
+    fig._set_artist_props(l)
+    fig.lines.append(l)
+    l._remove_method = lambda h: fig.lines.remove(l)
+    fig.stale = True
+    return l

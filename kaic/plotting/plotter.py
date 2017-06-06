@@ -4,11 +4,11 @@ import matplotlib as mpl
 from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
 from kaic.data.genomic import GenomicRegion, GenomicDataFrame
-from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter
+from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, BasePlotter
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
-                                  box_coords_abs_to_rel
+                                  box_coords_abs_to_rel, figure_line
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import types
@@ -68,6 +68,7 @@ class GenomicFigure(object):
 
     def __init__(self, plots, width=4., ticks_last=False, fix_chromosome=None,
                  invert_x=False, cax_padding=.3, cax_width=.3, fig_padding=(.5, .5, .5, .5),
+                 annotations=None,
                  hspace=None, figsize=None, height_ratios=None, hide_x=None,
                  gridspec_args=None):
         """
@@ -86,8 +87,18 @@ class GenomicFigure(object):
         for a in self._unused_args:
             if locals()[a] is not None:
                 logger.warning("{} is no longer used!".format(a))
-        self.plots = plots
-        self.n = len(plots)
+        self.plots = []
+        self.annotations = []
+        for p in plots:
+            if isinstance(p, BasePlotter):
+                self.plots.append(p)
+            elif isinstance(p, BaseAnnotation):
+                self.annotations.append(p)
+            else:
+                raise ValueError("Incompatible plot p".format(p))
+        for p in self.annotations:
+            p._verify(self)
+        self.n = len(self.plots)
         self.ticks_last = ticks_last
         self._width = width
         self._cax_padding = cax_padding
@@ -185,6 +196,8 @@ class GenomicFigure(object):
 
             if self.invert_x:
                 a.invert_xaxis()
+        for i, p in enumerate(self.annotations):
+            p.plot(region)
 
         return self.fig, self.axes
 
@@ -201,6 +214,70 @@ class GenomicFigure(object):
     @property
     def caxes(self):
         return [p.cax for p in self.plots]
+
+
+class BaseAnnotation(object):
+    pass
+
+
+class VerticalLineAnnotation(BaseAnnotation):
+    """
+    Vertical line which can be positioned at a specific
+    genomic coordinate and spans multiple panels of the
+    GenomicFigure.
+
+    Useful for highlighting specific regions across multiple
+    plots.
+    """
+    def __init__(self, x, plot1, plot2, line_props=None,
+                 y_plot1=0, y_plot2=0, coords_plot1="ax",
+                 coords_plot2="ax"):
+        """
+        :param x: Position on chromosome in bp (eg. 24000), no
+                  chromosome name
+        :param plot1: First plot
+        """
+        self.line_props = {
+            "linewidth": 1.,
+            "color": "black",
+            "linestyle": "solid",
+        }
+        if line_props is not None:
+            self.line_props.update(line_props)
+        self.x = x
+        self.plot1 = plot1
+        self.plot2 = plot2
+        self.y_plot1 = y_plot1
+        self.y_plot2 = y_plot2
+        self.coords_plot1 = coords_plot1
+        self.coords_plot2 = coords_plot2
+
+    @staticmethod
+    def _generate_transformation(ax, type):
+        if type == "ax":
+            trans = ax.transAxes
+        elif type == "data":
+            trans = ax.transData
+        else:
+            raise ValueError("Invalid data transformation '{}'".format(type))
+        trans = trans + ax.figure.transFigure.inverted()
+        return trans
+
+    def plot(self, region):
+        x_trans = self._generate_transformation(self.plot1.ax, "data")
+        trans1 = self._generate_transformation(self.plot1.ax, self.coords_plot1)
+        trans2 = self._generate_transformation(self.plot2.ax, self.coords_plot2)
+        x_t = x_trans.transform((self.x, 0))[0]
+        y1_t = trans1.transform((0, self.y_plot1))[1]
+        y2_t = trans2.transform((0, self.y_plot2))[1]
+        l = figure_line(self.plot1.ax.figure, [x_t, x_t], [y1_t, y2_t], **self.line_props)
+        return l
+
+    def _verify(self, gfig):
+        if not all([self.plot1 in gfig.plots, self.plot2 in gfig.plots]):
+            raise ValueError("At least one plot in the VerticalLine is"
+                             "not part of the GenomicFigure")
+        return True
 
 
 class GenomicTrackPlot(ScalarDataPlot):
