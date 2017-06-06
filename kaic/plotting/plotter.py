@@ -124,12 +124,14 @@ class GenomicFigure(object):
                     pad += config.pad_with_label
                 if p._has_ticks:
                     pad += config.pad_with_ticks
+                if p._has_tick_legend:
+                    pad += config.pad_with_tick_legend
                 p._total_padding = pad
                 # Add a bit of space if adjustment slider is present
                 pad_adj_slider = 0.
                 if getattr(p, "adjust_range", False):
                     pad_adj_slider = config.adjustment_slider_height + config.pad_empty_axis
-                # Add a bit of space if next plot hs title
+                # Add a bit of space if next plot has title
                 pad_title = 0.
                 if i < self.n - 1 and len(self.plots[i + 1].title) > 0:
                     pad_title = config.pad_next_title
