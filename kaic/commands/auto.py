@@ -109,6 +109,18 @@ def auto_parser():
     parser.set_defaults(ice=False)
 
     parser.add_argument(
+        '--le-inward-cutoff', dest='inward_cutoff',
+        type=int,
+        help='''Ligation error inward cutoff (if not set, will be determined automatically).'''
+    )
+
+    parser.add_argument(
+        '--le-outward-cutoff', dest='outward_cutoff',
+        type=int,
+        help='''Ligation error outward cutoff (if not set, will be determined automatically).'''
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Copy original files to temporary directory. Reduces network I/O.'''
@@ -162,7 +174,21 @@ def pairs_re_dist_worker(pairs_file, re_dist_file):
 
 
 def filtered_pairs_worker(pairs_file, filtered_pairs_file, filtered_pairs_stats_file, args):
-    filter_pairs_command = ['kaic', 'filter_pairs', '--auto', '-r', '5000', '-l', '-d', '2']
+    filter_pairs_command = ['kaic', 'filter_pairs', '-r', '5000', '-l', '-d', '2']
+
+    if args.inward_cutoff is not None:
+        filter_pairs_command += ['-i', str(args.inward_cutoff)]
+        if args.outward_cutoff is None:
+            filter_pairs_command += ['-o', '0']
+
+    if args.outward_cutoff is not None:
+        filter_pairs_command += ['-o', str(args.outward_cutoff)]
+        if args.inward_cutoff is None:
+            filter_pairs_command += ['-i', '0']
+
+    if args.inward_cutoff is None and args.outward_cutoff is None:
+        filter_pairs_command += ['--auto']
+
     if args.tmp:
         filter_pairs_command.append('-tmp')
     filter_pairs_command.append('-s')
