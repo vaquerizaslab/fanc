@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 from kaic.config import config
-from kaic.plotting.helpers import style_ticks_whitegrid
+from kaic.plotting.helpers import style_ticks_whitegrid, LimitGroup
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
@@ -396,6 +396,8 @@ class ScalarDataPlot(BasePlotter1D):
                       'mid' Draw values connecting mid-points of bins
         :param ylim: Set y-axis limits as tuple. Can leave upper or lower
                      limit undetermined by setting None, e.g. (2.5, None).
+                     Alternatively, a class:`~LimitGroup` instance can
+                     be passed to synchronize limits across multiple plots.
                      Default: Automatically determined by data limits
         :param yscale: Scale of y-axis. Is passed to Matplotlib set_yscale,
                        so any valid argument ("linear", "log", etc.) works
@@ -410,7 +412,12 @@ class ScalarDataPlot(BasePlotter1D):
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
         super(ScalarDataPlot, self).__init__(**kwargs)
         self.style = style
-        self.ylim = ylim
+        if isinstance(ylim, LimitGroup):
+            self.ylim = None
+            self.ylim_group = ylim
+        else:
+            self.ylim = ylim
+            self.ylim_group = None
         self.yscale = yscale
         self.condensed = condensed
         if n_yticks < 2:

@@ -4,7 +4,7 @@ from kaic.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, Gen
     GenomicFeatureScorePlot, GenomicMatrixPlot, GenomicFigure, GenomicTrackPlot, BigWigPlot, GenePlot, \
     FeatureLayerPlot, GenomicDataFramePlot, VerticalLineAnnotation
 from kaic.plotting.helpers import append_axes, absolute_wspace_hspace, SymmetricNorm, \
-                                  style_ticks_whitegrid
+                                  style_ticks_whitegrid, LimitGroup
 
 from kaic.plotting.colormaps import *
 import seaborn as sns

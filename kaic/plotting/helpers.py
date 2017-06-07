@@ -225,3 +225,37 @@ def figure_rectangle(fig, xy, width, height, **kwargs):
     p._remove_method = lambda h: fig.patches.remove(h)
     fig.stale = True
     return p
+
+class LimitGroup(object):
+    """
+    Can be used for synchronizing axis limits across multiple
+    plots. Pass the same instance of this class to all plots
+    that should have synchronized axis limits.
+    """
+
+    def __init__(self, limit=None):
+        """
+        :param limit: tuple (vmin, vmax) to set absolute limits
+                      for axis. Final limits will be chosen
+                      within this absolute limit. Pass None
+                      for vmin or vmax to set no limit.
+                      Default: (None, None)
+        """
+        self.limit = limit
+        if self.limit is None:
+            self.limit = (None, None)
+        self.limit_list = []
+
+    def add_limit(self, limit):
+        self.limit_list.append(limit)
+
+    def get_limit(self):
+        if len(self.limit_list) < 1:
+            return self.limit
+        vmin = min(x[0] if x[0] is not None else float("+Inf") for x in self.limit_list if x is not None)
+        vmax = max(x[1] if x[1] is not None else float("-Inf") for x in self.limit_list if x is not None)
+        if vmin is None or (self.limit[0] is not None and vmin < self.limit[0]):
+            vmin = self.limit[0]
+        if vmax is None or (self.limit[1] is not None and vmax > self.limit[1]):
+            vmax = self.limit[1]
+        return (vmin, vmax)

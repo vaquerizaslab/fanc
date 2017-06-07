@@ -194,10 +194,14 @@ class GenomicFigure(object):
 
             plot_region = region
             p.plot(plot_region, ax=a)
-
+            if getattr(p, "ylim_group", None) is not None:
+                p.ylim_group.add_limit(p.ax.get_ylim())
             if self.invert_x:
                 a.invert_xaxis()
-        for i, p in enumerate(self.annotations):
+        for p in self.plots:
+            if getattr(p, "ylim_group", None) is not None:
+                p.ax.set_ylim(p.ylim_group.get_limit())
+        for p in self.annotations:
             p.plot(region)
 
         return self.fig, self.axes
