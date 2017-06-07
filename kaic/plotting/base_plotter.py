@@ -703,3 +703,29 @@ class BaseOverlayPlotter(with_metaclass(PlotMeta, object)):
 
     def plot(self, base_plot, region):
         self._plot(base_plot, region)
+
+
+class BaseAnnotation(with_metaclass(PlotMeta, object)):
+
+    def __init__(self, fix_chromosome=False):
+        """
+        :param fix_chromosome: If True modify chromosome identifiers for this plot,
+                               removing or adding 'chr' as necessary. Default: False
+        """
+        self.fix_chromosome = fix_chromosome
+
+    def plot(self, region):
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+        if self.fix_chromosome:
+            chromosome = region.chromosome
+            if chromosome.startswith('chr'):
+                chromosome = chromosome[3:]
+            else:
+                chromosome = 'chr' + chromosome
+            region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
+        self._plot(region)
+
+    @abstractmethod
+    def _plot(self, region=None, *args, **kwargs):
+        raise NotImplementedError("Subclasses need to override _plot function")

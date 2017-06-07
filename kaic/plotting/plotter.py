@@ -4,11 +4,12 @@ import matplotlib as mpl
 from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
 from kaic.data.genomic import GenomicRegion, GenomicDataFrame
-from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, BasePlotter
+from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
+                                       BasePlotter, BaseAnnotation
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
-                                  box_coords_abs_to_rel, figure_line
+                                  box_coords_abs_to_rel, figure_line, figure_rectangle
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
 import types
@@ -216,39 +217,51 @@ class GenomicFigure(object):
         return [p.cax for p in self.plots]
 
 
-class BaseAnnotation(object):
-    pass
-
-
 class VerticalLineAnnotation(BaseAnnotation):
     """
-    Vertical line which can be positioned at a specific
-    genomic coordinate and spans multiple panels of the
-    GenomicFigure.
+    Vertical lines or rectangles (shaded regions) which can be
+    positioned at specific genomic coordinates from a BED file
+    and can span multiple panels of the GenomicFigure.
 
     Useful for highlighting specific regions across multiple
-    plots.
+    panels of figures.
     """
-    def __init__(self, x, plot1, plot2, line_props=None,
-                 y_plot1=0, y_plot2=0, coords_plot1="ax",
-                 coords_plot2="ax"):
+    def __init__(self, bed, plot1, plot2, plot_kwargs=None,
+                 y1=0, y2=0, coords_plot1="ax",
+                 coords_plot2="ax", **kwargs):
         """
-        :param x: Position on chromosome in bp (eg. 24000), no
-                  chromosome name
-        :param plot1: First plot
+        :param bed: Anything pybedtools can parse. Path to BED-file
+                    GTF-file, or a list of tuples [(chr, start, end), ...]
+                    If features are 1bp long, lines are drawn. If they
+                    are > 1bp rectangles are drawn. Their appearance
+                    can be controlled using the plot_kwargs.
+        :param plot1: First plot where line should start
+        ;param plot2: Second plot where line should end
+        :param plot_kwargs: Dictionary of properties which are passed
+                            to matplotlib.lines.Line2D or
+                            matplotlib.patches.Rectangle constructor
+        :param y1: y-axis coordinate on plot1 where line should begin
+        :param y2: y-axis coordinate on plot2 where line should end
+        :param coords_plot1: Controls how y_plot1 is interpreted. "ax" means
+                             values are (0, 1) as a fraction of axes height.
+                             "data" means values are data coordinates in plot1
+        :param coords_plot2: As in coords_plot1
         """
-        self.line_props = {
+        super(VerticalLineAnnotation, self).__init__(**kwargs)
+        self.plot_kwargs = {
             "linewidth": 1.,
             "color": "black",
             "linestyle": "solid",
         }
-        if line_props is not None:
-            self.line_props.update(line_props)
-        self.x = x
+        if plot_kwargs is not None:
+            self.plot_kwargs.update(plot_kwargs)
+        self.bedtool = bed
+        if not isinstance(self.bedtool, pbt.BedTool):
+            self.bedtool = pbt.BedTool(self.bedtool).saveas()
         self.plot1 = plot1
         self.plot2 = plot2
-        self.y_plot1 = y_plot1
-        self.y_plot2 = y_plot2
+        self.y1 = y1
+        self.y2 = y2
         self.coords_plot1 = coords_plot1
         self.coords_plot2 = coords_plot2
 
@@ -263,14 +276,37 @@ class VerticalLineAnnotation(BaseAnnotation):
         trans = trans + ax.figure.transFigure.inverted()
         return trans
 
-    def plot(self, region):
+    def _plot(self, region):
         x_trans = self._generate_transformation(self.plot1.ax, "data")
         trans1 = self._generate_transformation(self.plot1.ax, self.coords_plot1)
         trans2 = self._generate_transformation(self.plot2.ax, self.coords_plot2)
-        x_t = x_trans.transform((self.x, 0))[0]
-        y1_t = trans1.transform((0, self.y_plot1))[1]
-        y2_t = trans2.transform((0, self.y_plot2))[1]
-        l = figure_line(self.plot1.ax.figure, [x_t, x_t], [y1_t, y2_t], **self.line_props)
+        interval = region_to_pbt_interval(region)
+        hits = self.bedtool.all_hits(interval)
+        for r in hits:
+            if len(r) > 1:
+                self._draw_rectangle(r, x_trans, trans1, trans2)
+            else:
+                self._draw_line(r, x_trans, trans1, trans2)
+
+    def _draw_rectangle(self, r, x_trans, trans1, trans2):
+        s, e = r.start, r.end
+        x1_t = x_trans.transform((s, 0))[0]
+        x2_t = x_trans.transform((e, 0))[0]
+        y1_t = trans1.transform((0, self.y1))[1]
+        y2_t = trans2.transform((0, self.y2))[1]
+        y1_t, y2_t = sorted([y1_t, y2_t])
+        patch = figure_rectangle(self.plot1.ax.figure, xy=(x1_t, y1_t),
+                                 width=x2_t - x1_t, height=y2_t - y1_t,
+                                 **self.plot_kwargs)
+        return patch
+
+    def _draw_line(self, r, x_trans, trans1, trans2):
+        s = r.start
+        x_t = x_trans.transform((s, 0))[0]
+        y1_t = trans1.transform((0, self.y1))[1]
+        y2_t = trans2.transform((0, self.y2))[1]
+        l = figure_line(self.plot1.ax.figure, xdata=[x_t, x_t],
+                        ydata=[y1_t, y2_t], **self.plot_kwargs)
         return l
 
     def _verify(self, gfig):

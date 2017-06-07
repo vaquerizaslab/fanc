@@ -210,3 +210,18 @@ def figure_line(fig, xdata, ydata, **kwargs):
     l._remove_method = lambda h: fig.lines.remove(h)
     fig.stale = True
     return l
+
+# Borrowed from figure.text method
+# https://github.com/matplotlib/matplotlib/blob/a4999acbbf6ebd6fa211f70becd49887dce663ab/lib/matplotlib/figure.py#L1495
+def figure_rectangle(fig, xy, width, height, **kwargs):
+    """
+    Add a rectangle to the given figure independent of axes.
+    Coordinates in (0, 1) relative to bottom left of the figure.
+    All kwargs are passed to Rectangle constructor.
+    """
+    p = mpl.patches.Rectangle(xy, width, height, **kwargs)
+    fig._set_artist_props(p)
+    fig.patches.append(p)
+    p._remove_method = lambda h: fig.patches.remove(h)
+    fig.stale = True
+    return p
