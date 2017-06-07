@@ -204,6 +204,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         :param fix_chromosome: If True modify chromosome identifiers for this plot,
                                removing or adding 'chr' as necessary. Default: False
         """
+        if len(kwargs) > 0:
+            raise TypeError("Unexpected keyword argument used: {}".format(kwargs))
         self.ax = None
         self.cax = None
         self.title = title
