@@ -235,7 +235,7 @@ class BasePlotterHic(BasePlotterMatrix):
         :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
         :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
         """
-        BasePlotterMatrix.__init__(self, **kwargs)
+        super(BasePlotterHic, self).__init__(**kwargs)
         self.hic_data = hic_data
         self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
                                              buffering_arg=buffering_arg)
@@ -252,8 +252,7 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         """
         :param flip: Transpose matrix before plotting
         """
-        BasePlotter2D.__init__(self, **kwargs)
-        BasePlotterHic.__init__(self, hic_data=hic_data, **kwargs)
+        super(HicPlot2D, self).__init__(hic_data=hic_data, **kwargs)
         self.vmax_slider = None
         self.current_matrix = None
         self.flip = flip
@@ -356,7 +355,7 @@ class HicSlicePlot(ScalarDataPlot):
         :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
         """
         kwargs.setdefault("aspect", .3)
-        ScalarDataPlot.__init__(self, **kwargs)
+        super(HicSlicePlot, self).__init__(**kwargs)
         if not isinstance(hic_data, (list, tuple)):
             hic_data = [hic_data]
         self.hic_buffers = []
@@ -397,8 +396,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         :param max_dist: Only draw interactions up to this distance
         """
         kwargs.setdefault("aspect", .5)
-        BasePlotterHic.__init__(self, hic_data=hic_data, **kwargs)
-        BasePlotter1D.__init__(self, **kwargs)
+        super(HicPlot, self).__init__(hic_data=hic_data, **kwargs)
 
         self.max_dist = max_dist
         self.hm = None
@@ -512,7 +510,7 @@ class HicPeakPlot(BaseOverlayPlotter):
                             for the matplotlib.patches.Circle constructor.
                             Default: Black edges, no fill, linewidth 3 pt
         """
-        BaseOverlayPlotter.__init__(self, **kwargs)
+        super(HicPeakPlot, self).__init__(**kwargs)
         self.peaks = peaks
         self.radius = radius
         self.circle_props = {

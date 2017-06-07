@@ -295,7 +295,7 @@ class GenomicTrackPlot(ScalarDataPlot):
         """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
-        ScalarDataPlot.__init__(self, **kwargs)
+        super(GenomicTrackPlot, self).__init__(**kwargs)
         if not isinstance(tracks, list):
             tracks = [tracks]
         self.tracks = tracks
@@ -348,7 +348,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
         :param legend: Draw legend. Default: True
         """
         kwargs.setdefault("aspect", .2)
-        ScalarDataPlot.__init__(self, **kwargs)
+        super(GenomicRegionsPlot, self).__init__(**kwargs)
 
         self.regions = regions
         self.attributes = attributes
@@ -417,7 +417,7 @@ class RegionsValuesPlot(ScalarDataPlot):
         """
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
         kwargs.setdefault("aspect", .2)
-        ScalarDataPlot.__init__(self, **kwargs)
+        super(RegionsValuesPlot, self).__init__(**kwargs)
 
         self.regions = regions
         self.legend = True
@@ -486,8 +486,7 @@ class GenomicMatrixPlot(BasePlotterMatrix, BasePlotter1D):
         :param plot_kwargs: Keyword-arguments passed on to pcolormesh
         """
         kwargs.setdefault("aspect", .3)
-        BasePlotter1D.__init__(self, **kwargs)
-        BasePlotterMatrix.__init__(self, **kwargs)
+        super(GenomicMatrixPlot, self).__init__(**kwargs)
         self.track = track
         self.attribute = attribute
         if plot_kwargs is None:
@@ -557,8 +556,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
         :param plot_kwargs: Keyword-arguments passed on to pcolormesh
         """
         kwargs.setdefault("aspect", .3)
-        BasePlotter1D.__init__(self, **kwargs)
-        BasePlotterMatrix.__init__(self, **kwargs)
+        super(GenomicVectorArrayPlot, self).__init__(**kwargs)
         self.array = array
         self.keys = keys
         if plot_kwargs is None:
@@ -628,7 +626,7 @@ class VerticalSplitPlot(BasePlotter1D):
         :param cax_gap: Gap between colorbars in inches
         """
         kwargs.setdefault("aspect", 1.)
-        BasePlotter1D.__init__(self, **kwargs)
+        super(VerticalSplitPlot, self).__init__(**kwargs)
         self.top_plot = top_plot
         self.bottom_plot = bottom_plot
         self.parent_ax = None
@@ -706,7 +704,7 @@ class GenomicFeaturePlot(BasePlotter1D):
                            takes pybedtools.Interval als argument and returns label string
         """
         kwargs.setdefault("aspect", .2)
-        BasePlotter1D.__init__(self, **kwargs)
+        super(GenomicFeaturePlot, self).__init__(**kwargs)
         if isinstance(regions, pbt.BedTool):
             self.bedtool = regions
         else:
@@ -773,7 +771,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", "ticks")
-        BasePlotter1D.__init__(self, **kwargs)
+        super(GenomicFeatureScorePlot, self).__init__(**kwargs)
         if isinstance(regions, string_types):
             self.regions = kaic.load(regions)
         else:
@@ -884,7 +882,7 @@ class BigWigPlot(ScalarDataPlot):
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
         """
         kwargs.setdefault("aspect", .2)
-        ScalarDataPlot.__init__(self, **kwargs)
+        super(BigWigPlot, self).__init__(**kwargs)
         if isinstance(bigwigs, string_types):
             bigwigs = [bigwigs]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
@@ -982,7 +980,7 @@ class GenePlot(BasePlotter1D):
         """
         kwargs.setdefault("aspect", .5)
         kwargs.setdefault("axes_style", "ticks")
-        BasePlotter1D.__init__(self, **kwargs)
+        super(GenePlot, self).__init__(**kwargs)
         if not isinstance(genes, pbt.BedTool):
             self.bedtool = pbt.BedTool(genes)
         else:
@@ -1282,7 +1280,7 @@ class FeatureLayerPlot(BasePlotter1D):
         :param collapse: Collapse all rows onto a single one (ignore grouping)
         """
         kwargs.setdefault("aspect", 1.)
-        BasePlotter1D.__init__(self, **kwargs)
+        super(FeatureLayerPlot, self).__init__(**kwargs)
 
         if isinstance(features, string_types):
             self.features = load(features)
@@ -1399,7 +1397,7 @@ class GenomicDataFramePlot(ScalarDataPlot):
         """
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
         kwargs.setdefault("aspect", .2)
-        ScalarDataPlot.__init__(self, **kwargs)
+        super(GenomicDataFramePlot, self).__init__(**kwargs)
         if isinstance(genomic_data_frame, string_types):
             genomic_data_frame = GenomicDataFrame.read_table(genomic_data_frame)
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs

@@ -336,7 +336,7 @@ class BasePlotter1D(BasePlotter):
         :param n_ticks: Number of major x-axis genome coordinate ticks
         :param n_minor_ticks: Number of minor ticks per major tick
         """
-        BasePlotter.__init__(self, **kwargs)
+        super(BasePlotter1D, self).__init__(**kwargs)
         if n_ticks < 2:
             raise ValueError("Need at least two ticks. Set draw_ticks to False to hide all ticks.")
         self.n_tick_bins = n_ticks - 1
@@ -406,7 +406,7 @@ class ScalarDataPlot(BasePlotter1D):
         """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
-        BasePlotter1D.__init__(self, **kwargs)
+        super(ScalarDataPlot, self).__init__(**kwargs)
         self.style = style
         self.ylim = ylim
         self.yscale = yscale
@@ -489,6 +489,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         :param colorbar_symmetry: Set to enforce that the colorbar is symemtric around
                                   this value. Default: None
         """
+        super(BasePlotterMatrix, self).__init__(**kwargs)
         if isinstance(colormap, string_types):
             colormap = mpl.cm.get_cmap(colormap)
         self.colormap = colormap
@@ -602,7 +603,7 @@ class BasePlotter2D(BasePlotter):
         :param n_minor_ticks: Number of minor ticks per major tick
         """
         kwargs.setdefault("aspect", 1.)
-        BasePlotter.__init__(self, **kwargs)
+        super(BasePlotter2D, self).__init__(**kwargs)
         self.n_tick_bins = n_ticks + 2
         self.n_minor_ticks = n_minor_ticks
         self._mouse_release_handler = None

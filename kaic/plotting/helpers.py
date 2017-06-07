@@ -201,12 +201,12 @@ def box_coords_abs_to_rel(top, left, width, height, figsize):
 def figure_line(fig, xdata, ydata, **kwargs):
     """
     Add a line to the figure, independent of axes.
-    Coordinates in (0, 1) relative to bottom left.
+    Coordinates in (0, 1) relative to bottom left of the figure.
     All kwargs are passed to Line2D constructor.
     """
     l = mpl.lines.Line2D(xdata, ydata, **kwargs)
     fig._set_artist_props(l)
     fig.lines.append(l)
-    l._remove_method = lambda h: fig.lines.remove(l)
+    l._remove_method = lambda h: fig.lines.remove(h)
     fig.stale = True
     return l
