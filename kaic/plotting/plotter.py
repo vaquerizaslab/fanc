@@ -201,6 +201,7 @@ class GenomicFigure(object):
         for p in self.plots:
             if getattr(p, "ylim_group", None) is not None:
                 p.ax.set_ylim(p.ylim_group.get_limit())
+                p.ax.yaxis.reset_ticks()
         for p in self.annotations:
             p.plot(region)
 

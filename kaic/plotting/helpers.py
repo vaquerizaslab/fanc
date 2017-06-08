@@ -2,6 +2,7 @@ from __future__ import division
 import matplotlib as mpl
 import numpy as np
 import pybedtools as pbt
+from math import log10, floor
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,
@@ -226,6 +227,12 @@ def figure_rectangle(fig, xy, width, height, **kwargs):
     fig.stale = True
     return p
 
+# From https://stackoverflow.com/a/3413529/4603385
+def round_sig(x, sig=2):
+    if x == 0:
+        return 0.
+    return round(x, sig - int(floor(log10(abs(x)))) - 1)
+
 class LimitGroup(object):
     """
     Can be used for synchronizing axis limits across multiple
@@ -233,17 +240,21 @@ class LimitGroup(object):
     that should have synchronized axis limits.
     """
 
-    def __init__(self, limit=None):
+    def __init__(self, limit=None, sig=2):
         """
         :param limit: tuple (vmin, vmax) to set absolute limits
                       for axis. Final limits will be chosen
                       within this absolute limit. Pass None
                       for vmin or vmax to set no limit.
                       Default: (None, None)
+        :param sig: Round limits to sig significant digits.
+                    If None, don't round.
+                    Default: 2
         """
         self.limit = limit
         if self.limit is None:
             self.limit = (None, None)
+        self.sig = sig
         self.limit_list = []
 
     def add_limit(self, limit):
@@ -258,4 +269,7 @@ class LimitGroup(object):
             vmin = self.limit[0]
         if vmax is None or (self.limit[1] is not None and vmax > self.limit[1]):
             vmax = self.limit[1]
+        if self.sig is not None:
+            vmin = round_sig(vmin, self.sig)
+            vmax = round_sig(vmax, self.sig)
         return (vmin, vmax)

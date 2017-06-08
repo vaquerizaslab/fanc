@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 from kaic.config import config
 from kaic.plotting.helpers import style_ticks_whitegrid, LimitGroup
-from matplotlib.ticker import MaxNLocator, Formatter, Locator
+from matplotlib.ticker import MaxNLocator, LinearLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
 import numpy as np
@@ -422,19 +422,20 @@ class ScalarDataPlot(BasePlotter1D):
         self.condensed = condensed
         if n_yticks < 2:
             raise ValueError("At least 2 ticks needed. Use condensed argument for only one.")
-        self.n_ybins = n_yticks - 1
+        self.n_yticks = n_yticks
         if style not in self._STYLES:
             raise ValueError("Only the styles {} are supported.".format(list(self._STYLES.keys())))
 
     def _before_plot(self, region=None, *args, **kwargs):
         super(ScalarDataPlot, self)._before_plot(region=region, *args, **kwargs)
-        self.ax.yaxis.set_major_locator(MaxNLocator(self.n_ybins))
+        self.ax.set_yscale(self.yscale)
+        if self.yscale == "linear":
+            self.ax.yaxis.set_major_locator(LinearLocator(self.n_yticks))
 
     def _after_plot(self, region=None, *args, **kwargs):
         super(ScalarDataPlot, self)._after_plot(region=region, *args, **kwargs)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
-        self.ax.set_yscale(self.yscale)
         if self.condensed:
             low, high = self.ax.get_ylim()
             self.ax.set_yticks([high])
