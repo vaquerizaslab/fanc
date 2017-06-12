@@ -108,6 +108,7 @@ class GenomicFigure(object):
         if not gridspec_args:
             gridspec_args = {}
         gs = gridspec.GridSpec(self.n, 2, height_ratios=self.height_ratios, width_ratios=[1, .05], **gridspec_args)
+        self.gs = gs
         fig = plt.figure(figsize=self.figsize)
         absolute_wspace_hspace(fig, gs, .3, hspace)
         for i in range(self.n):
@@ -247,7 +248,7 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 class GenomicRegionsPlot(ScalarDataPlot):
     def __init__(self, regions, style="mid", attributes=None, names=None, title='', aspect=.2,
-                 axes_style=style_ticks_whitegrid, ylim=None):
+                 axes_style=style_ticks_whitegrid, ylim=None, legend=True):
         """
         Plot scalar values from one or more class:`~GenomicTrack` objects
 
@@ -270,6 +271,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.lines = []
         self.ylim = ylim
         self.names = names
+        self.legend = legend
 
     def _plot(self, region=None, ax=None, *args, **kwargs):
         line_counter = 0
@@ -282,7 +284,10 @@ class GenomicRegionsPlot(ScalarDataPlot):
                     values.append(getattr(r, name))
                 x, y = self.get_plot_values(values, regions)
                 if self.names is not None:
-                    label = self.names[line_counter]
+                    if not self.attributes:
+                        label = self.names[line_counter]
+                    else:
+                        label = self.names[self.attributes.index(name)]
                 elif self.regions.y_values is not None:
                     label = "{}".format(self.regions.y_values[i])
                 else:
@@ -294,7 +299,8 @@ class GenomicRegionsPlot(ScalarDataPlot):
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim)
 
-        self.add_legend()
+        if self.legend:
+            self.add_legend()
         self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
@@ -873,7 +879,6 @@ class BigWigPlot(ScalarDataPlot):
         :param bigwigs: Path or list of paths to bigwig files
         :param names: List of names for each bigwig. Used as label in the legend.
         :param style: 'step' Draw values in a step-wise manner for each bin
-                      'mid' Draw values connecting mid-points of bins
         :param title: Title of the plot
         :param bin_size: Bin BigWig values using fixed size bins of the given size.
                          If None, will plot values as they are in the BigWig file
