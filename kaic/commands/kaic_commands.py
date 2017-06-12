@@ -867,6 +867,7 @@ def filter_pairs_parser():
         help='''Auto-guess settings for inward/outward read pair filters.
                         Overrides --outward and --inward if set.'''
     )
+    parser.set_defaults(auto=False)
 
     parser.add_argument(
         '-r', '--re-distance', dest='redist',
