@@ -361,7 +361,7 @@ class BasePlotterMatrix(with_metaclass(ABCMeta, object)):
         color_matrix = self.colormap(self.norm(matrix))
         if self.blend_zero or self.unmappable_color:
             if not hasattr(matrix, 'mask'):
-                zero_mask = np.isclose(matrix, 0.)
+                zero_mask = np.isclose(matrix, 0.) | np.isnan(matrix)
             else:
                 zero_mask = np.ma.getmaskarray(matrix)
 
