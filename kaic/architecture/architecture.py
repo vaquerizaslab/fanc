@@ -319,6 +319,10 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
     def _calculate(self, *args, **kwargs):
         raise NotImplementedError("This method must be overridden in subclass!")
 
+    @calculateondemand
+    def close(self, **kwargs):
+        FileGroup.close(self, **kwargs)
+
 
 class BasicTable(TableArchitecturalFeature):
     """

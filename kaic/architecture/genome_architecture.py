@@ -44,6 +44,10 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
             self.add_edges(edges)
 
     @calculateondemand
+    def close(self, **kwargs):
+        AccessOptimisedRegionMatrixTable.close(self, **kwargs)
+
+    @calculateondemand
     def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False,
                   impute_missing=False, default_value=0.0):
         """
@@ -266,6 +270,10 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         # process data
         if data is not None:
             self.add_data(data)
+
+    @calculateondemand
+    def close(self, **kwargs):
+        RegionsTable.close(self, **kwargs)
 
     def flush(self):
         self._regions.flush()
