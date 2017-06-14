@@ -1098,7 +1098,9 @@ class GenomicRegion(TableObject):
                 a = getattr(self, attribute)
                 if isinstance(a, float):
                     a = "{:{float_format}}".format(a, float_format=float_format)
-                group += "{} {}; ".format(attribute, a)
+                elif isinstance(a, string_types):
+                    a = '"{}"'.format(a)
+                group += '{} {}; '.format(attribute, a)
 
         return "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.chromosome, source,
                                                            feature, self.start + 1,
