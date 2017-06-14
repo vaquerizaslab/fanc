@@ -1090,7 +1090,7 @@ class GenomicRegion(TableObject):
             warnings.warn("Frame field {} does not exist, using '.'".format(frame_field))
             frame = '.'
 
-        no_group_items = {'start', 'end', 'chromosome', 'source', 'feature',
+        no_group_items = {'start', 'end', 'chromosome', 'source', 'feature', 'score',
                           'frame', 'ix', 'strand', 'fields'}
         group = ''
         for attribute in self.attributes:
