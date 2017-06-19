@@ -102,25 +102,26 @@ def _random_regions_spacing(original_regions, sort=False, preserve_attributes=Fa
     for chromosome, regions in cr.items():
         spacing_lens = []
         for i in range(len(regions) - 1):
-            spacing_lens.append(regions[i + 1].start - regions[i].end)
+            l = regions[i + 1].start - regions[i].end
+            spacing_lens.append(l)
 
         current_start = regions[0].start
-        random.shuffle(regions)
-        random.shuffle(spacing_lens)
+        shuffled_regions = sorted(regions, key=lambda *args: random.random())
+        shuffled_spacings = sorted(spacing_lens, key=lambda *args: random.random())
         protected_attributes = {'chromosome', 'start', 'end'}
         with RareUpdateProgressBar(max_value=len(regions), silent=silent) as pb:
-            for i in range(len(regions)):
-                region_len = len(regions[i])
+            for i in range(len(shuffled_regions)):
+                region_len = len(shuffled_regions[i])
                 attributes = {}
                 if preserve_attributes:
-                    for a in regions[i].attributes:
+                    for a in shuffled_regions[i].attributes:
                         if a not in protected_attributes:
-                            attributes[a] = getattr(regions[i], a)
+                            attributes[a] = getattr(shuffled_regions[i], a)
                 random_region = GenomicRegion(start=current_start, end=current_start + region_len,
                                               chromosome=chromosome, **attributes)
 
                 random_regions.append(random_region)
                 if i < len(spacing_lens):
-                    current_start += region_len + spacing_lens[i]
+                    current_start += region_len + shuffled_spacings[i]
                 pb.update(i)
     return random_regions
