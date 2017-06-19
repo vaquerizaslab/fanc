@@ -304,18 +304,18 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.remove_colorbar_ax()
 
     def _refresh(self, region=None, ax=None, *args, **kwargs):
-        current_line = 0
-        for name in self.regions.data_field_names:
-            if not self.attributes or any(re.match(a.replace("*", ".*"), name) for a in self.attributes):
+        line_counter = 0
+        for i, name in enumerate(self.regions.data_field_names):
+            if not self.attributes or any(re.match("^" + a.replace("*", ".*") + "$", name) for a in self.attributes):
                 regions = []
                 values = []
                 for r in self.regions.subset(region):
                     regions.append(r)
                     values.append(getattr(r, name))
                 x, y = self.get_plot_values(values, regions)
-                self.lines[current_line].set_xdata(x)
-                self.lines[current_line].set_ydata(y)
-                current_line += 1
+                self.lines[line_counter].set_xdata(x)
+                self.lines[line_counter].set_ydata(y)
+                line_counter += 1
 
 
 class RegionsValuesPlot(ScalarDataPlot):
