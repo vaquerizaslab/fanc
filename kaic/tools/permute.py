@@ -113,9 +113,14 @@ def _random_regions_spacing(original_regions, sort=False, preserve_attributes=Fa
             for i in range(len(shuffled_regions)):
                 region_len = len(shuffled_regions[i])
                 attributes = {}
-                if preserve_attributes:
+                if isinstance(preserve_attributes, bool):
+                    if preserve_attributes:
+                        for a in shuffled_regions[i].attributes:
+                            if a not in protected_attributes:
+                                attributes[a] = getattr(shuffled_regions[i], a)
+                elif preserve_attributes is not None:
                     for a in shuffled_regions[i].attributes:
-                        if a not in protected_attributes:
+                        if a not in protected_attributes and a in preserve_attributes:
                             attributes[a] = getattr(shuffled_regions[i], a)
                 random_region = GenomicRegion(start=current_start, end=current_start + region_len,
                                               chromosome=chromosome, **attributes)
