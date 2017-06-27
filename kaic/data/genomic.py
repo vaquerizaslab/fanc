@@ -1712,9 +1712,11 @@ class RegionsTable(GenomicRegions, FileGroup):
             def __len__(self):
                 return len(this._regions)
 
-            def __call__(self, lazy=False, auto_update=True):
+            def __call__(self, key=None, lazy=False, auto_update=True):
                 self.lazy = lazy
                 self.auto_update = auto_update
+                if key is not None:
+                    self.iter = this._subset_rows(key)
                 return iter(self)
 
             def __getitem__(self, item):
@@ -1732,6 +1734,53 @@ class RegionsTable(GenomicRegions, FileGroup):
 
         return RegionIter()
 
+    def _subset_rows(self, key):
+        """
+        Iterate over a subset of regions given the specified key.
+
+        :param key: A :class:`~kaic.data.genomic.GenomicRegion` object,
+                    or a list of the former. Also accepts slices and integers
+        :return: Iterator over the specified subset of regions
+        """
+        if isinstance(key, slice):
+            for row in self._regions.where("(ix >= {}) & (ix < {})".format(key.start, key.stop)):
+                yield row
+        elif isinstance(key, int):
+            yield self._regions[key]
+        elif isinstance(key, list) and len(key) > 0 and isinstance(key[0], int):
+            for ix in key:
+                yield self._regions[ix]
+        else:
+            if isinstance(key, string_types):
+                key = GenomicRegion.from_string(key)
+
+            if isinstance(key, GenomicRegion):
+                keys = [key]
+            else:
+                keys = key
+
+            for k in keys:
+                if isinstance(k, string_types):
+                    k = GenomicRegion.from_string(k)
+
+                query = '('
+                if k.chromosome is not None:
+                    query += "(chromosome == b'%s') & " % k.chromosome
+                if k.end is not None:
+                    query += "(start <= %d) & " % k.end
+                if k.start is not None:
+                    query += "(end >= %d) & " % k.start
+                if query.endswith(' & '):
+                    query = query[:-3]
+                query += ')'
+
+                if len(query) == 2:
+                    for row in self._regions:
+                        yield row
+                else:
+                    for row in self._regions.where(query):
+                        yield row
+
     def subset(self, region, lazy=False, auto_update=True):
         """
         Iterate over a subset of regions given the specified key.
@@ -1742,48 +1791,9 @@ class RegionsTable(GenomicRegions, FileGroup):
         :param auto_update: Auto update regions upon modification
         :return: Iterator over the specified subset of regions
         """
-        if isinstance(region, slice):
-            for row in self._regions.where("(ix >= {}) & (ix < {})".format(region.start, region.stop)):
-                sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
-                yield sub_region
-        elif isinstance(region, int):
-            sub_region = self._row_to_region(self._regions[region], lazy=lazy, auto_update=auto_update)
+        for row in self._subset_rows(region):
+            sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
             yield sub_region
-        elif isinstance(region, list) and len(region) > 0 and isinstance(region[0], int):
-            for ix in region:
-                sub_region = self._row_to_region(self._regions[ix], lazy=lazy, auto_update=auto_update)
-                yield sub_region
-        else:
-            if isinstance(region, string_types):
-                region = GenomicRegion.from_string(region)
-
-            if isinstance(region, GenomicRegion):
-                regions = [region]
-            else:
-                regions = region
-
-            for r in regions:
-                if isinstance(r, string_types):
-                    r = GenomicRegion.from_string(r)
-
-                query = '('
-                if r.chromosome is not None:
-                    query += "(chromosome == b'%s') & " % r.chromosome
-                if r.end is not None:
-                    query += "(start <= %d) & " % r.end
-                if r.start is not None:
-                    query += "(end >= %d) & " % r.start
-                if query.endswith(' & '):
-                    query = query[:-3]
-                query += ')'
-
-                if len(query) == 2:
-                    for region in self.regions(lazy=lazy, auto_update=auto_update):
-                        yield region
-                else:
-                    for row in self._regions.where(query):
-                        sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
-                        yield sub_region
 
 
 class Genome(FileGroup):
