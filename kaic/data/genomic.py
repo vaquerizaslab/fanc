@@ -2355,6 +2355,11 @@ class RegionPairs(Maskable, RegionsTable):
                 del kwargs['only_intrachromosomal']
             self.row_conversion_args = args
             self.row_conversion_kwargs = kwargs
+            key = kwargs.get('key', None)
+
+            if key is not None:
+                self.iter = self.this._edge_subset_rows(key=key,
+                                                        only_intrachromosomal=self.only_intrachromosomal)
             return iter(self)
 
         def __next__(self):
@@ -2619,6 +2624,34 @@ class RegionPairs(Maskable, RegionsTable):
         if flush_edges:
             self._edges.flush(update_index=update_index)
 
+    def _edge_subset_rows(self, key, only_intrachromosomal=False):
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+
+        nodes_ix_row = None
+        if nodes_row is not None:
+            if isinstance(nodes_row, list):
+                nodes_ix_row = [node.ix for node in nodes_row]
+            else:
+                nodes_ix_row = nodes_row.ix
+
+        nodes_ix_col = None
+        if nodes_col is not None:
+            if isinstance(nodes_col, list):
+                nodes_ix_col = [node.ix for node in nodes_col]
+            else:
+                nodes_ix_col = nodes_col.ix
+
+        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
+        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
+
+        # fill matrix with weights
+        for row_range in row_ranges:
+            for col_range in col_ranges:
+                for edge_row in self._edge_row_range(row_range[0], row_range[1],
+                                                     col_range[0], col_range[1],
+                                                     only_intrachromosomal=only_intrachromosomal):
+                    yield edge_row
+
     def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True,
                     only_intrachromosomal=False, **kwargs):
         """
@@ -2653,35 +2686,12 @@ class RegionPairs(Maskable, RegionsTable):
                     map of the relevant regions between chromosomes 1 and 4.
         :param lazy: Enable lazy loading of edge attributes
         :param auto_update: Automatically update edge attributes on change
+        :param only_intrachromosomal: Only return intra-chromosomal contacts
         :return: generator (:class:`~Edge`)
         """
 
-        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
-
-        nodes_ix_row = None
-        if nodes_row is not None:
-            if isinstance(nodes_row, list):
-                nodes_ix_row = [node.ix for node in nodes_row]
-            else:
-                nodes_ix_row = nodes_row.ix
-
-        nodes_ix_col = None
-        if nodes_col is not None:
-            if isinstance(nodes_col, list):
-                nodes_ix_col = [node.ix for node in nodes_col]
-            else:
-                nodes_ix_col = nodes_col.ix
-
-        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
-        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
-
-        # fill matrix with weights
-        for row_range in row_ranges:
-            for col_range in col_ranges:
-                for edge_row in self._edge_row_range(row_range[0], row_range[1],
-                                                     col_range[0], col_range[1],
-                                                     only_intrachromosomal=only_intrachromosomal):
-                    yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update, **kwargs)
+        for edge_row in self._edge_subset_rows(key, only_intrachromosomal=only_intrachromosomal):
+            yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update, **kwargs)
 
     def _get_nodes_from_key(self, key, as_index=False):
         if isinstance(key, tuple):
@@ -2736,6 +2746,10 @@ class RegionPairs(Maskable, RegionsTable):
         return ranges(nodes_ix)
 
     def _getitem_nodes(self, key, as_index=False):
+        # None
+        if key is None:
+            key = slice(0, None, None)
+
         # 'chr1:1234:56789'
         if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
@@ -2999,6 +3013,11 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 del kwargs['interchromosomal']
             self.row_conversion_args = args
             self.row_conversion_kwargs = kwargs
+
+            key = kwargs.get('key', None)
+            if key is not None:
+                self.iter = self.this._edge_subset_rows(key=key,
+                                                        only_intrachromosomal=self.only_intrachromosomal)
             return iter(self)
 
         def __next__(self):
