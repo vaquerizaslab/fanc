@@ -45,6 +45,7 @@ def kaic_parser():
             optimise            Optimise an existing Hic object for faster access
             subset_hic          Create a new Hic object by subsetting
             cis_trans           Calculate cis/trans ratio
+            dump                Dump Hic file to txt file(s)
 
             --- Network
             call_peaks          Call enriched peaks in a Hic object
@@ -1388,6 +1389,132 @@ def correct_hic(argv):
             logger.info("Moving temporary output file to destination %s" % original_output_path)
             os.unlink(input_path)
             shutil.move(output_path, original_output_path)
+
+    logger.info("All done.")
+
+
+def dump_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic dump",
+        description='Dump Hic file to txt file(s).'
+    )
+
+    parser.add_argument(
+        'hic',
+        help='''Hic file'''
+    )
+
+    parser.add_argument(
+        'matrix',
+        nargs='?',
+        help='''Output file for matrix entries. If not provided, will write to stdout.'''
+    )
+
+    parser.add_argument(
+        'regions',
+        nargs='?',
+        help='''Output file for Hic regions. If not provided, will write regions into matrix file.'''
+    )
+
+    parser.add_argument(
+        '-s', '--subset', dest='subset',
+        help='''Only output this matrix subset. Format:
+                <chr>[:<start>-<end>][--<chr>[:<start><end>]],
+                e.g.:
+                "chr1--chr1" to extract only the chromosome 1 submatrix;
+                "chr2:3400000-4200000" to extract contacts of this region 
+                on chromosome 2 to all other regions in the genome;'''
+    )
+
+    parser.add_argument(
+        '-S', '--no-sparse', dest='sparse',
+        action='store_false',
+        help='''Store full, square matrix instead of sparse format.'''
+    )
+    parser.set_defaults(sparse=True)
+    return parser
+
+
+def dump(argv):
+    parser = dump_parser()
+    args = parser.parse_args(argv[2:])
+    hic_file = os.path.expanduser(args.hic)
+    output_matrix = None if args.matrix is None else os.path.expanduser(args.matrix)
+    output_regions = None if args.regions is None else os.path.expanduser(args.regions)
+    subset_string = args.subset
+    sparse = args.sparse
+
+    import kaic
+
+    col_subset_region = None
+    row_subset_region = None
+    if subset_string is not None:
+        col_subset_string = None
+        if '--' in subset_string:
+            row_subset_string, col_subset_string = subset_string.split('--')
+        else:
+            row_subset_string = subset_string
+        row_subset_region = kaic.GenomicRegion.from_string(row_subset_string)
+        if col_subset_string is not None:
+            col_subset_region = kaic.GenomicRegion.from_string(col_subset_string)
+
+    hic = kaic.load(hic_file, mode='r')
+
+    row_regions = [region for region in hic.regions(row_subset_region)]
+    col_regions = [region for region in hic.regions(col_subset_region)]
+    row_regions_dict = {region.ix: (region, i) for i, region in enumerate(row_regions)}
+    col_regions_dict = {region.ix: (region, i) for i, region in enumerate(col_regions)}
+
+    if not sparse:
+        if output_matrix is None or output_regions is None:
+            raise ValueError("Cannot write matrix to stdout, must provide "
+                             "both matrix and regions file for output")
+        m = hic.as_matrix(key=(row_subset_region, col_subset_region))
+        import numpy as np
+        np.savetxt(output_matrix, m)
+    else:
+        if output_matrix is None:
+            for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                source, i = row_regions_dict[edge.source]
+                sink, j = col_regions_dict[edge.sink]
+                print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                    source.chromosome, source.start, source.end,
+                    sink.chromosome, sink.start, sink.end,
+                    edge.weight
+                ))
+        else:
+            with open(output_matrix, 'w') as o:
+                if output_regions is None:
+                    for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                        source, i = row_regions_dict[edge.source]
+                        sink, j = col_regions_dict[edge.sink]
+                        o.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                            source.chromosome, source.start, source.end,
+                            sink.chromosome, sink.start, sink.end,
+                            edge.weight
+                        ))
+                else:
+                    for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                        source, i = row_regions_dict[edge.source]
+                        sink, j = col_regions_dict[edge.sink]
+                        o.write("{}\t{}\t{}\n".format(
+                            i, j, edge.weight
+                        ))
+
+    # write regions to file
+    if output_regions is not None:
+        if row_subset_region == col_subset_region:
+            with open(output_regions, 'w') as o:
+                for region in row_regions:
+                    o.write("{}\t{}\t{}\n".format(region.chromosome, region.start, region.end))
+        else:
+            basepath, extension = os.path.splitext(output_regions)
+            with open(basepath + '_row' + extension, 'w') as o:
+                for region in row_regions:
+                    o.write("{}\t{}\t{}\n".format(region.chromosome, region.start, region.end))
+            with open(basepath + '_col' + extension, 'w') as o:
+                for region in col_regions:
+                    o.write("{}\t{}\t{}\n".format(region.chromosome, region.start, region.end))
 
     logger.info("All done.")
 
