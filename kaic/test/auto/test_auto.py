@@ -22,11 +22,20 @@ class TestAuto:
     def test_hic_based_auto_identification(self, tmpdir):
         with dummy.sample_hic() as hic:
             for class_name in ('ABDomains', 'ABDomainMatrix', 'ExpectedContacts', 'ObservedExpectedRatio',
-                               'FoldChangeMatrix', 'ABDomains', 'PossibleContacts', 'RegionContactAverage',
+                               'ABDomains', 'PossibleContacts', 'RegionContactAverage',
                                'InsulationIndex', 'DirectionalityIndex'):
                 file_name = str(tmpdir) + '/{}.h5'.format(class_name)
                 cls_ = class_name_dict[class_name]
                 x = cls_(hic, file_name=file_name, mode='w')
+                x.close()
+
+                x = kaic.load(file_name, mode='r')
+                assert isinstance(x, cls_)
+                x.close()
+            for class_name in ('FoldChangeMatrix',):
+                file_name = str(tmpdir) + '/{}.h5'.format(class_name)
+                cls_ = class_name_dict[class_name]
+                x = cls_(hic, hic, file_name=file_name, mode='w')
                 x.close()
 
                 x = kaic.load(file_name, mode='r')
@@ -53,13 +62,23 @@ class TestAuto:
     def test_old_style_index(self, tmpdir):
         with dummy.sample_hic() as hic:
             for class_name in ('ABDomains', 'ABDomainMatrix', 'ExpectedContacts', 'ObservedExpectedRatio',
-                               'FoldChangeMatrix', 'ABDomains', 'PossibleContacts', 'RegionContactAverage',
+                               'ABDomains', 'PossibleContacts', 'RegionContactAverage',
                                'InsulationIndex', 'DirectionalityIndex'):
                 file_name = str(tmpdir) + '/{}.h5'.format(class_name)
                 cls_ = class_name_dict[class_name]
                 x = cls_(hic, file_name=file_name, mode='w')
                 # simulate missing meta-information
-                x.file.remove_node('/meta_information', recursive=True)
+                x.close()
+
+                x = kaic.load(file_name, mode='r')
+                assert isinstance(x, cls_)
+                x.close()
+
+            for class_name in ('FoldChangeMatrix',):
+                file_name = str(tmpdir) + '/{}.h5'.format(class_name)
+                cls_ = class_name_dict[class_name]
+                x = cls_(hic, hic, file_name=file_name, mode='w')
+                # simulate missing meta-information
                 x.close()
 
                 x = kaic.load(file_name, mode='r')
