@@ -132,11 +132,11 @@ class GenomicFigure(object):
                 pad = p.padding
             else:
                 pad = config.pad_empty_axis + p.extra_padding
-                if p._has_tick_labels:
+                if p._draw_tick_labels:
                     pad += config.pad_with_label
-                if p._has_ticks:
+                if p._draw_ticks:
                     pad += config.pad_with_ticks
-                if p._has_tick_legend:
+                if p._draw_tick_legend:
                     pad += config.pad_with_tick_legend
                 p._total_padding = pad
                 # Add a bit of space if adjustment slider is present

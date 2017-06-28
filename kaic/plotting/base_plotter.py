@@ -210,10 +210,10 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self.cax = None
         self.title = title
         self._has_legend = False
-        self._has_ticks = draw_ticks
-        self._has_tick_labels = draw_tick_labels
-        self._has_x_axis = draw_x_axis
-        self._has_tick_legend = draw_tick_legend
+        self._draw_ticks = draw_ticks
+        self._draw_tick_labels = draw_tick_labels
+        self._draw_x_axis = draw_x_axis
+        self._draw_tick_legend = draw_tick_legend
         self.aspect = aspect
         self.padding = padding
         # Total padding excl title and adj slider padding, set from GenomicFigure
@@ -232,13 +232,13 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
     def _after_plot(self, region=None, *args, **kwargs):
         for o in self.overlays:
             o.plot(self, region)
-        if not self._has_ticks:
+        if not self._draw_ticks:
             self.remove_genome_ticks()
-        if not self._has_tick_labels:
+        if not self._draw_tick_labels:
             self.remove_genome_labels()
-        if not self._has_x_axis:
+        if not self._draw_x_axis:
             self.remove_genome_axis()
-        if not self._has_tick_legend:
+        if not self._draw_tick_legend:
             self.remove_tick_legend()
 
     @abstractmethod
@@ -284,7 +284,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         if self.ax:
             plt.setp(self.ax.xaxis.get_majorticklines(), visible=False)
             plt.setp(self.ax.xaxis.get_minorticklines(), visible=False)
-        self._has_ticks = False
+        self._draw_ticks = False
 
     def remove_genome_labels(self):
         """
@@ -292,7 +292,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if self.ax:
             plt.setp(self.ax.get_xticklabels(), visible=False)
-        self._has_tick_labels = False
+        self._draw_tick_labels = False
 
     def remove_genome_axis(self):
         """
@@ -301,7 +301,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         if self.ax:
             self.ax.xaxis.set_visible(False)
             self.ax.spines["bottom"].set_visible(False)
-        self._has_x_axis = False
+        self._draw_x_axis = False
         self.remove_genome_labels()
         self.remove_genome_ticks()
         self.remove_tick_legend()
@@ -312,7 +312,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if self.ax:
             self.ax.xaxis.offsetText.set_visible(False)
-        self._has_tick_legend = False
+        self._draw_tick_legend = False
 
     def remove_colorbar_ax(self):
         if self.cax is None:
