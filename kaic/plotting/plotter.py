@@ -871,7 +871,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
 class BigWigPlot(ScalarDataPlot):
     def __init__(self, bigwigs, names=None, style="step", title='',
-                 bin_size=None, log=False, condensed=False,
+                 bin_size=None, log=False, condensed=False, fill=True,
                  plot_kwargs=None, ylim=None, aspect=.2, axes_style=style_ticks_whitegrid):
         """
         Plot data from on or more BigWig files.
@@ -889,8 +889,9 @@ class BigWigPlot(ScalarDataPlot):
         """
         ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
                                 axes_style=axes_style)
-        if isinstance(bigwigs, string_types):
+        if isinstance(bigwigs, string_types) or isinstance(bigwigs, kaic.BigWig):
             bigwigs = [bigwigs]
+
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
         self.bigwigs = []
         for bw in bigwigs:
@@ -907,6 +908,7 @@ class BigWigPlot(ScalarDataPlot):
         self.lines = []
         self.title = title
         self.condensed = condensed
+        self.fill = fill
 
     def _bin_intervals(self, region, intervals):
         """
@@ -946,7 +948,8 @@ class BigWigPlot(ScalarDataPlot):
             l = self.ax.plot(x, y, label=self.names[i] if self.names else "",
                              **self.plot_kwargs)[0]
             self.lines.append(l)
-            self.ax.fill_between(x, [0] * len(y), y, color=l.get_color())
+            if self.fill:
+                self.ax.fill_between(x, [0] * len(y), y, color=l.get_color())
         if self.names:
             self.add_legend()
         self.remove_colorbar_ax()
@@ -1284,7 +1287,10 @@ class FeatureLayerPlot(BasePlotter1D):
         """
         BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
 
-        self.features = load(features)
+        if isinstance(features, string_types):
+            self.features = load(features)
+        else:
+            self.features = features
         if gff_grouping_attribute is None:
             self.grouping_attribute = 'feature' if self.features.file_type == 'gff' else 'name'
         else:
