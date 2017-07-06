@@ -7,6 +7,7 @@ files. Other features include indexing and querying.
 """
 
 from __future__ import division
+from kaic.config import config
 import tables as t
 from tables.nodes import filenode
 from kaic.tools.files import create_or_open_pytables_file, tmp_file_name
@@ -743,7 +744,7 @@ class MaskedTable(t.Table):
         return t.Table.__len__(self)
     
     # new index update method
-    def _update_ix(self, log_progress=True):
+    def _update_ix(self, log_progress=not config.hide_progressbars):
         """
         Update the row indexes of the Table.
         
@@ -807,7 +808,7 @@ class MaskedTable(t.Table):
     def _has_mask(self, row, mask):
         return mask in self._row_masks(row)
 
-    def filter(self, mask_filter, _logging=False):
+    def filter(self, mask_filter, _logging=not config.hide_progressbars):
         """
         Run a MaskFilter on this table.
         
@@ -862,7 +863,7 @@ class MaskedTable(t.Table):
         """
         self._queued_filters.append(filter_definition)
         
-    def run_queued_filters(self, _logging=False):
+    def run_queued_filters(self, _logging=not config.hide_progressbars):
         """
         Run queued MaskFilters.
         

@@ -55,6 +55,7 @@ and filtering could look like this:
 from __future__ import division
 import tables as t
 import pysam
+from kaic.config import config
 from kaic.tools.general import RareUpdateProgressBar
 from kaic.tools.files import is_sambam_file, create_temporary_copy
 from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased
@@ -315,7 +316,7 @@ class Reads(Maskable, FileBased):
             sambam = [sambam]
 
         logger.info("Loading mapped reads...")
-        silent = len(sambam) > 1
+        silent = len(sambam) > 1 and not config.hide_progressbars
         self._reads.disable_mask_index()
         with RareUpdateProgressBar(max_value=len(sambam), silent=silent) as pb:
             for i, sam_file in enumerate(sambam):
@@ -339,7 +340,7 @@ class Reads(Maskable, FileBased):
               store_seq=True, store_tags=True,
               store_qual=True, sample_size=None,
               mapper=None,
-              _first=True, _silent=False):
+              _first=True, _silent=config.hide_progressbars):
         """
         Load mapped reads from SAM/BAM file.
 
@@ -1434,7 +1435,7 @@ class Bowtie2PairLoader(PairLoader):
 
         total = len(reads1) + len(reads2)
 
-        with RareUpdateProgressBar(max_value=total) as pb:
+        with RareUpdateProgressBar(max_value=total, silent=config.hide_progressbars) as pb:
             while r1 is not None and r2 is not None:
                 i += 1
                 if r1.qname_ix == last_r1_name_ix:
@@ -1603,7 +1604,7 @@ class BwaMemPairLoader(PairLoader):
 
         total = len(reads1) + len(reads2)
 
-        with RareUpdateProgressBar(max_value=total) as pb:
+        with RareUpdateProgressBar(max_value=total, silent=config.hide_progressbars) as pb:
             while r1[0] is not None and r2[0] is not None:
                 i += 1
                 if abs(r1[0].qname_ix-r2[0].qname_ix) < 0.5:
@@ -2004,7 +2005,7 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
             gaps = []
             types = []
 
-            with RareUpdateProgressBar(max_value=len(self)) as pb:
+            with RareUpdateProgressBar(max_value=len(self), silent=config.hide_progressbars) as pb:
                 for i, pair in enumerate(self):
                     if pair.is_same_fragment():
                         same_fragment_count += 1
@@ -2394,7 +2395,7 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
 
         return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
-    def filter(self, pair_filter, queue=False, log_progress=False):
+    def filter(self, pair_filter, queue=False, log_progress=not config.hide_progressbars):
         pair_filter.set_pairs_object(self)
 
         total = 0
@@ -2415,7 +2416,7 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
             for edge_table in self._edge_table_iter():
                 edge_table.queue_filter(pair_filter)
 
-    def run_queued_filters(self, log_progress=False):
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
         """
         Run queued filters.
 
@@ -2492,7 +2493,7 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
 
         l = len(self)
         pairs_counter = 0
-        with RareUpdateProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
             for pairs_edge_table in self._edge_table_dict.values():
 
                 partition_edge_buffer = defaultdict(dict)

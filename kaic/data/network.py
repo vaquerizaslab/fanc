@@ -367,7 +367,7 @@ class RaoPeakInfo(RegionMatrixTable):
                 last_peak_number = 0
                 current_peaks = []
                 l = len(remaining_peaks_set)
-                with RareUpdateProgressBar(max_value=l, poll_interval=20) as pb:
+                with RareUpdateProgressBar(max_value=l, poll_interval=20, silent=config.hide_progressbars) as pb:
                     while len(remaining_peaks_set) > 0:
                         x, y, radius = RaoPeakInfo._centroid_and_radius(current_peaks)
 

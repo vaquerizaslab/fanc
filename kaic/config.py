@@ -28,6 +28,11 @@ trap_signals:
     - SIGUSR1
     - SIGUSR2
 raise_exception_on_trapped_signal: True
+
+#
+# Progressbars
+#
+hide_progressbars: False
 """
 default_config = yaml.load(_default_config_content)
 

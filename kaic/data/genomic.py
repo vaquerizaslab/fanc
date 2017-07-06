@@ -59,6 +59,7 @@ Example:
 """
 
 from __future__ import division, print_function
+from kaic.config import config
 import tables as t
 import pandas as p
 import numpy as np
@@ -1625,7 +1626,7 @@ class RegionsTable(GenomicRegions, FileGroup):
             l = None
             _log = False
 
-        pb = RareUpdateProgressBar(max_value=l)
+        pb = RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars)
         if _log:
             pb.start()
 
@@ -3107,7 +3108,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 self.partitions.append(i)
             previous_chromosome = region.chromosome
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, silent=False):
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, silent=config.hide_progressbars):
         """
         Write data to file and flush buffers.
 
@@ -3985,7 +3986,7 @@ class RegionMatrixTable(RegionPairs):
         marginals = np.zeros(len(self.regions()), float)
 
         logger.debug("Calculating marginals...")
-        with RareUpdateProgressBar(max_value=len(self.edges)) as pb:
+        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
             for i, edge in enumerate(self.edges(lazy=True)):
                 marginals[edge.source] += getattr(edge, weight_column)
                 if edge.source != edge.sink:
@@ -4003,7 +4004,7 @@ class RegionMatrixTable(RegionPairs):
 
         logger.debug("Calculating mappability...")
 
-        with RareUpdateProgressBar(max_value=len(self.edges)) as pb:
+        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
             for i, edge in enumerate(self.edges(lazy=True)):
                 mappable[edge.source] = True
                 if edge.source != edge.sink:
@@ -4312,7 +4313,7 @@ class Hic(RegionMatrixTable):
         l = len(pairs)
 
         pair_counter = 0
-        with RareUpdateProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
             chromosomes = self.chromosomes()
             for ix1 in range(len(chromosomes)):
                 chromosome1 = chromosomes[ix1]
@@ -4355,13 +4356,13 @@ class Hic(RegionMatrixTable):
         if len(self.regions()) == 0:
             logger.info("Copying Hi-C")
             # ...simply import everything
-            with RareUpdateProgressBar(max_value=len(hic.regions)) as pb:
+            with RareUpdateProgressBar(max_value=len(hic.regions), silent=config.hide_progressbars) as pb:
                 for i, region in enumerate(hic.regions()):
                     self.add_region(region, flush=False)
                     pb.update(i)
             self.flush()
 
-            with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
+            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars) as pb:
                 for i, edge in enumerate(hic.edges()):
                     self.add_edge(edge, check_nodes_exist=False, flush=False)
                     pb.update(i)
@@ -4375,7 +4376,7 @@ class Hic(RegionMatrixTable):
 
             self.disable_indexes()
             edge_counter = 0
-            with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
+            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars) as pb:
                 chromosomes = hic.chromosomes()
                 for i in range(len(chromosomes)):
                     for j in range(i, len(chromosomes)):
@@ -4526,7 +4527,7 @@ class Hic(RegionMatrixTable):
 
             l = len(hic.regions)
 
-            with RareUpdateProgressBar(max_value=l) as pb:
+            with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
                 for i, region in enumerate(hic.regions):
                     ix = self._get_region_ix(region)
                     if ix is None:
@@ -4539,7 +4540,7 @@ class Hic(RegionMatrixTable):
         logger.info("Merging contacts...")
         edge_buffer = {}
         l = len(hic.edges)
-        with RareUpdateProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
             for i, merge_edge in enumerate(hic.edges):
                 merge_source = ix_conversion[merge_edge.source]
                 merge_sink = ix_conversion[merge_edge.sink]
@@ -4937,7 +4938,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
 
             self.disable_indexes()
             edge_counter = 0
-            with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
+            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars) as pb:
 
                 for edge_table in hic._edge_table_dict.values():
                     edge_buffer = defaultdict(int)
@@ -4972,7 +4973,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
             self.flush(update_index=True)
             self.enable_indexes()
 
-    def filter(self, edge_filter, queue=False, log_progress=False):
+    def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
         """
         Filter edges in this object by using a
         :class:`~HicEdgeFilter`.
@@ -5006,7 +5007,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
             for edge_table in self._edge_table_iter():
                 edge_table.queue_filter(edge_filter)
 
-    def run_queued_filters(self, log_progress=False):
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
         """
         Run queued filters.
 

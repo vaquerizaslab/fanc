@@ -93,15 +93,18 @@ def is_fasta_file(file_name):
     file_name = os.path.expanduser(file_name)
     if not os.path.isfile(file_name):
         return False
-        
-    is_fasta = True
-    with open(file_name, 'r') as f:
-        fastas = SeqIO.parse(f, 'fasta')
-        
-        try:
-            next(fastas)
-        except StopIteration:
-            is_fasta = False
+
+    try:
+        is_fasta = True
+        with open(file_name, 'r') as f:
+            fastas = SeqIO.parse(f, 'fasta')
+
+            try:
+                next(fastas)
+            except StopIteration:
+                is_fasta = False
+    except Exception:
+        return False
         
     return is_fasta 
         

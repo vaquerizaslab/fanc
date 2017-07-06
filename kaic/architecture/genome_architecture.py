@@ -1,4 +1,5 @@
 from __future__ import division
+from kaic.config import config
 from kaic.data.genomic import AccessOptimisedRegionMatrixTable, RegionsTable, GenomicRegion
 from kaic.architecture.architecture import ArchitecturalFeature, calculateondemand, _get_pytables_data_type
 from kaic.data.general import MaskFilter
@@ -110,7 +111,7 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
         raise NotImplementedError("This method must be overridden in subclass!")
 
     @calculateondemand
-    def filter(self, edge_filter, queue=False, log_progress=False):
+    def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
         """
         Filter edges in this object by using a
         :class:`~HicEdgeFilter`.
@@ -145,7 +146,7 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
                 edge_table.queue_filter(edge_filter)
 
     @calculateondemand
-    def run_queued_filters(self, log_progress=False):
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
         """
         Run queued filters.
 
