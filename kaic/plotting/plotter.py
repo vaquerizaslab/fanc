@@ -175,6 +175,7 @@ class GenomicFigure(object):
 
     def _update_figure_setup(self):
         ax_specs, figsize = self._calc_figure_setup()
+        self.fig.set_size_inches(figsize)
         for i in range(self.n):
             self.plots[i].ax.set_position(ax_specs[i]["ax"])
             self.plots[i].cax.set_position(ax_specs[i]["cax"])
@@ -191,7 +192,6 @@ class GenomicFigure(object):
         :return: A matplotlib Figure instance and a list of figure axes
         """
         for i, (p, a) in enumerate(zip(self.plots, self.axes)):
-
             plot_region = region
             p.plot(plot_region, ax=a)
             if getattr(p, "ylim_group", None) is not None:
@@ -204,7 +204,11 @@ class GenomicFigure(object):
                 p.ax.yaxis.reset_ticks()
         for p in self.annotations:
             p.plot(region)
-
+        # Recalculate axes dimensions if aspect of plots changed
+        if any(p._dimensions_stale for p in self.plots):
+            self._update_figure_setup()
+            for p in self.plots:
+                p._dimensions_stale = False
         return self.fig, self.axes
 
     def __enter__(self):

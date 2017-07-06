@@ -223,6 +223,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self.overlays = []
         self.ylabel = ylabel
         self.fix_chromosome = fix_chromosome
+        self._dimensions_stale = False
 
     def _before_plot(self, region=None, *args, **kwargs):
         self.ax.set_title(self.title)

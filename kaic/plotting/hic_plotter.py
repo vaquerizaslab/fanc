@@ -391,13 +391,15 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
     A triangle Hi-C heatmap plot.
     """
 
-    def __init__(self, hic_data, max_dist=None, **kwargs):
+    def __init__(self, hic_data, max_dist=None, proportional=True, **kwargs):
         """
         :param max_dist: Only draw interactions up to this distance
+        :param proportional: Automatically determine aspect ratio of plot
+                             so that x- and y-axis are proportional. Default: True
         """
         kwargs.setdefault("aspect", .5)
         super(HicPlot, self).__init__(hic_data=hic_data, **kwargs)
-
+        self.proportional = proportional
         self.max_dist = max_dist
         self.hm = None
 
@@ -409,6 +411,14 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
             region.start = 1
         if region.end is None:
             region.end = self.hic_data.chromosome_lens[region.chromosome]
+        if self.proportional:
+            if self.max_dist is None:
+                self.aspect = .5
+            else:
+                rl = region.end - region.start
+                self.aspect = .5*min(self.max_dist, rl)/rl
+            self._dimensions_stale = True
+
         # Have to copy unfortunately, otherwise modifying matrix in buffer
         x_, y_, hm = self._mesh_data(region)
         self.hm = hm
