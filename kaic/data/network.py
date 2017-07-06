@@ -1,5 +1,6 @@
 from __future__ import division
 import os
+from kaic.config import config
 from abc import abstractmethod, ABCMeta
 import numpy as np
 from scipy.stats import poisson
