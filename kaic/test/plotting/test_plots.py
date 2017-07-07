@@ -53,15 +53,18 @@ class TestHicPlot:
     @pytest.mark.parametrize("blend_zero", [True, False])
     @pytest.mark.parametrize("aspect", [.345])
     @pytest.mark.parametrize("vrange", [(None, .3), (.01, .4)])
-    @pytest.mark.parametrize("crange", [(77390001, 78600000), (77800000, 78000000)])
+    @pytest.mark.parametrize("proportional", [True, False])
+    @pytest.mark.parametrize("crange", [(77390001, 78600000)])
     @pytest.mark.parametrize("unmappable_color", [".345"])
     def test_hicplot_inputs(self, norm, max_dist, colormap, colorbar,
-                            blend_zero, aspect, vrange, crange, unmappable_color):
+                            blend_zero, aspect, vrange, crange, unmappable_color,
+                            proportional):
         start, end = crange
         vmin, vmax = vrange
         hplot = kplot.HicPlot(hic_data=self.hic_matrix, title="quark", norm=norm, vmin=vmin, vmax=vmax,
                               max_dist=max_dist, colormap=colormap, show_colorbar=colorbar,
-                              blend_zero=blend_zero, aspect=aspect, unmappable_color=unmappable_color)
+                              blend_zero=blend_zero, aspect=aspect, unmappable_color=unmappable_color,
+                              proportional=proportional)
         gfig = kplot.GenomicFigure([hplot])
         selector = "chr11:{}-{}".format(start, end)
         fig, axes = gfig.plot(selector)
@@ -74,8 +77,14 @@ class TestHicPlot:
             assert hplot.collection.norm.vmin == vmin
         if vmax is not None:
             assert hplot.collection.norm.vmax == vmax
-        assert hplot.aspect == aspect
-        assert abs_ax_aspect(axes[0]) == pytest.approx(aspect)
+        if proportional:
+            if max_dist is None:
+                assert abs_ax_aspect(hplot.ax) == pytest.approx(.5)
+            else:
+                rl = end - start
+                assert abs_ax_aspect(hplot.ax) == pytest.approx(.5*min(max_dist, rl)/rl)
+        else:
+            assert abs_ax_aspect(hplot.ax) == aspect
         colorbar_values = {True: mpl.colorbar.Colorbar,
                            False: type(None)}
         assert isinstance(hplot.colorbar, colorbar_values[colorbar])
@@ -150,7 +159,7 @@ class TestHicPlot:
 
     @pytest.mark.parametrize("n_hic", [1, 3])
     @pytest.mark.parametrize("yscale", ["linear", "log"])
-    @pytest.mark.parametrize("ylim", [(0, 10), (None, 5)])
+    @pytest.mark.parametrize("ylim", [(1, 10), (None, 5)])
     @pytest.mark.parametrize("slice_region", ["chr11:77800000-77850000"])
     @pytest.mark.parametrize("names", [None, True])
     def test_hicsliceplot(self, n_hic, yscale, ylim, slice_region, names):
@@ -163,7 +172,7 @@ class TestHicPlot:
         fig, axes = gfig.plot(selector)
         assert axes[0].get_yscale() == yscale
         for a, b in zip(ylim, axes[0].get_ylim()):
-            assert a is None or a == b
+            assert a is None or a == pytest.approx(b)
         if names is not None:
             assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), names_passed))
         plt.close(fig)
@@ -220,7 +229,7 @@ class TestPlots:
     @pytest.mark.parametrize("file", ["bigwig", "bedgraph"])
     @pytest.mark.parametrize("crange", [(10, 700)])
     @pytest.mark.parametrize("n_bw", [1, 3])
-    @pytest.mark.parametrize("ylim", [(0, 10), (None, 5)])
+    @pytest.mark.parametrize("ylim", [(1, 10), (None, 5)])
     @pytest.mark.parametrize("yscale", ["linear", "log"])
     @pytest.mark.parametrize("names", [None, True])
     @pytest.mark.parametrize("bin_size", [50, 2])
@@ -234,7 +243,7 @@ class TestPlots:
         fig, axes = gfig.plot("chr2:{}-{}".format(*crange))
         assert axes[0].get_yscale() == yscale
         for a, b in zip(ylim, axes[0].get_ylim()):
-            assert a is None or a == b
+            assert a is None or a == pytest.approx(b)
         if names is not None:
             assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), names_passed))
         # Should figure out exactly how many data points I expect instead...

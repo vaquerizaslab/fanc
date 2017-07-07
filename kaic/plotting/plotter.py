@@ -178,7 +178,8 @@ class GenomicFigure(object):
         self.fig.set_size_inches(figsize)
         for i in range(self.n):
             self.plots[i].ax.set_position(ax_specs[i]["ax"])
-            self.plots[i].cax.set_position(ax_specs[i]["cax"])
+            if self.plots[i].cax is not None:
+                self.plots[i].cax.set_position(ax_specs[i]["cax"])
 
     @property
     def fig(self):
