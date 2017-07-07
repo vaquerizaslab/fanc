@@ -578,7 +578,7 @@ class BigWig(object):
                         value = None
 
                 if value is not None:
-                    f = (interval[1] - interval[0]) / bin_size
+                    f = (interval[1] + 1 - interval[0]) / bin_size
                     bin_weighted_sum[bin_counter] += f * value
                     bin_weighted_count[bin_counter] += f
 
@@ -601,7 +601,7 @@ class BigWig(object):
                         value = None
 
                 if value is not None:
-                    f = (min(bin_end, interval[1]) - max(bin_start, interval[0])) / bin_size
+                    f = (min(bin_end, interval[1] + 1) - max(bin_start, interval[0])) / bin_size
                     bin_weighted_sum[bin_counter] += f * value
                     bin_weighted_count[bin_counter] += f
 
