@@ -9,6 +9,7 @@ import random
 
 
 def iter_randomized_regions(original_regions, iterations=1, chromosome_sizes=None, method='unconstrained',
+                            attribute='score',
                             preserve_attributes=False, sort=False, silent=True, _chromosome_regions=None):
     if method == 'unconstrained':
         if chromosome_sizes is None:
@@ -22,6 +23,15 @@ def iter_randomized_regions(original_regions, iterations=1, chromosome_sizes=Non
         for i in range(iterations):
             yield _random_regions_spacing(_chromosome_regions, sort=False,
                                           preserve_attributes=preserve_attributes, silent=silent)
+    elif method == 'attribute':
+        attributes = []
+        for region in original_regions:
+            a = getattr(region, attribute)
+            attributes.append(a)
+        for i in range(iterations):
+            yield _random_regions_attribute(original_regions, attribute=attribute,
+                                            preserve_attributes=preserve_attributes,
+                                            _attributes=attributes)
     else:
         raise ValueError("Unknown randomization method '{}'".format(method))
 
@@ -129,4 +139,28 @@ def _random_regions_spacing(original_regions, sort=False, preserve_attributes=Fa
                 if i < len(spacing_lens):
                     current_start += region_len + shuffled_spacings[i]
                 pb.update(i)
+    return random_regions
+
+
+def _random_regions_attribute(original_regions, attribute='score', preserve_attributes=False,
+                              _attributes=None):
+    random_regions = []
+    if _attributes is None:
+        attributes = []
+        for region in original_regions:
+            a = getattr(region, attribute)
+            attributes.append(a)
+    else:
+        attributes = _attributes
+
+    attributes = sorted(attributes, key=lambda *args: random.random())
+
+    for i, region in enumerate(original_regions):
+        if preserve_attributes:
+            random_region = region.copy()
+        else:
+            random_region = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end)
+        random_region.set_attribute(attribute, attributes[i])
+
+        random_regions.append(random_region)
     return random_regions
