@@ -257,7 +257,7 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         self.current_matrix = None
         self.flip = flip
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
         color_matrix = self.get_color_matrix(self.current_matrix)
         if self.flip:
@@ -300,7 +300,7 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         if self.colorbar is not None:
             self.update_colorbar(vmax=new_vmax)
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
         self.im.set_data(self.get_color_matrix(self.current_matrix))
         self.im.set_extent([self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
@@ -371,7 +371,7 @@ class HicSlicePlot(ScalarDataPlot):
         self.x = None
         self.y = None
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         for i, b in enumerate(self.hic_buffers):
             hm = np.mean(b.get_matrix(self.slice_region, region).T, axis=0)
             bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]
@@ -382,7 +382,7 @@ class HicSlicePlot(ScalarDataPlot):
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         pass
 
 
@@ -403,7 +403,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         self.max_dist = max_dist
         self.hm = None
 
-    def _plot(self, region=None, *args, **kwargs):
+    def _plot(self, region):
         logger.debug("Generating matrix from hic object")
         if region is None:
             raise ValueError("Cannot plot triangle plot for whole genome.")
@@ -471,7 +471,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
             (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
         self.collection.set_color(color_tuple)
 
-    def _refresh(self, region=None, *args, **kwargs):
+    def _refresh(self, region):
         x_, y_, hm = self._mesh_data(region)
         self.hm = hm
 

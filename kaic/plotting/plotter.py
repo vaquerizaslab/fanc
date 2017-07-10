@@ -65,16 +65,15 @@ class GenomicFigure(object):
     GenomicFigure composed of one or more plots.
     All plots are arranged in a single column, their genomic coordinates aligned.
     """
-    _unused_args = ["hspace", "figsize", "height_ratios", "gridspec_args", "hide_x"]
+    _unused_args = ["hspace", "figsize", "height_ratios", "gridspec_args", "hide_x", "fix_chromosome"]
 
-    def __init__(self, plots, width=4., ticks_last=False, fix_chromosome=None,
+    def __init__(self, plots, width=4., ticks_last=False,
                  invert_x=False, cax_padding=.3, cax_width=.3, fig_padding=(.5, .5, .5, .5),
-                 annotations=None,
                  hspace=None, figsize=None, height_ratios=None, hide_x=None,
-                 gridspec_args=None):
+                 gridspec_args=None, fix_chromosome=None):
         """
-        :param plots: List of plot instances, which should inherit
-                      from :class:`~BasePlotter`
+        :param plots: List of plot instances each will form a separate panel in the figure.
+                      Should inherit from :class:`~BasePlotter` or :class:`~BaseAnnotation`
         :param width: Width of the plots in inches. Height is automatically determined
                       from the specified aspect ratios of the Plots.
                       Default: 5.
@@ -96,7 +95,7 @@ class GenomicFigure(object):
             elif isinstance(p, BaseAnnotation):
                 self.annotations.append(p)
             else:
-                raise ValueError("Incompatible plot p".format(p))
+                raise ValueError("Incompatible plot {}.".format(p))
         for p in self.annotations:
             p._verify(self)
         self.n = len(self.plots)
@@ -105,18 +104,8 @@ class GenomicFigure(object):
         self._cax_padding = cax_padding
         self._cax_width = cax_width
         self._fig_padding = fig_padding
-        self._figure_setup()
-
-        # fix chromosome identifiers
-        if fix_chromosome is None:
-            self.fix_chromosome = [False] * self.n
-        else:
-            self.fix_chromosome = fix_chromosome
-        if len(self.fix_chromosome) != self.n:
-            raise ValueError("fix_chromosome ({}) must be the same length "
-                             "as plots ({})".format(len(self.fix_chromosome), self.n))
-
         self.invert_x = invert_x
+        self._figure_setup()
 
     def _calc_figure_setup(self):
         aspects = [p.aspect for p in self.plots]
@@ -169,6 +158,8 @@ class GenomicFigure(object):
             with sns.axes_style("ticks" if self.plots[i].axes_style is None else
                                 self.plots[i].axes_style):
                 ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 else None)
+                if self.invert_x:
+                    ax.invert_xaxis()
             cax = fig.add_axes(ax_specs[i]["cax"])
             self.plots[i].ax = ax
             self.plots[i].cax = cax
@@ -192,13 +183,11 @@ class GenomicFigure(object):
                        a :class:`~GenomicRegion`
         :return: A matplotlib Figure instance and a list of figure axes
         """
-        for i, (p, a) in enumerate(zip(self.plots, self.axes)):
+        for p in self.plots:
             plot_region = region
-            p.plot(plot_region, ax=a)
+            p.plot(plot_region)
             if getattr(p, "ylim_group", None) is not None:
                 p.ylim_group.add_limit(p.ax.get_ylim())
-            if self.invert_x:
-                a.invert_xaxis()
         for p in self.plots:
             if getattr(p, "ylim_group", None) is not None:
                 p.ax.set_ylim(p.ylim_group.get_limit())
@@ -348,7 +337,7 @@ class GenomicTrackPlot(ScalarDataPlot):
         self.attributes = attributes
         self.lines = []
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         for track in self.tracks:
             bins = track.region_bins(region)
             values = track[bins]
@@ -364,7 +353,7 @@ class GenomicTrackPlot(ScalarDataPlot):
         self.add_legend()
         self.remove_colorbar_ax()
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         for track in self.tracks:
             bins = track.region_bins(region)
             values = track[bins]
@@ -402,7 +391,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.names = names
         self.legend = legend
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         line_counter = 0
         for i, name in enumerate(self.regions.data_field_names):
             if not self.attributes or any(re.match("^" + a.replace("*", ".*") + "$", name) for a in self.attributes):
@@ -429,7 +418,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
             self.add_legend()
         self.remove_colorbar_ax()
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         line_counter = 0
         for i, name in enumerate(self.regions.data_field_names):
             if not self.attributes or any(re.match("^" + a.replace("*", ".*") + "$", name) for a in self.attributes):
@@ -475,7 +464,7 @@ class RegionsValuesPlot(ScalarDataPlot):
         self.lines = []
         self.symmetry = symmetry
 
-    def _plot_values(self, region=None):
+    def _plot_values(self, region):
         for label, region_values in self.values.items():
             regions = []
             values = []
@@ -491,7 +480,7 @@ class RegionsValuesPlot(ScalarDataPlot):
             x, y = self.get_plot_values(values, regions)
             yield label, x, y
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         for label, x, y in self._plot_values(region):
             l = self.ax.plot(x, y, label=label)
             self.lines.append(l[0])
@@ -507,7 +496,7 @@ class RegionsValuesPlot(ScalarDataPlot):
 
         self.remove_colorbar_ax()
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         for i, (label, x, y) in enumerate(self._plot_values(region)):
             self.lines[i].set_xdata(x)
             self.lines[i].set_ydata(y)
@@ -542,7 +531,7 @@ class GenomicMatrixPlot(BasePlotterMatrix, BasePlotter1D):
         self.hm = None
         self.y_scale = y_scale
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
 
         x, y, self.hm = self._mesh_data(region=region)
         self.collection = self.ax.pcolormesh(x, y, self.hm.T, rasterized=True, cmap=self.colormap,
@@ -574,7 +563,7 @@ class GenomicMatrixPlot(BasePlotterMatrix, BasePlotter1D):
             (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
         self.collection.set_color(color_tuple)
 
-    def _refresh(self, region=None, *args, **kwargs):
+    def _refresh(self, region):
         x, y, self.hm = self._mesh_data(region)
 
         self.collection._coordinates[:, :, 0] = x
@@ -616,7 +605,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
         self.hm = None
         self.y_scale = y_scale
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         x, y, self.hm = self._mesh_data(region=region)
         self.collection = self.ax.pcolormesh(x, y, np.ma.masked_invalid(self.hm.T), rasterized=True, cmap=self.colormap,
                                              norm=self.norm, **self.plot_kwargs)
@@ -649,7 +638,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
             (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
         self.collection.set_color(color_tuple)
 
-    def _refresh(self, region=None, *args, **kwargs):
+    def _refresh(self, region):
         x, y, self.hm = self._mesh_data(region)
 
         self.collection._coordinates[:, :, 0] = x
@@ -693,7 +682,7 @@ class VerticalSplitPlot(BasePlotter1D):
                                         bbox.width, bbox.height/2 - gap/2], sharex=ax if sharex else None)
         return top_ax, bottom_ax
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         if self.cax is None:
             self.cax = append_axes(self.ax, 'right', 0.3, 0.05)
         # Check if ax has already been split
@@ -723,7 +712,7 @@ class VerticalSplitPlot(BasePlotter1D):
             self.bottom_plot.cax.xaxis.set_visible(False)
             self.bottom_plot.cax.yaxis.set_visible(False)
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         pass
 
 
@@ -764,7 +753,7 @@ class GenomicFeaturePlot(BasePlotter1D):
         self.label_field = label_field
         self.label_func = label_func
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         interval = region_to_pbt_interval(region)
         genes = self.bedtool.all_hits(interval)
         trans = self.ax.get_xaxis_transform()
@@ -792,7 +781,7 @@ class GenomicFeaturePlot(BasePlotter1D):
         self.ax.yaxis.set_major_locator(NullLocator())
         self.remove_colorbar_ax()
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         pass
 
 
@@ -835,7 +824,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         x = []
         y = []
         width = []
@@ -908,7 +897,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         # self.ax.yaxis.set_major_locator(NullLocator())
         # self.remove_colorbar_ax()
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         pass
 
 
@@ -981,7 +970,7 @@ class BigWigPlot(ScalarDataPlot):
             x, y = self.get_plot_values(bw_values, regions)
             yield i, x, y
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         for i, x, y in self._line_values(region):
             l = self.ax.plot(x, y, label=self.names[i] if self.names else "",
                              **self.plot_kwargs)[0]
@@ -993,7 +982,7 @@ class BigWigPlot(ScalarDataPlot):
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         for i, x, y in self._line_values(region):
             self.lines[i].set_xdata(x)
             self.lines[i].set_ydata(y)
@@ -1071,7 +1060,7 @@ class GenePlot(BasePlotter1D):
 
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
 
-    def _plot_genes(self, region=None):
+    def _plot_genes(self, region):
         plot_range = region.end - region.start
         interval = region_to_pbt_interval(region)
         exon_hits = self.bedtool.all_hits(interval)
@@ -1263,7 +1252,7 @@ class GenePlot(BasePlotter1D):
 
         self.ax.set_ylim((len(genes_by_row)-1)*self.vdist+self.box_height/2*1.5, -1*self.box_height/2*1.5)
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         self._plot_genes(region=region)
 
         def drag_pan(self, button, key, x, y):
@@ -1274,7 +1263,7 @@ class GenePlot(BasePlotter1D):
         sns.despine(ax=self.ax, top=True, right=True, left=True)
         self.remove_colorbar_ax()
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         while len(self.lines) > 0:
             el = self.lines.pop()
             el.remove()
@@ -1414,7 +1403,7 @@ class FeatureLayerPlot(BasePlotter1D):
         self.ax.set_yticks(tick_positions)
         self.ax.set_yticklabels(tick_labels)
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         self._plot_elements(region)
         self.ax.spines['right'].set_visible(False)
         self.ax.spines['top'].set_visible(False)
@@ -1423,7 +1412,7 @@ class FeatureLayerPlot(BasePlotter1D):
         self.ax.xaxis.set_ticks_position('bottom')
         self.remove_colorbar_ax()
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         while len(self._patches) > 0:
             patch = self._patches.pop()
             patch.remove()
@@ -1468,13 +1457,13 @@ class GenomicDataFramePlot(ScalarDataPlot):
             for line in self.ax.plot(x, ys[i], label=name, **self.plot_kwargs):
                 self.lines.append(line)
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         self._draw_lines(region)
 
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         while len(self.lines) > 0:
             self.lines.pop(0).remove()
         plt.gca().set_prop_cycle(plt.matplotlib.rcParams['axes.prop_cycle'])

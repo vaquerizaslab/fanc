@@ -225,12 +225,12 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self.fix_chromosome = fix_chromosome
         self._dimensions_stale = False
 
-    def _before_plot(self, region=None, *args, **kwargs):
+    def _before_plot(self, region):
         self.ax.set_title(self.title)
         if self.ylabel and len(self.ylabel) > 0:
             self.ax.set_ylabel(self.ylabel, rotation=0, horizontalalignment='right')
 
-    def _after_plot(self, region=None, *args, **kwargs):
+    def _after_plot(self, region):
         for o in self.overlays:
             o.plot(self, region)
         if not self._draw_ticks:
@@ -243,10 +243,10 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             self.remove_tick_legend()
 
     @abstractmethod
-    def _plot(self, region=None, *args, **kwargs):
+    def _plot(self, region):
         raise NotImplementedError("Subclasses need to override _plot function")
 
-    def plot(self, region=None, ax=None, *args, **kwargs):
+    def plot(self, region):
         if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
         if self.fix_chromosome:
@@ -256,14 +256,9 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             else:
                 chromosome = 'chr' + chromosome
             region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
-        if ax is None:
-            self.ax = plt.gca()
-        else:
-            self.ax = ax
-
-        self._before_plot(region=region, *args, **kwargs)
-        plot_output = self._plot(region=region, *args, **kwargs)
-        self._after_plot(region=region, *args, **kwargs)
+        self._before_plot(region)
+        plot_output = self._plot(region)
+        self._after_plot(region)
 
         if plot_output is None:
             return self.fig, self.ax
@@ -348,27 +343,27 @@ class BasePlotter1D(BasePlotter):
         self._last_xlim = None
         self._current_chromosome = None
 
-    def _before_plot(self, region=None, *args, **kwargs):
-        super(BasePlotter1D, self)._before_plot(region=region, *args, **kwargs)
+    def _before_plot(self, region):
+        super(BasePlotter1D, self)._before_plot(region)
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self._current_chromosome = region.chromosome
 
-    def _after_plot(self, region=None, *args, **kwargs):
-        super(BasePlotter1D, self)._after_plot(region=region, *args, **kwargs)
+    def _after_plot(self, region):
+        super(BasePlotter1D, self)._after_plot(region)
         self.ax.set_xlim(region.start, region.end)
         self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
 
-    def refresh(self, region=None, *args, **kwargs):
-        self._refresh(region, *args, **kwargs)
+    def refresh(self, region):
+        self._refresh(region)
 
         # this should take care of any unwanted ylim changes
         # from custom _refresh methods
         self.ax.set_xlim(self._last_xlim)
 
     @abstractmethod
-    def _refresh(self, region=None, *args, **kwargs):
+    def _refresh(self, region):
         raise NotImplementedError("Subclasses need to override _refresh function")
 
     def _mouse_release_event(self, event):
@@ -427,14 +422,14 @@ class ScalarDataPlot(BasePlotter1D):
         if style not in self._STYLES:
             raise ValueError("Only the styles {} are supported.".format(list(self._STYLES.keys())))
 
-    def _before_plot(self, region=None, *args, **kwargs):
-        super(ScalarDataPlot, self)._before_plot(region=region, *args, **kwargs)
+    def _before_plot(self, region):
+        super(ScalarDataPlot, self)._before_plot(region)
         self.ax.set_yscale(self.yscale)
         if self.yscale == "linear":
             self.ax.yaxis.set_major_locator(LinearLocator(self.n_yticks))
 
-    def _after_plot(self, region=None, *args, **kwargs):
-        super(ScalarDataPlot, self)._after_plot(region=region, *args, **kwargs)
+    def _after_plot(self, region):
+        super(ScalarDataPlot, self)._after_plot(region)
         if self.ylim:
             self.ax.set_ylim(self.ylim)
         if self.condensed:
@@ -516,8 +511,8 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         self.replacement_color = replacement_color
         self.cax = None
 
-    def _after_plot(self, region=None, *args, **kwargs):
-        super(BasePlotterMatrix, self)._after_plot(region=region, *args, **kwargs)
+    def _after_plot(self, region):
+        super(BasePlotterMatrix, self)._after_plot(region)
         if self.show_colorbar:
             self.add_colorbar()
         else:
@@ -623,9 +618,9 @@ class BasePlotter2D(BasePlotter):
         self._last_ylim = None
         self._last_xlim = None
 
-    def _before_plot(self, region=None, *args, **kwargs):
+    def _before_plot(self, region):
         x_region, y_region = region
-        super(BasePlotter2D, self)._before_plot(region=x_region, *args, **kwargs)
+        super(BasePlotter2D, self)._before_plot(x_region)
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
@@ -635,23 +630,23 @@ class BasePlotter2D(BasePlotter):
         self._current_chromosome_x = x_region.chromosome
         self._current_chromosome_y = y_region.chromosome
 
-    def _after_plot(self, region=None, *args, **kwargs):
+    def _after_plot(self, region):
         x_region, y_region = region
-        super(BasePlotter2D, self)._after_plot(region=x_region, *args, **kwargs)
+        super(BasePlotter2D, self)._after_plot(region)
         self.ax.set_xlim(x_region.start, x_region.end)
         self.ax.set_ylim(y_region.start, y_region.end)
         self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
 
-    def refresh(self, region=None, *args, **kwargs):
-        self._refresh(region, *args, **kwargs)
+    def refresh(self, region):
+        self._refresh(region)
 
         # this should take care of any unwanted ylim changes
-        # from custom _refresh methods
+        # from custom _refresh method
         self.ax.set_xlim(self._last_xlim)
         self.ax.set_ylim(self._last_ylim)
 
     @abstractmethod
-    def _refresh(self, region=None, *args, **kwargs):
+    def _refresh(self, region):
         raise NotImplementedError("Subclasses need to override _refresh function")
 
     def _mouse_release_event(self, event):
@@ -667,12 +662,7 @@ class BasePlotter2D(BasePlotter):
             y_region = GenomicRegion(y_start, y_end, self._current_chromosome_y)
             self.refresh(region=(x_region, y_region))
 
-    def plot(self, regions=None, ax=None, *args, **kwargs):
-        if ax is None:
-            self.ax = plt.gca()
-        else:
-            self.ax = ax
-
+    def plot(self, regions):
         if isinstance(regions, tuple):
             x_region, y_region = regions
         else:
@@ -688,9 +678,9 @@ class BasePlotter2D(BasePlotter):
         self._current_chromosome_x = x_region.chromosome
         self._current_chromosome_y = y_region.chromosome
 
-        self._before_plot(region=(x_region, y_region), *args, **kwargs)
-        plot_output = self._plot(region=(x_region, y_region), *args, **kwargs)
-        self._after_plot(region=(x_region, y_region), *args, **kwargs)
+        self._before_plot((x_region, y_region))
+        plot_output = self._plot((x_region, y_region))
+        self._after_plot((x_region, y_region))
 
         if plot_output is None:
             return self.fig, self.ax
@@ -736,5 +726,5 @@ class BaseAnnotation(with_metaclass(PlotMeta, object)):
         self._plot(region)
 
     @abstractmethod
-    def _plot(self, region=None, *args, **kwargs):
+    def _plot(self, region):
         raise NotImplementedError("Subclasses need to override _plot function")
