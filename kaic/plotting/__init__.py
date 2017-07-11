@@ -8,14 +8,15 @@ from kaic.plotting.helpers import append_axes, absolute_wspace_hspace, Symmetric
 
 from kaic.plotting.colormaps import *
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 sns.set_style("ticks")
 
-sns.plt.register_cmap(name='viridis', cmap=viridis)
-sns.plt.register_cmap(name='plasma', cmap=plasma)
-sns.plt.register_cmap(name='inferno', cmap=inferno)
-sns.plt.register_cmap(name='magma', cmap=magma)
-sns.plt.register_cmap(name='RdBuWhitespace_r', cmap=fc_cmap)
-sns.plt.register_cmap(name='germany', cmap=germany_cmap)
-sns.plt.register_cmap(name='white_red', cmap=white_red)
-sns.plt.register_cmap(name='white_red_r', cmap=white_red_r)
+plt.register_cmap(name='viridis', cmap=viridis)
+plt.register_cmap(name='plasma', cmap=plasma)
+plt.register_cmap(name='inferno', cmap=inferno)
+plt.register_cmap(name='magma', cmap=magma)
+plt.register_cmap(name='RdBuWhitespace_r', cmap=fc_cmap)
+plt.register_cmap(name='germany', cmap=germany_cmap)
+plt.register_cmap(name='white_red', cmap=white_red)
+plt.register_cmap(name='white_red_r', cmap=white_red_r)
