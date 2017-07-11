@@ -11,6 +11,7 @@ from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region
                                   region_to_pbt_interval, absolute_wspace_hspace, \
                                   box_coords_abs_to_rel, figure_line, figure_rectangle
 import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import types
 import numpy as np
@@ -29,7 +30,6 @@ import kaic
 import logging
 logger = logging.getLogger(__name__)
 
-plt = sns.plt
 
 def hide_axis(ax):
     """
