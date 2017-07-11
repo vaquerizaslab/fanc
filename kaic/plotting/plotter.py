@@ -372,7 +372,7 @@ class GenomicRegionsPlot(ScalarDataPlot):
     Plot scalar values from one or more class:`~GenomicRegions` objects
     """
 
-    def __init__(self, regions, attributes=None, names=None, **kwargs):
+    def __init__(self, regions, attributes=None, names=None, legend=True, **kwargs):
         """
         :param regions: class:`~GenomicRegions`
         :param attributes: Only draw attributes from the track objects
@@ -792,7 +792,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
     Regions will be plotted as bars with the height equal to the score provided in the file.
     """
     def __init__(self, regions, attribute='score', feature_types=None, color_neutral='grey', color_forward='red',
-                 color_reverse='blue', annotation_field=None, **kwargs):
+                 color_reverse='blue', annotation_field=None, ylim=None, **kwargs):
         """
         :param regions: Any input that pybedtools can parse. Can be a path to a
                         GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), ...]

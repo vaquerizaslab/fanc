@@ -5,6 +5,7 @@ from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlo
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
 from kaic.data.genomic import GenomicRegion
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 import matplotlib.patches as patches
 from abc import ABCMeta
@@ -16,7 +17,6 @@ from future.utils import with_metaclass, string_types
 import logging
 logger = logging.getLogger(__name__)
 
-plt = sns.plt
 
 def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1):
     """
