@@ -2,6 +2,7 @@ from __future__ import division
 import matplotlib as mpl
 import numpy as np
 import pybedtools as pbt
+from math import log10, floor
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,
@@ -187,3 +188,88 @@ class SymmetricNorm(mpl.colors.Normalize):
         abs_max = max(abs(vmin), abs(vmax))
         self.vmin = -1.*abs_max
         self.vmax = abs_max
+
+def box_coords_abs_to_rel(top, left, width, height, figsize):
+    f_width, f_height = figsize
+    rel_bottom = (f_height - top - height)/f_height
+    rel_left = left/f_width
+    rel_width = width/f_width
+    rel_height = height/f_height
+    return (rel_left, rel_bottom, rel_width, rel_height)
+
+# Borrowed from figure.text method
+# https://github.com/matplotlib/matplotlib/blob/a4999acbbf6ebd6fa211f70becd49887dce663ab/lib/matplotlib/figure.py#L1495
+def figure_line(fig, xdata, ydata, **kwargs):
+    """
+    Add a line to the figure, independent of axes.
+    Coordinates in (0, 1) relative to bottom left of the figure.
+    All kwargs are passed to Line2D constructor.
+    """
+    l = mpl.lines.Line2D(xdata, ydata, **kwargs)
+    fig._set_artist_props(l)
+    fig.lines.append(l)
+    l._remove_method = lambda h: fig.lines.remove(h)
+    fig.stale = True
+    return l
+
+# Borrowed from figure.text method
+# https://github.com/matplotlib/matplotlib/blob/a4999acbbf6ebd6fa211f70becd49887dce663ab/lib/matplotlib/figure.py#L1495
+def figure_rectangle(fig, xy, width, height, **kwargs):
+    """
+    Add a rectangle to the given figure independent of axes.
+    Coordinates in (0, 1) relative to bottom left of the figure.
+    All kwargs are passed to Rectangle constructor.
+    """
+    p = mpl.patches.Rectangle(xy, width, height, **kwargs)
+    fig._set_artist_props(p)
+    fig.patches.append(p)
+    p._remove_method = lambda h: fig.patches.remove(h)
+    fig.stale = True
+    return p
+
+# From https://stackoverflow.com/a/3413529/4603385
+def round_sig(x, sig=2):
+    if x == 0:
+        return 0.
+    return round(x, sig - int(floor(log10(abs(x)))) - 1)
+
+class LimitGroup(object):
+    """
+    Can be used for synchronizing axis limits across multiple
+    plots. Pass the same instance of this class to all plots
+    that should have synchronized axis limits.
+    """
+
+    def __init__(self, limit=None, sig=2):
+        """
+        :param limit: tuple (vmin, vmax) to set absolute limits
+                      for axis. Final limits will be chosen
+                      within this absolute limit. Pass None
+                      for vmin or vmax to set no limit.
+                      Default: (None, None)
+        :param sig: Round limits to sig significant digits.
+                    If None, don't round.
+                    Default: 2
+        """
+        self.limit = limit
+        if self.limit is None:
+            self.limit = (None, None)
+        self.sig = sig
+        self.limit_list = []
+
+    def add_limit(self, limit):
+        self.limit_list.append(limit)
+
+    def get_limit(self):
+        if len(self.limit_list) < 1:
+            return self.limit
+        vmin = min(x[0] if x[0] is not None else float("+Inf") for x in self.limit_list if x is not None)
+        vmax = max(x[1] if x[1] is not None else float("-Inf") for x in self.limit_list if x is not None)
+        if vmin is None or (self.limit[0] is not None and vmin < self.limit[0]):
+            vmin = self.limit[0]
+        if vmax is None or (self.limit[1] is not None and vmax > self.limit[1]):
+            vmax = self.limit[1]
+        if self.sig is not None:
+            vmin = round_sig(vmin, self.sig)
+            vmax = round_sig(vmax, self.sig)
+        return (vmin, vmax)

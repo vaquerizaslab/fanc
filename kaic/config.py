@@ -11,6 +11,12 @@ _default_config_content = """\
 # PLOTTING
 #
 colormap_hic: germany
+adjustment_slider_height: .2
+pad_empty_axis: .1
+pad_with_label: .2
+pad_with_ticks: .1
+pad_next_title: .2
+pad_with_tick_legend: .1
 
 #
 # EMAIL

@@ -1,9 +1,10 @@
-from kaic.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, HicSideBySidePlot2D, HicSlicePlot
+from kaic.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, HicSideBySidePlot2D, \
+    HicSlicePlot, HicPeakPlot
 from kaic.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot, GenomicRegionsPlot, \
     GenomicFeatureScorePlot, GenomicMatrixPlot, GenomicFigure, GenomicTrackPlot, BigWigPlot, GenePlot, \
-    FeatureLayerPlot, GenomicDataFramePlot
+    FeatureLayerPlot, GenomicDataFramePlot, VerticalLineAnnotation
 from kaic.plotting.helpers import append_axes, absolute_wspace_hspace, SymmetricNorm, \
-                                  style_ticks_whitegrid
+                                  style_ticks_whitegrid, LimitGroup
 
 from kaic.plotting.colormaps import *
 import seaborn as sns

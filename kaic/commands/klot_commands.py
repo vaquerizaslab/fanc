@@ -50,17 +50,10 @@ def klot_parser():
     )
 
     parser.add_argument(
-        '--height', dest='height',
-        type=int,
-        help='''Height of the figure in inches. Default is proportional to figure width, dependent on number
-                of subplots.'''
-    )
-
-    parser.add_argument(
         '--width', dest='width',
         type=int,
-        default=10,
-        help='''Width of the figure in inches. Default: 10'''
+        default=4,
+        help='''Width of the figure in inches. Default: 4'''
     )
 
     parser.add_argument(
@@ -69,13 +62,6 @@ def klot_parser():
         help='''Plotting region size in base pairs. If provided, the actual size of the given region is
                 ignored and instead a region
                 <chromosome>:<region center - window size/2>-<region center + window size/2> will be plotted.'''
-    )
-
-    parser.add_argument(
-        '-vs', '--vertical-space', dest='hspace',
-        type=float,
-        default=.5,
-        help='''Vertical distance between plots in fraction of figure.'''
     )
 
     parser.add_argument(
@@ -1062,9 +1048,18 @@ def gene_parser():
     parser.add_argument(
         '-C', '--collapse', dest='collapse',
         action='store_true',
-        help='''Collapse all genes onto one row.'''
+        help='''Collapse all genes onto a single row.'''
     )
     parser.set_defaults(collapse=False)
+
+    parser.add_argument(
+        '-sq', '--squash', dest='squash',
+        action='store_true',
+        help='''Merge all exons of each grouping unit together.
+                Useful especially when setting --group-by to "gene_id" or "gene_symbol".
+                Overlapping genes will still draw on separate rows in contrast to --collapse'''
+    )
+    parser.set_defaults(squash=False)
     return parser
 
 
@@ -1080,7 +1075,8 @@ def gene(parameters):
                       vdist=args.vdist, box_height=args.box_height, font_size=args.font_size,
                       arrow_size=args.arrow_size, line_width=args.line_width,
                       group_by=args.group_by, text_position=args.text_position,
-                      show_labels=args.show_labels, collapse=args.collapse)
+                      show_labels=args.show_labels, collapse=args.collapse,
+                      squash=args.squash)
 
     return p, args
 

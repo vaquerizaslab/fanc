@@ -5276,6 +5276,8 @@ class RegionMatrix(np.ndarray):
                         if start is None:
                             start = i
                         stop = i
+            if start is None or stop is None:
+                raise ValueError("Requested region {} was not found in this matrix.".format(key))
             return slice(start, stop+1, 1)
         return key
 
