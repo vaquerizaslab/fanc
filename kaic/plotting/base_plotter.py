@@ -162,6 +162,7 @@ class PlotMeta(ABCMeta):
     all parent classes' __init__ method docstrings to the subclasses'
     __init__ method docstring.
     """
+
     def __new__(cls, clsname, bases, dct):
         new_init_doc = dct["__init__"].__doc__
         if new_init_doc is None:
@@ -184,9 +185,10 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
                  draw_x_axis=True, padding=None,
                  extra_padding=0, fix_chromosome=False, **kwargs):
         """
-        :param title: Title drawn on top of the figure panel
-        :param aspect: Aspect ratio of the plot. Can be overriden by setting
-                       the height_ratios in class:`~GenomicFigure`
+        :param title: Title drawn on top of the figure panel.
+        :param aspect: Aspect ratio of the plot, height/width.
+                       So 0.5 means half as high as wide.
+                       Default: Plot type specific sensible value
         :param axes_style: Set styling of the axes, can be anything
                            that seaborn supports. See
                            http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
@@ -199,7 +201,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         :param padding: Padding in inches to the next plot. Default: None,
                         automatically calculated.
         :param extra_padding: Add or subtract the specified inches from
-                              the automatically calculated padding.
+                              the automatically calculated padding from
+                              this panel to the next.
         :param fix_chromosome: If True modify chromosome identifiers for this plot,
                                removing or adding 'chr' as necessary. Default: False
         """
@@ -391,7 +394,7 @@ class ScalarDataPlot(BasePlotter1D):
                       'mid' Draw values connecting mid-points of bins
         :param ylim: Set y-axis limits as tuple. Can leave upper or lower
                      limit undetermined by setting None, e.g. (2.5, None).
-                     Alternatively, a class:`~LimitGroup` instance can
+                     Alternatively, a :class:`~kaic.plotting.helpers.LimitGroup` instance can
                      be passed to synchronize limits across multiple plots.
                      Default: Automatically determined by data limits
         :param yscale: Scale of y-axis. Is passed to Matplotlib set_yscale,

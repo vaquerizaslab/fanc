@@ -10,3 +10,4 @@ Kai-C API
    data/genomic
    data/general
    architecture/architecture
+   plotting/plotting
