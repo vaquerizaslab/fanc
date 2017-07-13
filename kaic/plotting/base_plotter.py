@@ -359,7 +359,6 @@ class BasePlotter1D(BasePlotter):
 
     def refresh(self, region):
         self._refresh(region)
-
         # this should take care of any unwanted ylim changes
         # from custom _refresh methods
         self.ax.set_xlim(self._last_xlim)
@@ -373,8 +372,8 @@ class BasePlotter1D(BasePlotter):
 
         if xlim != self._last_xlim:
             self._last_xlim = xlim
-            x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
-            x_region = GenomicRegion(x_start, x_end, self._current_chromosome)
+            x_start, x_end = (max(xlim[0], 0), xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
+            x_region = GenomicRegion(int(x_start), int(x_end), self._current_chromosome)
             self.refresh(region=x_region)
 
 

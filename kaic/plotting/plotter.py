@@ -21,6 +21,7 @@ try:
     from itertools import izip as zip
 except ImportError:
     pass
+import itertools
 import re
 import warnings
 from collections import defaultdict
@@ -273,40 +274,40 @@ class VerticalLineAnnotation(BaseAnnotation):
             trans = ax.transData
         else:
             raise ValueError("Invalid data transformation '{}'".format(type))
-        trans = trans + ax.figure.transFigure.inverted()
         return trans
 
     def _plot(self, region):
         x_trans = self._generate_transformation(self.plot1.ax, "data")
-        trans1 = self._generate_transformation(self.plot1.ax, self.coords_plot1)
-        trans2 = self._generate_transformation(self.plot2.ax, self.coords_plot2)
+        y_trans1 = self._generate_transformation(self.plot1.ax, self.coords_plot1)
+        y_trans2 = self._generate_transformation(self.plot2.ax, self.coords_plot2)
+        blended_trans = mpl.transforms.blended_transform_factory(x_trans, mpl.transforms.IdentityTransform())
         interval = region_to_pbt_interval(region)
         hits = self.bedtool.all_hits(interval)
         for r in hits:
             if len(r) > 1:
-                self._draw_rectangle(r, x_trans, trans1, trans2)
+                self._draw_rectangle(r, x_trans, y_trans1, y_trans2, blended_trans)
             else:
-                self._draw_line(r, x_trans, trans1, trans2)
+                self._draw_line(r, x_trans, y_trans1, y_trans2, blended_trans)
 
-    def _draw_rectangle(self, r, x_trans, trans1, trans2):
+    def _draw_rectangle(self, r, x_trans, y_trans1, y_trans2, plot_trans):
         s, e = r.start, r.end
-        x1_t = x_trans.transform((s, 0))[0]
-        x2_t = x_trans.transform((e, 0))[0]
-        y1_t = trans1.transform((0, self.y1))[1]
-        y2_t = trans2.transform((0, self.y2))[1]
+        y1_t = y_trans1.transform((0, self.y1))[1]
+        y2_t = y_trans2.transform((0, self.y2))[1]
         y1_t, y2_t = sorted([y1_t, y2_t])
-        patch = figure_rectangle(self.plot1.ax.figure, xy=(x1_t, y1_t),
-                                 width=x2_t - x1_t, height=y2_t - y1_t,
-                                 **self.plot_kwargs)
+        patch = figure_rectangle(self.plot1.ax.figure, xy=(s, y1_t),
+                                 width=e - s, height=y2_t - y1_t,
+                                 transform=plot_trans, **self.plot_kwargs)
+        patch.set_transform(plot_trans)
         return patch
 
-    def _draw_line(self, r, x_trans, trans1, trans2):
+    def _draw_line(self, r, x_trans, trans1, trans2, plot_trans):
         s = r.start
-        x_t = x_trans.transform((s, 0))[0]
-        y1_t = trans1.transform((0, self.y1))[1]
-        y2_t = trans2.transform((0, self.y2))[1]
-        l = figure_line(self.plot1.ax.figure, xdata=[x_t, x_t],
-                        ydata=[y1_t, y2_t], **self.plot_kwargs)
+        y1_t = y_trans1.transform((0, self.y1))[1]
+        y2_t = y_trans2.transform((0, self.y2))[1]
+        l = figure_line(self.plot1.ax.figure, xdata=[s, s],
+                        ydata=[y1_t, y2_t], transform=plot_trans,
+                        **self.plot_kwargs)
+        l.set_transform(plot_trans)
         return l
 
     def _verify(self, gfig):
@@ -314,6 +315,11 @@ class VerticalLineAnnotation(BaseAnnotation):
             raise ValueError("At least one plot in the VerticalLine is"
                              "not part of the GenomicFigure")
         return True
+
+    def _refresh(self, region):
+        for a in itertools.chain(self.patches, self.lines):
+            a.remove()
+        self._plot(region)
 
 
 class GenomicTrackPlot(ScalarDataPlot):
@@ -714,7 +720,8 @@ class VerticalSplitPlot(BasePlotter1D):
             self.bottom_plot.cax.yaxis.set_visible(False)
 
     def _refresh(self, region):
-        pass
+        self.top_plot.refresh(region)
+        self.bottom_plot.refresh(region)
 
 
 class GenomicFeaturePlot(BasePlotter1D):
