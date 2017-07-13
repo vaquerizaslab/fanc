@@ -849,7 +849,12 @@ class MaskedTable(t.Table):
 
         if _logging:
             logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
-                    
+
+        try:
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
+
         self.flush(update_index=False)
 
         return stats
@@ -900,6 +905,11 @@ class MaskedTable(t.Table):
 
         if _logging:
             logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
+
+        try:
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
 
         self.flush(update_index=False)
         return stats
