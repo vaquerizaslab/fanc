@@ -135,8 +135,8 @@ class Klot(object):
                                                                                    region.chromosome,
                                                                                    region.start, region.end))
                 else:
-                    kplt.sns.plt.show()
-                kplt.sns.plt.close(fig)
+                    kplt.plt.show()
+                kplt.plt.close(fig)
 
     def _plot_type(self, subplot_args):
 
