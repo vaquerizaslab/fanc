@@ -24,8 +24,13 @@ class Klot(object):
         subplot_parser = commands.type_parser()
         self.subplot_parser = subplot_parser
 
+        argv = sys.argv[1:]
+        if not argv:
+            # No arguments supplied, print help
+            argv = ["-h"]
         # sort and parse arguments
-        global_args, subplot_data = self._parse_argument_vector(sys.argv[1:])
+        global_args, subplot_data = self._parse_argument_vector(argv)
+
 
         if global_args.print_version:
             import kaic
