@@ -87,7 +87,7 @@ The installation is then done via setup.py:
 
    git clone http://www.github.com/vaquerizaslab/kaic
    cd kaic
-   python setup.py install
+   pip install .
 
 Kai-C can now be accessed via command line (``kaic`` for analysis, ``klot`` for plotting) or as a Python 2.7.x / 3.5.x
 module (``import kaic``).
