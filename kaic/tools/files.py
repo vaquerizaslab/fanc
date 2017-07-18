@@ -347,7 +347,7 @@ def merge_sam(input_sams, output_sam, tmp=None):
     return output_sam
 
 
-def write_bed(file_name, regions, mode='w'):
+def write_bed(file_name, regions, mode='w', score_field='score'):
     if hasattr(file_name, 'write'):
         must_close = False
         bed_file = file_name
@@ -357,7 +357,7 @@ def write_bed(file_name, regions, mode='w'):
 
     try:
         for region in regions:
-            bed_file.write(region.as_bed_line() + '\n')
+            bed_file.write(region.as_bed_line(score_field=score_field) + '\n')
     finally:
         if must_close:
             bed_file.close()
