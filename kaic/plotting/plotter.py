@@ -68,7 +68,7 @@ class GenomicFigure(object):
     _unused_args = ["hspace", "figsize", "height_ratios", "gridspec_args", "hide_x", "fix_chromosome"]
 
     def __init__(self, plots, width=4., ticks_last=False,
-                 invert_x=False, cax_padding=.3, cax_width=.3, fig_padding=(.5, .5, .5, .5),
+                 invert_x=False, cax_padding=.3, cax_width=.3, fig_padding=(.5, .5, 1., 1.),
                  hspace=None, figsize=None, height_ratios=None, hide_x=None,
                  gridspec_args=None, fix_chromosome=None):
         """
