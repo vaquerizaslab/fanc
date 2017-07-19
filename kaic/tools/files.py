@@ -347,7 +347,7 @@ def merge_sam(input_sams, output_sam, tmp=None):
     return output_sam
 
 
-def write_bed(file_name, regions, mode='w', score_field='score'):
+def write_bed(file_name, regions, mode='w', **kwargs):
     if hasattr(file_name, 'write'):
         must_close = False
         bed_file = file_name
@@ -357,7 +357,7 @@ def write_bed(file_name, regions, mode='w', score_field='score'):
 
     try:
         for region in regions:
-            bed_file.write(region.as_bed_line(score_field=score_field) + '\n')
+            bed_file.write(region.as_bed_line(**kwargs) + '\n')
     finally:
         if must_close:
             bed_file.close()
@@ -367,7 +367,7 @@ def write_bed(file_name, regions, mode='w', score_field='score'):
     return file_name
 
 
-def write_gff(file_name, regions, mode='w'):
+def write_gff(file_name, regions, mode='w', **kwargs):
     if hasattr(file_name, 'write'):
         must_close = False
         gff_file = file_name
@@ -377,7 +377,7 @@ def write_gff(file_name, regions, mode='w'):
 
     try:
         for region in regions:
-            gff_file.write(region.as_gff_line() + '\n')
+            gff_file.write(region.as_gff_line(**kwargs) + '\n')
     finally:
         if must_close:
             gff_file.close()
