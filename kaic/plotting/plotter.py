@@ -918,8 +918,7 @@ class BigWigPlot(ScalarDataPlot):
         """
         kwargs.setdefault("aspect", .2)
         super(BigWigPlot, self).__init__(**kwargs)
-        if isinstance(bigwigs, string_types) or isinstance(bigwigs, kaic.BigWig) \
-                or isinstance(bigwigs, pyBigWig.bigWigFile):
+        if not isinstance(bigwigs, (list, tuple)):
             bigwigs = [bigwigs]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
         self.bigwigs = []
