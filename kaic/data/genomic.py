@@ -64,7 +64,7 @@ import tables as t
 import pandas as p
 import numpy as np
 import pybedtools
-from kaic.tools.files import is_fasta_file, write_bigwig
+from kaic.tools.files import is_fasta_file, write_bigwig, write_bed, write_gff
 from kaic.tools.matrix import apply_sliding_func
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
@@ -1376,27 +1376,23 @@ class GenomicRegions(object):
 
         return regions
 
-    def to_bed(self, file_name, score_field=None):
+    def to_bed(self, file_name, subset=None, **kwargs):
         """
         Export regions as BED file
         """
-        with open(file_name, 'w') as f:
-            for i, r in enumerate(self.regions):
-                name = r.name if hasattr(r, 'name') else '.'
-                if score_field is not None:
-                    score = getattr(r, score_field)
-                else:
-                    score = r.score if hasattr(r, 'score') else '.'
+        write_bed(file_name, self.regions(subset), **kwargs)
 
-                strand = '.' if r.strand is None else r.strand
+    def to_gff(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as GFF file
+        """
+        write_gff(file_name, self.regions(subset), **kwargs)
 
-                f.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                    r.chromosome, r.start - 1, r.end,
-                    name, score, strand
-                ))
-
-    def to_bigwig(self, file_name, score_field='score'):
-        write_bigwig(file_name, self.regions, mode='w', score_field=score_field)
+    def to_bigwig(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as BigWig file.
+        """
+        write_bigwig(file_name, self.regions(subset), mode='w', **kwargs)
 
     @property
     def regions_dict(self):
