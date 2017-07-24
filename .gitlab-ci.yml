@@ -24,3 +24,14 @@ job_test_kaic_plotting:
         - "py.test kaic -m plotting"
     tags:
         - linux
+
+job_test_doc_generation:
+    stage: build_and_test
+    script:
+        - "pip install cython"
+        - "pip install ."
+        - "pip install sphinx sphinx-argparse"
+        - "cd kaic-doc"
+        - "make html"
+    tags:
+        - linux
