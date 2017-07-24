@@ -86,7 +86,7 @@ class GenomicFigure(object):
         """
         for a in self._unused_args:
             if locals()[a] is not None:
-                logger.warning("{} is no longer used!".format(a))
+                warnings.warn("{} is no longer used!".format(a))
         self.plots = []
         self.annotations = []
         for p in plots:
@@ -1367,7 +1367,8 @@ class FeatureLayerPlot(BasePlotter1D):
             tick_labels.append(name)
             for element in groups[name]:
                 try:
-                    color = self.colors[element.strand]
+                    ca = getattr(element, self._color_by)
+                    color = self.colors[ca]
                 except KeyError:
                     color = 'grey'
 
