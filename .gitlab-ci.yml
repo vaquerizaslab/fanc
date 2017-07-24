@@ -2,6 +2,7 @@ before_script:
     - "virtualenv kaic_venv"
     - "source kaic_venv/bin/activate"
     - "echo 'backend: Agg' > matplotlibrc"
+    - "pip install --upgrade pip setuptools"
 
 stages:
     - build_and_test
