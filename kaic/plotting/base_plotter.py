@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 from kaic.config import config
 from kaic.plotting.helpers import style_ticks_whitegrid, LimitGroup
-from matplotlib.ticker import MaxNLocator, LinearLocator, Formatter, Locator
+from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
 import numpy as np
@@ -230,7 +230,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
     def _before_plot(self, region):
         self.ax.set_title(self.title)
         if self.ylabel and len(self.ylabel) > 0:
-            self.ax.set_ylabel(self.ylabel, rotation=0, horizontalalignment='right')
+            self.ax.set_ylabel(self.ylabel)
 
     def _after_plot(self, region):
         for o in self.overlays:
@@ -388,7 +388,7 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_MID = "mid"
 
     def __init__(self, style="step", ylim=None, yscale="linear",
-                 condensed=False, n_yticks=2, **kwargs):
+                 condensed=False, n_yticks=3, **kwargs):
         """
         :param style: 'step' Draw values in a step-wise manner for each bin
                       'mid' Draw values connecting mid-points of bins
@@ -404,7 +404,7 @@ class ScalarDataPlot(BasePlotter1D):
                           Default: False
         :param n_yticks: Number of y-axis ticks. If only the maximum
                          tick should be displayed set condensed to True.
-                         Default: 2
+                         Default: 3
         """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
@@ -427,8 +427,8 @@ class ScalarDataPlot(BasePlotter1D):
     def _before_plot(self, region):
         super(ScalarDataPlot, self)._before_plot(region)
         self.ax.set_yscale(self.yscale)
-        if self.yscale == "linear":
-            self.ax.yaxis.set_major_locator(LinearLocator(self.n_yticks))
+        self.ax.yaxis.set_major_locator(MaxNLocator(nbins=self.n_yticks - 1,
+                                                    min_n_ticks=self.n_yticks))
 
     def _after_plot(self, region):
         super(ScalarDataPlot, self)._after_plot(region)
