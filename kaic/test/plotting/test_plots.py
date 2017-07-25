@@ -8,27 +8,6 @@ import os.path
 import pytest
 import numpy as np
 
-
-def get_example_hic():
-    directory = os.path.dirname(os.path.realpath(__file__))
-    h = kaic.Hic(directory + "/../data/test_network/rao2014.chr11_77400000_78600000.hic", mode='r')
-    return h
-
-def get_example_bigwig():
-    directory = os.path.dirname(os.path.realpath(__file__))
-    h = directory + "/../data/test_plotting/sample_bigwig.bigwig"
-    return h
-
-def get_example_bedgraph():
-    directory = os.path.dirname(os.path.realpath(__file__))
-    h = directory + "/../data/test_plotting/sample_bigwig.bedgraph"
-    return h
-
-def get_example_gtf():
-    directory = os.path.dirname(os.path.realpath(__file__))
-    h = directory + "/../data/test_plotting/dmel-2L-50k-100k.gtf"
-    return h
-
 def abs_ax_aspect(ax):
     bbox = ax.get_position()
     fig = ax.figure
@@ -38,7 +17,7 @@ def abs_ax_aspect(ax):
 @pytest.mark.plotting
 class TestHicPlot:
     def setup_method(self, method):
-        self.hic = get_example_hic()
+        self.hic = kaic.load(kaic.example_data["hic"], mode="r")
         self.hic_matrix = self.hic[:]
         self.hic_matrix[10, :] = 0
         self.hic_matrix[:, 10] = 0
@@ -217,17 +196,17 @@ class TestHicPlot:
 @pytest.mark.plotting
 class TestPlots:
     def setup_method(self, method):
-        self.bigwig_path = get_example_bigwig()
+        self.bigwig_path = kaic.example_data["chip_bigwig"]
         self.pyBigWig = pytest.importorskip("pyBigWig")
-        self.bigwig = self.pyBigWig.open(self.bigwig_path)
-        self.bedgraph_path = get_example_bedgraph()
-        self.gtf_path = get_example_gtf()
+        self.bigwig = self.pyBigWig.open(kaic.example_data["chip_bigwig"])
+        self.bedgraph_path = kaic.example_data["chip_bedgraph"]
+        self.gtf_path = kaic.example_data["gene_gtf"]
 
     def teardown_method(self, method):
         self.bigwig.close()
 
     @pytest.mark.parametrize("file", ["bigwig", "bedgraph"])
-    @pytest.mark.parametrize("crange", [(10, 700)])
+    @pytest.mark.parametrize("crange", [(77497000, 77500000)])
     @pytest.mark.parametrize("n_bw", [1, 3])
     @pytest.mark.parametrize("ylim", [(1, 10), (None, 5)])
     @pytest.mark.parametrize("yscale", ["linear", "log"])
@@ -240,7 +219,7 @@ class TestPlots:
         bplot = kplot.BigWigPlot(bw_data, names=names_passed, bin_size=bin_size,
                                   ylim=ylim, yscale=yscale)
         gfig = kplot.GenomicFigure([bplot])
-        fig, axes = gfig.plot("chr2:{}-{}".format(*crange))
+        fig, axes = gfig.plot("chr11:{}-{}".format(*crange))
         assert axes[0].get_yscale() == yscale
         for a, b in zip(ylim, axes[0].get_ylim()):
             assert a is None or a == pytest.approx(b)
@@ -259,7 +238,7 @@ class TestPlots:
                                squash=squash,
                                group_by=group_by)
         gfig = kplot.GenomicFigure([gplot])
-        selector = "2L:65900-71000"
+        selector = "chr11:77490000-77500000"
         fig, axes = gfig.plot(selector)
-        assert len(axes[0].patches) == (9 if squash else 31)
+        assert len(axes[0].patches) == (6 if squash else 13)
         plt.close(fig)
