@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 from kaic.config import config
 from kaic.plotting.helpers import style_ticks_whitegrid, LimitGroup
-from matplotlib.ticker import MaxNLocator, LinearLocator, Formatter, Locator
+from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
 import numpy as np
@@ -162,6 +162,7 @@ class PlotMeta(ABCMeta):
     all parent classes' __init__ method docstrings to the subclasses'
     __init__ method docstring.
     """
+
     def __new__(cls, clsname, bases, dct):
         new_init_doc = dct["__init__"].__doc__
         if new_init_doc is None:
@@ -184,9 +185,10 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
                  draw_x_axis=True, padding=None,
                  extra_padding=0, fix_chromosome=False, **kwargs):
         """
-        :param title: Title drawn on top of the figure panel
-        :param aspect: Aspect ratio of the plot. Can be overriden by setting
-                       the height_ratios in class:`~GenomicFigure`
+        :param title: Title drawn on top of the figure panel.
+        :param aspect: Aspect ratio of the plot, height/width.
+                       So 0.5 means half as high as wide.
+                       Default: Plot type specific sensible value
         :param axes_style: Set styling of the axes, can be anything
                            that seaborn supports. See
                            http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
@@ -199,7 +201,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         :param padding: Padding in inches to the next plot. Default: None,
                         automatically calculated.
         :param extra_padding: Add or subtract the specified inches from
-                              the automatically calculated padding.
+                              the automatically calculated padding from
+                              this panel to the next.
         :param fix_chromosome: If True modify chromosome identifiers for this plot,
                                removing or adding 'chr' as necessary. Default: False
         """
@@ -227,7 +230,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
     def _before_plot(self, region):
         self.ax.set_title(self.title)
         if self.ylabel and len(self.ylabel) > 0:
-            self.ax.set_ylabel(self.ylabel, rotation=0, horizontalalignment='right')
+            self.ax.set_ylabel(self.ylabel)
 
     def _after_plot(self, region):
         for o in self.overlays:
@@ -385,13 +388,13 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_MID = "mid"
 
     def __init__(self, style="step", ylim=None, yscale="linear",
-                 condensed=False, n_yticks=2, **kwargs):
+                 condensed=False, n_yticks=3, **kwargs):
         """
         :param style: 'step' Draw values in a step-wise manner for each bin
                       'mid' Draw values connecting mid-points of bins
         :param ylim: Set y-axis limits as tuple. Can leave upper or lower
                      limit undetermined by setting None, e.g. (2.5, None).
-                     Alternatively, a class:`~LimitGroup` instance can
+                     Alternatively, a :class:`~kaic.plotting.helpers.LimitGroup` instance can
                      be passed to synchronize limits across multiple plots.
                      Default: Automatically determined by data limits
         :param yscale: Scale of y-axis. Is passed to Matplotlib set_yscale,
@@ -401,7 +404,7 @@ class ScalarDataPlot(BasePlotter1D):
                           Default: False
         :param n_yticks: Number of y-axis ticks. If only the maximum
                          tick should be displayed set condensed to True.
-                         Default: 2
+                         Default: 3
         """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
@@ -424,8 +427,8 @@ class ScalarDataPlot(BasePlotter1D):
     def _before_plot(self, region):
         super(ScalarDataPlot, self)._before_plot(region)
         self.ax.set_yscale(self.yscale)
-        if self.yscale == "linear":
-            self.ax.yaxis.set_major_locator(LinearLocator(self.n_yticks))
+        self.ax.yaxis.set_major_locator(MaxNLocator(nbins=self.n_yticks - 1,
+                                                    min_n_ticks=self.n_yticks))
 
     def _after_plot(self, region):
         super(ScalarDataPlot, self)._after_plot(region)

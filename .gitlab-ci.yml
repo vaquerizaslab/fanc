@@ -1,25 +1,33 @@
 before_script:
+    - "echo 'backend: Agg' > matplotlibrc"
     - "virtualenv kaic_venv"
     - "source kaic_venv/bin/activate"
-    - "echo 'backend: Agg' > matplotlibrc"
+    - "pip install --upgrade pip setuptools"
+    - "pip install cython"
+    - "pip install ."
 
 stages:
     - build_and_test
 
-job_test_kaic:
+test_kaic:
     stage: build_and_test
     script:
-        - "pip install cython"
-        - "pip install ."
         - "py.test kaic -m 'not plotting'"
     tags:
         - linux
 
-job_test_kaic_plotting:
+test_plotting:
     stage: build_and_test
     script:
-        - "pip install cython"
-        - "pip install ."
         - "py.test kaic -m plotting"
+    tags:
+        - linux
+
+test_doc:
+    stage: build_and_test
+    script:
+        - "pip install sphinx sphinx-argparse"
+        - "cd kaic-doc"
+        - "make html"
     tags:
         - linux

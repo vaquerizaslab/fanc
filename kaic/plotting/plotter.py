@@ -73,7 +73,8 @@ class GenomicFigure(object):
                  gridspec_args=None, fix_chromosome=None):
         """
         :param plots: List of plot instances each will form a separate panel in the figure.
-                      Should inherit from :class:`~BasePlotter` or :class:`~BaseAnnotation`
+                      Should inherit from :class:`~kaic.plotting.plotter.BasePlotter` or
+                      :class:`~kaic.plotting.baseplotter.BaseAnnotation`
         :param width: Width of the plots in inches. Height is automatically determined
                       from the specified aspect ratios of the Plots.
                       Default: 5.
@@ -180,7 +181,7 @@ class GenomicFigure(object):
         """
         Make a plot of the specified region.
         :param region: A string describing a region "2L:10000000-12000000" or
-                       a :class:`~GenomicRegion`
+                       a :class:`~kaic.data.genomic.GenomicRegion`
         :return: A matplotlib Figure instance and a list of figure axes
         """
         for p in self.plots:
@@ -235,7 +236,7 @@ class VerticalLineAnnotation(BaseAnnotation):
                     are > 1bp rectangles are drawn. Their appearance
                     can be controlled using the plot_kwargs.
         :param plot1: First plot where line should start
-        ;param plot2: Second plot where line should end
+        :param plot2: Second plot where line should end
         :param plot_kwargs: Dictionary of properties which are passed
                             to matplotlib.lines.Line2D or
                             matplotlib.patches.Rectangle constructor
@@ -317,12 +318,12 @@ class VerticalLineAnnotation(BaseAnnotation):
 
 class GenomicTrackPlot(ScalarDataPlot):
     """
-    Plot scalar values from one or more class:`~GenomicTrack` objects
+    Plot scalar values from one or more :class:`~GenomicTrack` objects
     """
 
     def __init__(self, tracks, attributes=None, **kwargs):
         """
-        :param tracks: class:`~GenomicTrack`
+        :param tracks: :class:`~GenomicTrack`
         :param attributes: Only draw attributes from the track objects
                            which match this description.
                            Should be a list of names. Supports wildcard matching
@@ -369,12 +370,12 @@ class GenomicTrackPlot(ScalarDataPlot):
 
 class GenomicRegionsPlot(ScalarDataPlot):
     """
-    Plot scalar values from one or more class:`~GenomicRegions` objects
+    Plot scalar values from one or more :class:`~GenomicRegions` objects
     """
 
     def __init__(self, regions, attributes=None, names=None, legend=True, **kwargs):
         """
-        :param regions: class:`~GenomicRegions`
+        :param regions: :class:`~GenomicRegions`
         :param attributes: Only draw attributes from the track objects
                            which match this description.
                            Should be a list of names. Supports wildcard matching
@@ -435,11 +436,11 @@ class GenomicRegionsPlot(ScalarDataPlot):
 
 class RegionsValuesPlot(ScalarDataPlot):
     """
-    Plot scalar values from one or more class:`~GenomicTrack` objects
+    Plot scalar values from one or more :class:`~GenomicTrack` objects
     """
     def __init__(self, regions, values, symmetry=None, **kwargs):
         """
-        :param regions: class:`~GenomicRegions`
+        :param regions: :class:`~GenomicRegions`
         :param style: 'step' Draw values in a step-wise manner for each bin
               'mid' Draw values connecting mid-points of bins
         :param attributes: Only draw attributes from the track objects
@@ -448,7 +449,7 @@ class RegionsValuesPlot(ScalarDataPlot):
                            and regex.
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-               the height_ratios in class:`~GenomicFigure`
+               the height_ratios in :class:`~GenomicFigure`
         """
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
         kwargs.setdefault("aspect", .2)
@@ -504,15 +505,15 @@ class RegionsValuesPlot(ScalarDataPlot):
 
 class GenomicMatrixPlot(BasePlotterMatrix, BasePlotter1D):
     """
-    Plot matrix from a class:`~GenomicTrack` objects.
+    Plot matrix from a :class:`~GenomicTrack` objects.
     """
 
     def __init__(self, track, attribute, y_coords=None, y_scale='linear', plot_kwargs=None,
                  **kwargs):
         """
-        :param track: class:`~GenomicTrack` containing the matrix
+        :param track: :class:`~GenomicTrack` containing the matrix
         :param attribute: Which matrix from the track object to draw
-        :param y_coords: Matrices in the class:`~GenomicTrack` object are
+        :param y_coords: Matrices in the :class:`~GenomicTrack` object are
                          unitless. Can provide the coordinates for the
                          y-direction here. Matrix has shape (X, Y) must
                          have shape Y or Y + 1
@@ -574,15 +575,15 @@ class GenomicMatrixPlot(BasePlotterMatrix, BasePlotter1D):
 
 class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
     """
-    Plot matrix from a class:`~MultiVectorArchitecturalRegionFeature` object.
+    Plot matrix from a :class:`~kaic.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature` object.
     """
 
     def __init__(self, array, keys=None, y_coords=None, y_scale='linear', plot_kwargs=None,
                  **kwargs):
         """
-        :param array: class:`~MultiVectorArchitecturalRegionFeature`
+        :param array: :class:`~kaic.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature`
         :param keys: keys for which vectors to use for array. None indicates all vectors will be used.
-        :param y_coords: Matrices in the class:`~GenomicTrack` object are
+        :param y_coords: Matrices in the :class:`~GenomicTrack` object are
                          unitless. Can provide the coordinates for the
                          y-direction here. Matrix has shape (X, Y) must
                          have shape Y or Y + 1
@@ -918,7 +919,7 @@ class BigWigPlot(ScalarDataPlot):
         """
         kwargs.setdefault("aspect", .2)
         super(BigWigPlot, self).__init__(**kwargs)
-        if not isinstance(bigwigs, (list, tuple)):
+        if not isinstance(bigwigs, (list, tuple, types.GeneratorType)):
             bigwigs = [bigwigs]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
         self.bigwigs = []
@@ -1282,7 +1283,7 @@ class GenePlot(BasePlotter1D):
 
 class FeatureLayerPlot(BasePlotter1D):
     """
-    Plot genomic features in layers grouped by name/type.
+    Plot genomic features in layers grouped by name/type.::
 
         B1         -   -      -
         B2      -   -     - -   -

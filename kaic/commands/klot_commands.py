@@ -935,8 +935,8 @@ def bigwig(parameters):
     for file_name in args.bigwig:
         bigwigs.append(kaic.load(file_name, mode='r'))
 
-    p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim, log=args.log,
-                        condensed=args.condensed)
+    p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim,
+                        yscale="log" if args.log else "linear", condensed=args.condensed)
 
     return p, args
 

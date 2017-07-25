@@ -24,6 +24,7 @@ from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIn
 from kaic.data.network import RaoPeakInfo
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
+import os
 import logging
 
 # configure logging
@@ -132,3 +133,12 @@ def load(file_name, mode='a', tmpdir=None):
             return BigWig(f)
         except (ImportError, RuntimeError):
             raise ValueError("File type not recognised ({}).".format(file_name))
+
+example_data = dict(
+    hic="test/data/test_network/rao2014.chr11_77400000_78600000.hic",
+    chip_bigwig="test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig",
+    chip_bedgraph="test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bedgraph.gz",
+    gene_gtf="test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz",
+)
+_basepath = os.path.abspath(os.path.dirname(__file__))
+example_data = {k: os.path.join(_basepath, v) for k, v in example_data.items()}

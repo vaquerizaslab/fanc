@@ -25,7 +25,8 @@ setup(
     name='kaic',
     version=__version__,
     description='Hi-C data analysis tools.',
-    # packages=find_packages(exclude=["test"]),
+    packages=find_packages(),
+    package_data={'kaic': ['test/data/*/*']},
     install_requires=[
         'numpy>=1.8.0',
         'scipy',
@@ -49,5 +50,5 @@ setup(
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={
         'clean': CleanCommand
-    }
+    },
 )
