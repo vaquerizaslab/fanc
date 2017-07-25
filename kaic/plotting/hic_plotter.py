@@ -230,12 +230,15 @@ class BasePlotterHic(BasePlotterMatrix):
     def __init__(self, hic_data, adjust_range=False, buffering_strategy="relative",
                  buffering_arg=1, **kwargs):
         """
-        :param hic_data: :class:`~kaic.data.genomic.Hic` or :class:`~kaic.data.genomic.RegionMatrix`
+        :param hic_data: Path to Hi-C data on disk or
+                        :class:`~kaic.data.genomic.Hic` or :class:`~kaic.data.genomic.RegionMatrix`
         :param adjust_range: Draw a slider to adjust vmin/vmax interactively. Default: False
         :param buffering_strategy: A valid buffering strategy for :class:`~BufferedMatrix`
         :param buffering_arg: Adjust range of buffering for :class:`~BufferedMatrix`
         """
         super(BasePlotterHic, self).__init__(**kwargs)
+        if isinstance(hic_data, string_types):
+            hic_data = kaic.load(hic_data, mode="r")
         self.hic_data = hic_data
         self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
                                              buffering_arg=buffering_arg)

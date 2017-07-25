@@ -73,7 +73,8 @@ class GenomicFigure(object):
                  gridspec_args=None, fix_chromosome=None):
         """
         :param plots: List of plot instances each will form a separate panel in the figure.
-                      Should inherit from :class:`~BasePlotter` or :class:`~BaseAnnotation`
+                      Should inherit from :class:`~kaic.plotting.plotter.BasePlotter` or
+                      :class:`~kaic.plotting.baseplotter.BaseAnnotation`
         :param width: Width of the plots in inches. Height is automatically determined
                       from the specified aspect ratios of the Plots.
                       Default: 5.
