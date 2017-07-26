@@ -22,7 +22,7 @@ class TestAuto:
     def test_hic_based_auto_identification(self, tmpdir):
         with dummy.sample_hic() as hic:
             for class_name in ('ABDomains', 'ABDomainMatrix', 'ExpectedContacts', 'ObservedExpectedRatio',
-                               'ABDomains', 'PossibleContacts', 'RegionContactAverage',
+                               'PossibleContacts', 'RegionContactAverage',
                                'InsulationIndex', 'DirectionalityIndex'):
                 file_name = str(tmpdir) + '/{}.h5'.format(class_name)
                 cls_ = class_name_dict[class_name]
