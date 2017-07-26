@@ -31,3 +31,15 @@ test_doc:
         - "make html"
     tags:
         - linux
+
+pages:
+    script:
+    - pip install sphinx sphinx-arparse
+    - cd kaic-doc
+    - make html
+    - mv _build/html/ public/
+    artifacts:
+        paths:
+        - public
+    only:
+    - develop3
