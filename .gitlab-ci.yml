@@ -32,8 +32,9 @@ test_doc:
     before_script:
         - "virtualenv kaic_doc_venv"
         - "source kaic_doc_venv/bin/activate"
+        - "pip install --upgrade pip setuptools"
+        - "pip install sphinx sphinx-argparse"
     script:
-        - pip install sphinx sphinx-argparse
         - cd kaic-doc
         - make html
         - whoami
