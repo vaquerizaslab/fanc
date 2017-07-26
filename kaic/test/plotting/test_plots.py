@@ -201,6 +201,7 @@ class TestPlots:
         self.bigwig = self.pyBigWig.open(kaic.example_data["chip_bigwig"])
         self.bedgraph_path = kaic.example_data["chip_bedgraph"]
         self.gtf_path = kaic.example_data["gene_gtf"]
+        self.peak_path = kaic.example_data["chip_peak_bed"]
 
     def teardown_method(self, method):
         self.bigwig.close()
@@ -242,3 +243,11 @@ class TestPlots:
         fig, axes = gfig.plot(selector)
         assert len(axes[0].patches) == (6 if squash else 13)
         plt.close(fig)
+
+    @pytest.mark.parametrize("crange", [(77497000, 77500000)])
+    def test_highlight_plot(self, crange):
+        bplot = kplot.BigWigPlot(self.bigwig_path)
+        gplot = kplot.GenePlot(self.gtf_path)
+        high = kplot.HighlightAnnotation(self.peak_path)
+        gfig = kplot.GenomicFigure([bplot, gplot, high])
+        fig, axes = gfig.plot("chr11:{}-{}".format(*crange))

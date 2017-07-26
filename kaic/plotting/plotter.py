@@ -228,7 +228,7 @@ class HighlightAnnotation(BaseAnnotation):
     panels of figures.
     """
     def __init__(self, bed, plot1=None, plot2=None, plot_kwargs=None,
-                 y1=0, y2=0, coords_plot1="ax",
+                 y1=1, y2=0, coords_plot1="ax",
                  coords_plot2="ax", **kwargs):
         """
         :param bed: Anything pybedtools can parse. Path to BED-file
@@ -253,12 +253,13 @@ class HighlightAnnotation(BaseAnnotation):
             "linewidth": 1.,
             "color": "black",
             "linestyle": "solid",
+            "alpha": .5,
         }
         if plot_kwargs is not None:
             self.plot_kwargs.update(plot_kwargs)
         self.bedtool = bed
-        if not isinstance(self.bedtool, pbt.BedTool):
-            self.bedtool = pbt.BedTool(self.bedtool).saveas()
+        if isinstance(bed, string_types):
+            self.bedtool = kaic.load(bed)
         self.plot1 = plot1
         self.plot2 = plot2
         self.y1 = y1
