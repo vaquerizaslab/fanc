@@ -4456,13 +4456,11 @@ class Hic(RegionMatrixTable):
         merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
         merged_hic.disable_indexes()
         if not identical:
-            logger.warn("Regions in your Hi-C objects are not identical. Attempting a merge, "
-                        "but it will probably be painfully slow. Ensure identical regions before a"
-                        "merge by using the same FASTA/genome object for building both Hi-C objects.")
+            logger.warning("Regions in your Hi-C objects are not identical. Attempting a merge, "
+                           "but it will probably be painfully slow. Ensure identical regions before a"
+                           "merge by using the same FASTA/genome object for building both Hi-C objects.")
             merged_hic.merge(hics)
         else:
-
-            merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
             merged_hic.add_regions(hics[0].regions)
 
             chromosomes = hics[0].chromosomes()
