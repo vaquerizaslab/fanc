@@ -38,7 +38,7 @@ pages:
     - pip install sphinx sphinx-argparse
     - cd kaic-doc
     - make html
-    - mv _build/html/ public/
+    - mv _build/html/ ../public/
     artifacts:
         paths:
         - public
