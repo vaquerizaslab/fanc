@@ -1,16 +1,13 @@
-before_script:
-    - "echo 'backend: Agg' > matplotlibrc"
-    - "virtualenv kaic_venv"
-    - "source kaic_venv/bin/activate"
-    - "pip install --upgrade pip setuptools"
-    - "pip install cython"
-    - "pip install ."
-
 stages:
     - build_and_test
 
 test_kaic:
     stage: build_and_test
+    before_script:
+        - "echo 'backend: Agg' > matplotlibrc"
+        - "virtualenv kaic_venv"
+        - "source kaic_venv/bin/activate"
+        - "pip install ."
     script:
         - "py.test kaic -m 'not plotting'"
     tags:
@@ -18,6 +15,11 @@ test_kaic:
 
 test_plotting:
     stage: build_and_test
+    before_script:
+        - "echo 'backend: Agg' > matplotlibrc"
+        - "virtualenv kaic_venv"
+        - "source kaic_venv/bin/activate"
+        - "pip install ."
     script:
         - "py.test kaic -m plotting"
     tags:
@@ -30,6 +32,6 @@ test_doc:
         - cd kaic-doc
         - make html
         - whoami
-        - cp -r _build/html/* /var/www/kaic/
+        - cp -r _build/html/ /home/kkruse/kaic-doc
     tags:
         - linux
