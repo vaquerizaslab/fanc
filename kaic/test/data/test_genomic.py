@@ -1118,6 +1118,7 @@ class TestHicBasic:
 
         assert len(hic._regions) == len(pairs._regions)
         pairs.close()
+        pairs_old.close()
 
         reads = 0
         edge_set = set()
@@ -1454,9 +1455,9 @@ class TestHicBasic:
         assert blf.cutoff - 2 * (610 + 405 + 734) / 47 < 0.001
         for edge in self.hic.edges(lazy=True):
             if edge.weight < blf.cutoff:
-                assert blf.valid_edge(edge) == False
+                assert not blf.valid_edge(edge)
             else:
-                assert blf.valid_edge(edge) == True
+                assert blf.valid_edge(edge)
 
     def test_filter_expected_observed_enrichment(self):
         eof = ExpectedObservedEnrichmentFilter(self.hic, fold_change=1)
