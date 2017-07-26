@@ -67,6 +67,7 @@ def kaic_parser():
             average_tracks     Calculate average Hi-C contact profiles per region
             directionality     Calculate directionality index for Hic object
             insulation         Calculate insulation index for Hic object
+            ii_to_bw           Convert insulation index object to BigWig 
             ab                 Calculate AB domain matrix for a Hi-C object
             distance_decay     Calculate distance decay for a Hi-C object
             diff               Calculate difference between two vectors
@@ -2983,6 +2984,69 @@ def insulation(argv):
                          mode='w', subtract_mean=args.subtract, log=args.log,
                          _normalisation_window=args.normalisation_window) as ii:
         ii.calculate()
+
+
+def ii_to_bw_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic ii_to_bw",
+        description='Convert insulation index object to BigWig'
+    )
+    parser.add_argument(
+        'input',
+        help='InsulationIndex file'
+    )
+    parser.add_argument(
+        'output',
+        help='Folder for BigWig output or BigWig filename (if -w option in use and only a single size'
+             'was specified).'
+    )
+
+    parser.add_argument(
+        '-w', '--window-sizes', dest='window_sizes',
+        nargs='+',
+        type=int,
+        help='''Window sizes in base pairs to convert to BigWig.'''
+    )
+
+    parser.add_argument(
+        '-r', '--region', dest='region',
+        help='''Region selector (<chr>:<start>-<end>) to only write values for these regions.'''
+    )
+
+    parser.add_argument(
+        '-p', '--prefix', dest='prefix',
+        help='''Prefix for files when using multiple window sizes.'''
+    )
+
+    return parser
+
+
+def ii_to_bw(argv):
+    parser = ii_to_bw_parser()
+
+    args = parser.parse_args(argv[2:])
+
+    import os
+    import kaic
+
+    input_file = os.path.expanduser(args.input)
+    output = os.path.expanduser(args.output)
+    window_sizes = args.window_sizes
+    region = args.region
+    prefix = args.prefix
+
+    if prefix is None:
+        prefix = os.path.basename(os.path.splitext(input_file)[0])
+
+    ii = kaic.load(input_file, mode='r')
+
+    if window_sizes is None:
+        window_sizes = ii.window_sizes
+
+    for window_size in window_sizes:
+        output_file = os.path.join(output, prefix + '_{}.bw'.format(window_size)) if len(window_sizes) > 1 else output
+        ii.to_bigwig(output_file, subset=region, score_field='ii_{}'.format(window_size))
+    ii.close()
 
 
 def ab_parser():
