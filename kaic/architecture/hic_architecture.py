@@ -787,7 +787,9 @@ class ABDomains(VectorArchitecturalRegionFeature):
     def _calculate(self):
         if isinstance(self.data, Hic):
             ab_data = ABDomainMatrix(self.data, regions=self.region_selection, per_chromosome=self.per_chromosome)
+            close_data = True
         else:
+            close_data = False
             ab_data = self.data
 
         ab_results = dict()
@@ -810,6 +812,9 @@ class ABDomains(VectorArchitecturalRegionFeature):
         for region in self.regions(lazy=True):
             region.ev = ab_results[region.ix]
         self.flush()
+
+        if close_data:
+            ab_data.close()
 
     @calculateondemand
     def ab_domain_eigenvector(self, region=None):
