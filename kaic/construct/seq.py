@@ -1473,7 +1473,7 @@ class Bowtie2PairLoader(PairLoader):
                 pb.update(r1_count + r2_count)
 
                 if i % 1000000 == 0:
-                    self._pairs.flush(update_index=False)
+                    self._pairs.flush(update_index=False, silent=True)
 
             # add remaining unpaired reads
             while r1 is not None:
@@ -1491,7 +1491,7 @@ class Bowtie2PairLoader(PairLoader):
                 pb.update(r1_count + r2_count)
 
                 if i % 1000000 == 0:
-                    self._pairs.flush(update_index=False)
+                    self._pairs.flush(update_index=False, silent=True)
 
             while r2 is not None:
                 i += 1
@@ -1508,7 +1508,7 @@ class Bowtie2PairLoader(PairLoader):
                 pb.update(r1_count + r2_count)
 
                 if i % 1000000 == 0:
-                    self._pairs.flush(update_index=False)
+                    self._pairs.flush(update_index=False, silent=True)
 
         logger.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
         logger.info("Pairs: %d. Single: %d" % (pair_count, single_count))
@@ -1782,7 +1782,7 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
             self._pair_count = 0
             self._single_count = 0
 
-    def flush(self, update_index=True):
+    def flush(self, update_index=True, silent=False):
         RegionsTable.flush(self)
         self._pairs.flush(update_index=update_index)
         self._single.flush(update_index=update_index)
@@ -2355,8 +2355,8 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
                                        FragmentMappedReadPairs.FragmentsMappedReadSingleDescription)
             self._single_count = 0
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
-        AccessOptimisedRegionPairs.flush(self, flush_nodes=flush_nodes,
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, silent=False):
+        AccessOptimisedRegionPairs.flush(self, flush_nodes=flush_nodes, silent=silent,
                                          flush_edges=flush_edges, update_index=update_index)
         self._single.flush(update_index=update_index)
 
