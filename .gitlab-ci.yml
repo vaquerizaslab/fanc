@@ -35,7 +35,7 @@ test_doc:
 pages:
     stage: build_and_test
     script:
-    - pip install sphinx sphinx-arparse
+    - pip install sphinx sphinx-argparse
     - cd kaic-doc
     - make html
     - mv _build/html/ public/
