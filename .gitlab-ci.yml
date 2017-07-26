@@ -37,7 +37,6 @@ test_doc:
     script:
         - cd kaic-doc
         - make html
-        - whoami
         - cp -r _build/html/ /home/kkruse/kaic-doc
     tags:
         - linux
