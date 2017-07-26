@@ -26,21 +26,9 @@ test_plotting:
 test_doc:
     stage: build_and_test
     script:
-        - "pip install sphinx sphinx-argparse"
-        - "cd kaic-doc"
-        - "make html"
+        - pip install sphinx sphinx-argparse
+        - cd kaic-doc
+        - make html
+        - cp -r _build/html/* /var/www/kaic/
     tags:
         - linux
-
-pages:
-    stage: build_and_test
-    script:
-    - pip install sphinx sphinx-argparse
-    - cd kaic-doc
-    - make html
-    - mv _build/html/ ../public/
-    artifacts:
-        paths:
-        - public
-    only:
-    - develop3
