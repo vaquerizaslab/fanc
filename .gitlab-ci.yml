@@ -33,6 +33,7 @@ test_doc:
         - linux
 
 pages:
+    stage: build_and_test
     script:
     - pip install sphinx sphinx-arparse
     - cd kaic-doc
