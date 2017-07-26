@@ -27,6 +27,9 @@ test_plotting:
 
 test_doc:
     stage: build_and_test
+    before_script:
+        - "virtualenv kaic_doc_venv"
+        - "source kaic_doc_venv/bin/activate"
     script:
         - pip install sphinx sphinx-argparse
         - cd kaic-doc
