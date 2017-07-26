@@ -218,7 +218,7 @@ class GenomicFigure(object):
         return [p.cax for p in self.plots]
 
 
-class VerticalLineAnnotation(BaseAnnotation):
+class HighlightAnnotation(BaseAnnotation):
     """
     Vertical lines or rectangles (shaded regions) which can be
     positioned at specific genomic coordinates from a BED file
@@ -227,7 +227,7 @@ class VerticalLineAnnotation(BaseAnnotation):
     Useful for highlighting specific regions across multiple
     panels of figures.
     """
-    def __init__(self, bed, plot1, plot2, plot_kwargs=None,
+    def __init__(self, bed, plot1=None, plot2=None, plot_kwargs=None,
                  y1=0, y2=0, coords_plot1="ax",
                  coords_plot2="ax", **kwargs):
         """
@@ -236,8 +236,8 @@ class VerticalLineAnnotation(BaseAnnotation):
                     If features are 1bp long, lines are drawn. If they
                     are > 1bp rectangles are drawn. Their appearance
                     can be controlled using the plot_kwargs.
-        :param plot1: First plot where line should start
-        :param plot2: Second plot where line should end
+        :param plot1: First plot where line should start. Default: First
+        :param plot2: Second plot where line should end. Default: Last
         :param plot_kwargs: Dictionary of properties which are passed
                             to matplotlib.lines.Line2D or
                             matplotlib.patches.Rectangle constructor
@@ -248,7 +248,7 @@ class VerticalLineAnnotation(BaseAnnotation):
                              "data" means values are data coordinates in plot1
         :param coords_plot2: As in coords_plot1
         """
-        super(VerticalLineAnnotation, self).__init__(**kwargs)
+        super(HighlightAnnotation, self).__init__(**kwargs)
         self.plot_kwargs = {
             "linewidth": 1.,
             "color": "black",
@@ -311,8 +311,12 @@ class VerticalLineAnnotation(BaseAnnotation):
         return l
 
     def _verify(self, gfig):
+        if self.plot1 is None:
+            self.plot1 = gfig.plots[0]
+        if self.plot2 is None:
+            self.plot2 = gfig.plots[-1]
         if not all([self.plot1 in gfig.plots, self.plot2 in gfig.plots]):
-            raise ValueError("At least one plot in the VerticalLine is"
+            raise ValueError("At least one plot in the HighlightAnnotation is"
                              "not part of the GenomicFigure")
         return True
 
@@ -320,6 +324,16 @@ class VerticalLineAnnotation(BaseAnnotation):
         for a in itertools.chain(self.patches, self.lines):
             a.remove()
         self._plot(region)
+
+
+class VerticalLineAnnotation(HighlightAnnotation):
+    """
+    Deprecated alias for :class:`~kaic.plotting.plotter.HighlightAnnotation`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(VerticalLineAnnotation, self).__init__(*args, **kwargs)
+        warnings.warn("VerticalLineAnnotation is deprecated, use HighlightAnnotation instead.")
 
 
 class GenomicTrackPlot(ScalarDataPlot):

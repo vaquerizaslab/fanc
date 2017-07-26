@@ -1202,3 +1202,40 @@ def table(parameters):
     p = kplt.GenomicDataFramePlot(table_file, names=args.names, ylim=args.ylim, log=args.log)
 
     return p, args
+
+
+def highlight_parser():
+    parser = subplot_parser()
+    parser.description = '''Highlight regions plot.'''
+
+    parser.add_argument(
+        'regions',
+        help='''BED file or any other Bedtools compatible format.'''
+    )
+
+    parser.add_argument(
+        '-c', '--color',
+        default="grey",
+        help='''Color for shaded regions.'''
+    )
+
+    parser.add_argument(
+        '-a', '--alpha',
+        default=.5,
+        type=float,
+        help='''Alpha transparency, between 0 and 1.'''
+    )
+
+    return parser
+
+
+def highlight(parameters):
+    parser = highlight_parser()
+    args = parser.parse_args(parameters)
+    plot_kwargs = dict(
+        color=args.color,
+        fill=args.color,
+        alpha=args.alpha,
+    )
+    p = kplt.HighlightAnnotation(args.regions, None, None, plot_kwargs=plot_kwargs)
+    return p, None

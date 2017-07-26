@@ -12,7 +12,7 @@ Plotting API
     :members: VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot,
         GenomicRegionsPlot, GenomicFeatureScorePlot, GenomicMatrixPlot,
         GenomicFigure, GenomicTrackPlot, BigWigPlot, GenePlot,
-        FeatureLayerPlot, GenomicDataFramePlot, VerticalLineAnnotation
+        FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation
     :special-members: __init__
 
 .. automodule:: kaic.plotting.helpers

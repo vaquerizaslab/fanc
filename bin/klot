@@ -6,6 +6,7 @@ import traceback
 import os
 from itertools import groupby
 from kaic.commands import klot_commands as commands
+import kaic.plotting as kplot
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -66,17 +67,18 @@ class Klot(object):
             plot, plot_args = plot_method(args)
             plots.append(plot)
 
-            # register aspect ratio
-            if plot_args.aspect_ratio is not None:
-                plot.aspect = plot_args.aspect_ratio
+            if isinstance(plot, kplot.base_plotter.BasePlotter):
+                # register aspect ratio
+                if plot_args.aspect_ratio is not None:
+                    plot.aspect = plot_args.aspect_ratio
 
-            plot.fix_chromosome = plot_args.fix_chromosome
+                plot.fix_chromosome = plot_args.fix_chromosome
 
-            if plot_args.hide_x:
-                plot.remove_genome_axis()
+                if plot_args.hide_x:
+                    plot.remove_genome_axis()
 
-            # set plot title
-            plot.title = plot_args.title
+                # set plot title
+                plot.title = plot_args.title
 
         # parse regions
         regions = []
