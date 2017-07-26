@@ -160,8 +160,6 @@ class GenomicFigure(object):
             with sns.axes_style("ticks" if self.plots[i].axes_style is None else
                                 self.plots[i].axes_style):
                 ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 else None)
-                if self.invert_x:
-                    ax.invert_xaxis()
             cax = fig.add_axes(ax_specs[i]["cax"])
             self.plots[i].ax = ax
             self.plots[i].cax = cax
@@ -201,6 +199,8 @@ class GenomicFigure(object):
             self._update_figure_setup()
             for p in self.plots:
                 p._dimensions_stale = False
+        if self.invert_x and not self.axes[0].xaxis_inverted():
+            self.axes[0].invert_xaxis()
         return self.fig, self.axes
 
     def __enter__(self):

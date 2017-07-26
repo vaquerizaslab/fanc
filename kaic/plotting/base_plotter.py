@@ -19,9 +19,10 @@ class GenomeCoordFormatter(Formatter):
     Process axis tick labels to give nice representations
     of genomic coordinates
     """
-    def __init__(self, chromosome, display_scale=True):
+    def __init__(self, chromosome, minor_div=None, display_scale=True):
         """
         :param chromosome: :class:`~kaic.data.genomic.GenomicRegion` or string
+        :param minor_div: Divide each major tick by this many minor ticks.
         :param display_scale: Boolean
                               Display distance scale at bottom right
         """
@@ -29,6 +30,7 @@ class GenomeCoordFormatter(Formatter):
             self.chromosome = chromosome.chromosome
         else:
             self.chromosome = chromosome
+        self.minor_div = minor_div
         self.display_scale = display_scale
 
     def _format_val(self, x, prec_offset=0):
@@ -66,8 +68,8 @@ class GenomeCoordFormatter(Formatter):
             return ""
         view_range = self.axis.axes.get_xlim()
         view_dist = abs(view_range[1] - view_range[0])
-        tick_dist = self.locs[2] - self.locs[1]
-        minor_tick_dist = tick_dist/5
+        tick_dist = abs(self.locs[2] - self.locs[1])
+        minor_tick_dist = abs(tick_dist/self.minor_div)
         minor_tick_dist_str = self._format_val(minor_tick_dist, prec_offset=2)
         tick_dist_str = self._format_val(tick_dist, prec_offset=1)
         view_dist_str = self._format_val(view_dist)
@@ -75,72 +77,11 @@ class GenomeCoordFormatter(Formatter):
 
 
 class GenomeCoordLocator(MaxNLocator):
-    """
-    Choose locations of genomic coordinate ticks on the plot axis.
-    Behaves like default Matplotlib locator, except that it always
-    places a tick at the start and the end of the window.
-    """
-    def __call__(self):
-        vmin, vmax = self.axis.get_view_interval()
-        ticks = self.tick_values(vmin, vmax)
-        # Make sure that first and last tick are the start
-        # and the end of the genomic range plotted. If next
-        # ticks are too close, remove them.
-        ticks[0] = vmin
-        ticks[-1] = vmax
-        if ticks[1] - vmin < (vmax - vmin)/(self._nbins*3):
-            ticks = np.delete(ticks, 1)
-        if vmax - ticks[-2] < (vmax - vmin)/(self._nbins*3):
-            ticks = np.delete(ticks, -2)
-        return self.raise_if_exceeds(np.array(ticks))
+    pass
 
 
-class MinorGenomeCoordLocator(Locator):
-    """
-    Choose locations of minor tick marks between major
-    tick labels. Modification of the Matplotlib AutoMinorLocator,
-    except that it uses the distance between 2nd and 3rd major
-    mark as reference, instead of 2nd and 3rd.
-    """
-    def __init__(self, n):
-        self.ndivs = n
-
-    def __call__(self):
-        majorlocs = self.axis.get_majorticklocs()
-        try:
-            majorstep = majorlocs[2] - majorlocs[1]
-        except IndexError:
-            # Need at least two major ticks to find minor tick locations
-            # TODO: Figure out a way to still be able to display minor
-            # ticks without two major ticks visible. For now, just display
-            # no ticks at all.
-            majorstep = 0
-        if self.ndivs is None:
-            if majorstep == 0:
-                # TODO: Need a better way to figure out ndivs
-                ndivs = 1
-            else:
-                x = int(np.round(10 ** (np.log10(majorstep) % 1)))
-                if x in [1, 5, 10]:
-                    ndivs = 5
-                else:
-                    ndivs = 4
-        else:
-            ndivs = self.ndivs
-        minorstep = majorstep / ndivs
-        vmin, vmax = self.axis.get_view_interval()
-        if vmin > vmax:
-            vmin, vmax = vmax, vmin
-        if len(majorlocs) > 0:
-            t0 = majorlocs[1]
-            tmin = ((vmin - t0) // minorstep + 1) * minorstep
-            tmax = ((vmax - t0) // minorstep + 1) * minorstep
-            locs = np.arange(tmin, tmax, minorstep) + t0
-            cond = np.abs((locs - t0) % majorstep) > minorstep / 10.0
-            locs = locs.compress(cond)
-        else:
-            locs = []
-        return self.raise_if_exceeds(np.array(locs))
+class MinorGenomeCoordLocator(mpl.ticker.AutoMinorLocator):
+    pass
 
 
 def _prepare_normalization(norm="lin", vmin=None, vmax=None):
@@ -347,7 +288,7 @@ class BasePlotter1D(BasePlotter):
 
     def _before_plot(self, region):
         super(BasePlotter1D, self)._before_plot(region)
-        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region, minor_div=self.n_minor_ticks))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self._current_chromosome = region.chromosome
