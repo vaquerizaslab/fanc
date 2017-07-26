@@ -34,6 +34,7 @@ test_doc:
         - "source kaic_doc_venv/bin/activate"
         - "pip install --upgrade pip setuptools"
         - "pip install sphinx sphinx-argparse"
+        - "pip install ."
     script:
         - cd kaic-doc
         - make html
