@@ -228,8 +228,7 @@ class HighlightAnnotation(BaseAnnotation):
     panels of figures.
     """
     def __init__(self, bed, plot1=None, plot2=None, plot_kwargs=None,
-                 y1=1, y2=0, coords_plot1="ax",
-                 coords_plot2="ax", **kwargs):
+                 **kwargs):
         """
         :param bed: Anything pybedtools can parse. Path to BED-file
                     GTF-file, or a list of tuples [(chr, start, end), ...]
@@ -241,12 +240,6 @@ class HighlightAnnotation(BaseAnnotation):
         :param plot_kwargs: Dictionary of properties which are passed
                             to matplotlib.lines.Line2D or
                             matplotlib.patches.Rectangle constructor
-        :param y1: y-axis coordinate on plot1 where line should begin
-        :param y2: y-axis coordinate on plot2 where line should end
-        :param coords_plot1: Controls how y_plot1 is interpreted. "ax" means
-                             values are (0, 1) as a fraction of axes height.
-                             "data" means values are data coordinates in plot1
-        :param coords_plot2: As in coords_plot1
         """
         super(HighlightAnnotation, self).__init__(**kwargs)
         self.plot_kwargs = {
@@ -262,29 +255,13 @@ class HighlightAnnotation(BaseAnnotation):
             self.bedtool = kaic.load(bed)
         self.plot1 = plot1
         self.plot2 = plot2
-        self.y1 = y1
-        self.y2 = y2
-        self.coords_plot1 = coords_plot1
-        self.coords_plot2 = coords_plot2
         self.patches = []
         self.lines = []
 
-    @staticmethod
-    def _generate_transformation(ax, type):
-        if type == "ax":
-            trans = ax.transAxes
-        elif type == "data":
-            trans = ax.transData
-        else:
-            raise ValueError("Invalid data transformation '{}'".format(type))
-        return trans
-
     def _plot(self, region):
-        x_trans = self._generate_transformation(self.plot1.ax, "data")
-        y_trans1 = self._generate_transformation(self.plot1.ax, self.coords_plot1) + \
-                   self.plot1.ax.figure.transFigure.inverted()
-        y_trans2 = self._generate_transformation(self.plot2.ax, self.coords_plot2) + \
-                   self.plot2.ax.figure.transFigure.inverted()
+        x_trans = self.plot1.ax.transData
+        y_trans1 = self.plot1.ax.transAxes + self.plot1.ax.figure.transFigure.inverted()
+        y_trans2 = self.plot2.ax.transAxes + self.plot2.ax.figure.transFigure.inverted()
         blended_trans = mpl.transforms.blended_transform_factory(x_trans, self.plot1.ax.figure.transFigure)
         interval = region_to_pbt_interval(region)
         hits = self.bedtool.all_hits(interval)
@@ -296,8 +273,8 @@ class HighlightAnnotation(BaseAnnotation):
 
     def _draw_rectangle(self, r, x_trans, y_trans1, y_trans2, plot_trans):
         s, e = r.start, r.end
-        y1_t = y_trans1.transform((0, self.y1))[1]
-        y2_t = y_trans2.transform((0, self.y2))[1]
+        y1_t = y_trans1.transform((0, 1))[1]
+        y2_t = y_trans2.transform((0, 0))[1]
         y1_t, y2_t = sorted([y1_t, y2_t])
         patch = figure_rectangle(self.plot1.ax.figure, xy=(s, y1_t),
                                  width=e - s, height=y2_t - y1_t,
@@ -307,8 +284,8 @@ class HighlightAnnotation(BaseAnnotation):
 
     def _draw_line(self, r, x_trans, trans1, trans2, plot_trans):
         s = r.start
-        y1_t = y_trans1.transform((0, self.y1))[1]
-        y2_t = y_trans2.transform((0, self.y2))[1]
+        y1_t = y_trans1.transform((0, 1))[1]
+        y2_t = y_trans2.transform((0, 0))[1]
         l = figure_line(self.plot1.ax.figure, xdata=[s, s],
                         ydata=[y1_t, y2_t], transform=plot_trans,
                         **self.plot_kwargs)
@@ -321,8 +298,8 @@ class HighlightAnnotation(BaseAnnotation):
         if self.plot2 is None:
             self.plot2 = gfig.plots[-1]
         # Make sure plot1 comes first in plot list
-        # if gfig.plots.index(self.plot2) < gfig.plots.index(self.plot1):
-        #     self.plot1, self.plot2 = self.plot2, self.plot1
+        if gfig.plots.index(self.plot2) < gfig.plots.index(self.plot1):
+            self.plot1, self.plot2 = self.plot2, self.plot1
         if not all([self.plot1 in gfig.plots, self.plot2 in gfig.plots]):
             raise ValueError("At least one plot in the HighlightAnnotation is"
                              "not part of the GenomicFigure")
