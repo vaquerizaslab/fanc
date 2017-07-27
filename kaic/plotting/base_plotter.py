@@ -182,7 +182,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks", ylabel=None,
                  draw_ticks=True, draw_tick_labels=True, draw_tick_legend=True,
-                 draw_x_axis=True, padding=None,
+                 draw_x_axis=True, padding=None, ax=None,
                  extra_padding=0, fix_chromosome=False, **kwargs):
         """
         :param title: Title drawn on top of the figure panel.
@@ -208,7 +208,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if len(kwargs) > 0:
             raise TypeError("Unexpected keyword argument used: {}".format(kwargs))
-        self.ax = None
+        self.ax = ax
         self.cax = None
         self.title = title
         self._has_legend = False
