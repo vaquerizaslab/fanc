@@ -4113,6 +4113,9 @@ class RegionMatrixTable(RegionPairs):
         with RareUpdateProgressBar(max_value=len(regions), silent=silent) as pb:
             i = 0
             for chromosome, chromosome_regions in regions_by_chromosome.items():
+                if chromosome not in chromosome_bins:
+                    continue
+
                 if cache_matrix:
                     chromosome_matrix = self[chromosome, chromosome]
                     offset = chromosome_bins[chromosome][0]
@@ -4121,8 +4124,6 @@ class RegionMatrixTable(RegionPairs):
                     offset = 0
                 for region in chromosome_regions:
                     i += 1
-                    if chromosome not in chromosome_bins:
-                        continue
 
                     center_region = GenomicRegion(chromosome=chromosome, start=region.center, end=region.center)
                     center_bin = list(self.subset(center_region))[0].ix
