@@ -3,6 +3,9 @@ Plotting API
 
 .. automodule:: kaic.plotting
 
+API reference
+-------------
+
 .. automodule:: kaic.plotting.hic_plotter
     :members: HicPlot, HicPlot2D, HicComparisonPlot2D, HicSideBySidePlot2D,
         HicSlicePlot, HicPeakPlot

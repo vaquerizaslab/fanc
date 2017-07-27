@@ -175,7 +175,7 @@ class PlotMeta(ABCMeta):
             if b.__name__ == "object":
                 continue
             if b.__init__.__doc__ is not None and len(b.__init__.__doc__) > 1:
-                new_init_doc += "\nArguments from {}:".format(b.__name__)
+                # new_init_doc += "\nArguments from {}:".format(b.__name__)
                 new_init_doc += b.__init__.__doc__
         if len(new_init_doc) > 0:
             dct["__init__"].__doc__ = new_init_doc
@@ -189,34 +189,34 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
                  draw_x_axis=True, padding=None, extra_padding=0,
                  fix_chromosome=False, invert_x=False, ax=None, **kwargs):
         """
-        :param title: Title drawn on top of the figure panel.
-        :param aspect: Aspect ratio of the plot, height/width.
-                       So 0.5 means half as high as wide.
-                       Default: Plot type specific sensible value
+        :param str title: Title drawn on top of the figure panel.
+        :param float aspect: Aspect ratio of the plot, height/width.
+                             So 0.5 means half as high as wide.
+                             Default: Plot type specific sensible value
         :param axes_style: Set styling of the axes, can be anything
                            that seaborn supports. See
                            http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
-        :param ylabel: Label for y-axis. Default: None
-        :param draw_ticks: Draw tickmarks. Default: True
-        :param draw_tick_labels: Draw tick labels. Default: True
-        :param draw_x_axis: If False, remove genome x-axis completely.
-                            Default: True
-        :param draw_tick_legend: Draw legend for the tick distances. Default: True
-        :param padding: Padding in inches to the next plot. Default: None,
-                        automatically calculated.
-        :param extra_padding: Add or subtract the specified inches from
-                              the automatically calculated padding from
-                              this panel to the next.
-        :param fix_chromosome: If True modify chromosome identifiers for this plot,
-                               removing or adding 'chr' as necessary. Default: False
-        :param invert_x: Invert x-axis. Default=False
-                         Caution: This only works reliably when ``independent_x=True``
-                         in the GenomicFigure instance, since x-axis of all plots
-                         are linked otherwise.
-        :param ax: Matplotlib axes instance that the plot will be drawn on.
-                   Only necessary if you don't intend to use a 
-                   :class:`~kaic.plotting.plotter.GenomicFigure` to draw the
-                   plot. Default: None
+        :param str ylabel: Label for y-axis. Default: None
+        :param bool draw_ticks: Draw tickmarks. Default: True
+        :param bool draw_tick_labels: Draw tick labels. Default: True
+        :param bool draw_x_axis: If False, remove genome x-axis completely.
+                                 Default: True
+        :param bool draw_tick_legend: Draw legend for the tick distances. Default: True
+        :param float padding: Padding in inches to the next plot. Default: None,
+                              automatically calculated.
+        :param float extra_padding: Add or subtract the specified inches from
+                                    the automatically calculated padding from
+                                    this panel to the next.
+        :param bool fix_chromosome: If True modify chromosome identifiers for this plot,
+                                    removing or adding 'chr' as necessary. Default: False
+        :param bool invert_x: Invert x-axis. Default=False
+                              Caution: This only works reliably when ``independent_x=True``
+                              in the GenomicFigure instance, since x-axis of all plots
+                              are linked otherwise.
+        :param Axes ax: Matplotlib axes instance that the plot will be drawn on.
+                        Only necessary if you don't intend to use a 
+                        :class:`~kaic.plotting.plotter.GenomicFigure` to draw the
+                        plot. Default: None
         """
         if len(kwargs) > 0:
             raise TypeError("Unexpected keyword argument used: {}".format(kwargs))
@@ -348,8 +348,8 @@ class BasePlotter1D(BasePlotter):
 
     def __init__(self, n_ticks=5, n_minor_ticks=5, **kwargs):
         """
-        :param n_ticks: Number of major x-axis genome coordinate ticks
-        :param n_minor_ticks: Number of minor ticks per major tick
+        :param int n_ticks: Number of major x-axis genome coordinate ticks
+        :param int n_minor_ticks: Number of minor ticks per major tick
         """
         super(BasePlotter1D, self).__init__(**kwargs)
         if n_ticks < 2:
@@ -404,21 +404,22 @@ class ScalarDataPlot(BasePlotter1D):
     def __init__(self, style="step", ylim=None, yscale="linear",
                  condensed=False, n_yticks=3, **kwargs):
         """
-        :param style: 'step' Draw values in a step-wise manner for each bin
-                      'mid' Draw values connecting mid-points of bins
-        :param ylim: Set y-axis limits as tuple. Can leave upper or lower
-                     limit undetermined by setting None, e.g. (2.5, None).
-                     Alternatively, a :class:`~kaic.plotting.helpers.LimitGroup` instance can
-                     be passed to synchronize limits across multiple plots.
-                     Default: Automatically determined by data limits
-        :param yscale: Scale of y-axis. Is passed to Matplotlib set_yscale,
-                       so any valid argument ("linear", "log", etc.) works
-                       Default: "linear"
-        :param condensed: Only show maximum y-axis tick.
+        :param str style: 'step' Draw values in a step-wise manner for each bin
+                          'mid' Draw values connecting mid-points of bins
+        :param tupleylim: Set y-axis limits as tuple. Can leave upper or lower
+                          limit undetermined by setting None, e.g. (2.5, None).
+                          Alternatively, a :class:`~kaic.plotting.helpers.LimitGroup` instance can
+                          be passed to synchronize limits across multiple plots.
+                          Default: Automatically determined by data limits
+        :type lim: tuple(float, float)
+        :param str yscale: Scale of y-axis. Is passed to Matplotlib set_yscale,
+                           so any valid argument ("linear", "log", etc.) works
+                           Default: "linear"
+        :param bool condensed: Only show maximum y-axis tick.
                           Default: False
-        :param n_yticks: Number of y-axis ticks. If only the maximum
-                         tick should be displayed set condensed to True.
-                         Default: 3
+        :param int n_yticks: Number of y-axis ticks. If only the maximum
+                             tick should be displayed set condensed to True.
+                             Default: 3
         """
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
@@ -474,8 +475,10 @@ class ScalarDataPlot(BasePlotter1D):
         coordinates for plotting, based on the selected style.
 
         :param values: List or array of scalar values
+        :type values: numpy.ndarray or list
         :param region_list: List of class:`~kaic.data.genomic.GenomicRegion`,
                             one for each value
+        :type region_list: list(kaic.data.genomic.GenomicRegion)
         """
         return self._STYLES[self.style](self, values, region_list)
 
@@ -497,19 +500,19 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         """
         :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
         :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
-        :param vmin: Clip interactions below this value
-        :param vmax: Clip interactions above this value
-        :param show_colorbar: Draw a colorbar. Default: True
-        :param blend_zero: If True then zero count bins will be drawn using replacement_color
-        :param replacement_color: If None use the lowest color in the colormap, otherwise
-                                  use the specified color. Can be any valid matplotlib
-                                  color name or specification.
+        :param float vmin: Clip interactions below this value
+        :param float vmax: Clip interactions above this value
+        :param bool show_colorbar: Draw a colorbar. Default: True
+        :param bool blend_zero: If True then zero count bins will be drawn using replacement_color
+        :param str replacement_color: If None use the lowest color in the colormap, otherwise
+                                      use the specified color. Can be any valid matplotlib
+                                      color name or specification.
         :param unmappable_color: Draw unmappable bins using this color. Defaults to
                                  light gray (".9")
         :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
                                  None (no special color).
-        :param colorbar_symmetry: Set to enforce that the colorbar is symemtric around
-                                  this value. Default: None
+        :param float colorbar_symmetry: Set to enforce that the colorbar is symemtric around
+                                        this value. Default: None
         """
         super(BasePlotterMatrix, self).__init__(**kwargs)
         if isinstance(colormap, string_types):
@@ -621,8 +624,8 @@ class BasePlotter2D(BasePlotter):
 
     def __init__(self, n_ticks=3, n_minor_ticks=5, **kwargs):
         """
-        :param n_ticks: Number of major ticks
-        :param n_minor_ticks: Number of minor ticks per major tick
+        :param int n_ticks: Number of major ticks
+        :param int n_minor_ticks: Number of minor ticks per major tick
         """
         kwargs.setdefault("aspect", 1.)
         super(BasePlotter2D, self).__init__(**kwargs)
@@ -724,8 +727,8 @@ class BaseAnnotation(with_metaclass(PlotMeta, object)):
 
     def __init__(self, fix_chromosome=False):
         """
-        :param fix_chromosome: If True modify chromosome identifiers for this plot,
-                               removing or adding 'chr' as necessary. Default: False
+        :param bool fix_chromosome: If True modify chromosome identifiers for this plot,
+                                    removing or adding 'chr' as necessary. Default: False
         """
         self.fix_chromosome = fix_chromosome
 

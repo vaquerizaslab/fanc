@@ -1,8 +1,4 @@
 """
-==============
- Plotting API
-==============
-
 Provide plotting functions for genomic data types.
 
 Many common data types used in genomics research are supported. Including, but not
@@ -29,13 +25,23 @@ functionalities of the plotting module. The paths in this example are relative
 to the top-level kaic directory where the setup.py file is located.
 
 .. note::
-    The path of the example datasets can be accessed easily using the example_data
+    The paths to the example datasets can be accessed easily using the example_data
     dictionary:
 
     .. code:: python
 
         import kaic
         print(kaic.example_data)
+
+    Yields a dict with the user-specific path to the datasets:
+
+    ::
+
+        {'chip_bedgraph': '/Users/example/kaic/kaic/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bedgraph.gz',
+         'chip_bigwig': '/Users/example/kaic/kaic/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig',
+         'chip_peak_bed': '/Users/example/kaic/kaic/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.peaks.bed.gz',
+         'gene_gtf': '/Users/example/kaic/kaic/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz',
+         'hic': '/Users/example/kaic/kaic/test/data/test_network/rao2014.chr11_77400000_78600000.hic'}
 
 .. code:: python
 

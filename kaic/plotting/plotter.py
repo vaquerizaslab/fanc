@@ -71,19 +71,20 @@ class GenomicFigure(object):
                  invert_x=False, cax_padding=.3, cax_width=.3, fig_padding=(.5, .5, 1., 1.),
                  independent_x=False):
         """
-        :param plots: List of plot instances each will form a separate panel in the figure.
+        :param list plots: List of plot instances each will form a separate panel in the figure.
                       Should inherit from :class:`~kaic.plotting.plotter.BasePlotter` or
                       :class:`~kaic.plotting.baseplotter.BaseAnnotation`
-        :param width: Width of the plots in inches. Height is automatically determined
+        :param float width: Width of the plots in inches. Height is automatically determined
                       from the specified aspect ratios of the Plots.
                       Default: 5.
-        :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
-        :param invert_x: Invert x-axis for on all plots. Default: False
-        :param cax_padding: Distance between plots and the colorbar in inches. Default: 0.3
-        :param cax_width: Width of colorbar in inches. Default: 0.5
+        :param bool ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
+        :param bool invert_x: Invert x-axis for on all plots. Default: False
+        :param float cax_padding: Distance between plots and the colorbar in inches. Default: 0.3
+        :param float cax_width: Width of colorbar in inches. Default: 0.5
         :param fig_padding: Distance between the edges of the plots and the figure borders
                             in inches (bottom, top, left, right). Default: (.5, .5, .5, .5)
-        :param independent_x: When plotting, supply separate coordinates for each plot
+        :type fig_padding: tuple(float, float, float, float)
+        :param bool independent_x: When plotting, supply separate coordinates for each plot
                               in the figure. Default: False
         """
         self.plots = []
@@ -179,6 +180,7 @@ class GenomicFigure(object):
     def plot(self, region):
         """
         Make a plot of the specified region.
+
         :param region: A string describing a region "2L:10000000-12000000" or
                        a :class:`~kaic.data.genomic.GenomicRegion`.
                        If ``independent_x`` was set, a list of regions
@@ -187,6 +189,7 @@ class GenomicFigure(object):
                        The order of the regions here must be the same
                        as the order in which the plots were supplied to
                        the GenomicFigure constructor.
+        :type region: string or ~kaic.data.genomic.GenomicRegion
         :return: A matplotlib Figure instance and a list of figure axes
         """
         if self._independent_x:
@@ -240,11 +243,13 @@ class HighlightAnnotation(BaseAnnotation):
     def __init__(self, bed, plot1=None, plot2=None, plot_kwargs=None,
                  **kwargs):
         """
+
         :param bed: Anything pybedtools can parse. Path to BED-file
                     GTF-file, or a list of tuples [(chr, start, end), ...]
                     If features are 1bp long, lines are drawn. If they
                     are > 1bp rectangles are drawn. Their appearance
                     can be controlled using the plot_kwargs.
+        :type bed: string or pybedtool.BedTool
         :param plot1: First plot where line should start. Default: First
         :param plot2: Second plot where line should end. Default: Last
         :param plot_kwargs: Dictionary of properties which are passed
