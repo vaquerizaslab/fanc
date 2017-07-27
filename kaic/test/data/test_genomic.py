@@ -199,10 +199,10 @@ class TestGenomicRegions:
         assert bins.start == 9
         assert bins.stop == 15
 
-    def test_intersect(self):
+    def test_subset(self):
         # this is essentially the same as region_bins
-        intersect = self.regions.intersect(GenomicRegion(chromosome='chr1', start=3400, end=8100))
-        assert len(intersect) == 6
+        intersect = self.regions.subset(GenomicRegion(chromosome='chr1', start=3400, end=8100))
+        assert len(list(intersect)) == 6
 
     def test_add_region(self):
         # GenomicRegion
