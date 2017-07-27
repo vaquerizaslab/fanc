@@ -316,6 +316,7 @@ def split_sam(sam_file, output_folder, chunk_size=5000000):
 
 
 def merge_sam(input_sams, output_sam, tmp=None):
+    logger.info(input_sams)
     output_sam = os.path.expanduser(output_sam)
     first_sam = os.path.expanduser(input_sams[0])
 
@@ -333,9 +334,11 @@ def merge_sam(input_sams, output_sam, tmp=None):
             mode = 'wb' if os.path.splitext(output_sam)[1] == '.bam' else 'wh'
             with pysam.AlignmentFile(output_sam, mode, template=fs) as o:
                 for input_sam in input_sams:
+                    logger.info(input_sam)
                     input_sam = os.path.expanduser(input_sam)
                     if tmp:
                         input_sam = shutil.copy(input_sam, tmp)
+                    logger.info(input_sam)
                     with pysam.AlignmentFile(input_sam) as r:
                         for alignment in r:
                             o.write(alignment)
