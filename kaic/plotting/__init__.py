@@ -1,4 +1,8 @@
 """
+==============
+ Plotting API
+==============
+
 Provide plotting functions for genomic data types.
 
 Many common data types used in genomics research are supported. Including, but not
@@ -17,7 +21,8 @@ Hi-C data, and then a :class:`~kaic.plotting.plotter.BigWigPlot` object, which
 can plot bigwig files that are used during ChIP-seq analysis. Finally, the two
 objects are used to create a :class:`~kaic.plotting.plotter.GenomicFigure`.
 
-Examples:
+Example
+-------
 
 Kaic comes with a few example datasets that can be used to explore the basic
 functionalities of the plotting module. The paths in this example are relative
@@ -67,6 +72,9 @@ to the top-level kaic directory where the setup.py file is located.
     Example rendering of the above code saved using
     ``fig.savefig("example.png", dpi=100)``.
 
+Editing figure and axes
+-----------------------
+
 The :meth:`GenomicFigure.plot() <kaic.plotting.plotter.GenomicFigure.plot>` function
 returns standard matplotlib Figure and a list of Axes instances that can be further
 adjusted using standard matplotlib methods. The matplotlib axes instance
@@ -90,6 +98,9 @@ The coordinates in the Axes are data coordinates, the x-axis is genomic
 coordinates on the current chromosome and the y-axis in this case the
 fold-enrichment of the bigwig track.
 
+Basic Plot types and options
+----------------------------
+
 .. note::
     An explanation of each plot class and the parameters that it supports can be
     accessed by suffixing a question mark (in Ipython/Jupyter) or calling the help()
@@ -111,6 +122,33 @@ The :class:`~kaic.plotting.plotter.GenomicFigure` provides a few convenience
 parameters. Setting ticks_last=True for example removes tick labels from all
 panels but the last one which makes the overall plot more compact.
 
+Independent x-axis and inverting x-axis
+'''''''''''''''''''''''''''''''''''''''
+
+By default, the x-axis of all plots in a figure are linked, meaning that all
+plots display exactly the same region. In some situations in can be helpful
+to plot a multiple regions, such as when features in syntenic regions across
+multiple species need to be compared. Since syntenic regions can be on the +
+strand in some species and on the - strande, sometimes the x-axis also needs to
+be inverted to maintain correct orientation.
+
+In this situation the ``independent-x`` option should be set in the
+:class:`~kaic.plotting.plotter.GenomicFigure`. As a result, the
+:meth:`GenomicFigure.plot() <kaic.plotting.plotter.GenomicFigure.plot>` method
+no longer expects a single region as argument, but a list of regions equal to
+the number of plots in the figure. We can modify the example above to illustrate
+this point:
+
+.. code:: python
+
+    gfig = kplot.GenomicFigure([hplot, bplot, gplot], independent_x=True)
+    fig, axes = gfig.plot(["chr11:77400000-78600000", "chr11:77500000-78600000",
+                           "chr11:77200000-78600000"])
+    fig.show()
+
+Programmatic plotting using loops
+---------------------------------
+
 Kaic plotting is ideally suited for programmatic generation of many plots or
 dynamic assembly of multiple datasets in a single figure. In this example three
 Hi-C datasets are visualized in a single figure:
@@ -121,8 +159,10 @@ Hi-C datasets are visualized in a single figure:
     hic_datasets = ["my_data1.hic", "my_data2.hic", my_data3.hic"]
     hic_plots = [kplot.HicPlot(h, max_dist=500000) for h in hic_datasets]
     gfig = kplot.GenomicFigure(hic_plots)
-    fig, axes = gfig.plot("chr11:77400000-78600000")
-    fig.show()
+    regions = ["chr11:77400000-78600000", "chr11:1100000-13600000"]
+    for r in regions:
+        fig, axes = gfig.plot(r)
+        fig.savefig("plot_region_{}.png".format(r.replace(":", "_")))
 
 """
 
