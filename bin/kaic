@@ -84,7 +84,7 @@ class Kaic(object):
                 enable_signal_traps()
             getattr(commands, args.command)([sys.argv[0]] + sys.argv[option_ix:])
             disable_signal_traps()
-        except Exception as ex:
+        except Exception:
             if args.email_to_address is not None:
                 logger.info("Command failed, sending email...")
                 from kaic.tools import emails
@@ -97,7 +97,7 @@ class Kaic(object):
                 subject = "{} ({}) failed".format(start_date, sys.argv[option_ix])
                 emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
                                   server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
-            raise ex
+            raise
 
         if args.email_to_address is not None:
             logger.info("Command completed, sending email...")
