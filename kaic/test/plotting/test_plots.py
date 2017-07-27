@@ -251,3 +251,5 @@ class TestPlots:
         high = kplot.HighlightAnnotation(self.peak_path)
         gfig = kplot.GenomicFigure([bplot, gplot, high])
         fig, axes = gfig.plot("chr11:{}-{}".format(*crange))
+        p1 = high.patches[0]
+        assert gplot.ax.transAxes.transform((0, 0))[1] == pytest.approx(p1._transform.transform(p1.get_xy())[1])

@@ -266,6 +266,8 @@ class HighlightAnnotation(BaseAnnotation):
         self.y2 = y2
         self.coords_plot1 = coords_plot1
         self.coords_plot2 = coords_plot2
+        self.patches = []
+        self.lines = []
 
     @staticmethod
     def _generate_transformation(ax, type):
@@ -279,9 +281,11 @@ class HighlightAnnotation(BaseAnnotation):
 
     def _plot(self, region):
         x_trans = self._generate_transformation(self.plot1.ax, "data")
-        y_trans1 = self._generate_transformation(self.plot1.ax, self.coords_plot1)
-        y_trans2 = self._generate_transformation(self.plot2.ax, self.coords_plot2)
-        blended_trans = mpl.transforms.blended_transform_factory(x_trans, mpl.transforms.IdentityTransform())
+        y_trans1 = self._generate_transformation(self.plot1.ax, self.coords_plot1) + \
+                   self.plot1.ax.figure.transFigure.inverted()
+        y_trans2 = self._generate_transformation(self.plot2.ax, self.coords_plot2) + \
+                   self.plot2.ax.figure.transFigure.inverted()
+        blended_trans = mpl.transforms.blended_transform_factory(x_trans, self.plot1.ax.figure.transFigure)
         interval = region_to_pbt_interval(region)
         hits = self.bedtool.all_hits(interval)
         for r in hits:
@@ -299,7 +303,7 @@ class HighlightAnnotation(BaseAnnotation):
                                  width=e - s, height=y2_t - y1_t,
                                  transform=plot_trans, **self.plot_kwargs)
         patch.set_transform(plot_trans)
-        return patch
+        self.patches.append(patch)
 
     def _draw_line(self, r, x_trans, trans1, trans2, plot_trans):
         s = r.start
@@ -309,13 +313,16 @@ class HighlightAnnotation(BaseAnnotation):
                         ydata=[y1_t, y2_t], transform=plot_trans,
                         **self.plot_kwargs)
         l.set_transform(plot_trans)
-        return l
+        self.lines.append(l)
 
     def _verify(self, gfig):
         if self.plot1 is None:
             self.plot1 = gfig.plots[0]
         if self.plot2 is None:
             self.plot2 = gfig.plots[-1]
+        # Make sure plot1 comes first in plot list
+        # if gfig.plots.index(self.plot2) < gfig.plots.index(self.plot1):
+        #     self.plot1, self.plot2 = self.plot2, self.plot1
         if not all([self.plot1 in gfig.plots, self.plot2 in gfig.plots]):
             raise ValueError("At least one plot in the HighlightAnnotation is"
                              "not part of the GenomicFigure")
@@ -324,6 +331,8 @@ class HighlightAnnotation(BaseAnnotation):
     def _refresh(self, region):
         for a in itertools.chain(self.patches, self.lines):
             a.remove()
+        self.lines = []
+        self.patches = []
         self._plot(region)
 
 
