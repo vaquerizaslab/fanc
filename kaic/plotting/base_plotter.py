@@ -123,8 +123,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks", ylabel=None,
                  draw_ticks=True, draw_tick_labels=True, draw_tick_legend=True,
-                 draw_x_axis=True, padding=None, ax=None,
-                 extra_padding=0, fix_chromosome=False, **kwargs):
+                 draw_x_axis=True, padding=None, extra_padding=0,
+                 fix_chromosome=False, invert_x=False, ax=None, **kwargs):
         """
         :param title: Title drawn on top of the figure panel.
         :param aspect: Aspect ratio of the plot, height/width.
@@ -146,6 +146,14 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
                               this panel to the next.
         :param fix_chromosome: If True modify chromosome identifiers for this plot,
                                removing or adding 'chr' as necessary. Default: False
+        :param invert_x: Invert x-axis. Default=False
+                         Caution: This only works reliably when ``independent_x=True``
+                         in the GenomicFigure instance, since x-axis of all plots
+                         are linked otherwise.
+        :param ax: Matplotlib axes instance that the plot will be drawn on.
+                   Only necessary if you don't intend to use a 
+                   :class:`~kaic.plotting.plotter.GenomicFigure` to draw the
+                   plot. Default: None
         """
         if len(kwargs) > 0:
             raise TypeError("Unexpected keyword argument used: {}".format(kwargs))
@@ -167,6 +175,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self.ylabel = ylabel
         self.fix_chromosome = fix_chromosome
         self._dimensions_stale = False
+        self.invert_x = invert_x
 
     def _before_plot(self, region):
         self.ax.set_title(self.title)
@@ -184,6 +193,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             self.remove_genome_axis()
         if not self._draw_tick_legend:
             self.remove_tick_legend()
+        if self.invert_x and not self.ax.xaxis_inverted():
+            self.ax.invert_xaxis()
 
     @abstractmethod
     def _plot(self, region):

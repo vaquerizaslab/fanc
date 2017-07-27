@@ -66,12 +66,10 @@ class GenomicFigure(object):
     GenomicFigure composed of one or more plots.
     All plots are arranged in a single column, their genomic coordinates aligned.
     """
-    _unused_args = ["hspace", "figsize", "height_ratios", "gridspec_args", "hide_x", "fix_chromosome"]
 
     def __init__(self, plots, width=4., ticks_last=False,
                  invert_x=False, cax_padding=.3, cax_width=.3, fig_padding=(.5, .5, 1., 1.),
-                 hspace=None, figsize=None, height_ratios=None, hide_x=None,
-                 gridspec_args=None, fix_chromosome=None):
+                 independent_x=False):
         """
         :param plots: List of plot instances each will form a separate panel in the figure.
                       Should inherit from :class:`~kaic.plotting.plotter.BasePlotter` or
@@ -80,15 +78,14 @@ class GenomicFigure(object):
                       from the specified aspect ratios of the Plots.
                       Default: 5.
         :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
-        :param invert_x: Invert x-axis. Default: False
+        :param invert_x: Invert x-axis for on all plots. Default: False
         :param cax_padding: Distance between plots and the colorbar in inches. Default: 0.3
         :param cax_width: Width of colorbar in inches. Default: 0.5
         :param fig_padding: Distance between the edges of the plots and the figure borders
                             in inches (bottom, top, left, right). Default: (.5, .5, .5, .5)
+        :param independent_x: When plotting, supply separate coordinates for each plot
+                              in the figure. Default: False
         """
-        for a in self._unused_args:
-            if locals()[a] is not None:
-                warnings.warn("{} is no longer used!".format(a))
         self.plots = []
         self.annotations = []
         for p in plots:
@@ -107,6 +104,7 @@ class GenomicFigure(object):
         self._cax_width = cax_width
         self._fig_padding = fig_padding
         self.invert_x = invert_x
+        self._independent_x = independent_x
         self._figure_setup()
 
     def _calc_figure_setup(self):
@@ -159,10 +157,12 @@ class GenomicFigure(object):
         for i in range(self.n):
             with sns.axes_style("ticks" if self.plots[i].axes_style is None else
                                 self.plots[i].axes_style):
-                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 else None)
+                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 and not self._independent_x else None)
             cax = fig.add_axes(ax_specs[i]["cax"])
             self.plots[i].ax = ax
             self.plots[i].cax = cax
+            if self.invert_x:
+                self.plots[i].invert_x = True
 
     def _update_figure_setup(self):
         ax_specs, figsize = self._calc_figure_setup()
@@ -175,32 +175,42 @@ class GenomicFigure(object):
     @property
     def fig(self):
         return self.axes[0].figure
-    
+
     def plot(self, region):
         """
         Make a plot of the specified region.
         :param region: A string describing a region "2L:10000000-12000000" or
-                       a :class:`~kaic.data.genomic.GenomicRegion`
+                       a :class:`~kaic.data.genomic.GenomicRegion`.
+                       If ``independent_x`` was set, a list of regions
+                       equal to the length of plots + the length of
+                       annotations (if present) must be supplied.
+                       The order of the regions here must be the same
+                       as the order in which the plots were supplied to
+                       the GenomicFigure constructor.
         :return: A matplotlib Figure instance and a list of figure axes
         """
-        for p in self.plots:
-            plot_region = region
-            p.plot(plot_region)
+        if self._independent_x:
+            plot_regions = region
+            if len(plot_regions) != len(self.plots) + len(self.annotations):
+                raise ValueError("{} regions supplied. Figure has {} plots and "
+                    "{} annotations.".format(len(plot_regions), len(self.plots), len(self.annotations)))
+        else:
+            plot_regions = [region]*(len(self.plots) + len(self.annotations))
+        for r, p in zip(plot_regions, self.plots):
+            p.plot(r)
             if getattr(p, "ylim_group", None) is not None:
                 p.ylim_group.add_limit(p.ax.get_ylim())
         for p in self.plots:
             if getattr(p, "ylim_group", None) is not None:
                 p.ax.set_ylim(p.ylim_group.get_limit())
                 p.ax.yaxis.reset_ticks()
-        for p in self.annotations:
+        for r, p in zip(plot_regions[len(self.plots):], self.annotations):
             p.plot(region)
         # Recalculate axes dimensions if aspect of plots changed
         if any(p._dimensions_stale for p in self.plots):
             self._update_figure_setup()
             for p in self.plots:
                 p._dimensions_stale = False
-        if self.invert_x and not self.axes[0].xaxis_inverted():
-            self.axes[0].invert_xaxis()
         return self.fig, self.axes
 
     def __enter__(self):
