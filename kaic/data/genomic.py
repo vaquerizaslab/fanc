@@ -4131,7 +4131,8 @@ class RegionMatrixTable(RegionPairs):
                         continue
                     center_bin -= offset
 
-                    matrix = chromosome_matrix[center_bin-bins_half:center_bin+bins_half+1, center_bin-bins_half:center_bin+bins_half+1]
+                    matrix = chromosome_matrix[center_bin-bins_half:center_bin+bins_half+1,
+                                               center_bin-bins_half:center_bin+bins_half+1]
                     if cumulative_matrix is None:
                         cumulative_matrix = matrix
                     else:
