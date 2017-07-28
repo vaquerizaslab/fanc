@@ -239,8 +239,12 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self.fix_chromosome = fix_chromosome
         self._dimensions_stale = False
         self.invert_x = invert_x
+        self._drawn = False
 
     def _before_plot(self, region):
+        if self._drawn:
+            self._clear()
+        self._drawn = True
         self.ax.set_title(self.title)
         if self.ylabel and len(self.ylabel) > 0:
             self.ax.set_ylabel(self.ylabel)
@@ -342,6 +346,18 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             raise ValueError("Overlay type {} is not compatible with plotter type {}.".format(
                 overlay.__class__.__name__, plot_class))
         self.overlays.append(overlay)
+
+    def _clear(self):
+        """
+        Clear all axes of this plot.
+
+        Called when the plot() is called a second time in order to clear
+        the axes for the second plotting.
+        """
+        if self.ax:
+            self.ax.cla()
+        if self.cax:
+            self.cax.cla()
 
 
 class BasePlotter1D(BasePlotter):

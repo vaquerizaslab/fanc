@@ -739,6 +739,10 @@ class VerticalSplitPlot(BasePlotter1D):
         self.top_plot.refresh(region)
         self.bottom_plot.refresh(region)
 
+    def _clear(self):
+        self.top_plot._clear()
+        self.bottom_plot._clear()
+
 
 class GenomicFeaturePlot(BasePlotter1D):
     """
