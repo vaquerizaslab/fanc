@@ -381,11 +381,11 @@ class BasePlotter1D(BasePlotter):
         self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region, minor_div=self.n_minor_ticks))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
+        self.ax.set_xlim(region.start, region.end)
         self._current_chromosome = region.chromosome
 
     def _after_plot(self, region):
         super(BasePlotter1D, self)._after_plot(region)
-        self.ax.set_xlim(region.start, region.end)
         self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
 
     def refresh(self, region):
@@ -662,14 +662,14 @@ class BasePlotter2D(BasePlotter):
         self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
         self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
+        self.ax.set_xlim(x_region.start, x_region.end)
+        self.ax.set_ylim(y_region.start, y_region.end)
         self._current_chromosome_x = x_region.chromosome
         self._current_chromosome_y = y_region.chromosome
 
     def _after_plot(self, region):
         x_region, y_region = region
         super(BasePlotter2D, self)._after_plot(region)
-        self.ax.set_xlim(x_region.start, x_region.end)
-        self.ax.set_ylim(y_region.start, y_region.end)
         self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
 
     def refresh(self, region):
