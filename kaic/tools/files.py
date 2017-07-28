@@ -401,7 +401,12 @@ def write_bigwig(file_name, regions, mode='w', score_field='score'):
     interval_ends = []
     interval_values = []
     for region in regions:
-        chromosome = region.chromosome.decode() if isinstance(region.chromosome, bytes) else region.chromosome
+        if not isinstance(region.chromosome, str):
+            chromosome = region.chromosome.decode() if isinstance(region.chromosome, bytes) \
+                else region.chromosome.encode('ascii', 'ignore')
+        else:
+            chromosome = region.chromosome
+
         if chromosome not in chromosome_lengths:
             chromosomes.append(chromosome)
         chromosome_lengths[chromosome] = region.end
@@ -417,8 +422,9 @@ def write_bigwig(file_name, regions, mode='w', score_field='score'):
 
     header = []
     for chromosome in chromosomes:
-        chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
-        header.append((chromosome, chromosome_lengths[chromosome]))
+        chromosome_length = chromosome_lengths[chromosome]
+        header.append((chromosome, chromosome_length))
+    print(header)
     bw.addHeader(header)
 
     bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
