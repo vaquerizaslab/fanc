@@ -288,8 +288,9 @@ class ExpectedContacts(TableArchitecturalFeature):
             bias_vector = self.hic.bias_vector()
         except AttributeError:
             bias_vector = [1.0] * len(self.hic.regions)
-            warnings.warn("This object does not support smoothing, returning unsmoothed values.")
-            self.smooth = False
+            if self.smooth:
+                warnings.warn("This object does not support smoothing, returning unsmoothed values.")
+                self.smooth = False
 
         # get the sums of edges at any given distance
         marginals = [0.0] * len(regions)
