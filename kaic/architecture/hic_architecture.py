@@ -284,7 +284,10 @@ class ExpectedContacts(TableArchitecturalFeature):
                 chromosome_offsets[r.chromosome] = i
         max_distance = max([len(chromosome_regions[chromosome]) for chromosome in chromosome_regions])
 
-        bias_vector = self.hic.bias_vector()
+        try:
+            bias_vector = self.hic.bias_vector()
+        except AttributeError:
+            bias_vector = [1.0] * len(self.hic.regions)
 
         # get the sums of edges at any given distance
         marginals = [0.0] * len(regions)
