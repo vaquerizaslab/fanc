@@ -201,6 +201,7 @@ class TestPlots:
         self.bigwig = self.pyBigWig.open(kaic.example_data["chip_bigwig"])
         self.bedgraph_path = kaic.example_data["chip_bedgraph"]
         self.gtf_path = kaic.example_data["gene_gtf"]
+        self.peak_path = kaic.example_data["chip_peak_bed"]
 
     def teardown_method(self, method):
         self.bigwig.close()
@@ -242,3 +243,33 @@ class TestPlots:
         fig, axes = gfig.plot(selector)
         assert len(axes[0].patches) == (6 if squash else 13)
         plt.close(fig)
+
+    @pytest.mark.parametrize("crange", [(77497000, 77500000)])
+    def test_highlight_plot(self, crange):
+        bplot = kplot.BigWigPlot(self.bigwig_path)
+        gplot = kplot.GenePlot(self.gtf_path)
+        high = kplot.HighlightAnnotation(self.peak_path)
+        gfig = kplot.GenomicFigure([bplot, gplot, high])
+        fig, axes = gfig.plot("chr11:{}-{}".format(*crange))
+        p1 = high.patches[0]
+        assert gplot.ax.transAxes.transform((0, 0))[1] == pytest.approx(p1._transform.transform(p1.get_xy())[1])
+
+    @pytest.mark.parametrize("crange", [(77497000, 77500000)])
+    def test_invert_x_independent_x(self, crange):
+        offset = 150000
+        bplot = kplot.BigWigPlot(self.bigwig_path)
+        gplot = kplot.GenePlot(self.gtf_path)
+        gfig = kplot.GenomicFigure([bplot, gplot], invert_x=True)
+        fig, axes = gfig.plot("chr11:{}-{}".format(*crange))
+        ax_lim = axes[0].get_xlim()
+        assert (ax_lim[0] > ax_lim[1] for ax_lim in (a.get_xlim() for a in axes))
+        bplot = kplot.BigWigPlot(self.bigwig_path, invert_x=True)
+        gplot = kplot.GenePlot(self.gtf_path)
+        gfig = kplot.GenomicFigure([bplot, gplot], independent_x=True)
+        fig, axes = gfig.plot(["chr11:{}-{}".format(*crange), "chr11:{}-{}".format(crange[0] + offset, crange[1] + offset)])
+        ax_lim = [ax.get_xlim() for ax in axes]
+        abs_tol = 10000
+        assert ax_lim[0][0] == pytest.approx(crange[1], abs=abs_tol)
+        assert ax_lim[0][1] == pytest.approx(crange[0], abs=abs_tol)
+        assert ax_lim[1][0] == pytest.approx(crange[1] + offset, abs=abs_tol)
+        assert ax_lim[1][1] == pytest.approx(crange[0] + offset, abs=abs_tol)

@@ -9,3 +9,4 @@ Kai-C command line tools
    kaic_analysis
    kaic_executable
    klot_executable
+   hic_architecture

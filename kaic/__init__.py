@@ -138,6 +138,7 @@ example_data = dict(
     hic="test/data/test_network/rao2014.chr11_77400000_78600000.hic",
     chip_bigwig="test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig",
     chip_bedgraph="test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bedgraph.gz",
+    chip_peak_bed="test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.peaks.bed.gz",
     gene_gtf="test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz",
 )
 _basepath = os.path.abspath(os.path.dirname(__file__))

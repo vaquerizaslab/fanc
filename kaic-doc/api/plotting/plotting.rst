@@ -3,6 +3,9 @@ Plotting API
 
 .. automodule:: kaic.plotting
 
+API reference
+-------------
+
 .. automodule:: kaic.plotting.hic_plotter
     :members: HicPlot, HicPlot2D, HicComparisonPlot2D, HicSideBySidePlot2D,
         HicSlicePlot, HicPeakPlot
@@ -12,7 +15,7 @@ Plotting API
     :members: VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot,
         GenomicRegionsPlot, GenomicFeatureScorePlot, GenomicMatrixPlot,
         GenomicFigure, GenomicTrackPlot, BigWigPlot, GenePlot,
-        FeatureLayerPlot, GenomicDataFramePlot, VerticalLineAnnotation
+        FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation
     :special-members: __init__
 
 .. automodule:: kaic.plotting.helpers

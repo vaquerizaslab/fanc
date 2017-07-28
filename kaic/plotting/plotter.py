@@ -21,6 +21,7 @@ try:
     from itertools import izip as zip
 except ImportError:
     pass
+import itertools
 import re
 import warnings
 from collections import defaultdict
@@ -65,29 +66,27 @@ class GenomicFigure(object):
     GenomicFigure composed of one or more plots.
     All plots are arranged in a single column, their genomic coordinates aligned.
     """
-    _unused_args = ["hspace", "figsize", "height_ratios", "gridspec_args", "hide_x", "fix_chromosome"]
 
     def __init__(self, plots, width=4., ticks_last=False,
                  invert_x=False, cax_padding=.3, cax_width=.3, fig_padding=(.5, .5, 1., 1.),
-                 hspace=None, figsize=None, height_ratios=None, hide_x=None,
-                 gridspec_args=None, fix_chromosome=None):
+                 independent_x=False):
         """
-        :param plots: List of plot instances each will form a separate panel in the figure.
+        :param list plots: List of plot instances each will form a separate panel in the figure.
                       Should inherit from :class:`~kaic.plotting.plotter.BasePlotter` or
                       :class:`~kaic.plotting.baseplotter.BaseAnnotation`
-        :param width: Width of the plots in inches. Height is automatically determined
+        :param float width: Width of the plots in inches. Height is automatically determined
                       from the specified aspect ratios of the Plots.
                       Default: 5.
-        :param ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
-        :param invert_x: Invert x-axis. Default: False
-        :param cax_padding: Distance between plots and the colorbar in inches. Default: 0.3
-        :param cax_width: Width of colorbar in inches. Default: 0.5
+        :param bool ticks_last: Only draw genomic coordinate tick labels on last (bottom) plot
+        :param bool invert_x: Invert x-axis for on all plots. Default: False
+        :param float cax_padding: Distance between plots and the colorbar in inches. Default: 0.3
+        :param float cax_width: Width of colorbar in inches. Default: 0.5
         :param fig_padding: Distance between the edges of the plots and the figure borders
                             in inches (bottom, top, left, right). Default: (.5, .5, .5, .5)
+        :type fig_padding: tuple(float, float, float, float)
+        :param bool independent_x: When plotting, supply separate coordinates for each plot
+                              in the figure. Default: False
         """
-        for a in self._unused_args:
-            if locals()[a] is not None:
-                warnings.warn("{} is no longer used!".format(a))
         self.plots = []
         self.annotations = []
         for p in plots:
@@ -106,6 +105,7 @@ class GenomicFigure(object):
         self._cax_width = cax_width
         self._fig_padding = fig_padding
         self.invert_x = invert_x
+        self._independent_x = independent_x
         self._figure_setup()
 
     def _calc_figure_setup(self):
@@ -158,12 +158,12 @@ class GenomicFigure(object):
         for i in range(self.n):
             with sns.axes_style("ticks" if self.plots[i].axes_style is None else
                                 self.plots[i].axes_style):
-                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 else None)
-                if self.invert_x:
-                    ax.invert_xaxis()
+                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 and not self._independent_x else None)
             cax = fig.add_axes(ax_specs[i]["cax"])
             self.plots[i].ax = ax
             self.plots[i].cax = cax
+            if self.invert_x:
+                self.plots[i].invert_x = True
 
     def _update_figure_setup(self):
         ax_specs, figsize = self._calc_figure_setup()
@@ -176,24 +176,38 @@ class GenomicFigure(object):
     @property
     def fig(self):
         return self.axes[0].figure
-    
+
     def plot(self, region):
         """
         Make a plot of the specified region.
+
         :param region: A string describing a region "2L:10000000-12000000" or
-                       a :class:`~kaic.data.genomic.GenomicRegion`
+                       a :class:`~kaic.data.genomic.GenomicRegion`.
+                       If ``independent_x`` was set, a list of regions
+                       equal to the length of plots + the length of
+                       annotations (if present) must be supplied.
+                       The order of the regions here must be the same
+                       as the order in which the plots were supplied to
+                       the GenomicFigure constructor.
+        :type region: string or ~kaic.data.genomic.GenomicRegion
         :return: A matplotlib Figure instance and a list of figure axes
         """
-        for p in self.plots:
-            plot_region = region
-            p.plot(plot_region)
+        if self._independent_x:
+            plot_regions = region
+            if len(plot_regions) != len(self.plots) + len(self.annotations):
+                raise ValueError("{} regions supplied. Figure has {} plots and "
+                    "{} annotations.".format(len(plot_regions), len(self.plots), len(self.annotations)))
+        else:
+            plot_regions = [region]*(len(self.plots) + len(self.annotations))
+        for r, p in zip(plot_regions, self.plots):
+            p.plot(r)
             if getattr(p, "ylim_group", None) is not None:
                 p.ylim_group.add_limit(p.ax.get_ylim())
         for p in self.plots:
             if getattr(p, "ylim_group", None) is not None:
                 p.ax.set_ylim(p.ylim_group.get_limit())
                 p.ax.yaxis.reset_ticks()
-        for p in self.annotations:
+        for r, p in zip(plot_regions[len(self.plots):], self.annotations):
             p.plot(region)
         # Recalculate axes dimensions if aspect of plots changed
         if any(p._dimensions_stale for p in self.plots):
@@ -217,7 +231,7 @@ class GenomicFigure(object):
         return [p.cax for p in self.plots]
 
 
-class VerticalLineAnnotation(BaseAnnotation):
+class HighlightAnnotation(BaseAnnotation):
     """
     Vertical lines or rectangles (shaded regions) which can be
     positioned at specific genomic coordinates from a BED file
@@ -226,94 +240,102 @@ class VerticalLineAnnotation(BaseAnnotation):
     Useful for highlighting specific regions across multiple
     panels of figures.
     """
-    def __init__(self, bed, plot1, plot2, plot_kwargs=None,
-                 y1=0, y2=0, coords_plot1="ax",
-                 coords_plot2="ax", **kwargs):
+    def __init__(self, bed, plot1=None, plot2=None, plot_kwargs=None,
+                 **kwargs):
         """
+
         :param bed: Anything pybedtools can parse. Path to BED-file
                     GTF-file, or a list of tuples [(chr, start, end), ...]
                     If features are 1bp long, lines are drawn. If they
                     are > 1bp rectangles are drawn. Their appearance
                     can be controlled using the plot_kwargs.
-        :param plot1: First plot where line should start
-        :param plot2: Second plot where line should end
+        :type bed: string or pybedtool.BedTool
+        :param plot1: First plot where line should start. Default: First
+        :param plot2: Second plot where line should end. Default: Last
         :param plot_kwargs: Dictionary of properties which are passed
                             to matplotlib.lines.Line2D or
                             matplotlib.patches.Rectangle constructor
-        :param y1: y-axis coordinate on plot1 where line should begin
-        :param y2: y-axis coordinate on plot2 where line should end
-        :param coords_plot1: Controls how y_plot1 is interpreted. "ax" means
-                             values are (0, 1) as a fraction of axes height.
-                             "data" means values are data coordinates in plot1
-        :param coords_plot2: As in coords_plot1
         """
-        super(VerticalLineAnnotation, self).__init__(**kwargs)
+        super(HighlightAnnotation, self).__init__(**kwargs)
         self.plot_kwargs = {
             "linewidth": 1.,
             "color": "black",
             "linestyle": "solid",
+            "alpha": .5,
         }
         if plot_kwargs is not None:
             self.plot_kwargs.update(plot_kwargs)
         self.bedtool = bed
-        if not isinstance(self.bedtool, pbt.BedTool):
-            self.bedtool = pbt.BedTool(self.bedtool).saveas()
+        if not isinstance(bed, pbt.BedTool):
+            self.bedtool = kaic.load(bed)
         self.plot1 = plot1
         self.plot2 = plot2
-        self.y1 = y1
-        self.y2 = y2
-        self.coords_plot1 = coords_plot1
-        self.coords_plot2 = coords_plot2
-
-    @staticmethod
-    def _generate_transformation(ax, type):
-        if type == "ax":
-            trans = ax.transAxes
-        elif type == "data":
-            trans = ax.transData
-        else:
-            raise ValueError("Invalid data transformation '{}'".format(type))
-        trans = trans + ax.figure.transFigure.inverted()
-        return trans
+        self.patches = []
+        self.lines = []
 
     def _plot(self, region):
-        x_trans = self._generate_transformation(self.plot1.ax, "data")
-        trans1 = self._generate_transformation(self.plot1.ax, self.coords_plot1)
-        trans2 = self._generate_transformation(self.plot2.ax, self.coords_plot2)
+        x_trans = self.plot1.ax.transData
+        y_trans1 = self.plot1.ax.transAxes + self.plot1.ax.figure.transFigure.inverted()
+        y_trans2 = self.plot2.ax.transAxes + self.plot2.ax.figure.transFigure.inverted()
+        blended_trans = mpl.transforms.blended_transform_factory(x_trans, self.plot1.ax.figure.transFigure)
         interval = region_to_pbt_interval(region)
         hits = self.bedtool.all_hits(interval)
         for r in hits:
             if len(r) > 1:
-                self._draw_rectangle(r, x_trans, trans1, trans2)
+                self._draw_rectangle(r, x_trans, y_trans1, y_trans2, blended_trans)
             else:
-                self._draw_line(r, x_trans, trans1, trans2)
+                self._draw_line(r, x_trans, y_trans1, y_trans2, blended_trans)
 
-    def _draw_rectangle(self, r, x_trans, trans1, trans2):
+    def _draw_rectangle(self, r, x_trans, y_trans1, y_trans2, plot_trans):
         s, e = r.start, r.end
-        x1_t = x_trans.transform((s, 0))[0]
-        x2_t = x_trans.transform((e, 0))[0]
-        y1_t = trans1.transform((0, self.y1))[1]
-        y2_t = trans2.transform((0, self.y2))[1]
+        y1_t = y_trans1.transform((0, 1))[1]
+        y2_t = y_trans2.transform((0, 0))[1]
         y1_t, y2_t = sorted([y1_t, y2_t])
-        patch = figure_rectangle(self.plot1.ax.figure, xy=(x1_t, y1_t),
-                                 width=x2_t - x1_t, height=y2_t - y1_t,
-                                 **self.plot_kwargs)
-        return patch
+        patch = figure_rectangle(self.plot1.ax.figure, xy=(s, y1_t),
+                                 width=e - s, height=y2_t - y1_t,
+                                 transform=plot_trans, **self.plot_kwargs)
+        patch.set_transform(plot_trans)
+        self.patches.append(patch)
 
-    def _draw_line(self, r, x_trans, trans1, trans2):
+    def _draw_line(self, r, x_trans, trans1, trans2, plot_trans):
         s = r.start
-        x_t = x_trans.transform((s, 0))[0]
-        y1_t = trans1.transform((0, self.y1))[1]
-        y2_t = trans2.transform((0, self.y2))[1]
-        l = figure_line(self.plot1.ax.figure, xdata=[x_t, x_t],
-                        ydata=[y1_t, y2_t], **self.plot_kwargs)
-        return l
+        y1_t = y_trans1.transform((0, 1))[1]
+        y2_t = y_trans2.transform((0, 0))[1]
+        l = figure_line(self.plot1.ax.figure, xdata=[s, s],
+                        ydata=[y1_t, y2_t], transform=plot_trans,
+                        **self.plot_kwargs)
+        l.set_transform(plot_trans)
+        self.lines.append(l)
 
     def _verify(self, gfig):
+        if self.plot1 is None:
+            self.plot1 = gfig.plots[0]
+        if self.plot2 is None:
+            self.plot2 = gfig.plots[-1]
+        # Make sure plot1 comes first in plot list
+        if gfig.plots.index(self.plot2) < gfig.plots.index(self.plot1):
+            self.plot1, self.plot2 = self.plot2, self.plot1
         if not all([self.plot1 in gfig.plots, self.plot2 in gfig.plots]):
-            raise ValueError("At least one plot in the VerticalLine is"
+            raise ValueError("At least one plot in the HighlightAnnotation is"
                              "not part of the GenomicFigure")
         return True
+
+    def _refresh(self, region):
+        for a in itertools.chain(self.patches, self.lines):
+            a.remove()
+        self.lines = []
+        self.patches = []
+        self._plot(region)
+
+
+class VerticalLineAnnotation(HighlightAnnotation):
+    """
+    Deprecated alias for :class:`~kaic.plotting.plotter.HighlightAnnotation`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(VerticalLineAnnotation, self).__init__(*args, **kwargs)
+        warnings.warn("VerticalLineAnnotation is deprecated, use HighlightAnnotation instead.")
 
 
 class GenomicTrackPlot(ScalarDataPlot):
@@ -714,7 +736,12 @@ class VerticalSplitPlot(BasePlotter1D):
             self.bottom_plot.cax.yaxis.set_visible(False)
 
     def _refresh(self, region):
-        pass
+        self.top_plot.refresh(region)
+        self.bottom_plot.refresh(region)
+
+    def _clear(self):
+        self.top_plot._clear()
+        self.bottom_plot._clear()
 
 
 class GenomicFeaturePlot(BasePlotter1D):
