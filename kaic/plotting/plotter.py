@@ -1453,11 +1453,13 @@ class FeatureLayerPlot(BasePlotter1D):
 
 
 class GenomicDataFramePlot(ScalarDataPlot):
+    """
+    Plot data from a table.
+    """
+
     def __init__(self, genomic_data_frame, names=None,
                  plot_kwargs=None, **kwargs):
         """
-        Plot data from a table.
-
         :param genomic_data_frame: :class:`~GenomicDataFrame`
         :param names: List of column names to plot (on the same axis)
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function

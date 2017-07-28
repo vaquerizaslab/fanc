@@ -6,6 +6,45 @@ Plotting API
 API reference
 -------------
 
+Index
+'''''
+
+.. currentmodule:: kaic.plotting.hic_plotter
+.. autosummary::
+
+    HicPlot
+    HicPlot2D
+    HicComparisonPlot2D
+    HicSideBySidePlot2D
+    HicSlicePlot
+    HicPeakPlot
+
+.. currentmodule:: kaic.plotting.plotter
+.. autosummary::
+
+    VerticalSplitPlot
+    GenomicVectorArrayPlot
+    GenomicFeaturePlot
+    GenomicRegionsPlot
+    GenomicFeatureScorePlot
+    GenomicMatrixPlot
+    GenomicFigure
+    GenomicTrackPlot
+    BigWigPlot
+    GenePlot
+    FeatureLayerPlot
+    GenomicDataFramePlot
+    HighlightAnnotation
+
+.. currentmodule:: kaic.plotting.helpers
+.. autosummary::
+    SymmetricNorm
+    style_ticks_whitegrid
+    LimitGroup
+
+Reference
+'''''''''
+
 .. automodule:: kaic.plotting.hic_plotter
     :members: HicPlot, HicPlot2D, HicComparisonPlot2D, HicSideBySidePlot2D,
         HicSlicePlot, HicPeakPlot
