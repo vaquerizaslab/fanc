@@ -32,7 +32,7 @@ from kaic.architecture.maxima_callers import MaximaCallerDelta
 from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
-from kaic.tools.matrix import apply_sliding_func
+from kaic.tools.matrix import apply_sliding_func, kth_diag_indices
 from kaic.data.general import FileGroup
 import numpy as np
 import tables as t
@@ -2188,6 +2188,96 @@ class MetaRegionAverage(MetaMatrixBase):
         :return: numpy array
         """
         return self.meta_matrix[:]
+
+
+def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, silent=False):
+    """
+    Construct a matrix by superimposing subsets of the Hi-C matrix from different regions.
+
+    For each region, a matrix of a certain window size (region at the center) will be
+    extracted. All matrices will be added and divided by the number of regions.
+
+    :param hic: Hic object (or any RegionMatrix compatible)
+    :param regions: Iterable with :class:`GenomicRegion` objects
+    :param window: Window size in base pairs around each region
+    :param cache_matrix: Load chromosome matrices into memory to speed up matrix generation
+    :param norm: If True, will normalise the averaged maps to the expected map (per chromosome)
+    :param silent: Suppress progress bar output
+    :return: numpy array
+    """
+    bins = window/hic.bin_size
+    bins_half = max(1, int(bins/2))
+
+    chromosome_bins = hic.chromosome_bins
+    regions_by_chromosome = defaultdict(list)
+    region_counter = 0
+    for region in regions:
+        regions_by_chromosome[region.chromosome].append(region)
+        region_counter += 1
+
+    chromosome_matrices = dict()
+    with RareUpdateProgressBar(max_value=len(regions), silent=silent) as pb:
+        i = 0
+        cumulative_chromosome_matrix = None
+        counter = 0
+        for chromosome, chromosome_regions in regions_by_chromosome.items():
+            if chromosome not in chromosome_bins:
+                continue
+
+            if cache_matrix:
+                chromosome_matrix = hic[chromosome, chromosome]
+                offset = chromosome_bins[chromosome][0]
+            else:
+                chromosome_matrix = hic
+                offset = 0
+            for region in chromosome_regions:
+                i += 1
+
+                center_region = GenomicRegion(chromosome=chromosome, start=region.center, end=region.center)
+                center_bin = list(hic.subset(center_region))[0].ix
+                if center_bin - bins_half < chromosome_bins[chromosome][0] \
+                        or chromosome_bins[chromosome][1] <= center_bin + bins_half + 1:
+                    continue
+                center_bin -= offset
+
+                matrix = chromosome_matrix[center_bin-bins_half:center_bin+bins_half+1,
+                                           center_bin-bins_half:center_bin+bins_half+1]
+
+                if cumulative_chromosome_matrix is None:
+                    cumulative_chromosome_matrix = matrix
+                else:
+                    cumulative_chromosome_matrix += matrix
+                counter += 1
+                pb.update(i)
+
+            if cumulative_chromosome_matrix is not None:
+                chromosome_matrices[chromosome] = cumulative_chromosome_matrix / counter
+
+    if len(chromosome_matrices) == 0:
+        raise ValueError("No valid regions found!")
+
+    cmatrix = None
+    for chromosome, matrix in chromosome_matrices.items():
+        if norm:
+            with ExpectedContacts(hic, regions=chromosome) as ex:
+                intra_expected = ex.intra_expected()
+                matrix_expected = np.zeros(matrix.shape)
+                for i in range(len(intra_expected)):
+                    matrix_expected[kth_diag_indices(matrix.shape[0], i)] = intra_expected[i]
+                    matrix_expected[kth_diag_indices(matrix.shape[0], -1*i)] = intra_expected[i]
+                matrix /= matrix_expected
+
+        if cmatrix is None:
+            cmatrix = matrix
+        else:
+            cmatrix += matrix
+
+    cmatrix /= len(chromosome_matrices)
+
+    if norm:
+        cmatrix = np.log2(cmatrix)
+
+    return cmatrix
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):

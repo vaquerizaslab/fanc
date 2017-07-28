@@ -74,3 +74,18 @@ def delta_window(x, window, ignore_mask=False, mask_thresh=.5):
             delta[i] = np.nan
         delta[i] = np.ma.mean(x[down_slice] - x[i]) - np.ma.mean(x[up_slice] - x[i])
     return delta
+
+
+def kth_diag_indices(n, k):
+    """
+    Return indices of bins k steps away from the diagonal.
+    (from http://stackoverflow.com/questions/10925671/numpy-k-th-diagonal-indices)
+    """
+
+    rows, cols = np.diag_indices(n)
+    if k < 0:
+        return rows[-k:], cols[:k]
+    elif k > 0:
+        return rows[:-k], cols[k:]
+    else:
+        return rows, cols

@@ -4085,63 +4085,6 @@ class RegionMatrixTable(RegionPairs):
         m_bottom[top_indices] = m_top[top_indices]
         return m_bottom
 
-    def cumulative_matrix(self, regions, window, cache_matrix=False, silent=False):
-        """
-        Construct a matrix by superimposing subsets of the Hi-C matrix from different regions.
-
-        For each region, a matrix of a certain window size (region at the center) will be
-        extracted. All matrices will be added and divided by the number of regions.
-
-        :param regions: Iterable with :class:`GenomicRegion` objects
-        :param window: Window size in base pairs around each region
-        :param cache_matrix: Load chromosome matrices into memory to speed up matrix generation
-        :param silent: Suppress progress bar output
-        :return: numpy array
-        """
-        bins = window/self.bin_size
-        bins_half = max(1, int(bins/2))
-
-        chromosome_bins = self.chromosome_bins
-        regions_by_chromosome = defaultdict(list)
-        region_counter = 0
-        for region in regions:
-            regions_by_chromosome[region.chromosome].append(region)
-            region_counter += 1
-
-        counter = 0
-        cumulative_matrix = None
-        with RareUpdateProgressBar(max_value=len(regions), silent=silent) as pb:
-            i = 0
-            for chromosome, chromosome_regions in regions_by_chromosome.items():
-                if chromosome not in chromosome_bins:
-                    continue
-
-                if cache_matrix:
-                    chromosome_matrix = self[chromosome, chromosome]
-                    offset = chromosome_bins[chromosome][0]
-                else:
-                    chromosome_matrix = self
-                    offset = 0
-                for region in chromosome_regions:
-                    i += 1
-
-                    center_region = GenomicRegion(chromosome=chromosome, start=region.center, end=region.center)
-                    center_bin = list(self.subset(center_region))[0].ix
-                    if center_bin - bins_half < chromosome_bins[chromosome][0] \
-                            or chromosome_bins[chromosome][1] <= center_bin + bins_half + 1:
-                        continue
-                    center_bin -= offset
-
-                    matrix = chromosome_matrix[center_bin-bins_half:center_bin+bins_half+1,
-                                               center_bin-bins_half:center_bin+bins_half+1]
-                    if cumulative_matrix is None:
-                        cumulative_matrix = matrix
-                    else:
-                        cumulative_matrix += matrix
-                    counter += 1
-                    pb.update(i)
-        return cumulative_matrix / counter
-
 
 class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionPairs):
     """

@@ -20,7 +20,7 @@ from kaic.construct.seq import AccessOptimisedReadPairs as Pairs  # alias
 from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIndex, PossibleContacts, \
     ExpectedContacts, RegionContactAverage, FoldChangeMatrix, ObservedExpectedRatio, ABDomains, \
     ABDomainMatrix, MetaArray, MetaHeatmap, VectorDifference, VectorArchitecturalRegionFeature, \
-    MultiVectorArchitecturalRegionFeature
+    MultiVectorArchitecturalRegionFeature, cumulative_matrix
 from kaic.data.network import RaoPeakInfo
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
