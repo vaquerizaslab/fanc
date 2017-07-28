@@ -266,7 +266,7 @@ class HighlightAnnotation(BaseAnnotation):
         if plot_kwargs is not None:
             self.plot_kwargs.update(plot_kwargs)
         self.bedtool = bed
-        if isinstance(bed, string_types):
+        if not isinstance(bed, pbt.BedTool):
             self.bedtool = kaic.load(bed)
         self.plot1 = plot1
         self.plot2 = plot2
