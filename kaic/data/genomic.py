@@ -146,6 +146,138 @@ def _weighted_mean(intervals):
     return np.average(valid[:, 2], weights=weights)
 
 
+class RegionBased(object):
+    def __init__(self):
+        pass
+
+    def _region_iter(self, *args, **kwargs):
+        raise NotImplementedError("Function not implemented")
+
+    def __len__(self):
+        raise NotImplementedError("Function not implemented")
+
+    def __getitem__(self, item):
+        raise NotImplementedError("Function not implemented")
+
+    @property
+    def regions(self):
+        """
+        Iterate over genomic regions in this object.
+
+        Will return a :class:`~GenomicRegion` object in every iteration.
+        Can also be used to get the number of regions by calling
+        len() on the object returned by this method.
+
+        :return: RegionIter
+        """
+        class RegionIter(object):
+            def __init__(self, region_based):
+                self._region_based = region_based
+
+            def __len__(self):
+                return len(self._region_based)
+
+            def __call__(self, key=None, *args, **kwargs):
+                if key is None:
+                    return self._region_based._region_iter(*args, **kwargs)
+                else:
+                    return self._region_based.subset(key, *args, **kwargs)
+
+            def __getitem__(self, item):
+                return self._region_based[item]
+
+        return RegionIter(self)
+
+    def chromosomes(self):
+        """
+        Get a list of chromosome names.
+        """
+        chromosomes_set = set()
+        chromosomes = []
+        for region in self.regions:
+            if region.chromosome not in chromosomes_set:
+                chromosomes_set.add(region.chromosome)
+                chromosomes.append(region.chromosome)
+        return chromosomes
+
+    @property
+    def chromosome_lens(self):
+        """
+        Returns a dictionary of chromosomes and their length
+        in bp.
+        """
+        chr_lens = {}
+        for r in self.regions:
+            if chr_lens.get(r.chromosome) is None:
+                chr_lens[r.chromosome] = r.end
+                continue
+            if r.end > chr_lens[r.chromosome]:
+                chr_lens[r.chromosome] = r.end
+        return chr_lens
+
+    def region_bins(self, region):
+        """
+        Takes a genomic region and returns a slice of the bin
+        indices that are covered by the region.
+
+        :param region: String or class:`~GenomicRegion`
+                       object for which covered bins will
+                       be returned.
+        :return: slice
+        """
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+
+        if region.start is None:
+            region.start = 0
+
+        if region.end is None:
+            region.end = self.chromosome_lens[region.chromosome]
+
+        start_ix = None
+        end_ix = None
+        for r in self.regions:
+            if not (r.chromosome == region.chromosome and r.start <= region.end and r.end >= region.start):
+                continue
+            if start_ix is None:
+                start_ix = r.ix
+                end_ix = r.ix + 1
+                continue
+            end_ix = r.ix + 1
+        return slice(start_ix, end_ix)
+
+    def subset(self, region, *args, **kwargs):
+        """
+        Takes a class:`~GenomicRegion` and returns all regions that
+        overlap with the supplied region.
+
+        :param region: String or class:`~GenomicRegion`
+                       object for which covered bins will
+                       be returned.
+        """
+        return self.regions[self.region_bins(region)]
+
+    def to_bed(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as BED file
+        """
+        write_bed(file_name, self.regions(subset), **kwargs)
+
+    def to_gff(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as GFF file
+        """
+        write_gff(file_name, self.regions(subset), **kwargs)
+
+    def to_bigwig(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as BigWig file.
+        """
+        write_bigwig(file_name, self.regions(subset), mode='w', **kwargs)
+
+
+
+
 class Bed(pybedtools.BedTool):
     """
     Data type representing a BED file.
@@ -496,59 +628,6 @@ class BigWig(object):
                                               smoothing_window=smoothing_window,
                                               nan_replacement=nan_replacement,
                                               zero_to_nan=zero_to_nan)
-
-    @staticmethod
-    def _bin_intervals_equidist_alt(intervals, bin_size, interval_range, bins=None, smoothing_window=None,
-                                nan_replacement=None):
-        if bins is None:
-            bins = int((interval_range[1] - interval_range[0] + 1) / bin_size + .5)
-
-        # binned intervals
-        binned_intervals = []
-        for i in range(bins):
-            bin_start = int(interval_range[0] + bin_size * i + 0.5)
-            bin_end = int(bin_start + bin_size + 0.5)
-            binned_intervals.append((bin_start, bin_end))
-
-        # weights vectors
-        bin_weighted_sum = np.zeros(bins)
-        bin_weighted_count = np.zeros(bins)
-
-        # weighted sum of unbinned intervals
-        for start, end, score in intervals:
-            if not np.isfinite(score):
-                score = nan_replacement
-
-            if score is None:
-                continue
-
-            start_ix = 0 if start < interval_range[0] else int((start - interval_range[0]) / bin_size)
-            end_ix = bins - 1 if end > interval_range[1] else int((end - interval_range[0]) / bin_size)
-
-            if start_ix == end_ix:
-                r = min(1.0, (end - start) / bin_size)
-                bin_weighted_count[start_ix] += r
-                bin_weighted_sum[start_ix] += r * score
-            else:
-                for ix in range(start_ix, end_ix + 1):
-                    r = (min(end, binned_intervals[ix][1]) - max(binned_intervals[ix][0], start)) / bin_size
-                    bin_weighted_count[ix] += r
-                    bin_weighted_sum[ix] += r * score
-
-        with np.errstate(divide='ignore', invalid='ignore'):
-            result = np.true_divide(bin_weighted_sum, bin_weighted_count)
-
-            if nan_replacement is not None:
-                result[~ np.isfinite(result)] = nan_replacement  # -inf inf NaN
-
-        if smoothing_window is not None:
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                result = apply_sliding_func(result, smoothing_window)
-
-        return tuple((binned_intervals[i][0], binned_intervals[i][1], result[i])
-                         for i in range(len(binned_intervals)))
-
 
     @staticmethod
     def _bin_intervals_equidist(intervals, bin_size, interval_range, bins=None, smoothing_window=None,
