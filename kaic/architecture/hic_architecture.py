@@ -2213,6 +2213,7 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
     """
     bins = window/hic.bin_size
     bins_half = max(1, int(bins/2))
+    shape = bins_half * 2 + 1
 
     chromosome_bins = hic.chromosome_bins
     regions_by_chromosome = defaultdict(list)
@@ -2221,14 +2222,22 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
         regions_by_chromosome[region.chromosome].append(region)
         region_counter += 1
 
-    chromosome_matrices = dict()
+    cmatrix = np.zeros((shape, shape))
+    counter = 0
     with RareUpdateProgressBar(max_value=len(regions), silent=silent) as pb:
         i = 0
-        cumulative_chromosome_matrix = None
-        counter = 0
         for chromosome, chromosome_regions in regions_by_chromosome.items():
             if chromosome not in chromosome_bins:
                 continue
+
+            matrix_expected = np.ones((shape, shape))
+            if norm:
+                with ExpectedContacts(hic, regions=chromosome) as ex:
+                    intra_expected = ex.intra_expected()
+
+                    for j in range(shape):
+                        matrix_expected[kth_diag_indices(shape, j)] = intra_expected[j]
+                        matrix_expected[kth_diag_indices(shape, -1 * j)] = intra_expected[j]
 
             if cache_matrix:
                 chromosome_matrix = hic[chromosome, chromosome]
@@ -2236,6 +2245,7 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
             else:
                 chromosome_matrix = hic
                 offset = 0
+
             for region in chromosome_regions:
                 i += 1
 
@@ -2249,36 +2259,17 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
                 matrix = chromosome_matrix[center_bin-bins_half:center_bin+bins_half+1,
                                            center_bin-bins_half:center_bin+bins_half+1]
 
-                if cumulative_chromosome_matrix is None:
-                    cumulative_chromosome_matrix = matrix
-                else:
-                    cumulative_chromosome_matrix += matrix
+                if matrix.shape[0] != matrix.shape[1] or matrix.shape[0] != shape:
+                    continue
+
+                cmatrix += matrix / matrix_expected
                 counter += 1
                 pb.update(i)
 
-            if cumulative_chromosome_matrix is not None:
-                chromosome_matrices[chromosome] = cumulative_chromosome_matrix / counter
-
-    if len(chromosome_matrices) == 0:
+    if counter is None:
         raise ValueError("No valid regions found!")
 
-    cmatrix = None
-    for chromosome, matrix in chromosome_matrices.items():
-        if norm:
-            with ExpectedContacts(hic, regions=chromosome) as ex:
-                intra_expected = ex.intra_expected()
-                matrix_expected = np.zeros(matrix.shape)
-                for i in range(len(intra_expected)):
-                    matrix_expected[kth_diag_indices(matrix.shape[0], i)] = intra_expected[i]
-                    matrix_expected[kth_diag_indices(matrix.shape[0], -1*i)] = intra_expected[i]
-                matrix /= matrix_expected
-
-        if cmatrix is None:
-            cmatrix = matrix
-        else:
-            cmatrix += matrix
-
-    cmatrix /= len(chromosome_matrices)
+    cmatrix /= counter
 
     if norm:
         cmatrix = np.log2(cmatrix)
