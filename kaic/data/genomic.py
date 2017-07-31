@@ -436,7 +436,11 @@ class BigWig(object):
         if self._intervals is None:
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                intervals = self.bw.intervals(chromosome, start, end)
+                try:
+                    intervals = self.bw.intervals(chromosome, start, end)
+                except RuntimeError:
+                    logger.error("Invalid interval bounds? {}:{}-{}".format(chromosome, start, end))
+                    raise
         else:
             intervals = self._memory_intervals(chromosome, start, end)
 
