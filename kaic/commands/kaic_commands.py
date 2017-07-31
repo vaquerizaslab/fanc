@@ -2931,9 +2931,9 @@ def insulation_parser():
     )
 
     parser.add_argument(
-        '-log', '--log', dest='log',
+        '-l', '--log', dest='log',
         action='store_true',
-        help='''Log2-transform II'''
+        help='''Log2-transform insulation index after normalisation (roughly centers values around 0).'''
     )
     parser.set_defaults(log=False)
 
@@ -2955,7 +2955,8 @@ def insulation_parser():
         '-s', '--subtract-mean', dest='subtract',
         action='store_true',
         help='''Subtract mean instead of dividing by it when '--normalise' is enabled.
-                    Useful for log-transformed data'''
+                You probably don't want this, unless you are working with 
+                log-transformed matrices (e.g. fold-change matrices)'''
     )
     parser.set_defaults(subtract=False)
     return parser
