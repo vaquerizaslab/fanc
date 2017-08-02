@@ -46,6 +46,7 @@ def kaic_parser():
             subset_hic          Create a new Hic object by subsetting
             cis_trans           Calculate cis/trans ratio
             dump                Dump Hic file to txt file(s)
+            hic_from_juicer     Convert juicer .hic file to Kai-C Hic
 
             --- Network
             call_peaks          Call enriched peaks in a Hic object
@@ -1390,6 +1391,106 @@ def correct_hic(argv):
             logger.info("Moving temporary output file to destination %s" % original_output_path)
             os.unlink(input_path)
             shutil.move(output_path, original_output_path)
+
+    logger.info("All done.")
+
+
+def hic_from_juicer_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic hic_from_juicer",
+        description='Import a Hi-C object from juicer (Aiden lab)'
+    )
+
+    parser.add_argument(
+        'input',
+        help='''Input .hic file, juicer format'''
+    )
+
+    parser.add_argument(
+        'jar',
+        help='''path to juicer_tools jar file'''
+    )
+
+    parser.add_argument(
+        'genome',
+        help='''Path to genome (FASTA, folder with FASTA, hdf5 file)'''
+    )
+
+    parser.add_argument(
+        'resolution',
+        type=int,
+        help='''Resolution in base pairs'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output Hic file.'''
+    )
+
+    parser.add_argument(
+        '-c', '--chromosomes', dest='chromosomes',
+        nargs='+',
+        help='''List of chromosomes to extract. Extracts all chromosomes in genome by default.'''
+    )
+    parser.set_defaults(ice=False)
+
+    parser.add_argument(
+        '--no-inter-chromosomal', dest='inter_chromosomal',
+        action='store_false',
+        help='''Do not extract inter-chromosomal matrices'''
+    )
+    parser.set_defaults(inter_chromosomal=True)
+
+    parser.add_argument(
+        '--juicer-norm', dest='juicer_norm',
+        default='NONE',
+        help='''Juicer normalisation method. Default: NONE, 
+                see juicer documentation for alternatives.'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+    return parser
+
+
+def hic_from_juicer(argv):
+    parser = hic_from_juicer_parser()
+
+    args = parser.parse_args(argv[2:])
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    genome_path = os.path.expanduser(args.genome)
+    jar_path = args.jar
+    resolution = args.resolution
+    chromosomes = args.chromosomes
+    inter_chromosomal = args.inter_chromosomal
+    juicer_norm = args.juicer_norm
+    tmp = args.tmp
+
+    import kaic
+    from kaic.tools.files import create_temporary_copy
+
+    original_input_file = input_file
+    original_output_file = output_file
+    try:
+        if tmp:  # copy file if required
+            input_file = create_temporary_copy(original_input_file)
+            output_file = create_temporary_copy(original_output_file)
+
+        hic = kaic.AccessOptimisedHic.from_juicer(input_file, jar_path, genome_path, resolution,
+                                                  norm=juicer_norm, output_file=output_file,
+                                                  inter_chromosomal=inter_chromosomal,
+                                                  chromosomes=chromosomes)
+        hic.close()
+    finally:
+        if tmp:
+            os.remove(input_file)
+            shutil.copy(output_file, original_output_file)
+            os.remove(output_file)
 
     logger.info("All done.")
 
