@@ -84,6 +84,7 @@ from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
 from pandas import DataFrame, read_table
+import subprocess
 import logging
 logger = logging.getLogger(__name__)
 
@@ -2058,7 +2059,7 @@ class Genome(FileGroup):
         self._sequences.flush()
         self._chromosome_table.flush()
 
-    def get_regions(self, split, file_name=None):
+    def get_regions(self, split, file_name=None, chromosomes=None):
         """
         Extract genomic regions from genome.
 
@@ -2074,11 +2075,14 @@ class Genome(FileGroup):
                       integer
         :param file_name: Name of a file if the result of this
                           method should be saved to file
+        :param chromosomes: List of chromosome names to include. Default: all
         :return: :class:`~GenomicRegions`
         """
 
         regions = RegionsTable(file_name=file_name)
         for chromosome in self:
+            if chromosomes is not None and chromosome.name not in chromosomes:
+                continue
             split_locations = []
             if isinstance(split, string_types):
                 split_locations = chromosome.get_restriction_sites(split)
@@ -4738,6 +4742,63 @@ class Hic(RegionMatrixTable):
     def architecture(self):
         import kaic.architecture.hic_architecture as ha
         return ha.HicArchitecture(self)
+
+    @classmethod
+    def from_juicer(cls, juicer_file, juicer_tools_jar_path, genome_file, resolution,
+                    norm='NONE', output_file=None, inter_chromosomal=True,
+                    chromosomes=None):
+        hic = cls(file_name=output_file, mode='w')
+
+        # regions
+        logger.info("Building genome {}".format(genome_file))
+        genome = Genome.from_string(genome_file)
+        regions = genome.get_regions(resolution, chromosomes=chromosomes)
+        hic.add_regions(regions)
+        genome.close()
+        regions.close()
+
+        if chromosomes is None:
+            chromosomes = hic.chromosomes()
+        chromosome_bins = hic.chromosome_bins
+
+        logger.info("Extracting edges from hic file")
+        for i in range(len(chromosomes)):
+            chromosome1 = chromosomes[i]
+            offset1 = chromosome_bins[chromosome1][0]
+
+            for j in range(i, len(chromosomes)):
+                if i != j and not inter_chromosomal:
+                    continue
+                chromosome2 = chromosomes[j]
+                offset2 = chromosome_bins[chromosome2][0]
+
+                logger.info("{} -- {}".format(chromosome1, chromosome2))
+
+                juicer_command = ['java', '-jar', juicer_tools_jar_path,
+                                  'dump', 'observed', norm, juicer_file,
+                                  chromosome1, chromosome2, 'BP', str(resolution)]
+
+                juicer_process = subprocess.Popen(juicer_command, stdout=subprocess.PIPE)
+
+                for line in juicer_process.stdout:
+                    fields = line.rstrip().split()
+
+                    try:
+                        start, end, weight = int(fields[0]), int(fields[1]), float(fields[2])
+                    except ValueError:
+                        continue
+
+                    start_ix = int(start / resolution) + offset1
+                    end_ix = int(end / resolution) + offset2
+                    if start_ix > end_ix:
+                        start_ix, end_ix = end_ix, start_ix
+
+                    hic.add_edge([start_ix, end_ix, weight], check_nodes_exist=False, flush=False,
+                                 replace=True)
+
+        hic.flush()
+
+        return hic
 
 
 class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
