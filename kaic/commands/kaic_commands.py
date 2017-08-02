@@ -1478,8 +1478,15 @@ def hic_from_juicer(argv):
     original_output_file = output_file
     try:
         if tmp:  # copy file if required
+            tmp = False  # to prevent deleting input file should this be interrupted at this point
+            logger.info("Copying input file...")
             input_file = create_temporary_copy(original_input_file)
-            output_file = create_temporary_copy(original_output_file)
+            logger.info("New input file: {}".format(input_file))
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.hic')
+            tmp_file.close()
+            output_file = tmp_file.name
+            logger.info("Temporary output file: %s" % output_file)
+            tmp = True
 
         hic = kaic.AccessOptimisedHic.from_juicer(input_file, jar_path, genome_path, resolution,
                                                   norm=juicer_norm, output_file=output_file,
@@ -1488,6 +1495,7 @@ def hic_from_juicer(argv):
         hic.close()
     finally:
         if tmp:
+            logger.info("Removing tmp files...")
             os.remove(input_file)
             shutil.copy(output_file, original_output_file)
             os.remove(output_file)
