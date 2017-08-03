@@ -614,6 +614,8 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
         :param plot_kwargs: Keyword-arguments passed on to pcolormesh
         """
         kwargs.setdefault("aspect", .3)
+        kwargs.setdefault("norm", 'lin')
+
         super(GenomicVectorArrayPlot, self).__init__(**kwargs)
         self.array = array
         self.keys = keys
@@ -630,16 +632,14 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
 
     def _plot(self, region):
         x, y, self.hm = self._mesh_data(region=region)
-        self.collection = self.ax.pcolormesh(x, y, np.ma.masked_invalid(self.hm.T), rasterized=True, cmap=self.colormap,
+        self.collection = self.ax.pcolormesh(x, y, np.ma.masked_invalid(self.hm.T),
+                                             rasterized=True, cmap=self.colormap,
                                              norm=self.norm, **self.plot_kwargs)
 
         self.collection._A = None
         self._update_mesh_colors()
         self.ax.set_yscale(self.y_scale)
         self.ax.set_ylim(self.hm.y_values[0], self.hm.y_values[-1])
-
-        if self.show_colorbar:
-            self.add_colorbar()
 
         def drag_pan(self, button, key, x, y):
             mpl.axes.Axes.drag_pan(self, button, 'x', x, y)  # pretend key=='x'
