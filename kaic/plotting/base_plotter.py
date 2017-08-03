@@ -185,8 +185,9 @@ class PlotMeta(ABCMeta):
 class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks", ylabel=None,
-                 draw_ticks=True, draw_tick_labels=True, draw_tick_legend=True,
-                 draw_x_axis=True, padding=None, extra_padding=0,
+                 draw_ticks=True, draw_minor_ticks=True, draw_major_ticks=True,
+                 draw_tick_labels=True, draw_tick_legend=True, draw_x_axis=True,
+                 padding=None, extra_padding=0,
                  fix_chromosome=False, invert_x=False, ax=None, **kwargs):
         """
         :param str title: Title drawn on top of the figure panel.
@@ -198,6 +199,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
                            http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
         :param str ylabel: Label for y-axis. Default: None
         :param bool draw_ticks: Draw tickmarks. Default: True
+        :param bool draw_major_ticks: Draw major tickmarks. Default: True
+        :param bool draw_minor_ticks: Draw minor tickmarks. Default: True
         :param bool draw_tick_labels: Draw tick labels. Default: True
         :param bool draw_x_axis: If False, remove genome x-axis completely.
                                  Default: True
@@ -224,7 +227,16 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         self.cax = None
         self.title = title
         self._has_legend = False
+
         self._draw_ticks = draw_ticks
+        self._draw_major_ticks = draw_major_ticks
+        self._draw_minor_ticks = draw_minor_ticks
+        if not self._draw_ticks:
+            self._draw_major_ticks = False
+            self._draw_minor_ticks = False
+        elif not self._draw_major_ticks or not self._draw_minor_ticks:
+            self._draw_ticks = False
+
         self._draw_tick_labels = draw_tick_labels
         self._draw_x_axis = draw_x_axis
         self._draw_tick_legend = draw_tick_legend
@@ -253,7 +265,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         for o in self.overlays:
             o.plot(self, region)
         if not self._draw_ticks:
-            self.remove_genome_ticks()
+            self.remove_genome_ticks(major=not self._draw_major_ticks,
+                                     minor=not self._draw_minor_ticks)
         if not self._draw_tick_labels:
             self.remove_genome_labels()
         if not self._draw_x_axis:
@@ -277,6 +290,8 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             else:
                 chromosome = 'chr' + chromosome
             region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
+        if self.ax is None:
+            self.ax = plt.gca()
         self._before_plot(region)
         plot_output = self._plot(region)
         self._after_plot(region)
@@ -294,12 +309,13 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             self.ax.legend(*args, **kwargs)
             self._has_legend = True
 
-    def remove_genome_ticks(self):
+    def remove_genome_ticks(self, major=True, minor=True):
         """
         Remove all genome coordinate tickmarks.
         """
-        if self.ax:
+        if major:
             plt.setp(self.ax.xaxis.get_majorticklines(), visible=False)
+        if minor:
             plt.setp(self.ax.xaxis.get_minorticklines(), visible=False)
         self._draw_ticks = False
 
