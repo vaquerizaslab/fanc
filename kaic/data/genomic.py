@@ -147,17 +147,54 @@ def _weighted_mean(intervals):
 
 
 class RegionBased(object):
+    """
+    Base class for working with genomic regions.
+    
+    Guide for inheriting classes which functions to override:
+    
+    MUST (basic functionality):
+        _region_iter
+        _region_len
+        _get_regions
+    
+    SHOULD (works if above are implemented, but is highly inefficient):
+        _region_subset
+    
+    CAN (overide for potential speed benefits or added functionality):
+        __enter__
+        __exit__
+        _region_len
+        chromosomes
+        chromosome_lens
+        region_bins
+
+    """
     def __init__(self):
         pass
 
     def _region_iter(self, *args, **kwargs):
         raise NotImplementedError("Function not implemented")
 
-    def __len__(self):
+    def _get_regions(self, item, *args, **kwargs):
         raise NotImplementedError("Function not implemented")
 
+    def _region_subset(self, region, *args, **kwargs):
+        return self.regions[self.region_bins(region)]
+
+    def __len__(self):
+        return self._region_len()
+
     def __getitem__(self, item):
-        raise NotImplementedError("Function not implemented")
+        return self._get_regions(item)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exec_type, exec_val, exec_tb):
+        pass
+
+    def _region_len(self):
+        return sum(1 for _ in self.regions)
 
     @property
     def regions(self):
@@ -175,7 +212,10 @@ class RegionBased(object):
                 self._region_based = region_based
 
             def __len__(self):
-                return len(self._region_based)
+                return self._region_based._region_len()
+
+            def __iter__(self):
+                return self()
 
             def __call__(self, key=None, *args, **kwargs):
                 if key is None:
@@ -184,9 +224,26 @@ class RegionBased(object):
                     return self._region_based.subset(key, *args, **kwargs)
 
             def __getitem__(self, item):
-                return self._region_based[item]
+                return self._region_based._get_regions(item)
 
         return RegionIter(self)
+
+    def _convert_region(self, region):
+        """
+        Take any object that can be interpreted as a region and return a :class:`GenomicRegion`.
+        
+        :param region: Any object interpretable as genomic region (string, :class:`GenomicRegion`)
+        :return: :class:`GenomicRegion`
+        """
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+
+        if region.start is None:
+            region.start = 0
+
+        if region.end is None:
+            region.end = self.chromosome_lens[region.chromosome]
+        return region
 
     def chromosomes(self):
         """
@@ -202,6 +259,10 @@ class RegionBased(object):
 
     @property
     def chromosome_lens(self):
+        return self.chromosome_lengths
+
+    @property
+    def chromosome_lengths(self):
         """
         Returns a dictionary of chromosomes and their length
         in bp.
@@ -225,25 +286,19 @@ class RegionBased(object):
                        be returned.
         :return: slice
         """
-        if isinstance(region, string_types):
-            region = GenomicRegion.from_string(region)
-
-        if region.start is None:
-            region.start = 0
-
-        if region.end is None:
-            region.end = self.chromosome_lens[region.chromosome]
+        region = self._convert_region(region)
 
         start_ix = None
         end_ix = None
-        for r in self.regions:
+        for i, r in enumerate(self.regions):
+            ix = r.ix if hasattr(r, 'ix') else i
             if not (r.chromosome == region.chromosome and r.start <= region.end and r.end >= region.start):
                 continue
             if start_ix is None:
-                start_ix = r.ix
-                end_ix = r.ix + 1
+                start_ix = ix
+                end_ix = ix + 1
                 continue
-            end_ix = r.ix + 1
+            end_ix = ix + 1
         return slice(start_ix, end_ix)
 
     def subset(self, region, *args, **kwargs):
@@ -255,7 +310,8 @@ class RegionBased(object):
                        object for which covered bins will
                        be returned.
         """
-        return self.regions[self.region_bins(region)]
+        region = self._convert_region(region)
+        return self._region_subset(region, *args, **kwargs)
 
     def to_bed(self, file_name, subset=None, **kwargs):
         """
@@ -274,8 +330,6 @@ class RegionBased(object):
         Export regions as BigWig file.
         """
         write_bigwig(file_name, self.regions(subset), mode='w', **kwargs)
-
-
 
 
 class Bed(pybedtools.BedTool):
@@ -1247,9 +1301,10 @@ class LazyGenomicRegion(GenomicRegion):
         return self._row.tables.colnames
 
 
-class GenomicRegions(object):
+class GenomicRegions(RegionBased):
 
     def __init__(self, regions=None):
+        RegionBased.__init__(self)
         self._regions = []
         self._max_region_ix = -1
 
@@ -1303,127 +1358,17 @@ class GenomicRegions(object):
         if region.ix > self._max_region_ix:
             self._max_region_ix = region.ix
 
-        return self._len()
+        return self._region_len()
 
-    def _len(self):
+    def _region_len(self):
         return len(self._regions)
 
-    def __len__(self):
-        return self._len()
+    def _region_iter(self, *args, **kwargs):
+        for region in self._regions:
+            yield region
 
     def _get_regions(self, key):
         return self._regions[key]
-
-    @property
-    def regions(self):
-        """
-        Iterate over genomic regions in this object.
-
-        Will return a :class:`~GenomicRegion` object in every iteration.
-        Can also be used to get the number of regions by calling
-        len() on the object returned by this method.
-
-        :return: Iterator over requested :class:`~GenomicRegion` objects
-        """
-
-        this = self
-
-        class RegionIter(object):
-            def __init__(self):
-                self.regions = this._regions
-                self.iter = iter(self.regions)
-
-            def __iter__(self):
-                return self
-
-            def __next__(self):
-                return next(self.iter)
-
-            def __len__(self):
-                return this._len()
-
-            def __getitem__(self, key):
-                return this._get_regions(key)
-
-            def __call__(self):
-                return this.regions
-
-        return RegionIter()
-
-    def __iter__(self):
-        return self.regions
-
-    def __getitem__(self, item):
-        return self.regions[item]
-
-    def region_bins(self, region):
-        """
-        Takes a genomic region and returns a slice of the bin
-        indices that are covered by the region.
-
-        :param region: String or class:`~GenomicRegion`
-                       object for which covered bins will
-                       be returned.
-        :return: slice
-        """
-        if isinstance(region, string_types):
-            region = GenomicRegion.from_string(region)
-
-        if region.start is None:
-            region.start = 0
-
-        if region.end is None:
-            region.end = self.chromosome_lens[region.chromosome]
-
-        start_ix = None
-        end_ix = None
-        for r in self.regions:
-            if not (r.chromosome == region.chromosome and r.start <= region.end and r.end >= region.start):
-                continue
-            if start_ix is None:
-                start_ix = r.ix
-                end_ix = r.ix + 1
-                continue
-            end_ix = r.ix + 1
-        return slice(start_ix, end_ix)
-
-    def subset(self, region):
-        """
-        Takes a class:`~GenomicRegion` and returns all regions that
-        overlap with the supplied region.
-
-        :param region: String or class:`~GenomicRegion`
-                       object for which covered bins will
-                       be returned.
-        """
-        return self.regions[self.region_bins(region)]
-
-    def chromosomes(self):
-        """
-        Get a list of chromosome names.
-        """
-        chromosomes_set = set()
-        chromosomes = []
-        for region in self.regions():
-            if region.chromosome not in chromosomes_set:
-                chromosomes_set.add(region.chromosome)
-                chromosomes.append(region.chromosome)
-        return chromosomes
-
-    @property
-    def chromosome_lens(self):
-        """
-        Returns a dictionary of chromosomes and their length
-        in bp.
-        """
-        chr_lens = {}
-        for r in self.regions:
-            if chr_lens.get(r.chromosome) is None:
-                chr_lens[r.chromosome] = r.end
-                continue
-            if r.end > chr_lens[r.chromosome]:
-                chr_lens[r.chromosome] = r.end
-        return chr_lens
 
     @property
     def chromosome_bins(self):
@@ -1444,39 +1389,6 @@ class GenomicRegions(object):
             else:
                 chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
-
-    def range(self, range_region):
-        regions = []
-
-        for region in self.regions:
-            if not range_region.chromosome == region.chromosome:
-                if len(regions) == 0:
-                    continue
-                break
-
-            if ((range_region.end is None or region.start <= range_region.end) and
-                    (range_region.start is None and region.end >= range_region.start)):
-                regions.append(region)
-
-        return regions
-
-    def to_bed(self, file_name, subset=None, **kwargs):
-        """
-        Export regions as BED file
-        """
-        write_bed(file_name, self.regions(subset), **kwargs)
-
-    def to_gff(self, file_name, subset=None, **kwargs):
-        """
-        Export regions as GFF file
-        """
-        write_gff(file_name, self.regions(subset), **kwargs)
-
-    def to_bigwig(self, file_name, subset=None, **kwargs):
-        """
-        Export regions as BigWig file.
-        """
-        write_bigwig(file_name, self.regions(subset), mode='w', **kwargs)
 
     @property
     def regions_dict(self):
@@ -1762,58 +1674,28 @@ class RegionsTable(GenomicRegions, FileGroup):
         return GenomicRegion(chromosome=row["chromosome"].decode(), start=row["start"],
                              end=row["end"], ix=row["ix"], **kwargs)
 
-    @property
-    def regions(self):
-        """
-        Iterate over genomic regions in this object.
+    def _region_iter(self, lazy=False, auto_update=True, *args, **kwargs):
+        for row in self._regions:
+            yield self._row_to_region(row, lazy=lazy, auto_update=auto_update)
 
-        Will return a :class:`~Node` object in every iteration.
-        Can also be used to get the number of regions by calling
-        len() on the object returned by this method.
+    def _region_subset(self, region, lazy=False, auto_update=True, *args, **kwargs):
+        for row in self._subset_rows(region):
+            sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+            yield sub_region
 
-        :param lazy: If True, will only retrieve properties in
-                     a lazy fashion, i.e. on request
+    def _get_regions(self, key):
+        res = self._regions[key]
 
-        :return: RegionIter
-        """
-        this = self
+        if isinstance(res, np.ndarray):
+            regions = []
+            for region in res:
+                regions.append(self._row_to_region(region))
+            return regions
+        else:
+            return self._row_to_region(res)
 
-        class RegionIter(object):
-            def __init__(self):
-                self.iter = iter(this._regions)
-                self.lazy = False
-                self.auto_update = True
-
-            def __iter__(self):
-                return self
-            
-            def __next__(self):
-                return this._row_to_region(next(self.iter), lazy=self.lazy)
-            
-            def __len__(self):
-                return len(this._regions)
-
-            def __call__(self, key=None, lazy=False, auto_update=True):
-                self.lazy = lazy
-                self.auto_update = auto_update
-                if key is not None:
-                    self.iter = this._subset_rows(key)
-                return iter(self)
-
-            def __getitem__(self, item):
-                res = this._regions[item]
-
-                if isinstance(res, np.ndarray):
-                    regions = []
-                    for region in res:
-                        regions.append(this._row_to_region(region, lazy=self.lazy,
-                                                           auto_update=self.auto_update))
-                    return regions
-                else:
-                    return this._row_to_region(res, lazy=self.lazy,
-                                               auto_update=self.auto_update)
-
-        return RegionIter()
+    def _region_len(self):
+        return len(self._regions)
 
     def _subset_rows(self, key):
         """
@@ -1861,20 +1743,6 @@ class RegionsTable(GenomicRegions, FileGroup):
                 else:
                     for row in self._regions.where(query):
                         yield row
-
-    def subset(self, region, lazy=False, auto_update=True):
-        """
-        Iterate over a subset of regions given the specified key.
-
-        :param region: A :class:`~kaic.data.genomic.GenomicRegion` object,
-                       or a list of the former.
-        :param lazy: Load region attributes on demand only.
-        :param auto_update: Auto update regions upon modification
-        :return: Iterator over the specified subset of regions
-        """
-        for row in self._subset_rows(region):
-            sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
-            yield sub_region
 
 
 class Genome(FileGroup):
@@ -4783,7 +4651,7 @@ class Hic(RegionMatrixTable):
             self._node_annotations.flush()
             return vector
 
-        vector = np.ones(len(self.regions()))
+        vector = np.ones(len(self.regions))
         if len(self._node_annotations) > 0:
             for i, row in enumerate(self._node_annotations):
                 vector[i] = row['bias']
