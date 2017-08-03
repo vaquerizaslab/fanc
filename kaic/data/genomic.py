@@ -85,6 +85,7 @@ from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
 from pandas import DataFrame, read_table
 import subprocess
+import pyBigWig
 import logging
 logger = logging.getLogger(__name__)
 
@@ -159,13 +160,13 @@ class RegionBased(object):
     
     SHOULD (works if above are implemented, but is highly inefficient):
         _region_subset
+        _region_intervals
     
-    CAN (overide for potential speed benefits or added functionality):
+    CAN (override for potential speed benefits or added functionality):
         _region_len
         chromosomes
         chromosome_lens
         region_bins
-
     """
     def __init__(self):
         pass
@@ -179,14 +180,21 @@ class RegionBased(object):
     def _region_subset(self, region, *args, **kwargs):
         return self.regions[self.region_bins(region)]
 
+    def _region_intervals(self, region, *args, **kwargs):
+        for region in self.regions(region, *args, **kwargs):
+            yield (region.chromosome, region.start, region.end)
+
+    def _region_len(self):
+        return sum(1 for _ in self.regions)
+
     def __len__(self):
         return self._region_len()
 
     def __getitem__(self, item):
         return self._get_regions(item)
 
-    def _region_len(self):
-        return sum(1 for _ in self.regions)
+    def __iter__(self):
+        return self.regions()
 
     @property
     def regions(self):
@@ -286,7 +294,7 @@ class RegionBased(object):
         start_ix = None
         end_ix = None
         for i, r in enumerate(self.regions):
-            ix = r.ix if hasattr(r, 'ix') else i
+            ix = r.ix if hasattr(r, 'ix') and r.ix is not None else i
             if not (r.chromosome == region.chromosome and r.start <= region.end and r.end >= region.start):
                 continue
             if start_ix is None:
@@ -295,120 +303,6 @@ class RegionBased(object):
                 continue
             end_ix = ix + 1
         return slice(start_ix, end_ix)
-
-    def subset(self, region, *args, **kwargs):
-        """
-        Takes a class:`~GenomicRegion` and returns all regions that
-        overlap with the supplied region.
-
-        :param region: String or class:`~GenomicRegion`
-                       object for which covered bins will
-                       be returned.
-        """
-        region = self._convert_region(region)
-        return self._region_subset(region, *args, **kwargs)
-
-    def to_bed(self, file_name, subset=None, **kwargs):
-        """
-        Export regions as BED file
-        """
-        write_bed(file_name, self.regions(subset), **kwargs)
-
-    def to_gff(self, file_name, subset=None, **kwargs):
-        """
-        Export regions as GFF file
-        """
-        write_gff(file_name, self.regions(subset), **kwargs)
-
-    def to_bigwig(self, file_name, subset=None, **kwargs):
-        """
-        Export regions as BigWig file.
-        """
-        write_bigwig(file_name, self.regions(subset), mode='w', **kwargs)
-
-
-class Bed(pybedtools.BedTool):
-    """
-    Data type representing a BED file.
-
-    Only exists to support 'with' statements
-    """
-
-    def __init__(self, *args, **kwargs):
-        pybedtools.BedTool.__init__(self, *args, **kwargs)
-    
-    def __exit__(self, exec_type, exec_val, exec_tb):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __getitem__(self, item):
-        if isinstance(item, string_types):
-            item = GenomicRegion.from_string(item)
-
-        if not isinstance(item, GenomicRegion):
-            intervals = pybedtools.BedTool.__getitem__(self, item)
-            if isinstance(intervals, pybedtools.Interval):
-                return self._interval_to_region(intervals)
-            else:
-                regions = []
-                for interval in intervals:
-                    regions.append(self._interval_to_region(interval))
-                return regions
-
-        start = item.start if item.start is not None else 1
-
-        query_interval = pybedtools.cbedtools.Interval(chrom=item.chromosome,
-                                                       start=start,
-                                                       end=item.end)
-
-        regions = []
-        for interval in self.all_hits(query_interval):
-            region = self._interval_to_region(interval)
-            regions.append(region)
-        return regions
-
-    def __len__(self):
-        return sum(1 for _ in self)
-
-    def _interval_to_region(self, interval):
-        try:
-            score = float(interval.score)
-        except (TypeError, ValueError):
-            score = None
-
-        if score is None:
-            if len(interval.fields) == 4:  # likely bedGraph!
-                try:
-                    score = float(interval.fields[3])
-                except ValueError:
-                    score = np.nan
-            else:
-                score = np.nan
-
-        if self.file_type == 'gff':
-            try:
-                attributes = {key: value for key, value in interval.attrs.items()}
-            except ValueError:
-                attributes = {}
-
-            attributes['chromosome'] = interval.chrom
-            attributes['start'] = interval.start
-            attributes['end'] = interval.end
-            attributes['strand'] = interval.strand
-            attributes['score'] = score
-            attributes['fields'] = interval.fields
-            attributes['source'] = interval.fields[1]
-            attributes['feature'] = interval.fields[2]
-            attributes['frame'] = interval.fields[7] if len(interval.fields) > 7 else '.'
-
-            region = GenomicRegion(**attributes)
-        else:
-            region = GenomicRegion(chromosome=interval.chrom, start=interval.start, end=interval.end,
-                                   strand=interval.strand, score=score, fields=interval.fields,
-                                   name=interval.name)
-        return region
 
     def find_region(self, query_regions, _regions_dict=None, _region_ends=None, _chromosomes=None):
         """
@@ -461,222 +355,83 @@ class Bed(pybedtools.BedTool):
             return hit_regions[0]
         return hit_regions
 
-    @property
-    def regions(self):
-        class RegionIter(object):
-            def __init__(self, bed):
-                self.bed = bed
+    def subset(self, region, *args, **kwargs):
+        """
+        Takes a class:`~GenomicRegion` and returns all regions that
+        overlap with the supplied region.
 
-            def __iter__(self):
-                for interval in self.bed:
-                    gr = self.bed._interval_to_region(interval)
+        :param region: String or class:`~GenomicRegion`
+                       object for which covered bins will
+                       be returned.
+        """
+        region = self._convert_region(region)
+        return self._region_subset(region, *args, **kwargs)
 
-                    yield gr
+    def intervals(self, region, bins=None, bin_size=None, smoothing_window=None,
+                  nan_replacement=None, zero_to_nan=False, *args, **kwargs):
+        region = self._convert_region(region)
+        if not isinstance(region, GenomicRegion):
+            raise ValueError("Region must be a GenomicRegion object or equivalent string!")
 
-            def __call__(self):
-                return iter(self)
+        raw_intervals = self._region_intervals(region, *args, **kwargs)
 
-            def __len__(self):
-                return len(self.bed)
-
-        return RegionIter(self)
-
-    def merge_overlapping(self, stat=_weighted_mean, sort=True):
-        if sort:
-            bed = self
-        else:
-            bed = self.sort()
-
-        current_intervals = []
-        for interval in bed:
-            if len(current_intervals) == 0 or (current_intervals[-1].start < interval.end and
-                                               current_intervals[-1].end > interval.start and
-                                               current_intervals[-1].chrom == interval.chrom):
-                current_intervals.append(interval)
-            else:
-                # merge
-                intervals = np.array([(current.start, current.end,
-                                       float(current.score) if current.score != '.' else np.nan)
-                                      for current in current_intervals])
-                merged_score = "{:0.6f}".format(stat(intervals))
-                merged_strand = current_intervals[0].strand
-                merged_start = min(intervals[:, 0])
-                merged_end = max(intervals[:, 1])
-                merged_chrom = current_intervals[0].chrom
-                merged_name = current_intervals[0].name
-                merged_interval = pybedtools.Interval(merged_chrom, merged_start, merged_end, name=merged_name,
-                                                      score=merged_score, strand=merged_strand)
-                current_intervals = [interval]
-                yield merged_interval
-
-
-class BigWig(object):
-    def __init__(self, bw):
-        self.bw = bw
-        self.file_type = 'bw'
-        self._intervals = None
-
-    def __exit__(self, exec_type, exec_val, exec_tb):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __getattr__(self, name):
-        try:
-            func = getattr(self.__dict__['bw'], name)
-            return func
-        except AttributeError:
-            if name == '__enter__':
-                return BigWig.__enter__
-            elif name == '__exit__':
-                return BigWig.__exit__
-            raise
-
-    def __getitem__(self, item):
-        if isinstance(item, string_types):
-            item = GenomicRegion.from_string(item)
-
-        if not isinstance(item, GenomicRegion):
-            return self.bw[item]
-
-        return self.subset(item)
-
-    def load_intervals_into_memory(self):
-        self._intervals = dict()
-        for chromosome in self.bw.chroms().keys():
-            interval_starts = []
-            interval_ends = []
-            interval_values = []
-            for start, end, score in self.bw.intervals(chromosome):
-                interval_starts.append(start)
-                interval_ends.append(end)
-                interval_values.append(score)
-            self._intervals[chromosome] = (interval_starts,
-                                           interval_ends,
-                                           interval_values)
-
-    @property
-    def regions(self):
-        class RegionIter(object):
-            def __init__(self, bw):
-                self.bw = bw
-
-            def __iter__(self):
-                for chromosome, length in self.bw.chroms().items():
-                    for start, end, score in self.bw.intervals(chromosome, 1, length):
-                        yield GenomicRegion(chromosome=chromosome, start=start, end=end, score=score)
-
-            def __call__(self):
-                return iter(self)
-
-        return RegionIter(self)
-
-    def subset(self, region):
-        if isinstance(region, string_types):
-            region = GenomicRegion.from_string(region)
-
-        if isinstance(region, GenomicRegion):
-            regions = [region]
-        else:
-            regions = region
-
-        for r in regions:
-            for start, end, score in self.intervals(r):
-                yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
-
-    def _memory_intervals(self, chromosome, start, end):
-        all_intervals = self._intervals[chromosome]
-        start_ix = bisect_right(all_intervals[0], start) - 1
-        end_ix = bisect_left(all_intervals[1], end)
-        return [(all_intervals[0][ix], all_intervals[1][ix], all_intervals[2][ix])
-                for ix in range(max(0, start_ix), min(len(all_intervals[0]), end_ix+1))]
-
-    def region_stats(self, region, bins=1, stat='mean'):
-        if isinstance(region, string_types):
-            region = GenomicRegion.from_string(region)
-
-        chroms = self.bw.chroms()
-        r_start = region.start - 1 if region.start is not None else 0
-        r_end = region.end if region.end is not None else chroms[region.chromosome]
-
-        return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
-
-    def intervals(self, chromosome, start=None, end=None, bins=None, bin_size=None,
-                  smoothing_window=None, nan_replacement=None, zero_to_nan=False):
-        chroms = self.chroms()
-        if isinstance(chromosome, string_types):
-            chromosome = GenomicRegion.from_string(chromosome)
-
-        if isinstance(chromosome, GenomicRegion):
-            if start is None:
-                start = chromosome.start - 1 if chromosome.start is not None else 0
-            if end is None:
-                end = chromosome.end if chromosome.end is not None else chroms[chromosome.chromosome]
-            chromosome = chromosome.chromosome
-
-        if self._intervals is None:
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                try:
-                    intervals = self.bw.intervals(chromosome, start, end)
-                except RuntimeError:
-                    logger.error("Invalid interval bounds? {}:{}-{}".format(chromosome, start, end))
-                    raise
-        else:
-            intervals = self._memory_intervals(chromosome, start, end)
-
-        if intervals is None:
-            intervals = ()
+        if raw_intervals is None:
+            raw_intervals = []
 
         if bins is None and bin_size is None:
-            return [(interval[0]+1, interval[1], interval[2]) for interval in intervals]
+            return raw_intervals
 
         if bins is not None:
-            return BigWig.bin_intervals(intervals, bins, interval_range=[start, end],
-                                        smoothing_window=smoothing_window, nan_replacement=nan_replacement,
-                                        zero_to_nan=zero_to_nan)
+            return RegionBased.bin_intervals(raw_intervals, bins,
+                                             interval_range=[region.start, region.end],
+                                             smoothing_window=smoothing_window,
+                                             nan_replacement=nan_replacement,
+                                             zero_to_nan=zero_to_nan)
 
         if bin_size is not None:
-            return BigWig.bin_intervals_equidistant(intervals, bin_size, interval_range=[start, end],
-                                                    smoothing_window=smoothing_window,
-                                                    nan_replacement=nan_replacement,
-                                                    zero_to_nan=zero_to_nan)
+            return RegionBased.bin_intervals_equidistant(raw_intervals, bin_size,
+                                                         interval_range=[region.start, region.end],
+                                                         smoothing_window=smoothing_window,
+                                                         nan_replacement=nan_replacement,
+                                                         zero_to_nan=zero_to_nan)
 
     @staticmethod
     def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None,
                       nan_replacement=None, zero_to_nan=False):
+        intervals = np.array(list(intervals))
 
         if interval_range is None:
-            if intervals is None or len(intervals) == 0:
+            try:
+                interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
+            except (IndexError, TypeError):
                 raise ValueError("intervals cannot be None or length 0 if not providing interval_range!")
-            interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
 
         bin_size = (interval_range[1] - interval_range[0] + 1) / bins
         logger.debug("Bin size: {}".format(bin_size))
 
-        return BigWig._bin_intervals_equidist(intervals, bin_size, interval_range, bins=bins,
-                                              smoothing_window=smoothing_window,
-                                              nan_replacement=nan_replacement,
-                                              zero_to_nan=zero_to_nan)
+        return RegionBased._bin_intervals_equidist(intervals, bin_size, interval_range, bins=bins,
+                                                   smoothing_window=smoothing_window,
+                                                   nan_replacement=nan_replacement,
+                                                   zero_to_nan=zero_to_nan)
 
     @staticmethod
     def bin_intervals_equidistant(intervals, bin_size, interval_range=None, smoothing_window=None,
                                   nan_replacement=None, zero_to_nan=False):
-        intervals = np.array(intervals)
+        intervals = np.array(list(intervals))
 
         if interval_range is None:
-            if intervals is None or len(intervals) == 0:
+            try:
+                interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
+            except (IndexError, TypeError):
                 raise ValueError("intervals cannot be None or length 0 if not providing interval_range!")
-            interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
 
         if isinstance(interval_range, GenomicRegion):
             interval_range = (interval_range.start, interval_range.end)
 
-        return BigWig._bin_intervals_equidist(intervals, bin_size, interval_range,
-                                              smoothing_window=smoothing_window,
-                                              nan_replacement=nan_replacement,
-                                              zero_to_nan=zero_to_nan)
+        return RegionBased._bin_intervals_equidist(intervals, bin_size, interval_range,
+                                                   smoothing_window=smoothing_window,
+                                                   nan_replacement=nan_replacement,
+                                                   zero_to_nan=zero_to_nan)
 
     @staticmethod
     def _bin_intervals_equidist(intervals, bin_size, interval_range, bins=None, smoothing_window=None,
@@ -756,28 +511,270 @@ class BigWig(object):
         return tuple((bin_coordinates[i][0], bin_coordinates[i][1], result[i]) for i in range(len(result)))
 
     def binned_values(self, region, bins, smoothing_window=None, zero_to_nan=False):
-        if isinstance(region, string_types):
-            region = GenomicRegion.from_string(region)
-        chroms = self.chroms()
-        chromosome = region.chromosome
-        start = region.start if region.start is not None else 1
-        end = region.end if region.end is not None else chroms[chromosome]
-        return BigWig.bin_intervals(self.intervals(chromosome, start, end),
-                                    bins, interval_range=(start, end),
-                                    smoothing_window=smoothing_window,
-                                    zero_to_nan=zero_to_nan)
+        region = self._convert_region(region)
+        return RegionBased.bin_intervals(self.intervals(region), bins,
+                                         interval_range=(region.start, region.end),
+                                         smoothing_window=smoothing_window,
+                                         zero_to_nan=zero_to_nan)
 
     def binned_values_equidistant(self, region, bin_size, smoothing_window=None, zero_to_nan=False):
+        region = self._convert_region(region)
+        return RegionBased.bin_intervals_equidistant(self.intervals(region), bin_size,
+                                                     interval_range=(region.start, region.end),
+                                                     smoothing_window=smoothing_window,
+                                                     zero_to_nan=zero_to_nan)
+
+    def to_bed(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as BED file
+        """
+        write_bed(file_name, self.regions(subset), **kwargs)
+
+    def to_gff(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as GFF file
+        """
+        write_gff(file_name, self.regions(subset), **kwargs)
+
+    def to_bigwig(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as BigWig file.
+        """
+        write_bigwig(file_name, self.regions(subset), mode='w', **kwargs)
+
+
+class Bed(pybedtools.BedTool, RegionBased):
+    """
+    Data type representing a BED file.
+
+    Only exists to support 'with' statements
+    """
+
+    def __init__(self, *args, **kwargs):
+        pybedtools.BedTool.__init__(self, *args, **kwargs)
+    
+    def __exit__(self, exec_type, exec_val, exec_tb):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def _region_iter(self, *args, **kwargs):
+        for interval in self.intervals:
+            yield self._interval_to_region(interval)
+
+    def _get_regions(self, item, *args, **kwargs):
+        if isinstance(item, string_types):
+            item = GenomicRegion.from_string(item)
+
+        if not isinstance(item, GenomicRegion):
+            intervals = pybedtools.BedTool.__getitem__(self, item)
+            if isinstance(intervals, pybedtools.Interval):
+                return self._interval_to_region(intervals)
+            elif isinstance(intervals, GenomicRegion):
+                return intervals
+            else:
+                regions = []
+                for interval in intervals:
+                    regions.append(self._interval_to_region(interval))
+                return regions
+
+        start = item.start if item.start is not None else 1
+
+        query_interval = pybedtools.cbedtools.Interval(chrom=item.chromosome,
+                                                       start=start,
+                                                       end=item.end)
+
+        regions = []
+        for interval in self.all_hits(query_interval):
+            region = self._interval_to_region(interval)
+            regions.append(region)
+        return regions
+
+    def _region_subset(self, region, *args, **kwargs):
+        for interval in self.filter(lambda i: i.chrom == region.chromosome
+                                        and i.start <= region.end
+                                        and i.end >= region.start):
+            yield self._interval_to_region(interval)
+
+    def _region_len(self):
+        return sum(1 for _ in self.intervals)
+
+    def _interval_to_region(self, interval):
+        try:
+            score = float(interval.score)
+        except (TypeError, ValueError):
+            score = None
+
+        if score is None:
+            if len(interval.fields) == 4:  # likely bedGraph!
+                try:
+                    score = float(interval.fields[3])
+                except ValueError:
+                    score = np.nan
+            else:
+                score = np.nan
+
+        if self.intervals.file_type == 'gff':
+            try:
+                attributes = {key: value for key, value in interval.attrs.items()}
+            except ValueError:
+                attributes = {}
+
+            attributes['chromosome'] = interval.chrom
+            attributes['start'] = interval.start
+            attributes['end'] = interval.end
+            attributes['strand'] = interval.strand
+            attributes['score'] = score
+            attributes['fields'] = interval.fields
+            attributes['source'] = interval.fields[1]
+            attributes['feature'] = interval.fields[2]
+            attributes['frame'] = interval.fields[7] if len(interval.fields) > 7 else '.'
+
+            region = GenomicRegion(**attributes)
+        else:
+            region = GenomicRegion(chromosome=interval.chrom, start=interval.start, end=interval.end,
+                                   strand=interval.strand, score=score, fields=interval.fields,
+                                   name=interval.name)
+        return region
+
+    def merge_overlapping(self, stat=_weighted_mean, sort=True):
+        if sort:
+            bed = self
+        else:
+            bed = self.sort()
+
+        current_intervals = []
+        for interval in bed:
+            if len(current_intervals) == 0 or (current_intervals[-1].start < interval.end and
+                                               current_intervals[-1].end > interval.start and
+                                               current_intervals[-1].chrom == interval.chrom):
+                current_intervals.append(interval)
+            else:
+                # merge
+                intervals = np.array([(current.start, current.end,
+                                       float(current.score) if current.score != '.' else np.nan)
+                                      for current in current_intervals])
+                merged_score = "{:0.6f}".format(stat(intervals))
+                merged_strand = current_intervals[0].strand
+                merged_start = min(intervals[:, 0])
+                merged_end = max(intervals[:, 1])
+                merged_chrom = current_intervals[0].chrom
+                merged_name = current_intervals[0].name
+                merged_interval = pybedtools.Interval(merged_chrom, merged_start, merged_end, name=merged_name,
+                                                      score=merged_score, strand=merged_strand)
+                current_intervals = [interval]
+                yield merged_interval
+
+
+class BigWig(RegionBased):
+    def __init__(self, bw):
+        RegionBased.__init__(self)
+        if isinstance(bw, string_types):
+            bw = pyBigWig.open(bw)
+        self.bw = bw
+        self.file_type = 'bw'
+        self._intervals = None
+
+    def __exit__(self, exec_type, exec_val, exec_tb):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def _region_iter(self, *args, **kwargs):
+        for chromosome, length in self.bw.chroms().items():
+            for start, end, score in self.bw.intervals(chromosome, 1, length):
+                yield GenomicRegion(chromosome=chromosome, start=start+1, end=end, score=score)
+
+    def _get_regions(self, item, *args, **kwargs):
+        if isinstance(item, string_types):
+            item = GenomicRegion.from_string(item)
+
+        if not isinstance(item, GenomicRegion):
+            return self.bw[item]
+
+        return self.subset(item)
+
+    def _region_subset(self, region, *args, **kwargs):
+        if isinstance(region, GenomicRegion):
+            regions = [region]
+        else:
+            regions = region
+
+        for r in regions:
+            for start, end, score in self.intervals(r):
+                yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
+
+    def _region_intervals(self, region, *args, **kwargs):
+        if self._intervals is None:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                try:
+                    intervals = self.bw.intervals(region.chromosome, region.start, region.end)
+                except RuntimeError:
+                    logger.error("Invalid interval bounds? {}".format(region))
+                    raise
+        else:
+            intervals = self._memory_intervals(region)
+
+        for interval in intervals:
+            yield (interval[0]+1, interval[1], interval[2])
+
+    def _region_len(self):
+        return sum(1 for _ in self.regions)
+
+    def chromosomes(self):
+        return list(self.bw.chroms().keys())
+
+    @property
+    def chromosome_lengths(self):
+        return self.bw.chroms()
+
+    def __getattr__(self, name):
+        try:
+            func = getattr(self.__dict__['bw'], name)
+            return func
+        except AttributeError:
+            if name == '__enter__':
+                return BigWig.__enter__
+            elif name == '__exit__':
+                return BigWig.__exit__
+            raise
+
+    def __getitem__(self, item):
+        return self._get_regions(item)
+
+    def load_intervals_into_memory(self):
+        self._intervals = dict()
+        for chromosome in self.bw.chroms().keys():
+            interval_starts = []
+            interval_ends = []
+            interval_values = []
+            for start, end, score in self.bw.intervals(chromosome):
+                interval_starts.append(start)
+                interval_ends.append(end)
+                interval_values.append(score)
+            self._intervals[chromosome] = (interval_starts,
+                                           interval_ends,
+                                           interval_values)
+
+    def _memory_intervals(self, region):
+        all_intervals = self._intervals[region.chromosome]
+        start_ix = bisect_right(all_intervals[0], region.start) - 1
+        end_ix = bisect_left(all_intervals[1], region.end)
+        return [(all_intervals[0][ix], all_intervals[1][ix], all_intervals[2][ix])
+                for ix in range(max(0, start_ix), min(len(all_intervals[0]), end_ix+1))]
+
+    def region_stats(self, region, bins=1, stat='mean'):
         if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
-        chroms = self.chroms()
-        chromosome = region.chromosome
-        start = region.start if region.start is not None else 1
-        end = region.end if region.end is not None else chroms[chromosome]
-        return BigWig.bin_intervals_equidistant(self.intervals(chromosome, start, end),
-                                                bin_size, interval_range=(start, end),
-                                                smoothing_window=smoothing_window,
-                                                zero_to_nan=zero_to_nan)
+
+        chroms = self.bw.chroms()
+        r_start = region.start - 1 if region.start is not None else 0
+        r_end = region.end if region.end is not None else chroms[region.chromosome]
+
+        return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
 
 
 class GenomicDataFrame(DataFrame):
@@ -1157,13 +1154,17 @@ class GenomicRegion(TableObject):
         return False
 
     def is_forward(self):
-        if self.strand == 1 or self.strand == '+' or self.strand == 0 or self.strand is None:
+        if self.strand == 1 or self.strand == '+' or self.strand == 0:
             return True
         return False
 
     @property
     def strand_string(self):
-        return '-' if self.is_reverse() else '+'
+        if self.is_forward():
+            return '+'
+        if self.is_reverse():
+            return '-'
+        return '.'
 
     @property
     def center(self):
@@ -1406,57 +1407,6 @@ class GenomicRegions(RegionBased):
 
     def bins_to_distance(self, bins):
         return self.bin_size*bins
-
-    def find_region(self, query_regions, _regions_dict=None, _region_ends=None, _chromosomes=None):
-        """
-        Find the region that is at the center of a region.
-
-        :param query_regions: Region selector string, :class:~GenomicRegion, or
-                              list of the former
-        :return: index (or list of indexes) of the region at the center of the
-                 query region
-        """
-        is_single = False
-        if isinstance(query_regions, string_types):
-            is_single = True
-            query_regions = [GenomicRegion.from_string(query_regions)]
-
-        if isinstance(query_regions, GenomicRegion):
-            is_single = True
-            query_regions = [query_regions]
-
-        if _regions_dict is None or _region_ends is None or _chromosomes is None:
-            regions_dict = defaultdict(list)
-            region_ends = defaultdict(list)
-            chromosomes = set()
-
-            for region in self.regions:
-                regions_dict[region.chromosome].append(region)
-                region_ends[region.chromosome].append(region.end)
-                chromosomes.add(region.chromosome)
-        else:
-            regions_dict = _regions_dict
-            region_ends = _region_ends
-            chromosomes = _chromosomes
-
-        hit_regions = []
-        for query_region in query_regions:
-            if isinstance(query_region, string_types):
-                query_region = GenomicRegion.from_string(query_region)
-
-            if query_region.chromosome not in chromosomes:
-                hit_regions.append(None)
-                continue
-
-            center = query_region.start + (query_region.end-query_region.start)/2
-            ix = bisect_left(region_ends[query_region.chromosome], center)
-            try:
-                hit_regions.append(regions_dict[query_region.chromosome][ix])
-            except IndexError:
-                hit_regions.append(None)
-        if is_single:
-            return hit_regions[0]
-        return hit_regions
 
 
 class RegionsTable(GenomicRegions, FileGroup):
