@@ -1458,8 +1458,8 @@ class RegionsTable(GenomicRegions, FileGroup):
         try:
             FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
         except TypeError:
-            logger.warn("RegionsTable is now a FileGroup-based object and "
-                        "this object will no longer be compatible in the future")
+            logger.warning("RegionsTable is now a FileGroup-based object and "
+                           "this object will no longer be compatible in the future")
 
         # check if this is an existing regions file
         try:
