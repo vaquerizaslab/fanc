@@ -67,7 +67,7 @@ def correct(hic, tolerance=1e-2, max_iterations=500, only_intra_chromosomal=Fals
 
         logger.info("Done.")
     else:
-        bias_vector = np.ones(len(hic.regions()), float)
+        bias_vector = np.ones(len(hic.regions), float)
         marginal_error = tolerance + 1
         current_iteration = 0
         logger.info("Starting iterations")

@@ -736,7 +736,7 @@ class RaoPeakCaller(PeakCaller):
         for i, chromosome in enumerate(hic.chromosomes()):
             chromosome_map[chromosome] = i
 
-        chromosomes = np.zeros(len(hic.regions()), dtype=int)
+        chromosomes = np.zeros(len(hic.regions), dtype=int)
         for i, region in enumerate(hic.regions(lazy=True)):
             chromosomes[i] = chromosome_map[region.chromosome]
         return chromosomes

@@ -936,6 +936,8 @@ class TestHicBasic:
         # check length
         original_length = len(self.hic.nodes())
         self.hic.merge(hic, _edge_buffer_size=5)
+        print(list(self.hic.regions))
+        print(list(hic.regions))
         assert len(self.hic.nodes()) == original_length + 5
         hic.close()
 

@@ -161,8 +161,6 @@ class RegionBased(object):
         _region_subset
     
     CAN (overide for potential speed benefits or added functionality):
-        __enter__
-        __exit__
         _region_len
         chromosomes
         chromosome_lens
@@ -186,12 +184,6 @@ class RegionBased(object):
 
     def __getitem__(self, item):
         return self._get_regions(item)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exec_type, exec_val, exec_tb):
-        pass
 
     def _region_len(self):
         return sum(1 for _ in self.regions)
@@ -238,11 +230,14 @@ class RegionBased(object):
         if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
 
-        if region.start is None:
-            region.start = 0
+        if isinstance(region, GenomicRegion):
+            if region.start is None:
+                region.start = 0
 
-        if region.end is None:
-            region.end = self.chromosome_lens[region.chromosome]
+            if region.end is None:
+                chromosome_lengths = self.chromosome_lengths
+                if region.chromosome in chromosome_lengths:
+                    region.end = chromosome_lengths[region.chromosome]
         return region
 
     def chromosomes(self):
@@ -2830,7 +2825,7 @@ class RegionPairs(Maskable, RegionsTable):
         return self._nodes_iter()
 
     def _nodes_iter(self):
-        return self.regions()
+        return self.regions
 
     @property
     def edges(self):
@@ -3934,7 +3929,7 @@ class RegionMatrixTable(RegionPairs):
             weight_column = self.default_field
 
         # prepare marginals dict
-        marginals = np.zeros(len(self.regions()), float)
+        marginals = np.zeros(len(self.regions), float)
 
         logger.debug("Calculating marginals...")
         with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
@@ -3951,7 +3946,7 @@ class RegionMatrixTable(RegionPairs):
         Get the mappability vector of this matrix.
         """
         # prepare marginals dict
-        mappable = np.zeros(len(self.regions()), dtype=bool)
+        mappable = np.zeros(len(self.regions), dtype=bool)
 
         logger.debug("Calculating mappability...")
 
@@ -4304,7 +4299,7 @@ class Hic(RegionMatrixTable):
                                          See :func:`~_edge_overlap_split_rao`
         """
         # if we do not have any nodes in this Hi-C object...
-        if len(self.regions()) == 0:
+        if len(self.regions) == 0:
             logger.info("Copying Hi-C")
             # ...simply import everything
             with RareUpdateProgressBar(max_value=len(hic.regions), silent=config.hide_progressbars) as pb:
@@ -4466,7 +4461,7 @@ class Hic(RegionMatrixTable):
             ix_conversion[region_counter] = region_counter
             region_counter += 1
 
-        if region_counter < len(hic.regions()):
+        if region_counter < len(hic.regions):
             identical = False
 
         if not identical:
@@ -4531,7 +4526,8 @@ class Hic(RegionMatrixTable):
                 logger.info("Merging {}".format(hic.file_name))
                 self._merge(hic, _edge_buffer_size=_edge_buffer_size)
         except TypeError:
-            logger.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
+            logger.error('{} is not a Hic object or an iterable'.format(hic_or_hics))
+            raise
 
         logger.info("Removing zero edges")
         self._remove_zero_edges(update_index=True)
@@ -4633,9 +4629,9 @@ class Hic(RegionMatrixTable):
         """
 
         if vector is not None:
-            if len(vector) != len(self.regions()):
+            if len(vector) != len(self.regions):
                 raise ValueError("Bias vector must be the same length as number of regions "
-                                 "(is: {}, should: {})".format(len(vector), len(self.regions())))
+                                 "(is: {}, should: {})".format(len(vector), len(self.regions)))
 
             # overwrite biases
             if len(self._node_annotations) == len(vector):
@@ -4931,7 +4927,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
             return Hic.load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao)
 
         # if we do not have any nodes in this Hi-C object...
-        if len(self.regions()) == 0:
+        if len(self.regions) == 0:
             logger.info("Copying Hi-C")
             self.add_regions(hic.regions)
             self.add_edges(hic.edges)
