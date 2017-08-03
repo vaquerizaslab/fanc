@@ -719,21 +719,23 @@ class VerticalSplitPlot(BasePlotter1D):
             self.parent_cax = self.cax
             self.top_plot.cax, self.bottom_plot.cax = self._add_split_ax(self.cax, self.cax_gap)
             self.cax.set_visible(False)
-        self.top_plot.plot(region, ax=self.top_ax)
-        self.bottom_plot.plot(region, ax=self.bottom_ax)
+        self.top_plot.ax = self.top_ax
+        self.top_plot.plot(region)
+        self.bottom_plot.ax = self.bottom_ax
+        self.bottom_plot.plot(region)
         self.bottom_ax.invert_yaxis()
         hide_axis(self.top_ax)
         hide_axis(self.bottom_ax)
 
-        if not hasattr(self.top_plot, 'colorbar') or self.top_plot.colorbar is None:
-            sns.despine(ax=self.top_plot.cax, top=True, left=True, bottom=True, right=True)
-            self.top_plot.cax.xaxis.set_visible(False)
-            self.top_plot.cax.yaxis.set_visible(False)
-
-        if not hasattr(self.bottom_plot, 'colorbar') or self.bottom_plot.colorbar is None:
-            sns.despine(ax=self.bottom_plot.cax, top=True, left=True, bottom=True, right=True)
-            self.bottom_plot.cax.xaxis.set_visible(False)
-            self.bottom_plot.cax.yaxis.set_visible(False)
+        # if not hasattr(self.top_plot, 'colorbar') or self.top_plot.colorbar is None:
+        #     sns.despine(ax=self.top_plot.cax, top=True, left=True, bottom=True, right=True)
+        #     self.top_plot.cax.xaxis.set_visible(False)
+        #     self.top_plot.cax.yaxis.set_visible(False)
+        #
+        # if not hasattr(self.bottom_plot, 'colorbar') or self.bottom_plot.colorbar is None:
+        #     sns.despine(ax=self.bottom_plot.cax, top=True, left=True, bottom=True, right=True)
+        #     self.bottom_plot.cax.xaxis.set_visible(False)
+        #     self.bottom_plot.cax.yaxis.set_visible(False)
 
     def _refresh(self, region):
         self.top_plot.refresh(region)
@@ -986,7 +988,7 @@ class BigWigPlot(ScalarDataPlot):
     def _line_values(self, region):
         for i, b in enumerate(self.bigwigs):
             if isinstance(b, kaic.Bed):
-                intervals = [(r.start, r.end, r.score) for r in b[region]]
+                intervals = [(r.start, r.end, r.score) for r in b.regions[region]]
             else:
                 intervals = b.intervals(region.chromosome, region.start - 1, region.end)
 
