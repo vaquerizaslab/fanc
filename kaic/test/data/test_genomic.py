@@ -3,7 +3,8 @@ import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao, \
     RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
-    AccessOptimisedRegionMatrixTable, AccessOptimisedHic
+    AccessOptimisedRegionMatrixTable, AccessOptimisedHic, Bed, BigWig
+from kaic.tools.files import write_bed, write_gff, write_bigwig
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
@@ -102,29 +103,7 @@ class TestGenome:
         genome.close()
 
 
-class TestGenomicRegions:
-    def setup_method(self, method):
-        chromosomes = [
-            {'name': 'chr1', 'end': 10000},
-            {'name': 'chr2', 'end': 15000},
-            {'name': 'chr3', 'end': 7000}
-        ]
-
-        regions = []
-        for chromosome in chromosomes:
-            for start in range(1, chromosome["end"] - 1000, 1000):
-                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
-        self.regions = GenomicRegions(regions)
-        self.empty_regions = GenomicRegions()
-
-    def test_get_item(self):
-        region = self.regions[0]
-        assert isinstance(region, GenomicRegion)
-        assert region.chromosome == 'chr1'
-        assert region.start == 1
-        assert region.end == 1000
-        assert region.strand is None
-
+class TestGenomicRegion:
     def test_from_string(self):
         region1 = GenomicRegion.from_string('chr1')
         assert region1.chromosome == 'chr1'
@@ -166,12 +145,25 @@ class TestGenomicRegions:
             # invalid strand
             GenomicRegion.from_string('chr1:0-4956:0')
 
+
+class RegionBasedTestFactory:
+    def setup_method(self, method):
+        self.regions = None
+        self.empty_regions = None
+
+    def test_get_item(self):
+        region = self.regions.regions[0]
+        assert isinstance(region, GenomicRegion)
+        assert region.chromosome == 'chr1'
+        assert region.start == 1
+        assert region.end == 1000
+        assert region.strand is None
+
     def test_len(self):
-        assert len(self.regions) == 29
         assert len(self.regions.regions) == 29
 
     def test_iter(self):
-        region_iter = self.regions
+        region_iter = self.regions.regions
 
         for i, region in enumerate(region_iter):
             start = 1 + i * 1000
@@ -203,6 +195,22 @@ class TestGenomicRegions:
         # this is essentially the same as region_bins
         intersect = self.regions.subset(GenomicRegion(chromosome='chr1', start=3400, end=8100))
         assert len(list(intersect)) == 6
+
+
+class TestGenomicRegions(RegionBasedTestFactory):
+    def setup_method(self, method):
+        chromosomes = [
+            {'name': 'chr1', 'end': 10000},
+            {'name': 'chr2', 'end': 15000},
+            {'name': 'chr3', 'end': 7000}
+        ]
+
+        regions = []
+        for chromosome in chromosomes:
+            for start in range(1, chromosome["end"] - 1000, 1000):
+                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
+        self.regions = GenomicRegions(regions)
+        self.empty_regions = GenomicRegions()
 
     def test_add_region(self):
         # GenomicRegion
@@ -267,6 +275,49 @@ class TestRegionsTable(TestGenomicRegions):
         assert self.empty_regions[2].chromosome == 'chr1'
         assert self.empty_regions[2].a == 0
         assert self.empty_regions[2].b == ''
+
+
+class TestBed(RegionBasedTestFactory):
+    @pytest.fixture(autouse=True)
+    def setup_method(self, tmpdir):
+        chromosomes = [
+            {'name': 'chr1', 'end': 10000},
+            {'name': 'chr2', 'end': 15000},
+            {'name': 'chr3', 'end': 7000}
+        ]
+
+        regions = []
+        for chromosome in chromosomes:
+            for start in range(1, chromosome["end"] - 1000, 1000):
+                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
+
+        bed_file = os.path.join(str(tmpdir), 'test.bed')
+        write_bed(bed_file, regions)
+
+        self.regions = Bed(bed_file)
+
+
+class TestBigWig(RegionBasedTestFactory):
+    @pytest.fixture(autouse=True)
+    def setup_method(self, tmpdir):
+        chromosomes = [
+            {'name': 'chr1', 'end': 10000},
+            {'name': 'chr2', 'end': 15000},
+            {'name': 'chr3', 'end': 7000}
+        ]
+
+        regions = []
+        for chromosome in chromosomes:
+            for start in range(1, chromosome["end"] - 1000, 1000):
+                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
+
+        bw_file = os.path.join(str(tmpdir), 'test.bw')
+        write_bigwig(bw_file, regions)
+
+        self.regions = BigWig(bw_file)
+
+    def test_get_item(self):
+        pass
 
 
 class TestRegionPairs:
