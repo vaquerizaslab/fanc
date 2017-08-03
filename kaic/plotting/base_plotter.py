@@ -583,13 +583,14 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
                 color_matrix[:, np.all(zero_mask, axis=0)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
         return color_matrix
 
-    def add_colorbar(self, ax=None, baseline=None):
+    def add_colorbar(self, ax=None, baseline=None, **kwargs):
         """
         Add colorbar to the plot.
 
         :param ax: Optional axis on which to draw the colorbar. Default: colorbar ax
         :param baseline: symmetric axis around this value. Asymmetric if None.
         """
+        kwargs.setdefault('orientation', 'vertical')
         if baseline is None and self.colorbar_symmetry is not None:
             baseline = self.colorbar_symmetry
 
@@ -598,8 +599,9 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
 
         cmap_data.set_array(np.array([self.vmin, self.vmax]))
-        self.colorbar = plt.colorbar(cmap_data, cax=ax, orientation="vertical")
+        self.colorbar = plt.colorbar(cmap_data, cax=ax, **kwargs)
         self.update_colorbar(vmin=self.vmin, vmax=self.vmax, baseline=baseline)
+        return self.colorbar
 
     def update_colorbar(self, vmin=None, vmax=None, baseline=None):
         if baseline is None and self.colorbar_symmetry is not None:
