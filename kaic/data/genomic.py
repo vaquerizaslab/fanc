@@ -1467,6 +1467,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
         strand = t.Int8Col(pos=4)
+        _mask_ix = t.Int32Col(pos=5)
 
     def __init__(self, regions=None, file_name=None, mode='a',
                  additional_fields=None, _table_name_regions='regions',
@@ -1653,8 +1654,14 @@ class RegionsTable(GenomicRegions, FileGroup):
                 value = row[name]
                 value = value.decode() if isinstance(value, bytes) else value
                 kwargs[name] = value
+
+        try:
+            mask_ix = row['_mask_ix']
+        except KeyError:
+            mask_ix = 0
+
         return GenomicRegion(chromosome=row["chromosome"].decode(), start=row["start"],
-                             end=row["end"], ix=row["ix"], **kwargs)
+                             end=row["end"], ix=row["ix"], _mask_ix=mask_ix, **kwargs)
 
     def _region_iter(self, lazy=False, auto_update=True, *args, **kwargs):
         for row in self._regions:
@@ -2544,19 +2551,25 @@ class RegionPairs(Maskable, RegionsTable):
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+    def flush(self, flush_nodes=True, flush_edges=True,
+              update_index=True, update_mappability=True):
         """
         Write data to file and flush buffers.
 
         :param flush_nodes: Flush nodes tables
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
+        :param update_mappability: Save mappability info for fast access
         """
         if flush_nodes:
             self._regions.flush()
 
         if flush_edges:
             self._edges.flush(update_index=update_index)
+
+        if update_mappability:
+            self.meta['has_mappability_info'] = False
+            self.mappable()
 
     def _edge_subset_rows(self, key, only_intrachromosomal=False):
         nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
@@ -2871,6 +2884,38 @@ class RegionPairs(Maskable, RegionsTable):
     def __len__(self):
         return len(self._edges)
 
+    def mappable(self):
+        """
+        Get the mappability vector of this matrix.
+        """
+        mappable = np.zeros(len(self.regions), dtype=bool)
+        # check if mappability info already exists
+        if 'has_mappability_info' in self.meta and self.meta['has_mappability_info']:
+            logger.debug("Retrieving precalculated mappability...")
+            for i, region in enumerate(self.regions(lazy=True)):
+                mappable[i] = region._mask_ix == 0
+            return mappable
+
+        # prepare marginals dict
+        logger.debug("Calculating mappability...")
+
+        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
+            for i, edge in enumerate(self.edges(lazy=True)):
+                mappable[edge.source] = True
+                mappable[edge.sink] = True
+                pb.update(i)
+
+        try:
+            for i, row in enumerate(self._regions):
+                row['_mask_ix'] = 0 if mappable[i] else 1
+                row.update()
+            self._regions.flush()
+            self.meta['has_mappability_info'] = True
+        except OSError:
+            pass
+
+        return mappable
+
 
 class AccessOptimisedRegionPairs(RegionPairs):
     """
@@ -3041,13 +3086,16 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 self.partitions.append(i)
             previous_chromosome = region.chromosome
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, silent=config.hide_progressbars):
+    def flush(self, flush_nodes=True, flush_edges=True,
+              update_index=True, update_mappability=True,
+              silent=config.hide_progressbars):
         """
         Write data to file and flush buffers.
 
         :param flush_nodes: Flush nodes tables
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
+        :param update_mappability: Save mappability info for fast access
         :param silent: do not print flush progress
         """
         if flush_nodes:
@@ -3062,6 +3110,10 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 for i, edge_table in enumerate(self._edges):
                     edge_table.flush(update_index=update_index, log_progress=False)
                     pb.update(i)
+
+        if update_mappability:
+            self.meta['has_mappability_info'] = False
+            self.mappable()
 
     def _get_field_dict(self, additional_fields=None):
         """
@@ -3492,7 +3544,8 @@ class RegionMatrixTable(RegionPairs):
                     self.default_field = field_name
                     break
 
-    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
+    def _flush_edge_buffer(self, e_buffer, replace=False,
+                           update_index=True, update_mappability=True,
                            clean_zero=True, default_column=None):
         if default_column is None:
             default_column = self.default_field
@@ -3512,7 +3565,7 @@ class RegionMatrixTable(RegionPairs):
                 except TypeError:
                     self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
                 del e_buffer[key]
-        self.flush(update_index=False)
+        self.flush(update_index=False, update_mappability=False)
 
         # flush remaining buffer
         for source, sink in e_buffer:
@@ -3527,7 +3580,7 @@ class RegionMatrixTable(RegionPairs):
             except TypeError:
                 self.add_edge(value, check_nodes_exist=False, flush=False)
 
-        self.flush(update_index=True)
+        self.flush(update_index=update_index, update_mappability=update_mappability)
         if clean_zero:
             self._remove_zero_edges(update_index=update_index, weight_column=default_column)
 
@@ -3594,7 +3647,8 @@ class RegionMatrixTable(RegionPairs):
         row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
         col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
 
-        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from, default_value=default_value)
+        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from,
+                             default_value=default_value)
 
         # select the correct output format
         # empty result: matrix
@@ -3869,7 +3923,8 @@ class RegionMatrixTable(RegionPairs):
             if key not in replacement_edges:
                 replacement_edges[key] = weight
 
-        self._flush_edge_buffer(replacement_edges, replace=True, clean_zero=clean_zero, default_column=weight_column)
+        self._flush_edge_buffer(replacement_edges, replace=True,
+                                clean_zero=clean_zero, default_column=weight_column)
 
     def _update_edge_weight(self, source, sink, weight, add=False, flush=True, weight_column=None):
         if weight_column is None:
@@ -3891,7 +3946,8 @@ class RegionMatrixTable(RegionPairs):
         if not value_set:
             self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=flush)
 
-    def _remove_zero_edges(self, flush=True, update_index=True, weight_column=None):
+    def _remove_zero_edges(self, flush=True, update_index=True,
+                           update_mappability=True, weight_column=None):
         if weight_column is None:
             weight_column = self.default_field
 
@@ -3906,7 +3962,7 @@ class RegionMatrixTable(RegionPairs):
             self._edges.remove_row(ix)
 
         if flush:
-            self.flush(update_index=update_index)
+            self.flush(update_index=update_index, update_mappability=update_mappability)
 
     def marginals(self, weight_column=None):
         """
@@ -3927,24 +3983,6 @@ class RegionMatrixTable(RegionPairs):
                 pb.update(i)
 
         return marginals
-
-    def mappable(self):
-        """
-        Get the mappability vector of this matrix.
-        """
-        # prepare marginals dict
-        mappable = np.zeros(len(self.regions), dtype=bool)
-
-        logger.debug("Calculating mappability...")
-
-        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
-            for i, edge in enumerate(self.edges(lazy=True)):
-                mappable[edge.source] = True
-                if edge.source != edge.sink:
-                    mappable[edge.sink] = True
-                pb.update(i)
-
-        return mappable
 
     def scaling_factor(self, matrix, weight_column=None):
         """
@@ -4052,7 +4090,8 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
         if default_field is None:
             self.default_field = self.field_names[2]
 
-    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
+    def _flush_edge_buffer(self, e_buffer, replace=False,
+                           update_index=True, update_mappability=True,
                            clean_zero=True, default_column=None):
         if default_column is None:
             default_column = self.default_field
@@ -4096,7 +4135,7 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
                         except TypeError:
                             self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
                         del e_buffer[key]
-                self.flush(update_index=False)
+                self.flush(update_index=False, update_mappability=False)
 
             try:
                 # noinspection PyCompatibility
@@ -4117,11 +4156,12 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
                 except TypeError:
                     self.add_edge(value, check_nodes_exist=False, flush=False)
 
-        self.flush(update_index=True)
+        self.flush(update_index=update_index, update_mappability=update_mappability)
         if clean_zero:
             self._remove_zero_edges(update_index=update_index, weight_column=default_column)
 
-    def _remove_zero_edges(self, flush=True, update_index=True, weight_column=None):
+    def _remove_zero_edges(self, flush=True, update_index=True,
+                           update_mappability=True, weight_column=None):
         if weight_column is None:
             weight_column = self.default_field
 
@@ -4137,7 +4177,7 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
                 edge_table.remove_row(ix)
 
         if flush:
-            self.flush(update_index=update_index)
+            self.flush(update_index=update_index, update_mappability=update_mappability)
 
 
 class Hic(RegionMatrixTable):
@@ -4486,10 +4526,12 @@ class Hic(RegionMatrixTable):
 
                 if len(edge_buffer) > _edge_buffer_size:
                     logger.info("Flushing buffer...")
-                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+                    self._flush_edge_buffer(edge_buffer, replace=False,
+                                            update_index=False, update_mappability=False)
                     edge_buffer = {}
         logger.info("Final flush...")
-        self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+        self._flush_edge_buffer(edge_buffer, replace=False,
+                                update_index=False, update_mappability=False)
 
     def merge(self, hic_or_hics, _edge_buffer_size=5000000):
         """
@@ -4517,9 +4559,10 @@ class Hic(RegionMatrixTable):
             raise
 
         logger.info("Removing zero edges")
-        self._remove_zero_edges(update_index=True)
+        self._remove_zero_edges(update_index=True, update_mappability=True)
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+    def flush(self, flush_nodes=True, flush_edges=True,
+              update_index=True, update_mappability=True):
         """
         Write data to file and flush buffers.
 
@@ -4527,7 +4570,8 @@ class Hic(RegionMatrixTable):
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
         """
-        RegionMatrixTable.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges, update_index=update_index)
+        RegionMatrixTable.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges,
+                                update_index=update_index, update_mappability=update_mappability)
         self._node_annotations.flush()
 
     def filter(self, edge_filter, queue=False, log_progress=False):
@@ -4642,10 +4686,10 @@ class Hic(RegionMatrixTable):
         return vector
 
     def mappable_regions(self):
-        marginals = self.marginals()
+        mappability = self.mappable()
         mappable = defaultdict(int)
         for i, region in enumerate(self.regions()):
-            if marginals[i] > 0:
+            if mappability[i]:
                 mappable[region.chromosome] += 1
         return mappable
 
@@ -4783,7 +4827,9 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         # add data
         self._add_data(data)
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, silent=False):
+    def flush(self, flush_nodes=True, flush_edges=True,
+              update_index=True, update_mappability=True,
+              silent=False):
         """
         Write data to file and flush buffers.
 
@@ -4791,8 +4837,8 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
         """
-        AccessOptimisedRegionMatrixTable.flush(self, flush_nodes=flush_nodes,
-                                               flush_edges=flush_edges, update_index=update_index,
+        AccessOptimisedRegionMatrixTable.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges,
+                                               update_index=update_index, update_mappability=update_mappability,
                                                silent=silent)
         self._node_annotations.flush()
 
@@ -4959,7 +5005,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
                             merged_row.append()
                         this_edge_table.flush(update_index=False)
 
-            self.flush(update_index=True)
+            self.flush(update_index=True, update_mappability=True)
             self.enable_indexes()
 
     def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
