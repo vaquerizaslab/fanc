@@ -3604,7 +3604,8 @@ class RegionMatrixTable(RegionPairs):
 
         self.flush(update_index=update_index, update_mappability=update_mappability)
         if clean_zero:
-            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
+            self._remove_zero_edges(update_index=update_index, update_mappability=update_mappability,
+                                    weight_column=default_column)
 
     def __getitem__(self, key):
         return self.as_matrix(key)
@@ -4180,7 +4181,8 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
 
         self.flush(update_index=update_index, update_mappability=update_mappability)
         if clean_zero:
-            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
+            self._remove_zero_edges(update_index=update_index, update_mappability=update_mappability,
+                                    weight_column=default_column)
 
     def _remove_zero_edges(self, flush=True, update_index=True,
                            update_mappability=True, weight_column=None):
