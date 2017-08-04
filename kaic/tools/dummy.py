@@ -53,7 +53,7 @@ def sample_hic_big(file_name=None, tmpdir=None):
     return hic
 
 
-def sample_fa_hic(file_name=None, tmpdir=None):
+def sample_fa_hic(file_name=None, zero_indices=set(), tmpdir=None):
     hic = AccessOptimisedHic(file_name=file_name, tmpdir=tmpdir, mode='w')
 
     # add some nodes (120 to be exact)
@@ -71,7 +71,8 @@ def sample_fa_hic(file_name=None, tmpdir=None):
     weight = 1
     for i in range(0, len(nodes)):
         for j in range(i, len(nodes)):
-            edges.append(Edge(source=i, sink=j, weight=weight))
+            if i not in zero_indices and j not in zero_indices:
+                edges.append(Edge(source=i, sink=j, weight=weight))
             weight += 1
 
     hic.add_edges(edges)
