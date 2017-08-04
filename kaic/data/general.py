@@ -134,6 +134,12 @@ class FileBased(with_metaclass(MetaFileBased, object)):
                 except KeyError:
                     return False
 
+            def keys(self):
+                return vars(self._meta_attributes).keys()
+
+            def values(self):
+                return vars(self._meta_attributes).values()
+
         # existing?
         try:
             meta_group = self.file.get_node('/' + self._meta_group_name)
