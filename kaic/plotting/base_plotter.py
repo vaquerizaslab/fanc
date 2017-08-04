@@ -674,10 +674,10 @@ class BasePlotter2D(BasePlotter):
     def _before_plot(self, region):
         x_region, y_region = region
         super(BasePlotter2D, self)._before_plot(x_region)
-        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region, minor_div=self.n_minor_ticks))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
-        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
+        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region, minor_div=self.n_minor_ticks))
         self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self.ax.set_xlim(x_region.start, x_region.end)
