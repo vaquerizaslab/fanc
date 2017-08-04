@@ -2240,7 +2240,7 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
                         matrix_expected[kth_diag_indices(shape, -1 * j)] = intra_expected[j]
 
             if cache_matrix:
-                chromosome_matrix = hic[chromosome, chromosome]
+                chromosome_matrix = hic.as_matrix((chromosome, chromosome), mask_missing=True)
                 offset = chromosome_bins[chromosome][0]
             else:
                 chromosome_matrix = hic

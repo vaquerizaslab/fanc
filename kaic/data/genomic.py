@@ -2930,8 +2930,8 @@ class RegionPairs(Maskable, RegionsTable):
                     row.update()
             self._regions.flush()
             self.meta['has_mappability_info'] = True
-        except (IOError, OSError):
-            pass
+        except (IOError, OSError, t.FileModeError):
+            logger.debug("Cannot write mappability info to read-only file")
 
         return mappable
 
