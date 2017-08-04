@@ -429,7 +429,7 @@ class LazyPeak(LazyEdge):
     """
     def __init__(self, row, nodes_table, auto_update=True, bin_size=1):
         super(LazyPeak, self).__init__(row, nodes_table, auto_update=auto_update)
-        self.reserved.append('bin_size')
+        self.reserved.add('bin_size')
         self.bin_size = bin_size
 
     def __getattr__(self, item):

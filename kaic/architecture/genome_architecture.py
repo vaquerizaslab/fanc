@@ -283,7 +283,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     def data_field_names(self):
         names = []
         for name in self._regions.colnames:
-            if name not in ("ix", "chromosome", "start", "end", "strand"):
+            if name not in ("ix", "chromosome", "start", "end", "strand", "_mask_ix"):
                 names.append(name)
         return names
 

@@ -1513,19 +1513,34 @@ class RegionsTable(GenomicRegions, FileGroup):
             else:
                 self._max_region_ix = -1
         except t.NoSuchNodeError:
-            basic_fields = RegionsTable.RegionDescription().columns.copy()
+            basic_fields = dict()
+            hidden_fields = dict()
+            for field, description in RegionsTable.RegionDescription().columns.copy().items():
+                if field.startswith('_'):
+                    hidden_fields[field] = description
+                else:
+                    basic_fields[field] = description
+
+            current = len(basic_fields)
             if additional_fields is not None:
                 if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
                     # IsDescription subclass case
                     additional_fields = additional_fields.columns
 
-                current = len(basic_fields)
-                for key, value in sorted(additional_fields.items(), key=lambda x: x[1]._v_pos if x[1]._v_pos is not None else 1):
+                # add additional user-defined fields
+                for key, value in sorted(additional_fields.items(),
+                                         key=lambda x: x[1]._v_pos if x[1]._v_pos is not None else 1):
                     if key not in basic_fields:
-                        if value._v_pos is not None:
-                            value._v_pos = current
-                            current += 1
+                        value._v_pos = current
+                        current += 1
                         basic_fields[key] = value
+            # add hidden fields
+            for key, value in sorted(hidden_fields.items(),
+                                     key=lambda x: x[1]._v_pos if x[1]._v_pos is not None else 1):
+                value._v_pos = current
+                current += 1
+                basic_fields[key] = value
+
             self._regions = t.Table(self._group, 'regions', basic_fields)
             self._max_region_ix = -1
 
@@ -1612,7 +1627,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         if _log:
             pb.finish()
 
-        self.flush()
+        self._regions.flush()
         self._update_references()
 
     def data(self, key, value=None):
@@ -1657,7 +1672,7 @@ class RegionsTable(GenomicRegions, FileGroup):
 
         try:
             mask_ix = row['_mask_ix']
-        except KeyError:
+        except (KeyError, ValueError):
             mask_ix = 0
 
         return GenomicRegion(chromosome=row["chromosome"].decode(), start=row["start"],
@@ -3114,6 +3129,10 @@ class AccessOptimisedRegionPairs(RegionPairs):
         if update_mappability:
             self.meta['has_mappability_info'] = False
             self.mappable()
+
+    def add_regions(self, regions):
+        super(AccessOptimisedRegionPairs, self).add_regions(regions)
+        self._update_partitions()
 
     def _get_field_dict(self, additional_fields=None):
         """
