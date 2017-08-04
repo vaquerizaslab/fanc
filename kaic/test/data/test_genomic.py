@@ -3,7 +3,7 @@ import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao, \
     RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
-    AccessOptimisedRegionMatrixTable, AccessOptimisedHic, Bed, BigWig
+    AccessOptimisedRegionMatrixTable, AccessOptimisedHic, Bed, BigWig, Tabix
 from kaic.tools.files import write_bed, write_gff, write_bigwig
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
@@ -315,6 +315,33 @@ class TestBigWig(RegionBasedTestFactory):
         write_bigwig(bw_file, regions)
 
         self.regions = BigWig(bw_file)
+
+    def test_get_item(self):
+        pass
+
+
+class TestTabix(RegionBasedTestFactory):
+    @pytest.fixture(autouse=True)
+    def setup_method(self, tmpdir):
+        chromosomes = [
+            {'name': 'chr1', 'end': 10000},
+            {'name': 'chr2', 'end': 15000},
+            {'name': 'chr3', 'end': 7000}
+        ]
+
+        regions = []
+        for chromosome in chromosomes:
+            for start in range(1, chromosome["end"] - 1000, 1000):
+                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
+
+        bed_file = os.path.join(str(tmpdir), 'test.bed')
+        write_bed(bed_file, regions)
+        bed = Bed(bed_file)
+        bed.tabix()
+
+        tabix_file = os.path.join(str(tmpdir), 'test.bed.gz')
+
+        self.regions = Tabix(tabix_file)
 
     def test_get_item(self):
         pass

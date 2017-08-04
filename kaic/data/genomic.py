@@ -777,6 +777,50 @@ class BigWig(RegionBased):
         return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
 
 
+class Tabix(RegionBased):
+    def __init__(self, file_name, preset=None, _tabix_path='tabix'):
+        RegionBased.__init__(self)
+        self._file_name = file_name
+        self._tabix_path = _tabix_path
+        self._base_command = [_tabix_path]
+        if preset is not None:
+            self._base_command += ['-p', preset]
+
+    def _extract_lines(self, region_string):
+        region_command = self._base_command + [self._file_name, region_string]
+        tp = subprocess.Popen(region_command, stdout=subprocess.PIPE, universal_newlines=True)
+        for line in tp.stdout:
+            yield line.rstrip().split("\t")
+
+    def _region_iter(self, *args, **kwargs):
+        for chromosome in self.chromosomes():
+            for fields in self._extract_lines(chromosome):
+                yield self._fields_to_region(fields)
+
+    def _region_subset(self, region, *args, **kwargs):
+        region_string = "{}:{}-{}".format(region.chromosome, region.start, region.end)
+        return self._extract_lines(region_string)
+
+    def _fields_to_region(self, fields):
+        return GenomicRegion(chromosome=fields[0], start=int(fields[1]), end=int(fields[2]))
+
+    def chromosomes(self):
+        chromosomes_command = self._base_command + ['-l', self._file_name]
+        tp = subprocess.Popen(chromosomes_command, stdout=subprocess.PIPE,
+                              universal_newlines=True)
+        chromosomes = []
+        for line in tp.stdout:
+            chromosomes.append(line.rstrip())
+        return chromosomes
+
+    @staticmethod
+    def to_tabix(file_name, preset=None, _tabix_path='tabix'):
+        tabix_command = [_tabix_path]
+        if preset is not None:
+            tabix_command += ['-p', preset]
+        tabix_command += file_name
+
+
 class GenomicDataFrame(DataFrame):
     @property
     def regions(self):
@@ -1242,13 +1286,6 @@ class GenomicRegion(TableObject):
                                                            self.end, score,
                                                            self.strand_string, frame,
                                                            group)
-
-
-class BedElement(GenomicRegion):
-    def __init__(self, chromosome, start, end, **kwargs):
-        super(BedElement, self).__init__(start, end, chromosome)
-        for key, value in kwargs.items():
-            setattr(self, key, value)
 
 
 class LazyGenomicRegion(GenomicRegion):
