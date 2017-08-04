@@ -2925,11 +2925,12 @@ class RegionPairs(Maskable, RegionsTable):
 
         try:
             for i, row in enumerate(self._regions):
-                row['_mask_ix'] = 0 if mappable[i] else 1
-                row.update()
+                if not mappable[i]:
+                    row['_mask_ix'] = 1
+                    row.update()
             self._regions.flush()
             self.meta['has_mappability_info'] = True
-        except OSError:
+        except (IOError, OSError):
             pass
 
         return mappable
