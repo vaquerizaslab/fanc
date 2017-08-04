@@ -685,7 +685,7 @@ class BigWig(RegionBased):
 
     def _region_iter(self, *args, **kwargs):
         chromosome_lengths = self.chromosome_lengths
-        chromosomes = natural_sort(list(chromosome_lengths.keys()))
+        chromosomes = self.chromosomes()
         for chromosome in chromosomes:
             for start, end, score in self.bw.intervals(chromosome, 1, chromosome_lengths[chromosome]):
                 yield GenomicRegion(chromosome=chromosome, start=start+1, end=end, score=score)
@@ -728,7 +728,7 @@ class BigWig(RegionBased):
         return sum(1 for _ in self.regions)
 
     def chromosomes(self):
-        return list(self.bw.chroms().keys())
+        return natural_sort(list(self.chromosome_lengths.keys()))
 
     @property
     def chromosome_lengths(self):
