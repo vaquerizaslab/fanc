@@ -5,6 +5,7 @@ from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
     RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
     AccessOptimisedRegionMatrixTable, AccessOptimisedHic, Bed, BigWig, Tabix
 from kaic.tools.files import write_bed, write_gff, write_bigwig
+from kaic.tools.general import which
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
@@ -320,6 +321,7 @@ class TestBigWig(RegionBasedTestFactory):
         pass
 
 
+@pytest.mark.skipif(which('tabix') is None, reason="Cannot find tabix in PATH")
 class TestTabix(RegionBasedTestFactory):
     @pytest.fixture(autouse=True)
     def setup_method(self, tmpdir):
