@@ -80,6 +80,31 @@ def sample_fa_hic(file_name=None, zero_indices=set(), tmpdir=None):
     return hic
 
 
+def sample_homogenous_hic(file_name=None, fill_value=1.0, zero_indices=set(), tmpdir=None):
+    hic = AccessOptimisedHic(file_name=file_name, tmpdir=tmpdir, mode='w')
+
+    # add some nodes (120 to be exact)
+    nodes = []
+    for i in range(1, 50000, 1000):
+        nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+    for i in range(1, 30000, 1000):
+        nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+    for i in range(1, 20000, 500):
+        nodes.append(Node(chromosome="chr3", start=i, end=i + 1000 - 1))
+    hic.add_nodes(nodes)
+
+    # add some edges with increasing weight for testing
+    edges = []
+    for i in range(0, len(nodes)):
+        for j in range(i, len(nodes)):
+            if i not in zero_indices and j not in zero_indices:
+                edges.append(Edge(source=i, sink=j, weight=fill_value))
+
+    hic.add_edges(edges)
+
+    return hic
+
+
 def sample_hic_matrix1(file_name=None, tmpdir=None):
     #     0 1 2 3 4 5 6 7 8 9
     #   #####################
