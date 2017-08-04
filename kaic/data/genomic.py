@@ -66,6 +66,7 @@ import numpy as np
 import pybedtools
 from kaic.tools.files import is_fasta_file, write_bigwig, write_bed, write_gff
 from kaic.tools.matrix import apply_sliding_func
+from kaic.tools.general import natural_sort
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
@@ -683,8 +684,10 @@ class BigWig(RegionBased):
         return self
 
     def _region_iter(self, *args, **kwargs):
-        for chromosome, length in self.bw.chroms().items():
-            for start, end, score in self.bw.intervals(chromosome, 1, length):
+        chromosome_lengths = self.chromosome_lengths
+        chromosomes = natural_sort(list(chromosome_lengths.keys()))
+        for chromosome in chromosomes:
+            for start, end, score in self.bw.intervals(chromosome, 1, chromosome_lengths[chromosome]):
                 yield GenomicRegion(chromosome=chromosome, start=start+1, end=end, score=score)
 
     def _get_regions(self, item, *args, **kwargs):

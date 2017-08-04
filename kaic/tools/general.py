@@ -3,6 +3,7 @@ import random
 import collections
 import progressbar
 import tables as t
+import re
 import os
 import errno
 from builtins import object
@@ -208,6 +209,12 @@ def human_format(num, precision=0):
         num /= 1000.0
     # add more suffixes if you need them
     return '{:.{prec}f}{}'.format(num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude], prec=precision)
+
+
+def natural_sort(l):
+    def convert(text):
+        return int(text) if text.isdigit() else text.lower()
+    return sorted(l, key=lambda key: [convert(c) for c in re.split('([0-9]+)', key)])
 
 
 class RareUpdateProgressBar(progressbar.ProgressBar):
