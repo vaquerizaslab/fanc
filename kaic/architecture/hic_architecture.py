@@ -2196,7 +2196,8 @@ class MetaRegionAverage(MetaMatrixBase):
         return self.meta_matrix[:]
 
 
-def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, silent=False):
+def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, silent=False,
+                      _mappable=None):
     """
     Construct a matrix by superimposing subsets of the Hi-C matrix from different regions.
 
@@ -2224,6 +2225,7 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
 
     cmatrix = np.zeros((shape, shape))
     counter = 0
+    counter_matrix = np.zeros((shape, shape))
     with RareUpdateProgressBar(max_value=len(regions), silent=silent) as pb:
         i = 0
         for chromosome, chromosome_regions in regions_by_chromosome.items():
@@ -2240,7 +2242,8 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
                         matrix_expected[kth_diag_indices(shape, -1 * j)] = intra_expected[j]
 
             if cache_matrix:
-                chromosome_matrix = hic.as_matrix((chromosome, chromosome), mask_missing=True)
+                chromosome_matrix = hic.as_matrix((chromosome, chromosome), mask_missing=True,
+                                                  _mappable=_mappable)
                 offset = chromosome_bins[chromosome][0]
             else:
                 chromosome_matrix = hic
@@ -2256,20 +2259,26 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
                     continue
                 center_bin -= offset
 
-                matrix = chromosome_matrix[center_bin-bins_half:center_bin+bins_half+1,
-                                           center_bin-bins_half:center_bin+bins_half+1]
+                s = slice(center_bin-bins_half, center_bin+bins_half+1)
+                if cache_matrix:
+                    matrix = chromosome_matrix[s, s]
+                else:
+                    matrix = chromosome_matrix.as_matrix((s, s), mask_missing=True,
+                                                         _mappable=_mappable)
 
                 if matrix.shape[0] != matrix.shape[1] or matrix.shape[0] != shape:
                     continue
 
                 cmatrix += matrix / matrix_expected
+                inverted_mask = ~matrix.mask
+                counter_matrix += inverted_mask.astype('int')
                 counter += 1
                 pb.update(i)
 
     if counter is None:
         raise ValueError("No valid regions found!")
 
-    cmatrix /= counter
+    cmatrix /= counter_matrix
 
     if norm:
         cmatrix = np.log2(cmatrix)

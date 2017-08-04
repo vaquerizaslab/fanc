@@ -3612,7 +3612,7 @@ class RegionMatrixTable(RegionPairs):
         return self.as_matrix(key)
 
     def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False,
-                  default_value=None, impute_missing=False):
+                  default_value=None, impute_missing=False, _mappable=None):
         """
         Get a chunk of the matrix.
 
@@ -3691,7 +3691,10 @@ class RegionMatrixTable(RegionPairs):
 
         if rm is not None:
             if mask_missing or impute_missing:
-                mappable = self.mappable()
+                if _mappable is None:
+                    mappable = self.mappable()
+                else:
+                    mappable = _mappable
                 mask = np.zeros(m.shape, dtype=bool)
                 current_row = 0
                 for row_range in row_ranges:
