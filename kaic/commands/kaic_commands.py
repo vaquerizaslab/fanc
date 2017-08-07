@@ -285,8 +285,8 @@ def map_parser():
     parser.add_argument(
         '-b', '--batch-size', dest='batch_size',
         type=int,
-        default=1000000,
-        help='''Number of reads processed (mapped and merged) in one go.'''
+        default=20000,
+        help='''Number of reads processed (mapped and merged) in one go per worker.'''
     )
 
     parser.add_argument(
@@ -364,6 +364,7 @@ def map(argv):
     else:
         additional_arguments = []
 
+    index_dir = None
     try:
         if tmp:
             tmp=False
@@ -372,7 +373,7 @@ def map(argv):
             for file_name in glob.glob(index_path + '*.bt2'):
                 shutil.copy(file_name, index_dir)
             index_path = os.path.join(index_dir, index_base)
-            tmp=True
+            tmp = True
 
         if iterative:
             mapper = map.Bowtie2Mapper(index_path, min_quality=min_quality,
@@ -393,8 +394,8 @@ def map(argv):
                 output_file = output_folder + basename + '.bam'
 
             if not args.split_fastq:
+                original_output_file = output_file
                 try:
-                    original_output_file = output_file
                     if tmp:
                         tmp = False
                         input_file = create_temporary_copy(input_file)
@@ -455,7 +456,7 @@ def map(argv):
                     shutil.rmtree(split_tmpdir)
     finally:
         if tmp:
-            shutil.rmtree(index_path)
+            shutil.rmtree(index_dir)
 
 
 def iterative_mapping_parser():
