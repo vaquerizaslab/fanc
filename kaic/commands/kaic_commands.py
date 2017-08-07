@@ -232,6 +232,232 @@ def auto(argv):
     return kaic.commands.auto.auto(argv)
 
 
+def map_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic map",
+        description='Map reads in a FASTQ file to a reference genome'
+    )
+
+    parser.add_argument(
+        'input',
+        nargs='+',
+        help='''File name of the input FASTQ file (or gzipped FASTQ)'''
+    )
+
+    parser.add_argument(
+        'index',
+        help='''Bowtie 2 genome index'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output file name (or folder name if multiple input files provided)'''
+    )
+
+    parser.add_argument(
+        '-m', '--min-size', dest='min_size',
+        type=int,
+        default=30,
+        help='''Minimum length of read before extension. Default 25.'''
+    )
+
+    parser.add_argument(
+        '-s', '--step-size', dest='step_size',
+        type=int,
+        default=5,
+        help='''Number of base pairs to extend at each round of mapping. Default is 2.'''
+    )
+
+    parser.add_argument(
+        '-t', '--threads', dest='threads',
+        type=int,
+        default=1,
+        help='''Number of threads used for mapping'''
+    )
+
+    parser.add_argument(
+        '-q', '--quality', dest='quality',
+        type=int,
+        default=30,
+        help='''Mapping quality cutoff for reads to be sent to another iteration'''
+    )
+
+    parser.add_argument(
+        '-b', '--batch-size', dest='batch_size',
+        type=int,
+        default=1000000,
+        help='''Number of reads processed (mapped and merged) in one go.'''
+    )
+
+    parser.add_argument(
+        '--bowtie-parallel', dest='bowtie_parallel',
+        action='store_true',
+        help='''Use bowtie parallelisation rather than spawning multiple Bowtie2 processes.
+                This is slower, but consumes a lot less memory.'''
+    )
+    parser.set_defaults(bowtie_parallel=False)
+
+    parser.add_argument(
+        '--split-fastq', dest='split_fastq',
+        action='store_true',
+        help='''Split FASTQ file into 10M chunks before mapping. Easier on tmp partitions.'''
+    )
+    parser.set_defaults(split_fastq=False)
+
+    parser.add_argument(
+        '--no-memory-map', dest='memory_map',
+        action='store_false',
+        help='''Do not map Bowtie2 index to memory. Only enable if you know what you are doing.'''
+    )
+    parser.set_defaults(memory_map=True)
+
+    parser.add_argument(
+        '--simple', dest='iterative',
+        action='store_false',
+        help='''Do not use iterative strategy (much faster, less sensitive).'''
+    )
+    parser.set_defaults(iterative=True)
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def map(argv):
+    parser = map_parser()
+    args = parser.parse_args(argv[2:])
+
+    # check arguments
+    input_files = args.input
+    index_path = os.path.expanduser(args.index)
+    output_folder = os.path.expanduser(args.output)
+
+    step_size = args.step_size
+    min_size = args.min_size
+    batch_size = args.batch_size
+    min_quality = args.quality
+    bowtie_parallel = args.bowtie_parallel
+    memory_map = args.memory_map
+    iterative = args.iterative
+    tmp = args.tmp
+
+    if bowtie_parallel:
+        threads, bowtie_threads = 1, args.threads
+    else:
+        threads, bowtie_threads = args.threads, 1
+
+    import kaic.mapping.map as map
+    from kaic.tools.general import mkdir
+    from kaic.tools.files import create_temporary_copy
+    import subprocess
+    import tempfile
+    import shutil
+    import glob
+
+    if memory_map:
+        additional_arguments = ['--mm']
+    else:
+        additional_arguments = []
+
+    try:
+        if tmp:
+            tmp=False
+            index_dir = tempfile.mkdtemp()
+            index_base = os.path.basename(index_path)
+            for file_name in glob.glob(index_path + '*.bt2'):
+                shutil.copy(file_name, index_dir)
+            index_path = os.path.join(index_dir, index_base)
+            tmp=True
+
+        if iterative:
+            mapper = map.Bowtie2Mapper(index_path, min_quality=min_quality,
+                                       additional_arguments=additional_arguments,
+                                       threads=bowtie_threads)
+        else:
+            mapper = map.SimpleBowtie2Mapper(index_path, min_quality=min_quality,
+                                             additional_arguments=additional_arguments,
+                                             threads=bowtie_threads)
+
+        for input_file in input_files:
+            input_file = os.path.expanduser(input_file)
+            if len(args.input) == 1 and not os.path.isdir(output_folder):
+                output_file = output_folder
+            else:
+                output_folder = mkdir(output_folder)
+                basename, extension = os.path.splitext(os.path.basename(input_file))
+                output_file = output_folder + basename + '.bam'
+
+            if not args.split_fastq:
+                try:
+                    original_output_file = output_file
+                    if tmp:
+                        tmp = False
+                        input_file = create_temporary_copy(input_file)
+                        tmp_file = tempfile.NamedTemporaryFile(suffix=os.path.splitext(output_file)[1],
+                                                               prefix='kaic_', delete=False)
+                        tmp_file_name = tmp_file.name
+                        output_file = tmp_file_name
+                        tmp = True
+
+                    map.iterative_mapping(input_file, output_file, mapper, threads=threads,
+                                          min_size=min_size, step_size=step_size, batch_size=batch_size,
+                                          header_timeout=1800, max_queue_size=20000)
+                finally:
+                    if tmp:
+                        os.remove(input_file)
+                        shutil.copy(output_file, original_output_file)
+                        os.remove(output_file)
+            else:
+                from kaic.tools.files import split_fastq, merge_sam, gzip_splitext
+
+                logger.info("Splitting FASTQ files for mapping")
+                if os.path.isdir(output_folder):
+                    split_tmpdir = tempfile.mkdtemp(dir=output_folder)
+                else:
+                    split_tmpdir = tempfile.mkdtemp(dir=os.path.dirname(output_folder))
+                try:
+                    split_fastq_tmpdir = mkdir(os.path.join(split_tmpdir, 'fastq'))
+                    split_sam_tmpdir = mkdir(os.path.join(split_tmpdir, 'sam'))
+                    split_bam_files = []
+                    split_fastq_results = []
+                    for split_file in split_fastq(input_file, split_fastq_tmpdir):
+                        basename = os.path.basename(gzip_splitext(split_file)[0])
+                        split_bam_file = split_sam_tmpdir + '/{}.bam'.format(basename)
+                        split_bam_files.append(split_bam_file)
+
+                        split_command = ['kaic', 'map', split_file, index_path, split_bam_file,
+                                         '-m', str(min_size), '-s', str(step_size), '-t', str(threads),
+                                         '-q', str(args.quality), '-b', str(batch_size)]
+                        if not iterative:
+                            split_command += ['--simple']
+                        if tmp:
+                            split_command += ['-tmp']
+                        if bowtie_parallel:
+                            split_command += ['--bowtie-parallel']
+                        if not memory_map:
+                            split_command += ['--no-memory-map']
+
+                        rt = subprocess.call(split_command)
+                        split_fastq_results.append(rt)
+
+                    for rt in split_fastq_results:
+                        if rt != 0:
+                            raise RuntimeError("Bowtie mapping had non-zero exit status")
+
+                    logger.info("Merging BAM files into {}".format(output_file))
+                    merge_sam(split_bam_files, output_file, tmp=args.copy)
+                finally:
+                    shutil.rmtree(split_tmpdir)
+    finally:
+        if tmp:
+            shutil.rmtree(index_path)
+
+
 def iterative_mapping_parser():
     parser = argparse.ArgumentParser(
         prog="kaic iterative_mapping",
