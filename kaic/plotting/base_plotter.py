@@ -731,6 +731,8 @@ class BasePlotter2D(BasePlotter):
         self._current_chromosome_x = x_region.chromosome
         self._current_chromosome_y = y_region.chromosome
 
+        if self.ax is None:
+            self.ax = plt.gca()
         self._before_plot((x_region, y_region))
         plot_output = self._plot((x_region, y_region))
         self._after_plot((x_region, y_region))
