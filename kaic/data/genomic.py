@@ -422,6 +422,9 @@ class RegionBased(object):
     @staticmethod
     def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None,
                       nan_replacement=None, zero_to_nan=False):
+        if intervals is None:
+            return []
+
         intervals = np.array(list(intervals))
 
         if interval_range is None:
@@ -441,6 +444,9 @@ class RegionBased(object):
     @staticmethod
     def bin_intervals_equidistant(intervals, bin_size, interval_range=None, smoothing_window=None,
                                   nan_replacement=None, zero_to_nan=False):
+        if intervals is None:
+            return []
+
         intervals = np.array(list(intervals))
 
         if interval_range is None:
@@ -744,8 +750,9 @@ class BigWig(RegionBased):
         else:
             intervals = self._memory_intervals(region)
 
-        for interval in intervals:
-            yield (interval[0]+1, interval[1], interval[2])
+        if intervals is not None:
+            for interval in intervals:
+                yield (interval[0]+1, interval[1], interval[2])
 
     def _region_len(self):
         return sum(1 for _ in self.regions)
