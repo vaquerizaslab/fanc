@@ -1,4 +1,5 @@
 import os
+from Cython.Build import cythonize
 from setuptools import setup, find_packages, Command
 
 __version__ = None
@@ -27,7 +28,9 @@ setup(
     description='Hi-C data analysis tools.',
     packages=find_packages(),
     package_data={'kaic': ['test/data/*/*']},
+    ext_modules=cythonize("construct/seq_helpers.pyx"),
     install_requires=[
+        'cython',
         'numpy>=1.8.0',
         'scipy',
         'matplotlib',
