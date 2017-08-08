@@ -396,6 +396,29 @@ class RegionBased(object):
                                                          nan_replacement=nan_replacement,
                                                          zero_to_nan=zero_to_nan)
 
+    def binned_regions(self, region=None, bins=None, bin_size=None, smoothing_window=None,
+                       nan_replacement=None, zero_to_nan=False, *args, **kwargs):
+        region = self._convert_region(region)
+        br = []
+        if region is None:
+            for chromosome in self.chromosomes():
+                interval_bins = self.intervals(chromosome, bins=bins, bin_size=bin_size,
+                                               smoothing_window=smoothing_window,
+                                               nan_replacement=nan_replacement,
+                                               zero_to_nan=zero_to_nan, *args, **kwargs)
+                br += [GenomicRegion(chromosome=chromosome, start=interval_bin[0],
+                                     end=interval_bin[1], score=interval_bin[2])
+                       for interval_bin in interval_bins]
+        else:
+            interval_bins = self.intervals(region, bins=bins, bin_size=bin_size,
+                                           smoothing_window=smoothing_window,
+                                           nan_replacement=nan_replacement,
+                                           zero_to_nan=zero_to_nan, *args, **kwargs)
+            br += [GenomicRegion(chromosome=region.chromosome, start=interval_bin[0],
+                                 end=interval_bin[1], score=interval_bin[2])
+                   for interval_bin in interval_bins]
+        return br
+
     @staticmethod
     def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None,
                       nan_replacement=None, zero_to_nan=False):
