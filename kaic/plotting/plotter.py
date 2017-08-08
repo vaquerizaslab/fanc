@@ -240,10 +240,10 @@ class HighlightAnnotation(BaseAnnotation):
     Useful for highlighting specific regions across multiple
     panels of figures.
     """
+
     def __init__(self, bed, plot1=None, plot2=None, plot_kwargs=None,
                  **kwargs):
         """
-
         :param bed: Anything pybedtools can parse. Path to BED-file
                     GTF-file, or a list of tuples [(chr, start, end), ...]
                     If features are 1bp long, lines are drawn. If they
@@ -266,7 +266,9 @@ class HighlightAnnotation(BaseAnnotation):
         if plot_kwargs is not None:
             self.plot_kwargs.update(plot_kwargs)
         self.bedtool = bed
-        if not isinstance(bed, pbt.BedTool):
+        if isinstance(bed, list):
+            self.bedtool = pbt.BedTool(bed).saveas()
+        elif not isinstance(bed, pbt.BedTool):
             self.bedtool = kaic.load(bed)
         self.plot1 = plot1
         self.plot2 = plot2
