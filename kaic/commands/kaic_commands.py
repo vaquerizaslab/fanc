@@ -3381,6 +3381,7 @@ def ii_to_bw(argv):
         window_sizes = ii.window_sizes
 
     for window_size in window_sizes:
+        logger.info("Window size {}".format(window_size))
         output_file = os.path.join(output, prefix + '_{}.bw'.format(window_size)) if len(window_sizes) > 1 else output
         ii.to_bigwig(output_file, subset=region, score_field='ii_{}'.format(window_size))
     ii.close()
