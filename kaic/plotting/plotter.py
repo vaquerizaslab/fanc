@@ -860,7 +860,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         width = []
         colors = []
         annotations = []
-        for f in self.regions[region]:
+        for f in self.regions.regions(region):
             if self.feature_types is not None:
                 try:
                     if not f[2] in self.feature_types:
@@ -1370,9 +1370,8 @@ class FeatureLayerPlot(BasePlotter1D):
         self.exclude = set(exclude) if exclude is not None else None
 
     def _plot_elements(self, region):
-        elements = self.features[region]
         groups = defaultdict(list)
-        for element in elements:
+        for element in self.features.regions(region):
             if not self._collapse:
                 group = getattr(element, self.grouping_attribute)
             else:
