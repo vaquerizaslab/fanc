@@ -56,7 +56,7 @@ from __future__ import division
 import tables as t
 import pysam
 from kaic.config import config
-from kaic.tools.general import RareUpdateProgressBar
+from kaic.tools.general import RareUpdateProgressBar, natural_cmp
 from kaic.tools.files import is_sambam_file, create_temporary_copy
 from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased
 import os
@@ -1316,9 +1316,9 @@ class UnmappedFilter(ReadFilter):
 
     def valid_read(self, read):
         """
-        Check if the flag attribute contains 2**2.
+        Check if the the flag bit 4 is set.
         """
-        if 2 in bit_flags_from_int(read.flag):
+        if read.flag & 4:
             return False
         return True
 
@@ -1652,6 +1652,65 @@ class BwaMemPairLoader(PairLoader):
         logger.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
 
+class ReadPairGenerator(object):
+    def __init__(self):
+        self.filters = []
+        self._filter_stats = defaultdict(int)
+        self._total_pairs = 0
+
+    def _iter_read_pairs(self, *args, **kwargs):
+        raise NotImplementedError("Class must override iter_read_pairs")
+
+    def add_filter(self, read_filter):
+        if not isinstance(read_filter, ReadFilter):
+            raise ValueError("argument must be an instance of class ReadFilter!")
+        self.filters.append(read_filter)
+
+    def __iter__(self):
+        self._filter_stats = defaultdict(int)
+        self._total_pairs = 0
+        for (read1, read2) in self._iter_read_pairs():
+            for i, f in enumerate(self.filters):
+                if not f.valid_read(read1) or not f.valid_read(read2):
+                    self._filter_stats[i] += 1
+                    continue
+            yield (read1, read2)
+            self._total_pairs += 1
+
+
+class SamBamReadPairGenerator(ReadPairGenerator):
+    def __init__(self, sam_file1, sam_file2):
+        ReadPairGenerator.__init__(self)
+        self.sam_file1 = sam_file1
+        self.sam_file2 = sam_file2
+
+    def _iter_read_pairs(self, *args, **kwargs):
+        logger.info("Starting to generate read pairs from SAM")
+        sam1 = pysam.AlignmentFile(self.sam_file1)
+        sam2 = pysam.AlignmentFile(self.sam_file2)
+        try:
+            sam1_iter = iter(sam1)
+            sam2_iter = iter(sam2)
+            try:
+                read1 = next(sam1_iter)
+                read2 = next(sam2_iter)
+                while True:
+                    cmp = natural_cmp(read1.qname, read2.qname)
+                    if cmp == 0:  # read name identical
+                        yield (read1, read2)
+                        read1 = next(sam1_iter)
+                        read2 = next(sam2_iter)
+                    elif cmp < 0:  # first pointer behind
+                        read1 = next(sam1_iter)
+                    else:  # second pointer behind
+                        read2 = next(sam2_iter)
+            except StopIteration:
+                logger.info("Done generating read pairs.")
+        finally:
+            sam1.close()
+            sam2.close()
+
+
 class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
     """
     Map pairs of reads to restriction fragments in a reference genome.
@@ -1827,6 +1886,21 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
 
         loader.load(reads1, reads2, regions=regions)
 
+    def add_read_pairs(self, read_pairs):
+        fragment_infos = defaultdict(list)
+        fragment_ends = defaultdict(list)
+        for region in self.regions:
+            fragment_infos[region.chromosome].append((region.ix,
+                                                      self._chromosome_to_ix[region.chromosome],
+                                                      region.start, region.end))
+            fragment_ends[region.chromosome].append(region.end)
+
+        for (read1, read2) in read_pairs:
+            self.add_read_pair(read1, read2, flush=False,
+                               _fragment_ends=fragment_ends,
+                               _fragment_infos=fragment_infos)
+        self.flush()
+
     def add_read_pair(self, read1, read2, flush=True,
                       _fragment_ends=None, _fragment_infos=None):
         """
@@ -1863,12 +1937,12 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
             try:
                 read1_strand = read1.strand
             except AttributeError:
-                read1_strand = -1 if 4 in bit_flags_from_int(read1.flag) else 1
+                read1_strand = -1 if read1.flag & 16 else 1
 
             try:
                 read2_strand = read2.strand
             except AttributeError:
-                read2_strand = -1 if 4 in bit_flags_from_int(read2.flag) else 1
+                read2_strand = -1 if read2.flag & 16 else 1
 
             edge = Edge(ix=self._pair_count,
                         source=fragment_ix1, sink=fragment_ix2,

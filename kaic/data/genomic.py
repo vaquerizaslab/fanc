@@ -67,7 +67,7 @@ import pysam
 import pybedtools
 from kaic.tools.files import is_fasta_file, write_bigwig, write_bed, write_gff
 from kaic.tools.matrix import apply_sliding_func
-from kaic.tools.general import natural_sort
+from kaic.tools.general import natural_sort, natural_cmp
 from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
@@ -2287,44 +2287,6 @@ class LazyEdge(Edge):
     def __repr__(self):
         base_info = "%d--%d" % (self.source, self.sink)
         return base_info
-
-
-class ReadPairGenerator(object):
-    def __init__(self):
-        pass
-
-    def _iter_read_pairs(self, *args, **kwargs):
-        raise NotImplementedError("Class must override iter_read_pairs")
-
-    def __iter__(self):
-        return self._iter_read_pairs()
-
-
-class SamBamReadPairGenerator(ReadPairGenerator):
-    def __init__(self, sam_file1, sam_file2):
-        ReadPairGenerator.__init__(self)
-        self.sam_file1 = sam_file1
-        self.sam_file2 = sam_file2
-
-    def _iter_read_pairs(self, *args, **kwargs):
-        logger.info("Starting to generate read pairs from SAM")
-        sam1 = pysam.AlignmentFile(self.sam_file1)
-        sam2 = pysam.AlignmentFile(self.sam_file2)
-        try:
-            sam1_iter = iter(sam1)
-            sam2_iter = iter(sam2)
-            try:
-                read1 = next(sam1_iter)
-                read2 = next(sam2_iter)
-                while True:
-                    pass
-
-            except StopIteration:
-                logger.info("Done generating read pairs.")
-
-        finally:
-            sam1.close()
-            sam2.close()
 
 
 class RegionPairs(Maskable, RegionsTable):
