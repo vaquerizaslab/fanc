@@ -208,7 +208,7 @@ class GenomicFigure(object):
                 p.ax.set_ylim(p.ylim_group.get_limit())
                 p.ax.yaxis.reset_ticks()
         for r, p in zip(plot_regions[len(self.plots):], self.annotations):
-            p.plot(region)
+            p.plot(r)
         # Recalculate axes dimensions if aspect of plots changed
         if any(p._dimensions_stale for p in self.plots):
             self._update_figure_setup()
