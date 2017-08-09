@@ -200,21 +200,30 @@ class GenomicFigure(object):
                     "{} annotations.".format(len(plot_regions), len(self.plots), len(self.annotations)))
         else:
             plot_regions = [region]*(len(self.plots) + len(self.annotations))
+        # First iteration plot each panel and record ylims for ylim_groups
         for r, p in zip(plot_regions, self.plots):
             p.plot(r)
             if getattr(p, "ylim_group", None) is not None:
                 p.ylim_group.add_limit(p.ax.get_ylim())
+        # Second iteration apply ylim_group limits
         for p in self.plots:
             if getattr(p, "ylim_group", None) is not None:
                 p.ax.set_ylim(p.ylim_group.get_limit())
                 p.ax.yaxis.reset_ticks()
+        # Third iteration check if any axes dimensions need updating
+        # and reset ylim_groups
+        dimensions_stale = False
+        for p in self.plots:
+            if p._dimensions_stale:
+                dimensions_stale = True
+                p._dimensions_stale = False
+            if getattr(p, "ylim_group", None) is not None:
+                p.ylim_group.reset_limit()
+        if dimensions_stale:
+            self._update_figure_setup()
+        # Plot annotations
         for r, p in zip(plot_regions[len(self.plots):], self.annotations):
             p.plot(r)
-        # Recalculate axes dimensions if aspect of plots changed
-        if any(p._dimensions_stale for p in self.plots):
-            self._update_figure_setup()
-            for p in self.plots:
-                p._dimensions_stale = False
         return self.fig, self.axes
 
     def __enter__(self):

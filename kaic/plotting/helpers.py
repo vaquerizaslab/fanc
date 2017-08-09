@@ -260,6 +260,9 @@ class LimitGroup(object):
             vmax = round_sig(vmax, self.sig)
         return (vmin, vmax)
 
+    def reset_limit(self):
+        self.limit_list = []
+
 def parse_bedtool_input(x):
     """
     Pass x to BedTool constructor and return.
