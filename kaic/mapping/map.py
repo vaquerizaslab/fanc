@@ -33,6 +33,8 @@ class Bowtie2Mapper(Mapper):
                  threads=1, _bowtie2_path='bowtie2'):
         Mapper.__init__(self)
         self.index = os.path.expanduser(bowtie2_index)
+        if self.index.endswith('.'):
+            self.index = self.index[:-1]
         self.args = [a for a in additional_arguments]
         self._path = _bowtie2_path
         if which(self._path) is None:
@@ -108,20 +110,32 @@ def _iterative_mapping_worker(mapper, input_queue, resubmission_queue, output_qu
                 remaining = set(lines.keys())
                 seen = set()
                 header = ""
-                for line in sam_lines:
-                    if line.startswith("@"):
+
+                line_iter = iter(sam_lines)
+                try:
+                    line = next(line_iter)
+                    # process header
+                    while line.startswith("@"):
                         header += "{}\n".format(line)
-                        continue
-                    elif line == '':
-                        continue
-                    fields = line.split("\t")
-                    name = fields[0]
-                    seen.add(name)
+                        line = next(line_iter)
+                    # send header to main thread
+                    if header_queue.empty():
+                        header_queue.put(header)
+                    # process alignment lines
+                    while True:
+                        if line != '':
+                            fields = line.split("\t")
+                            name = fields[0]
+                            seen.add(name)
 
-                    if not mapper.resubmit(fields):
-                        remaining.remove(name)
-                        output_queue.put(msgpack.dumps(line))
+                            if not mapper.resubmit(fields):
+                                remaining.remove(name)
+                                output_queue.put(msgpack.dumps(line))
+                        line = next(line_iter)
+                except StopIteration:
+                    pass
 
+                # process remaining (unaligned or resubmitted) reads
                 for name in remaining:
                     # if the read was not in SAM output it was unmappable
                     if name not in seen and not mapper.resubmit_unmappable:
@@ -136,9 +150,6 @@ def _iterative_mapping_worker(mapper, input_queue, resubmission_queue, output_qu
                         continue
 
                     resubmission_queue.put(msgpack.dumps(new_seq))
-
-                if header_queue.empty():
-                    header_queue.put(header)
 
                 lines = dict()
             if input_string is None:
