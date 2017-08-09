@@ -286,14 +286,19 @@ def map_parser():
         '-b', '--batch-size', dest='batch_size',
         type=int,
         default=20000,
-        help='''Number of reads processed (mapped and merged) in one go per worker.'''
+        help='''Number of reads processed (mapped and merged) in one go per worker.
+                The default (20000) works well for large indexes (e.g. human, mouse).
+                Smaller indexes (e.g. yeast) will finish individual bowtie2 processes
+                very quickly - set this number higher to spawn new processes 
+                less frequently.
+                '''
     )
 
     parser.add_argument(
         '--bowtie-parallel', dest='bowtie_parallel',
         action='store_true',
         help='''Use bowtie parallelisation rather than spawning multiple Bowtie2 processes.
-                This is slower, but consumes a lot less memory.'''
+                This is slower, but consumes potentially less memory.'''
     )
     parser.set_defaults(bowtie_parallel=False)
 
