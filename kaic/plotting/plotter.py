@@ -9,7 +9,8 @@ from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverla
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
-                                  box_coords_abs_to_rel, figure_line, figure_rectangle
+                                  box_coords_abs_to_rel, figure_line, figure_rectangle, \
+                                  parse_bedtool_input
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -265,11 +266,7 @@ class HighlightAnnotation(BaseAnnotation):
         }
         if plot_kwargs is not None:
             self.plot_kwargs.update(plot_kwargs)
-        self.bedtool = bed
-        if isinstance(bed, list):
-            self.bedtool = pbt.BedTool(bed).saveas()
-        elif not isinstance(bed, pbt.BedTool):
-            self.bedtool = kaic.load(bed)
+        self.bedtool = parse_bedtool_input(bed)
         self.plot1 = plot1
         self.plot2 = plot2
         self.patches = []
@@ -772,10 +769,7 @@ class GenomicFeaturePlot(BasePlotter1D):
         """
         kwargs.setdefault("aspect", .2)
         super(GenomicFeaturePlot, self).__init__(**kwargs)
-        if isinstance(regions, pbt.BedTool):
-            self.bedtool = regions
-        else:
-            self.bedtool = pbt.BedTool(regions)
+        self.bedtool = parse_bedtool_input(regions)
         if feature_types is None and self.bedtool.file_type == "gff":
             feature_types = set(f[2] for f in self.bedtool)
         elif isinstance(feature_types, string_types):
@@ -839,11 +833,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", "ticks")
         super(GenomicFeatureScorePlot, self).__init__(**kwargs)
-        if isinstance(regions, string_types):
-            self.regions = kaic.load(regions)
-        else:
-            self.regions = regions
-
+        self.regions = parse_bedtool_input(regions)
         if isinstance(feature_types, string_types):
             feature_types = [feature_types]
         self.feature_types = feature_types
@@ -1048,11 +1038,7 @@ class GenePlot(BasePlotter1D):
         kwargs.setdefault("aspect", .5)
         kwargs.setdefault("axes_style", "ticks")
         super(GenePlot, self).__init__(**kwargs)
-        if not isinstance(genes, pbt.BedTool):
-            self.bedtool = pbt.BedTool(genes)
-        else:
-            self.bedtool = genes
-
+        self.bedtool = parse_bedtool_input(genes)
         # ignore feature types if inout is not GFF or GTF
         if self.bedtool.file_type != "gff" and self.bedtool.file_type != "gtf":
             feature_types = None
@@ -1348,11 +1334,7 @@ class FeatureLayerPlot(BasePlotter1D):
         """
         kwargs.setdefault("aspect", 1.)
         super(FeatureLayerPlot, self).__init__(**kwargs)
-
-        if isinstance(features, string_types):
-            self.features = load(features)
-        else:
-            self.features = features
+        self.features = parse_bedtool_input(features)
         if gff_grouping_attribute is None:
             self.grouping_attribute = 'feature' if self.features.file_type == 'gff' else 'name'
         else:

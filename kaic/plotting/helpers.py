@@ -3,6 +3,7 @@ import matplotlib as mpl
 import numpy as np
 import pybedtools as pbt
 from math import log10, floor
+import pybedtools as pbt
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,
@@ -258,3 +259,12 @@ class LimitGroup(object):
             vmin = round_sig(vmin, self.sig)
             vmax = round_sig(vmax, self.sig)
         return (vmin, vmax)
+
+def parse_bedtool_input(x):
+    """
+    Pass x to BedTool constructor and return.
+    If x is already BedTool return withouth modification.
+    """
+    if isinstance(x, pbt.BedTool):
+        return x
+    return pbt.BedTool(x)
