@@ -217,6 +217,51 @@ def natural_sort(l):
     return sorted(l, key=lambda key: [convert(c) for c in re.split('([0-9]+)', key)])
 
 
+def natural_cmp(pa, pb):
+    i = 0
+    j = 0
+
+    try:
+        while i < len(pa) and j < len(pb):
+            if pa[i].isdigit() and pb[j].isdigit():
+                # digit comparison
+                while pa[i] == '0':
+                    i += 1
+                while pb[j] == '0':
+                    j += 1
+                while pa[i].isdigit() and pb[j].isdigit() and pa[i] == pb[j]:
+                    i += 1
+                    j += 1
+                if pa[i].isdigit() and pb[j].isdigit():
+                    k = 0
+                    try:
+                        while pa[i+k].isdigit() and pb[j+k].isdigit():
+                            k += 1
+                    except IndexError:
+                        if i+k < len(pa):
+                            return 1
+                        if j+k < len(pb):
+                            return -1
+                        # both ran over index
+                        return int(pa[i]) - int(pb[j])
+                    return 1 if pa[i+k].isdigit() else -1 if pb[j+k].isdigit() else int(pa[i]) - int(pb[j])
+                elif pa[i].isdigit():
+                    return 1
+                elif pb[j].isdigit():
+                    return -1
+                elif i != j:
+                    return 1 if i < j else -1
+            else:
+                # string comparison
+                if pa[i] != pb[j]:
+                    return -1 if pa[i] < pb[j] else 1
+                i += 1
+                j += 1
+    except IndexError:
+        pass
+    return -1 if i < len(pa) else 1 if j < len(pb) else 0
+
+
 class RareUpdateProgressBar(progressbar.ProgressBar):
     def __init__(self, min_value=0, max_value=None, widgets=None,
                  left_justify=True, initial_value=0, poll_interval=None,
