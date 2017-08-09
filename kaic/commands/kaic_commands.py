@@ -372,7 +372,7 @@ def map(argv):
     index_dir = None
     try:
         if tmp:
-            tmp=False
+            tmp = False
             index_dir = tempfile.mkdtemp()
             index_base = os.path.basename(index_path)
             for file_name in glob.glob(index_path + '*.bt2'):
