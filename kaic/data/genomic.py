@@ -79,7 +79,6 @@ except ImportError:
 import pickle
 from collections import defaultdict
 import copy
-from kaic.tools.lru import lru_cache
 import warnings
 from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass, string_types, viewitems

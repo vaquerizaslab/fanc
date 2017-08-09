@@ -64,7 +64,6 @@ from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int, CachedIterator
-from kaic.tools.lru import lru_cache
 from kaic.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegionPairs, Edge, AccessOptimisedHic, Hic
 import msgpack as pickle
 import numpy as np
@@ -1978,7 +1977,6 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
 
         return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
-    @lru_cache(maxsize=10)
     def get_ligation_structure_biases(self, sampling=None, skip_self_ligations=True):
 
         """

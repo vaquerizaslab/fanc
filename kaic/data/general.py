@@ -15,7 +15,6 @@ from kaic.tools.general import RareUpdateProgressBar, create_col_index
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
-from kaic.tools.lru import lru_cache
 import shutil
 import warnings
 from collections import defaultdict
@@ -365,13 +364,8 @@ class Maskable(FileBased):
         row['description'] = description
         row.append()
         self._mask.flush()
-        self.clear_caches()
-        
-        return Mask(ix, name, description)
 
-    def clear_caches(self):
-        self.get_mask.cache_clear()
-        self.get_masks.cache_clear()
+        return Mask(ix, name, description)
 
     def masks(self):
         this = self
@@ -408,7 +402,6 @@ class Maskable(FileBased):
                 raise ValueError('Can only get binary mask from mask names, indexes and MaskFilter instances')
         return sum(o)
 
-    @lru_cache(maxsize=1000)
     def get_mask(self, key):
         """
         Search _mask table for key and return Mask.
@@ -421,7 +414,7 @@ class Maskable(FileBased):
             Mask
         """
         
-        if type(key) == int:
+        if isinstance(key, int):
             for row in self._mask.where("ix == %d" % key):
                 return Maskable._row_to_mask(row)
         else:
@@ -429,7 +422,6 @@ class Maskable(FileBased):
                 return Maskable._row_to_mask(row)
         return KeyError("Unrecognised key type")
     
-    @lru_cache(maxsize=1000)
     def get_masks(self, ix):
         """
         Extract mask IDs encoded in parameter and return masks.
@@ -799,7 +791,6 @@ class MaskedTable(t.Table):
 
         return stats
     
-    @lru_cache(maxsize=1000)
     def _get_masks(self, binary_mask):
         def bits(n):
             while n:
