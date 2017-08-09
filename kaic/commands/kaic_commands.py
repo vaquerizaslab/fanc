@@ -405,6 +405,7 @@ def map(argv):
                         output_file = tmp_file_name
                         tmp = True
 
+                    logger.info("Starting mapping for {}".format(input_file))
                     map.iterative_mapping(input_file, output_file, mapper, threads=threads,
                                           min_size=min_size, step_size=step_size, batch_size=batch_size,
                                           header_timeout=1800, max_queue_size=20000)
