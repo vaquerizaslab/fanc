@@ -73,7 +73,7 @@ class GenomicFigure(object):
                  independent_x=False):
         """
         :param list plots: List of plot instances each will form a separate panel in the figure.
-                      Should inherit from :class:`~kaic.plotting.plotter.BasePlotter` or
+                      Should inherit from :class:`~kaic.plotting.baseplotter.BasePlotter` or
                       :class:`~kaic.plotting.baseplotter.BaseAnnotation`
         :param float width: Width of the plots in inches. Height is automatically determined
                       from the specified aspect ratios of the Plots.
@@ -338,7 +338,7 @@ class HighlightAnnotation(BaseAnnotation):
 
 class VerticalLineAnnotation(HighlightAnnotation):
     """
-    Deprecated alias for :class:`~kaic.plotting.plotter.HighlightAnnotation`.
+    Deprecated alias for :class:`~kaic.plotting.HighlightAnnotation`.
     """
 
     def __init__(self, *args, **kwargs):
@@ -479,7 +479,7 @@ class RegionsValuesPlot(ScalarDataPlot):
                            and regex.
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-               the height_ratios in :class:`~GenomicFigure`
+               the height_ratios in :class:`~kaic.plotting.GenomicFigure`
         """
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
         kwargs.setdefault("aspect", .2)
