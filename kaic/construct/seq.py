@@ -940,7 +940,7 @@ class Read(object):
         for tag in self.tags:
             if tag[0] == key:
                 return tag[1]
-        return None
+        raise KeyError("tag '{}' not present".format(key))
 
     @property
     def tags_dict(self):

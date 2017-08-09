@@ -124,7 +124,8 @@ class TestReads:
         read = reads[0]
         assert read.get_tag('AS') == 0
         assert read.get_tag('MD') == '15'
-        assert read.get_tag('X0') is None
+        with pytest.raises(KeyError):
+            read.get_tag('X0')
         reads.close()
     
     def test_quality_filter(self):
