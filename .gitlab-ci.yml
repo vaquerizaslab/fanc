@@ -33,7 +33,7 @@ test_doc:
         - "virtualenv kaic_doc_venv"
         - "source kaic_doc_venv/bin/activate"
         - "pip install --upgrade pip setuptools"
-        - "pip install sphinx sphinx-argparse"
+        - "pip install sphinx sphinx-argparse sphinx_rtd_theme"
         - "pip install ."
     script:
         - cd kaic-doc
