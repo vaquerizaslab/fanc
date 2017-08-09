@@ -1,5 +1,6 @@
 import os
 import subprocess
+from collections import deque
 import multiprocessing as mp
 from queue import Empty, Full
 import msgpack
@@ -87,15 +88,18 @@ def _trim_read(input_seq, step_size=5, min_size=25):
 
 def _iterative_mapping_worker(mapper, input_queue, resubmission_queue, output_queue, header_queue,
                               exception_queue, batch_size=100, min_size=25, step_size=5):
-
+    resubmissions = deque()
     try:
         lines = dict()
         while True:
-            try:
-                # first process resubmissions
-                input_string = resubmission_queue.get(False)
-            except Empty:
-                input_string = input_queue.get(True)
+            if len(resubmissions) > 0:  # try to clear backlog first
+                input_string = resubmissions.pop()
+            else:
+                try:
+                    # first process resubmissions
+                    input_string = resubmission_queue.get(False)
+                except Empty:
+                    input_string = input_queue.get(True)
 
             if input_string is not None:
                 s = msgpack.loads(input_string)
@@ -149,12 +153,16 @@ def _iterative_mapping_worker(mapper, input_queue, resubmission_queue, output_qu
                         output_queue.put(None)
                         continue
 
-                    resubmission_queue.put(msgpack.dumps(new_seq))
+                    r = msgpack.dumps(new_seq)
+                    try:
+                        resubmission_queue.put(r, False)
+                    except Full:
+                        resubmissions.append(r)
 
                 lines = dict()
             if input_string is None:
                 input_queue.put(None)
-                if resubmission_queue.empty() and input_queue.empty():
+                if len(resubmissions) == 0 and resubmission_queue.empty() and input_queue.empty():
                     logger.info('Worker thread is done, no more reads to process.')
                     break
     except Exception:
