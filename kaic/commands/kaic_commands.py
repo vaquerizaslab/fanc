@@ -396,7 +396,11 @@ def map(argv):
             else:
                 output_folder = mkdir(output_folder)
                 basename, extension = os.path.splitext(os.path.basename(input_file))
-                output_file = output_folder + basename + '.bam'
+                if basename.endswith('.fastq'):
+                    basename = basename[:-6]
+                if basename.endswith('.fq'):
+                    basename = basename[:-3]
+                output_file = os.path.join(output_folder, basename + '.bam')
 
             if not args.split_fastq:
                 original_output_file = output_file
