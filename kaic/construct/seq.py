@@ -58,7 +58,7 @@ import pysam
 from kaic.config import config
 from kaic.tools.general import RareUpdateProgressBar, natural_cmp
 from kaic.tools.files import is_sambam_file, create_temporary_copy
-from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased
+from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
@@ -897,6 +897,7 @@ class Read(object):
         self.qname = qname.decode() if isinstance(qname, bytes) else qname
         self.flag = flag
         self.ref = ref.decode() if isinstance(ref, bytes) else ref
+        self.reference_name = self.ref
         self.pos = pos
         self.mapq = mapq
         self.cigar = cigar.decode() if isinstance(cigar, bytes) else cigar
@@ -1666,15 +1667,31 @@ class ReadPairGenerator(object):
             raise ValueError("argument must be an instance of class ReadFilter!")
         self.filters.append(read_filter)
 
+    def stats(self):
+        filter_names = []
+        for i, f in enumerate(self.filters):
+            if hasattr(f, 'mask') and f.mask is not None:
+                filter_names.append(f.mask.name)
+            else:
+                filter_names.append('filter_{}'.format(i))
+
+        stats = dict()
+        for i, count in self._filter_stats.items():
+            stats[filter_names[i]] = count
+        stats['unmasked'] = self._total_pairs
+        return stats
+
     def __iter__(self):
         self._filter_stats = defaultdict(int)
         self._total_pairs = 0
         for (read1, read2) in self._iter_read_pairs():
+            valid_reads = True
             for i, f in enumerate(self.filters):
                 if not f.valid_read(read1) or not f.valid_read(read2):
                     self._filter_stats[i] += 1
-                    continue
-            yield (read1, read2)
+                    valid_reads = False
+            if valid_reads:
+                yield (read1, read2)
             self._total_pairs += 1
 
 
@@ -1709,6 +1726,552 @@ class SamBamReadPairGenerator(ReadPairGenerator):
         finally:
             sam1.close()
             sam2.close()
+
+    def filter_quality(self, cutoff=30):
+        """
+        Convenience function that registers a QualityFilter.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
+
+        :param cutoff: Minimum mapping quality (mapq) a read must have to pass
+                       the filter
+        """
+        mask = Mask('mapq', 'Mask read pairs with a mapping quality lower than {}'.format(cutoff))
+        quality_filter = QualityFilter(cutoff, mask)
+        self.add_filter(quality_filter)
+
+    def filter_unmapped(self):
+        """
+        Convenience function that registers an UnmappedFilter.
+        """
+        mask = Mask('unmapped', 'Mask read pairs that are unmapped')
+        unmapped_filter = UnmappedFilter(mask)
+        self.add_filter(unmapped_filter)
+
+    def filter_non_unique(self, strict=True):
+        """
+        Convenience function that registers a UniquenessFilter.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
+
+        :param strict: If True will filter if XS tag is present. If False,
+                       will filter only when XS tag is not 0. This is applied if
+                       alignments are from bowtie2.
+        """
+        mask = Mask('uniqueness', 'Mask reads that do not map uniquely (according to XS tag)')
+        uniqueness_filter = UniquenessFilter(strict, mask)
+        self.add_filter(uniqueness_filter)
+
+
+class ReadPairs(AccessOptimisedRegionPairs):
+    _classid = 'READPAIRS'
+
+    def __init__(self, file_name=None, mode='a',
+                 _group_name='fragment_map',
+                 _table_name_fragments='fragments',
+                 _table_name_pairs='pairs',
+                 tmpdir=None):
+        """
+        Initialize empty FragmentMappedReadPairs object.
+
+        :param file_name: Path to a file that will be created to save
+                          this object or path to an existing HDF5 file
+                          representing a FragmentMappedReadPairs object.
+        :param group_name: Internal, name for hdf5 group that info for
+                           this object will be saved under
+        :param table_name_fragments: Internal, name of the HDF5 node
+                                     that will house the region/fragment
+                                     data
+        """
+        AccessOptimisedRegionPairs.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                            additional_fields={
+                                                'ix': t.Int32Col(pos=0),
+                                                'left_read_position': t.Int64Col(pos=1),
+                                                'left_read_strand': t.Int8Col(pos=2),
+                                                'left_fragment_start': t.Int64Col(pos=3),
+                                                'left_fragment_end': t.Int64Col(pos=4),
+                                                'left_fragment_chromosome': t.Int32Col(pos=5),
+                                                'right_read_position': t.Int64Col(pos=6),
+                                                'right_read_strand': t.Int8Col(pos=7),
+                                                'right_fragment_start': t.Int64Col(pos=8),
+                                                'right_fragment_end': t.Int64Col(pos=9),
+                                                'right_fragment_chromosome': t.Int32Col(pos=10)
+                                            },
+                                            _table_name_nodes=_table_name_fragments,
+                                            _table_name_edges=_table_name_pairs)
+
+        self._pairs = self._edges
+        self._pair_count = sum(edge_table._original_len() for edge_table in self._edge_table_iter())
+
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, update_mappability=True,
+              silent=config.hide_progressbars):
+        AccessOptimisedRegionPairs.flush(self, flush_nodes=flush_nodes, silent=silent,
+                                         flush_edges=flush_edges, update_index=update_index)
+
+    def _read_fragment_info(self, read):
+        chromosome = read.reference_name
+        fragment_info = None
+        for row in self._regions.where(
+                        "(start <= %d) & (end >= %d) & (chromosome == b'%s')" % (read.pos, read.pos, chromosome)):
+            fragment_info = [row['ix'], self._chromosome_to_ix[chromosome], row['start'], row['end']]
+
+        if fragment_info is None:
+            raise ValueError("No matching region can be found for {}".format(read))
+
+        return fragment_info
+
+    def _read_pair_fragment_info(self, read_pair):
+        read1, read2 = read_pair
+        f_ix1, f_chromosome_ix1, f_start1, f_end1 = self._read_fragment_info(read1)
+        f_ix2, f_chromosome_ix2, f_start2, f_end2 = self._read_fragment_info(read2)
+        r_strand1 = -1 if read1.flag & 16 else 1
+        r_strand2 = -1 if read2.flag & 16 else 1
+        return ((read1.pos, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
+                (read2.pos, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
+
+    def _read_pairs_fragment_info(self, read_pairs):
+        fragment_infos = defaultdict(list)
+        fragment_ends = defaultdict(list)
+        for region in self.regions(lazy=True):
+            chromosome = region.chromosome
+            fragment_infos[chromosome].append((region.ix, self._chromosome_to_ix[chromosome],
+                                               region.start, region.end))
+            fragment_ends[chromosome].append(region.end)
+
+        def _fragment_info(read, fi, fe):
+            chrom = read.reference_name
+            pos_ix = bisect_right(fe[chrom], read.pos)
+            return fi[chrom][pos_ix]
+
+        for read1, read2 in read_pairs:
+            f_ix1, f_chromosome_ix1, f_start1, f_end1 = _fragment_info(read1, fragment_infos, fragment_ends)
+            f_ix2, f_chromosome_ix2, f_start2, f_end2 = _fragment_info(read2, fragment_infos, fragment_ends)
+            r_strand1 = -1 if read1.flag & 16 else 1
+            r_strand2 = -1 if read2.flag & 16 else 1
+            yield ((read1.pos, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
+                   (read2.pos, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
+
+    def _add_infos(self, fi1, fi2):
+        r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
+        r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi2
+
+        edge = Edge(ix=self._pair_count,
+                    source=f_ix1, sink=f_ix2,
+                    left_read_position=r_pos1, right_read_position=r_pos2,
+                    left_read_strand=r_strand1, right_read_strand=r_strand2,
+                    left_fragment_start=f_start1, right_fragment_start=f_start2,
+                    left_fragment_end=f_end1, right_fragment_end=f_end2,
+                    left_fragment_chromosome=f_chromosome_ix1,
+                    right_fragment_chromosome=f_chromosome_ix2)
+
+        self._add_pair(edge)
+
+    def add_read_pair(self, read_pair):
+        fi1, fi2 = self._read_pair_fragment_info(read_pair)
+        self._add_infos(fi1, fi2)
+        self.flush()
+
+    def add_read_pairs(self, read_pairs):
+        for fi1, fi2 in self._read_pairs_fragment_info(read_pairs):
+            self._add_infos(fi1, fi2)
+        self.flush()
+
+    def _add_pair(self, pair):
+        self.add_edge(pair, check_nodes_exist=False, flush=False, replace=True)
+        self._pair_count += 1
+
+    def _pair_from_row(self, row, lazy=False):
+        """
+        Convert a PyTables row to a FragmentReadPair
+        """
+        if lazy:
+            left_read = LazyAccessOptimisedFragmentRead(row, self, side="left")
+            right_read = LazyAccessOptimisedFragmentRead(row, self, side="right")
+        else:
+            fragment1 = GenomicRegion(start=row['left_fragment_start'],
+                                      end=row['left_fragment_end'],
+                                      chromosome=self._ix_to_chromosome[row['left_fragment_chromosome']],
+                                      ix=row['source'])
+            fragment2 = GenomicRegion(start=row['right_fragment_start'],
+                                      end=row['right_fragment_end'],
+                                      chromosome=self._ix_to_chromosome[row['right_fragment_chromosome']],
+                                      ix=row['sink'])
+
+            left_read = FragmentRead(fragment1, position=row['left_read_position'],
+                                     strand=row['left_read_strand'])
+            right_read = FragmentRead(fragment2, position=row['right_read_position'],
+                                      strand=row['right_read_strand'])
+
+        return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
+
+    def get_ligation_structure_biases(self, sampling=None, skip_self_ligations=True):
+
+        """
+        Compute the ligation biases (inward and outward to same-strand) of this data set.
+
+        :param sampling: Approximate number of data points to average per point
+                         in the plot. If None (default), this will
+                         be determined on a best-guess basis.
+        :param skip_self_ligations: If True (default), will not consider
+                                    self-ligated fragments for assessing
+                                    the error rates.
+        """
+        l = len(self)
+        type_same = 0
+        type_inward = 1
+        type_outward = 2
+
+        def _init_gaps_and_types():
+            same_count = 0
+            inward_count = 0
+            outward_count = 0
+            same_fragment_count = 0
+            inter_chrm_count = 0
+            gaps = []
+            types = []
+
+            with RareUpdateProgressBar(max_value=len(self), silent=config.hide_progressbars) as pb:
+                for i, pair in enumerate(self):
+                    if pair.is_same_fragment():
+                        same_fragment_count += 1
+                        if skip_self_ligations:
+                            continue
+                    if pair.is_same_chromosome():
+                        gap_size = pair.get_gap_size()
+                        if gap_size > 0:
+                            gaps.append(gap_size)
+                            if pair.is_outward_pair():
+                                types.append(type_outward)
+                                outward_count += 1
+                            elif pair.is_inward_pair():
+                                types.append(type_inward)
+                                inward_count += 1
+                            else:
+                                types.append(0)
+                                same_count += 1
+                    else:
+                        inter_chrm_count += 1
+                    pb.update(i)
+
+            logger.info("Pairs: %d" % l)
+            logger.info("Inter-chromosomal: {}".format(inter_chrm_count))
+            logger.info("Same fragment: {}".format(same_fragment_count))
+            logger.info("Same: {}".format(same_count))
+            logger.info("Inward: {}".format(inward_count))
+            logger.info("Outward: {}".format(outward_count))
+            return gaps, types
+
+        def _sort_data(gaps, types):
+            points = zip(gaps, types)
+            sorted_points = sorted(points)
+            return zip(*sorted_points)
+
+        def _guess_sampling(sampling):
+            if sampling is None:
+                sampling = max(100, int(l * 0.0025))
+            logger.info("Number of data points averaged per point in plot: {}".format(sampling))
+            return sampling
+
+        def _calculate_ratios(gaps, types, sampling):
+            x = []
+            inward_ratios = []
+            outward_ratios = []
+            bin_sizes = []
+            counter = 0
+            same_counter = 0
+            mids = 0
+            outwards = 0
+            inwards = 0
+            for typ, gap in zip(types, gaps):
+                mids += gap
+                if typ == type_same:
+                    same_counter += 1
+                elif typ == type_inward:
+                    inwards += 1
+                else:
+                    outwards += 1
+                counter += 1
+                if same_counter > sampling:
+                    x.append(int(mids / counter))
+                    inward_ratios.append(inwards / same_counter)
+                    outward_ratios.append(outwards / same_counter)
+                    bin_sizes.append(counter)
+                    same_counter = 0
+                    counter = 0
+                    mids = 0
+                    outwards = 0
+                    inwards = 0
+            return list(map(np.array, [x, inward_ratios, outward_ratios, bin_sizes]))
+
+        gaps, types = _init_gaps_and_types()
+        # sort data
+        gaps, types = _sort_data(gaps, types)
+        # best guess for number of data points
+        sampling = _guess_sampling(sampling)
+        # calculate ratios
+        return _calculate_ratios(gaps, types, sampling)
+
+    @staticmethod
+    def _auto_dist(dists, ratios, sample_sizes, p=0.05, expected_ratio=0.5):
+        """
+        Function that attempts to infer sane distances for filtering inward
+        and outward read pairs
+
+        :param dists: List of distances in bp.
+        :param ratios: List of ratios
+        """
+
+        def x_prop(p_obs, p_exp, n):
+            obs = p_obs * n
+            exp = p_exp * n
+            p = (obs + exp) / (n * 2)
+            return abs((p_exp - p_obs) / np.sqrt(p * (1 - p) * (2 / n)))
+
+        ratios = np.clip(ratios, 0.0, 1.0)
+        z_scores = np.array([x_prop(r, expected_ratio, b) for r, b in zip(ratios, sample_sizes)])
+        which_valid = z_scores < 1.96
+        which_valid_indices = np.argwhere(which_valid).flatten()
+        if len(which_valid_indices) > 0:
+            return int(dists[which_valid_indices[0]])
+        return None
+
+    def filter(self, pair_filter, queue=False, log_progress=not config.hide_progressbars):
+        pair_filter.set_pairs_object(self)
+
+        total = 0
+        filtered = 0
+        if not queue:
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                       silent=not log_progress) as pb:
+                for i, edge_table in enumerate(self._edge_table_iter()):
+                    stats = edge_table.filter(pair_filter, _logging=False)
+                    for key, value in stats.items():
+                        if key != 0:
+                            filtered += stats[key]
+                        total += stats[key]
+                    pb.update(i)
+            if log_progress:
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        else:
+            for edge_table in self._edge_table_iter():
+                edge_table.queue_filter(pair_filter)
+
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                   silent=not log_progress) as pb:
+            for i, edge_table in enumerate(self._edge_table_iter()):
+                stats = edge_table.run_queued_filters(_logging=False)
+                for key, value in stats.items():
+                    if key != 0:
+                        filtered += stats[key]
+                    total += stats[key]
+                pb.update(i)
+        if log_progress:
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
+
+    def filter_pcr_duplicates(self, threshold=3, queue=False):
+        """
+        Convenience function that applies an :class:`~PCRDuplicateFilter`.
+
+        :param threshold: If distance between two alignments is smaller or equal the threshold, the alignments
+                          are considered to be starting at the same position
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
+        pcr_duplicate_filter = AOPCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
+        self.filter(pcr_duplicate_filter, queue)
+
+    def filter_inward(self, minimum_distance=None, queue=False, *args, **kwargs):
+        """
+        Convenience function that applies an :class:`~InwardPairsFilter`.
+
+        :param minimum_distance: Minimum distance inward-facing read
+                                 pairs must have to pass this filter
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
+        """
+        if minimum_distance is None:
+            dists, inward_ratios, _, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
+            minimum_distance = self._auto_dist(dists, inward_ratios, bins_sizes)
+        if minimum_distance:
+            mask = self.add_mask_description('inward',
+                                             'Mask read pairs that are inward facing and < {}bp apart'
+                                             .format(minimum_distance))
+            logger.info("Filtering out inward facing read pairs < {} bp apart".format(minimum_distance))
+            inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
+            self.filter(inward_filter, queue)
+        else:
+            raise Exception('Could not automatically detect a sane distance threshold for filtering inward reads')
+
+    def filter_outward(self, minimum_distance=None, queue=False, *args, **kwargs):
+        """
+        Convenience function that applies an :class:`~OutwardPairsFilter`.
+
+        :param minimum_distance: Minimum distance outward-facing read
+                                 pairs must have to pass this filter
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
+        """
+        if minimum_distance is None:
+            dists, _, outward_ratios, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
+            minimum_distance = self._auto_dist(dists, outward_ratios, bins_sizes)
+        if minimum_distance:
+            mask = self.add_mask_description('outward',
+                                             'Mask read pairs that are outward facing and < {}bp apart'
+                                             .format(minimum_distance))
+            logger.info("Filtering out outward facing read pairs < {} bp apart".format(minimum_distance))
+            outward_filter = OutwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
+            self.filter(outward_filter, queue)
+        else:
+            raise Exception('Could not automatically detect a sane distance threshold for filtering outward reads')
+
+    def filter_ligation_products(self, inward_threshold=None, outward_threshold=None, queue=False, *args, **kwargs):
+        """
+        Convenience function that applies an :class:`~OutwardPairsFilter` and an :class:`~InwardPairsFilter`.
+
+        :param inward_threshold: Minimum distance inward-facing read
+                                 pairs must have to pass this filter. If None, will be infered from the data
+        :param outward_threshold: Minimum distance outward-facing read
+                                 pairs must have to pass this filter. If None, will be infered from the data
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param *args **kwargs: Additional arguments to pass
+                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
+        """
+        self.filter_inward(inward_threshold, queue=queue, *args, **kwargs)
+        self.filter_outward(outward_threshold, queue=queue, *args, **kwargs)
+
+    def filter_re_dist(self, maximum_distance, queue=False):
+        """
+        Convenience function that applies an :class:`~ReDistanceFilter`.
+
+        :param maximum_distance: Maximum distance a read can have to the
+                                 nearest region border (=restriction site)
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('re-dist',
+                                         'Mask read pairs where a read is >%dbp away from nearest RE site' % maximum_distance)
+        re_filter = ReDistanceFilter(maximum_distance=maximum_distance, mask=mask)
+        self.filter(re_filter, queue)
+
+    def filter_self_ligated(self, queue=False):
+        """
+        Convenience function that applies an :class:`~SelfLigationFilter`.
+
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('self_ligated',
+                                         'Mask read pairs the represet a self-ligated fragment')
+        self_ligation_filter = SelfLigationFilter(mask=mask)
+        self.filter(self_ligation_filter, queue)
+
+    def __iter__(self):
+        """
+        Iterate over unfiltered fragment-mapped read pairs.
+        """
+        return self.pairs(lazy=False)
+
+    def pairs(self, lazy=False, excluded_filters=()):
+        for row in self._edge_row_iter(excluded_filters=excluded_filters):
+            yield self._pair_from_row(row, lazy=lazy)
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            edge = self.get_edge(item)
+            fragment1 = GenomicRegion(start=edge.left_fragment_start,
+                                      end=edge.left_fragment_end,
+                                      chromosome=self._ix_to_chromosome[edge.left_fragment_chromosome],
+                                      ix=edge.source)
+            fragment2 = GenomicRegion(start=edge.right_fragment_start,
+                                      end=edge.right_fragment_end,
+                                      chromosome=self._ix_to_chromosome[edge.right_fragment_chromosome],
+                                      ix=edge.sink)
+
+            left_read = FragmentRead(fragment1, position=edge.left_read_position,
+                                     strand=edge.left_read_strand)
+            right_read = FragmentRead(fragment2, position=edge.right_read_position,
+                                      strand=edge.right_read_strand)
+
+            return FragmentReadPair(left_read=left_read, right_read=right_read, ix=edge.ix)
+        else:
+            pairs = []
+            for row in self.edges.get_row_range(item):
+                pairs.append(self._pair_from_row(row, lazy=False))
+            return pairs
+
+    def __len__(self):
+        l = 0
+        for edge_table in self._edge_table_iter():
+            l += len(edge_table)
+        return l
+
+    def to_hic(self, file_name=None, tmpdir=None, _hic_class=AccessOptimisedHic):
+        hic = _hic_class(file_name=file_name, mode='w', tmpdir=tmpdir)
+        hic.add_regions(self.regions())
+
+        hic.disable_indexes()
+
+        l = len(self)
+        pairs_counter = 0
+        with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
+            for pairs_edge_table in self._edge_table_dict.values():
+
+                partition_edge_buffer = defaultdict(dict)
+                for row in pairs_edge_table:
+                    key = (row['source'], row['sink'])
+                    source_partition = self._get_partition_ix(key[0])
+                    sink_partition = self._get_partition_ix(key[1])
+                    if key not in partition_edge_buffer[(source_partition, sink_partition)]:
+                        partition_edge_buffer[(source_partition, sink_partition)][key] = 0
+                    partition_edge_buffer[(source_partition, sink_partition)][key] += 1
+                    pb.update(pairs_counter)
+                    pairs_counter += 1
+
+                for hic_partition_key, edge_buffer in viewitems(partition_edge_buffer):
+                    hic_edge_table = hic._create_edge_table(hic_partition_key[0], hic_partition_key[1])
+                    row = hic_edge_table.row
+
+                    for (source, sink), weight in viewitems(edge_buffer):
+                        row['source'] = source
+                        row['sink'] = sink
+                        row[hic.default_field] = float(weight)
+                        row.append()
+                    hic_edge_table.flush(update_index=False)
+        hic.flush()
+        hic.enable_indexes()
+        return hic
+
+    def pairs_by_chromosomes(self, chromosome1, chromosome2, lazy=False):
+        chromosome_bins = self.chromosome_bins
+        if chromosome1 not in chromosome_bins or chromosome2 not in chromosome_bins:
+            raise ValueError("Chromosomes {}/{} not in object".format(chromosome1, chromosome2))
+        source_partition = self._get_partition_ix(chromosome_bins[chromosome1][0])
+        sink_partition = self._get_partition_ix(chromosome_bins[chromosome2][0])
+        if source_partition > sink_partition:
+            source_partition, sink_partition = sink_partition, source_partition
+        for row in self._edge_table_dict[(source_partition, sink_partition)]:
+            yield self._pair_from_row(row, lazy=lazy)
 
 
 class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
@@ -1919,9 +2482,9 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
                                 instead of end positions.
         """
 
-        fragment_infos1 = self._find_fragment_info(read1.ref, read1.pos, _fragment_ends=_fragment_ends,
+        fragment_infos1 = self._find_fragment_info(read1.reference_name, read1.pos, _fragment_ends=_fragment_ends,
                                                    _fragment_infos=_fragment_infos)
-        fragment_infos2 = self._find_fragment_info(read2.ref, read2.pos, _fragment_ends=_fragment_ends,
+        fragment_infos2 = self._find_fragment_info(read2.reference_name, read2.pos, _fragment_ends=_fragment_ends,
                                                    _fragment_infos=_fragment_infos)
 
         # both must be integer if successfully mapped
@@ -2427,7 +2990,8 @@ class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPai
                                        FragmentMappedReadPairs.FragmentsMappedReadSingleDescription)
             self._single_count = 0
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, silent=False):
+    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, update_mappability=True,
+              silent=config.hide_progressbars):
         AccessOptimisedRegionPairs.flush(self, flush_nodes=flush_nodes, silent=silent,
                                          flush_edges=flush_edges, update_index=update_index)
         self._single.flush(update_index=update_index)
