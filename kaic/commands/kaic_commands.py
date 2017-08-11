@@ -1130,12 +1130,12 @@ def sort_sam(argv):
         success = True
     finally:
         if tmp:
-            os.remove(sam_file)
             if success:
                 if original_output_file is not None:
                     shutil.copy(output_file, original_output_file)
                 else:
                     shutil.copy(output_file, original_input_file)
+            os.remove(sam_file)
             os.remove(output_file)
 
 
