@@ -1136,7 +1136,8 @@ def sort_sam(argv):
                 else:
                     shutil.copy(output_file, original_input_file)
             os.remove(sam_file)
-            os.remove(output_file)
+            if os.path.normpath(sam_file) != os.path.normpath(output_file):
+                os.remove(output_file)
 
 
 def sam_to_pairs_parser():
