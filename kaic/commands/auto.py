@@ -127,6 +127,28 @@ def auto_parser():
     )
     parser.set_defaults(copy=False)
 
+    parser.add_argument(
+        '--reads-intermediate', dest='reads_intermediate',
+        action='store_true',
+        help='''Use '.reads' file intermediates. Will use more time and disk space,
+                    but could provide more control over filtering and downstream processing.'''
+    )
+    parser.set_defaults(reads_intermediate=False)
+
+    parser.add_argument(
+        '--no-iterative', dest='iterative',
+        action='store_false',
+        help='''Do not map reads iteratively, use simple mapping.'''
+    )
+    parser.set_defaults(iterative=True)
+
+    parser.add_argument(
+        '--no-sam-sort', dest='sam_sort',
+        action='store_false',
+        help='''Do not sort SAM/BAM files.'''
+    )
+    parser.set_defaults(sam_sort=True)
+
     return parser
 
 
@@ -161,6 +183,29 @@ def pairs_worker(pairs_file, filtered_reads_file1, filtered_reads_file2, genome,
     if args.tmp:
         pairs_command.append('-tmp')
     return subprocess.call(pairs_command)
+
+
+def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme, pairs_file, args):
+    logger.info("Creating Pairs object...")
+    pairs_command = ['kaic', 'sam_to_pairs', sam1_file, sam2_file, genome_file,
+                     restriction_enzyme, pairs_file,
+                     '-m', '-us', '-q', '30']
+    if args.tmp:
+        pairs_command.append('-tmp')
+
+    if args.sam_sort:
+        pairs_command.append('-S')
+
+    return subprocess.call(pairs_command)
+
+
+def sam_sort_worker(sam_file, output_file, args):
+    logger.info("Sorting SAM file...")
+    sort_command = ['kaic', 'sort_sam', sam_file, output_file]
+    if args.tmp:
+        sort_command.append('-tmp')
+
+    return subprocess.call(sort_command)
 
 
 def pairs_ligation_error_worker(pairs_file, ligation_error_file):
@@ -428,8 +473,9 @@ def auto(argv):
 
     # 2. If input files are (gzipped) FASTQ, map them iteratively first
     def mapping_worker(file_name, index, bam_file, mapping_threads=1):
-        iterative_mapping_command = ['kaic', 'iterative_mapping',
-                                     '-m', '25', '-s', str(args.step_size), '-q', '30', '-t', str(mapping_threads)]
+        iterative_mapping_command = ['kaic', 'map',
+                                     '-m', '25', '-s', str(args.step_size),
+                                     '-q', '30', '-t', str(mapping_threads)]
         if args.tmp:
             iterative_mapping_command.append('-tmp')
 
@@ -437,8 +483,10 @@ def auto(argv):
             iterative_mapping_command.append('--bowtie-parallel')
         if args.split_fastq:
             iterative_mapping_command.append('--split-fastq')
-        if args.memory_map:
-            iterative_mapping_command.append('--memory-map')
+        if not args.memory_map:
+            iterative_mapping_command.append('--no-memory-map')
+        if not args.iterative:
+            iterative_mapping_command.append('--simple')
 
         return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
 
@@ -472,92 +520,163 @@ def auto(argv):
             file_names[i] = bam_files[ix]
             file_types[i] = 'sam'
 
-    # 3. SAM/BAM to Reads object conversion
-    sam_files = []
-    for i in range(len(file_names)):
-        if file_types[i] != 'sam':
-            continue
-        sam_files.append(i)
+    if args.reads_intermediate:
+        # 3. SAM/BAM to Reads object conversion
+        sam_files = []
+        for i in range(len(file_names)):
+            if file_types[i] != 'sam':
+                continue
+            sam_files.append(i)
 
-    if len(sam_files) > 0:
-        tp = Pool(threads if not args.split_fastq else 1)
+        if len(sam_files) > 0:
+            tp = Pool(threads if not args.split_fastq else 1)
 
+            reads_files = []
+            reads_results = []
+            for ix in sam_files:
+                reads_file = output_folder + 'reads/' + file_basenames[ix] + '.reads'
+                reads_files.append(reads_file)
+                rt = tp.apply_async(reads_worker, ([file_names[ix]], reads_file, args))
+                reads_results.append(rt)
+            tp.close()
+            tp.join()
+
+            for rt in reads_results:
+                if rt.get() != 0:
+                    raise RuntimeError("Read loading from SAM/BAM had non-zero exit status")
+
+            for ix, i in enumerate(sam_files):
+                file_names[i] = reads_files[ix]
+                file_types[i] = 'reads'
+
+        # 4. Filter reads
         reads_files = []
-        reads_results = []
-        for ix in sam_files:
-            reads_file = output_folder + 'reads/' + file_basenames[ix] + '.reads'
-            reads_files.append(reads_file)
-            rt = tp.apply_async(reads_worker, ([file_names[ix]], reads_file, args))
-            reads_results.append(rt)
-        tp.close()
-        tp.join()
+        for i in range(len(file_names)):
+            if file_types[i] != 'reads':
+                continue
+            reads_files.append(i)
 
-        for rt in reads_results:
-            if rt.get() != 0:
-                raise RuntimeError("Read loading from SAM/BAM had non-zero exit status")
+        if len(reads_files) > 0:
+            tp = Pool(threads)
 
-        for ix, i in enumerate(sam_files):
-            file_names[i] = reads_files[ix]
-            file_types[i] = 'reads'
+            filtered_reads_files = []
+            filter_reads_results = []
+            for ix in reads_files:
+                filtered_reads_file = output_folder + 'reads/filtered/' + file_basenames[ix] + '_filtered.reads'
+                filtered_reads_stats_file = output_folder + 'plots/stats/' + file_basenames[ix] + '.reads.stats.pdf'
+                filtered_reads_files.append(filtered_reads_file)
 
-    # 4. Filter reads
-    reads_files = []
-    for i in range(len(file_names)):
-        if file_types[i] != 'reads':
-            continue
-        reads_files.append(i)
+                rt = tp.apply_async(filtered_reads_worker,
+                                    (file_names[ix], filtered_reads_file, filtered_reads_stats_file, args))
+                filter_reads_results.append(rt)
+            tp.close()
+            tp.join()
 
-    if len(reads_files) > 0:
-        tp = Pool(threads)
+            for rt in filter_reads_results:
+                if rt.get() != 0:
+                    raise RuntimeError("Read filtering had non-zero exit status")
 
-        filtered_reads_files = []
-        filter_reads_results = []
-        for ix in reads_files:
-            filtered_reads_file = output_folder + 'reads/filtered/' + file_basenames[ix] + '_filtered.reads'
-            filtered_reads_stats_file = output_folder + 'plots/stats/' + file_basenames[ix] + '.reads.stats.pdf'
-            filtered_reads_files.append(filtered_reads_file)
+            for ix, i in enumerate(reads_files):
+                file_names[i] = filtered_reads_files[ix]
 
-            rt = tp.apply_async(filtered_reads_worker,
-                                (file_names[ix], filtered_reads_file, filtered_reads_stats_file, args))
-            filter_reads_results.append(rt)
-        tp.close()
-        tp.join()
-
-        for rt in filter_reads_results:
-            if rt.get() != 0:
-                raise RuntimeError("Read filtering had non-zero exit status")
-
-        for ix, i in enumerate(reads_files):
-            file_names[i] = filtered_reads_files[ix]
-
-    # 5. Reads to Pairs
-    reads_file_pairs = []
-    i = 0
-    while i < len(file_names):
-        if file_types[i] == 'reads':
-            if not file_types[i + 1] == 'reads':
-                raise RuntimeError("Cannot create read pairs, because %s is missing a partner file" % file_names[i])
-            reads_file_pairs.append((i, i + 1))
+        # 5. Reads to Pairs
+        reads_file_pairs = []
+        i = 0
+        while i < len(file_names):
+            if file_types[i] == 'reads':
+                if not file_types[i + 1] == 'reads':
+                    raise RuntimeError("Cannot create read pairs, because %s is missing a partner file" % file_names[i])
+                reads_file_pairs.append((i, i + 1))
+                i += 1
             i += 1
-        i += 1
 
-    # get reads file pair basenames
-    pair_basenames = [basename + '_' + str(i) for i in range(len(reads_file_pairs))]
+        # get reads file pair basenames
+        pair_basenames = [basename + '_' + str(i) for i in range(len(reads_file_pairs))]
 
-    if len(reads_file_pairs) > 0:
+        if len(reads_file_pairs) > 0:
+            tp = Pool(threads)
+            genome = args.genome
+            restriction_enzyme = args.restriction_enzyme
+
+            pairs_files = []
+            pairs_results = []
+            for i, j in reads_file_pairs:
+                if len(reads_file_pairs) > 1:
+                    pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
+                else:
+                    pairs_file = output_folder + 'pairs/' + basename + '.pairs'
+                rt = tp.apply_async(pairs_worker,
+                                    (pairs_file, file_names[i], file_names[j], genome, restriction_enzyme, args))
+                pairs_results.append(rt)
+                pairs_files.append(pairs_file)
+            tp.close()
+            tp.join()
+
+            for rt in pairs_results:
+                if rt.get() != 0:
+                    raise RuntimeError("Pairs loading from reads had non-zero exit status")
+
+            for ix, read_pair in enumerate(reversed(reads_file_pairs)):
+                file_names[read_pair[0]] = pairs_files[ix]
+                del file_names[read_pair[1]]
+                file_types[read_pair[0]] = 'pairs'
+                del file_types[read_pair[1]]
+    else:
+        if args.sam_sort:
+            # sort SAM files
+            sam_files = []
+            for i in range(len(file_names)):
+                if file_types[i] != 'sam':
+                    continue
+                sam_files.append(i)
+
+            if len(sam_files) > 0:
+                tp = Pool(threads)
+
+                sorted_sam_files = []
+                sort_results = []
+                for ix in sam_files:
+                    sam_basename, sam_extension = os.path.splitext(file_names[ix])
+                    sorted_sam_file = sam_basename + '_sort' + sam_extension
+                    sorted_sam_files.append(sorted_sam_file)
+                    rt = tp.apply_async(sam_sort_worker, (file_names[ix], sorted_sam_file, args))
+                    sort_results.append(rt)
+                tp.close()
+                tp.join()
+
+                for rt in sort_results:
+                    if rt.get() != 0:
+                        raise RuntimeError("Read loading from SAM/BAM had non-zero exit status")
+
+                for ix, i in enumerate(sam_files):
+                    file_names[i] = sorted_sam_files[ix]
+
+        # load pairs directly from SAM
+        sam_file_pairs = []
+        i = 0
+        while i < len(file_names):
+            if file_types[i] == 'sam':
+                if not file_types[i + 1] == 'sam':
+                    raise RuntimeError("Cannot create SAM pairs, because %s is missing a partner file" % file_names[i])
+                sam_file_pairs.append((i, i + 1))
+                i += 1
+            i += 1
+
+        pair_basenames = [basename + '_' + str(i) for i in range(len(sam_file_pairs))]
+
         tp = Pool(threads)
         genome = args.genome
         restriction_enzyme = args.restriction_enzyme
 
         pairs_files = []
         pairs_results = []
-        for i, j in reads_file_pairs:
-            if len(reads_file_pairs) > 1:
+        for i, j in sam_file_pairs:
+            if len(sam_file_pairs) > 1:
                 pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
             else:
                 pairs_file = output_folder + 'pairs/' + basename + '.pairs'
-            rt = tp.apply_async(pairs_worker,
-                                (pairs_file, file_names[i], file_names[j], genome, restriction_enzyme, args))
+            rt = tp.apply_async(sam_to_pairs_worker,
+                                (file_names[i], file_names[j], genome, restriction_enzyme, pairs_file, args))
             pairs_results.append(rt)
             pairs_files.append(pairs_file)
         tp.close()
@@ -567,11 +686,11 @@ def auto(argv):
             if rt.get() != 0:
                 raise RuntimeError("Pairs loading from reads had non-zero exit status")
 
-        for ix, read_pair in enumerate(reversed(reads_file_pairs)):
-            file_names[read_pair[0]] = pairs_files[ix]
-            del file_names[read_pair[1]]
-            file_types[read_pair[0]] = 'pairs'
-            del file_types[read_pair[1]]
+        for ix, sam_pair in enumerate(reversed(sam_file_pairs)):
+            file_names[sam_pair[0]] = pairs_files[ix]
+            del file_names[sam_pair[1]]
+            file_types[sam_pair[0]] = 'pairs'
+            del file_types[sam_pair[1]]
 
     # 7. Pairs stats and filtering
     pairs_files = []

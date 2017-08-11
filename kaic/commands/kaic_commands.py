@@ -1072,6 +1072,73 @@ def reads_to_pairs(argv):
     logger.info("All done.")
 
 
+def sort_sam_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic sort_sam",
+        description="Convenience function to sort a SAM file by name "
+                    "(exactly the same as 'samtools sort -n'!)"
+    )
+
+    parser.add_argument(
+        'sam',
+        help='''Input SAM/BAM'''
+    )
+
+    parser.add_argument(
+        'output',
+        nargs='?',
+        help='''Output SAM/BAM. If not provided, will replace input 
+                file with sorted version after sorting.'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def sort_sam(argv):
+    parser = sort_sam_parser()
+    args = parser.parse_args(argv[2:])
+
+    sam_file = os.path.expanduser(args.sam)
+    output_file = None if args.output is None else os.path.expanduser(args.output)
+    tmp = args.tmp
+
+    from kaic.tools.files import sort_natural_sam, create_temporary_copy
+    import tempfile
+    import shutil
+
+    success = False
+    original_input_file = sam_file
+    original_output_file = output_file
+    try:
+        if tmp:
+            tmp = False
+            sam_file = create_temporary_copy(sam_file)
+            if output_file is not None:
+                basename, extension = os.path.splitext(output_file)
+                with tempfile.NamedTemporaryFile(delete=False, prefix='kaic_', suffix=extension) as f:
+                    output_file = f.name
+            tmp = True
+
+        output_file = sort_natural_sam(sam_file, output_file)
+        success = True
+    finally:
+        if tmp:
+            os.remove(sam_file)
+            if success:
+                if original_output_file is not None:
+                    shutil.copy(output_file, original_output_file)
+                else:
+                    shutil.copy(output_file, original_input_file)
+            os.remove(output_file)
+
+
 def sam_to_pairs_parser():
     parser = argparse.ArgumentParser(
         prog="kaic sam_to_pairs",
