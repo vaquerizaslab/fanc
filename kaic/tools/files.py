@@ -4,17 +4,18 @@ import string
 import random
 import pysam
 import gzip
-import binascii
 import pyBigWig
 from Bio import SeqIO
 import tempfile
 import shutil
 import multiprocessing
 import threading
-from kaic.tools.general import mkdir
+import subprocess
+from kaic.tools.general import mkdir, which
 from future.utils import string_types
 from collections import defaultdict
 import numpy as np
+import warnings
 import logging
 
 # configure logging
@@ -431,3 +432,33 @@ def write_bigwig(file_name, regions, mode='w', score_field='score'):
 
     bw.close()
     return file_name
+
+
+def sort_natural_sam(sam_file, output_file=None, sambamba=True, _sambamba_path='sambamba'):
+    if which(_sambamba_path) is None and sambamba:
+        warnings.warn('Cannot find {} on this machine, falling back to samtools sort.'.format(_sambamba_path))
+        sambamba = False
+
+    basename, extension = os.path.splitext(sam_file)
+
+    replace_input = False
+    if output_file is None:
+        with tempfile.NamedTemporaryFile(delete=False, prefix='kaic_', suffix=extension) as f:
+            output_file = f.name
+        replace_input = True
+
+    if not sambamba:
+        pysam.sort('-n', '-o', output_file, sam_file)
+    else:
+        sambamba_command = [_sambamba_path, 'sort', '-N', '-o', output_file, sam_file]
+        ret = subprocess.call(sambamba_command)
+        if ret != 0:
+            raise RuntimeError("{} sorting had non-zero exit status!".format(_sambamba_path))
+
+    if replace_input:
+        logger.info("Replacing input SAM/BAM file {} with sorted version...".format(sam_file))
+        shutil.copy(output_file, sam_file)
+        os.remove(output_file)
+        output_file = sam_file
+
+    return output_file

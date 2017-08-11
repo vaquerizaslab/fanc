@@ -262,6 +262,10 @@ def natural_cmp(pa, pb):
     return -1 if i < len(pa) else 1 if j < len(pb) else 0
 
 
+def add_dict(x, y):
+    return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
+
+
 class RareUpdateProgressBar(progressbar.ProgressBar):
     def __init__(self, min_value=0, max_value=None, widgets=None,
                  left_justify=True, initial_value=0, poll_interval=None,

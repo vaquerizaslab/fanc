@@ -56,7 +56,7 @@ from __future__ import division
 import tables as t
 import pysam
 from kaic.config import config
-from kaic.tools.general import RareUpdateProgressBar, natural_cmp
+from kaic.tools.general import RareUpdateProgressBar, natural_cmp, add_dict
 from kaic.tools.files import is_sambam_file, create_temporary_copy
 from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
 import os
@@ -1888,20 +1888,25 @@ class ReadPairs(AccessOptimisedRegionPairs):
 
         self._add_pair(edge)
 
-    def add_read_pair(self, read_pair):
+    def add_read_pair(self, read_pair, flush=True):
         fi1, fi2 = self._read_pair_fragment_info(read_pair)
         self._add_infos(fi1, fi2)
-        self.flush()
+        if flush:
+            self.flush()
 
-    def add_read_pairs(self, read_pairs):
+    def add_read_pairs(self, read_pairs, flush=True):
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs):
             self._add_infos(fi1, fi2)
 
         if isinstance(read_pairs, ReadPairGenerator):
             stats = read_pairs.stats()
-            self.meta.read_filter_stats = stats
+            if 'read_filter_stats' not in self.meta:
+                self.meta.read_filter_stats = stats
+            else:
+                self.meta.read_filter_stats = add_dict(self.meta.read_filter_stats, stats)
 
-        self.flush()
+        if flush:
+            self.flush()
 
     def _add_pair(self, pair):
         self.add_edge(pair, check_nodes_exist=False, flush=False, replace=True)
