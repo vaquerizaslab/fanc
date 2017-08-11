@@ -1658,6 +1658,7 @@ class ReadPairGenerator(object):
         self.filters = []
         self._filter_stats = defaultdict(int)
         self._total_pairs = 0
+        self._valid_pairs = 0
 
     def _iter_read_pairs(self, *args, **kwargs):
         raise NotImplementedError("Class must override iter_read_pairs")
@@ -1670,20 +1671,22 @@ class ReadPairGenerator(object):
     def stats(self):
         filter_names = []
         for i, f in enumerate(self.filters):
-            if hasattr(f, 'mask') and f.mask is not None:
-                filter_names.append(f.mask.name)
+            if hasattr(f, 'mask_name') and f.mask_name is not None:
+                filter_names.append(f.mask_name)
             else:
                 filter_names.append('filter_{}'.format(i))
 
         stats = dict()
         for i, count in self._filter_stats.items():
             stats[filter_names[i]] = count
-        stats['unmasked'] = self._total_pairs
+        stats['unmasked'] = self._valid_pairs
+        stats['total'] = self._total_pairs
         return stats
 
     def __iter__(self):
         self._filter_stats = defaultdict(int)
         self._total_pairs = 0
+        self._valid_pairs = 0
         for (read1, read2) in self._iter_read_pairs():
             valid_reads = True
             for i, f in enumerate(self.filters):
@@ -1692,14 +1695,16 @@ class ReadPairGenerator(object):
                     valid_reads = False
             if valid_reads:
                 yield (read1, read2)
+                self._valid_pairs += 1
             self._total_pairs += 1
 
 
 class SamBamReadPairGenerator(ReadPairGenerator):
-    def __init__(self, sam_file1, sam_file2):
+    def __init__(self, sam_file1, sam_file2, check_sorted=True):
         ReadPairGenerator.__init__(self)
         self.sam_file1 = sam_file1
         self.sam_file2 = sam_file2
+        self._check_sorted = check_sorted
 
     def _iter_read_pairs(self, *args, **kwargs):
         logger.info("Starting to generate read pairs from SAM")
@@ -1712,15 +1717,32 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                 read1 = next(sam1_iter)
                 read2 = next(sam2_iter)
                 while True:
+                    check1 = False
+                    check2 = False
+                    previous_qname1 = read1.qname
+                    previous_qname2 = read2.qname
+
                     cmp = natural_cmp(read1.qname, read2.qname)
                     if cmp == 0:  # read name identical
                         yield (read1, read2)
                         read1 = next(sam1_iter)
                         read2 = next(sam2_iter)
+                        check1, check2 = True, True
                     elif cmp < 0:  # first pointer behind
                         read1 = next(sam1_iter)
+                        check1 = True
                     else:  # second pointer behind
                         read2 = next(sam2_iter)
+                        check2 = True
+
+                    # check that the files are sorted
+                    if self._check_sorted:
+                        if check1 and natural_cmp(previous_qname1, read1.qname) > 0:
+                            raise ValueError("First SAM file is not sorted by "
+                                             "read name (samtools sort -n)!")
+                        if check2 and natural_cmp(previous_qname2, read2.qname) > 0:
+                            raise ValueError("Second SAM file is not sorted by "
+                                             "read name (samtools sort -n)!")
             except StopIteration:
                 logger.info("Done generating read pairs.")
         finally:
@@ -1874,6 +1896,11 @@ class ReadPairs(AccessOptimisedRegionPairs):
     def add_read_pairs(self, read_pairs):
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs):
             self._add_infos(fi1, fi2)
+
+        if isinstance(read_pairs, ReadPairGenerator):
+            stats = read_pairs.stats()
+            self.meta.read_filter_stats = stats
+
         self.flush()
 
     def _add_pair(self, pair):
@@ -2272,6 +2299,18 @@ class ReadPairs(AccessOptimisedRegionPairs):
             source_partition, sink_partition = sink_partition, source_partition
         for row in self._edge_table_dict[(source_partition, sink_partition)]:
             yield self._pair_from_row(row, lazy=lazy)
+
+    def filter_statistics(self):
+        try:
+            read_stats = self.meta.read_filter_stats
+        except AttributeError:
+            read_stats = dict()
+
+        pair_stats = self.mask_statistics(self._pairs)
+        if 'unmasked' in pair_stats:
+            read_stats['unmasked'] = pair_stats['unmasked']
+        pair_stats.update(read_stats)
+        return pair_stats
 
 
 class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):

@@ -949,15 +949,15 @@ class MaskFilter(with_metaclass(ABCMeta, object)):
         if mask is not None:
             if isinstance(mask, Mask):
                 self.mask_ix = mask.ix
-                self.maks_name = mask.name
+                self.mask_name = mask.name
                 self.mask_description = mask.description
             else:
                 self.mask_ix = mask
-                self.maks_name = mask_name
+                self.mask_name = mask_name
                 self.mask_description = mask_description
         else:
             self.mask_ix = mask_ix
-            self.maks_name = mask_name
+            self.mask_name = mask_name
             self.mask_description = mask_description
             
         if not type(self.mask_ix) == int:

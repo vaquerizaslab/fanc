@@ -1072,6 +1072,185 @@ def reads_to_pairs(argv):
     logger.info("All done.")
 
 
+def sam_to_pairs_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic sam_to_pairs",
+        description='Convert a Reads object into a Pairs object'
+    )
+
+    parser.add_argument(
+        'sam1',
+        help='''First half of input reads'''
+    )
+
+    parser.add_argument(
+        'sam2',
+        help='''Second half of input reads'''
+    )
+
+    parser.add_argument(
+        'genome',
+        help="Can be an HDF5 Genome object, a FASTA file, "
+             "a folder with FASTA files, or a "
+             "comma-separated list of FASTA files."
+    )
+
+    parser.add_argument(
+        'restriction_enzyme',
+        help='''Restriction enzyme used in the experiment, e.g. HindIII'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output file for mapped pairs'''
+    )
+
+    parser.add_argument(
+        '-m', '--mapped', dest='mapped',
+        action='store_true',
+        help='''Filter unmapped reads'''
+    )
+    parser.set_defaults(mapped=False)
+
+    parser.add_argument(
+        '-u', '--unique', dest='unique',
+        action='store_true',
+        help='''Filter reads that map multiple times (with a lower score)'''
+    )
+    parser.set_defaults(unique=False)
+
+    parser.add_argument(
+        '-us', '--unique-strict', dest='unique_strict',
+        action='store_true',
+        help='''Strictly filter reads that map multiple times (XS tag)'''
+    )
+    parser.set_defaults(unique_strict=False)
+
+    parser.add_argument(
+        '-q', '--quality', dest='quality',
+        type=int,
+        help='''Cutoff for the minimum mapping quality of a read'''
+    )
+
+    parser.add_argument(
+        '-c', '--contaminant', dest='contaminant',
+        help='''A Reads file with contaminating reads. Will filter out reads with the same name.'''
+    )
+
+    parser.add_argument(
+        '-s', '--stats', dest='stats',
+        help='''Path for saving stats pdf'''
+    )
+
+    parser.add_argument(
+        '-S', '--no-check-sorted', dest='check_sorted',
+        action='store_false',
+        help='''Assume SAM files are sorted and do not check if that is actually the case'''
+    )
+    parser.set_defaults(check_sorted=True)
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def sam_to_pairs(argv):
+    parser = sam_to_pairs_parser()
+    args = parser.parse_args(argv[2:])
+
+    import kaic
+    from kaic.tools.files import create_temporary_copy
+    from kaic.data.general import Mask
+    from kaic.construct.seq import SamBamReadPairGenerator, ReadPairs, \
+        UnmappedFilter, UniquenessFilter, QualityFilter, ContaminantFilter
+    import tempfile
+    import shutil
+
+    sam1_file = os.path.expanduser(args.sam1)
+    sam2_file = os.path.expanduser(args.sam2)
+    genome_file = os.path.expanduser(args.genome)
+    restriction_enzyme = args.restriction_enzyme
+    output_file = args.output
+    filter_mapped = args.mapped
+    filter_unique = args.unique
+    filter_unique_strict = args.unique_strict
+    filter_quality = args.quality
+    filter_contaminant = args.contaminant
+    stats_file = args.stats
+    check_sorted = args.check_sorted
+    tmp = args.tmp
+
+    logger.info("Preparing filters...")
+    filters = []
+    if filter_mapped:
+        f = UnmappedFilter(mask=Mask(ix=0, name='unmapped'))
+        filters.append(f)
+
+    if filter_unique or filter_unique_strict:
+        f = UniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
+        filters.append(f)
+
+    if filter_quality is not None:
+        f = QualityFilter(filter_quality, mask=Mask(ix=2, name='quality'))
+        filters.append(f)
+
+    if filter_contaminant is not None:
+        f = ContaminantFilter(filter_contaminant, mask=Mask(ix=3, name='contaminant'))
+        filters.append(f)
+
+    original_output_file = output_file
+    try:
+        if tmp:
+            tmp = False
+            sam1_file = create_temporary_copy(sam1_file)
+            sam2_file = create_temporary_copy(sam2_file)
+            genome_file = create_temporary_copy(genome_file)
+            with tempfile.NamedTemporaryFile(prefix='kaic_pairs_', suffix='.pairs') as f:
+                output_file = f.name
+            tmp = True
+
+        logger.info("Getting regions")
+        genome = kaic.Genome.from_string(genome_file)
+        regions = genome.get_regions(restriction_enzyme)
+        genome.close()
+
+        sb = SamBamReadPairGenerator(sam1_file, sam2_file, check_sorted=check_sorted)
+        for f in filters:
+            sb.add_filter(f)
+
+        pairs = ReadPairs(file_name=output_file, mode='w')
+
+        pairs.add_regions(regions)
+        pairs.add_read_pairs(sb)
+
+        statistics = pairs.filter_statistics()
+        pairs.close()
+        logger.info("Done creating pairs.")
+
+        if stats_file is not None:
+            logger.info("Saving statistics...")
+            import matplotlib
+            matplotlib.use('agg')
+            import matplotlib.pyplot as plt
+            from kaic.plotting.plot_statistics import statistics_plot
+            stats_file = os.path.expanduser(stats_file)
+            fig, ax = plt.subplots()
+            statistics_plot(statistics)
+            fig.savefig(stats_file)
+            plt.close(fig)
+    finally:
+        if tmp:
+            shutil.copy(output_file, original_output_file)
+            os.remove(output_file)
+
+    logger.info("All done.")
+
+
 def filter_pairs_parser():
     parser = argparse.ArgumentParser(
         prog="kaic filter_pairs",
@@ -1193,13 +1372,21 @@ def filter_pairs(argv):
     pairs.run_queued_filters(log_progress=True)
     logger.info("Done.")
 
-    if args.stats:
-        logger.info("Plotting filter statistics")
-        from kaic.plotting.plot_statistics import plot_mask_statistics
-        plot_mask_statistics(pairs, pairs._pairs, output=args.stats)
-        logger.info("Done.")
-
+    statistics = pairs.filter_statistics()
     pairs.close()
+    logger.info("Done creating pairs.")
+
+    if args.stats is not None:
+        logger.info("Saving statistics...")
+        import matplotlib
+        matplotlib.use('agg')
+        import matplotlib.pyplot as plt
+        from kaic.plotting.plot_statistics import statistics_plot
+        stats_file = os.path.expanduser(args.stats)
+        fig, ax = plt.subplots()
+        statistics_plot(statistics)
+        fig.savefig(stats_file)
+        plt.close(fig)
 
     if args.tmp:
         output_path = os.path.expanduser(args.output)

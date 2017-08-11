@@ -1,8 +1,34 @@
+import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import itertools
 import tables as t
 from kaic.plotting.plot_genomic_data import _prepare_backend, _plot_figure
+
+
+def statistics_plot(stats, ax=None):
+    if ax is None:
+        ax = plt.gca()
+    labels = []
+    values = []
+
+    if 'total' in stats:
+        labels.append('total')
+        values.append(stats['total'])
+
+    if 'unmasked' in stats:
+        labels.append('valid')
+        values.append(stats['unmasked'])
+
+    for key, value in sorted(stats.items()):
+        if key in ('total', 'unmasked'):
+            continue
+        labels.append(key)
+        values.append(value)
+
+    barplot = sns.barplot(x=np.array(labels), y=np.array(values), palette="muted", ax=ax)
+    sns.despine()
+    return barplot
 
 
 def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
@@ -27,20 +53,20 @@ def plot_mask_statistics(maskable, masked_table, output=None, ignore_zero=True):
                 values.append(value)
 
     if output is not None:
-        old_backend = sns.plt.get_backend()
-        sns.plt.switch_backend('pdf')
-        sns.plt.ioff()
+        old_backend = plt.get_backend()
+        plt.switch_backend('pdf')
+        plt.ioff()
 
     barplot = sns.barplot(x=np.array(labels), y=np.array(values), palette="muted")
     sns.despine()
 
     if output is not None:
         barplot.figure.savefig(output)
-        sns.plt.close(barplot.figure)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
+        plt.close(barplot.figure)
+        plt.ion()
+        plt.switch_backend(old_backend)
     else:
-        sns.plt.show()
+        plt.show()
 
 
 def hic_ligation_structure_biases_plot(pairs, output=None, log=False, *args, **kwargs):
@@ -65,28 +91,28 @@ def hic_ligation_structure_biases_plot(pairs, output=None, log=False, *args, **k
             "ytick.minor.size": 2,
             "axes.linewidth": 0.5
     }):
-        fig = sns.plt.figure()
+        fig = plt.figure()
         fig.suptitle("Error structure by distance")
-        sns.plt.plot(x, (inward_ratios), 'b', label="inward/same strand")
-        sns.plt.plot(x, (outward_ratios), 'r', label="outward/same strand")
-        sns.plt.xscale('log')
+        plt.plot(x, (inward_ratios), 'b', label="inward/same strand")
+        plt.plot(x, (outward_ratios), 'r', label="outward/same strand")
+        plt.xscale('log')
         if log:
-            sns.plt.axhline(y=0, color='black', ls='dashed', lw=0.8)
-            sns.plt.ylim(-3, 3)
+            plt.axhline(y=0, color='black', ls='dashed', lw=0.8)
+            plt.ylim(-3, 3)
         else:
-            sns.plt.axhline(y=0.5, color='black', ls='dashed', lw=0.8)
-            sns.plt.ylim(0, 3)
-        sns.plt.xlabel('Gap size between fragments')
-        sns.plt.ylabel('Read count ratio')
-        sns.plt.legend(loc='upper right')
+            plt.axhline(y=0.5, color='black', ls='dashed', lw=0.8)
+            plt.ylim(0, 3)
+        plt.xlabel('Gap size between fragments')
+        plt.ylabel('Read count ratio')
+        plt.legend(loc='upper right')
         sns.despine()
         if output is None:
-            sns.plt.show()
+            plt.show()
         else:
             fig.savefig(output)
-            sns.plt.close(fig)
-            sns.plt.ion()
-            sns.plt.switch_backend(old_backend)
+            plt.close(fig)
+            plt.ion()
+            plt.switch_backend(old_backend)
 
 
 def pairs_re_distance_plot(pairs, output=None, limit=10000, max_distance=None):
@@ -133,9 +159,9 @@ def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
         ylabel += ' (%d%%)' % int(pca_info.explained_variance_ratio_[1]*100)
 
     if names is not None:
-        ax_main = sns.plt.subplot(121)
+        ax_main = plt.subplot(121)
     else:
-        ax_main = sns.plt.subplot(111)
+        ax_main = plt.subplot(111)
     ax_main.set_xlabel(xlabel)
     ax_main.set_ylabel(ylabel)
 
