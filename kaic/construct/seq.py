@@ -72,6 +72,7 @@ from functools import partial
 from collections import defaultdict
 from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
+import gzip
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1653,6 +1654,14 @@ class BwaMemPairLoader(PairLoader):
         logger.info("Left reads: %d, right reads: %d" % (r1_count, r2_count))
 
 
+class MinimalRead(object):
+    def __init__(self, chromosome, position, strand):
+        self.chromosome = chromosome
+        self.position = position
+        self.strand = strand
+        self.flag = 0 if strand == '+' or strand == 1 else -1
+
+
 class ReadPairGenerator(object):
     def __init__(self):
         self.filters = []
@@ -1697,6 +1706,41 @@ class ReadPairGenerator(object):
                 yield (read1, read2)
                 self._valid_pairs += 1
             self._total_pairs += 1
+
+
+class TxtReadPairGenerator(ReadPairGenerator):
+    def __init__(self, valid_pairs_file, sep="\t",
+                 chr1_field=1, pos1_field=2, strand1_field=3,
+                 chr2_field=4, pos2_field=5, strand2_field=6):
+        ReadPairGenerator.__init__(self)
+        self._file_name = valid_pairs_file
+        self.sep = sep
+        self.chr1_field = chr1_field
+        self.pos1_field = pos1_field
+        self.strand1_field = strand1_field
+        self.chr2_field = chr2_field
+        self.pos2_field = pos2_field
+        self.strand2_field = strand2_field
+
+    def _iter_read_pairs(self, *args, **kwargs):
+        if self._file_name.endswith('.gz') or self._file_name.endswith('gzip'):
+            open_file = gzip.open
+        else:
+            open_file = open
+
+        with open_file(self._file_name, 'r') as f:
+            for line in f:
+                line = line.rstrip()
+                if line == '':
+                    continue
+                fields = line.split(self.sep)
+                read1 = MinimalRead(chromosome=fields[self.chr1_field],
+                                    position=fields[self.pos1_field],
+                                    strand=fields[self.strand1_field])
+                read2 = MinimalRead(chromosome=fields[self.chr2_field],
+                                    position=fields[self.pos2_field],
+                                    strand=fields[self.strand2_field])
+                yield (read1, read2)
 
 
 class SamBamReadPairGenerator(ReadPairGenerator):
