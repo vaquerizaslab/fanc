@@ -1912,8 +1912,11 @@ class ReadPairs(AccessOptimisedRegionPairs):
             return fi[chrom][pos_ix]
 
         for read1, read2 in read_pairs:
-            f_ix1, f_chromosome_ix1, f_start1, f_end1 = _fragment_info(read1, fragment_infos, fragment_ends)
-            f_ix2, f_chromosome_ix2, f_start2, f_end2 = _fragment_info(read2, fragment_infos, fragment_ends)
+            try:
+                f_ix1, f_chromosome_ix1, f_start1, f_end1 = _fragment_info(read1, fragment_infos, fragment_ends)
+                f_ix2, f_chromosome_ix2, f_start2, f_end2 = _fragment_info(read2, fragment_infos, fragment_ends)
+            except (KeyError, IndexError):
+                continue
             r_strand1 = -1 if read1.flag & 16 else 1
             r_strand2 = -1 if read2.flag & 16 else 1
             yield ((read1.pos, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
