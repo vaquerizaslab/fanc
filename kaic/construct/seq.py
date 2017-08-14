@@ -1657,9 +1657,11 @@ class BwaMemPairLoader(PairLoader):
 class MinimalRead(object):
     def __init__(self, chromosome, position, strand):
         self.chromosome = chromosome
+        self.reference_name = chromosome
         self.position = position
         self.strand = strand
         self.flag = 0 if strand == '+' or strand == 1 else -1
+        self.pos = position
 
 
 class ReadPairGenerator(object):
@@ -1735,10 +1737,10 @@ class TxtReadPairGenerator(ReadPairGenerator):
                     continue
                 fields = line.split(self.sep)
                 read1 = MinimalRead(chromosome=fields[self.chr1_field],
-                                    position=fields[self.pos1_field],
+                                    position=int(fields[self.pos1_field]),
                                     strand=fields[self.strand1_field])
                 read2 = MinimalRead(chromosome=fields[self.chr2_field],
-                                    position=fields[self.pos2_field],
+                                    position=int(fields[self.pos2_field]),
                                     strand=fields[self.strand2_field])
                 yield (read1, read2)
 
