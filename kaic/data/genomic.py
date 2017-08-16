@@ -745,7 +745,7 @@ class BigWig(RegionBased):
                 try:
                     intervals = self.bw.intervals(region.chromosome, region.start, region.end)
                 except RuntimeError:
-                    logger.error("Invalid interval bounds? {}".format(region))
+                    logger.debug("Invalid interval bounds? {}".format(region))
                     raise
         else:
             intervals = self._memory_intervals(region)
