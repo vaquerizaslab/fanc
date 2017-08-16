@@ -2957,7 +2957,9 @@ class RegionPairs(Maskable, RegionsTable):
             for i, row in enumerate(self._regions):
                 if not mappable[i]:
                     row['_mask_ix'] = 1
-                    row.update()
+                else:
+                    row['_mask_ix'] = 0
+                row.update()
             self._regions.flush()
             self.meta['has_mappability_info'] = True
         except (IOError, OSError, t.FileModeError, KeyError):
