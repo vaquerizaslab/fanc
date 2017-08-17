@@ -348,7 +348,7 @@ class HicSlicePlot(ScalarDataPlot):
     def __init__(self, hic_data, slice_region, names=None,
                  buffering_strategy="relative", buffering_arg=1, **kwargs):
         """
-        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`. Can be list of
+        :param hic_data: :class:`~kaic.Hic` or :class:`~kaic.RegionMatrix`. Can be list of
                          multiple Hi-C datasets.
         :param slice_region: String ("2L:1000000-1500000") or :class:`~GenomicRegion`.
                              All interactions involving this region are shown.
