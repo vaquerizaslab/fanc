@@ -4621,6 +4621,68 @@ class Hic(RegionMatrixTable):
         logger.info("Removing zero edges")
         self._remove_zero_edges(update_index=True, update_mappability=True)
 
+    def to_cooler(self, path):
+        """
+        Export Hi-C data as cooler file. Only contacts that have not been
+        filtered are exported.
+        https://github.com/mirnylab/cooler/
+        If input Hi-C matrix is uncorrected, the uncorrected matrix is stored.
+        If it is corrected, the uncorrected matrix is stored and the bias vector.
+        Cooler always calculates corrected matrix on-the-fly from the uncorrected
+        matrix and the bias vector.
+        :param path: Output path for cooler file
+        """
+        try:
+            import cooler
+        except ImportError:
+            logger.error("Cannot import cooler. Install cooler 'pip install cooler'.")
+            raise
+        from cooler.io import parse_cooler_uri
+        import h5py
+        import itertools as it
+        n_contacts = len(self)
+        contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
+        bias = self.bias_vector()
+        is_corrected = ~np.all(np.isclose(bias, 1.))
+        def contact_generator():
+            '''
+            Generator yielding all unfiltered contacts in Hi-C object as tuples
+            (source node id, sink node id, edge weight).
+            '''
+            for node in self.edges(lazy=True):
+                yield (node.source, node.sink, node.weight)
+        logging.info("Loading contacts")
+        contact_array = np.fromiter(contact_generator(), dtype=contact_dtype, count=n_contacts)
+        logging.info("Sorting contacts")
+        order = np.argsort(contact_array, order=("source", "sink"))
+        # Cooler stores uncorrected counts and bias vector, so if matrix is corrected
+        # we have to "uncorrect" it here
+        if is_corrected:
+            bias_flat = np.take(bias, contact_array["source"])
+            bias_flat *= np.take(bias, contact_array["sink"])
+            counts = np.rint(contact_array["weight"]/bias_flat).astype(np.int_)
+        else:
+            counts = np.rint(contact_array["weight"]).astype(np.int_)
+        contact_dict = {
+            "bin1_id": contact_array["source"][order],
+            "bin2_id": contact_array["sink"][order],
+            "count": counts[order],
+        }
+        region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in self.regions()]
+        region_df = p.DataFrame(region_dicts)
+        logging.info("Writing cooler")
+        cooler.io.create(cool_uri=path, bins=region_df, pixels=contact_dict)
+        if is_corrected:
+            cool_path, group_path = parse_cooler_uri(path)
+            logging.info("Writing bias vector")
+            # Copied this section from
+            # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
+            with h5py.File(cool_path, 'r+') as h5:
+                grp = h5[group_path]
+                # add the bias column to the file
+                h5opts = dict(compression='gzip', compression_opts=6)
+                grp['bins'].create_dataset("weight", data=bias, **h5opts)
+
     def flush(self, flush_nodes=True, flush_edges=True,
               update_index=True, update_mappability=True):
         """
