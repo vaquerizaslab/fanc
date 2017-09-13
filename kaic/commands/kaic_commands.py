@@ -407,7 +407,7 @@ def map(argv):
                 try:
                     if tmp:
                         tmp = False
-                        input_file = create_temporary_copy(input_file)
+                        input_file = create_temporary_copy(input_file, preserve_extension=True)
                         tmp_file = tempfile.NamedTemporaryFile(suffix=os.path.splitext(output_file)[1],
                                                                prefix='kaic_', delete=False)
                         tmp_file_name = tmp_file.name

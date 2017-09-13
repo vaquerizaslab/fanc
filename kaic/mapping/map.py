@@ -172,43 +172,47 @@ def _iterative_mapping_worker(mapper, input_queue, resubmission_queue, output_qu
 
 def _fastq_to_queue(fastq_file, input_queue, counter_queue,
                     exception_queue=None, worker_pool=None):
-    if fastq_file.endswith('.gz') or fastq_file.endswith('.gzip'):
-        open_file = gzip.open
-    else:
-        open_file = open
+    try:
+        if fastq_file.endswith('.gz') or fastq_file.endswith('.gzip'):
+            open_file = gzip.open
+        else:
+            open_file = open
 
-    current_fastq = None
-    read_counter = 0
-    with open_file(fastq_file, 'r') as f:
-        for i, line in enumerate(f):
-            line = line.decode() if isinstance(line, bytes) else line
-            if i % 4 == 0:
-                if current_fastq is not None:
-                    if exception_queue is not None:
-                        while True:
-                            try:
-                                input_queue.put(msgpack.dumps(current_fastq), True, 5)
-                                read_counter += 1
-                                break
-                            except Full:
-                                pass
-                            try:
-                                exc = exception_queue.get(block=False)
-                            except Empty:
-                                pass
-                            else:
-                                worker_pool.terminate()
-                                raise Exception(exc)
-                    else:
-                        input_queue.put(msgpack.dumps(current_fastq), True, 5)
-                        read_counter += 1
-                current_fastq = ''
-            current_fastq += line
+        current_fastq = None
+        read_counter = 0
+        with open_file(fastq_file, 'r') as f:
+            for i, line in enumerate(f):
+                line = line.decode() if isinstance(line, bytes) else line
+                if i % 4 == 0:
+                    if current_fastq is not None:
+                        if exception_queue is not None:
+                            while True:
+                                try:
+                                    input_queue.put(msgpack.dumps(current_fastq), True, 5)
+                                    read_counter += 1
+                                    break
+                                except Full:
+                                    pass
+                                try:
+                                    exc = exception_queue.get(block=False)
+                                except Empty:
+                                    pass
+                                else:
+                                    worker_pool.terminate()
+                                    raise Exception(exc)
+                        else:
+                            input_queue.put(msgpack.dumps(current_fastq), True, 5)
+                            read_counter += 1
+                    current_fastq = ''
+                current_fastq += line
 
-        input_queue.put(msgpack.dumps(current_fastq))
-        input_queue.put(None)
-        read_counter += 1
-    counter_queue.put(read_counter)
+            input_queue.put(msgpack.dumps(current_fastq))
+            input_queue.put(None)
+            read_counter += 1
+        counter_queue.put(read_counter)
+    except Exception:
+        import sys
+        exception_queue.put("".join(traceback.format_exception(*sys.exc_info())))
 
 
 def iterative_mapping(fastq_file, sam_file, mapper, threads=1, min_size=25, step_size=5,
