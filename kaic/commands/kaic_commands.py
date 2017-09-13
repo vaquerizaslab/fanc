@@ -47,6 +47,7 @@ def kaic_parser():
             cis_trans           Calculate cis/trans ratio
             dump                Dump Hic file to txt file(s)
             hic_from_juicer     Convert juicer .hic file to Kai-C Hic
+            hic_to_cooler       Convert Hic file into cooler format
 
             --- Network
             call_peaks          Call enriched peaks in a Hic object
@@ -1994,6 +1995,47 @@ def hic_from_juicer(argv):
 
     logger.info("All done.")
 
+
+def to_cooler_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic hic_to_cooler",
+        description="""Convert a Hic file into cooler format.
+                       See https://github.com/mirnylab/cooler for details.
+                       If input Hi-C matrix is uncorrected, the uncorrected matrix is stored.
+                       If it is corrected, the uncorrected matrix is stored and the bias vector.
+                       Cooler always calculates corrected matrix on-the-fly from the uncorrected
+                       matrix and the bias vector."""
+    )
+
+    parser.add_argument(
+        'input',
+        help='''Input .hic file, kaic format.'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output cooler file.'''
+    )
+    return parser
+
+
+def hic_to_cooler(argv):
+    parser = to_cooler_parser()
+
+    args = parser.parse_args(argv[2:])
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+
+    import kaic
+    try:
+        import cooler
+    except ImportError:
+        logger.error("Cannot import cooler. Install cooler 'pip install cooler'.")
+        raise
+
+    hic = kaic.load_hic(input_file, mode='r')
+    hic.to_cooler(output_file)
+    logger.info("All done.")
 
 def dump_parser():
     parser = argparse.ArgumentParser(

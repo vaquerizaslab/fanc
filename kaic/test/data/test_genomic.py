@@ -1546,6 +1546,13 @@ class TestHicBasic:
         self.hic.filter(eof)
         assert len(self.hic.edges) == previous - 14 - 23  # 15 intra, 23 inter filtered
 
+    def test_to_cooler(self, tmpdir):
+        cooler = pytest.importorskip("cooler")
+        out = str(tmpdir.join("test_to_cooler.cool"))
+        self.hic.to_cooler(out)
+        c = cooler.Cooler(out)
+        assert np.all(np.isclose(c.matrix(balance=False)[:], self.hic[:]))
+
 
 class TestAccessOptimisedHic(TestHicBasic):
     def setup_method(self, method):

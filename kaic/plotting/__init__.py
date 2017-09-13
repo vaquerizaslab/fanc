@@ -1,21 +1,21 @@
 """
 Provide plotting functions for genomic data types.
 
-Many common data types used in genomics research are supported. Including, but not
-limited to, :class:`Hi-C <kaic.plotting.hic_plotter.HicPlot>`,
-:class:`bed <kaic.plotting.plotter.GenomicFeaturePlot>`,
-:class:`bigwig <kaic.plotting.plotter.BigWigPlot>`
-and :class:`gene (GTF) <kaic.plotting.plotter.GenePlot>` file visualization.
+Many common data types used in genomics research are supported. Including, but
+not limited to, :class:`Hi-C <kaic.plotting.HicPlot>`,
+:class:`bed <kaic.plotting.GenomicFeaturePlot>`,
+:class:`bigwig <kaic.plotting.BigWigPlot>`
+and :class:`gene (GTF) <kaic.plotting.GenePlot>` file visualization.
 The basic idea is that figures can be composed of multiple panels which are
 arranged vertically and share a common x-axis representing genomic coordinates.
 
 Each panel is created separately and then combined into a single figure.
 For example, when analyzing Hi-C data it is often interesting to correlate
 features in the Hi-C map with ChIP-seq tracks. In that case, one would first
-create a :class:`~kaic.plotting.hic_plotter.HicPlot` object, which visualizes
-Hi-C data, and then a :class:`~kaic.plotting.plotter.BigWigPlot` object, which
+create a :class:`~kaic.plotting.HicPlot` object, which visualizes
+Hi-C data, and then a :class:`~kaic.plotting.BigWigPlot` object, which
 can plot bigwig files that are used during ChIP-seq analysis. Finally, the two
-objects are used to create a :class:`~kaic.plotting.plotter.GenomicFigure`.
+objects are used to create a :class:`~kaic.plotting.GenomicFigure`.
 
 Example
 -------
@@ -25,8 +25,8 @@ functionalities of the plotting module. The paths in this example are relative
 to the top-level kaic directory where the setup.py file is located.
 
 .. note::
-    The paths to the example datasets can be accessed easily using the example_data
-    dictionary:
+    The paths to the example datasets can be accessed easily using the
+    example_data dictionary:
 
     .. code:: python
 
@@ -81,13 +81,14 @@ to the top-level kaic directory where the setup.py file is located.
 Editing figure and axes
 -----------------------
 
-The :meth:`GenomicFigure.plot() <kaic.plotting.plotter.GenomicFigure.plot>` function
-returns standard matplotlib Figure and a list of Axes instances that can be further
-adjusted using standard matplotlib methods. The matplotlib axes instance
-associated with each plot is also accesible from the "ax" property of each plot.
+The :meth:`GenomicFigure.plot() <kaic.plotting.GenomicFigure.plot>`
+function returns standard matplotlib Figure and a list of Axes instances that
+can be further adjusted using standard matplotlib methods. The matplotlib axes
+instance associated with each plot is also accesible from the "ax" property of
+each plot.
 
 .. warning:: The Axes instances of the plot should only be edited after
-    :meth:`GenomicFigure.plot() <kaic.plotting.plotter.GenomicFigure.plot>`
+    :meth:`GenomicFigure.plot() <kaic.plotting.GenomicFigure.plot>`
     has been called. Otherwise any changes that were made may be overwritten
     when the plot() method is called.
 
@@ -109,8 +110,8 @@ Basic Plot types and options
 
 .. note::
     An explanation of each plot class and the parameters that it supports can be
-    accessed by suffixing a question mark (in Ipython/Jupyter) or calling the help()
-    function:
+    accessed by suffixing a question mark (in Ipython/Jupyter) or calling the
+    help() function:
 
     .. code:: python
 
@@ -119,13 +120,13 @@ Basic Plot types and options
         help(kplot.BigWigPlot) # standard python
 
 
-A few basic parameters such as a title and the aspect ratio are available for all
-plot classes. The aspect ratio parameter is a floating point number between 0 and 1
-that determines the height of the plot. A value of 1 results in a square plot,
-.5 represents a plot that is half as high as it is wide.
+A few basic parameters such as a title and the aspect ratio are available for
+all plot classes. The aspect ratio parameter is a floating point number between
+0 and 1 that determines the height of the plot. A value of 1 results in a square
+plot, .5 represents a plot that is half as high as it is wide.
 
-The :class:`~kaic.plotting.plotter.GenomicFigure` provides a few convenience
-parameters. Setting ticks_last=True for example removes tick labels from all
+The :class:`~kaic.plotting.GenomicFigure` provides a few convenience
+parameters. Setting ``ticks_last=True`` for example removes tick labels from all
 panels but the last one which makes the overall plot more compact.
 
 Independent x-axis and inverting x-axis
@@ -139,8 +140,8 @@ strand in some species and on the - strande, sometimes the x-axis also needs to
 be inverted to maintain correct orientation.
 
 In this situation the ``independent-x`` option should be set in the
-:class:`~kaic.plotting.plotter.GenomicFigure`. As a result, the
-:meth:`GenomicFigure.plot() <kaic.plotting.plotter.GenomicFigure.plot>` method
+:class:`~kaic.plotting.GenomicFigure`. As a result, the
+:meth:`GenomicFigure.plot() <kaic.plotting.GenomicFigure.plot>` method
 no longer expects a single region as argument, but a list of regions equal to
 the number of plots in the figure. We can modify the example above to illustrate
 this point:
@@ -151,6 +152,34 @@ this point:
     fig, axes = gfig.plot(["chr11:77400000-78600000", "chr11:77500000-78600000",
                            "chr11:77200000-78600000"])
     fig.show()
+
+Synchronize y-axis limits for multiple datasets
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+Sometimes it can be useful to synchronize y-axis limits across multiple datasets
+in order to compare their signals. Many plot types support plotting multiple
+datasets in the same panel, making comparisons easy:
+
+.. code:: python
+
+    bplot = kplot.BigWigPlot(["dataset1.bigwig", "dataset2.bigwig"])
+
+Alternatively it is possible to synchronize y-axis limits across panels using
+:class:`~kaic.plotting.LimitGroup` instances. In this example the y-axis limits
+are shared between bplot1 and bplot2 and seperately between bplot3 and bplot4:
+
+.. code:: python
+
+    ygroup = kplot.LimitGroup()
+    ygroup2 = kplot.LimitGroup(limit=(None, 10))
+    bplot1 = kplot.BigWigPlot("dataset1.bigwig", ylim=ygroup)
+    bplot2 = kplot.BigWigPlot("dataset2.bigwig", ylim=ygroup)
+    bplot3 = kplot.BigWigPlot("dataset3.bigwig", ylim=ygroup2)
+    bplot4 = kplot.BigWigPlot("dataset4.bigwig", ylim=ygroup2)
+
+It is also possible to constrain the y-axis limits. Passing ``limit=(None, 10)``
+to the constructor constrains the upper limit to a maximum of 10 while leaving
+the lower limit unconstrained.
 
 Programmatic plotting using loops
 ---------------------------------

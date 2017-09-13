@@ -9,7 +9,8 @@ from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverla
 from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
-                                  box_coords_abs_to_rel, figure_line, figure_rectangle
+                                  box_coords_abs_to_rel, figure_line, figure_rectangle, \
+                                  parse_bedtool_input
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -72,7 +73,7 @@ class GenomicFigure(object):
                  independent_x=False):
         """
         :param list plots: List of plot instances each will form a separate panel in the figure.
-                      Should inherit from :class:`~kaic.plotting.plotter.BasePlotter` or
+                      Should inherit from :class:`~kaic.plotting.baseplotter.BasePlotter` or
                       :class:`~kaic.plotting.baseplotter.BaseAnnotation`
         :param float width: Width of the plots in inches. Height is automatically determined
                       from the specified aspect ratios of the Plots.
@@ -199,21 +200,30 @@ class GenomicFigure(object):
                     "{} annotations.".format(len(plot_regions), len(self.plots), len(self.annotations)))
         else:
             plot_regions = [region]*(len(self.plots) + len(self.annotations))
+        # First iteration plot each panel and record ylims for ylim_groups
         for r, p in zip(plot_regions, self.plots):
             p.plot(r)
             if getattr(p, "ylim_group", None) is not None:
                 p.ylim_group.add_limit(p.ax.get_ylim())
+        # Second iteration apply ylim_group limits
         for p in self.plots:
             if getattr(p, "ylim_group", None) is not None:
                 p.ax.set_ylim(p.ylim_group.get_limit())
                 p.ax.yaxis.reset_ticks()
+        # Third iteration check if any axes dimensions need updating
+        # and reset ylim_groups
+        dimensions_stale = False
+        for p in self.plots:
+            if p._dimensions_stale:
+                dimensions_stale = True
+                p._dimensions_stale = False
+            if getattr(p, "ylim_group", None) is not None:
+                p.ylim_group.reset_limit()
+        if dimensions_stale:
+            self._update_figure_setup()
+        # Plot annotations
         for r, p in zip(plot_regions[len(self.plots):], self.annotations):
             p.plot(r)
-        # Recalculate axes dimensions if aspect of plots changed
-        if any(p._dimensions_stale for p in self.plots):
-            self._update_figure_setup()
-            for p in self.plots:
-                p._dimensions_stale = False
         return self.fig, self.axes
 
     def __enter__(self):
@@ -265,11 +275,7 @@ class HighlightAnnotation(BaseAnnotation):
         }
         if plot_kwargs is not None:
             self.plot_kwargs.update(plot_kwargs)
-        self.bedtool = bed
-        if isinstance(bed, list):
-            self.bedtool = pbt.BedTool(bed).saveas()
-        elif not isinstance(bed, pbt.BedTool):
-            self.bedtool = kaic.load(bed)
+        self.bedtool = parse_bedtool_input(bed)
         self.plot1 = plot1
         self.plot2 = plot2
         self.patches = []
@@ -332,7 +338,7 @@ class HighlightAnnotation(BaseAnnotation):
 
 class VerticalLineAnnotation(HighlightAnnotation):
     """
-    Deprecated alias for :class:`~kaic.plotting.plotter.HighlightAnnotation`.
+    Deprecated alias for :class:`~kaic.plotting.HighlightAnnotation`.
     """
 
     def __init__(self, *args, **kwargs):
@@ -473,7 +479,7 @@ class RegionsValuesPlot(ScalarDataPlot):
                            and regex.
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-               the height_ratios in :class:`~GenomicFigure`
+               the height_ratios in :class:`~kaic.plotting.GenomicFigure`
         """
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
         kwargs.setdefault("aspect", .2)
@@ -772,10 +778,7 @@ class GenomicFeaturePlot(BasePlotter1D):
         """
         kwargs.setdefault("aspect", .2)
         super(GenomicFeaturePlot, self).__init__(**kwargs)
-        if isinstance(regions, pbt.BedTool):
-            self.bedtool = regions
-        else:
-            self.bedtool = pbt.BedTool(regions)
+        self.bedtool = parse_bedtool_input(regions)
         if feature_types is None and self.bedtool.file_type == "gff":
             feature_types = set(f[2] for f in self.bedtool)
         elif isinstance(feature_types, string_types):
@@ -839,11 +842,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", "ticks")
         super(GenomicFeatureScorePlot, self).__init__(**kwargs)
-        if isinstance(regions, string_types):
-            self.regions = kaic.load(regions)
-        else:
-            self.regions = regions
-
+        self.regions = parse_bedtool_input(regions)
         if isinstance(feature_types, string_types):
             feature_types = [feature_types]
         self.feature_types = feature_types
@@ -1048,11 +1047,7 @@ class GenePlot(BasePlotter1D):
         kwargs.setdefault("aspect", .5)
         kwargs.setdefault("axes_style", "ticks")
         super(GenePlot, self).__init__(**kwargs)
-        if not isinstance(genes, pbt.BedTool):
-            self.bedtool = pbt.BedTool(genes)
-        else:
-            self.bedtool = genes
-
+        self.bedtool = parse_bedtool_input(genes)
         # ignore feature types if inout is not GFF or GTF
         if self.bedtool.file_type != "gff" and self.bedtool.file_type != "gtf":
             feature_types = None
@@ -1348,11 +1343,7 @@ class FeatureLayerPlot(BasePlotter1D):
         """
         kwargs.setdefault("aspect", 1.)
         super(FeatureLayerPlot, self).__init__(**kwargs)
-
-        if isinstance(features, string_types):
-            self.features = load(features)
-        else:
-            self.features = features
+        self.features = parse_bedtool_input(features)
         if gff_grouping_attribute is None:
             self.grouping_attribute = 'feature' if self.features.file_type == 'gff' else 'name'
         else:
@@ -1453,11 +1444,13 @@ class FeatureLayerPlot(BasePlotter1D):
 
 
 class GenomicDataFramePlot(ScalarDataPlot):
+    """
+    Plot data from a table.
+    """
+
     def __init__(self, genomic_data_frame, names=None,
                  plot_kwargs=None, **kwargs):
         """
-        Plot data from a table.
-
         :param genomic_data_frame: :class:`~GenomicDataFrame`
         :param names: List of column names to plot (on the same axis)
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
