@@ -10,7 +10,7 @@ from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
                                   box_coords_abs_to_rel, figure_line, figure_rectangle, \
-                                  parse_bedtool_input
+                                  parse_bedtool_input, get_region_based_object
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -1343,9 +1343,10 @@ class FeatureLayerPlot(BasePlotter1D):
         """
         kwargs.setdefault("aspect", 1.)
         super(FeatureLayerPlot, self).__init__(**kwargs)
-        self.features = parse_bedtool_input(features)
+        self.features = get_region_based_object(features)
         if gff_grouping_attribute is None:
-            self.grouping_attribute = 'feature' if self.features.file_type == 'gff' else 'name'
+            self.grouping_attribute = 'feature' if hasattr(self.features, 'file_type') and \
+                                                   self.features.file_type == 'gff' else 'name'
         else:
             self.grouping_attribute = gff_grouping_attribute
         self.element_height = element_height
