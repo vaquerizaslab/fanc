@@ -80,6 +80,8 @@ except ImportError:
 import pickle
 from collections import defaultdict
 import copy
+import re
+import shlex
 import warnings
 from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass, string_types, viewitems
@@ -170,7 +172,7 @@ class RegionBased(object):
         region_bins
     """
     def __init__(self):
-        pass
+        self._estimate_region_bounds = True
 
     def _region_iter(self, *args, **kwargs):
         raise NotImplementedError("Function not implemented")
@@ -240,10 +242,10 @@ class RegionBased(object):
             region = GenomicRegion.from_string(region)
 
         if isinstance(region, GenomicRegion):
-            if region.start is None:
+            if region.start is None and self._estimate_region_bounds:
                 region.start = 0
 
-            if region.end is None:
+            if region.end is None and self._estimate_region_bounds:
                 chromosome_lengths = self.chromosome_lengths
                 if region.chromosome in chromosome_lengths:
                     region.end = chromosome_lengths[region.chromosome]
@@ -811,40 +813,43 @@ class BigWig(RegionBased):
 
 
 class Tabix(RegionBased):
-    def __init__(self, file_name, preset=None, _tabix_path='tabix'):
-        RegionBased.__init__(self)
+    def __init__(self, file_name, preset=None):
         self._file_name = file_name
-        self._tabix_path = _tabix_path
-        self._base_command = [_tabix_path]
-        if preset is not None:
-            self._base_command += ['-p', preset]
+        self._file = pysam.TabixFile(file_name, parser=pysam.asTuple())
+        RegionBased.__init__(self)
+        self._estimate_region_bounds = False
 
-    def _extract_lines(self, region_string):
-        region_command = self._base_command + [self._file_name, region_string]
-        tp = subprocess.Popen(region_command, stdout=subprocess.PIPE, universal_newlines=True)
-        for line in tp.stdout:
-            yield line.rstrip().split("\t")
+        if preset is None:
+            preset = self._get_file_extension()
+
+        if isinstance(preset, string_types):
+            if preset == 'gff' or preset == 'gtf':
+                self._region_object = GffRegion
+            elif preset == 'bed':
+                self._region_object = BedRegion
+            else:
+                raise ValueError("Preset {} not valid".format(preset))
+        else:
+            self._region_object = preset
+
+    def _get_file_extension(self):
+        fn = self._file_name
+        if fn.endswith('.gz') or fn.endswith('.gzip'):
+            fn = os.path.splitext(fn)[0]
+        extension = os.path.splitext(fn)[1]
+        return extension[1:]
 
     def _region_iter(self, *args, **kwargs):
         for chromosome in self.chromosomes():
-            for fields in self._extract_lines(chromosome):
-                yield self._fields_to_region(fields)
+            for region in self.subset(chromosome):
+                yield region
 
-    def _region_subset(self, region, *args, **kwargs):
-        region_string = "{}:{}-{}".format(region.chromosome, region.start, region.end)
-        return self._extract_lines(region_string)
-
-    def _fields_to_region(self, fields):
-        return GenomicRegion(chromosome=fields[0], start=int(fields[1]), end=int(fields[2]))
+    def _region_subset(self, region):
+        for fields in self._file.fetch(region.chromosome, region.start, region.end):
+            yield self._region_object(fields)
 
     def chromosomes(self):
-        chromosomes_command = self._base_command + ['-l', self._file_name]
-        tp = subprocess.Popen(chromosomes_command, stdout=subprocess.PIPE,
-                              universal_newlines=True)
-        chromosomes = []
-        for line in tp.stdout:
-            chromosomes.append(line.rstrip())
-        return chromosomes
+        return self._file.contigs
 
     @staticmethod
     def to_tabix(file_name, preset=None, _tabix_path='tabix'):
@@ -1367,6 +1372,181 @@ class LazyGenomicRegion(GenomicRegion):
         return self._row.tables.colnames
 
 
+class BedRegion(GenomicRegion):
+    def __init__(self, bed_line, ix=None):
+        try:
+            self.fields = bed_line.split("\t")
+        except AttributeError:
+            self.fields = bed_line
+
+        self.attributes = ('chromosome', 'start', 'end', 'name', 'score', 'strand',
+                           'thick_start', 'thick_end', 'item_rgb', 'block_count',
+                           'block_sizes', 'block_starts')[:len(self.fields)]
+        self.ix = ix
+
+    @property
+    def chromosome(self):
+        return self.fields[0]
+
+    @property
+    def start(self):
+        return int(self.fields[1])
+
+    @property
+    def end(self):
+        return int(self.fields[2])
+
+    @property
+    def name(self):
+        try:
+            return self.fields[3]
+        except IndexError:
+            return None
+
+    @property
+    def strand(self):
+        try:
+            s = self.fields[5]
+            return -1 if s == '-' else 1
+        except IndexError:
+            return 1
+
+    @property
+    def score(self):
+        try:
+            return float(self.fields[4])
+        except (IndexError, ValueError):
+            return np.nan
+
+    @property
+    def thick_start(self):
+        try:
+            return int(self.fields[6])
+        except IndexError:
+            return None
+
+    @property
+    def thick_end(self):
+        try:
+            return int(self.fields[7])
+        except IndexError:
+            return None
+
+    @property
+    def item_rgb(self):
+        try:
+            return self.fields[8].split(',')
+        except IndexError:
+            return None
+
+    @property
+    def block_count(self):
+        try:
+            return int(self.fields[9])
+        except IndexError:
+            return None
+
+    @property
+    def block_sizes(self):
+        try:
+            return [int(s) for s in self.fields[10].split(',')]
+        except IndexError:
+            return None
+
+    @property
+    def block_sizes(self):
+        try:
+            return [int(s) for s in self.fields[11].split(',')]
+        except IndexError:
+            return None
+
+
+class GffRegion(GenomicRegion):
+    def __init__(self, gff_line, ix=None):
+        try:
+            self.fields = gff_line.split("\t")
+        except AttributeError:
+            self.fields = gff_line
+
+        self.ix = ix
+        self._attribute_dict = None
+
+    @property
+    def attributes(self):
+        a = ['ix', 'chromosome', 'source', 'feature', 'start', 'end',
+             'score', 'strand', 'frame']
+
+        return a + list(self.attribute_dict.keys())
+
+    @property
+    def attribute_dict(self):
+        if self._attribute_dict is None:
+            self._attribute_dict = dict()
+
+            attribute_fields = re.split(";\s*", self.fields[8])
+            for field in attribute_fields:
+                try:
+                    key, value = shlex.split(field)
+                except ValueError:
+                    continue
+                self._attribute_dict[key] = value
+        return self._attribute_dict
+
+    def __getattr__(self, item):
+        try:
+            ad = self.attribute_dict
+            return self._attribute_dict[item]
+        except (IndexError, KeyError):
+            raise AttributeError("Attribute {} cannot be found".format(item))
+
+    @property
+    def seqname(self):
+        return self.fields[0]
+
+    @property
+    def source(self):
+        return self.fields[1]
+
+    @property
+    def feature(self):
+        return self.fields[2]
+
+    @property
+    def chromosome(self):
+        return self.seqname
+
+    @property
+    def start(self):
+        return int(self.fields[3])
+
+    @property
+    def end(self):
+        return int(self.fields[4])
+
+    @property
+    def name(self):
+        return None
+
+    @property
+    def strand(self):
+        try:
+            s = self.fields[6]
+            return -1 if s == '-' else 1
+        except IndexError:
+            return 1
+
+    @property
+    def score(self):
+        try:
+            return float(self.fields[4])
+        except (IndexError, ValueError):
+            return np.nan
+
+    @property
+    def frame(self):
+        return self.fields[7]
+
+
 class GenomicRegions(RegionBased):
 
     def __init__(self, regions=None):
@@ -1517,7 +1697,7 @@ class RegionsTable(GenomicRegions, FileGroup):
                                     node that stores data for this
                                     object
         """
-        
+        self._estimate_region_bounds = True
         # parse potential unnamed argument
         if regions is not None:
             # data is file name
