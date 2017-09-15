@@ -114,6 +114,13 @@ def load(file_name, mode='a', tmpdir=None):
         except (ValueError, IOError):
             pass
 
+        # Tabix
+        try:
+            f = Tabix(file_name)
+            return f
+        except (OSError, ValueError):
+            pass
+
         import pybedtools
         f = Bed(file_name)
         try:
@@ -133,6 +140,7 @@ def load(file_name, mode='a', tmpdir=None):
             return BigWig(f)
         except (ImportError, RuntimeError):
             raise ValueError("File type not recognised ({}).".format(file_name))
+
 
 example_data = dict(
     hic="test/data/test_network/rao2014.chr11_77400000_78600000.hic",
