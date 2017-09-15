@@ -1,9 +1,11 @@
 from __future__ import division
 import matplotlib as mpl
 import numpy as np
-import pybedtools as pbt
 from math import log10, floor
 import pybedtools as pbt
+import kaic
+from kaic.data.genomic import RegionBased
+
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,
@@ -175,13 +177,15 @@ class SymmetricNorm(mpl.colors.Normalize):
         self.vmin = -1.*abs_max
         self.vmax = abs_max
 
+
 def box_coords_abs_to_rel(top, left, width, height, figsize):
     f_width, f_height = figsize
     rel_bottom = (f_height - top - height)/f_height
     rel_left = left/f_width
     rel_width = width/f_width
     rel_height = height/f_height
-    return (rel_left, rel_bottom, rel_width, rel_height)
+    return rel_left, rel_bottom, rel_width, rel_height
+
 
 # Borrowed from figure.text method
 # https://github.com/matplotlib/matplotlib/blob/a4999acbbf6ebd6fa211f70becd49887dce663ab/lib/matplotlib/figure.py#L1495
@@ -198,6 +202,7 @@ def figure_line(fig, xdata, ydata, **kwargs):
     fig.stale = True
     return l
 
+
 # Borrowed from figure.text method
 # https://github.com/matplotlib/matplotlib/blob/a4999acbbf6ebd6fa211f70becd49887dce663ab/lib/matplotlib/figure.py#L1495
 def figure_rectangle(fig, xy, width, height, **kwargs):
@@ -213,11 +218,13 @@ def figure_rectangle(fig, xy, width, height, **kwargs):
     fig.stale = True
     return p
 
+
 # From https://stackoverflow.com/a/3413529/4603385
 def round_sig(x, sig=2):
     if x == 0:
         return 0.
     return round(x, sig - int(floor(log10(abs(x)))) - 1)
+
 
 class LimitGroup(object):
     """
@@ -263,6 +270,7 @@ class LimitGroup(object):
     def reset_limit(self):
         self.limit_list = []
 
+
 def parse_bedtool_input(x):
     """
     Pass x to BedTool constructor and return.
@@ -271,3 +279,9 @@ def parse_bedtool_input(x):
     if isinstance(x, pbt.BedTool):
         return x
     return pbt.BedTool(x)
+
+
+def get_region_based_object(input_object):
+    if isinstance(input_object, RegionBased):
+        return input_object
+    return kaic.load(input_object)
