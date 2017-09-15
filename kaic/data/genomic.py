@@ -172,6 +172,7 @@ class RegionBased(object):
         region_bins
     """
     def __init__(self):
+        self.file_type = 'region'
         self._estimate_region_bounds = True
 
     def _region_iter(self, *args, **kwargs):
@@ -5674,3 +5675,32 @@ def _get_overlap_map(old_regions, new_regions):
         current_ix -= 1
     
     return old_to_new
+
+
+def merge_regions(regions):
+    sorted_regions = sorted(regions, key=lambda r: (r.chromosome, r.start))
+
+    merged_regions = []
+    current_regions = []
+    last_end = None
+    for region in sorted_regions:
+        if len(current_regions) == 0:
+            current_regions.append(region)
+            last_end = region.end
+        elif region.chromosome == current_regions[0].chromosome and region.start < last_end:
+            current_regions.append(region)
+            last_end = max(last_end, region.end)
+        else:
+            merged_region = GenomicRegion(chromosome=current_regions[0].chromosome,
+                                          start=current_regions[0].start, end=last_end,
+                                          strand=current_regions[0].strand)
+            merged_regions.append(merged_region)
+            current_regions = [region]
+            last_end = region.end
+
+    merged_region = GenomicRegion(chromosome=current_regions[0].chromosome,
+                                  start=current_regions[0].start, end=last_end,
+                                          strand=current_regions[0].strand)
+    merged_regions.append(merged_region)
+
+    return merged_regions
