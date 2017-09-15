@@ -819,8 +819,9 @@ class Tabix(RegionBased):
         RegionBased.__init__(self)
         self._estimate_region_bounds = False
 
+        self.file_type = self._get_file_extension()
         if preset is None:
-            preset = self._get_file_extension()
+            preset = self.file_type
 
         if isinstance(preset, string_types):
             if preset == 'gff' or preset == 'gtf':
