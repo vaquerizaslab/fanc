@@ -3,7 +3,7 @@ from kaic.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
-from kaic.data.genomic import GenomicRegion, GenomicDataFrame
+from kaic.data.genomic import GenomicRegion, GenomicDataFrame, merge_regions
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
                                        BasePlotter, BaseAnnotation
 from kaic.plotting.hic_plotter import BasePlotterMatrix
@@ -1039,7 +1039,7 @@ class GenePlot(BasePlotter1D):
                               If a list, draw only the feature types in the list on separate tracks,
                               don't draw the rest.
         :param label_field: Field of input file for labelling transcripts/genes. Default: name
-        :param collapse: Draw all transcripts on a single row. Everyting will overlap. Default: False
+        :param collapse: Draw all transcripts on a single row. Everything will overlap. Default: False
         :param squash: Squash all exons belonging to a single grouping unit (merging overlapping exons).
                        Useful especially when setting group_by="gene_id" or "gene_symbol".
                        Genes will still draw on separate rows, if necessary. Default: False
@@ -1047,17 +1047,17 @@ class GenePlot(BasePlotter1D):
         kwargs.setdefault("aspect", .5)
         kwargs.setdefault("axes_style", "ticks")
         super(GenePlot, self).__init__(**kwargs)
-        self.bedtool = parse_bedtool_input(genes)
-        # ignore feature types if inout is not GFF or GTF
-        if self.bedtool.file_type != "gff" and self.bedtool.file_type != "gtf":
+        self.genes = get_region_based_object(genes)
+        # ignore feature types if input is not GFF or GTF
+        if self.genes.file_type != "gff" and self.genes.file_type != "gtf":
             feature_types = None
 
         self.color_score = color_score
         if color_score:
             scores = []
-            for interval in self.bedtool:
+            for region in self.genes.regions:
                 try:
-                    scores.append(float(interval.score))
+                    scores.append(region.score)
                 except ValueError:
                     scores.append(0.0)
             self.abs_max_score = max([min(scores), max(scores)])
@@ -1089,8 +1089,7 @@ class GenePlot(BasePlotter1D):
 
     def _plot_genes(self, region):
         plot_range = region.end - region.start
-        interval = region_to_pbt_interval(region)
-        exon_hits = self.bedtool.all_hits(interval)
+        exon_hits = self.genes.regions(region)
         # trans = self.ax.get_xaxis_transform()
 
         gene_number = 0
@@ -1098,21 +1097,21 @@ class GenePlot(BasePlotter1D):
         for exon in exon_hits:
             if self.feature_types is not None:
                 try:
-                    if not exon[2] in self.feature_types:
+                    if exon.feature not in self.feature_types:
                         continue
                 except ValueError:
                     pass
 
             # get gene name
             try:
-                name = get_region_field(exon, self.label_field)
-            except ValueError:
+                name = getattr(exon, self.label_field)
+            except AttributeError:
                 name = None
 
             # get transcript id for grouping
             try:
-                transcript_id = get_region_field(exon, self.group_by)
-            except ValueError:
+                transcript_id = getattr(exon, self.group_by)
+            except AttributeError:
                 transcript_id = name
 
             if name is None and transcript_id is None:
@@ -1124,31 +1123,23 @@ class GenePlot(BasePlotter1D):
             elif transcript_id is None:
                 transcript_id = name
 
-            if not self.squash:
-                exon_region = GenomicRegion(chromosome=region.chromosome, start=exon.start + 1, end=exon.end,
-                                            name=name, id=transcript_id, strand=exon.strand)
-                # get gene score
-                if self.color_score:
-                    try:
-                        exon_region.score = float(exon.score)
-                    except ValueError:
-                        exon_region.score = None
-                genes[transcript_id].append(exon_region)
-            else:
-                genes[transcript_id].append(exon)
+            exon_region = GenomicRegion(chromosome=region.chromosome, start=exon.start, end=exon.end,
+                                        name=name, id=transcript_id, strand=exon.strand)
+
+            genes[transcript_id].append(exon_region)
             gene_number = len(genes)
 
         # Squash transcripts
         if self.squash:
             for group_id, exons in genes.items():
-                strand = exons[0].strand
-                exon_bed = pbt.BedTool(exons).sort().merge().saveas()
-                genes[group_id] = [GenomicRegion(chromosome=e.chrom, start=e.start + 1,
-                                                 end=e.end, name=group_id, strand=strand) for e in exon_bed]
+                merged_exons = merge_regions(exons)
+                for exon in merged_exons:
+                    exon.name = group_id
+                genes[group_id] = merged_exons
 
         # sort exons
         for transcript_id, exons in genes.items():
-            exons.sort(key=lambda x: x.start)
+            exons.sort(key=lambda x: (x.chromosome, x.start))
 
         # sort transcripts
         genes = [(name, exons) for name, exons in genes.items()]
