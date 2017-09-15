@@ -307,8 +307,8 @@ class HighlightAnnotation(BaseAnnotation):
 
     def _draw_line(self, r, x_trans, trans1, trans2, plot_trans):
         s = r.start
-        y1_t = y_trans1.transform((0, 1))[1]
-        y2_t = y_trans2.transform((0, 0))[1]
+        y1_t = trans1.transform((0, 1))[1]
+        y2_t = trans2.transform((0, 0))[1]
         l = figure_line(self.plot1.ax.figure, xdata=[s, s],
                         ydata=[y1_t, y2_t], transform=plot_trans,
                         **self.plot_kwargs)
