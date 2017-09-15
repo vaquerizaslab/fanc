@@ -1028,6 +1028,10 @@ class LazyRead(Read):
         return self.parent._ix2ref(self.row['ref'])
 
     @property
+    def reference_name(self):
+        return self.ref
+
+    @property
     def pos(self):
         return self.row["pos"]
 
@@ -1333,6 +1337,7 @@ class PairLoader(with_metaclass(ABCMeta, object)):
             self.pos = row.pos
             self.strand = row.strand
             self.ref = row.ref
+            self.reference_name = row.ref
             self.flag = row.flag
             self.cigar = row.cigar
 
