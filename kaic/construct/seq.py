@@ -3033,6 +3033,38 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
         hic.load_read_fragment_pairs(self)
         return hic
 
+    def to_homer(self, output, include_filtered=False):
+        """
+        Output aligned pairs in a HOMER compatible "Hi-C Summary" format
+        http://homer.ucsd.edu/homer/interactions/HiCtagDirectory.html
+
+        Hi-C Summary Format (columns):
+        1. Read Name (can be blank)
+        2. chromosome for read 1
+        3. positions for read 1 (5' end of read, one-indexed)
+        4. strand of read 1 (+ or -)
+        5. chromosome for read 2
+        6. positions for read 2 (5' end of read, one-indexed)
+        7. strand of read 2 (+ or -)
+
+        :param output: Path to output file
+        :param include_filtered: Include pairs that are masked (filtered out). Default: False
+        """
+        excluded_filters = list(self.masks()) if include_filtered else ()
+        with RareUpdateProgressBar(max_value=self._pairs._original_len()) as pb:
+            with open(output, "w") as f:
+                for i, p in enumerate(self.pairs(lazy=True, excluded_filters=excluded_filters)):
+                    f.write("\t".join((
+                        "",
+                        p.left.fragment.chromosome,
+                        str(p.left.position),
+                        "-" if p.left.strand == -1 else "+",
+                        p.right.fragment.chromosome,
+                        str(p.right.position),
+                        "-" if p.right.strand == -1 else "+",
+                    )) + "\n")
+                    pb.update(i)
+
 
 class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPairs):
 
