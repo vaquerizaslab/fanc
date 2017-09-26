@@ -485,7 +485,8 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
 
     def add_adj_slider(self, ax=None):
         if ax is None:
-            ax = append_axes(self.ax, 'bottom', config.adjustment_slider_height, self._total_padding)
+            pad = self._total_padding if self._total_padding is not None else 0.
+            ax = append_axes(self.ax, 'bottom', config.adjustment_slider_height, pad)
 
         self.vmax_slider = Slider(ax, 'vmax', self.hic_buffer.buffered_min,
                                   self.hic_buffer.buffered_max, valinit=self.vmax,
