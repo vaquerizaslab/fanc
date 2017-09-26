@@ -2478,6 +2478,13 @@ def call_peaks_parser():
     parser.set_defaults(inter=False)
 
     parser.add_argument(
+        '--sge', dest='sge',
+        action='store_true',
+        help='''Run on SGE cluster'''
+    )
+    parser.set_defaults(sge=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -2490,6 +2497,8 @@ def call_peaks(argv):
     parser = call_peaks_parser()
 
     args = parser.parse_args(argv[2:])
+
+    sge = args.sge
 
     import kaic
     import kaic.data.network as kn
@@ -2513,7 +2522,8 @@ def call_peaks(argv):
     pk = kn.RaoPeakCaller(p=args.peak_size, w_init=args.width, min_locus_dist=args.min_dist,
                           observed_cutoff=args.o_cutoff, n_processes=args.threads,
                           batch_size=args.batch_size, process_inter=args.inter, e_ll_cutoff=args.ll_cutoff,
-                          e_d_cutoff=args.d_cutoff, e_h_cutoff=args.h_cutoff, e_v_cutoff=args.v_cutoff)
+                          e_d_cutoff=args.d_cutoff, e_h_cutoff=args.h_cutoff, e_v_cutoff=args.v_cutoff,
+                          cluster=sge)
 
     hic = kaic.load_hic(input_path, mode='r')
 
