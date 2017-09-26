@@ -1179,14 +1179,14 @@ class RaoPeakCaller(PeakCaller):
             self._process_jobs(jobs, peak_info, observed_chunk_distribution)
         peak_info.flush()
 
-    def call_peaks(self, hic, chromosome_pairs=None, file_name=None, expected=None):
+    def call_peaks(self, hic, chromosome_pairs=None, file_name=None, intra_expected=None, inter_expected=None):
         """
         Call peaks in Hi-C matrix.
 
         This method will determine each pixel's likelihood to
         be a "true" peak. By default, only pixels with non-zero count and
         an observed/expected ratio > 1.0 for each neighborhood will be
-        reported, because these can by defninition not be true peaks.
+        reported, because these can by definition not be true peaks.
 
         The peak calling behavior can be influenced by modifying
         the object attributes set when initializing :class:`~RaoPeakCaller`.
@@ -1199,25 +1199,32 @@ class RaoPeakCaller(PeakCaller):
                                  ('chr1', 'chr3'), ...])
         :param file_name: An optional filename that backs the returned
                           :class:`~RaoPeakInfo` object
+        :param intra_expected: A dict of the form
+                               <chromosome>:<list of expected values> to override
+                               expected value calculation
+        :param inter_expected: A float describing the expected value
+                               for inter-chromosomal contact matrix entries
         :return: :class:`~RaoPeakInfo` object
         """
         peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True), mode='w')
 
-        # mappability
-        calculated_expected = False
-        if expected is None:
-            logger.info("Expected values...")
-            calculated_expected = True
-            expected = ExpectedContacts(hic, smooth=True)
-        intra_expected = expected.intra_expected()
-        inter_expected = expected.inter_expected()
+        # expected values
+        if intra_expected is None:
+            intra_expected = dict()
+            logger.info("Intra-chromosomal expected values...")
+            for chromosome in hic.chromosomes():
+                with ExpectedContacts(hic, regions=chromosome, smooth=False) as expected:
+                    intra_expected[chromosome] = expected.intra_expected()
+            logger.info("Done.")
+        if self.process_inter and inter_expected is None:
+            logger.info("Inter-chromosomal expected values...")
+            with ExpectedContacts(hic, smooth=False) as expected:
+                inter_expected = expected.inter_expected()
 
         intra_possible, inter_possible = hic.possible_contacts()
 
         # mappability
-        mappable = expected.marginals() > 0
-
-        logger.info("Done.")
+        mappable = hic.mappable()
         
         # initialize peak parameters
         p = self.p
@@ -1252,7 +1259,6 @@ class RaoPeakCaller(PeakCaller):
         logger.info("Done.")
 
         observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
-        inter_stats = {'total': 0, 'observed': 0}
 
         # start processing chromosome pairs
         if chromosome_pairs is None:
@@ -1269,7 +1275,7 @@ class RaoPeakCaller(PeakCaller):
 
             m = hic[chromosome1, chromosome2]
             if chromosome1 == chromosome2:
-                self._find_peaks_in_matrix(m, intra_expected, c, mappable, peaks,
+                self._find_peaks_in_matrix(m, intra_expected[chromosome1], c, mappable, peaks,
                                            observed_chunk_distribution, lambda_chunks, w_init, p)
             elif self.process_inter:
                 self._find_peaks_in_matrix(m, inter_expected, c, mappable, peaks,
@@ -1338,9 +1344,6 @@ class RaoPeakCaller(PeakCaller):
                     peak.fdr_d *= inter_possible/(i+1)
                     peak.update()
             peaks.flush()
-
-        if calculated_expected:
-            expected.close()
 
         return peaks
 
