@@ -982,22 +982,10 @@ class RaoPeakCaller(PeakCaller):
         """
         Process the output from :func:`~process_matrix_range` and save in peak table.
         """
-        if self.cluster:
-            # if the grid does not work for some reason, this will fall back on
-            # multiprocessing itself
-            job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes)
-        else:
-            # use multiprocessing
-            for p in jobs:
-                p.start()
-
-            # Exit the completed processes
-            for p in jobs:
-                p.join()
-
-            # Get process results from the output queue
-            job_outputs = [self.mpqueue.get() for _ in jobs]
-            self.mpqueue = None
+        # if the grid does not work for some reason, this will fall back on
+        # multiprocessing itself
+        job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes,
+                                           local=not self.cluster)
 
         for output in job_outputs:
             rv = output
@@ -1106,20 +1094,11 @@ class RaoPeakCaller(PeakCaller):
         ij_pairs_compressed = msgpack.dumps(ij_pairs)
         ij_region_pairs_compressed = msgpack.dumps(ij_region_pairs)
 
-        if self.cluster:
-            job = gridmap.Job(process_matrix_range, [m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
-                              chunks, w, p, min_locus_dist, min_ll_reads,
-                              max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
-                              e_v_cutoff, e_d_cutoff])
-        else:
-            if self.mpqueue is None:
-                self.mpqueue = multiprocessing.Queue(self.n_processes)
-            # process with multiprocessing
-            job = multiprocessing.Process(target=multiprocessing_matrix_range,
-                                          args=(m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
-                                                chunks, w, p, min_locus_dist, min_ll_reads,
-                                                max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
-                                                e_v_cutoff, e_d_cutoff, self.mpqueue))
+        job = gridmap.Job(process_matrix_range, [m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
+                          chunks, w, p, min_locus_dist, min_ll_reads,
+                          max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
+                          e_v_cutoff, e_d_cutoff])
+
         return job
 
     def _find_peaks_in_matrix(self, m, e, c, mappable, peak_info,
