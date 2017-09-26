@@ -30,6 +30,16 @@ try:
         import gridmap
         gridmap_logger.disabled = False
     has_gridmap = True
+
+    # prepare environment for better success rate
+    if 'MAX_TIME_BETWEEN_HEARTBEATS' not in os.environ:
+        os.environ['MAX_TIME_BETWEEN_HEARTBEATS'] = '600'
+    if 'SEND_ERROR_MAIL' not in os.environ:
+        os.environ['SEND_ERROR_MAIL'] = '0'
+    if 'MAX_IDLE_HEARTBEATS' not in os.environ:
+        os.environ['MAX_IDLE_HEARTBEATS'] = '20'
+    if 'IDLE_THRESHOLD' not in os.environ:
+        os.environ['IDLE_THRESHOLD'] = '0.5'
 except ImportError:
     has_gridmap = False
 
