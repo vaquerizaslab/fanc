@@ -2431,8 +2431,8 @@ def call_peaks_parser():
     parser.add_argument(
         '-b', '--batch-size', dest='batch_size',
         type=int,
-        default=500000,
-        help='''Maximum number of peaks examined per process. Default: 500,000'''
+        default=100000,
+        help='''Maximum number of peaks examined per process. Default: 100,000'''
     )
 
     parser.add_argument(
