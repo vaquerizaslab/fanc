@@ -37,6 +37,7 @@ from kaic.data.general import FileGroup
 import numpy as np
 import tables as t
 import itertools
+from scipy.misc import imresize
 from bisect import bisect_left
 from kaic.tools.general import RareUpdateProgressBar
 from future.utils import string_types
@@ -2284,6 +2285,105 @@ def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, sile
         cmatrix = np.log2(cmatrix)
 
     return cmatrix
+
+
+def _aggregate_region_bins(hic, region, offset=0):
+    region_slice = hic.region_bins(region)
+    return region_slice.start-offset, region_slice.stop-offset
+
+
+def extract_submatrices(hic, region_pairs, norm=False, cache=True):
+    cl = hic.chromosome_lengths
+    cb = hic.chromosome_bins
+
+    discarded, total = 0, 0
+    valid_region_pairs = defaultdict(list)
+    logger.info("Filtering invalid region pairs")
+    for (region1, region2) in region_pairs:
+        total += 1
+        if region1.start < 1 or region1.chromosome not in cl or region1.end > cl[region1.chromosome]:
+            discarded += 1
+            continue
+        if region2.start < 1 or region2.chromosome not in cl or region2.end > cl[region2.chromosome]:
+            discarded += 1
+            continue
+        valid_region_pairs[(region1.chromosome, region2.chromosome)].append((region1, region2))
+    logger.info("Filtered {}/{} region pairs".format(discarded, total))
+
+    intra_expected = dict()
+    inter_expected = None
+    mappable = hic.mappable()
+
+    for (chromosome1, chromosome2), regions_pairs_by_chromosome in valid_region_pairs.items():
+        if cache:
+            matrix = hic.as_matrix((chromosome1, chromosome2), mask_missing=True,
+                                   _mappable=mappable)
+            offset1 = cb[chromosome1][0]
+            offset2 = cb[chromosome2][0]
+        else:
+            matrix = hic
+            offset1 = 0
+            offset2 = 0
+
+        for (region1, region2) in regions_pairs_by_chromosome:
+            region1_bins = _aggregate_region_bins(hic, region1, offset1)
+            region2_bins = _aggregate_region_bins(hic, region2, offset2)
+
+            if cache:
+                m = matrix[region1_bins[0]:region1_bins[1], region2_bins[0]: region2_bins[1]]
+            else:
+                s1 = slice(region1_bins[0], region1_bins[1])
+                s2 = slice(region2_bins[0], region2_bins[1])
+                m = hic.as_matrix((s1, s2), mask_missing=True, _mappable=mappable)
+
+            if norm:
+                e = np.ones(m.shape)
+                if chromosome1 != chromosome2:
+                    if inter_expected is None:
+                        with ExpectedContacts(hic) as ex:
+                            inter_expected = ex.inter_expected()
+                    e.fill(inter_expected)
+                else:
+                    if chromosome1 not in intra_expected:
+                        with ExpectedContacts(hic, regions=chromosome1) as ex:
+                            intra_expected[chromosome1] = ex.intra_expected()
+
+                    for i, row in enumerate(range(region1_bins[0], region1_bins[1])):
+                        for j, col in enumerate(range(region2_bins[0], region2_bins[1])):
+                            ix = abs(col - row)
+                            e[i, j] = intra_expected[chromosome1][ix]
+                m = np.log2(m/e)
+
+            yield m
+
+
+def aggregate_tads(hic, tad_regions, scale_pixels=90,
+                   interpolation='nearest', keep_mask=True,
+                   absolute_extension=0, relative_extension=1.0,
+                   **kwargs):
+
+    region_pairs = []
+    for region in tad_regions:
+        new_region = region.expand(absolute=absolute_extension, relative=relative_extension)
+        region_pairs.append((new_region, new_region))
+
+    shape = (scale_pixels, scale_pixels)
+    counter_matrix = np.zeros(shape)
+    matrix_sum = np.zeros(shape)
+    for m in extract_submatrices(hic, region_pairs, **kwargs):
+        ms = imresize(m, shape, interp=interpolation, mode='F')
+
+        if keep_mask and hasattr(m, 'mask'):
+            mask = imresize(m.mask, shape, interp='nearest').astype('bool')
+            inverted_mask = ~mask
+            counter_matrix += inverted_mask.astype('int')
+            ms = np.ma.masked_where(mask, ms)
+        else:
+            counter_matrix += np.ones(shape)
+
+        matrix_sum += ms
+
+    return matrix_sum/counter_matrix
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):

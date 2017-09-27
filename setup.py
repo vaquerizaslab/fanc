@@ -30,6 +30,7 @@ setup(
     install_requires=[
         'numpy>=1.8.0',
         'scipy',
+        'pillow',
         'matplotlib',
         'pandas>=0.15.0',
         'pysam',
