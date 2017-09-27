@@ -149,6 +149,15 @@ def auto_parser():
     )
     parser.set_defaults(sam_sort=True)
 
+    parser.add_argument(
+        '--restore-coverage', dest='restore_coverage',
+        action='store_true',
+        help='''Restore coverage to the original total number of reads. 
+                Otherwise matrix entries will be contact probabilities.
+                Only available for KR matrix balancing.'''
+    )
+    parser.set_defaults(restore_coverage=False)
+
     return parser
 
 
@@ -298,6 +307,8 @@ def batch_hic_worker(hic_file, bin_size, binned_hic_file, filtered_hic_file, fil
         correct_hic_command.append('-O')
     if args.ice:
         correct_hic_command.append('-i')
+    if args.restore_coverage:
+        correct_hic_command.append('-r')
 
     ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file, chromosome_corrected_hic_file])
     if ret3 != 0:

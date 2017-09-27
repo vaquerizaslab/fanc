@@ -6,7 +6,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optimise=True):
+def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optimise=True,
+            restore_coverage=False):
     hic_new = None
     chromosome_starts = dict()
     last_chromosome = None
@@ -28,7 +29,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
         bias_vectors = []
         for chromosome in hic.chromosomes():
             m = hic[chromosome, chromosome]
-            m_corrected, bias_vector_chromosome = correct_matrix(m)
+            m_corrected, bias_vector_chromosome = correct_matrix(m, restore_coverage=restore_coverage)
             if hic_new is None:
                 logger.debug("Replacing corrected edges in existing Hic object...")
                 hic[chromosome, chromosome] = m_corrected
@@ -53,7 +54,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
     else:
         logger.debug("Fetching whole genome matrix")
         m = hic[:, :]
-        m_corrected, bias_vector = correct_matrix(m)
+        m_corrected, bias_vector = correct_matrix(m, restore_coverage=restore_coverage)
         if hic_new is None:
             logger.debug("Replacing corrected edges in existing Hic object...")
             hic[:, :] = m_corrected
@@ -79,7 +80,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
     return hic_new
 
 
-def correct_matrix(m, max_attempts=50):
+def correct_matrix(m, max_attempts=50, restore_coverage=False):
     # remove zero-sum rows
     removed_rows = []
     m_nonzero, ixs = remove_sparse_rows(m, cutoff=0)
@@ -105,9 +106,11 @@ def correct_matrix(m, max_attempts=50):
         if iterations > max_attempts:
             raise RuntimeError("Exceeded maximum attempts (%d)" % max_attempts)
 
+    if restore_coverage:
+        x = x*np.sqrt(np.sum(m_nonzero)/m_nonzero.shape[0])
+
     logger.debug("Applying bias vector")
-    m_nonzero *= x
-    m_nonzero *= x[:, np.newaxis]
+    m_nonzero = x*m_nonzero*x[:, np.newaxis]
 
     logger.debug(removed_rows)
     logger.debug("Restoring {} sets ({} total) sparse rows.".format(

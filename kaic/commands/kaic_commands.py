@@ -1830,6 +1830,15 @@ def correct_hic_parser():
     parser.set_defaults(optimise=True)
 
     parser.add_argument(
+        '-r', '--restore-coverage', dest='restore_coverage',
+        action='store_true',
+        help='''Restore coverage to the original total number of reads. 
+                Otherwise matrix entries will be contact probabilities.
+                Only available for KR matrix balancing.'''
+    )
+    parser.set_defaults(restore_coverage=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -1864,6 +1873,9 @@ def correct_hic(argv):
     if args.ice:
         import kaic.correcting.ice_matrix_balancing as ice
 
+        if args.restore_coverage:
+            raise ValueError("Restoring coverage (-r) only available for KR balancing!")
+
         hic = kaic.load_hic(file_name=input_path, mode='r')
         ice.correct(hic, only_intra_chromosomal=args.chromosome, copy=True, optimise=args.optimise,
                     file_name=output_path)
@@ -1877,7 +1889,8 @@ def correct_hic(argv):
 
         hic = kaic.load_hic(file_name=input_path, mode='r')
         hic_new = knight.correct(hic, only_intra_chromosomal=args.chromosome,
-                                 copy=True, file_name=output_path, optimise=args.optimise)
+                                 copy=True, file_name=output_path, optimise=args.optimise,
+                                 restore_coverage=args.restore_coverage)
         hic.close()
         hic_new.close()
         if args.tmp:
