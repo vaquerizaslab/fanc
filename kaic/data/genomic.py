@@ -172,8 +172,15 @@ class RegionBased(object):
         region_bins
     """
     def __init__(self):
-        self.file_type = 'region'
-        self._estimate_region_bounds = True
+        pass
+
+    @property
+    def _estimate_region_bounds(self):
+        return True
+
+    @property
+    def file_type(self):
+        return 'region'
 
     def _region_iter(self, *args, **kwargs):
         raise NotImplementedError("Function not implemented")
@@ -818,9 +825,8 @@ class Tabix(RegionBased):
         self._file_name = file_name
         self._file = pysam.TabixFile(file_name, parser=pysam.asTuple())
         RegionBased.__init__(self)
-        self._estimate_region_bounds = False
 
-        self.file_type = self._get_file_extension()
+        self._file_type = self._get_file_extension()
         if preset is None:
             preset = self.file_type
 
@@ -833,6 +839,14 @@ class Tabix(RegionBased):
                 raise ValueError("Preset {} not valid".format(preset))
         else:
             self._region_object = preset
+
+    @property
+    def _estimate_region_bounds(self):
+        return False
+
+    @property
+    def file_type(self):
+        return self._file_type
 
     def _get_file_extension(self):
         fn = self._file_name
@@ -1327,6 +1341,29 @@ class GenomicRegion(TableObject):
                                                            self.strand_string, frame,
                                                            group)
 
+    def expand(self, from_center=False,
+               absolute=None, relative=None,
+               absolute_left=0, absolute_right=0,
+               relative_left=0.0, relative_right=0.0,
+               copy=True):
+        if absolute is not None:
+            absolute_left, absolute_right = absolute, absolute
+        if relative is not None:
+            relative_left, relative_right = relative, relative
+
+        extend_left_bp = absolute_left + int(relative_left * len(self))
+        extend_right_bp = absolute_right + int(relative_right * len(self))
+
+        new_region = self.copy() if copy else self
+        if from_center:
+            center = self.center
+            new_region.start = int(center) - extend_left_bp
+            new_region.end = int(center) + extend_right_bp
+        else:
+            new_region.start = int(self.start) - extend_left_bp
+            new_region.end = int(self.end) + extend_right_bp
+        return new_region
+
 
 class LazyGenomicRegion(GenomicRegion):
     def __init__(self, row, ix=None, auto_update=True):
@@ -1699,7 +1736,6 @@ class RegionsTable(GenomicRegions, FileGroup):
                                     node that stores data for this
                                     object
         """
-        self._estimate_region_bounds = True
         # parse potential unnamed argument
         if regions is not None:
             # data is file name
@@ -1962,6 +1998,15 @@ class RegionsTable(GenomicRegions, FileGroup):
                 else:
                     for row in self._regions.where(query):
                         yield row
+
+    def region_bins(self, region):
+        start_ix = None
+        end_ix = None
+        for r in self.regions(region):
+            if start_ix is None:
+                start_ix = r.ix
+            end_ix = r.ix + 1
+        return slice(start_ix, end_ix, 1)
 
 
 class Genome(FileGroup):
@@ -3114,7 +3159,7 @@ class RegionPairs(Maskable, RegionsTable):
     def __len__(self):
         return len(self._edges)
 
-    def mappable(self):
+    def mappable(self, sub_region=None):
         """
         Get the mappability vector of this matrix.
         """
@@ -3124,30 +3169,32 @@ class RegionPairs(Maskable, RegionsTable):
             logger.debug("Retrieving precalculated mappability...")
             for i, region in enumerate(self.regions(lazy=True)):
                 mappable[i] = region._mask_ix == 0
+        else:
+            # prepare marginals dict
+            logger.debug("Calculating mappability...")
+
+            with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
+                for i, edge in enumerate(self.edges(lazy=True)):
+                    mappable[edge.source] = True
+                    mappable[edge.sink] = True
+                    pb.update(i)
+
+            try:
+                for i, row in enumerate(self._regions):
+                    if not mappable[i]:
+                        row['_mask_ix'] = 1
+                    else:
+                        row['_mask_ix'] = 0
+                    row.update()
+                self._regions.flush()
+                self.meta['has_mappability_info'] = True
+            except (IOError, OSError, t.FileModeError, KeyError):
+                logger.debug("Cannot write mappability info to read-only file")
+
+        if sub_region is None:
             return mappable
-
-        # prepare marginals dict
-        logger.debug("Calculating mappability...")
-
-        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
-            for i, edge in enumerate(self.edges(lazy=True)):
-                mappable[edge.source] = True
-                mappable[edge.sink] = True
-                pb.update(i)
-
-        try:
-            for i, row in enumerate(self._regions):
-                if not mappable[i]:
-                    row['_mask_ix'] = 1
-                else:
-                    row['_mask_ix'] = 0
-                row.update()
-            self._regions.flush()
-            self.meta['has_mappability_info'] = True
-        except (IOError, OSError, t.FileModeError, KeyError):
-            logger.debug("Cannot write mappability info to read-only file")
-
-        return mappable
+        else:
+            return mappable[self.region_bins(sub_region)]
 
 
 class AccessOptimisedRegionPairs(RegionPairs):
