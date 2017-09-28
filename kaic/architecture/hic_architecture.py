@@ -2312,52 +2312,60 @@ def extract_submatrices(hic, region_pairs, norm=False, cache=True):
 
     intra_expected = dict()
     inter_expected = None
+
+    logger.info("Calculating mappability...")
     mappable = hic.mappable()
 
-    for (chromosome1, chromosome2), regions_pairs_by_chromosome in valid_region_pairs.items():
-        if cache:
-            matrix = hic.as_matrix((chromosome1, chromosome2), mask_missing=True,
-                                   _mappable=mappable)
-            offset1 = cb[chromosome1][0]
-            offset2 = cb[chromosome2][0]
-        else:
-            matrix = hic
-            offset1 = 0
-            offset2 = 0
-
-        for (region1, region2) in regions_pairs_by_chromosome:
-            region1_bins = _aggregate_region_bins(hic, region1, offset1)
-            region2_bins = _aggregate_region_bins(hic, region2, offset2)
-
+    with RareUpdateProgressBar(max_value=total-discarded, prefix='Matrices') as pb:
+        current_matrix = 0
+        for (chromosome1, chromosome2), regions_pairs_by_chromosome in valid_region_pairs.items():
             if cache:
-                m = matrix[region1_bins[0]:region1_bins[1], region2_bins[0]: region2_bins[1]]
+                matrix = hic.as_matrix((chromosome1, chromosome2), mask_missing=True,
+                                       _mappable=mappable)
+                offset1 = cb[chromosome1][0]
+                offset2 = cb[chromosome2][0]
             else:
-                s1 = slice(region1_bins[0], region1_bins[1])
-                s2 = slice(region2_bins[0], region2_bins[1])
-                m = hic.as_matrix((s1, s2), mask_missing=True, _mappable=mappable)
+                matrix = hic
+                offset1 = 0
+                offset2 = 0
 
-            if norm:
-                e = np.ones(m.shape)
-                if chromosome1 != chromosome2:
-                    if inter_expected is None:
-                        with ExpectedContacts(hic) as ex:
-                            inter_expected = ex.inter_expected()
-                    e.fill(inter_expected)
+            for (region1, region2) in regions_pairs_by_chromosome:
+                current_matrix += 1
+                region1_bins = _aggregate_region_bins(hic, region1, offset1)
+                region2_bins = _aggregate_region_bins(hic, region2, offset2)
+
+                if cache:
+                    m = matrix[region1_bins[0]:region1_bins[1], region2_bins[0]: region2_bins[1]]
                 else:
-                    if chromosome1 not in intra_expected:
-                        with ExpectedContacts(hic, regions=chromosome1) as ex:
-                            intra_expected[chromosome1] = ex.intra_expected()
+                    s1 = slice(region1_bins[0], region1_bins[1])
+                    s2 = slice(region2_bins[0], region2_bins[1])
+                    m = hic.as_matrix((s1, s2), mask_missing=True, _mappable=mappable)
 
-                    for i, row in enumerate(range(region1_bins[0], region1_bins[1])):
-                        for j, col in enumerate(range(region2_bins[0], region2_bins[1])):
-                            ix = abs(col - row)
-                            e[i, j] = intra_expected[chromosome1][ix]
-                m = np.log2(m/e)
+                if norm:
+                    e = np.ones(m.shape)
+                    if chromosome1 != chromosome2:
+                        if inter_expected is None:
+                            logger.info("Getting inter-chromosomal expected value")
+                            with ExpectedContacts(hic) as ex:
+                                inter_expected = ex.inter_expected()
+                        e.fill(inter_expected)
+                    else:
+                        if chromosome1 not in intra_expected:
+                            logger.info("Getting {} expected values".format(chromosome1))
+                            with ExpectedContacts(hic, regions=chromosome1) as ex:
+                                intra_expected[chromosome1] = ex.intra_expected()
 
-            yield m
+                        for i, row in enumerate(range(region1_bins[0], region1_bins[1])):
+                            for j, col in enumerate(range(region2_bins[0], region2_bins[1])):
+                                ix = abs(col - row)
+                                e[i, j] = intra_expected[chromosome1][ix]
+                    m = np.log2(m/e)
+
+                pb.update(current_matrix)
+                yield m
 
 
-def aggregate_tads(hic, tad_regions, scale_pixels=90,
+def aggregate_tads(hic, tad_regions, pixels=90,
                    interpolation='nearest', keep_mask=True,
                    absolute_extension=0, relative_extension=1.0,
                    **kwargs):
@@ -2367,7 +2375,7 @@ def aggregate_tads(hic, tad_regions, scale_pixels=90,
         new_region = region.expand(absolute=absolute_extension, relative=relative_extension)
         region_pairs.append((new_region, new_region))
 
-    shape = (scale_pixels, scale_pixels)
+    shape = (pixels, pixels)
     counter_matrix = np.zeros(shape)
     matrix_sum = np.zeros(shape)
     for m in extract_submatrices(hic, region_pairs, **kwargs):
