@@ -74,6 +74,7 @@ def kaic_parser():
             distance_decay     Calculate distance decay for a Hi-C object
             diff               Calculate difference between two vectors
             aggregate_tads     Make a TAD aggregate plot
+            ab_profile         Plot A-B compartment enrichment profiles
 
             --- Other
             write_config       Write default config file
@@ -4020,6 +4021,22 @@ def aggregate_tads_parser():
     parser.set_defaults(norm=False)
 
     parser.add_argument(
+        '-L', '--no-log', dest='log',
+        action='store_false',
+        help='''Do not log2-transform normalized matrices.
+                Only used in conjunction with '--norm'.'''
+    )
+    parser.set_defaults(log=True)
+
+    parser.add_argument(
+        '-s', '--rescale', dest='rescale',
+        action='store_true',
+        help='''Do not rescale normalized contact matrices using an a=-0.25 power law.
+                Only used in conjunction with '--norm'.'''
+    )
+    parser.set_defaults(rescale=False)
+
+    parser.add_argument(
         '-C', '--no-cache', dest='cache',
         action='store_false',
         help='''Do not cache chromosome matrices (slower, but saves a lot of memory)'''
@@ -4055,6 +4072,15 @@ def aggregate_tads_parser():
     )
     parser.set_defaults(tmp=False)
 
+    parser.add_argument(
+        '--preset-flyamer', dest='preset_flyamer',
+        action='store_true',
+        help='''Use presets to create matrices as in Flyamer et al. (2017).
+                Overrides the following parameters:
+                --norm -L -s -r 1.0 -a 0'''
+    )
+    parser.set_defaults(preset_flyamer=False)
+
     return parser
 
 
@@ -4072,12 +4098,23 @@ def aggregate_tads(argv):
     relative = args.relative
     absolute = args.absolute
     norm = args.norm
+    log = args.log
+    rescale = args.rescale
     cache = args.cache
     matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
     cmap = args.colormap
     vmin = args.vmin
     vmax = args.vmax
     tmp = args.tmp
+    preset_flyamer = args.preset_flyamer
+
+    if preset_flyamer:
+        logging.info("Using Flyamer et al. (2017) preset")
+        norm = True
+        rescale = True
+        relative = 1.0
+        absolute = 0
+        log = False
 
     import kaic
     from kaic.config import config
@@ -4085,16 +4122,16 @@ def aggregate_tads(argv):
     import matplotlib
     matplotlib.use('agg')
     import matplotlib.pyplot as plt
-    import kaic.plotting as klot
+    import kaic.plotting
 
     if cmap is None:
-        cmap = 'bwr' if norm else config.colormap_hic
+        cmap = 'bwr' if norm and log else config.colormap_hic
 
     with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
         tads = kaic.load(tads_file)
         m = aggregate_tads(hic, tads.regions, pixels=pixels, interpolation=interpolation,
                            relative_extension=relative, absolute_extension=absolute,
-                           cache=cache, norm=norm)
+                           rescale=rescale, cache=cache, norm=norm, log=log)
 
     if matrix_file is not None:
         import numpy as np
@@ -4104,6 +4141,113 @@ def aggregate_tads(argv):
     im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest')
     plt.colorbar(im)
     ax.set_axis_off()
+    fig.savefig(output_file)
+    plt.close(fig)
+
+
+def ab_profile_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic ab_profile",
+        description='Make an A-B compartment interaction profile'
+    )
+
+    parser.add_argument(
+        'hic',
+        help='Hic file'
+    )
+
+    parser.add_argument(
+        'output',
+        help='Output image file (extension determines file format)'
+    )
+
+    parser.add_argument(
+        '-p', '--percentiles', dest='percentiles',
+        type=float,
+        nargs='+',
+        default=(20.0, 40.0, 60.0, 80.0, 100.0),
+        help='''Percentiles to use for calculation'''
+    )
+
+    parser.add_argument(
+        '-c', '--colormap', dest='colormap',
+        default='RdBu_r',
+        help='''Matplotlib colormap to use for matrix'''
+    )
+
+    parser.add_argument(
+        '--vmin', dest='vmin',
+        type=float,
+        default=-1,
+        help='''Minimum saturation value in image'''
+    )
+
+    parser.add_argument(
+        '--vmax', dest='vmax',
+        type=float,
+        default=1,
+        help='''Maximum saturation value in image'''
+    )
+
+    parser.add_argument(
+        '-C', '--no-chromosome', dest='per_chromosome',
+        action='store_false',
+        help='''Do not restrict calculation to intra-chromosomal regions'''
+    )
+    parser.set_defaults(per_chromosome=True)
+
+    parser.add_argument(
+        '-m', '--save-matrix', dest='matrix_file',
+        help='''Path to save aggregate matrix (numpy txt format)'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def ab_profile(argv):
+    parser = ab_profile_parser()
+
+    args = parser.parse_args(argv[2:])
+    import os
+
+    hic_file = os.path.expanduser(args.hic)
+    output_file = os.path.expanduser(args.output)
+    percentiles = args.percentiles
+    per_chromosome = args.per_chromosome
+    cmap = args.colormap
+    matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
+    vmin = args.vmin
+    vmax = args.vmax
+    tmp = args.tmp
+
+    import kaic
+    from kaic.architecture.hic_architecture import ab_enrichment_profile
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+
+    with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
+        m = ab_enrichment_profile(hic, percentiles=percentiles, per_chromosome=per_chromosome)
+
+    if matrix_file is not None:
+        import numpy as np
+        np.savetxt(matrix_file, m)
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest')
+    cb = plt.colorbar(im)
+    cb.set_label('log enrichment')
+    ax.set_xticks([0, 4])
+    ax.set_xticklabels(['active', 'inactive'])
+    ax.set_yticks([0, 4])
+    ax.set_yticklabels(['active', 'inactive'])
     fig.savefig(output_file)
     plt.close(fig)
 

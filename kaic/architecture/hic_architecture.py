@@ -504,7 +504,9 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
                 regions = hic.subset(regions)
             MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                       data_fields={'ratio': t.Float32Col()}, regions=regions,
-                                                      default_field='ratio', _table_name_edges=_table_name)
+                                                      default_field='ratio',
+                                                      _table_name_edges=_table_name)
+        self.default_value = 1.0
         self.hic = hic
         self.weight_column = weight_column
         self.per_chromosome = per_chromosome
@@ -2292,7 +2294,8 @@ def _aggregate_region_bins(hic, region, offset=0):
     return region_slice.start-offset, region_slice.stop-offset
 
 
-def extract_submatrices(hic, region_pairs, norm=False, cache=True):
+def extract_submatrices(hic, region_pairs, norm=False,
+                        log=True, cache=True):
     cl = hic.chromosome_lengths
     cb = hic.chromosome_bins
 
@@ -2359,13 +2362,17 @@ def extract_submatrices(hic, region_pairs, norm=False, cache=True):
                             for j, col in enumerate(range(region2_bins[0], region2_bins[1])):
                                 ix = abs(col - row)
                                 e[i, j] = intra_expected[chromosome1][ix]
-                    m = np.log2(m/e)
+
+                    if log:
+                        m = np.log2(m/e)
+                    else:
+                        m = m/e
 
                 pb.update(current_matrix)
                 yield m
 
 
-def aggregate_tads(hic, tad_regions, pixels=90,
+def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=-0.25,
                    interpolation='nearest', keep_mask=True,
                    absolute_extension=0, relative_extension=1.0,
                    **kwargs):
@@ -2391,7 +2398,69 @@ def aggregate_tads(hic, tad_regions, pixels=90,
 
         matrix_sum += ms
 
-    return matrix_sum/counter_matrix
+    am = matrix_sum/counter_matrix
+
+    if rescale:
+        rm = np.zeros(shape)
+        b = hic.bin_size
+        for i in range(pixels):
+            for j in range(pixels):
+                v = (abs(i - j) * b + b) ** scaling_exponent
+                try:
+                    if am.mask[i, j]:
+                        continue
+                except AttributeError:
+                    pass
+                rm[i, j] = v * am[i, j]
+                rm[j, i] = v * am[j, i]
+        am = rm
+
+    return am
+
+
+def ab_enrichment_profile(hic, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0), per_chromosome=True):
+    with ObservedExpectedRatio(hic, per_chromosome=per_chromosome) as oe:
+        with ABDomainMatrix(oe, ratio=False, per_chromosome=per_chromosome) as ab:
+            with ABDomains(ab) as abd:
+                ev = abd.ab_domain_eigenvector()
+
+        bin_cutoffs = np.nanpercentile(ev, percentiles)
+        bins = []
+        for value in ev:
+            bins.append(bisect_left(bin_cutoffs, value))
+
+        s = len(bin_cutoffs)
+        m = np.zeros((s, s))
+        c = np.zeros((s, s))
+
+        if per_chromosome:
+            for chromosome in hic.chromosomes():
+                oem = oe[chromosome, chromosome]
+                for i, row_region in enumerate(oem.row_regions):
+                    i_bin = s - bins[row_region.ix] - 1
+                    for j, col_region in enumerate(oem.col_regions):
+                        j_bin = s - bins[col_region.ix] - 1
+                        value = oem[i, j]
+
+                        m[i_bin, j_bin] += value
+                        c[i_bin, j_bin] += 1
+                        m[j_bin, i_bin] += value
+                        c[j_bin, i_bin] += 1
+        else:
+            oem = oe[:]
+            for i in range(oem.shape):
+                i_bin = s - bins[i] - 1
+                for j in range(i, oem.shape):
+                    j_bin = s - bins[j] - 1
+                    value = oem[i, j]
+
+                    m[i_bin, j_bin] += value
+                    c[i_bin, j_bin] += 1
+                    m[j_bin, i_bin] += value
+                    c[j_bin, i_bin] += 1
+
+    m /= c
+    return np.log2(m)
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
