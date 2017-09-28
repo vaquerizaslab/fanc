@@ -73,6 +73,7 @@ def kaic_parser():
             ab                 Calculate AB domain matrix for a Hi-C object
             distance_decay     Calculate distance decay for a Hi-C object
             diff               Calculate difference between two vectors
+            aggregate_tads     Make a TAD aggregate plot
 
             --- Other
             write_config       Write default config file
@@ -3953,6 +3954,158 @@ def diff(argv):
 
     with kaic.VectorDifference(v1, v2, absolute=args.absolute, file_name=output_file, mode='w') as d:
         d.calculate()
+
+
+def aggregate_tads_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic aggregate_tads",
+        description='Make a TAD aggregate plot'
+    )
+
+    parser.add_argument(
+        'hic',
+        help='Hic file'
+    )
+
+    parser.add_argument(
+        'tads',
+        help='File with TAD regions (BED, GFF, Tabix, ...)'
+    )
+
+    parser.add_argument(
+        'output',
+        help='Output image file (extension determines file format)'
+    )
+
+    parser.add_argument(
+        '-p', '--pixels', dest='pixels',
+        type=int,
+        default=90,
+        help='''Width of the output image in pixels. Default: 90'''
+    )
+
+    parser.add_argument(
+        '-i', '--interpolation', dest='interpolation',
+        default='nearest',
+        help='''Type of interpolation performed to shrink/expand matrices. Default: nearest'''
+    )
+
+    parser.add_argument(
+        '-r', '--relative', dest='relative',
+        type=float,
+        default=1.0,
+        help='''Extension (e) of each region as fraction of TAD length (l). 
+                    Final region in the image will be: 
+                    <start of TAD - e*l> to <end of TAD + e*l>.
+                    Default: 1.0 (results in 3 times TAD size image). 
+                    Additive with '-a' parameter!'''
+    )
+
+    parser.add_argument(
+        '-a', '--absolute', dest='absolute',
+        type=int,
+        default=0,
+        help='''Extension (e) of each region in base pairs. 
+                    Final region in the image will be: 
+                    <start of TAD - e> to <end of TAD + e>.
+                    Default: 0 (no extension). 
+                    Additive with '-r' parameter!'''
+    )
+
+    parser.add_argument(
+        '-n', '--norm', dest='norm',
+        action='store_true',
+        help='''Normalize matrix to expected values'''
+    )
+    parser.set_defaults(norm=False)
+
+    parser.add_argument(
+        '-C', '--no-cache', dest='cache',
+        action='store_false',
+        help='''Do not cache chromosome matrices (slower, but saves a lot of memory)'''
+    )
+    parser.set_defaults(cache=True)
+
+    parser.add_argument(
+        '-m', '--save-matrix', dest='matrix_file',
+        help='''Path to save aggregate matrix (numpy txt format)'''
+    )
+
+    parser.add_argument(
+        '-c', '--colormap', dest='colormap',
+        help='''Matplotlib colormap to use for matrix'''
+    )
+
+    parser.add_argument(
+        '--vmin', dest='vmin',
+        type=float,
+        help='''Minimum saturation value in image'''
+    )
+
+    parser.add_argument(
+        '--vmax', dest='vmax',
+        type=float,
+        help='''Maximum saturation value in image'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def aggregate_tads(argv):
+    parser = aggregate_tads_parser()
+
+    args = parser.parse_args(argv[2:])
+    import os
+
+    hic_file = os.path.expanduser(args.hic)
+    tads_file = os.path.expanduser(args.tads)
+    output_file = os.path.expanduser(args.output)
+    pixels = args.pixels
+    interpolation = args.interpolation
+    relative = args.relative
+    absolute = args.absolute
+    norm = args.norm
+    cache = args.cache
+    matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
+    cmap = args.colormap
+    vmin = args.vmin
+    vmax = args.vmax
+    tmp = args.tmp
+
+    import kaic
+    from kaic.config import config
+    from kaic.architecture.hic_architecture import aggregate_tads
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    import kaic.plotting as klot
+
+    if cmap is None:
+        cmap = 'bwr' if norm else config.colormap_hic
+
+    with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
+        tads = kaic.load(tads_file)
+        m = aggregate_tads(hic, tads.regions, pixels=pixels, interpolation=interpolation,
+                           relative_extension=relative, absolute_extension=absolute,
+                           cache=cache, norm=norm)
+
+    if matrix_file is not None:
+        import numpy as np
+        np.savetxt(matrix_file, m)
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest')
+    plt.colorbar(im)
+    ax.set_axis_off()
+    fig.savefig(output_file)
+    plt.close(fig)
 
 
 def stats_parser():
