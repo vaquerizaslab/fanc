@@ -4145,6 +4145,145 @@ def aggregate_tads(argv):
     plt.close(fig)
 
 
+def aggregate_loops_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic aggregate_loop",
+        description='Make a loop aggregate plot'
+    )
+
+    parser.add_argument(
+        'hic',
+        help='Hic file'
+    )
+
+    parser.add_argument(
+        'loops',
+        help='File with loop anchor regions (BEDPE)'
+    )
+
+    parser.add_argument(
+        'output',
+        help='Output image file (extension determines file format)'
+    )
+
+    parser.add_argument(
+        '-p', '--pixels', dest='pixels',
+        type=int,
+        default=16,
+        help='''Width of the output image in pixels. 
+                Equal to the amount of bins in Hi-C matrix around loop
+                Default: 16'''
+    )
+
+    parser.add_argument(
+        '-N', '--no-norm', dest='norm',
+        action='store_false',
+        help='''Do not normalize matrix to expected values'''
+    )
+    parser.set_defaults(norm=True)
+
+    parser.add_argument(
+        '-L', '--no-log', dest='log',
+        action='store_false',
+        help='''Do not log2-transform normalized matrices.
+                Only used in conjunction with '--norm'.'''
+    )
+    parser.set_defaults(log=True)
+
+    parser.add_argument(
+        '-C', '--no-cache', dest='cache',
+        action='store_false',
+        help='''Do not cache chromosome matrices (slower, but saves a lot of memory)'''
+    )
+    parser.set_defaults(cache=True)
+
+    parser.add_argument(
+        '-m', '--save-matrix', dest='matrix_file',
+        help='''Path to save aggregate matrix (numpy txt format)'''
+    )
+
+    parser.add_argument(
+        '-c', '--colormap', dest='colormap',
+        help='''Matplotlib colormap to use for matrix'''
+    )
+
+    parser.add_argument(
+        '--vmin', dest='vmin',
+        type=float,
+        help='''Minimum saturation value in image'''
+    )
+
+    parser.add_argument(
+        '--vmax', dest='vmax',
+        type=float,
+        help='''Maximum saturation value in image'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def aggregate_loops(argv):
+    parser = aggregate_loops_parser()
+
+    args = parser.parse_args(argv[2:])
+    import os
+
+    hic_file = os.path.expanduser(args.hic)
+    loops_file = os.path.expanduser(args.loops)
+    output_file = os.path.expanduser(args.output)
+    pixels = args.pixels
+    norm = args.norm
+    log = args.log
+    cache = args.cache
+    matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
+    cmap = args.colormap
+    vmin = args.vmin
+    vmax = args.vmax
+    tmp = args.tmp
+
+    import kaic
+    from kaic.config import config
+    from kaic.architecture.hic_architecture import aggregate_loops
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    import kaic.plotting
+    from kaic.tools.general import human_format
+
+    if cmap is None:
+        cmap = 'bwr' if norm and log else config.colormap_hic
+
+    with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
+        b = hic.bin_size
+        loops = kaic.Bedpe(loops_file)
+        m = aggregate_loops(hic, loops, pixels=pixels, cache=cache, norm=norm, log=log)
+
+    if matrix_file is not None:
+        import numpy as np
+        np.savetxt(matrix_file, m)
+
+    left = int(pixels / 2)
+    right = left if pixels % 2 == 1 else left - 1
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest')
+    plt.colorbar(im)
+    ax.set_xticks([0, left, pixels - 1])
+    ax.set_xticklabels(['-{}b'.format(human_format(left * b)), '', '+{}b'.format(human_format(right * b))])
+    ax.set_yticks([0, left, pixels - 1])
+    ax.set_yticklabels(['-{}b'.format(human_format(left * b)), '', '+{}b'.format(human_format(right * b))])
+    fig.savefig(output_file)
+    plt.close(fig)
+
+
+
 def ab_profile_parser():
     parser = argparse.ArgumentParser(
         prog="kaic ab_profile",
