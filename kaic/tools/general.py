@@ -208,7 +208,7 @@ def human_format(num, precision=0):
         magnitude += 1
         num /= 1000.0
     # add more suffixes if you need them
-    return '{:.{prec}f}{}'.format(num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude], prec=precision)
+    return '{:.{prec}f}{}'.format(num, ['', 'k', 'M', 'G', 'T', 'P'][magnitude], prec=precision)
 
 
 def natural_sort(l):
