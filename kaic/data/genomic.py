@@ -633,8 +633,8 @@ class Bed(pybedtools.BedTool, RegionBased):
 
     def _region_subset(self, region, *args, **kwargs):
         for interval in self.filter(lambda i: i.chrom == region.chromosome
-                                        and i.start <= region.end
-                                        and i.end >= region.start):
+                                    and i.start <= region.end
+                                    and i.end >= region.start):
             yield self._interval_to_region(interval)
 
     def _region_len(self):
@@ -707,14 +707,60 @@ class Bed(pybedtools.BedTool, RegionBased):
                 yield merged_interval
 
 
+class Bedpe(Bed):
+    def __init__(self, *args, **kwargs):
+        Bed.__init__(self, *args, **kwargs)
+
+    @property
+    def file_type(self):
+        return 'bedpe'
+
+    def _interval_to_region(self, interval):
+        fields = interval.fields
+
+        if len(fields) < 6:
+            raise ValueError("File does not appear to be BEDPE (columns: {})".format(len(fields)))
+
+        try:
+            score = float(fields[7])
+        except (IndexError, TypeError, ValueError):
+            score = np.nan
+
+        try:
+            name = fields[6]
+        except IndexError:
+            name = '.'
+
+        try:
+            strand1 = fields[8]
+        except IndexError:
+            strand1 = '.'
+
+        try:
+            strand2 = fields[9]
+        except IndexError:
+            strand2 = '.'
+
+        region = GenomicRegion(chromosome=fields[0], start=int(fields[1]), end=int(fields[2]),
+                               chromosome1=fields[0], start1=int(fields[1]), end1=int(fields[2]),
+                               chromosome2=fields[3], start2=int(fields[4]), end2=int(fields[5]),
+                               strand=strand1, strand1=strand1, strand2=strand2,
+                               score=score, fields=fields,
+                               name=name)
+        return region
+
+
 class BigWig(RegionBased):
     def __init__(self, bw):
         RegionBased.__init__(self)
         if isinstance(bw, string_types):
             bw = pyBigWig.open(bw)
         self.bw = bw
-        self.file_type = 'bw'
         self._intervals = None
+
+    @property
+    def file_type(self):
+        return 'bw'
 
     def __exit__(self, exec_type, exec_val, exec_tb):
         pass
