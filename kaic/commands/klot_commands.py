@@ -331,6 +331,13 @@ def hic2d_parser():
     parser.set_defaults(log=False)
 
     parser.add_argument(
+        '-f', '--flip', dest='flip',
+        action='store_true',
+        help='''Flip matrix upside down'''
+    )
+    parser.set_defaults(flip=False)
+
+    parser.add_argument(
         '-c', '--colormap', dest='colormap',
         help='''Matplotlib colormap'''
     )
@@ -354,7 +361,8 @@ def hic2d(parameters):
 
     matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
     return kplt.HicPlot2D(matrix, colormap=colormap, norm=norm, vmin=args.vmin, vmax=args.vmax,
-                          show_colorbar=args.show_colorbar, adjust_range=args.adjust_range), args
+                          show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
+                          flip=args.flip), args
 
 
 def hicsplit_parser():
