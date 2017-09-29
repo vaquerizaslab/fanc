@@ -2116,7 +2116,8 @@ class Genome(FileGroup):
         self.meta['chromosome_lengths'] = lengths
 
     @classmethod
-    def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
+    def from_folder(cls, folder_name, file_name=None, exclude=None,
+                    include_sequence=True, tmpdir=None):
         """
         Load every FASTA file from a folder as a chromosome.
 
@@ -2132,7 +2133,8 @@ class Genome(FileGroup):
         folder_name = os.path.expanduser(folder_name)
         for f in os.listdir(folder_name):
             try:
-                chromosome = Chromosome.from_fasta(folder_name + "/" + f, include_sequence=include_sequence)
+                chromosome = Chromosome.from_fasta(folder_name + "/" + f,
+                                                   include_sequence=include_sequence)
                 logger.info("Adding chromosome %s" % chromosome.name)
                 if exclude is None:
                     chromosomes.append(chromosome)
@@ -2141,10 +2143,10 @@ class Genome(FileGroup):
             except (ValueError, IOError):
                 pass
 
-        return cls(chromosomes=chromosomes, file_name=file_name)
+        return cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
 
     @classmethod
-    def from_string(cls, genome_string, file_name=None):
+    def from_string(cls, genome_string, file_name=None, tmpdir=None, mode='a'):
         """
         Convenience function to load a :class:`~Genome` from a string.
 
@@ -2157,13 +2159,13 @@ class Genome(FileGroup):
         # case 1: FASTA file = Chromosome
         if is_fasta_file(genome_string):
             chromosomes = Chromosome.from_fasta(genome_string)
-            genome = cls(chromosomes=chromosomes, file_name=file_name)
+            genome = cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
         # case 2: Folder with FASTA files
         elif os.path.isdir(genome_string):
-            genome = cls.from_folder(genome_string, file_name=file_name)
+            genome = cls.from_folder(genome_string, file_name=file_name, tmpdir=tmpdir)
         # case 3: path to HDF5 file
         elif os.path.isfile(genome_string):
-            genome = cls(genome_string)
+            genome = cls(genome_string, tmpdir=tmpdir, mode=mode)
         # case 4: List of FASTA files
         else:
             chromosome_files = genome_string.split(',')
@@ -2171,7 +2173,7 @@ class Genome(FileGroup):
             for chromosome_file in chromosome_files:
                 chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
                 chromosomes.append(chromosome)
-            genome = cls(chromosomes=chromosomes, file_name=file_name)
+            genome = cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
 
         return genome
 
