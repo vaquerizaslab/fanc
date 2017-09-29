@@ -12,7 +12,7 @@ from .version import __version__
 
 from kaic.config import config
 from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion, \
-    BigWig, GenomicDataFrame, GenomicRegions, Tabix
+    BigWig, GenomicDataFrame, GenomicRegions, Tabix, Bedpe
 from kaic.data.general import FileBased
 from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -120,6 +120,15 @@ def load(file_name, mode='a', tmpdir=None):
             return f
         except (OSError, ValueError):
             pass
+
+        # BEDPE
+        if file_name.endswith('.bedpe'):
+            try:
+                f = Bedpe(file_name)
+                _ = f.regions[0]
+                return f
+            except (ValueError, TypeError):
+                pass
 
         import pybedtools
         f = Bed(file_name)
