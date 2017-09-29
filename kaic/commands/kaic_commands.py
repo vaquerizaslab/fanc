@@ -74,6 +74,7 @@ def kaic_parser():
             distance_decay     Calculate distance decay for a Hi-C object
             diff               Calculate difference between two vectors
             aggregate_tads     Make a TAD aggregate plot
+            aggregate_loops    Make a loop aggregate plot
             ab_profile         Plot A-B compartment enrichment profiles
 
             --- Other
