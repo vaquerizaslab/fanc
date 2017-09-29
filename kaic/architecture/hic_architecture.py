@@ -29,7 +29,7 @@ from kaic.architecture.architecture import TableArchitecturalFeature, calculateo
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
     MatrixArchitecturalRegionFeatureFilter
 from kaic.architecture.maxima_callers import MaximaCallerDelta
-from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic, Genome
+from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic, Genome, Bedpe
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
 from kaic.tools.matrix import apply_sliding_func, kth_diag_indices
@@ -2452,6 +2452,45 @@ def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=
         am = rm
 
     return am
+
+
+def aggregate_loops(hic, loop_regions, pixels=16, **kwargs):
+    left = int(pixels/2)
+    right = left if pixels % 2 == 1 else left - 1
+
+    if isinstance(loop_regions, Bedpe):
+        anchors = []
+        for region in loop_regions.regions:
+            a1 = GenomicRegion(chromosome=region.chromosome1, start=region.start1, end=region.end1)
+            a2 = GenomicRegion(chromosome=region.chromosome2, start=region.start2, end=region.end2)
+            anchors.append((a1, a2))
+        loop_regions = anchors
+
+    bin_size = hic.bin_size
+    region_pairs = []
+    for (anchor1, anchor2) in loop_regions:
+        a1 = GenomicRegion(chromosome=anchor1.chromosome, start=anchor1.center, end=anchor1.center)
+        a2 = GenomicRegion(chromosome=anchor2.chromosome, start=anchor2.center, end=anchor2.center)
+        r1 = list(hic.regions(a1))[0].copy()
+        r2 = list(hic.regions(a2))[0].copy()
+        r1.start -= left * bin_size
+        r1.end += right * bin_size
+        r2.start -= left * bin_size
+        r2.end += right * bin_size
+        region_pairs.append((r1, r2))
+
+    shape = (pixels, pixels)
+    counter_matrix = np.zeros(shape)
+    matrix_sum = np.zeros(shape)
+    for m in extract_submatrices(hic, region_pairs, **kwargs):
+        if hasattr(m, 'mask'):
+            inverted_mask = ~m.mask
+            counter_matrix += inverted_mask.astype('int')
+        else:
+            counter_matrix += np.ones(shape)
+        matrix_sum += m
+
+    return matrix_sum/counter_matrix
 
 
 def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
