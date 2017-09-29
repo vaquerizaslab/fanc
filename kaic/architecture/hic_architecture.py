@@ -29,11 +29,12 @@ from kaic.architecture.architecture import TableArchitecturalFeature, calculateo
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
     MatrixArchitecturalRegionFeatureFilter
 from kaic.architecture.maxima_callers import MaximaCallerDelta
-from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic
+from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic, Genome
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
 from kaic.tools.matrix import apply_sliding_func, kth_diag_indices
 from kaic.data.general import FileGroup
+from Bio.SeqUtils import GC as calculate_gc_content
 import numpy as np
 import tables as t
 import itertools
@@ -837,17 +838,50 @@ class ABDomains(VectorArchitecturalRegionFeature):
         return [r.ev for r in self.subset(region, lazy=True)]
 
     @calculateondemand
-    def ab_regions(self):
+    def ab_regions(self, genome=None):
         """
         Get a list of regions, each with a 'type' attribute that is either 'A' or 'B',
         depending on the sign of the matrix eigenvector.
+        :param genome: A Genome for GC content calculation, used to decide if negative
+                       eigenvector means A or B
         :return: list of regions
         """
+        ev = [r.ev for r in self.regions(lazy=False)]
+
+        # calculate GC content
+        if genome is not None:
+            if isinstance(genome, string_types):
+                logger.info("Loading genome...")
+                genome = Genome.from_string(genome)
+
+            logger.info("Calculating GC content...")
+            gc_content = [np.nan] * len(self.regions)
+            for chromosome in self.chromosomes():
+                logger.info("{}".format(chromosome))
+                chromosome_sequence = genome[chromosome].sequence
+                for region in self.regions(chromosome):
+                    s = chromosome_sequence[region.start - 1:region.end]
+                    gc_content[region.ix] = calculate_gc_content(s)
+            gc_content = np.array(gc_content)
+
+            # use gc content to orient AB domain vector per chromosome
+            cb = self.chromosome_bins
+            for chromosome, (start, end) in cb.items():
+                ev_sub = ev[start:end]
+                gc_sub = gc_content[start:end]
+                a_ixs = np.where(ev_sub >= 0.)
+                b_ixs = np.where(ev_sub < 0.)
+                gc_a = np.nanmean(gc_sub[a_ixs])
+                gc_b = np.nanmean(gc_sub[b_ixs])
+
+                if gc_a < gc_b:  # AB compartments are reversed!
+                    ev[start:end] = -1 * ev_sub
+
         domains = []
         current_domain = None
         last_region = None
-        for region in self.regions(lazy=False):
-            domain_type = 'A' if region.ev >= 0 else 'B'
+        for i, region in enumerate(self.regions(lazy=False)):
+            domain_type = 'A' if ev[i] >= 0 else 'B'
 
             if last_region is not None and region.chromosome != last_region.chromosome:
                 current_domain = None
@@ -2365,8 +2399,10 @@ def extract_submatrices(hic, region_pairs, norm=False,
 
                     if log:
                         m = np.log2(m/e)
+                        m[np.isnan(m)] = 0.
                     else:
                         m = m/e
+                        m[np.isnan(m)] = 1
 
                 pb.update(current_matrix)
                 yield m
@@ -2418,11 +2454,44 @@ def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=
     return am
 
 
-def ab_enrichment_profile(hic, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0), per_chromosome=True):
+def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
+                          per_chromosome=True, only_gc=False):
+    # calculate GC content
+    if isinstance(genome, string_types):
+        logger.info("Loading genome...")
+        genome = Genome.from_string(genome)
+
+    logger.info("Calculating GC content...")
+    gc_content = [np.nan] * len(hic.regions)
+    for chromosome in hic.chromosomes():
+        logger.info("{}".format(chromosome))
+        chromosome_sequence = genome[chromosome].sequence
+        for region in hic.regions(chromosome):
+            s = chromosome_sequence[region.start-1:region.end]
+            gc_content[region.ix] = calculate_gc_content(s)
+    gc_content = np.array(gc_content)
+
+    logger.info("Generating profile...")
     with ObservedExpectedRatio(hic, per_chromosome=per_chromosome) as oe:
-        with ABDomainMatrix(oe, ratio=False, per_chromosome=per_chromosome) as ab:
-            with ABDomains(ab) as abd:
-                ev = abd.ab_domain_eigenvector()
+        if only_gc:
+            ev = gc_content
+        else:
+            with ABDomainMatrix(oe, ratio=False, per_chromosome=per_chromosome) as ab:
+                with ABDomains(ab) as abd:
+                    ev = np.array(abd.ab_domain_eigenvector())
+
+                    # use gc content to orient AB domain vector per chromosome
+                    cb = hic.chromosome_bins
+                    for chromosome, (start, end) in cb.items():
+                        ev_sub = ev[start:end]
+                        gc_sub = gc_content[start:end]
+                        a_ixs = np.where(ev_sub >= 0)
+                        b_ixs = np.where(ev_sub < 0)
+                        gc_a = np.nanmean(gc_sub[a_ixs])
+                        gc_b = np.nanmean(gc_sub[b_ixs])
+
+                        if gc_a < gc_b:  # AB compartments are reversed!
+                            ev[start:end] = -1*ev_sub
 
         bin_cutoffs = np.nanpercentile(ev, percentiles)
         bins = []
@@ -2433,12 +2502,18 @@ def ab_enrichment_profile(hic, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0), per_
         m = np.zeros((s, s))
         c = np.zeros((s, s))
 
+        mappable = hic.mappable()
+
         if per_chromosome:
             for chromosome in hic.chromosomes():
                 oem = oe[chromosome, chromosome]
                 for i, row_region in enumerate(oem.row_regions):
+                    if not mappable[row_region.ix]:
+                        continue
                     i_bin = s - bins[row_region.ix] - 1
                     for j, col_region in enumerate(oem.col_regions):
+                        if not mappable[col_region.ix]:
+                            continue
                         j_bin = s - bins[col_region.ix] - 1
                         value = oem[i, j]
 
@@ -2449,8 +2524,12 @@ def ab_enrichment_profile(hic, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0), per_
         else:
             oem = oe[:]
             for i in range(oem.shape):
+                if not mappable[i]:
+                    continue
                 i_bin = s - bins[i] - 1
                 for j in range(i, oem.shape):
+                    if not mappable[j]:
+                        continue
                     j_bin = s - bins[j] - 1
                     value = oem[i, j]
 

@@ -4157,6 +4157,13 @@ def ab_profile_parser():
     )
 
     parser.add_argument(
+        'genome',
+        help="Can be an HDF5 Genome object, a FASTA file, "
+             "a folder with FASTA files, or a "
+             "comma-separated list of FASTA files."
+    )
+
+    parser.add_argument(
         'output',
         help='Output image file (extension determines file format)'
     )
@@ -4197,6 +4204,14 @@ def ab_profile_parser():
     parser.set_defaults(per_chromosome=True)
 
     parser.add_argument(
+        '-G', '--only-gc', dest='only_gc',
+        action='store_true',
+        help='''Only use GC content for domain calculation, 
+                not the correlation matrix eigenvector.'''
+    )
+    parser.set_defaults(only_gc=False)
+
+    parser.add_argument(
         '-m', '--save-matrix', dest='matrix_file',
         help='''Path to save aggregate matrix (numpy txt format)'''
     )
@@ -4218,6 +4233,7 @@ def ab_profile(argv):
     import os
 
     hic_file = os.path.expanduser(args.hic)
+    genome_file = os.path.expanduser(args.genome)
     output_file = os.path.expanduser(args.output)
     percentiles = args.percentiles
     per_chromosome = args.per_chromosome
@@ -4225,6 +4241,7 @@ def ab_profile(argv):
     matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
     vmin = args.vmin
     vmax = args.vmax
+    only_gc = args.only_gc
     tmp = args.tmp
 
     import kaic
@@ -4234,7 +4251,9 @@ def ab_profile(argv):
     import matplotlib.pyplot as plt
 
     with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
-        m = ab_enrichment_profile(hic, percentiles=percentiles, per_chromosome=per_chromosome)
+        with kaic.Genome.from_string(genome_file, tmpdir=tmp, mode='r') as genome:
+            m = ab_enrichment_profile(hic, genome, percentiles=percentiles,
+                                      per_chromosome=per_chromosome, only_gc=only_gc)
 
     if matrix_file is not None:
         import numpy as np
