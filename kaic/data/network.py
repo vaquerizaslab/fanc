@@ -167,6 +167,18 @@ class PeakInfo(RegionMatrixTable):
         rao_filter = RaoMergedPeakFilter(mask=mask)
         self.filter(rao_filter, queue)
 
+    def to_bedpe(self, file_name):
+        regions = list(self.regions)
+        with open(file_name, 'w') as f:
+            for peak in self.peaks(lazy=True):
+                r1 = regions[peak.source]
+                r2 = regions[peak.sink]
+                r = peak.radius
+                f.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                    r1.chromosome, int(r1.start - r), int(r1.end + r),
+                    r2.chromosome, int(r2.start - r), int(r2.end + r)
+                ))
+
 
 class RaoPeakInfo(RegionMatrixTable):
     """
