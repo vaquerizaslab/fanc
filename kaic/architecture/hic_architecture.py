@@ -2329,7 +2329,7 @@ def _aggregate_region_bins(hic, region, offset=0):
 
 
 def extract_submatrices(hic, region_pairs, norm=False,
-                        log=True, cache=True):
+                        log=True, cache=True, mask=True, mask_inf=True):
     cl = hic.chromosome_lengths
     cb = hic.chromosome_bins
 
@@ -2357,7 +2357,7 @@ def extract_submatrices(hic, region_pairs, norm=False,
         current_matrix = 0
         for (chromosome1, chromosome2), regions_pairs_by_chromosome in valid_region_pairs.items():
             if cache:
-                matrix = hic.as_matrix((chromosome1, chromosome2), mask_missing=True,
+                matrix = hic.as_matrix((chromosome1, chromosome2), mask_missing=mask,
                                        _mappable=mappable)
                 offset1 = cb[chromosome1][0]
                 offset2 = cb[chromosome2][0]
@@ -2376,7 +2376,7 @@ def extract_submatrices(hic, region_pairs, norm=False,
                 else:
                     s1 = slice(region1_bins[0], region1_bins[1])
                     s2 = slice(region2_bins[0], region2_bins[1])
-                    m = hic.as_matrix((s1, s2), mask_missing=True, _mappable=mappable)
+                    m = hic.as_matrix((s1, s2), mask_missing=mask, _mappable=mappable)
 
                 if norm:
                     e = np.ones(m.shape)
@@ -2404,8 +2404,64 @@ def extract_submatrices(hic, region_pairs, norm=False,
                         m = m/e
                         m[np.isnan(m)] = 1
 
+                if mask_inf:
+                    m_mask = np.isinf(m)
+                    if not hasattr(m, 'mask'):
+                        m = np.ma.masked_where(m_mask, m)
+                    m.mask += m_mask
+
                 pb.update(current_matrix)
                 yield m
+
+
+def _rescale_oe_matrix(matrix, bin_size, scaling_exponent=-0.25):
+    rm = np.zeros(matrix.shape)
+    b = bin_size
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            v = (abs(i - j) * b + b) ** scaling_exponent
+            try:
+                if matrix.mask[i, j]:
+                    continue
+            except AttributeError:
+                pass
+            rm[i, j] = v * matrix[i, j]
+            rm[j, i] = v * matrix[j, i]
+    return rm
+
+
+def aggregate_boundaries(hic, boundary_regions, window=200000,
+                         rescale=False, scaling_exponent=-0.25,
+                         **kwargs):
+    region_pairs = []
+    for region in boundary_regions:
+        new_start = int(region.center - int(window / 2))
+        new_end = int(region.center + int(window / 2))
+        new_region = GenomicRegion(chromosome=region.chromosome, start=new_start, end=new_end)
+        region_pairs.append((new_region, new_region))
+
+    counter_matrix = None
+    matrix_sum = None
+    for m in extract_submatrices(hic, region_pairs, **kwargs):
+        if counter_matrix is None:
+            shape = m.shape
+            counter_matrix = np.zeros(shape)
+            matrix_sum = np.zeros(shape)
+
+        if hasattr(m, 'mask'):
+            inverted_mask = ~m.mask
+            counter_matrix += inverted_mask.astype('int')
+        else:
+            counter_matrix += np.ones(counter_matrix.shape)
+
+        matrix_sum += m
+
+    am = matrix_sum / counter_matrix
+
+    if rescale:
+        am = _rescale_oe_matrix(am, hic.bin_size, scaling_exponent=scaling_exponent)
+
+    return am
 
 
 def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=-0.25,
@@ -2437,19 +2493,7 @@ def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=
     am = matrix_sum/counter_matrix
 
     if rescale:
-        rm = np.zeros(shape)
-        b = hic.bin_size
-        for i in range(pixels):
-            for j in range(pixels):
-                v = (abs(i - j) * b + b) ** scaling_exponent
-                try:
-                    if am.mask[i, j]:
-                        continue
-                except AttributeError:
-                    pass
-                rm[i, j] = v * am[i, j]
-                rm[j, i] = v * am[j, i]
-        am = rm
+        am = _rescale_oe_matrix(am, hic.bin_size, scaling_exponent=scaling_exponent)
 
     return am
 
