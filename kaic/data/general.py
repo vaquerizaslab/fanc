@@ -83,7 +83,7 @@ class FileBased(with_metaclass(MetaFileBased, object)):
                 logger.info("Temporary output file: {}".format(self.tmp_file_name))
                 if mode in ('r+', 'r'):
                     shutil.copyfile(file_name, self.tmp_file_name)
-                elif mode == 'a' and os.path.isfile(file_name):
+                elif mode == 'a' and file_name is not None and os.path.isfile(file_name):
                     shutil.copyfile(file_name, self.tmp_file_name)
                 self._init_file(self.tmp_file_name, mode)
 
@@ -176,7 +176,7 @@ class FileBased(with_metaclass(MetaFileBased, object)):
         file_mode = self.file.mode
         self.file.close()
         if self.tmp_file_name is not None:
-            if copy_tmp and file_mode not in ('r', 'r+'):
+            if copy_tmp and self.file_name is not None and file_mode not in ('r', 'r+'):
                 logger.info("Moving temporary output file to destination {}".format(self.file_name))
                 shutil.copyfile(self.tmp_file_name, self.file_name)
             if remove_tmp:
