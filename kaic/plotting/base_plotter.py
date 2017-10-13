@@ -345,6 +345,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if self.ax:
             self.ax.xaxis.offsetText.set_visible(False)
+            self.ax.yaxis.offsetText.set_visible(False)
         self._draw_tick_legend = False
 
     def remove_colorbar_ax(self):
