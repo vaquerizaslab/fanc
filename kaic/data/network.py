@@ -167,16 +167,37 @@ class PeakInfo(RegionMatrixTable):
         rao_filter = RaoMergedPeakFilter(mask=mask)
         self.filter(rao_filter, queue)
 
-    def to_bedpe(self, file_name):
+    def to_bedpe(self, file_name, anchor_radius=True, score_field='q_value_sum', name_field=None):
         regions = list(self.regions)
         with open(file_name, 'w') as f:
-            for peak in self.peaks(lazy=True):
+            for peak in self.peaks(lazy=True, distances_in_bp=True):
                 r1 = regions[peak.source]
                 r2 = regions[peak.sink]
-                r = peak.radius
-                f.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                    r1.chromosome, int(r1.start - r), int(r1.end + r),
-                    r2.chromosome, int(r2.start - r), int(r2.end + r)
+                if score_field is not None:
+                    score = getattr(peak, score_field)
+                else:
+                    score = '.'
+                if name_field is not None:
+                    name = getattr(peak, name_field)
+                else:
+                    name = '.'
+
+                if anchor_radius:
+                    r = peak.radius
+                    start1 = r1.start - r
+                    end1 = r1.end + r
+                    start2 = r2.start - r
+                    end2 = r2.end + r
+                else:
+                    start1 = r1.start
+                    end1 = r1.end
+                    start2 = r2.start
+                    end2 = r2.end
+
+                f.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                    r1.chromosome, int(start1), int(end1),
+                    r2.chromosome, int(start2), int(end2),
+                    name, score
                 ))
 
 
