@@ -2340,9 +2340,11 @@ def extract_submatrices(hic, region_pairs, norm=False,
     valid, invalid = 0, 0
     for ix, (region1, region2) in enumerate(region_pairs):
         is_invalid = False
-        if region1.start < 1 or region1.chromosome not in cl or region1.end > cl[region1.chromosome]:
+        if region1 is None or region2 is None:
             is_invalid = True
-        if region2.start < 1 or region2.chromosome not in cl or region2.end > cl[region2.chromosome]:
+        elif region1.start < 1 or region1.chromosome not in cl or region1.end > cl[region1.chromosome]:
+            is_invalid = True
+        elif region2.start < 1 or region2.chromosome not in cl or region2.end > cl[region2.chromosome]:
             is_invalid = True
         if is_invalid:
             invalid += 1
@@ -2581,6 +2583,7 @@ def _loop_matrix_iterator(hic, loop_regions, pixels=16, **kwargs):
             region_pairs.append((r1, r2))
         except IndexError:
             invalid += 1
+            region_pairs.append((None, None))
     logger.warning("{} region pairs invalid, most likely due to missing chromosome data".format(invalid))
 
     for m in extract_submatrices(hic, region_pairs, **kwargs):
