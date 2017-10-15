@@ -718,16 +718,21 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
             for chromosome in chromosomes:
                 m = oer[chromosome, chromosome]
                 corr_m = np.corrcoef(m)
+
                 logger.info("Chromosome {}".format(chromosome))
                 with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars) as pb:
                     for i, row_region in enumerate(m.row_regions):
                         for j, col_region in enumerate(m.col_regions):
                             if j < i:
                                 continue
-
                             source = self.region_conversion[row_region.ix]
                             sink = self.region_conversion[col_region.ix]
-                            self.add_edge([source, sink, corr_m[i, j]], flush=False)
+                            try:
+                                if np.isnan(corr_m[i, j]):
+                                    continue
+                                self.add_edge([source, sink, corr_m[i, j]], flush=False)
+                            except IndexError:
+                                pass
                         pb.update(i)
         else:
             m = oer[:]
