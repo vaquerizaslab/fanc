@@ -1,4 +1,5 @@
 import os
+import io
 import subprocess
 from collections import deque
 import multiprocessing as mp
@@ -180,7 +181,7 @@ def _fastq_to_queue(fastq_file, input_queue, counter_queue,
 
         current_fastq = None
         read_counter = 0
-        with open_file(fastq_file, 'r') as f:
+        with io.BufferedReader(open_file(fastq_file, 'r'), buffer_size=4*io.DEFAULT_BUFFER_SIZE) as f:
             for i, line in enumerate(f):
                 line = line.decode() if isinstance(line, bytes) else line
                 if i % 4 == 0:
@@ -265,13 +266,13 @@ def iterative_mapping(fastq_file, sam_file, mapper, threads=1, min_size=25, step
 
     def _open_output(file_name, bam=True):
         if not bam:
-            return open(file_name, 'w')
+            return io.BufferedWriter(open(file_name, 'wb'), buffer_size=4*io.DEFAULT_BUFFER_SIZE)
         process = subprocess.Popen(['samtools', 'view', '-b', '-o', file_name, '-'],
                                    stdin=subprocess.PIPE,
                                    universal_newlines=True)
         return process.stdin
 
-    def write_next_result_from_queue():
+    def write_next_result_from_queue(output):
         try:
             exc = exception_queue.get(block=False)
         except Empty:
@@ -283,18 +284,30 @@ def iterative_mapping(fastq_file, sam_file, mapper, threads=1, min_size=25, step
             result = output_queue.get(block=True, timeout=10)
             if result is not None:
                 line = msgpack.loads(result)
-                line = line.decode() if isinstance(line, bytes) else line
-                o.write("{}\n".format(line))
+                line = line.encode() if not isinstance(line, bytes) else line
+                output.write(line + b'\n')
         except Empty:
             pass
 
-    logger.info("Starting to output alignments to file {}".format(sam_file))
-    with _open_output(sam_file, sam_file.endswith('.bam')) as o:
-        o.write(header)
+    if not sam_file.endswith('bam'):
+        intermediate_sam_file = sam_file
+        convert_to_bam = False
+        logger.info("Starting to output alignments to SAM file {}".format(sam_file))
+    else:
+        ix = 0
+        intermediate_sam_file = None
+        while intermediate_sam_file is None or os.path.exists(intermediate_sam_file):
+            intermediate_sam_file = os.path.splitext(sam_file)[0] + '_tmp_{}.sam'.format(ix)
+            ix += 1
+        convert_to_bam = True
+        logger.info("Starting to output alignments to intermediate SAM file {}".format(intermediate_sam_file))
+
+    with _open_output(intermediate_sam_file, False) as o:
+        o.write(header.encode())
         alignment_counter = 0
 
         while counter_queue.empty():
-            write_next_result_from_queue()
+            write_next_result_from_queue(o)
             alignment_counter += 1
         else:
             read_counter = counter_queue.get(True)
@@ -302,7 +315,17 @@ def iterative_mapping(fastq_file, sam_file, mapper, threads=1, min_size=25, step
         logger.info("Reading FASTQ file {} complete".format(fastq_file))
         with RareUpdateProgressBar(max_value=read_counter) as pb:
             while alignment_counter < read_counter:
-                write_next_result_from_queue()
+                write_next_result_from_queue(o)
                 alignment_counter += 1
                 pb.update(alignment_counter)
     t.join()
+
+    if convert_to_bam:
+        logger.info("Converting intermediate SAM file to BAM ({})".format(sam_file))
+        bam_command = ['samtools', 'view', '-b', '-o', sam_file, intermediate_sam_file]
+        res = subprocess.call(bam_command)
+        if res == 0:
+            logger.info("Success, removing intermediate.")
+            os.remove(intermediate_sam_file)
+        else:
+            logger.error("Could not convert to BAM, but your output is still in {}".format(intermediate_sam_file))
