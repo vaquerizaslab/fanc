@@ -4284,7 +4284,6 @@ def aggregate_loops(argv):
     plt.close(fig)
 
 
-
 def ab_profile_parser():
     parser = argparse.ArgumentParser(
         prog="kaic ab_profile",
@@ -4357,6 +4356,12 @@ def ab_profile_parser():
     )
 
     parser.add_argument(
+        '-x', '--exclude', dest='exclude',
+        nargs='+',
+        help='''Chromosome names to exclude from analysis'''
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -4382,6 +4387,7 @@ def ab_profile(argv):
     vmin = args.vmin
     vmax = args.vmax
     only_gc = args.only_gc
+    exclude = args.exclude if args.exclude is not None else []
     tmp = args.tmp
 
     import kaic
@@ -4393,7 +4399,8 @@ def ab_profile(argv):
     with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
         with kaic.Genome.from_string(genome_file, tmpdir=tmp, mode='r') as genome:
             m = ab_enrichment_profile(hic, genome, percentiles=percentiles,
-                                      per_chromosome=per_chromosome, only_gc=only_gc)
+                                      per_chromosome=per_chromosome, only_gc=only_gc,
+                                      exclude_chromosomes=exclude)
 
     if matrix_file is not None:
         import numpy as np
