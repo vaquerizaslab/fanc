@@ -264,11 +264,14 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
         color_matrix = self.get_color_matrix(self.current_matrix)
         if self.flip:
-            color_matrix = np.flipud(color_matrix)
+            extent = [self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
+                      self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end]
+        else:
+            extent = [self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
+                      self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start]
         self.im = self.ax.imshow(color_matrix, interpolation='none',
                                  cmap=self.colormap, norm=self.norm, origin="upper",
-                                 extent=[self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
-                                         self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start])
+                                 extent=extent)
         self.ax.spines['right'].set_visible(False)
         self.ax.spines['top'].set_visible(False)
         self.ax.xaxis.set_ticks_position('bottom')
@@ -279,7 +282,8 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
 
     def add_adj_slider(self, ax=None):
         if ax is None:
-            ax = append_axes(self.ax, 'bottom', config.adjustment_slider_height, self._total_padding)
+            pad = self._total_padding if self._total_padding is not None else 0.
+            ax = append_axes(self.ax, 'bottom', config.adjustment_slider_height, pad)
 
         vmin = self.hic_buffer.buffered_min
         vmax = self.hic_buffer.buffered_max
@@ -394,7 +398,8 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
     A triangle Hi-C heatmap plot.
     """
 
-    def __init__(self, hic_data, max_dist=None, proportional=True, **kwargs):
+    def __init__(self, hic_data, max_dist=None, proportional=True,
+                 rasterized=False, **kwargs):
         """
         :param max_dist: Only draw interactions up to this distance
         :param proportional: Automatically determine aspect ratio of plot
@@ -405,6 +410,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         self.proportional = proportional
         self.max_dist = max_dist
         self.hm = None
+        self.rasterized = rasterized
 
     def _plot(self, region):
         logger.debug("Generating matrix from hic object")
@@ -426,7 +432,8 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         x_, y_, hm = self._mesh_data(region)
         self.hm = hm
 
-        self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self.norm, rasterized=True)
+        self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self.norm,
+                                             rasterized=self.rasterized)
         self.collection._A = None
         self._update_mesh_colors()
 
