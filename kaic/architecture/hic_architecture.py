@@ -2663,8 +2663,100 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
     return ratios
 
 
+def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
+                              percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
+                              exclude_chromosomes=()):
+    if len(exclude_chromosomes) > 0:
+        chromosome_bins = oe.chromosome_bins
+        exclude_vector = []
+        for chromosome in oe.chromosomes():
+            if chromosome not in exclude_chromosomes:
+                b = chromosome_bins[chromosome]
+                for v in vector[b[0]:b[1]]:
+                    exclude_vector.append(v)
+                # exclude_vector += vector[b[0]:b[1]]
+        bin_cutoffs = np.nanpercentile(exclude_vector, percentiles)
+    else:
+        bin_cutoffs = np.nanpercentile(vector, percentiles)
+
+    bins = []
+    for value in vector:
+        bins.append(bisect_left(bin_cutoffs, value))
+
+    s = len(bin_cutoffs)
+    m = np.zeros((s, s))
+    c = np.zeros((s, s))
+
+    if mappable is None:
+        mappable = oe.mappable()
+
+    if per_chromosome:
+        for chromosome in oe.chromosomes():
+            if chromosome in exclude_chromosomes:
+                continue
+            oem = oe[chromosome, chromosome]
+            for i, row_region in enumerate(oem.row_regions):
+                if not mappable[row_region.ix]:
+                    continue
+                i_bin = s - bins[row_region.ix] - 1
+                for j, col_region in enumerate(oem.col_regions):
+                    if not mappable[col_region.ix]:
+                        continue
+                    j_bin = s - bins[col_region.ix] - 1
+                    value = oem[i, j]
+
+                    m[i_bin, j_bin] += value
+                    c[i_bin, j_bin] += 1
+                    m[j_bin, i_bin] += value
+                    c[j_bin, i_bin] += 1
+    else:
+        oem = oe[:]
+        for i in range(oem.shape):
+            if not mappable[i]:
+                continue
+            i_bin = s - bins[i] - 1
+            for j in range(i, oem.shape):
+                if not mappable[j]:
+                    continue
+                j_bin = s - bins[j] - 1
+                value = oem[i, j]
+
+                m[i_bin, j_bin] += value
+                c[i_bin, j_bin] += 1
+                m[j_bin, i_bin] += value
+                c[j_bin, i_bin] += 1
+
+    m /= c
+    return np.log2(m)
+
+
+def region_score_enrichment_profile(hic, regions, per_chromosome=True,
+                                    percentiles=(20.0, 40.0, 60.0, 80.0, 100.0)):
+
+    regions_chromosomes = set(hic.chromosomes())
+    vector = []
+    for chromosome in hic.chromosomes():
+        if chromosome not in regions_chromosomes:
+            continue
+
+        v = [r.score for r in regions.subset(chromosome)]
+
+        lh = len(list(hic.regions(chromosome)))
+        if lh != len(v):
+            raise ValueError("The number of values in chromosome {} is not equal to the "
+                             "number of regions in the Hi-C object ({} vs {})!".format(chromosome,
+                                                                                       len(v), lh))
+
+        vector += v
+
+    with ObservedExpectedRatio(hic, per_chromosome=per_chromosome) as oe:
+        mappable = hic.mappable()
+        return vector_enrichment_profile(oe, vector, mappable=mappable, per_chromosome=per_chromosome,
+                                         percentiles=percentiles)
+
+
 def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
-                          per_chromosome=True, only_gc=False):
+                          per_chromosome=True, only_gc=False, exclude_chromosomes=()):
     # calculate GC content
     if isinstance(genome, string_types):
         logger.info("Loading genome...")
@@ -2702,53 +2794,9 @@ def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.
                         if gc_a < gc_b:  # AB compartments are reversed!
                             ev[start:end] = -1*ev_sub
 
-        bin_cutoffs = np.nanpercentile(ev, percentiles)
-        bins = []
-        for value in ev:
-            bins.append(bisect_left(bin_cutoffs, value))
-
-        s = len(bin_cutoffs)
-        m = np.zeros((s, s))
-        c = np.zeros((s, s))
-
         mappable = hic.mappable()
-
-        if per_chromosome:
-            for chromosome in hic.chromosomes():
-                oem = oe[chromosome, chromosome]
-                for i, row_region in enumerate(oem.row_regions):
-                    if not mappable[row_region.ix]:
-                        continue
-                    i_bin = s - bins[row_region.ix] - 1
-                    for j, col_region in enumerate(oem.col_regions):
-                        if not mappable[col_region.ix]:
-                            continue
-                        j_bin = s - bins[col_region.ix] - 1
-                        value = oem[i, j]
-
-                        m[i_bin, j_bin] += value
-                        c[i_bin, j_bin] += 1
-                        m[j_bin, i_bin] += value
-                        c[j_bin, i_bin] += 1
-        else:
-            oem = oe[:]
-            for i in range(oem.shape):
-                if not mappable[i]:
-                    continue
-                i_bin = s - bins[i] - 1
-                for j in range(i, oem.shape):
-                    if not mappable[j]:
-                        continue
-                    j_bin = s - bins[j] - 1
-                    value = oem[i, j]
-
-                    m[i_bin, j_bin] += value
-                    c[i_bin, j_bin] += 1
-                    m[j_bin, i_bin] += value
-                    c[j_bin, i_bin] += 1
-
-    m /= c
-    return np.log2(m)
+        return vector_enrichment_profile(oe, ev, mappable=mappable, per_chromosome=per_chromosome,
+                                         percentiles=percentiles, exclude_chromosomes=exclude_chromosomes)
 
 
 """
