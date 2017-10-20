@@ -144,7 +144,7 @@ class TestRaoPeakCaller:
 
         merged_peaks = peaks.merged_peaks()
         assert len(merged_peaks) < len(peaks)
-        assert len(merged_peaks) == 4
+        assert len(merged_peaks) == 24
         peaks.close()
         merged_peaks.close()
 
