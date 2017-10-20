@@ -37,6 +37,7 @@ setup(
         'biopython',
         'pytest',
         'msgpack-python',
+        'msgpack-numpy',
         'gridmap',
         'scikit-learn',
         'progressbar2',
