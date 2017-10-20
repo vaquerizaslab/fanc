@@ -77,13 +77,14 @@ class PeakInfo(RegionMatrixTable):
     class MergedPeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
-        observed = t.Int32Col(pos=2)
-        expected = t.Float32Col(pos=3)
-        p_value = t.Float32Col(pos=4)
-        q_value_sum = t.Float32Col(pos=5)
-        x = t.Float32Col(pos=6)
-        y = t.Float32Col(pos=7)
-        radius = t.Float32Col(pos=8)
+        weight = t.Float32Col(pos=2)
+        uncorrected = t.Int32Col(pos=3)
+        expected = t.Float32Col(pos=4)
+        p_value = t.Float32Col(pos=5)
+        q_value_sum = t.Float32Col(pos=6)
+        x = t.Float32Col(pos=7)
+        y = t.Float32Col(pos=8)
+        radius = t.Float32Col(pos=9)
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, regions=None, _table_name_regions='regions',
                  _table_name_peaks='edges'):
@@ -236,7 +237,7 @@ class RaoPeakInfo(RegionMatrixTable):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
         weight = t.Float32Col(pos=2)
-        observed = t.Int32Col(pos=3)
+        uncorrected = t.Int32Col(pos=3)
         w = t.Int32Col(pos=4)
         p = t.Int32Col(pos=5)
         e_ll = t.Float32Col(pos=6, dflt=1.0)
@@ -401,8 +402,8 @@ class RaoPeakInfo(RegionMatrixTable):
             # add merged peak
             hp = peak_list[0]
             q_value_sum = hp.fdr_ll + hp.fdr_d + hp.fdr_h + hp.fdr_v
-            merged_peak = Peak(source=hp.source, sink=hp.sink,
-                               observed=hp.observed, expected=hp.e_d,
+            merged_peak = Peak(source=hp.source, sink=hp.sink, weight=hp.weight,
+                               uncorrected=hp.uncorrected, expected=hp.e_d,
                                p_value=hp.fdr_d, q_value_sum=q_value_sum, x=x, y=y,
                                radius=radius)
             merged_peaks.add_edge(merged_peak, flush=False)
@@ -439,7 +440,7 @@ class RaoPeakInfo(RegionMatrixTable):
                                 if highest_peak is None:
                                     highest_peak = peak
                                 else:
-                                    if highest_peak.observed < peak.observed:
+                                    if highest_peak.weight < peak.weight:
                                         highest_peak = peak
 
                             current_peaks.append(highest_peak)
@@ -552,6 +553,31 @@ class PeakFilter(with_metaclass(ABCMeta, MaskFilter)):
         return self.valid_peak(peak)
 
 
+class ObservedPeakFilter(PeakFilter):
+    """
+    Filter for peaks that do not pass a certain FDR cutoff.
+    """
+    def __init__(self, cutoff=1, mask=None):
+        """
+        Initialize filter object.
+
+        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param cutoff: Minimum observed value to consider peak
+        """
+        super(ObservedPeakFilter, self).__init__(mask=mask)
+        self.cutoff = cutoff
+
+    def valid_peak(self, peak):
+        """
+        Evaluate whether a peak passes FDR cutoffs set in __init__
+        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :return: True if peak passes interal FDR cutoffs, False otherwise
+        """
+        if peak.observed < self.cutoff:
+            return False
+        return True
+
+
 class FdrPeakFilter(PeakFilter):
     """
     Filter for peaks that do not pass a certain FDR cutoff.
@@ -625,13 +651,13 @@ class ObservedExpectedRatioPeakFilter(PeakFilter):
         if peak.e_d == 0 or peak.e_ll == 0 or peak.e_h == 0 or peak.e_v == 0:
             return False
 
-        if self.ll_ratio is not None and peak.observed/peak.e_ll < self.ll_ratio:
+        if self.ll_ratio is not None and peak.weight/peak.e_ll < self.ll_ratio:
             return False
-        if self.h_ratio is not None and peak.observed/peak.e_h < self.h_ratio:
+        if self.h_ratio is not None and peak.weight/peak.e_h < self.h_ratio:
             return False
-        if self.v_ratio is not None and peak.observed/peak.e_v < self.v_ratio:
+        if self.v_ratio is not None and peak.weight/peak.e_v < self.v_ratio:
             return False
-        if self.d_ratio is not None and peak.observed/peak.e_d < self.d_ratio:
+        if self.d_ratio is not None and peak.weight/peak.e_d < self.d_ratio:
             return False
         return True
 
@@ -656,15 +682,15 @@ class RaoPeakFilter(PeakFilter):
             return False
 
         # 1.
-        if peak.observed/peak.e_d <= peak.observed/peak.e_ll < 2.0:
+        if peak.weight/peak.e_d <= peak.weight/peak.e_ll < 2.0:
             return False
 
         # 2.
-        if peak.observed/peak.e_h < 1.5 and peak.observed/peak.e_v < 1.5:
+        if peak.weight/peak.e_h < 1.5 and peak.weight/peak.e_v < 1.5:
             return False
 
         # 3.
-        if peak.observed/peak.e_d < 1.75 or peak.observed/peak.e_ll < 1.75:
+        if peak.weight/peak.e_d < 1.75 or peak.weight/peak.e_ll < 1.75:
             return False
 
         # 4.
@@ -913,7 +939,7 @@ class RaoPeakCaller(PeakCaller):
                 observed_chunk_distribution['v'][e_v_chunk][observed] += 1
                 observed_chunk_distribution['d'][e_d_chunk][observed] += 1
 
-                peak = Edge(source=source, sink=sink, weight=weight, observed=observed,
+                peak = Edge(source=source, sink=sink, weight=weight, uncorrected=observed,
                             w=w_corr, p=p, ll_sum=ll_sum,
                             e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
                             e_ll_chunk=e_ll_chunk, e_v_chunk=e_v_chunk,
@@ -1134,10 +1160,10 @@ class RaoPeakCaller(PeakCaller):
             region2 = regions_dict[peak.sink]
             # if region1.chromosome == region2.chromosome:
             try:
-                peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.observed]
-                peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.observed]
-                peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
-                peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
+                peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.uncorrected]
+                peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.uncorrected]
+                peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.uncorrected]
+                peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.uncorrected]
             except KeyError:
                 peak.fdr_ll = 1
                 peak.fdr_h = 1
