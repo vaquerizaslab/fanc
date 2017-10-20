@@ -773,7 +773,7 @@ class RaoPeakCaller(PeakCaller):
         self.correct_inter = correct_inter
         self.n_processes = n_processes
         self.slice_size = slice_size
-        self.min_mappable_fraction = 0.7
+        self.min_mappable_fraction = min_mappable_fraction
         self.mpqueue = None
         self.cluster = cluster
         if self.cluster is True:
