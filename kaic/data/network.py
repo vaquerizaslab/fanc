@@ -983,7 +983,8 @@ class RaoPeakCaller(PeakCaller):
                         fdr_cutoffs[e_type][chunk][observed] = 0
         return fdr_cutoffs
 
-    def _segment_matrix_intra(self, m, chunk_size, w_max):
+    @staticmethod
+    def segment_matrix_intra(self, m, chunk_size, w_max):
         for i in range(0, m.shape[0], chunk_size):
             i_start = max(0, i - w_max)
             i_end = min(i + chunk_size + w_max, m.shape[0])
@@ -1004,7 +1005,7 @@ class RaoPeakCaller(PeakCaller):
         information for all pixels.
         """
         jobs = []
-        for segment in self._segment_matrix_intra(m, self.slice_size, self.max_w):
+        for segment in RaoPeakCaller.segment_matrix_intra(m, self.slice_size, self.max_w):
             ms, i_range, i_inspect, j_range, j_inspect = segment
 
             args = [ms, e, lambda_chunks,
