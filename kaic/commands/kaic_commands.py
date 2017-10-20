@@ -3284,6 +3284,12 @@ def boundaries_parser():
              'at least this difference in height. Default: no threshold.'
     )
     parser.add_argument(
+        '-x', '--sub-bin-precision', dest='sub_bin_precision',
+        action='store_true',
+        help='Report boundary positions with sub bin precision. This works because the minimum '
+             'the insulation score can be determined with sub bin precision. Default: False'
+    )
+    parser.add_argument(
         '-p', '--prefix', dest='prefix',
         default='boundaries',
         help='''Output file prefix. Not necessary when using 'w' modus. Default: boundaries'''
@@ -3336,11 +3342,13 @@ def boundaries(argv):
         for window_size in window_sizes:
             logger.info("Processing window size: {}".format(window_size))
             boundaries = array.boundaries(window_size, min_score=args.min_score,
-                                          delta_window=args.delta, log=args.log)
+                                          delta_window=args.delta, log=args.log,
+                                          sub_bin_precision=args.sub_bin_precision)
             _to_bed(boundaries, output_path + "/{}_{}.bed".format(args.prefix, window_size))
     else:
         boundaries = array.boundaries(window_sizes[0], min_score=args.min_score,
-                                      delta_window=args.delta, log=args.log)
+                                      delta_window=args.delta, log=args.log,
+                                      sub_bin_precision=args.sub_bin_precision)
         _to_bed(boundaries, output_path)
 
     logger.info("All done.")
