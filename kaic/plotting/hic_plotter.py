@@ -265,7 +265,7 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         color_matrix = self.get_color_matrix(self.current_matrix)
         if self.flip:
             color_matrix = np.flipud(color_matrix)
-        self.im = self.ax.imshow(color_matrix, interpolation='none',
+        self.im = self.ax.imshow(color_matrix, interpolation='none', aspect="auto",
                                  cmap=self.colormap, norm=self.norm, origin="upper",
                                  extent=[self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
                                          self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start])
