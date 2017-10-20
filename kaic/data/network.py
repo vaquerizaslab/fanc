@@ -732,8 +732,7 @@ class RaoPeakCaller(PeakCaller):
     """
 
     def __init__(self, p=None, w_init=None, min_locus_dist=3, max_w=20, min_ll_reads=16,
-                 observed_cutoff=1, e_ll_cutoff=1.0, e_h_cutoff=1.0, e_v_cutoff=1.0,
-                 e_d_cutoff=1.0, process_inter=False, correct_inter='fdr', n_processes=4,
+                 process_inter=False, correct_inter='fdr', n_processes=4,
                  slice_size=1000, min_mappable_fraction=0.7, cluster=False):
         """
         Initialize RaoPeakCaller with peak calling parameters.
@@ -744,18 +743,12 @@ class RaoPeakCaller(PeakCaller):
         :param max_w: Maximal width after extending investigated area around peak
         :param min_ll_reads: Threshold for the number of reads in the lower-left
                              neighborhood of a pixel to consider it as a peak
-        :param observed_cutoff: Minimum (uncorrected) observed contact count for
-                                a pixel to be reported
-        :param e_ll_cutoff: Only report peaks with an observed/e_ll ratio >= e_ll_cutoff
-        :param e_h_cutoff: Only report peaks with an observed/e_h ratio >= e_h_cutoff
-        :param e_v_cutoff: Only report peaks with an observed/e_v ratio >= e_v_cutoff
-        :param e_d_cutoff: Only report peaks with an observed/e_d ratio >= e_d_cutoff
         :param process_inter: If False, ignores inter-chromosomal peaks
         :param correct_inter: If None, does not correct inter-chromosomal peaks for
                               multiple testing. Other options are 'fdr' for Benjamini-
                               Hochberg correction of 'bonferroni' for Bonferroni correction
         :param n_processes: Number of processes to use for peak calling.
-        :param batch_size: Number of pixels to investigate per batch.
+        :param slice_size: length of the matrix square investigated by each process.
         :param cluster: If True, attempts to call peaks using an SGE cluster. If False,
                         will use multiprocessing.
         """
@@ -764,38 +757,18 @@ class RaoPeakCaller(PeakCaller):
         self.min_locus_dist = min_locus_dist
         self.max_w = max_w
         self.min_ll_reads = min_ll_reads
-        self.observed_cutoff = observed_cutoff
-        self.e_ll_cutoff = e_ll_cutoff
-        self.e_h_cutoff = e_h_cutoff
-        self.e_v_cutoff = e_v_cutoff
-        self.e_d_cutoff = e_d_cutoff
         self.process_inter = process_inter
         self.correct_inter = correct_inter
         self.n_processes = n_processes
         self.slice_size = slice_size
         self.min_mappable_fraction = min_mappable_fraction
-        self.mpqueue = None
         self.cluster = cluster
         if self.cluster is True:
             if not has_gridmap:
-                logger.warn("Cannot use the cluster because of previous error.")
+                logger.warning("Cannot use the cluster because of previous error.")
                 self.cluster = False
 
         super(RaoPeakCaller, self).__init__()
-
-    @staticmethod
-    def chromosome_map(hic):
-        """
-        Make a quick-lookup chromosome map.
-        """
-        chromosome_map = dict()
-        for i, chromosome in enumerate(hic.chromosomes()):
-            chromosome_map[chromosome] = i
-
-        chromosomes = np.zeros(len(hic.regions), dtype=int)
-        for i, region in enumerate(hic.regions(lazy=True)):
-            chromosomes[i] = chromosome_map[region.chromosome]
-        return chromosomes
 
     # sum of reads in lower-left neighborhood
     @staticmethod
@@ -984,7 +957,7 @@ class RaoPeakCaller(PeakCaller):
         return fdr_cutoffs
 
     @staticmethod
-    def segment_matrix_intra(self, m, chunk_size, w_max):
+    def segment_matrix_intra(m, chunk_size, w_max):
         for i in range(0, m.shape[0], chunk_size):
             i_start = max(0, i - w_max)
             i_end = min(i + chunk_size + w_max, m.shape[0])
@@ -1012,8 +985,7 @@ class RaoPeakCaller(PeakCaller):
                     i_range, i_inspect, mappable[i_range[0]:i_range[1]], c[i_range[0]:i_range[1]],
                     j_range, j_inspect, mappable[j_range[0]:j_range[1]], c[j_range[0]:j_range[1]],
                     w, p, self.min_locus_dist, self.min_ll_reads, self.min_mappable_fraction,
-                    self.max_w, self.observed_cutoff, self.e_ll_cutoff, self.e_h_cutoff,
-                    self.e_v_cutoff, self.e_d_cutoff]
+                    self.max_w]
 
             args = msgpack.dumps(args)
             job = gridmap.Job(process_matrix_segment_intra, [args])
@@ -1224,8 +1196,7 @@ def process_matrix_segment_intra(data):
         i_range, i_inspect, mappable_i, c_i, \
         j_range, j_inspect, mappable_j, c_j, \
         w, p, min_locus_dist, min_ll_reads, min_mappable, \
-        max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff, \
-        e_v_cutoff, e_d_cutoff = msgpack.loads(data)
+        max_w = msgpack.loads(data)
 
     # construct convenient matrices
     row_ixs = np.arange(i_range[0], i_range[1])
