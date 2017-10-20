@@ -5666,6 +5666,16 @@ class RegionMatrix(np.ndarray):
         self.row_regions = getattr(obj, 'row_regions', None)
         self.col_regions = getattr(obj, 'col_regions', None)
 
+    def __setitem__(self, key, item):
+        self._setitem = True
+        try:
+            if isinstance(self, np.ma.core.MaskedArray):
+                out = np.ma.MaskedArray.__setitem__(self, key, item)
+            else:
+                out = np.ndarray.__setitem__(self, key, item)
+        finally:
+            self._setitem = False
+
     def __getitem__(self, index):
         self._getitem = True
 
@@ -5683,7 +5693,10 @@ class RegionMatrix(np.ndarray):
             index = row_key
 
         try:
-            out = np.ndarray.__getitem__(self, index)
+            if isinstance(self, np.ma.core.MaskedArray):
+                out = np.ma.MaskedArray.__getitem__(self, index)
+            else:
+                out = np.ndarray.__getitem__(self, index)
         finally:
             self._getitem = False
 
