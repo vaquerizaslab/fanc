@@ -326,6 +326,21 @@ class RaoPeakInfo(RegionMatrixTable):
         fdr_filter = FdrPeakFilter(fdr_cutoff=fdr_cutoff, mask=mask)
         self.filter(fdr_filter, queue)
 
+    def filter_observed(self, cutoff, queue=False):
+        """
+        Convenience function that applies a :class:`~ObservedPeakFilter`.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
+
+        :param cutoff: Minimum observed value
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('fdr', 'Mask peaks with an observed value lower than %e' % cutoff)
+        observed_filter = ObservedPeakFilter(cutoff=cutoff, mask=mask)
+        self.filter(observed_filter, queue)
+
     def filter_observed_expected_ratio(self, ll_ratio=1.0, h_ratio=1.0, v_ratio=1.0, d_ratio=1.0, queue=False):
         """
         Convenience function that applies a :class:`~ObservedExpectedRatioPeakFilter`.

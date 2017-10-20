@@ -2623,6 +2623,13 @@ def filter_peaks_parser():
     )
 
     parser.add_argument(
+        '-o', '--observed', dest='observed',
+        type=int,
+        default=1,
+        help='''Minimum observed value (integer, uncorrected). Default: 1'''
+    )
+
+    parser.add_argument(
         '-r', '--rao', dest='rao',
         action='store_true',
         help='''Filter peaks as Rao et al. (2014) does. It only retains peaks that
@@ -2632,7 +2639,8 @@ def filter_peaks_parser():
                         3. are at least 1.75-fold enriched over both the donut and lower-left neighborhood
                         4. have an FDR <= 0.1 in every neighborhood
 
-                    Warning: this flag overrides all other filters in this run!
+                Warning: this flag overrides all other filters in this run - run again with additional filters
+                if necessary!
             '''
     )
     parser.set_defaults(rao=False)
@@ -2693,6 +2701,9 @@ def filter_peaks(argv):
                                                  v_ratio=args.enrichment_vertical,
                                                  h_ratio=args.enrichment_horizontal,
                                                  queue=True)
+        if args.observed is not None:
+            peaks.filter_observed(args.observed, queue=True)
+
         peaks.peak_table.run_queued_filters()
     peaks.close()
 
