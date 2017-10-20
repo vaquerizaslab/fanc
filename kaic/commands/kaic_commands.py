@@ -2445,45 +2445,17 @@ def call_peaks_parser():
     )
 
     parser.add_argument(
-        '-b', '--batch-size', dest='batch_size',
+        '-s', '--slice-size', dest='slice_size',
         type=int,
-        default=100000,
-        help='''Maximum number of peaks examined per process. Default: 100,000'''
+        default=1000,
+        help='''Width of submatrix examined per process. Default: 1000'''
     )
 
     parser.add_argument(
-        '-o', '--observed-cutoff', dest='o_cutoff',
-        type=int,
-        default=1,
-        help='''Minimum observed contacts at peak (in reads).'''
-    )
-
-    parser.add_argument(
-        '-ll', '--lower-left-cutoff', dest='ll_cutoff',
+        '--minimum_mappability', dest='minimum_mappability',
         type=float,
-        default=1.0,
-        help='''Minimum enrichment of peak compared to lower-left neighborhood (observed/e_ll > cutoff).'''
-    )
-
-    parser.add_argument(
-        '-z', '--horizontal-cutoff', dest='h_cutoff',
-        type=float,
-        default=1.0,
-        help='''Minimum enrichment of peak compared to horizontal neighborhood (observed/e_h > cutoff).'''
-    )
-
-    parser.add_argument(
-        '-v', '--vertical-cutoff', dest='v_cutoff',
-        type=float,
-        default=1.0,
-        help='''Minimum enrichment of peak compared to vertical neighborhood (observed/e_v > cutoff).'''
-    )
-
-    parser.add_argument(
-        '-d', '--donut-cutoff', dest='d_cutoff',
-        type=float,
-        default=1.0,
-        help='''Minimum enrichment of peak compared to donut neighborhood (observed/e_d > cutoff).'''
+        default=0.7,
+        help='''Minimum mappable fraction of a pixel neighborhood to consider pixel as peak'''
     )
 
     parser.add_argument(
@@ -2536,10 +2508,9 @@ def call_peaks(argv):
         output_path = os.path.expanduser(args.output)
 
     pk = kn.RaoPeakCaller(p=args.peak_size, w_init=args.width, min_locus_dist=args.min_dist,
-                          observed_cutoff=args.o_cutoff, n_processes=args.threads,
-                          batch_size=args.batch_size, process_inter=args.inter, e_ll_cutoff=args.ll_cutoff,
-                          e_d_cutoff=args.d_cutoff, e_h_cutoff=args.h_cutoff, e_v_cutoff=args.v_cutoff,
-                          cluster=sge)
+                          n_processes=args.threads, slice_size=args.slice_size,
+                          process_inter=args.inter, cluster=sge,
+                          min_mappable_fraction=args.minimum_mappability)
 
     hic = kaic.load_hic(input_path, mode='r')
 
