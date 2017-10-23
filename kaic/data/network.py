@@ -1029,7 +1029,7 @@ class RaoPeakCaller(PeakCaller):
                     self.max_w]
 
             args = msgpack.dumps(args)
-            job = gridmap.Job(process_matrix_segment_intra, [args])
+            job = gridmap.Job(process_matrix_segment_intra, [args], cleanup=False)
             jobs.append(job)
 
             # submit intermediate segments if maximum number of jobs reached
