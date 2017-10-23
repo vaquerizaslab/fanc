@@ -5,6 +5,7 @@ from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContact
 import pytest
 import numpy as np
 from kaic.tools import dummy
+import os.path
 
 
 class TestHicArchitecture:
@@ -446,3 +447,25 @@ class TestInsulationIndex:
                 assert np.isnan(ii_3000[7])
                 assert np.isnan(ii_3000[8])
                 assert np.isnan(ii_3000[9])
+
+
+class TestBoundaryCalling:
+    expected_values = {
+        True: "chr11:77656779-77666778",
+        False: "chr11:77660001-77670000"
+    }
+
+    def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        self.hic = Hic(os.path.join(self.dir, "../data/test_network/rao2014.chr11_77400000_78600000.hic"), mode="r")
+        self.ins = InsulationIndex(self.hic, window_sizes=(50000,))
+        self.ii = self.ins.insulation_index(50000)
+
+    def teardown_method(self, method):
+        self.hic.close()
+        self.ins.close()
+
+    @pytest.mark.parametrize("sub_bin_precision", [True, False])
+    def test_boundaries(self, sub_bin_precision):
+        boundaries = self.ins.boundaries(50000, sub_bin_precision=sub_bin_precision)
+        assert self.expected_values[sub_bin_precision] == str(boundaries[0])

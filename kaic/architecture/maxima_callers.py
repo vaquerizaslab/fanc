@@ -5,12 +5,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 def find_zero_crossing(x, sub_bin_precision=False):
-    idx = np.nonzero(np.diff(np.signbit(x)))[0]
+    diff = np.diff(np.signbit(x))
+    # make sure diff is not caused by nan
+    diff = np.logical_and(diff, ~np.logical_or(np.isnan(x[:-1]), np.isnan(x[1:])))
+    idx = np.nonzero(diff)[0]
     left, right = x[idx], x[idx + 1]
     frac = left/(left - right)
     if sub_bin_precision:
         return idx + frac
-    return np.rint(idx + frac)
+    return np.rint(idx + frac).astype(np.int_)
 
 def getitem_interpolated(array, idx):
     if issubclass(idx.dtype.type, np.floating):

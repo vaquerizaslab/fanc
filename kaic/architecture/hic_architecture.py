@@ -1693,7 +1693,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         index = self.insulation_index(window_size)
         if log:
             index = np.log2(index)
-        peaks = MaximaCallerDelta(index, window_size=delta_window)
+        peaks = MaximaCallerDelta(index, window_size=delta_window, sub_bin_precision=sub_bin_precision)
         minima, scores = peaks.get_minima()
         regions = list(self.regions)
 
@@ -1704,8 +1704,8 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             if sub_bin_precision:
                 region = regions[int(ix)]
                 frac = ix % 1
-                region_len = region.end - region.start
-                b = GenomicRegion(chromosome=region.chromosome, start=region.start + int(frac*region_len), end=region.end + int(frac*region_len), score=scores[i])
+                shift = int(frac*(region.end - region.start))
+                b = GenomicRegion(chromosome=region.chromosome, start=region.start + shift, end=region.end + shift, score=scores[i])
             else:
                 region = regions[ix]
                 b = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end, score=scores[i])
