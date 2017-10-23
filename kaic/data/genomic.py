@@ -4378,7 +4378,7 @@ class RegionMatrixTable(RegionPairs):
 
         return intra_total, chromosome_intra_total, inter_total
 
-    def expected_values(self, chromosome=None):
+    def expected_values(self, selected_chromosome=None):
         # get all the bins of the different chromosomes
         chromosome_bins = self.chromosome_bins
         chromosome_dict = defaultdict(list)
@@ -4442,7 +4442,7 @@ class RegionMatrixTable(RegionPairs):
                 if chromosome_count > 0:
                     chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
 
-        if chromosome is not None:
+        if selected_chromosome is not None:
             return chromosome_intra_expected[chromosome]
 
         return intra_expected, chromosome_intra_expected, inter_expected
