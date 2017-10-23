@@ -1233,12 +1233,14 @@ class RaoPeakCaller(PeakCaller):
 
 
 def process_matrix_segment_intra(data):
+    logger.info("In thread")
     m_original, e, chunks, \
         i_range, i_inspect, mappable_i, c_i, \
         j_range, j_inspect, mappable_j, c_j, \
         w, p, min_locus_dist, min_ll_reads, min_mappable, \
         max_w = msgpack.loads(data)
 
+    logger.info("Loaded data")
     # construct convenient matrices
     row_ixs = np.arange(i_range[0], i_range[1])
     col_ixs = np.arange(j_range[0], j_range[1])
@@ -1317,4 +1319,5 @@ def process_matrix_segment_intra(data):
                             ll_sum, e_ll, e_v, e_h, e_d,
                             o_chunk, e_ll_chunk, e_v_chunk, e_h_chunk, e_d_chunk,
                             e_ll_mappable, e_v_mappable, e_h_mappable, e_d_mappable))
+        logger.info("Done processing")
     return msgpack.dumps(results)
