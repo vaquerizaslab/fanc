@@ -4415,22 +4415,24 @@ class RegionMatrixTable(RegionPairs):
         marginals = [0.0] * len(self.regions)
         inter_sums = 0.0
         intra_sums = [0.0] * max_distance
-        for edge in self.edges(lazy=True):
-            source, sink = edge.source, edge.sink
-            weight = getattr(edge, self.default_field)
+        with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
+            for i, edge in enumerate(self.edges(lazy=True)):
+                source, sink = edge.source, edge.sink
+                weight = getattr(edge, self.default_field)
 
-            source_chromosome = chromosome_dict[source]
-            sink_chromosome = chromosome_dict[sink]
+                source_chromosome = chromosome_dict[source]
+                sink_chromosome = chromosome_dict[sink]
 
-            marginals[source] += weight
-            marginals[sink] += weight
+                marginals[source] += weight
+                marginals[sink] += weight
 
-            if sink_chromosome != source_chromosome:
-                inter_sums += weight
-            else:
-                distance = sink - source
-                intra_sums[distance] += weight
-                chromosome_intra_sums[source_chromosome][distance] += weight
+                if sink_chromosome != source_chromosome:
+                    inter_sums += weight
+                else:
+                    distance = sink - source
+                    intra_sums[distance] += weight
+                    chromosome_intra_sums[source_chromosome][distance] += weight
+                pb.update(i)
 
         intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
 
