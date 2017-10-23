@@ -1305,7 +1305,7 @@ def process_matrix_segment_intra(data):
             e_d = RaoPeakCaller.e_d(m_original, i, j, m_expected, w=w_corr, p=p)
 
             # find chunks
-            cf = c_i[o_i] * c_j[o_j]
+            cf = c_i[i] * c_j[j]
             o_chunk = RaoPeakCaller.find_chunk(chunks, m_uncorrected[i, j])
             e_ll_chunk = RaoPeakCaller.find_chunk(chunks, e_ll/cf)
             e_h_chunk = RaoPeakCaller.find_chunk(chunks, e_h/cf)
