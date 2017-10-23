@@ -3,7 +3,8 @@ from kaic.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
-from kaic.data.genomic import GenomicRegion, GenomicDataFrame, merge_regions
+from kaic.data.genomic import GenomicRegion, GenomicDataFrame, merge_regions, RegionBased, \
+                              BigWig
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
                                        BasePlotter, BaseAnnotation
 from kaic.plotting.hic_plotter import BasePlotterMatrix
@@ -32,6 +33,29 @@ import kaic
 import logging
 logger = logging.getLogger(__name__)
 
+
+def load_score_data(data):
+    # If it's already an instance of kaic data, just return it
+    if isinstance(data, RegionBased):
+        return data
+    # If it's a pyBigWig instance, turn it into a RegionBased instance
+    if isinstance(data, pyBigWig.pyBigWig):
+        return BigWig(data)
+    try:
+        # First attempt to load into pybedtools
+        # Used for [("chr", start, end), ...] queries
+        try:
+            bt = pbt.BedTool(data).saveas()
+            # Load using kaic.load in order
+            # to access
+            return kaic.load(bt.fn)
+        except pbt.MalformedBedLineError:
+            pass
+        # If it's a string then probably it represents a path
+        # on disk that kaic.load can deal with
+        return kaic.load(data)
+    except:
+        raise ValueError("Can't load data")
 
 def hide_axis(ax):
     """
@@ -346,58 +370,6 @@ class VerticalLineAnnotation(HighlightAnnotation):
         warnings.warn("VerticalLineAnnotation is deprecated, use HighlightAnnotation instead.")
 
 
-class GenomicTrackPlot(ScalarDataPlot):
-    """
-    Plot scalar values from one or more :class:`~GenomicTrack` objects
-    """
-
-    def __init__(self, tracks, attributes=None, **kwargs):
-        """
-        :param tracks: :class:`~GenomicTrack`
-        :param attributes: Only draw attributes from the track objects
-                           which match this description.
-                           Should be a list of names. Supports wildcard matching
-                           and regex.
-        """
-        kwargs.setdefault("aspect", .2)
-        kwargs.setdefault("axes_style", style_ticks_whitegrid)
-        super(GenomicTrackPlot, self).__init__(**kwargs)
-        if not isinstance(tracks, list):
-            tracks = [tracks]
-        self.tracks = tracks
-        self.attributes = attributes
-        self.lines = []
-
-    def _plot(self, region):
-        for track in self.tracks:
-            bins = track.region_bins(region)
-            values = track[bins]
-            regions = track.regions[bins]
-            for k, v in values.items():
-                if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
-                    x, y = self.get_plot_values(v, regions)
-                    l = self.ax.plot(x, y,
-                                     label="{}{}".format(track.title + "_"
-                                                         if track.title and len(self.tracks) > 1
-                                                         else "", k))
-                    self.lines.append(l[0])
-        self.add_legend()
-        self.remove_colorbar_ax()
-
-    def _refresh(self, region):
-        for track in self.tracks:
-            bins = track.region_bins(region)
-            values = track[bins]
-            regions = track.regions[bins]
-            current_line = 0
-            for k, v in values.items():
-                if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
-                    x, y = self.get_plot_values(v, regions)
-                    self.lines[current_line].set_xdata(x)
-                    self.lines[current_line].set_ydata(y)
-                    current_line += 1
-
-
 class GenomicRegionsPlot(ScalarDataPlot):
     """
     Plot scalar values from one or more :class:`~GenomicRegions` objects
@@ -531,76 +503,6 @@ class RegionsValuesPlot(ScalarDataPlot):
         for i, (label, x, y) in enumerate(self._plot_values(region)):
             self.lines[i].set_xdata(x)
             self.lines[i].set_ydata(y)
-
-
-class GenomicMatrixPlot(BasePlotterMatrix, BasePlotter1D):
-    """
-    Plot matrix from a :class:`~GenomicTrack` objects.
-    """
-
-    def __init__(self, track, attribute, y_coords=None, y_scale='linear', plot_kwargs=None,
-                 **kwargs):
-        """
-        :param track: :class:`~GenomicTrack` containing the matrix
-        :param attribute: Which matrix from the track object to draw
-        :param y_coords: Matrices in the :class:`~GenomicTrack` object are
-                         unitless. Can provide the coordinates for the
-                         y-direction here. Matrix has shape (X, Y) must
-                         have shape Y or Y + 1
-        :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
-                        valid argument ("linear", "log", etc.) works
-        :param plot_kwargs: Keyword-arguments passed on to pcolormesh
-        """
-        kwargs.setdefault("aspect", .3)
-        super(GenomicMatrixPlot, self).__init__(**kwargs)
-        self.track = track
-        self.attribute = attribute
-        if plot_kwargs is None:
-            plot_kwargs = {}
-        self.plot_kwargs = plot_kwargs
-        self.y_coords = y_coords
-        self.hm = None
-        self.y_scale = y_scale
-
-    def _plot(self, region):
-
-        x, y, self.hm = self._mesh_data(region=region)
-        self.collection = self.ax.pcolormesh(x, y, self.hm.T, rasterized=True, cmap=self.colormap,
-                                             norm=self.norm, **self.plot_kwargs)
-        self.collection._A = None
-        self._update_mesh_colors()
-        self.ax.set_yscale(self.y_scale)
-        if self.y_coords is not None:
-            self.ax.set_ylim(self.y_coords[0], self.y_coords[-1])
-
-        if self.show_colorbar:
-            self.add_colorbar()
-
-    def _mesh_data(self, region):
-        bins = self.track.region_bins(region)
-        hm = self.track[bins][self.attribute]
-        regions = self.track.regions()[bins]
-        bin_coords = np.r_[[(x.start - 1) for x in regions], regions[-1].end]
-        x, y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None
-                                        else np.arange(hm.shape[1] + 1)))
-        return x, y, hm
-
-    def _update_mesh_colors(self):
-        # pcolormesh doesn't support plotting RGB arrays directly like imshow, have to workaround
-        # See https://github.com/matplotlib/matplotlib/issues/4277
-        # http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python/29232668?noredirect=1#comment46710586_29232668
-        color_matrix = self.get_color_matrix(self.hm)
-        color_tuple = color_matrix.transpose((1, 0, 2)).reshape(
-            (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
-        self.collection.set_color(color_tuple)
-
-    def _refresh(self, region):
-        x, y, self.hm = self._mesh_data(region)
-
-        self.collection._coordinates[:, :, 0] = x
-        # update matrix data
-        self.collection.set_array(self.hm.T.ravel())
-        self._update_mesh_colors()
 
 
 class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
@@ -932,6 +834,66 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         pass
 
 
+class LinePlot(ScalarDataPlot):
+    """
+    Plot data as line. Data can be from BigWig or bedgraph files.
+    """
+
+    def __init__(self, data, names=None, bin_size=None, fill=True,
+                 plot_kwargs=None, **kwargs):
+        """
+        :param bigwigs: Data or list of data. Data can be paths to
+                        files on the disk or anthing that
+                        pybedtools can parse [(chr, start, end, score), ...].
+                        If a list of data is provided multiple lines are drawn.
+        :param names: List of names for each data file. Used as label in the legend.
+        :param bin_size: Bin values using fixed size bins of the given size.
+                         If None, will plot values as they are in the data.
+        :param fill: Fill space between x-axis and data line. Default: True
+        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
+        """
+        kwargs.setdefault("aspect", .2)
+        super(LinePlot, self).__init__(**kwargs)
+        self.data = []
+        # First assume that input is an iterable with multiple datasets
+        try:
+            for d in data:
+                self.data.append(load_score_data(d))
+        except ValueError:
+            # Assume input is a single data item
+            self.data = [load_score_data(data)]
+        self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
+        self.names = names
+        self.bin_size = bin_size
+        self.lines = []
+        self.fill = fill
+
+    def _line_values(self, region):
+        for i, d in enumerate(self.data):
+            intervals = d.region_intervals(region, bin_size=self.bin_size)
+            regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
+            values = [v for s, e, v in intervals]
+            x, y = self.get_plot_values(values, regions)
+            yield i, x, y
+
+    def _plot(self, region):
+        for i, x, y in self._line_values(region):
+            l = self.ax.plot(x, y, label=self.names[i] if self.names else "",
+                             **self.plot_kwargs)[0]
+            self.lines.append(l)
+            if self.fill:
+                self.ax.fill_between(x, [0] * len(y), y, color=l.get_color())
+        if self.names:
+            self.add_legend()
+        self.remove_colorbar_ax()
+        sns.despine(ax=self.ax, top=True, right=True)
+
+    def _refresh(self, region):
+        for i, x, y in self._line_values(region):
+            self.lines[i].set_xdata(x)
+            self.lines[i].set_ydata(y)
+
+
 class BigWigPlot(ScalarDataPlot):
     """
     Plot data from on or more BigWig or Bedgraph files.
@@ -947,6 +909,7 @@ class BigWigPlot(ScalarDataPlot):
         :param fill: Fill space between x-axis and data line. Default: True
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
         """
+        warnings.warn("BigWigPlot is deprecated, use LinePlot instead.")
         kwargs.setdefault("aspect", .2)
         super(BigWigPlot, self).__init__(**kwargs)
         if not isinstance(bigwigs, (list, tuple, types.GeneratorType)):
