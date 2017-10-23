@@ -1311,10 +1311,17 @@ def process_matrix_segment_intra(data):
             e_v_chunk = RaoPeakCaller.find_chunk(chunks, e_v/cf)
             e_d_chunk = RaoPeakCaller.find_chunk(chunks, e_d/cf)
 
-            result = (o_i, o_j, m_original.data[i, j], w_corr, p,
+            result = [o_i, o_j, m_original.data[i, j], w_corr, p,
                       int(m_uncorrected.data[i, j]),
                       ll_sum, e_ll, e_v, e_h, e_d,
                       o_chunk, e_ll_chunk, e_v_chunk, e_h_chunk, e_d_chunk,
-                      e_ll_mappable, e_v_mappable, e_h_mappable, e_d_mappable)
+                      e_ll_mappable, e_v_mappable, e_h_mappable, e_d_mappable]
+
+            for x, r in enumerate(result):
+                if isinstance(r, np.ndarray):
+                    logger.error('NDARRAY: {}'.format(x))
+                    logger.error('{}'.format(r))
+                    result[x] = float(r)
+
             results.append(result)
     return msgpack.dumps(results)
