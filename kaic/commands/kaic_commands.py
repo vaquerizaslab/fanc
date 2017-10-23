@@ -2447,8 +2447,8 @@ def call_peaks_parser():
     parser.add_argument(
         '-s', '--slice-size', dest='slice_size',
         type=int,
-        default=1000,
-        help='''Width of submatrix examined per process. Default: 1000'''
+        default=200,
+        help='''Width of submatrix examined per process. Default: 200'''
     )
 
     parser.add_argument(
