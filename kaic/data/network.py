@@ -7,12 +7,10 @@ from scipy.stats import poisson
 from collections import defaultdict
 import tables as t
 from bisect import bisect_left
-from functools import partial
 from kaic.data.genomic import RegionMatrixTable, Edge, LazyEdge
 from kaic.data.general import MaskFilter
 import msgpack
 import msgpack_numpy
-import time
 import math
 from kaic.architecture.hic_architecture import ExpectedContacts
 from kaic.tools.general import RareUpdateProgressBar
@@ -936,8 +934,12 @@ class RaoPeakCaller(PeakCaller):
         # if the grid does not work for some reason, this will fall back on
         # multiprocessing itself
         logger.debug("Getting gridmap output...")
+
+        job_kwargs = {}
+        if config.gridmap_tmpdir is not None:
+            job_kwargs['temp_dir'] = config.gridmap_tmpdir
         job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes,
-                                           local=not self.cluster, temp_dir='/home/kkruse/tmp/')
+                                           local=not self.cluster, **job_kwargs)
         logger.debug("Got gridmap output.")
 
         for compressed_results in job_outputs:
@@ -1029,7 +1031,7 @@ class RaoPeakCaller(PeakCaller):
                     self.max_w]
 
             args = msgpack.dumps(args)
-            job = gridmap.Job(process_matrix_segment_intra, [args], cleanup=False)
+            job = gridmap.Job(process_matrix_segment_intra, [args])
             jobs.append(job)
 
             # submit intermediate segments if maximum number of jobs reached
@@ -1233,14 +1235,12 @@ class RaoPeakCaller(PeakCaller):
 
 
 def process_matrix_segment_intra(data):
-    logger.info("In thread")
     m_original, e, chunks, \
         i_range, i_inspect, mappable_i, c_i, \
         j_range, j_inspect, mappable_j, c_j, \
         w, p, min_locus_dist, min_ll_reads, min_mappable, \
         max_w = msgpack.loads(data)
 
-    logger.info("Loaded data")
     # construct convenient matrices
     row_ixs = np.arange(i_range[0], i_range[1])
     col_ixs = np.arange(j_range[0], j_range[1])
@@ -1319,5 +1319,4 @@ def process_matrix_segment_intra(data):
                             ll_sum, e_ll, e_v, e_h, e_d,
                             o_chunk, e_ll_chunk, e_v_chunk, e_h_chunk, e_d_chunk,
                             e_ll_mappable, e_v_mappable, e_h_mappable, e_d_mappable))
-        logger.info("Done processing")
     return msgpack.dumps(results)
