@@ -937,7 +937,7 @@ class RaoPeakCaller(PeakCaller):
         # multiprocessing itself
         logger.debug("Getting gridmap output...")
         job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes,
-                                           local=not self.cluster)
+                                           local=not self.cluster, temp_dir='/home/kkruse/tmp/')
         logger.debug("Got gridmap output.")
 
         for compressed_results in job_outputs:
