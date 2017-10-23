@@ -1076,11 +1076,8 @@ class RaoPeakCaller(PeakCaller):
 
         # expected values
         if intra_expected is None:
-            intra_expected = dict()
             logger.info("Intra-chromosomal expected values...")
-            for chromosome in hic.chromosomes():
-                with ExpectedContacts(hic, regions=chromosome, smooth=False) as expected:
-                    intra_expected[chromosome] = expected.intra_expected()
+            _, intra_expected, _ = hic.expected_values()
             logger.info("Done.")
         # if self.process_inter and inter_expected is None:
         #     logger.info("Inter-chromosomal expected values...")

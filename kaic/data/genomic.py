@@ -4320,6 +4320,133 @@ class RegionMatrixTable(RegionPairs):
 
         return marginals
 
+    def possible_contacts(self):
+        logger.info("Calculating possible counts")
+        regions = list(self.regions)
+        chromosomes = self.chromosomes()
+
+        cb = self.chromosome_bins
+        chromosome_max_distance = defaultdict(int)
+        max_distance = 0
+        chromosome_subtractions = dict()
+        for chromosome in chromosomes:
+            start, stop = cb[chromosome]
+            max_distance = max(max_distance, stop - start)
+            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+            chromosome_subtractions[chromosome] = np.zeros(stop - start,
+                                                           dtype='int32')
+
+        chromosome_mappable = defaultdict(int)
+        chromosome_unmappable = defaultdict(set)
+        for i, mappable in enumerate(self.mappable()):
+            chromosome = regions[i].chromosome
+            if not mappable:  # unmappable
+                s = chromosome_subtractions[chromosome]
+                o = cb[chromosome][0]
+                ix = i - o
+                # horizontal
+                s[0: len(s) - ix] += 1
+                # vertical
+                for j in range(1, ix + 1):
+                    if ix - j not in chromosome_unmappable[chromosome]:
+                        s[j] += 1
+                chromosome_unmappable[chromosome].add(ix)
+            else:
+                chromosome_mappable[chromosome] += 1
+
+        inter_total = 0
+        intra_total = [0] * max_distance
+        chromosome_intra_total = dict()
+        for chromosome, d in chromosome_max_distance.items():
+            chromosome_intra_total[chromosome] = [0] * d
+
+        for i, chromosome in enumerate(chromosomes):
+            start, stop = cb[chromosome]
+            count = stop - start
+
+            # intra-chromosomal
+            s = chromosome_subtractions[chromosomes[i]]
+            for distance in range(0, count):
+                intra_total[distance] += count - distance - s[distance]
+                chromosome_intra_total[chromosome][distance] += count - distance - s[distance]
+
+            # inter-chromosomal
+            for j in range(i + 1, len(chromosomes)):
+                count_mappable = chromosome_mappable[chromosomes[i]]
+                count2_mappable = chromosome_mappable[chromosomes[j]]
+                inter_total += count_mappable * count2_mappable
+
+        return intra_total, chromosome_intra_total, inter_total
+
+    def expected_values(self, chromosome=None):
+        # get all the bins of the different chromosomes
+        chromosome_bins = self.chromosome_bins
+        chromosome_dict = defaultdict(list)
+
+        chromosome_max_distance = defaultdict(int)
+        max_distance = 0
+        for chromosome, (start, stop) in chromosome_bins.items():
+            max_distance = max(max_distance, stop - start)
+            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+
+            for i in range(start, stop):
+                chromosome_dict[i] = chromosome
+
+        chromosome_intra_sums = dict()
+        chromosome_intra_expected = dict()
+        for chromosome, d in chromosome_max_distance.items():
+            chromosome_intra_sums[chromosome] = [0.0] * d
+            chromosome_intra_expected[chromosome] = [0.0] * d
+
+        # get the sums of edges at any given distance
+        marginals = [0.0] * len(self.regions)
+        inter_sums = 0.0
+        intra_sums = [0.0] * max_distance
+        for edge in self.edges(lazy=True):
+            source, sink = edge.source, edge.sink
+            weight = getattr(edge, self.default_field)
+
+            source_chromosome = chromosome_dict[source]
+            sink_chromosome = chromosome_dict[sink]
+
+            marginals[source] += weight
+            marginals[sink] += weight
+
+            if sink_chromosome != source_chromosome:
+                inter_sums += weight
+            else:
+                distance = sink - source
+                intra_sums[distance] += weight
+                chromosome_intra_sums[source_chromosome][distance] += weight
+
+        intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
+
+        # expected values
+        inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
+
+        intra_expected = [0.0] * max_distance
+        bin_size = self.bin_size
+        distances = []
+        for d in range(max_distance):
+            distances.append(bin_size * d)
+
+            # whole genome
+            count = intra_total[d]
+            if count > 0:
+                intra_expected[d] = intra_sums[d] / count
+
+        # chromosomes
+        for chromosome in chromosome_intra_expected:
+            for d in range(chromosome_max_distance[chromosome]):
+                chromosome_count = chromosome_intra_total[chromosome][d]
+                if chromosome_count > 0:
+                    chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+
+        if chromosome is not None:
+            return chromosome_intra_expected[chromosome]
+
+        return intra_expected, chromosome_intra_expected, inter_expected
+
     def scaling_factor(self, matrix, weight_column=None):
         """
         Compute the scaling factor to another matrix.
@@ -5091,25 +5218,6 @@ class Hic(RegionMatrixTable):
             if mappability[i]:
                 mappable[region.chromosome] += 1
         return mappable
-
-    def possible_contacts(self, _mappable=None):
-        if _mappable is None:
-            _mappable = self.mappable_regions()
-
-        # calculate possible combinations
-        intra_possible = 0
-        inter_possible = 0
-        chromosomes = list(_mappable.keys())
-        for i in range(len(chromosomes)):
-            chromosome1 = chromosomes[i]
-            n1 = _mappable[chromosome1]
-            intra_possible += n1**2/2 + n1/2
-            for j in range(i+1, len(chromosomes)):
-                chromosome2 = chromosomes[j]
-                n2 = _mappable[chromosome2]
-                inter_possible += n1*n2
-
-        return intra_possible, inter_possible
 
     @property
     def architecture(self):
