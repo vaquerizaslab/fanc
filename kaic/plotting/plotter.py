@@ -11,7 +11,8 @@ from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
                                   box_coords_abs_to_rel, figure_line, figure_rectangle, \
-                                  parse_bedtool_input, get_region_based_object
+                                  parse_bedtool_input, get_region_based_object, \
+                                  load_score_data
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -33,29 +34,6 @@ import kaic
 import logging
 logger = logging.getLogger(__name__)
 
-
-def load_score_data(data):
-    # If it's already an instance of kaic data, just return it
-    if isinstance(data, RegionBased):
-        return data
-    # If it's a pyBigWig instance, turn it into a RegionBased instance
-    if isinstance(data, pyBigWig.pyBigWig):
-        return BigWig(data)
-    try:
-        # First attempt to load into pybedtools
-        # Used for [("chr", start, end), ...] queries
-        try:
-            bt = pbt.BedTool(data).saveas()
-            # Load using kaic.load in order
-            # to access
-            return kaic.load(bt.fn)
-        except pbt.MalformedBedLineError:
-            pass
-        # If it's a string then probably it represents a path
-        # on disk that kaic.load can deal with
-        return kaic.load(data)
-    except:
-        raise ValueError("Can't load data")
 
 def hide_axis(ax):
     """

@@ -4,7 +4,8 @@ import numpy as np
 from math import log10, floor
 import pybedtools as pbt
 import kaic
-from kaic.data.genomic import RegionBased
+import pyBigWig
+from kaic.data.genomic import RegionBased, Bed
 
 
 style_ticks_whitegrid = {
@@ -285,3 +286,26 @@ def get_region_based_object(input_object):
     if isinstance(input_object, RegionBased):
         return input_object
     return kaic.load(input_object)
+
+def load_score_data(data):
+    # If it's already an instance of kaic data, just return it
+    if isinstance(data, RegionBased):
+        return data
+    # If it's a pyBigWig instance, turn it into a RegionBased instance
+    if isinstance(data, pyBigWig.pyBigWig):
+        return BigWig(data)
+    try:
+        # First attempt to load into pybedtools
+        # Used for [("chr", start, end), ...] queries
+        try:
+            bt = pbt.BedTool(data)
+            # Load using kaic.load in order
+            # to access
+            return Bed(bt.fn)
+        except pbt.MalformedBedLineError:
+            pass
+        # If it's a string then probably it represents a path
+        # on disk that kaic.load can deal with
+        return kaic.load(data)
+    except:
+        raise ValueError("Can't load data")
