@@ -956,10 +956,7 @@ class BigWigPlot(ScalarDataPlot):
         for bw in bigwigs:
             if isinstance(bw, string_types):
                 bw = kaic.load(bw)
-            if isinstance(bw, kaic.BigWig):
-                self.bigwigs.append(bw.bw)
-            else:
-                self.bigwigs.append(bw)
+            self.bigwigs.append(bw)
         self.names = names
         self.bin_size = bin_size
         self.lines = []
@@ -989,7 +986,7 @@ class BigWigPlot(ScalarDataPlot):
     def _line_values(self, region):
         for i, b in enumerate(self.bigwigs):
             if isinstance(b, kaic.data.genomic.RegionBased):
-                intervals = b.region_intervals(region)
+                intervals = list(b.region_intervals(region))
             else:
                 intervals = b.intervals(region.chromosome, region.start - 1, region.end)
 
