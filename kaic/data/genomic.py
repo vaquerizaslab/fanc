@@ -193,7 +193,7 @@ class RegionBased(object):
 
     def _region_intervals(self, region, *args, **kwargs):
         for region in self.regions(region, *args, **kwargs):
-            yield (region.chromosome, region.start, region.end)
+            yield (region.start, region.end, region.score)
 
     def _region_len(self):
         return sum(1 for _ in self.regions)
@@ -378,8 +378,8 @@ class RegionBased(object):
         region = self._convert_region(region)
         return self._region_subset(region, *args, **kwargs)
 
-    def intervals(self, region, bins=None, bin_size=None, smoothing_window=None,
-                  nan_replacement=None, zero_to_nan=False, *args, **kwargs):
+    def region_intervals(self, region, bins=None, bin_size=None, smoothing_window=None,
+                         nan_replacement=None, zero_to_nan=False, *args, **kwargs):
         region = self._convert_region(region)
         if not isinstance(region, GenomicRegion):
             raise ValueError("Region must be a GenomicRegion object or equivalent string!")
@@ -406,24 +406,27 @@ class RegionBased(object):
                                                          nan_replacement=nan_replacement,
                                                          zero_to_nan=zero_to_nan)
 
+    def intervals(self, *args, **kwargs):
+        return self.region_intervals(*args, **kwargs)
+
     def binned_regions(self, region=None, bins=None, bin_size=None, smoothing_window=None,
                        nan_replacement=None, zero_to_nan=False, *args, **kwargs):
         region = self._convert_region(region)
         br = []
         if region is None:
             for chromosome in self.chromosomes():
-                interval_bins = self.intervals(chromosome, bins=bins, bin_size=bin_size,
-                                               smoothing_window=smoothing_window,
-                                               nan_replacement=nan_replacement,
-                                               zero_to_nan=zero_to_nan, *args, **kwargs)
+                interval_bins = self.region_intervals(chromosome, bins=bins, bin_size=bin_size,
+                                                      smoothing_window=smoothing_window,
+                                                      nan_replacement=nan_replacement,
+                                                      zero_to_nan=zero_to_nan, *args, **kwargs)
                 br += [GenomicRegion(chromosome=chromosome, start=interval_bin[0],
                                      end=interval_bin[1], score=interval_bin[2])
                        for interval_bin in interval_bins]
         else:
-            interval_bins = self.intervals(region, bins=bins, bin_size=bin_size,
-                                           smoothing_window=smoothing_window,
-                                           nan_replacement=nan_replacement,
-                                           zero_to_nan=zero_to_nan, *args, **kwargs)
+            interval_bins = self.region_intervals(region, bins=bins, bin_size=bin_size,
+                                                  smoothing_window=smoothing_window,
+                                                  nan_replacement=nan_replacement,
+                                                  zero_to_nan=zero_to_nan, *args, **kwargs)
             br += [GenomicRegion(chromosome=region.chromosome, start=interval_bin[0],
                                  end=interval_bin[1], score=interval_bin[2])
                    for interval_bin in interval_bins]
@@ -552,14 +555,14 @@ class RegionBased(object):
 
     def binned_values(self, region, bins, smoothing_window=None, zero_to_nan=False):
         region = self._convert_region(region)
-        return RegionBased.bin_intervals(self.intervals(region), bins,
+        return RegionBased.bin_intervals(self.region_intervals(region), bins,
                                          interval_range=(region.start, region.end),
                                          smoothing_window=smoothing_window,
                                          zero_to_nan=zero_to_nan)
 
     def binned_values_equidistant(self, region, bin_size, smoothing_window=None, zero_to_nan=False):
         region = self._convert_region(region)
-        return RegionBased.bin_intervals_equidistant(self.intervals(region), bin_size,
+        return RegionBased.bin_intervals_equidistant(self.region_intervals(region), bin_size,
                                                      interval_range=(region.start, region.end),
                                                      smoothing_window=smoothing_window,
                                                      zero_to_nan=zero_to_nan)
@@ -791,7 +794,7 @@ class BigWig(RegionBased):
             regions = region
 
         for r in regions:
-            for start, end, score in self.intervals(r):
+            for start, end, score in self.region_intervals(r):
                 yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
 
     def _region_intervals(self, region, *args, **kwargs):
@@ -864,6 +867,12 @@ class BigWig(RegionBased):
         r_end = region.end if region.end is not None else chroms[region.chromosome]
 
         return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
+
+    def intervals(self, region, bins=None, bin_size=None, smoothing_window=None,
+                  nan_replacement=None, zero_to_nan=False, *args, **kwargs):
+        return self.region_intervals(region, bins=bins, bin_size=bin_size, smoothing_window=smoothing_window,
+                                     nan_replacement=nan_replacement, zero_to_nan=zero_to_nan,
+                                     *args, **kwargs)
 
 
 class Tabix(RegionBased):

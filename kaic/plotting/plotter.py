@@ -988,8 +988,8 @@ class BigWigPlot(ScalarDataPlot):
 
     def _line_values(self, region):
         for i, b in enumerate(self.bigwigs):
-            if isinstance(b, kaic.Bed):
-                intervals = [(r.start, r.end, r.score) for r in b.regions[region]]
+            if isinstance(b, kaic.data.genomic.RegionBased):
+                intervals = b.region_intervals(region)
             else:
                 intervals = b.intervals(region.chromosome, region.start - 1, region.end)
 
