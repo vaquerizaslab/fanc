@@ -192,8 +192,10 @@ class RegionBased(object):
         return self.regions[self.region_bins(region)]
 
     def _region_intervals(self, region, *args, **kwargs):
+        intervals = []
         for region in self.regions(region, *args, **kwargs):
-            yield (region.start, region.end, region.score)
+            intervals.append((region.start, region.end, region.score))
+        return intervals
 
     def _region_len(self):
         return sum(1 for _ in self.regions)
@@ -809,9 +811,11 @@ class BigWig(RegionBased):
         else:
             intervals = self._memory_intervals(region)
 
+        interval_list = []
         if intervals is not None:
             for interval in intervals:
-                yield (interval[0]+1, interval[1], interval[2])
+                interval_list.append((interval[0]+1, interval[1], interval[2]))
+        return interval_list
 
     def _region_len(self):
         return sum(1 for _ in self.regions)
