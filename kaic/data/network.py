@@ -436,8 +436,8 @@ class RaoPeakInfo(RegionMatrixTable):
 
                 last_peak_number = 0
                 current_peaks = []
-                l = len(remaining_peaks_set)
-                with RareUpdateProgressBar(max_value=l, poll_interval=20, silent=config.hide_progressbars) as pb:
+                n_remaining = len(remaining_peaks_set)
+                with RareUpdateProgressBar(max_value=n_remaining, silent=config.hide_progressbars) as pb:
                     while len(remaining_peaks_set) > 0:
                         x, y, radius = RaoPeakInfo._centroid_and_radius(current_peaks)
 
@@ -473,7 +473,7 @@ class RaoPeakInfo(RegionMatrixTable):
                                 current_peaks.append(closest_peak)
                                 remaining_peaks_set.remove(closest_peak)
 
-                        pb.update(l-len(remaining_peaks_set))
+                        pb.update(n_remaining-len(remaining_peaks_set))
 
                 if len(current_peaks) > 0:
                     _append_merged_peak(current_peaks)
@@ -486,10 +486,46 @@ class Peak(Edge):
     Container for a Peak/enriched contact in a Hi-C matrix.
     """
     def __init__(self, source, sink, *args, **kwargs):
+        self.weight = None
+        self.e_ll = None
+        self.e_h = None
+        self.e_d = None
+        self.e_v = None
+        self.expected = None
         super(Peak, self).__init__(source, sink, *args, **kwargs)
 
+    @property
+    def oe(self):
+        if self.weight is not None and self.expected is not None:
+            return self.weight / self.expected
+        return None
 
-class LazyPeak(LazyEdge):
+    @property
+    def oe_ll(self):
+        if self.weight is not None and self.e_ll is not None:
+            return self.weight/self.e_ll
+        return None
+
+    @property
+    def oe_h(self):
+        if self.weight is not None and self.e_h is not None:
+            return self.weight/self.e_h
+        return None
+
+    @property
+    def oe_v(self):
+        if self.weight is not None and self.e_v is not None:
+            return self.weight/self.e_v
+        return None
+
+    @property
+    def oe_d(self):
+        if self.weight is not None and self.e_d is not None:
+            return self.weight/self.e_d
+        return None
+
+
+class LazyPeak(LazyEdge, Peak):
     """
     Container for a Peak/enriched contact in a Hi-C matrix.
 
@@ -497,14 +533,14 @@ class LazyPeak(LazyEdge):
     loading of attributes from a PyTables table row.
     """
     def __init__(self, row, nodes_table, auto_update=True, bin_size=1):
-        super(LazyPeak, self).__init__(row, nodes_table, auto_update=auto_update)
+        LazyEdge.__init__(self, row, nodes_table, auto_update=auto_update)
         self.reserved.add('bin_size')
         self.bin_size = bin_size
 
     def __getattr__(self, item):
-        res = super(LazyPeak, self).__getattr__(item)
+        res = LazyEdge.__getattr__(self, item)
         if item in ('x', 'y', 'radius'):
-            return self.bin_size*res
+            return self.bin_size * res
         return res
 
 
@@ -927,7 +963,7 @@ class RaoPeakCaller(PeakCaller):
             return None
         return bisect_left(chunk_list, value)
 
-    def _process_jobs(self, jobs, peaks, observed_chunk_distribution):
+    def _process_jobs(self, jobs, peaks, observed_chunk_distribution, ix_converter):
         """
         Process the output from :func:`~process_matrix_range` and save in peak table.
         """
@@ -956,7 +992,8 @@ class RaoPeakCaller(PeakCaller):
                 observed_chunk_distribution['v'][e_v_chunk][observed] += 1
                 observed_chunk_distribution['d'][e_d_chunk][observed] += 1
 
-                peak = Edge(source=source, sink=sink, weight=weight, uncorrected=observed,
+                peak = Edge(source=ix_converter[source], sink=ix_converter[sink],
+                            weight=weight, uncorrected=observed,
                             w=w_corr, p=p, ll_sum=ll_sum,
                             e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
                             e_ll_chunk=e_ll_chunk, e_v_chunk=e_v_chunk,
@@ -1020,6 +1057,10 @@ class RaoPeakCaller(PeakCaller):
         Given a matrix (strictly intra-chromosomal), calculate peak
         information for all pixels.
         """
+        ix_converter = dict()
+        for i, region in enumerate(m.row_regions):
+            ix_converter[i] = region.ix
+
         jobs = []
         for segment in RaoPeakCaller.segment_matrix_intra(m, self.slice_size, self.max_w):
             ms, i_range, i_inspect, j_range, j_inspect = segment
@@ -1036,11 +1077,11 @@ class RaoPeakCaller(PeakCaller):
 
             # submit intermediate segments if maximum number of jobs reached
             if len(jobs) >= self.n_processes:
-                self._process_jobs(jobs, peak_info, observed_chunk_distribution)
+                self._process_jobs(jobs, peak_info, observed_chunk_distribution, ix_converter)
                 jobs = []
 
         if len(jobs) > 0:
-            self._process_jobs(jobs, peak_info, observed_chunk_distribution)
+            self._process_jobs(jobs, peak_info, observed_chunk_distribution, ix_converter)
 
     def call_peaks(self, hic, chromosome_pairs=None, file_name=None, intra_expected=None, inter_expected=None):
         """
