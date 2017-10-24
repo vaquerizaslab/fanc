@@ -479,7 +479,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         color_matrix = self.get_color_matrix(self.hm)
         color_tuple = color_matrix.transpose((1, 0, 2)).reshape(
             (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
-        self.collection.set_color(color_tuple)
+        self.collection.set_facecolor(color_tuple)
 
     def _refresh(self, region):
         x_, y_, hm = self._mesh_data(region)
