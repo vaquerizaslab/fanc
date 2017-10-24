@@ -1114,10 +1114,12 @@ class RaoPeakCaller(PeakCaller):
 
         logger.info("Finding maximum observed value...")
         max_observed = 0
-        for edge in hic.edges(lazy=True):
-            new_max = edge.weight/(c[edge.source]*c[edge.sink])
-            if not math.isinf(new_max):
-                max_observed = max(max_observed, new_max)
+        with RareUpdateProgressBar(max_value=len(hic.edges), prefix='Max observed') as pb:
+            for i, edge in enumerate(hic.edges(lazy=True)):
+                new_max = edge.weight/(c[edge.source]*c[edge.sink])
+                if not math.isinf(new_max):
+                    max_observed = max(max_observed, new_max)
+                pb.update(i)
         logger.info("Done.")
 
         logger.info("Calculating lambda-chunk boundaries... {}".format(max_observed))
