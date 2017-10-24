@@ -269,7 +269,7 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         else:
             extent = [self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
                       self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start]
-        self.im = self.ax.imshow(color_matrix, interpolation='none',
+        self.im = self.ax.imshow(color_matrix, interpolation='none', aspect='auto',
                                  cmap=self.colormap, norm=self.norm, origin="upper",
                                  extent=extent)
         self.ax.spines['right'].set_visible(False)
