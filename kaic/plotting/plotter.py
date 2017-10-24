@@ -224,6 +224,8 @@ class GenomicFigure(object):
         if dimensions_stale:
             self._update_figure_setup()
         # Plot annotations
+        for p in self.annotations:
+            p._verify(self)
         for r, p in zip(plot_regions[len(self.plots):], self.annotations):
             p.plot(r)
         return self.fig, self.axes
@@ -278,16 +280,16 @@ class HighlightAnnotation(BaseAnnotation):
         if plot_kwargs is not None:
             self.plot_kwargs.update(plot_kwargs)
         self.bedtool = parse_bedtool_input(bed)
-        self.plot1 = plot1
-        self.plot2 = plot2
+        self.plot1 = self._plot1 = plot1
+        self.plot2 = self._plot2 = plot2
         self.patches = []
         self.lines = []
 
     def _plot(self, region):
-        x_trans = self.plot1.ax.transData
-        y_trans1 = self.plot1.ax.transAxes + self.plot1.ax.figure.transFigure.inverted()
-        y_trans2 = self.plot2.ax.transAxes + self.plot2.ax.figure.transFigure.inverted()
-        blended_trans = mpl.transforms.blended_transform_factory(x_trans, self.plot1.ax.figure.transFigure)
+        x_trans = self._plot1.ax.transData
+        y_trans1 = self._plot1.ax.transAxes + self._plot1.ax.figure.transFigure.inverted()
+        y_trans2 = self._plot2.ax.transAxes + self._plot2.ax.figure.transFigure.inverted()
+        blended_trans = mpl.transforms.blended_transform_factory(x_trans, self._plot1.ax.figure.transFigure)
         interval = region_to_pbt_interval(region)
         hits = self.bedtool.all_hits(interval)
         for r in hits:
@@ -301,7 +303,7 @@ class HighlightAnnotation(BaseAnnotation):
         y1_t = y_trans1.transform((0, 1))[1]
         y2_t = y_trans2.transform((0, 0))[1]
         y1_t, y2_t = sorted([y1_t, y2_t])
-        patch = figure_rectangle(self.plot1.ax.figure, xy=(s, y1_t),
+        patch = figure_rectangle(self._plot1.ax.figure, xy=(s, y1_t),
                                  width=e - s, height=y2_t - y1_t,
                                  transform=plot_trans, **self.plot_kwargs)
         patch.set_transform(plot_trans)
@@ -311,7 +313,7 @@ class HighlightAnnotation(BaseAnnotation):
         s = r.start
         y1_t = trans1.transform((0, 1))[1]
         y2_t = trans2.transform((0, 0))[1]
-        l = figure_line(self.plot1.ax.figure, xdata=[s, s],
+        l = figure_line(self._plot1.ax.figure, xdata=[s, s],
                         ydata=[y1_t, y2_t], transform=plot_trans,
                         **self.plot_kwargs)
         l.set_transform(plot_trans)
@@ -319,15 +321,15 @@ class HighlightAnnotation(BaseAnnotation):
 
     def _verify(self, gfig):
         if self.plot1 is None:
-            self.plot1 = gfig.plots[0]
+            self._plot1 = gfig.plots[0]
         if self.plot2 is None:
-            self.plot2 = gfig.plots[-1]
-        # Make sure plot1 comes first in plot list
-        if gfig.plots.index(self.plot2) < gfig.plots.index(self.plot1):
-            self.plot1, self.plot2 = self.plot2, self.plot1
-        if not all([self.plot1 in gfig.plots, self.plot2 in gfig.plots]):
+            self._plot2 = gfig.plots[-1]
+        if not all([self._plot1 in gfig.plots, self._plot2 in gfig.plots]):
             raise ValueError("At least one plot in the HighlightAnnotation is"
                              "not part of the GenomicFigure")
+        # Make sure plot1 comes first in plot list
+        if gfig.plots.index(self._plot2) < gfig.plots.index(self._plot1):
+            self._plot1, self._plot2 = self._plot2, self._plot1
         return True
 
     def _refresh(self, region):
