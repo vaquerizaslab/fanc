@@ -977,7 +977,7 @@ class BigWigPlot(ScalarDataPlot):
             if s == e:
                 # In this case no suitable values found in bigwig, leave nan
                 continue
-            weights = interval_records["end"][s:e] - interval_records["start"][s:e]
+            weights = interval_records["end"][s:e] - interval_records["start"][s:e] + 1
             out_values[i] = np.average(interval_records["value"][s:e], weights=weights)
         bin_regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e)
                        for s, e in zip(bin_coords[:-1], bin_coords[1:])]
@@ -986,7 +986,7 @@ class BigWigPlot(ScalarDataPlot):
     def _line_values(self, region):
         for i, b in enumerate(self.bigwigs):
             if isinstance(b, kaic.data.genomic.RegionBased):
-                intervals = list(b.region_intervals(region))
+                intervals = b.region_intervals(region)
             else:
                 intervals = b.intervals(region.chromosome, region.start - 1, region.end)
 
