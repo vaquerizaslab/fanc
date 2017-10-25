@@ -1675,7 +1675,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
         return ii
 
-    def boundaries(self, window_size, min_score=None, delta_window=7, log=False, sub_bin_precision=False):
+    def boundaries(self, window_size, min_score=None, delta_window=3, log=False, sub_bin_precision=False):
         """
         Call insulation boundaries based on minima in an insulation vector of this object.
 
@@ -1684,7 +1684,9 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                           in the insulation vector for a region to be considered a
                           boundary
         :param delta_window: Window size in bins to control smoothing of the delta function
-                             used in the derivative if the insulation index.
+                             used to calculate the derivative of the insulation index.
+                             Calculation takes into account d bins upstream and d
+                             bins downstream for a total window size of 2*d + 1 bins.
         :param log: Log2-transform insulation index before boundary calls
         :param sub_bin_precision: Call boundaries with sub bin precision, by taking
                                   into account the precise zero transition of the delta vector.
@@ -1704,7 +1706,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             if sub_bin_precision:
                 region = regions[int(ix)]
                 frac = ix % 1
-                shift = int(frac*(region.end - region.start))
+                shift = int((frac - .5)*(region.end - region.start))
                 b = GenomicRegion(chromosome=region.chromosome, start=region.start + shift, end=region.end + shift, score=scores[i])
             else:
                 region = regions[ix]

@@ -4,6 +4,7 @@ from kaic.tools.matrix import delta_window
 import logging
 logger = logging.getLogger(__name__)
 
+
 def find_zero_crossing(x, sub_bin_precision=False):
     diff = np.diff(np.signbit(x))
     # make sure diff is not caused by nan
@@ -15,6 +16,27 @@ def find_zero_crossing(x, sub_bin_precision=False):
         return idx + frac
     return np.rint(idx + frac).astype(np.int_)
 
+
+def find_local_extrema(x):
+    diff = np.diff(x)
+    crossings = np.diff(np.signbit(diff).astype(np.int_))
+    # make sure diff is not caused by nan
+    nan_mask = ~np.logical_or(np.isnan(diff[:-1]), np.isnan(diff[1:]))
+    minima_idx = np.nonzero(np.logical_and(crossings < 0, nan_mask))[0] + 1
+    maxima_idx = np.nonzero(np.logical_and(crossings > 0, nan_mask))[0] + 1
+    return minima_idx, maxima_idx
+
+
+def find_closest(A, target):
+    # https://stackoverflow.com/a/8929827/4603385
+    idx = A.searchsorted(target)
+    idx = np.clip(idx, 1, len(A) - 1)
+    left = A[idx - 1]
+    right = A[idx]
+    idx -= target - left < right - target
+    return idx
+
+
 def getitem_interpolated(array, idx):
     if issubclass(idx.dtype.type, np.floating):
         idx_int = idx.astype(np.int_)
@@ -22,6 +44,7 @@ def getitem_interpolated(array, idx):
         vals_left, vals_right = array[idx_int], array[idx_int + 1]
         return vals_left + frac*(vals_right - vals_left)
     return array[idx]
+
 
 class BaseMaximaCaller(object):
     def __init__(self):
@@ -86,9 +109,9 @@ class MaximaCallerDelta(BaseMaximaCaller):
         self.delta = delta_window(self.x, self.window_size)
         self._peaks = find_zero_crossing(self.delta, sub_bin_precision=self.sub_bin_precision)
         logger.info("Found {} raw peaks".format(len(self._peaks)))
-        self.delta_d1 = savgol_filter(self.delta, window_length=self.window_size, polyorder=2, deriv=1)
+        self.delta_d1 = savgol_filter(self.delta, window_length=2*self.window_size + 1, polyorder=2, deriv=1)
         self._delta_peaks = find_zero_crossing(self.delta_d1, sub_bin_precision=self.sub_bin_precision)
-        self.delta_d2 = savgol_filter(self.delta, window_length=self.window_size, polyorder=2, deriv=2)
+        self.delta_d2 = savgol_filter(self.delta, window_length=2*self.window_size + 1, polyorder=2, deriv=2)
         # Figure out which delta zero crossings are minima in x
         self._min_mask = getitem_interpolated(self.delta_d1, self._peaks) > 0
         # Figure out which delta peaks are minima, have d2 > 0

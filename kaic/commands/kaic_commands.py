@@ -3274,8 +3274,10 @@ def boundaries_parser():
     )
     parser.add_argument(
         '-d', '--delta', dest='delta',
-        type=int, default=7,
-        help='Window size for calculating the delta vector (in bins). Default 7.'
+        type=int, default=3,
+        help='Window size for calculating the delta vector (in bins). Calculation takes into '
+             'account d bins upstream and d bins downstream for a total '
+             'window size of 2*d + 1 bins. Default 3.'
     )
     parser.add_argument(
         '-s', '--min-score', dest='min_score',
@@ -3286,8 +3288,8 @@ def boundaries_parser():
     parser.add_argument(
         '-x', '--sub-bin-precision', dest='sub_bin_precision',
         action='store_true',
-        help='Report boundary positions with sub bin precision. This works because the minimum '
-             'the insulation score can be determined with sub bin precision. Default: False'
+        help='Report boundary positions with sub-bin precision. This works because the minimum '
+             'the insulation score can be determined with sub-bin precision. Default: False'
     )
     parser.add_argument(
         '-p', '--prefix', dest='prefix',
