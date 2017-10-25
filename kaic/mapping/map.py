@@ -52,7 +52,11 @@ class Bowtie2Mapper(Mapper):
                               stderr=f_null, universal_newlines=True)
         output = bp.communicate(input=''.join(fastq_strings))[0]
         f_null.close()
-        bp.kill()
+        try:
+            bp.terminate()
+            bp.kill()
+        except OSError:
+            pass
         return output
 
     def _resubmit(self, sam_fields):
@@ -109,7 +113,9 @@ def _iterative_mapping_worker(mapper, input_queue, resubmission_queue, output_qu
                 lines[input_name] = input_string
 
             if len(lines) == batch_size or (len(lines) > 0 and input_string is None):
+                logger.debug('Starting mapping')
                 output = mapper.map(lines.values())
+                logger.debug('Done mapping')
                 sam_lines = output.split("\n")
 
                 remaining = set(lines.keys())
@@ -125,6 +131,7 @@ def _iterative_mapping_worker(mapper, input_queue, resubmission_queue, output_qu
                         line = next(line_iter)
                     # send header to main thread
                     if header_queue.empty():
+                        logger.debug('Writing header')
                         header_queue.put(header)
                     # process alignment lines
                     while True:
@@ -175,13 +182,13 @@ def _fastq_to_queue(fastq_file, input_queue, counter_queue,
                     exception_queue=None, worker_pool=None):
     try:
         if fastq_file.endswith('.gz') or fastq_file.endswith('.gzip'):
-            open_file = gzip.open
+            open_file = lambda x: io.BufferedReader(gzip.open(x, 'r'), buffer_size=4*io.DEFAULT_BUFFER_SIZE)
         else:
-            open_file = open
+            open_file = io.open
 
         current_fastq = None
         read_counter = 0
-        with io.BufferedReader(open_file(fastq_file, 'r'), buffer_size=4*io.DEFAULT_BUFFER_SIZE) as f:
+        with open_file(fastq_file) as f:
             for i, line in enumerate(f):
                 line = line.decode() if isinstance(line, bytes) else line
                 if i % 4 == 0:
@@ -262,11 +269,11 @@ def iterative_mapping(fastq_file, sam_file, mapper, threads=1, min_size=25, step
     try:
         header = header_queue.get(True, header_timeout)
     except Empty:
-        raise RuntimeError("Waited too long ({} min) for first mapping process to end".format(header_timeout/60/60))
+        raise RuntimeError("Waited too long ({} hours) for first mapping process to end".format(header_timeout/60/60))
 
     def _open_output(file_name, bam=True):
         if not bam:
-            return io.BufferedWriter(open(file_name, 'wb'), buffer_size=4*io.DEFAULT_BUFFER_SIZE)
+            return io.open(file_name, 'wb')
         process = subprocess.Popen(['samtools', 'view', '-b', '-o', file_name, '-'],
                                    stdin=subprocess.PIPE,
                                    universal_newlines=True)
