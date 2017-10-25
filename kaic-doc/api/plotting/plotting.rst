@@ -23,8 +23,6 @@ Index of plot classes
     GenomicVectorArrayPlot
     GenomicRegionsPlot
     GenomicFeatureScorePlot
-    GenomicMatrixPlot
-    GenomicTrackPlot
     FeatureLayerPlot
     GenomicDataFramePlot
     HighlightAnnotation
@@ -39,7 +37,7 @@ Description and examples
         HicPlot, HicPlot2D, HicComparisonPlot2D, HicSideBySidePlot2D,
         HicSlicePlot, HicPeakPlot, VerticalSplitPlot, GenomicVectorArrayPlot,
         GenomicFeaturePlot, GenomicRegionsPlot, GenomicFeatureScorePlot,
-        GenomicMatrixPlot, GenomicFigure, GenomicTrackPlot, BigWigPlot, LinePlot,
+        GenomicFigure, BigWigPlot, LinePlot,
         GenePlot, FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation,
         SymmetricNorm, LimitGroup
     :special-members: __init__
