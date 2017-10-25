@@ -78,11 +78,12 @@ class PeakInfo(RegionMatrixTable):
         weight = t.Float32Col(pos=2)
         uncorrected = t.Int32Col(pos=3)
         expected = t.Float32Col(pos=4)
-        p_value = t.Float32Col(pos=5)
-        q_value_sum = t.Float32Col(pos=6)
-        x = t.Float32Col(pos=7)
-        y = t.Float32Col(pos=8)
-        radius = t.Float32Col(pos=9)
+        oe = t.Float32Col(pos=5)
+        p_value = t.Float32Col(pos=6)
+        q_value_sum = t.Float32Col(pos=7)
+        x = t.Float32Col(pos=8)
+        y = t.Float32Col(pos=9)
+        radius = t.Float32Col(pos=10)
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, regions=None, _table_name_regions='regions',
                  _table_name_peaks='edges'):
@@ -242,19 +243,23 @@ class RaoPeakInfo(RegionMatrixTable):
         e_h = t.Float32Col(pos=7, dflt=1.0)
         e_v = t.Float32Col(pos=8, dflt=1.0)
         e_d = t.Float32Col(pos=9, dflt=1.0)
-        e_ll_mappability = t.Float32Col(pos=10, dflt=1.0)
-        e_h_mappability = t.Float32Col(pos=11, dflt=1.0)
-        e_v_mappability = t.Float32Col(pos=12, dflt=1.0)
-        e_d_mappability = t.Float32Col(pos=13, dflt=1.0)
-        fdr_ll = t.Float32Col(pos=14, dflt=1.0)
-        fdr_h = t.Float32Col(pos=15, dflt=1.0)
-        fdr_v = t.Float32Col(pos=16, dflt=1.0)
-        fdr_d = t.Float32Col(pos=17, dflt=1.0)
-        e_ll_chunk = t.Int32Col(pos=18, dflt=1.0)
-        e_h_chunk = t.Int32Col(pos=19, dflt=1.0)
-        e_v_chunk = t.Int32Col(pos=20, dflt=1.0)
-        e_d_chunk = t.Int32Col(pos=21, dflt=1.0)
-        ll_sum = t.Int32Col(pos=22, dflt=0)
+        oe_ll = t.Float32Col(pos=10, dflt=1.0)
+        oe_h = t.Float32Col(pos=11, dflt=1.0)
+        oe_v = t.Float32Col(pos=12, dflt=1.0)
+        oe_d = t.Float32Col(pos=13, dflt=1.0)
+        e_ll_mappability = t.Float32Col(pos=14, dflt=1.0)
+        e_h_mappability = t.Float32Col(pos=15, dflt=1.0)
+        e_v_mappability = t.Float32Col(pos=16, dflt=1.0)
+        e_d_mappability = t.Float32Col(pos=17, dflt=1.0)
+        fdr_ll = t.Float32Col(pos=18, dflt=1.0)
+        fdr_h = t.Float32Col(pos=19, dflt=1.0)
+        fdr_v = t.Float32Col(pos=20, dflt=1.0)
+        fdr_d = t.Float32Col(pos=21, dflt=1.0)
+        e_ll_chunk = t.Int32Col(pos=22, dflt=1.0)
+        e_h_chunk = t.Int32Col(pos=23, dflt=1.0)
+        e_v_chunk = t.Int32Col(pos=24, dflt=1.0)
+        e_d_chunk = t.Int32Col(pos=25, dflt=1.0)
+        ll_sum = t.Int32Col(pos=26, dflt=0)
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, regions=None,
                  _table_name_regions='regions', _table_name_peaks='edges'):
@@ -418,7 +423,7 @@ class RaoPeakInfo(RegionMatrixTable):
             merged_peak = Peak(source=hp.source, sink=hp.sink, weight=hp.weight,
                                uncorrected=hp.uncorrected, expected=hp.e_d,
                                p_value=hp.fdr_d, q_value_sum=q_value_sum, x=x, y=y,
-                               radius=radius)
+                               radius=radius, oe=hp.weight/hp.e_d)
             merged_peaks.add_edge(merged_peak, flush=False)
 
         chromosome_names = self.chromosomes()
@@ -486,43 +491,7 @@ class Peak(Edge):
     Container for a Peak/enriched contact in a Hi-C matrix.
     """
     def __init__(self, source, sink, *args, **kwargs):
-        self.weight = None
-        self.e_ll = None
-        self.e_h = None
-        self.e_d = None
-        self.e_v = None
-        self.expected = None
         super(Peak, self).__init__(source, sink, *args, **kwargs)
-
-    @property
-    def oe(self):
-        if self.weight is not None and self.expected is not None:
-            return self.weight / self.expected
-        return None
-
-    @property
-    def oe_ll(self):
-        if self.weight is not None and self.e_ll is not None:
-            return self.weight/self.e_ll
-        return None
-
-    @property
-    def oe_h(self):
-        if self.weight is not None and self.e_h is not None:
-            return self.weight/self.e_h
-        return None
-
-    @property
-    def oe_v(self):
-        if self.weight is not None and self.e_v is not None:
-            return self.weight/self.e_v
-        return None
-
-    @property
-    def oe_d(self):
-        if self.weight is not None and self.e_d is not None:
-            return self.weight/self.e_d
-        return None
 
 
 class LazyPeak(LazyEdge, Peak):
@@ -996,6 +965,7 @@ class RaoPeakCaller(PeakCaller):
                             weight=weight, uncorrected=observed,
                             w=w_corr, p=p, ll_sum=ll_sum,
                             e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
+                            oe_ll=weight/e_ll, oe_h=weight/e_h, oe_v=weight/e_v, oe_d=weight/e_d,
                             e_ll_chunk=e_ll_chunk, e_v_chunk=e_v_chunk,
                             e_h_chunk=e_h_chunk, e_d_chunk=e_d_chunk,
                             e_ll_mappability=e_ll_mappable, e_v_mappability=e_v_mappable,
