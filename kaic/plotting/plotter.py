@@ -3,8 +3,7 @@ from kaic.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
-from kaic.data.genomic import GenomicRegion, GenomicDataFrame, merge_regions, RegionBased, \
-                              BigWig
+from kaic.data.genomic import GenomicRegion, GenomicDataFrame, merge_regions
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
                                        BasePlotter, BaseAnnotation
 from kaic.plotting.hic_plotter import BasePlotterMatrix
@@ -816,17 +815,22 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
 class LinePlot(ScalarDataPlot):
     """
-    Plot data as line. Data can be from BigWig or bedgraph files.
+    Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
     """
 
-    def __init__(self, data, names=None, bin_size=None, fill=True,
+    def __init__(self, data, labels=None, bin_size=None, fill=True,
                  plot_kwargs=None, **kwargs):
         """
-        :param bigwigs: Data or list of data. Data can be paths to
-                        files on the disk or anthing that
-                        pybedtools can parse [(chr, start, end, score), ...].
-                        If a list of data is provided multiple lines are drawn.
-        :param names: List of names for each data file. Used as label in the legend.
+        :param data: Data or list of data. Or dictionary, where keys represent
+                     data labels. Data can be paths to files on the disk or anthing
+                     that pybedtools can parse [(chr, start, end, score), ...].
+                     If a list of data or dict is provided multiple lines are drawn.
+                     Examples:
+                     data=["x.bigwig", [("chr11", 40, 50, 1.8), ("chr11", 50, 70, 4.3)]]
+                     data=["y.bedgraph", "z.bigwig"]
+                     data={"x_chip": "x.bedgraph", "y_chip": "y.bigwig"}
+        :param labels: List of labels for each data file. Used as label in the legend.
+                       Ignored if labels are specified in data dictionary.
         :param bin_size: Bin values using fixed size bins of the given size.
                          If None, will plot values as they are in the data.
         :param fill: Fill space between x-axis and data line. Default: True
@@ -835,15 +839,20 @@ class LinePlot(ScalarDataPlot):
         kwargs.setdefault("aspect", .2)
         super(LinePlot, self).__init__(**kwargs)
         self.data = []
+        self.labels = labels
+        # If data has attribute keys, assume it's dictionary
+        if hasattr(data, "keys"):
+            self.labels = list(data.keys())
+            data = list(data.values())
         # First assume that input is an iterable with multiple datasets
         try:
             for d in data:
                 self.data.append(load_score_data(d))
-        except ValueError:
+        except (ValueError, TypeError):
             # Assume input is a single data item
             self.data = [load_score_data(data)]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
-        self.names = names
+
         self.bin_size = bin_size
         self.lines = []
         self.fill = fill
@@ -858,12 +867,12 @@ class LinePlot(ScalarDataPlot):
 
     def _plot(self, region):
         for i, x, y in self._line_values(region):
-            l = self.ax.plot(x, y, label=self.names[i] if self.names else "",
+            l = self.ax.plot(x, y, label=self.labels[i] if self.labels else "",
                              **self.plot_kwargs)[0]
             self.lines.append(l)
             if self.fill:
                 self.ax.fill_between(x, [0] * len(y), y, color=l.get_color())
-        if self.names:
+        if self.labels:
             self.add_legend()
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
@@ -876,7 +885,7 @@ class LinePlot(ScalarDataPlot):
 
 class BigWigPlot(ScalarDataPlot):
     """
-    Plot data from on or more BigWig or Bedgraph files.
+    Plot data from on or more BigWig or Bedgraph files. *Deprecated, use LinePlot instead*.
     """
 
     def __init__(self, bigwigs, names=None, bin_size=None, fill=True,

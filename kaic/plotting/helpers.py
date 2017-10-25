@@ -5,7 +5,7 @@ from math import log10, floor
 import pybedtools as pbt
 import kaic
 import pyBigWig
-from kaic.data.genomic import RegionBased, Bed
+from kaic.data.genomic import RegionBased, Bed, BigWig
 
 
 style_ticks_whitegrid = {
@@ -299,10 +299,13 @@ def load_score_data(data):
         # Used for [("chr", start, end), ...] queries
         try:
             bt = pbt.BedTool(data)
-            # Load using kaic.load in order
-            # to access
+            # check if the bedtools object actually can sucessfully
+            # parse the file. Happily opens e.g. bigwig, but can't
+            # parse it
+            bt[0]
+            # Turn into kaic Bed object
             return Bed(bt.fn)
-        except pbt.MalformedBedLineError:
+        except (pbt.MalformedBedLineError, IndexError):
             pass
         # If it's a string then probably it represents a path
         # on disk that kaic.load can deal with

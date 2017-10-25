@@ -7,6 +7,7 @@ import kaic.plotting as kplot
 import os.path
 import pytest
 import numpy as np
+import pybedtools as pbt
 
 def abs_ax_aspect(ax):
     bbox = ax.get_position()
@@ -202,10 +203,12 @@ class TestPlots:
         self.bedgraph_path = kaic.example_data["chip_bedgraph"]
         self.gtf_path = kaic.example_data["gene_gtf"]
         self.peak_path = kaic.example_data["chip_peak_bed"]
+        self.bedgraph_list = [(x.chrom, x.start, x.end, x.score) for x in pbt.BedTool(self.bedgraph_path)]
 
     def teardown_method(self, method):
         self.bigwig.close()
 
+    @pytest.mark.filterwarnings("ignore:BigWigPlot")
     @pytest.mark.parametrize("file", ["bigwig", "bedgraph"])
     @pytest.mark.parametrize("crange", [(77497000, 77500000)])
     @pytest.mark.parametrize("n_bw", [1, 3])
@@ -273,3 +276,24 @@ class TestPlots:
         assert ax_lim[0][1] == pytest.approx(crange[0], abs=abs_tol)
         assert ax_lim[1][0] == pytest.approx(crange[1] + offset, abs=abs_tol)
         assert ax_lim[1][1] == pytest.approx(crange[0] + offset, abs=abs_tol)
+
+    @pytest.mark.parametrize("data_source", [("bigwig",), ("bedgraph_list",), ("bigwig_path",), ("bigwig", "bigwig_path"), ("bedgraph_path", "bedgraph_list")])
+    @pytest.mark.parametrize("bin_size", [None, 100])
+    def test_lineplot(self, data_source, bin_size):
+        data = [getattr(self, d) for d in data_source]
+        if len(data) == 1:
+            data = data[0]
+        lplot = kplot.LinePlot(data, bin_size=bin_size)
+        gfig = kplot.GenomicFigure([lplot])
+        fig, axes = gfig.plot("chr11:77497000-77500000")
+        assert all(len(l.get_ydata()) > 5 for l in axes[0].get_lines())
+
+    @pytest.mark.parametrize("data_source", [{"a": "bigwig"}, {"a": "bedgraph_list", "b": "bigwig_path"}])
+    @pytest.mark.parametrize("bin_size", [None])
+    def test_lineplot_dict_input(self, data_source, bin_size):
+        data = {k: getattr(self, d) for k, d in data_source.items()}
+        lplot = kplot.LinePlot(data, bin_size=bin_size)
+        gfig = kplot.GenomicFigure([lplot])
+        fig, axes = gfig.plot("chr11:77497000-77500000")
+        assert all(len(l.get_ydata()) > 5 for a in axes for l in a.get_lines())
+        assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), data.keys()))
