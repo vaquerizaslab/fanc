@@ -451,8 +451,8 @@ class TestInsulationIndex:
 
 class TestBoundaryCalling:
     expected_values = {
-        True: "chr11:77656779-77666778",
-        False: "chr11:77660001-77670000"
+        True: ("chr11:77633337-77643336", 6),
+        False: ("chr11:77640001-77650000", 6)
     }
 
     def setup_method(self, method):
@@ -467,5 +467,6 @@ class TestBoundaryCalling:
 
     @pytest.mark.parametrize("sub_bin_precision", [True, False])
     def test_boundaries(self, sub_bin_precision):
-        boundaries = self.ins.boundaries(50000, sub_bin_precision=sub_bin_precision)
-        assert self.expected_values[sub_bin_precision] == str(boundaries[0])
+        boundaries = self.ins.boundaries(50000, delta_window=3, sub_bin_precision=sub_bin_precision)
+        assert self.expected_values[sub_bin_precision][0] == str(boundaries[0])
+        assert self.expected_values[sub_bin_precision][1] == len(boundaries)
