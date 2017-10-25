@@ -359,7 +359,7 @@ def hic2d(parameters):
 
     colormap = config.colormap_hic if args.colormap is None else args.colormap
 
-    matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
+    matrix = kaic.load(os.path.expanduser(args.hic), mode='r')
     return kplt.HicPlot2D(matrix, colormap=colormap, norm=norm, vmin=args.vmin, vmax=args.vmax,
                           show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
                           flip=args.flip), args
