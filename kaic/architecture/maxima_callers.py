@@ -17,26 +17,6 @@ def find_zero_crossing(x, sub_bin_precision=False):
     return np.rint(idx + frac).astype(np.int_)
 
 
-def find_local_extrema(x):
-    diff = np.diff(x)
-    crossings = np.diff(np.signbit(diff).astype(np.int_))
-    # make sure diff is not caused by nan
-    nan_mask = ~np.logical_or(np.isnan(diff[:-1]), np.isnan(diff[1:]))
-    minima_idx = np.nonzero(np.logical_and(crossings < 0, nan_mask))[0] + 1
-    maxima_idx = np.nonzero(np.logical_and(crossings > 0, nan_mask))[0] + 1
-    return minima_idx, maxima_idx
-
-
-def find_closest(A, target):
-    # https://stackoverflow.com/a/8929827/4603385
-    idx = A.searchsorted(target)
-    idx = np.clip(idx, 1, len(A) - 1)
-    left = A[idx - 1]
-    right = A[idx]
-    idx -= target - left < right - target
-    return idx
-
-
 def getitem_interpolated(array, idx):
     if issubclass(idx.dtype.type, np.floating):
         idx_int = idx.astype(np.int_)
@@ -129,10 +109,6 @@ class MaximaCallerDelta(BaseMaximaCaller):
                 self._right_value[i] = getitem_interpolated(self.delta,self._delta_peaks[self._right_ix[i]])
             except IndexError:
                 pass
-
-        # left_ix = np.searchsorted(self._delta_peaks, self._peaks, side="right")
-        # left_peak = self.delta[self._delta_peaks[left_ix]]
-        # right_peak = self.delta[self._delta_peaks[left_ix + 1]]
         # Score
         self._scores = np.abs(self._left_value - self._right_value)
         self._peak_mask = np.full(self._peaks.shape, True, dtype=np.bool_)
