@@ -420,10 +420,11 @@ class RaoPeakInfo(RegionMatrixTable):
             # add merged peak
             hp = peak_list[0]
             q_value_sum = hp.fdr_ll + hp.fdr_d + hp.fdr_h + hp.fdr_v
+            oe = 1 if hp.e_d == 0 else hp.weight/hp.e_d
             merged_peak = Peak(source=hp.source, sink=hp.sink, weight=hp.weight,
                                uncorrected=hp.uncorrected, expected=hp.e_d,
                                p_value=hp.fdr_d, q_value_sum=q_value_sum, x=x, y=y,
-                               radius=radius, oe=hp.weight/hp.e_d)
+                               radius=radius, oe=oe)
             merged_peaks.add_edge(merged_peak, flush=False)
 
         chromosome_names = self.chromosomes()
@@ -966,11 +967,16 @@ class RaoPeakCaller(PeakCaller):
                 observed_chunk_distribution['v'][e_v_chunk][observed] += 1
                 observed_chunk_distribution['d'][e_d_chunk][observed] += 1
 
+                oe_ll = 1 if e_ll == 0 else weight / e_ll
+                oe_h = 1 if e_h == 0 else weight / e_h
+                oe_v = 1 if e_v == 0 else weight / e_v
+                oe_d = 1 if e_d == 0 else weight / e_d
+
                 peak = Edge(source=ix_converter[source], sink=ix_converter[sink],
                             weight=weight, uncorrected=observed,
                             w=w_corr, p=p, ll_sum=ll_sum,
                             e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
-                            oe_ll=weight/e_ll, oe_h=weight/e_h, oe_v=weight/e_v, oe_d=weight/e_d,
+                            oe_ll=oe_ll, oe_h=oe_h, oe_v=oe_v, oe_d=oe_d,
                             e_ll_chunk=e_ll_chunk, e_v_chunk=e_v_chunk,
                             e_h_chunk=e_h_chunk, e_d_chunk=e_d_chunk,
                             e_ll_mappability=e_ll_mappable, e_v_mappability=e_v_mappable,
