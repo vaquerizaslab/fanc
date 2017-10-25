@@ -491,8 +491,13 @@ class Peak(Edge):
     Container for a Peak/enriched contact in a Hi-C matrix.
     """
     def __init__(self, source, sink, *args, **kwargs):
+        self.weight = None
+        self.e_ll = None
+        self.e_h = None
+        self.e_d = None
+        self.e_v = None
+        self.expected = None
         super(Peak, self).__init__(source, sink, *args, **kwargs)
-
 
 class LazyPeak(LazyEdge, Peak):
     """
