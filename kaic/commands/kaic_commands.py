@@ -2714,7 +2714,7 @@ def filter_peaks(argv):
         peaks.filter_rao(queue=True)
 
     if fdr_cutoff is not None:
-        logger.info("Global FDR filter at %.f" % fdr_cutoff)
+        logger.info("Global FDR filter at {}".format(fdr_cutoff))
         peaks.filter_fdr(fdr_cutoff, queue=True)
     elif (fdr_cutoff_d is not None or fdr_cutoff_h is not None
           or fdr_cutoff_v is not None or fdr_cutoff_ll is not None):
@@ -2728,7 +2728,7 @@ def filter_peaks(argv):
         peaks.filter(fdr_filter, queue=True)
 
     if mappability_cutoff is not None:
-        logger.info("Global mappability filter at %.f" % mappability_cutoff)
+        logger.info("Global mappability filter at {}".format(mappability_cutoff))
         peaks.filter_mappability(mappability_cutoff, queue=True)
     elif (mappability_cutoff_d is not None or mappability_cutoff_h is not None
           or mappability_cutoff_v is not None or mappability_cutoff_ll is not None):
@@ -2742,7 +2742,7 @@ def filter_peaks(argv):
         peaks.filter(mappability_filter, queue=True)
 
     if enrichment_cutoff is not None:
-        logger.info("Global enrichment filter at %.f" % enrichment_cutoff)
+        logger.info("Global enrichment filter at {}".format(enrichment_cutoff))
         peaks.filter_enrichment(enrichment_cutoff, queue=True)
     elif (enrichment_cutoff_d is not None or enrichment_cutoff_h is not None
           or enrichment_cutoff_v is not None or enrichment_cutoff_ll is not None):
