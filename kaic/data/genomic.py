@@ -1869,6 +1869,7 @@ class RegionsTable(GenomicRegions, FileGroup):
 
     def flush(self):
         self._regions.flush()
+        self._update_references()
 
     def add_region(self, region, flush=True):
         # super-method, calls below '_add_region'

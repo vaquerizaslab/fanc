@@ -261,7 +261,7 @@ class RaoPeakInfo(RegionMatrixTable):
         e_d_chunk = t.Int32Col(pos=25, dflt=1.0)
         ll_sum = t.Int32Col(pos=26, dflt=0)
 
-    def __init__(self, file_name=None, mode='a', tmpdir=None, regions=None,
+    def __init__(self, file_name=None, mode='a', tmpdir=None,
                  _table_name_regions='regions', _table_name_peaks='edges'):
         """
         Initialize a RaoPeakInfo object.
@@ -280,11 +280,6 @@ class RaoPeakInfo(RegionMatrixTable):
                                    _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
 
         self.peak_table = self._edges
-
-        if regions is not None:
-            for region in regions:
-                self.add_region(region, flush=False)
-            self._regions.flush()
 
     def peaks(self, lazy=False, auto_update=True):
         return self.edges(lazy=lazy, auto_update=auto_update)
@@ -1160,7 +1155,8 @@ class RaoPeakCaller(PeakCaller):
         if self.process_inter:
             raise RuntimeError("Inter-chromosomal peak calling not currently supported!")
 
-        peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True), mode='w')
+        peaks = RaoPeakInfo(file_name, mode='w')
+        peaks.add_regions(hic.regions)
 
         # expected values
         if intra_expected is None:
