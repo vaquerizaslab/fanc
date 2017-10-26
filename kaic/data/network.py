@@ -1256,6 +1256,7 @@ class RaoPeakCaller(PeakCaller):
         peaks.flush()
 
         # calculate fdrs
+        logger.info("Finding FDR cutoffs...")
         fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
 
         # regions_dict = peaks.regions_dict
