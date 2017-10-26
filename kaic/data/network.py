@@ -247,10 +247,10 @@ class RaoPeakInfo(RegionMatrixTable):
         oe_h = t.Float32Col(pos=11, dflt=1.0)
         oe_v = t.Float32Col(pos=12, dflt=1.0)
         oe_d = t.Float32Col(pos=13, dflt=1.0)
-        e_ll_mappability = t.Float32Col(pos=14, dflt=1.0)
-        e_h_mappability = t.Float32Col(pos=15, dflt=1.0)
-        e_v_mappability = t.Float32Col(pos=16, dflt=1.0)
-        e_d_mappability = t.Float32Col(pos=17, dflt=1.0)
+        mappability_ll = t.Float32Col(pos=14, dflt=1.0)
+        mappability_h = t.Float32Col(pos=15, dflt=1.0)
+        mappability_v = t.Float32Col(pos=16, dflt=1.0)
+        mappability_d = t.Float32Col(pos=17, dflt=1.0)
         fdr_ll = t.Float32Col(pos=18, dflt=1.0)
         fdr_h = t.Float32Col(pos=19, dflt=1.0)
         fdr_v = t.Float32Col(pos=20, dflt=1.0)
@@ -344,7 +344,23 @@ class RaoPeakInfo(RegionMatrixTable):
         observed_filter = ObservedPeakFilter(cutoff=cutoff, mask=mask)
         self.filter(observed_filter, queue)
 
-    def filter_observed_expected_ratio(self, ll_ratio=1.0, h_ratio=1.0, v_ratio=1.0, d_ratio=1.0, queue=False):
+    def filter_mappability(self, cutoff, queue=False):
+        """
+        Convenience function that applies a :class:`~MappabilityPeakFilter`.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
+
+        :param cutoff: Minimum mappability (fraction of 1)
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('mappability', 'Mask peaks with a mappability lower than %e' % cutoff)
+        mappability_filter = MappabilityPeakFilter(mappability_cutoff=cutoff, mask=mask)
+        self.filter(mappability_filter, queue)
+
+    def filter_enrichment(self, enrichment_ll_cutoff=1.0, enrichment_h_cutoff=1.0,
+                          enrichment_v_cutoff=1.0, enrichment_d_cutoff=1.0, queue=False):
         """
         Convenience function that applies a :class:`~ObservedExpectedRatioPeakFilter`.
         The actual algorithm and rationale used for filtering will depend on the
@@ -355,10 +371,12 @@ class RaoPeakInfo(RegionMatrixTable):
                       run_queued_filters
         """
         mask = self.add_mask_description('o/e', 'Mask peaks with a low observed/expected ratio')
-        oe_filter = ObservedExpectedRatioPeakFilter(ll_ratio=ll_ratio, h_ratio=h_ratio,
-                                                    v_ratio=v_ratio, d_ratio=d_ratio,
-                                                    mask=mask)
-        self.filter(oe_filter, queue)
+        enrichment_filter = EnrichmentPeakFilter(enrichment_ll_cutoff=enrichment_ll_cutoff,
+                                                 enrichment_h_cutoff=enrichment_h_cutoff,
+                                                 enrichment_v_cutoff=enrichment_v_cutoff,
+                                                 enrichment_d_cutoff=enrichment_d_cutoff,
+                                                 mask=mask)
+        self.filter(enrichment_filter, queue)
 
     def filter_rao(self, queue=False):
         """
@@ -597,7 +615,7 @@ class ObservedPeakFilter(PeakFilter):
         :param peak: An :class:`~kaic.data.genomic.Edge` object
         :return: True if peak passes interal FDR cutoffs, False otherwise
         """
-        if peak.observed < self.cutoff:
+        if peak.uncorrected < self.cutoff:
             return False
         return True
 
@@ -637,22 +655,70 @@ class FdrPeakFilter(PeakFilter):
         :param peak: An :class:`~kaic.data.genomic.Edge` object
         :return: True if peak passes interal FDR cutoffs, False otherwise
         """
-        if peak.fdr_ll > self.fdr_ll_cutoff:
+        if self.fdr_ll_cutoff is not None and peak.fdr_ll > self.fdr_ll_cutoff:
             return False
-        if peak.fdr_h > self.fdr_h_cutoff:
+        if self.fdr_h_cutoff is not None and peak.fdr_h > self.fdr_h_cutoff:
             return False
-        if peak.fdr_v > self.fdr_v_cutoff:
+        if self.fdr_v_cutoff is not None and peak.fdr_v > self.fdr_v_cutoff:
             return False
-        if peak.fdr_d > self.fdr_d_cutoff:
+        if self.fdr_d_cutoff is not None and peak.fdr_d > self.fdr_d_cutoff:
             return False
         return True
 
 
-class ObservedExpectedRatioPeakFilter(PeakFilter):
+class MappabilityPeakFilter(PeakFilter):
+    """
+    Filter for peaks that do not pass a certain FDR cutoff.
+    """
+    def __init__(self, mask=None, mappability_cutoff=None,
+                 mappability_ll_cutoff=0.1, mappability_v_cutoff=0.1,
+                 mappability_h_cutoff=0.1, mappability_d_cutoff=0.1):
+        """
+        Initialize filter object.
+
+        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param mappability_cutoff: Global mappability cutoff. Is overridden by the
+                                   neighborhood-specific cutoffs
+        :param mappability_ll_cutoff: Mappability cutoff for the lower-left neighborhood
+        :param mappability_v_cutoff: Mappability cutoff for the vertical neighborhood
+        :param mappability_h_cutoff: Mappability cutoff for the horizontal neighborhood
+        :param mappability_d_cutoff: Mappability cutoff for the donut neighborhood
+        """
+        super(MappabilityPeakFilter, self).__init__(mask=mask)
+        if mappability_cutoff is not None:
+            mappability_ll_cutoff = mappability_cutoff
+            mappability_h_cutoff = mappability_cutoff
+            mappability_v_cutoff = mappability_cutoff
+            mappability_d_cutoff = mappability_cutoff
+        self.mappability_cutoff = mappability_cutoff
+        self.mappability_ll_cutoff = mappability_ll_cutoff
+        self.mappability_h_cutoff = mappability_h_cutoff
+        self.mappability_v_cutoff = mappability_v_cutoff
+        self.mappability_d_cutoff = mappability_d_cutoff
+
+    def valid_peak(self, peak):
+        """
+        Evaluate whether a peak passes FDR cutoffs set in __init__
+        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :return: True if peak passes interal FDR cutoffs, False otherwise
+        """
+        if self.mappability_ll_cutoff is not None and peak.mappability_ll < self.mappability_ll_cutoff:
+            return False
+        if self.mappability_h_cutoff is not None and peak.mappability_h < self.mappability_h_cutoff:
+            return False
+        if self.mappability_v_cutoff is not None and peak.mappability_v < self.mappability_v_cutoff:
+            return False
+        if self.mappability_d_cutoff is not None and peak.mappability_d < self.mappability_d_cutoff:
+            return False
+        return True
+
+
+class EnrichmentPeakFilter(PeakFilter):
     """
     Filter peaks that do not have a sufficiently strong observed/expected ratio.
     """
-    def __init__(self, ll_ratio=1.0, h_ratio=1.0, v_ratio=1.0, d_ratio=1.0, mask=None):
+    def __init__(self, enrichment_ll_cutoff=1.0, enrichment_h_cutoff=1.0,
+                 enrichment_v_cutoff=1.0, enrichment_d_cutoff=1.0, mask=None):
         """
         Initialize filter object.
 
@@ -664,24 +730,24 @@ class ObservedExpectedRatioPeakFilter(PeakFilter):
         :return: True if all observed/expected ratios pass the thresholds,
                  False otherwise
         """
-        super(ObservedExpectedRatioPeakFilter, self).__init__(mask=mask)
-        self.ll_ratio = ll_ratio
-        self.h_ratio = h_ratio
-        self.v_ratio = v_ratio
-        self.d_ratio = d_ratio
+        super(EnrichmentPeakFilter, self).__init__(mask=mask)
+        self.ll_ratio = enrichment_ll_cutoff
+        self.h_ratio = enrichment_h_cutoff
+        self.v_ratio = enrichment_v_cutoff
+        self.d_ratio = enrichment_d_cutoff
 
     def valid_peak(self, peak):
         # covering my ass for legacy bug
         if peak.e_d == 0 or peak.e_ll == 0 or peak.e_h == 0 or peak.e_v == 0:
             return False
 
-        if self.ll_ratio is not None and peak.weight/peak.e_ll < self.ll_ratio:
+        if self.ll_ratio is not None and peak.oe_ll < self.ll_ratio:
             return False
-        if self.h_ratio is not None and peak.weight/peak.e_h < self.h_ratio:
+        if self.h_ratio is not None and peak.oe_h < self.h_ratio:
             return False
-        if self.v_ratio is not None and peak.weight/peak.e_v < self.v_ratio:
+        if self.v_ratio is not None and peak.oe_v < self.v_ratio:
             return False
-        if self.d_ratio is not None and peak.weight/peak.e_d < self.d_ratio:
+        if self.d_ratio is not None and peak.oe_d < self.d_ratio:
             return False
         return True
 
@@ -706,15 +772,15 @@ class RaoPeakFilter(PeakFilter):
             return False
 
         # 1.
-        if peak.weight/peak.e_d <= peak.weight/peak.e_ll < 2.0:
+        if peak.oe_d <= peak.oe_ll < 2.0:
             return False
 
         # 2.
-        if peak.weight/peak.e_h < 1.5 and peak.weight/peak.e_v < 1.5:
+        if peak.oe_h < 1.5 and peak.oe_v < 1.5:
             return False
 
         # 3.
-        if peak.weight/peak.e_d < 1.75 or peak.weight/peak.e_ll < 1.75:
+        if peak.oe_d < 1.75 or peak.oe_ll < 1.75:
             return False
 
         # 4.
@@ -979,8 +1045,8 @@ class RaoPeakCaller(PeakCaller):
                             oe_ll=oe_ll, oe_h=oe_h, oe_v=oe_v, oe_d=oe_d,
                             e_ll_chunk=e_ll_chunk, e_v_chunk=e_v_chunk,
                             e_h_chunk=e_h_chunk, e_d_chunk=e_d_chunk,
-                            e_ll_mappability=e_ll_mappable, e_v_mappability=e_v_mappable,
-                            e_h_mappability=e_h_mappable, e_d_mappability=e_d_mappable)
+                            mappability_ll=e_ll_mappable, mappability_v=e_v_mappable,
+                            mappability_h=e_h_mappable, mappability_d=e_d_mappable)
                 peaks.add_edge(peak, flush=False)
 
     @staticmethod
@@ -1192,30 +1258,32 @@ class RaoPeakCaller(PeakCaller):
         # calculate fdrs
         fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
 
-        regions_dict = peaks.regions_dict
-        for peak in peaks.peaks(lazy=True, auto_update=False):
-            region1 = regions_dict[peak.source]
-            region2 = regions_dict[peak.sink]
-            # if region1.chromosome == region2.chromosome:
-            try:
-                peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.uncorrected]
-                peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.uncorrected]
-                peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.uncorrected]
-                peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.uncorrected]
-            except KeyError:
-                peak.fdr_ll = 1
-                peak.fdr_h = 1
-                peak.fdr_v = 1
-                peak.fdr_d = 1
-            peak.update()
-            # else:
-            #     # Bonferroni correction
-            #     if self.correct_inter == 'bonferroni':
-            #         peak.fdr_ll *= inter_possible
-            #         peak.fdr_h *= inter_possible
-            #         peak.fdr_v *= inter_possible
-            #         peak.fdr_d *= inter_possible
-            #         peak.update()
+        # regions_dict = peaks.regions_dict
+        with RareUpdateProgressBar(max_value=len(peaks.edges), prefix='FDR') as pb:
+            for i, peak in enumerate(peaks.peaks(lazy=True, auto_update=False)):
+                # region1 = regions_dict[peak.source]
+                # region2 = regions_dict[peak.sink]
+                # if region1.chromosome == region2.chromosome:
+                try:
+                    peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.uncorrected]
+                    peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.uncorrected]
+                    peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.uncorrected]
+                    peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.uncorrected]
+                except KeyError:
+                    peak.fdr_ll = 1
+                    peak.fdr_h = 1
+                    peak.fdr_v = 1
+                    peak.fdr_d = 1
+                peak.update()
+                pb.update(i)
+                # else:
+                #     # Bonferroni correction
+                #     if self.correct_inter == 'bonferroni':
+                #         peak.fdr_ll *= inter_possible
+                #         peak.fdr_h *= inter_possible
+                #         peak.fdr_v *= inter_possible
+                #         peak.fdr_d *= inter_possible
+                #         peak.update()
         peaks.flush()
 
         # if self.process_inter and self.correct_inter == 'fdr':
@@ -1309,23 +1377,23 @@ def process_matrix_segment_intra(data):
                 continue
 
             # calculate mappability and enrichment values
-            e_ll_mappable = 1 - RaoPeakCaller.e_ll_sum(mask, i, j, w, p) / RaoPeakCaller.e_ll_sum(m_ones, i, j, w, p)
-            if e_ll_mappable < min_mappable:
+            ll_mappable = 1 - RaoPeakCaller.e_ll_sum(mask, i, j, w, p) / RaoPeakCaller.e_ll_sum(m_ones, i, j, w, p)
+            if ll_mappable < min_mappable:
                 continue
             e_ll = RaoPeakCaller.e_ll(m_original, i, j, m_expected, w=w_corr, p=p)
 
-            e_v_mappable = 1 - RaoPeakCaller.e_v_sum(mask, i, j, w, p) / RaoPeakCaller.e_v_sum(m_ones, i, j, w, p)
-            if e_v_mappable < min_mappable:
+            v_mappable = 1 - RaoPeakCaller.e_v_sum(mask, i, j, w, p) / RaoPeakCaller.e_v_sum(m_ones, i, j, w, p)
+            if v_mappable < min_mappable:
                 continue
             e_v = RaoPeakCaller.e_v(m_original, i, j, m_expected, w=w_corr, p=p)
 
-            e_h_mappable = 1 - RaoPeakCaller.e_h_sum(mask, i, j, w, p) / RaoPeakCaller.e_h_sum(m_ones, i, j, w, p)
-            if e_h_mappable < min_mappable:
+            h_mappable = 1 - RaoPeakCaller.e_h_sum(mask, i, j, w, p) / RaoPeakCaller.e_h_sum(m_ones, i, j, w, p)
+            if h_mappable < min_mappable:
                 continue
             e_h = RaoPeakCaller.e_h(m_original, i, j, m_expected, w=w_corr, p=p)
 
-            e_d_mappable = 1 - RaoPeakCaller.e_d_sum(mask, i, j, w, p) / RaoPeakCaller.e_d_sum(m_ones, i, j, w, p)
-            if e_d_mappable < min_mappable:
+            d_mappable = 1 - RaoPeakCaller.e_d_sum(mask, i, j, w, p) / RaoPeakCaller.e_d_sum(m_ones, i, j, w, p)
+            if d_mappable < min_mappable:
                 continue
             e_d = RaoPeakCaller.e_d(m_original, i, j, m_expected, w=w_corr, p=p)
 
@@ -1341,7 +1409,7 @@ def process_matrix_segment_intra(data):
                       int(m_uncorrected.data[i, j]),
                       int(ll_sum), e_ll, e_v, e_h, e_d,
                       o_chunk, e_ll_chunk, e_v_chunk, e_h_chunk, e_d_chunk,
-                      e_ll_mappable, e_v_mappable, e_h_mappable, e_d_mappable]
+                      ll_mappable, v_mappable, h_mappable, d_mappable]
 
             results.append(result)
     return msgpack.dumps(results)
