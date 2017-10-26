@@ -7,7 +7,7 @@ from scipy.stats import poisson
 from collections import defaultdict
 import tables as t
 from bisect import bisect_left
-from kaic.data.genomic import RegionMatrixTable, Edge, LazyEdge
+from kaic.data.genomic import AccessOptimisedRegionMatrixTable, Edge, LazyEdge
 from kaic.data.general import MaskFilter
 import msgpack
 import msgpack_numpy
@@ -56,7 +56,7 @@ class PeakCaller(with_metaclass(ABCMeta, object)):
         pass
 
 
-class PeakInfo(RegionMatrixTable):
+class PeakInfo(AccessOptimisedRegionMatrixTable):
     """
     General-purpose class for recording peaks in Hic (and similar) data.
 
@@ -99,9 +99,10 @@ class PeakInfo(RegionMatrixTable):
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
         """
 
-        RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
-                                   additional_fields=PeakInfo.MergedPeakInformation,
-                                   _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
+        AccessOptimisedRegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
+                                                  additional_fields=PeakInfo.MergedPeakInformation,
+                                                  _table_name_nodes=_table_name_regions,
+                                                  _table_name_edges=_table_name_peaks)
 
         self.peak_table = self._edges
 
@@ -205,7 +206,7 @@ class PeakInfo(RegionMatrixTable):
                 ))
 
 
-class RaoPeakInfo(RegionMatrixTable):
+class RaoPeakInfo(AccessOptimisedRegionMatrixTable):
     """
     Information about peaks called by :class:`~RaoPeakCaller`.
 
@@ -275,9 +276,10 @@ class RaoPeakInfo(RegionMatrixTable):
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
         """
 
-        RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
-                                   additional_fields=RaoPeakInfo.PeakInformation,
-                                   _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
+        AccessOptimisedRegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
+                                                  additional_fields=RaoPeakInfo.PeakInformation,
+                                                  _table_name_nodes=_table_name_regions,
+                                                  _table_name_edges=_table_name_peaks)
 
         self.peak_table = self._edges
 
@@ -512,6 +514,7 @@ class Peak(Edge):
         self.e_v = None
         self.expected = None
         super(Peak, self).__init__(source, sink, *args, **kwargs)
+
 
 class LazyPeak(LazyEdge, Peak):
     """
