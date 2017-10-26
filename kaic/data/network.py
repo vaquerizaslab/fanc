@@ -1164,7 +1164,7 @@ class RaoPeakCaller(PeakCaller):
 
         # expected values
         if intra_expected is None:
-            logger.info("Intra-chromosomal expected values...")
+            logger.info("Calculating intra-chromosomal expected values...")
             _, intra_expected, _ = hic.expected_values()
             logger.info("Done.")
         # if self.process_inter and inter_expected is None:
