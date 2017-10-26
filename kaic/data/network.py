@@ -1032,15 +1032,15 @@ class RaoPeakCaller(PeakCaller):
                 ms = m[i_start:i_end, j_start:j_end]
                 yield ms, i_range, i_inspect, j_range, j_inspect
 
-    def _find_peaks_intra_matrix(self, m, e, c, peak_info, mappable,
+    def _find_peaks_intra_matrix(self, m, e, c, peak_info, mappable, ix_range,
                                  observed_chunk_distribution, lambda_chunks, w, p):
         """
         Given a matrix (strictly intra-chromosomal), calculate peak
         information for all pixels.
         """
         ix_converter = dict()
-        for i, region in enumerate(m.row_regions):
-            ix_converter[i] = region.ix
+        for i, ix in enumerate(range(ix_range[0], ix_range[1])):
+            ix_converter[i] = ix
 
         jobs = []
         for segment in RaoPeakCaller.segment_matrix_intra(m, self.slice_size, self.max_w):
@@ -1175,12 +1175,12 @@ class RaoPeakCaller(PeakCaller):
         for chromosome1, chromosome2 in chromosome_pairs:
             logger.info("Processing %s-%s" % (chromosome1, chromosome2))
 
-            m = hic.as_matrix((chromosome1, chromosome2), mask_missing=True)
             start1, end1 = chromosome_bins[chromosome1]
             start2, end2 = chromosome_bins[chromosome2]
             if chromosome1 == chromosome2:
+                m = hic.as_matrix((chromosome1, chromosome2), mask_missing=True)
                 self._find_peaks_intra_matrix(m, intra_expected[chromosome1], c[start1:end1],
-                                              peaks, mappable[start1:end1],
+                                              peaks, mappable[start1:end1], (start1, end1),
                                               observed_chunk_distribution, lambda_chunks, w_init, p)
             elif self.process_inter:
                 warnings.warn("Inter-chromosomal peak calling not currently supported!")
