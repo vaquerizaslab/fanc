@@ -3310,14 +3310,22 @@ def boundaries_parser():
     )
     parser.add_argument(
         '-d', '--delta', dest='delta',
-        type=int, default=7,
-        help='Window size for calculating the delta vector (in bins). Default 7.'
+        type=int, default=3,
+        help='Window size for calculating the delta vector (in bins). Calculation takes into '
+             'account d bins upstream and d bins downstream for a total '
+             'window size of 2*d + 1 bins. Default 3.'
     )
     parser.add_argument(
         '-s', '--min-score', dest='min_score',
         type=float,
         help='Report only peaks where the two surrounding extrema of the delta vector have '
              'at least this difference in height. Default: no threshold.'
+    )
+    parser.add_argument(
+        '-x', '--sub-bin-precision', dest='sub_bin_precision',
+        action='store_true',
+        help='Report boundary positions with sub-bin precision. This works because the minimum '
+             'the insulation score can be determined with sub-bin precision. Default: False'
     )
     parser.add_argument(
         '-p', '--prefix', dest='prefix',
@@ -3372,11 +3380,13 @@ def boundaries(argv):
         for window_size in window_sizes:
             logger.info("Processing window size: {}".format(window_size))
             boundaries = array.boundaries(window_size, min_score=args.min_score,
-                                          delta_window=args.delta, log=args.log)
+                                          delta_window=args.delta, log=args.log,
+                                          sub_bin_precision=args.sub_bin_precision)
             _to_bed(boundaries, output_path + "/{}_{}.bed".format(args.prefix, window_size))
     else:
         boundaries = array.boundaries(window_sizes[0], min_score=args.min_score,
-                                      delta_window=args.delta, log=args.log)
+                                      delta_window=args.delta, log=args.log,
+                                      sub_bin_precision=args.sub_bin_precision)
         _to_bed(boundaries, output_path)
 
     logger.info("All done.")

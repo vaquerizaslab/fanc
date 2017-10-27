@@ -10,7 +10,8 @@ from kaic.plotting.hic_plotter import BasePlotterMatrix
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
                                   box_coords_abs_to_rel, figure_line, figure_rectangle, \
-                                  parse_bedtool_input, get_region_based_object
+                                  parse_bedtool_input, get_region_based_object, \
+                                  load_score_data
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -222,6 +223,8 @@ class GenomicFigure(object):
         if dimensions_stale:
             self._update_figure_setup()
         # Plot annotations
+        for p in self.annotations:
+            p._verify(self)
         for r, p in zip(plot_regions[len(self.plots):], self.annotations):
             p.plot(r)
         return self.fig, self.axes
@@ -276,16 +279,16 @@ class HighlightAnnotation(BaseAnnotation):
         if plot_kwargs is not None:
             self.plot_kwargs.update(plot_kwargs)
         self.bedtool = parse_bedtool_input(bed)
-        self.plot1 = plot1
-        self.plot2 = plot2
+        self.plot1 = self._plot1 = plot1
+        self.plot2 = self._plot2 = plot2
         self.patches = []
         self.lines = []
 
     def _plot(self, region):
-        x_trans = self.plot1.ax.transData
-        y_trans1 = self.plot1.ax.transAxes + self.plot1.ax.figure.transFigure.inverted()
-        y_trans2 = self.plot2.ax.transAxes + self.plot2.ax.figure.transFigure.inverted()
-        blended_trans = mpl.transforms.blended_transform_factory(x_trans, self.plot1.ax.figure.transFigure)
+        x_trans = self._plot1.ax.transData
+        y_trans1 = self._plot1.ax.transAxes + self._plot1.ax.figure.transFigure.inverted()
+        y_trans2 = self._plot2.ax.transAxes + self._plot2.ax.figure.transFigure.inverted()
+        blended_trans = mpl.transforms.blended_transform_factory(x_trans, self._plot1.ax.figure.transFigure)
         interval = region_to_pbt_interval(region)
         hits = self.bedtool.all_hits(interval)
         for r in hits:
@@ -299,7 +302,7 @@ class HighlightAnnotation(BaseAnnotation):
         y1_t = y_trans1.transform((0, 1))[1]
         y2_t = y_trans2.transform((0, 0))[1]
         y1_t, y2_t = sorted([y1_t, y2_t])
-        patch = figure_rectangle(self.plot1.ax.figure, xy=(s, y1_t),
+        patch = figure_rectangle(self._plot1.ax.figure, xy=(s, y1_t),
                                  width=e - s, height=y2_t - y1_t,
                                  transform=plot_trans, **self.plot_kwargs)
         patch.set_transform(plot_trans)
@@ -309,7 +312,7 @@ class HighlightAnnotation(BaseAnnotation):
         s = r.start
         y1_t = trans1.transform((0, 1))[1]
         y2_t = trans2.transform((0, 0))[1]
-        l = figure_line(self.plot1.ax.figure, xdata=[s, s],
+        l = figure_line(self._plot1.ax.figure, xdata=[s, s],
                         ydata=[y1_t, y2_t], transform=plot_trans,
                         **self.plot_kwargs)
         l.set_transform(plot_trans)
@@ -317,15 +320,15 @@ class HighlightAnnotation(BaseAnnotation):
 
     def _verify(self, gfig):
         if self.plot1 is None:
-            self.plot1 = gfig.plots[0]
+            self._plot1 = gfig.plots[0]
         if self.plot2 is None:
-            self.plot2 = gfig.plots[-1]
-        # Make sure plot1 comes first in plot list
-        if gfig.plots.index(self.plot2) < gfig.plots.index(self.plot1):
-            self.plot1, self.plot2 = self.plot2, self.plot1
-        if not all([self.plot1 in gfig.plots, self.plot2 in gfig.plots]):
+            self._plot2 = gfig.plots[-1]
+        if not all([self._plot1 in gfig.plots, self._plot2 in gfig.plots]):
             raise ValueError("At least one plot in the HighlightAnnotation is"
                              "not part of the GenomicFigure")
+        # Make sure plot1 comes first in plot list
+        if gfig.plots.index(self._plot2) < gfig.plots.index(self._plot1):
+            self._plot1, self._plot2 = self._plot2, self._plot1
         return True
 
     def _refresh(self, region):
@@ -344,58 +347,6 @@ class VerticalLineAnnotation(HighlightAnnotation):
     def __init__(self, *args, **kwargs):
         super(VerticalLineAnnotation, self).__init__(*args, **kwargs)
         warnings.warn("VerticalLineAnnotation is deprecated, use HighlightAnnotation instead.")
-
-
-class GenomicTrackPlot(ScalarDataPlot):
-    """
-    Plot scalar values from one or more :class:`~GenomicTrack` objects
-    """
-
-    def __init__(self, tracks, attributes=None, **kwargs):
-        """
-        :param tracks: :class:`~GenomicTrack`
-        :param attributes: Only draw attributes from the track objects
-                           which match this description.
-                           Should be a list of names. Supports wildcard matching
-                           and regex.
-        """
-        kwargs.setdefault("aspect", .2)
-        kwargs.setdefault("axes_style", style_ticks_whitegrid)
-        super(GenomicTrackPlot, self).__init__(**kwargs)
-        if not isinstance(tracks, list):
-            tracks = [tracks]
-        self.tracks = tracks
-        self.attributes = attributes
-        self.lines = []
-
-    def _plot(self, region):
-        for track in self.tracks:
-            bins = track.region_bins(region)
-            values = track[bins]
-            regions = track.regions[bins]
-            for k, v in values.items():
-                if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
-                    x, y = self.get_plot_values(v, regions)
-                    l = self.ax.plot(x, y,
-                                     label="{}{}".format(track.title + "_"
-                                                         if track.title and len(self.tracks) > 1
-                                                         else "", k))
-                    self.lines.append(l[0])
-        self.add_legend()
-        self.remove_colorbar_ax()
-
-    def _refresh(self, region):
-        for track in self.tracks:
-            bins = track.region_bins(region)
-            values = track[bins]
-            regions = track.regions[bins]
-            current_line = 0
-            for k, v in values.items():
-                if not self.attributes or any(re.match(a.replace("*", ".*"), k) for a in self.attributes):
-                    x, y = self.get_plot_values(v, regions)
-                    self.lines[current_line].set_xdata(x)
-                    self.lines[current_line].set_ydata(y)
-                    current_line += 1
 
 
 class GenomicRegionsPlot(ScalarDataPlot):
@@ -531,76 +482,6 @@ class RegionsValuesPlot(ScalarDataPlot):
         for i, (label, x, y) in enumerate(self._plot_values(region)):
             self.lines[i].set_xdata(x)
             self.lines[i].set_ydata(y)
-
-
-class GenomicMatrixPlot(BasePlotterMatrix, BasePlotter1D):
-    """
-    Plot matrix from a :class:`~GenomicTrack` objects.
-    """
-
-    def __init__(self, track, attribute, y_coords=None, y_scale='linear', plot_kwargs=None,
-                 **kwargs):
-        """
-        :param track: :class:`~GenomicTrack` containing the matrix
-        :param attribute: Which matrix from the track object to draw
-        :param y_coords: Matrices in the :class:`~GenomicTrack` object are
-                         unitless. Can provide the coordinates for the
-                         y-direction here. Matrix has shape (X, Y) must
-                         have shape Y or Y + 1
-        :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
-                        valid argument ("linear", "log", etc.) works
-        :param plot_kwargs: Keyword-arguments passed on to pcolormesh
-        """
-        kwargs.setdefault("aspect", .3)
-        super(GenomicMatrixPlot, self).__init__(**kwargs)
-        self.track = track
-        self.attribute = attribute
-        if plot_kwargs is None:
-            plot_kwargs = {}
-        self.plot_kwargs = plot_kwargs
-        self.y_coords = y_coords
-        self.hm = None
-        self.y_scale = y_scale
-
-    def _plot(self, region):
-
-        x, y, self.hm = self._mesh_data(region=region)
-        self.collection = self.ax.pcolormesh(x, y, self.hm.T, rasterized=True, cmap=self.colormap,
-                                             norm=self.norm, **self.plot_kwargs)
-        self.collection._A = None
-        self._update_mesh_colors()
-        self.ax.set_yscale(self.y_scale)
-        if self.y_coords is not None:
-            self.ax.set_ylim(self.y_coords[0], self.y_coords[-1])
-
-        if self.show_colorbar:
-            self.add_colorbar()
-
-    def _mesh_data(self, region):
-        bins = self.track.region_bins(region)
-        hm = self.track[bins][self.attribute]
-        regions = self.track.regions()[bins]
-        bin_coords = np.r_[[(x.start - 1) for x in regions], regions[-1].end]
-        x, y = np.meshgrid(bin_coords, (self.y_coords if self.y_coords is not None
-                                        else np.arange(hm.shape[1] + 1)))
-        return x, y, hm
-
-    def _update_mesh_colors(self):
-        # pcolormesh doesn't support plotting RGB arrays directly like imshow, have to workaround
-        # See https://github.com/matplotlib/matplotlib/issues/4277
-        # http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python/29232668?noredirect=1#comment46710586_29232668
-        color_matrix = self.get_color_matrix(self.hm)
-        color_tuple = color_matrix.transpose((1, 0, 2)).reshape(
-            (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
-        self.collection.set_color(color_tuple)
-
-    def _refresh(self, region):
-        x, y, self.hm = self._mesh_data(region)
-
-        self.collection._coordinates[:, :, 0] = x
-        # update matrix data
-        self.collection.set_array(self.hm.T.ravel())
-        self._update_mesh_colors()
 
 
 class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
@@ -932,9 +813,79 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         pass
 
 
+class LinePlot(ScalarDataPlot):
+    """
+    Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
+    """
+
+    def __init__(self, data, labels=None, bin_size=None, fill=True,
+                 plot_kwargs=None, **kwargs):
+        """
+        :param data: Data or list of data. Or dictionary, where keys represent
+                     data labels. Data can be paths to files on the disk or anthing
+                     that pybedtools can parse [(chr, start, end, score), ...].
+                     If a list of data or dict is provided multiple lines are drawn.
+                     Examples:
+                     data=["x.bigwig", [("chr11", 40, 50, 1.8), ("chr11", 50, 70, 4.3)]]
+                     data=["y.bedgraph", "z.bigwig"]
+                     data={"x_chip": "x.bedgraph", "y_chip": "y.bigwig"}
+        :param labels: List of labels for each data file. Used as label in the legend.
+                       Ignored if labels are specified in data dictionary.
+        :param bin_size: Bin values using fixed size bins of the given size.
+                         If None, will plot values as they are in the data.
+        :param fill: Fill space between x-axis and data line. Default: True
+        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
+        """
+        kwargs.setdefault("aspect", .2)
+        super(LinePlot, self).__init__(**kwargs)
+        self.data = []
+        self.labels = labels
+        # If data has attribute keys, assume it's dictionary
+        if hasattr(data, "keys"):
+            self.labels = list(data.keys())
+            data = list(data.values())
+        # First assume that input is an iterable with multiple datasets
+        try:
+            for d in data:
+                self.data.append(load_score_data(d))
+        except (ValueError, TypeError):
+            # Assume input is a single data item
+            self.data = [load_score_data(data)]
+        self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
+
+        self.bin_size = bin_size
+        self.lines = []
+        self.fill = fill
+
+    def _line_values(self, region):
+        for i, d in enumerate(self.data):
+            intervals = d.region_intervals(region, bin_size=self.bin_size)
+            regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
+            values = [v for s, e, v in intervals]
+            x, y = self.get_plot_values(values, regions)
+            yield i, x, y
+
+    def _plot(self, region):
+        for i, x, y in self._line_values(region):
+            l = self.ax.plot(x, y, label=self.labels[i] if self.labels else "",
+                             **self.plot_kwargs)[0]
+            self.lines.append(l)
+            if self.fill:
+                self.ax.fill_between(x, [0] * len(y), y, color=l.get_color())
+        if self.labels:
+            self.add_legend()
+        self.remove_colorbar_ax()
+        sns.despine(ax=self.ax, top=True, right=True)
+
+    def _refresh(self, region):
+        for i, x, y in self._line_values(region):
+            self.lines[i].set_xdata(x)
+            self.lines[i].set_ydata(y)
+
+
 class BigWigPlot(ScalarDataPlot):
     """
-    Plot data from on or more BigWig or Bedgraph files.
+    Plot data from on or more BigWig or Bedgraph files. *Deprecated, use LinePlot instead*.
     """
 
     def __init__(self, bigwigs, names=None, bin_size=None, fill=True,
@@ -947,6 +898,7 @@ class BigWigPlot(ScalarDataPlot):
         :param fill: Fill space between x-axis and data line. Default: True
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
         """
+        warnings.warn("BigWigPlot is deprecated, use LinePlot instead.")
         kwargs.setdefault("aspect", .2)
         super(BigWigPlot, self).__init__(**kwargs)
         if not isinstance(bigwigs, (list, tuple, types.GeneratorType)):

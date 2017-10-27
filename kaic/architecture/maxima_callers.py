@@ -5,6 +5,27 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def find_zero_crossing(x, sub_bin_precision=False):
+    diff = np.diff(np.signbit(x))
+    # make sure diff is not caused by nan
+    diff = np.logical_and(diff, ~np.logical_or(np.isnan(x[:-1]), np.isnan(x[1:])))
+    idx = np.nonzero(diff)[0]
+    left, right = x[idx], x[idx + 1]
+    frac = left/(left - right)
+    if sub_bin_precision:
+        return idx + frac
+    return np.rint(idx + frac).astype(np.int_)
+
+
+def getitem_interpolated(array, idx):
+    if issubclass(idx.dtype.type, np.floating):
+        idx_int = idx.astype(np.int_)
+        frac = np.remainder(idx, 1)
+        vals_left, vals_right = array[idx_int], array[idx_int + 1]
+        return vals_left + frac*(vals_right - vals_left)
+    return array[idx]
+
+
 class BaseMaximaCaller(object):
     def __init__(self):
         self._peaks = None
@@ -57,40 +78,37 @@ class MaximaCallerMatrix(BaseMaximaCaller):
 
 
 class MaximaCallerDelta(BaseMaximaCaller):
-    def __init__(self, x, window_size=7):
+    def __init__(self, x, window_size=7, sub_bin_precision=False):
         BaseMaximaCaller.__init__(self)
         self.x = x
         self.window_size = window_size
+        self.sub_bin_precision = sub_bin_precision
         self._call_peaks()
 
     def _call_peaks(self):
         self.delta = delta_window(self.x, self.window_size)
-        self._peaks = np.nonzero(np.diff(np.signbit(self.delta)))[0]
+        self._peaks = find_zero_crossing(self.delta, sub_bin_precision=self.sub_bin_precision)
         logger.info("Found {} raw peaks".format(len(self._peaks)))
-        self.delta_d1 = savgol_filter(self.delta, window_length=self.window_size, polyorder=2, deriv=1)
-        self._delta_peaks = np.nonzero(np.diff(np.signbit(self.delta_d1)))[0]
-        self.delta_d2 = savgol_filter(self.delta, window_length=self.window_size, polyorder=2, deriv=2)
+        self.delta_d1 = savgol_filter(self.delta, window_length=2*self.window_size + 1, polyorder=2, deriv=1)
+        self._delta_peaks = find_zero_crossing(self.delta_d1, sub_bin_precision=self.sub_bin_precision)
+        self.delta_d2 = savgol_filter(self.delta, window_length=2*self.window_size + 1, polyorder=2, deriv=2)
         # Figure out which delta zero crossings are minima in x
-        self._min_mask = self.delta_d1[self._peaks] > 0
+        self._min_mask = getitem_interpolated(self.delta_d1, self._peaks) > 0
         # Figure out which delta peaks are minima, have d2 > 0
-        self._delta_min_mask = self.delta_d2[self._delta_peaks] > 0
+        self._delta_min_mask = getitem_interpolated(self.delta_d2, self._delta_peaks) > 0
         # Find local extrema in delta on left and right side of x extrema
         self._left_value = np.full(self._peaks.shape, np.nan)
         self._right_value = np.full(self._peaks.shape, np.nan)
         self._right_ix = np.searchsorted(self._delta_peaks, self._peaks, side="right")
         for i, p in enumerate(self._peaks):
             try:
-                self._left_value[i] = self.delta[self._delta_peaks[self._right_ix[i] - 1]]
+                self._left_value[i] = getitem_interpolated(self.delta, self._delta_peaks[self._right_ix[i] - 1])
             except IndexError:
                 pass
             try:
-                self._right_value[i] = self.delta[self._delta_peaks[self._right_ix[i]]]
+                self._right_value[i] = getitem_interpolated(self.delta,self._delta_peaks[self._right_ix[i]])
             except IndexError:
                 pass
-
-        # left_ix = np.searchsorted(self._delta_peaks, self._peaks, side="right")
-        # left_peak = self.delta[self._delta_peaks[left_ix]]
-        # right_peak = self.delta[self._delta_peaks[left_ix + 1]]
         # Score
         self._scores = np.abs(self._left_value - self._right_value)
         self._peak_mask = np.full(self._peaks.shape, True, dtype=np.bool_)
