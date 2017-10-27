@@ -1002,7 +1002,7 @@ class RaoPeakCaller(PeakCaller):
             return None
         return bisect_left(chunk_list, value)
 
-    def _process_jobs(self, jobs, peaks, observed_chunk_distribution, ix_converter):
+    def _process_jobs(self, jobs, peaks, observed_chunk_distribution):
         """
         Process the output from :func:`~process_matrix_range` and save in peak table.
         """
@@ -1031,12 +1031,15 @@ class RaoPeakCaller(PeakCaller):
                 observed_chunk_distribution['v'][e_v_chunk][observed] += 1
                 observed_chunk_distribution['d'][e_d_chunk][observed] += 1
 
+                if weight == 0.0:
+                    continue
+
                 oe_ll = 1 if e_ll == 0 else weight / e_ll
                 oe_h = 1 if e_h == 0 else weight / e_h
                 oe_v = 1 if e_v == 0 else weight / e_v
                 oe_d = 1 if e_d == 0 else weight / e_d
 
-                peak = Edge(source=ix_converter[source], sink=ix_converter[sink],
+                peak = Edge(source=source, sink=sink,
                             weight=weight, uncorrected=observed,
                             w=w_corr, p=p, ll_sum=ll_sum,
                             e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
@@ -1096,21 +1099,18 @@ class RaoPeakCaller(PeakCaller):
                 ms = m[i_start:i_end, j_start:j_end]
                 yield ms, i_range, i_inspect, j_range, j_inspect
 
-    def _find_peaks_intra_matrix(self, m, e, c, peak_info, mappable, ix_range,
+    def _find_peaks_intra_matrix(self, m, e, c, peak_info, mappable, ix_offset,
                                  observed_chunk_distribution, lambda_chunks, w, p):
         """
         Given a matrix (strictly intra-chromosomal), calculate peak
         information for all pixels.
         """
-        ix_converter = dict()
-        for i, ix in enumerate(range(ix_range[0], ix_range[1])):
-            ix_converter[i] = ix
 
         jobs = []
         for segment in RaoPeakCaller.segment_matrix_intra(m, self.slice_size, self.max_w):
             ms, i_range, i_inspect, j_range, j_inspect = segment
 
-            args = [ms, e, lambda_chunks,
+            args = [ms, e, lambda_chunks, ix_offset,
                     i_range, i_inspect, mappable[i_range[0]:i_range[1]], c[i_range[0]:i_range[1]],
                     j_range, j_inspect, mappable[j_range[0]:j_range[1]], c[j_range[0]:j_range[1]],
                     w, p, self.min_locus_dist, self.min_ll_reads, self.min_mappable_fraction,
@@ -1122,11 +1122,11 @@ class RaoPeakCaller(PeakCaller):
 
             # submit intermediate segments if maximum number of jobs reached
             if len(jobs) >= self.n_processes:
-                self._process_jobs(jobs, peak_info, observed_chunk_distribution, ix_converter)
+                self._process_jobs(jobs, peak_info, observed_chunk_distribution)
                 jobs = []
 
         if len(jobs) > 0:
-            self._process_jobs(jobs, peak_info, observed_chunk_distribution, ix_converter)
+            self._process_jobs(jobs, peak_info, observed_chunk_distribution)
 
     def call_peaks(self, hic, chromosome_pairs=None, file_name=None, intra_expected=None, inter_expected=None):
         """
@@ -1241,11 +1241,12 @@ class RaoPeakCaller(PeakCaller):
             logger.info("Processing %s-%s" % (chromosome1, chromosome2))
 
             start1, end1 = chromosome_bins[chromosome1]
+            ix_offset = start1
             start2, end2 = chromosome_bins[chromosome2]
             if chromosome1 == chromosome2:
                 m = hic.as_matrix((chromosome1, chromosome2), mask_missing=True)
                 self._find_peaks_intra_matrix(m, intra_expected[chromosome1], c[start1:end1],
-                                              peaks, mappable[start1:end1], (start1, end1),
+                                              peaks, mappable[start1:end1], ix_offset,
                                               observed_chunk_distribution, lambda_chunks, w_init, p)
             elif self.process_inter:
                 warnings.warn("Inter-chromosomal peak calling not currently supported!")
@@ -1324,7 +1325,7 @@ class RaoPeakCaller(PeakCaller):
 
 
 def process_matrix_segment_intra(data):
-    m_original, e, chunks, \
+    m_original, e, chunks, ix_offset, \
         i_range, i_inspect, mappable_i, c_i, \
         j_range, j_inspect, mappable_j, c_j, \
         w, p, min_locus_dist, min_ll_reads, min_mappable, \
@@ -1350,9 +1351,9 @@ def process_matrix_segment_intra(data):
 
     results = []
     for o_i in range(i_inspect[0], i_inspect[1]):
-        i = o_i - i_inspect[0]
+        i = o_i - i_range[0]
         for o_j in range(j_inspect[0], j_inspect[1]):
-            j = o_j - j_inspect[0]
+            j = o_j - j_range[0]
 
             # only inspect pixels at a certain distance
             # above the diagonal
@@ -1405,7 +1406,7 @@ def process_matrix_segment_intra(data):
             e_v_chunk = RaoPeakCaller.find_chunk(chunks, e_v/cf)
             e_d_chunk = RaoPeakCaller.find_chunk(chunks, e_d/cf)
 
-            result = [o_i, o_j, float(m_original.data[i, j]), w_corr, p,
+            result = [o_i + ix_offset, o_j + ix_offset, float(m_original.data[i, j]), w_corr, p,
                       int(m_uncorrected.data[i, j]),
                       int(ll_sum), e_ll, e_v, e_h, e_d,
                       o_chunk, e_ll_chunk, e_v_chunk, e_h_chunk, e_d_chunk,
