@@ -4659,6 +4659,59 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
         if flush:
             self.flush(update_index=update_index, update_mappability=update_mappability)
 
+    def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
+        """
+        Filter edges in this object by using a
+        :class:`~HicEdgeFilter`.
+
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        if not queue:
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                       silent=not log_progress) as pb:
+                for i, edge_table in enumerate(self._edge_table_iter()):
+                    stats = edge_table.filter(edge_filter, _logging=False)
+                    for key, value in stats.items():
+                        if key != 0:
+                            filtered += stats[key]
+                        total += stats[key]
+                    pb.update(i)
+            if log_progress:
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        else:
+            for edge_table in self._edge_table_iter():
+                edge_table.queue_filter(edge_filter)
+
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                   silent=not log_progress) as pb:
+            for i, edge_table in enumerate(self._edge_table_iter()):
+                stats = edge_table.run_queued_filters(_logging=False)
+                for key, value in stats.items():
+                    if key != 0:
+                        filtered += stats[key]
+                    total += stats[key]
+                pb.update(i)
+        if log_progress:
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
+
 
 class Hic(RegionMatrixTable):
     """
@@ -5547,44 +5600,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         """
         edge_filter.set_hic_object(self)
 
-        total = 0
-        filtered = 0
-        if not queue:
-            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
-                                       silent=not log_progress) as pb:
-                for i, edge_table in enumerate(self._edge_table_iter()):
-                    stats = edge_table.filter(edge_filter, _logging=False)
-                    for key, value in stats.items():
-                        if key != 0:
-                            filtered += stats[key]
-                        total += stats[key]
-                    pb.update(i)
-            if log_progress:
-                logger.info("Total: {}. Filtered: {}".format(total, filtered))
-        else:
-            for edge_table in self._edge_table_iter():
-                edge_table.queue_filter(edge_filter)
-
-    def run_queued_filters(self, log_progress=not config.hide_progressbars):
-        """
-        Run queued filters.
-
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        total = 0
-        filtered = 0
-        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
-                                   silent=not log_progress) as pb:
-            for i, edge_table in enumerate(self._edge_table_iter()):
-                stats = edge_table.run_queued_filters(_logging=False)
-                for key, value in stats.items():
-                    if key != 0:
-                        filtered += stats[key]
-                    total += stats[key]
-                pb.update(i)
-        if log_progress:
-            logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        AccessOptimisedRegionMatrixTable.filter(self, edge_filter, queue=queue, log_progress=log_progress)
 
 
 def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):

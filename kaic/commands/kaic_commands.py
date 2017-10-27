@@ -2758,7 +2758,7 @@ def filter_peaks(argv):
     if observed_cutoff is not None:
         peaks.filter_observed(observed_cutoff, queue=True)
 
-    peaks.peak_table.run_queued_filters()
+    peaks.run_queued_filters()
     peaks.close()
 
     if args.tmp:

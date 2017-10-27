@@ -292,24 +292,6 @@ class RaoPeakInfo(AccessOptimisedRegionMatrixTable):
     def __iter__(self):
         return self.peaks()
 
-    def filter(self, peak_filter, queue=False, log_progress=False):
-        """
-        Filter edges in this object by using a :class:`~PeakFilter`.
-
-        :param peak_filter: Class implementing :class:`~PeakFilter`.
-                            Must override valid_peak method, ideally sets mask parameter
-                            during initialization.
-        :param queue: If True, filter will be queued and can be executed
-                      along with other queued filters using
-                      run_queued_filters
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        if not queue:
-            self.peak_table.filter(peak_filter, _logging=log_progress)
-        else:
-            self.peak_table.queue_filter(peak_filter)
-
     def filter_fdr(self, fdr_cutoff, queue=False):
         """
         Convenience function that applies a :class:`~FdrPeakFilter`.
