@@ -2445,45 +2445,17 @@ def call_peaks_parser():
     )
 
     parser.add_argument(
-        '-b', '--batch-size', dest='batch_size',
+        '-s', '--slice-size', dest='slice_size',
         type=int,
-        default=100000,
-        help='''Maximum number of peaks examined per process. Default: 100,000'''
+        default=200,
+        help='''Width of submatrix examined per process. Default: 200'''
     )
 
     parser.add_argument(
-        '-o', '--observed-cutoff', dest='o_cutoff',
-        type=int,
-        default=1,
-        help='''Minimum observed contacts at peak (in reads).'''
-    )
-
-    parser.add_argument(
-        '-ll', '--lower-left-cutoff', dest='ll_cutoff',
+        '--minimum_mappability', dest='minimum_mappability',
         type=float,
-        default=1.0,
-        help='''Minimum enrichment of peak compared to lower-left neighborhood (observed/e_ll > cutoff).'''
-    )
-
-    parser.add_argument(
-        '-z', '--horizontal-cutoff', dest='h_cutoff',
-        type=float,
-        default=1.0,
-        help='''Minimum enrichment of peak compared to horizontal neighborhood (observed/e_h > cutoff).'''
-    )
-
-    parser.add_argument(
-        '-v', '--vertical-cutoff', dest='v_cutoff',
-        type=float,
-        default=1.0,
-        help='''Minimum enrichment of peak compared to vertical neighborhood (observed/e_v > cutoff).'''
-    )
-
-    parser.add_argument(
-        '-d', '--donut-cutoff', dest='d_cutoff',
-        type=float,
-        default=1.0,
-        help='''Minimum enrichment of peak compared to donut neighborhood (observed/e_d > cutoff).'''
+        default=0.7,
+        help='''Minimum mappable fraction of a pixel neighborhood to consider pixel as peak'''
     )
 
     parser.add_argument(
@@ -2536,10 +2508,9 @@ def call_peaks(argv):
         output_path = os.path.expanduser(args.output)
 
     pk = kn.RaoPeakCaller(p=args.peak_size, w_init=args.width, min_locus_dist=args.min_dist,
-                          observed_cutoff=args.o_cutoff, n_processes=args.threads,
-                          batch_size=args.batch_size, process_inter=args.inter, e_ll_cutoff=args.ll_cutoff,
-                          e_d_cutoff=args.d_cutoff, e_h_cutoff=args.h_cutoff, e_v_cutoff=args.v_cutoff,
-                          cluster=sge)
+                          n_processes=args.threads, slice_size=args.slice_size,
+                          process_inter=args.inter, cluster=sge,
+                          min_mappable_fraction=args.minimum_mappability)
 
     hic = kaic.load_hic(input_path, mode='r')
 
@@ -2567,7 +2538,8 @@ def call_peaks(argv):
 def filter_peaks_parser():
     parser = argparse.ArgumentParser(
         prog="kaic filter_peaks",
-        description='Filter peaks called with call_peaks'
+        description='Filter peaks called with call_peaks. By default, this is a pass-through filter.'
+                    'Enable different filters using the below parameters.'
     )
 
     parser.add_argument(
@@ -2584,71 +2556,98 @@ def filter_peaks_parser():
     parser.add_argument(
         '-f', '--fdr', dest='fdr_cutoff',
         type=float,
-        help='''Global FDR cutoff - overrides cutoffs set with --fdr-donut, etc. Value between 0 and 1.'''
+        help='''Global FDR cutoff for all neighborhoods. Value between 0 and 1.'''
     )
 
     parser.add_argument(
         '-fd', '--fdr-donut', dest='fdr_donut_cutoff',
         type=float,
-        default=0.1,
-        help='''Donut neighborhood FDR cutoff. Value between 0 and 1. Default=0.1'''
+        help='''Donut neighborhood FDR cutoff. Value between 0 and 1.'''
     )
 
     parser.add_argument(
         '-fh', '--fdr-horizontal', dest='fdr_horizontal_cutoff',
         type=float,
-        default=0.1,
-        help='''Horizontal neighborhood FDR cutoff. Value between 0 and 1. Default=0.1'''
+        help='''Horizontal neighborhood FDR cutoff. Value between 0 and 1.'''
     )
 
     parser.add_argument(
         '-fv', '--fdr-vertical', dest='fdr_vertical_cutoff',
         type=float,
-        default=0.1,
-        help='''Vertical neighborhood FDR cutoff. Value between 0 and 1. Default=0.1'''
+        help='''Vertical neighborhood FDR cutoff. Value between 0 and 1.'''
     )
 
     parser.add_argument(
         '-fl', '--fdr-lower-left', dest='fdr_lower_left_cutoff',
         type=float,
-        default=0.1,
-        help='''Lower-left neighborhood FDR cutoff. Value between 0 and 1. Default=0.1'''
+        help='''Lower-left neighborhood FDR cutoff. Value between 0 and 1.'''
     )
 
     parser.add_argument(
-        '-e', '--enrichment', dest='enrichment',
+        '-e', '--enrichment', dest='enrichment_cutoff',
         type=float,
         help='''Global enrichment cutoff. Value between 0 and infinity,
-                    e.g. 2.0 means two-fold enrichment over every contact neighborhood.
-                    Overrides cutoffs set with --e-donut, etc.'''
+                    e.g. 2.0 means two-fold enrichment over every contact neighborhood.'''
     )
 
     parser.add_argument(
-        '-ed', '--enrichment-donut', dest='enrichment_donut',
+        '-ed', '--enrichment-donut', dest='enrichment_donut_cutoff',
         type=float,
-        default=2.0,
-        help='''Donut enrichment cutoff. Value between 0 and infinity. Default=2.0'''
+        help='''Donut enrichment cutoff. Value between 0 and infinity.'''
     )
 
     parser.add_argument(
-        '-eh', '--enrichment-horizontal', dest='enrichment_horizontal',
+        '-eh', '--enrichment-horizontal', dest='enrichment_horizontal_cutoff',
         type=float,
-        default=1.5,
-        help='''Horizontal enrichment cutoff. Value between 0 and infinity. Default=1.5'''
+        help='''Horizontal enrichment cutoff. Value between 0 and infinity.'''
     )
 
     parser.add_argument(
-        '-ev', '--enrichment-vertical', dest='enrichment_vertical',
+        '-ev', '--enrichment-vertical', dest='enrichment_vertical_cutoff',
         type=float,
-        default=1.5,
-        help='''Vertical enrichment cutoff. Value between 0 and infinity. Default=1.5'''
+        help='''Vertical enrichment cutoff. Value between 0 and infinity.'''
     )
 
     parser.add_argument(
-        '-el', '--enrichment-lower_left', dest='enrichment_lower_left',
+        '-el', '--enrichment-lower_left', dest='enrichment_lower_left_cutoff',
         type=float,
-        default=1.75,
-        help='''Lower left enrichment cutoff. Value between 0 and infinity. Default=1.75'''
+        help='''Lower left enrichment cutoff. Value between 0 and infinity.'''
+    )
+
+    parser.add_argument(
+        '-m', '--mappability', dest='mappability_cutoff',
+        type=float,
+        help='''Global mappability cutoff for all neighborhoods. Value between 0 and 1.'''
+    )
+
+    parser.add_argument(
+        '-md', '--mappability-donut', dest='mappability_donut_cutoff',
+        type=float,
+        help='''Donut neighborhood mappability cutoff. Value between 0 and 1.'''
+    )
+
+    parser.add_argument(
+        '-mh', '--mappability-horizontal', dest='mappability_horizontal_cutoff',
+        type=float,
+        help='''Horizontal neighborhood mappability cutoff. Value between 0 and 1.'''
+    )
+
+    parser.add_argument(
+        '-mv', '--mappability-vertical', dest='mappability_vertical_cutoff',
+        type=float,
+        help='''Vertical neighborhood mappability cutoff. Value between 0 and 1.'''
+    )
+
+    parser.add_argument(
+        '-ml', '--mappability-lower-left', dest='mappability_lower_left_cutoff',
+        type=float,
+        help='''Lower-left neighborhood mappability cutoff. Value between 0 and 1.'''
+    )
+
+    parser.add_argument(
+        '-o', '--observed', dest='observed',
+        type=int,
+        help='''Minimum observed value (integer, uncorrected). Default: 1'''
     )
 
     parser.add_argument(
@@ -2660,8 +2659,6 @@ def filter_peaks_parser():
                         2. are at least 1.5-fold enriched over the horizontal and vertical neighborhoods
                         3. are at least 1.75-fold enriched over both the donut and lower-left neighborhood
                         4. have an FDR <= 0.1 in every neighborhood
-
-                    Warning: this flag overrides all other filters in this run!
             '''
     )
     parser.set_defaults(rao=False)
@@ -2680,12 +2677,31 @@ def filter_peaks(argv):
 
     args = parser.parse_args(argv[2:])
 
+    rao = args.rao
+    fdr_cutoff = args.fdr_cutoff
+    fdr_cutoff_ll = args.fdr_lower_left_cutoff
+    fdr_cutoff_h = args.fdr_horizontal_cutoff
+    fdr_cutoff_v = args.fdr_vertical_cutoff
+    fdr_cutoff_d = args.fdr_donut_cutoff
+    mappability_cutoff = args.mappability_cutoff
+    mappability_cutoff_ll = args.mappability_lower_left_cutoff
+    mappability_cutoff_h = args.mappability_horizontal_cutoff
+    mappability_cutoff_v = args.mappability_vertical_cutoff
+    mappability_cutoff_d = args.mappability_donut_cutoff
+    enrichment_cutoff = args.enrichment_cutoff
+    enrichment_cutoff_ll = args.enrichment_lower_left_cutoff
+    enrichment_cutoff_h = args.enrichment_horizontal_cutoff
+    enrichment_cutoff_v = args.enrichment_vertical_cutoff
+    enrichment_cutoff_d = args.enrichment_donut_cutoff
+    observed_cutoff = args.observed
+    tmp = args.tmp
+
     import kaic.data.network as kn
     from kaic.tools.files import create_temporary_copy, copy_or_expand
 
     # copy file if required
     original_input_path = os.path.expanduser(args.input)
-    if args.tmp:
+    if tmp:
         logger.info("Copying data to temporary file...")
         input_path = create_temporary_copy(original_input_path)
     else:
@@ -2693,36 +2709,56 @@ def filter_peaks(argv):
 
     peaks = kn.RaoPeakInfo(input_path, mode='a')
 
-    if args.rao:
-        logger.info("Running Rao filter")
-        peaks.filter_rao()
-    else:
-        if args.fdr_cutoff is not None:
-            logger.info("Global FDR filter at %.f" % args.fdr_cutoff)
-            peaks.filter_fdr(args.fdr_cutoff, queue=True)
-        else:
-            logger.info("Local FDR filter")
-            fdr_mask = peaks.add_mask_description('fdr', 'FDR cutoff filter')
-            fdr_filter = kn.FdrPeakFilter(fdr_ll_cutoff=args.fdr_lower_left_cutoff,
-                                          fdr_d_cutoff=args.fdr_donut_cutoff,
-                                          fdr_h_cutoff=args.fdr_horizontal_cutoff,
-                                          fdr_v_cutoff=args.fdr_vertical_cutoff,
-                                          mask=fdr_mask)
-            peaks.filter(fdr_filter, queue=True)
+    if rao:
+        logger.info("Rao filter")
+        peaks.filter_rao(queue=True)
 
-        if args.enrichment is not None:
-            logger.info("Global enrichment filter at %.f" % args.enrichment)
-            peaks.filter_observed_expected_ratio(ll_ratio=args.enrichment, d_ratio=args.enrichment,
-                                                 v_ratio=args.enrichment, h_ratio=args.enrichment,
-                                                 queue=True)
-        else:
-            logger.info("Local enrichment filter")
-            peaks.filter_observed_expected_ratio(ll_ratio=args.enrichment_lower_left,
-                                                 d_ratio=args.enrichment_donut,
-                                                 v_ratio=args.enrichment_vertical,
-                                                 h_ratio=args.enrichment_horizontal,
-                                                 queue=True)
-        peaks.peak_table.run_queued_filters()
+    if fdr_cutoff is not None:
+        logger.info("Global FDR filter at {}".format(fdr_cutoff))
+        peaks.filter_fdr(fdr_cutoff, queue=True)
+    elif (fdr_cutoff_d is not None or fdr_cutoff_h is not None
+          or fdr_cutoff_v is not None or fdr_cutoff_ll is not None):
+        logger.info("Local FDR filter")
+        fdr_mask = peaks.add_mask_description('fdr', 'FDR cutoff filter')
+        fdr_filter = kn.FdrPeakFilter(fdr_ll_cutoff=fdr_cutoff_ll,
+                                      fdr_d_cutoff=fdr_cutoff_d,
+                                      fdr_h_cutoff=fdr_cutoff_h,
+                                      fdr_v_cutoff=fdr_cutoff_v,
+                                      mask=fdr_mask)
+        peaks.filter(fdr_filter, queue=True)
+
+    if mappability_cutoff is not None:
+        logger.info("Global mappability filter at {}".format(mappability_cutoff))
+        peaks.filter_mappability(mappability_cutoff, queue=True)
+    elif (mappability_cutoff_d is not None or mappability_cutoff_h is not None
+          or mappability_cutoff_v is not None or mappability_cutoff_ll is not None):
+        logger.info("Local mappability filter")
+        mappability_mask = peaks.add_mask_description('mappability', 'mappability cutoff filter')
+        mappability_filter = kn.MappabilityPeakFilter(mappability_ll_cutoff=mappability_cutoff_ll,
+                                                      mappability_d_cutoff=mappability_cutoff_d,
+                                                      mappability_h_cutoff=mappability_cutoff_h,
+                                                      mappability_v_cutoff=mappability_cutoff_v,
+                                                      mask=mappability_mask)
+        peaks.filter(mappability_filter, queue=True)
+
+    if enrichment_cutoff is not None:
+        logger.info("Global enrichment filter at {}".format(enrichment_cutoff))
+        peaks.filter_enrichment(enrichment_cutoff, queue=True)
+    elif (enrichment_cutoff_d is not None or enrichment_cutoff_h is not None
+          or enrichment_cutoff_v is not None or enrichment_cutoff_ll is not None):
+        logger.info("Local enrichment filter")
+        enrichment_mask = peaks.add_mask_description('enrichment', 'enrichment cutoff filter')
+        enrichment_filter = kn.EnrichmentPeakFilter(enrichment_ll_cutoff=enrichment_cutoff_ll,
+                                                    enrichment_d_cutoff=enrichment_cutoff_d,
+                                                    enrichment_h_cutoff=enrichment_cutoff_h,
+                                                    enrichment_v_cutoff=enrichment_cutoff_v,
+                                                    mask=enrichment_mask)
+        peaks.filter(enrichment_filter, queue=True)
+
+    if observed_cutoff is not None:
+        peaks.filter_observed(observed_cutoff, queue=True)
+
+    peaks.run_queued_filters()
     peaks.close()
 
     if args.tmp:
@@ -2820,7 +2856,7 @@ def filter_merged_peaks_parser():
         '-r', '--rao', dest='rao',
         action='store_true',
         help='''Filter peaks as Rao et al. (2014) does.
-                    It removes peaks that are singlets and have a q-value sum >.02.
+                It removes peaks that are singlets and have a q-value sum >.02.
             '''
     )
     parser.set_defaults(rao=False)

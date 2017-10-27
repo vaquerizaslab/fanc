@@ -242,7 +242,7 @@ def hic_parser():
     )
 
     parser.add_argument(
-        '-d', '--maximum-distance', dest='max_dist',
+        '-m', '--maximum-distance', dest='max_dist',
         type=int,
         help='''Maximum distance between two points after which triangle will be truncated.'''
     )
@@ -273,6 +273,17 @@ def hic_parser():
     )
 
     parser.add_argument(
+        '-d', '--default_value', dest='default_value',
+        type=float,
+        help='''Which value to use for missing edges. Default: 0'''
+    )
+
+    parser.add_argument(
+        '-f', '--weight-field', dest='weight_field',
+        help='''Which value to use for plotting. Default: weight'''
+    )
+
+    parser.add_argument(
         '-C', '--no-colorbar', dest='show_colorbar',
         action='store_false',
         help='''Do not show colorbar in plot'''
@@ -287,12 +298,13 @@ def hic(parameters):
 
     colormap = config.colormap_hic if args.colormap is None else args.colormap
 
-    matrix = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
+    matrix = kaic.load(os.path.expanduser(args.hic), mode='r')
 
     norm = "lin" if not args.log else "log"
     return kplt.HicPlot(matrix, colormap=colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
                         vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
-                        ylabel=args.ylabel), args
+                        ylabel=args.ylabel, weight_field=args.weight_field,
+                        default_value=args.default_value), args
 
 
 def hic2d_parser():

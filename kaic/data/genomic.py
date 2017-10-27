@@ -1869,6 +1869,7 @@ class RegionsTable(GenomicRegions, FileGroup):
 
     def flush(self):
         self._regions.flush()
+        self._update_references()
 
     def add_region(self, region, flush=True):
         # super-method, calls below '_add_region'
@@ -4333,6 +4334,135 @@ class RegionMatrixTable(RegionPairs):
 
         return marginals
 
+    def possible_contacts(self):
+        logger.info("Calculating possible counts")
+        regions = list(self.regions)
+        chromosomes = self.chromosomes()
+
+        cb = self.chromosome_bins
+        chromosome_max_distance = defaultdict(int)
+        max_distance = 0
+        chromosome_subtractions = dict()
+        for chromosome in chromosomes:
+            start, stop = cb[chromosome]
+            max_distance = max(max_distance, stop - start)
+            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+            chromosome_subtractions[chromosome] = np.zeros(stop - start,
+                                                           dtype='int32')
+
+        chromosome_mappable = defaultdict(int)
+        chromosome_unmappable = defaultdict(set)
+        for i, mappable in enumerate(self.mappable()):
+            chromosome = regions[i].chromosome
+            if not mappable:  # unmappable
+                s = chromosome_subtractions[chromosome]
+                o = cb[chromosome][0]
+                ix = i - o
+                # horizontal
+                s[0: len(s) - ix] += 1
+                # vertical
+                for j in range(1, ix + 1):
+                    if ix - j not in chromosome_unmappable[chromosome]:
+                        s[j] += 1
+                chromosome_unmappable[chromosome].add(ix)
+            else:
+                chromosome_mappable[chromosome] += 1
+
+        inter_total = 0
+        intra_total = [0] * max_distance
+        chromosome_intra_total = dict()
+        for chromosome, d in chromosome_max_distance.items():
+            chromosome_intra_total[chromosome] = [0] * d
+
+        for i, chromosome in enumerate(chromosomes):
+            start, stop = cb[chromosome]
+            count = stop - start
+
+            # intra-chromosomal
+            s = chromosome_subtractions[chromosomes[i]]
+            for distance in range(0, count):
+                intra_total[distance] += count - distance - s[distance]
+                chromosome_intra_total[chromosome][distance] += count - distance - s[distance]
+
+            # inter-chromosomal
+            for j in range(i + 1, len(chromosomes)):
+                count_mappable = chromosome_mappable[chromosomes[i]]
+                count2_mappable = chromosome_mappable[chromosomes[j]]
+                inter_total += count_mappable * count2_mappable
+
+        return intra_total, chromosome_intra_total, inter_total
+
+    def expected_values(self, selected_chromosome=None):
+        # get all the bins of the different chromosomes
+        chromosome_bins = self.chromosome_bins
+        chromosome_dict = defaultdict(list)
+
+        chromosome_max_distance = defaultdict(int)
+        max_distance = 0
+        for chromosome, (start, stop) in chromosome_bins.items():
+            max_distance = max(max_distance, stop - start)
+            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+
+            for i in range(start, stop):
+                chromosome_dict[i] = chromosome
+
+        chromosome_intra_sums = dict()
+        chromosome_intra_expected = dict()
+        for chromosome, d in chromosome_max_distance.items():
+            chromosome_intra_sums[chromosome] = [0.0] * d
+            chromosome_intra_expected[chromosome] = [0.0] * d
+
+        # get the sums of edges at any given distance
+        marginals = [0.0] * len(self.regions)
+        inter_sums = 0.0
+        intra_sums = [0.0] * max_distance
+        with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
+            for i, edge in enumerate(self.edges(lazy=True)):
+                source, sink = edge.source, edge.sink
+                weight = getattr(edge, self.default_field)
+
+                source_chromosome = chromosome_dict[source]
+                sink_chromosome = chromosome_dict[sink]
+
+                marginals[source] += weight
+                marginals[sink] += weight
+
+                if sink_chromosome != source_chromosome:
+                    inter_sums += weight
+                else:
+                    distance = sink - source
+                    intra_sums[distance] += weight
+                    chromosome_intra_sums[source_chromosome][distance] += weight
+                pb.update(i)
+
+        intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
+
+        # expected values
+        inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
+
+        intra_expected = [0.0] * max_distance
+        bin_size = self.bin_size
+        distances = []
+        for d in range(max_distance):
+            distances.append(bin_size * d)
+
+            # whole genome
+            count = intra_total[d]
+            if count > 0:
+                intra_expected[d] = intra_sums[d] / count
+
+        # chromosomes
+        for chromosome in chromosome_intra_expected:
+            for d in range(chromosome_max_distance[chromosome]):
+                chromosome_count = chromosome_intra_total[chromosome][d]
+                if chromosome_count > 0:
+                    chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+
+        if selected_chromosome is not None:
+            return chromosome_intra_expected[chromosome]
+
+        return intra_expected, chromosome_intra_expected, inter_expected
+
     def scaling_factor(self, matrix, weight_column=None):
         """
         Compute the scaling factor to another matrix.
@@ -4528,6 +4658,59 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
 
         if flush:
             self.flush(update_index=update_index, update_mappability=update_mappability)
+
+    def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
+        """
+        Filter edges in this object by using a
+        :class:`~HicEdgeFilter`.
+
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        if not queue:
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                       silent=not log_progress) as pb:
+                for i, edge_table in enumerate(self._edge_table_iter()):
+                    stats = edge_table.filter(edge_filter, _logging=False)
+                    for key, value in stats.items():
+                        if key != 0:
+                            filtered += stats[key]
+                        total += stats[key]
+                    pb.update(i)
+            if log_progress:
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        else:
+            for edge_table in self._edge_table_iter():
+                edge_table.queue_filter(edge_filter)
+
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                   silent=not log_progress) as pb:
+            for i, edge_table in enumerate(self._edge_table_iter()):
+                stats = edge_table.run_queued_filters(_logging=False)
+                for key, value in stats.items():
+                    if key != 0:
+                        filtered += stats[key]
+                    total += stats[key]
+                pb.update(i)
+        if log_progress:
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
 
 
 class Hic(RegionMatrixTable):
@@ -5105,25 +5288,6 @@ class Hic(RegionMatrixTable):
                 mappable[region.chromosome] += 1
         return mappable
 
-    def possible_contacts(self, _mappable=None):
-        if _mappable is None:
-            _mappable = self.mappable_regions()
-
-        # calculate possible combinations
-        intra_possible = 0
-        inter_possible = 0
-        chromosomes = list(_mappable.keys())
-        for i in range(len(chromosomes)):
-            chromosome1 = chromosomes[i]
-            n1 = _mappable[chromosome1]
-            intra_possible += n1**2/2 + n1/2
-            for j in range(i+1, len(chromosomes)):
-                chromosome2 = chromosomes[j]
-                n2 = _mappable[chromosome2]
-                inter_possible += n1*n2
-
-        return intra_possible, inter_possible
-
     @property
     def architecture(self):
         import kaic.architecture.hic_architecture as ha
@@ -5436,44 +5600,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         """
         edge_filter.set_hic_object(self)
 
-        total = 0
-        filtered = 0
-        if not queue:
-            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
-                                       silent=not log_progress) as pb:
-                for i, edge_table in enumerate(self._edge_table_iter()):
-                    stats = edge_table.filter(edge_filter, _logging=False)
-                    for key, value in stats.items():
-                        if key != 0:
-                            filtered += stats[key]
-                        total += stats[key]
-                    pb.update(i)
-            if log_progress:
-                logger.info("Total: {}. Filtered: {}".format(total, filtered))
-        else:
-            for edge_table in self._edge_table_iter():
-                edge_table.queue_filter(edge_filter)
-
-    def run_queued_filters(self, log_progress=not config.hide_progressbars):
-        """
-        Run queued filters.
-
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        total = 0
-        filtered = 0
-        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
-                                   silent=not log_progress) as pb:
-            for i, edge_table in enumerate(self._edge_table_iter()):
-                stats = edge_table.run_queued_filters(_logging=False)
-                for key, value in stats.items():
-                    if key != 0:
-                        filtered += stats[key]
-                    total += stats[key]
-                pb.update(i)
-        if log_progress:
-            logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        AccessOptimisedRegionMatrixTable.filter(self, edge_filter, queue=queue, log_progress=log_progress)
 
 
 def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):
@@ -5666,6 +5793,16 @@ class RegionMatrix(np.ndarray):
         self.row_regions = getattr(obj, 'row_regions', None)
         self.col_regions = getattr(obj, 'col_regions', None)
 
+    def __setitem__(self, key, item):
+        self._setitem = True
+        try:
+            if isinstance(self, np.ma.core.MaskedArray):
+                out = np.ma.MaskedArray.__setitem__(self, key, item)
+            else:
+                out = np.ndarray.__setitem__(self, key, item)
+        finally:
+            self._setitem = False
+
     def __getitem__(self, index):
         self._getitem = True
 
@@ -5683,7 +5820,10 @@ class RegionMatrix(np.ndarray):
             index = row_key
 
         try:
-            out = np.ndarray.__getitem__(self, index)
+            if isinstance(self, np.ma.core.MaskedArray):
+                out = np.ma.MaskedArray.__getitem__(self, index)
+            else:
+                out = np.ndarray.__getitem__(self, index)
         finally:
             self._getitem = False
 
