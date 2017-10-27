@@ -120,17 +120,16 @@ class TestRaoPeakCaller:
 
         peak_caller = RaoPeakCaller()
         peaks = peak_caller.call_peaks(hic_10kb)
-        peak_info = peaks.peak_table
 
-        assert len(peak_info) == 6786
+        assert len(peaks) == 6408
 
         valid_peaks = []
 
         has_43_57 = False
-        for peak in peak_info:
-            if peak['fdr_ll'] < 0.1 and peak['fdr_v'] < 0.1 and peak['fdr_h'] < 0.1 and peak['fdr_d'] < 0.1:
-                valid_peaks.append(peak.fetch_all_fields())
-            if peak['source'] == 43 and peak['sink'] == 57:
+        for peak in peaks.edges:
+            if peak.fdr_ll < 0.1 and peak.fdr_v < 0.1 and peak.fdr_h < 0.1 and peak.fdr_d < 0.1:
+                valid_peaks.append(peak)
+            if peak.source == 43 and peak.sink == 57:
                 has_43_57 = True
 
         assert len(valid_peaks) == 124
@@ -140,7 +139,7 @@ class TestRaoPeakCaller:
 
     def test_merge_peaks(self):
         directory = os.path.dirname(os.path.realpath(__file__))
-        peaks = RaoPeakInfo(directory + "/test_network/rao2014.chr11_77400000_78600000.peaks", mode='r')
+        peaks = RaoPeakInfo(directory + "/test_network/rao2014.chr11_77400000_78600000.peaks_filtered", mode='r')
 
         merged_peaks = peaks.merged_peaks()
         assert len(merged_peaks) < len(peaks)
