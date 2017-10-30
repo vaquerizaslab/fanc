@@ -93,26 +93,15 @@ class TestRaoPeakCaller:
         # change p and w
         assert RaoPeakCaller.e_d(self.m, 3, 3, self.e, w=1, p=0) == (2+2+4+4)/4
 
-    def test_lambda_chunks(self):
-        assert np.array_equal(RaoPeakCaller._lambda_chunks(1000), [2**(0/3), 2**(1/3), 2**(2/3), 2**(3/3), 2**(4/3),
-                                                                   2**(5/3), 2**(6/3), 2**(7/3), 2**(8/3), 2**(9/3),
-                                                                   2**(10/3), 2**(11/3), 2**(12/3), 2**(13/3),
-                                                                   2**(14/3), 2**(15/3), 2**(16/3), 2**(17/3),
-                                                                   2**(18/3), 2**(19/3), 2**(20/3), 2**(21/3),
-                                                                   2**(22/3), 2**(23/3), 2**(24/3), 2**(25/3),
-                                                                   2**(26/3), 2**(27/3), 2**(28/3), 2**(29/3),
-                                                                   2**(30/3)])
-
     def test_find_chunk(self):
-        chunks = RaoPeakCaller._lambda_chunks(1000)
-        assert RaoPeakCaller.find_chunk(chunks, None) is None
-        assert RaoPeakCaller.find_chunk(chunks, 0) == 0
-        assert RaoPeakCaller.find_chunk(chunks, 1) == 0
-        assert RaoPeakCaller.find_chunk(chunks, 1.001) == 1
-        assert RaoPeakCaller.find_chunk(chunks, 1.5) == 2
-        assert RaoPeakCaller.find_chunk(chunks, 2) == 3
-        assert RaoPeakCaller.find_chunk(chunks, 30) == 15
-        assert RaoPeakCaller.find_chunk(chunks, 1024) == 30
+        assert RaoPeakCaller.find_chunk(None) is None
+        assert RaoPeakCaller.find_chunk(0) == 0
+        assert RaoPeakCaller.find_chunk(1) == 1
+        assert RaoPeakCaller.find_chunk(1.001) == 1
+        assert RaoPeakCaller.find_chunk(1.5) == 2
+        assert RaoPeakCaller.find_chunk(1.7) == 3
+        assert RaoPeakCaller.find_chunk(30) == 15
+        assert RaoPeakCaller.find_chunk(1024) == 31
 
     def test_call_peaks(self):
         dir = os.path.dirname(os.path.realpath(__file__))

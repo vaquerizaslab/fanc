@@ -958,31 +958,15 @@ class RaoPeakCaller(PeakCaller):
         return RaoPeakCaller.enrichment(m, e, i, j, RaoPeakCaller.e_d_sum, w=w, p=p)
 
     @staticmethod
-    def _lambda_chunks(max_expected, max_chunk_function=lambda x: 2**(x/3)):
-        """
-        Compute the expected value "lambda chunks" to classify pixels.
-        """
-        e_max_chunk = 1
-        e_exp = 0
-        chunks_max_list = []
-        while e_max_chunk <= max_expected:
-            chunks_max_list.append(e_max_chunk)
-            e_exp += 1
-            # increment power in steps of 1/3
-            e_max_chunk = max_chunk_function(e_exp)
-        # final chunk
-        chunks_max_list.append(e_max_chunk)
-
-        return chunks_max_list
-
-    @staticmethod
-    def find_chunk(chunk_list, value):
+    def find_chunk(value, chunk_func=lambda x: 3*np.log2(x)):
         """
         Use bisection to find a matching lambda chunk for a given expected value.
         """
         if value is None:
             return None
-        return bisect_left(chunk_list, value)
+        if value < 1:
+            return 0
+        return max(0, int(chunk_func(value)) + 1)
 
     def _process_jobs(self, jobs, peaks, observed_chunk_distribution):
         """
@@ -1033,7 +1017,7 @@ class RaoPeakCaller(PeakCaller):
                 peaks.add_edge(peak, flush=False)
 
     @staticmethod
-    def _get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution):
+    def _get_fdr_cutoffs(observed_chunk_distribution, e_func=lambda x: 2**(x/3)):
         """
         For all possible observed values in each lambda chunk, determine the
         FDR cutoff that denotes the lower significance bound.
@@ -1042,9 +1026,9 @@ class RaoPeakCaller(PeakCaller):
 
         fdr_cutoffs = dict()
         for e_type in observed_chunk_distribution:  # ll, h, v, d
-            fdr_cutoffs[e_type] = []
-            for chunk, max_e in enumerate(lambda_chunks):  # (0, 1), (1, 1.26), (2, 1.59), ...
-                fdr_cutoffs[e_type].append(dict())
+            fdr_cutoffs[e_type] = defaultdict(lambda: defaultdict(int))
+            for chunk in observed_chunk_distribution[e_type].keys():
+                max_e = e_func(chunk)
                 poisson_e = poisson(max_e)
 
                 observed_sum = 0
@@ -1082,7 +1066,7 @@ class RaoPeakCaller(PeakCaller):
                 yield ms, i_range, i_inspect, j_range, j_inspect
 
     def _find_peaks_intra_matrix(self, m, e, c, peak_info, mappable, ix_offset,
-                                 observed_chunk_distribution, lambda_chunks, w, p):
+                                 observed_chunk_distribution, w, p):
         """
         Given a matrix (strictly intra-chromosomal), calculate peak
         information for all pixels.
@@ -1092,7 +1076,7 @@ class RaoPeakCaller(PeakCaller):
         for segment in RaoPeakCaller.segment_matrix_intra(m, self.slice_size, self.max_w):
             ms, i_range, i_inspect, j_range, j_inspect = segment
 
-            args = [ms, e, lambda_chunks, ix_offset,
+            args = [ms, e, ix_offset,
                     i_range, i_inspect, mappable[i_range[0]:i_range[1]], c[i_range[0]:i_range[1]],
                     j_range, j_inspect, mappable[j_range[0]:j_range[1]], c[j_range[0]:j_range[1]],
                     w, p, self.min_locus_dist, self.min_ll_reads, self.min_mappable_fraction,
@@ -1191,22 +1175,10 @@ class RaoPeakCaller(PeakCaller):
                 pb.update(i)
         logger.info("Done.")
 
-        logger.info("Calculating lambda-chunk boundaries... {}".format(max_observed))
-        lambda_chunks = RaoPeakCaller._lambda_chunks(max_observed*2)
-        logger.info("Done. Chunks: {}".format(len(lambda_chunks)))
-
-        # create a container for the lambda chunks
-        observed_chunk_distribution = {
-            'll': [],
-            'h': [],
-            'v': [],
-            'd': []
-        }
-        for _ in range(len(lambda_chunks)):
-            observed_chunk_distribution['ll'].append(defaultdict(int))
-            observed_chunk_distribution['h'].append(defaultdict(int))
-            observed_chunk_distribution['v'].append(defaultdict(int))
-            observed_chunk_distribution['d'].append(defaultdict(int))
+        # lambda chunks container
+        observed_chunk_distribution = dict()
+        for e_type in ('ll', 'h', 'v', 'd'):
+            observed_chunk_distribution[e_type] = defaultdict(lambda: defaultdict(int))
 
         # start processing chromosome pairs
         if chromosome_pairs is None:
@@ -1229,7 +1201,7 @@ class RaoPeakCaller(PeakCaller):
                 m = hic.as_matrix((chromosome1, chromosome2), mask_missing=True)
                 self._find_peaks_intra_matrix(m, intra_expected[chromosome1], c[start1:end1],
                                               peaks, mappable[start1:end1], ix_offset,
-                                              observed_chunk_distribution, lambda_chunks, w_init, p)
+                                              observed_chunk_distribution, w_init, p)
             elif self.process_inter:
                 warnings.warn("Inter-chromosomal peak calling not currently supported!")
                 # self._find_peaks_inter_matrix(m, inter_expected, c[start1:end1], c[start2:end2],
@@ -1239,7 +1211,7 @@ class RaoPeakCaller(PeakCaller):
 
         # calculate fdrs
         logger.info("Finding FDR cutoffs...")
-        fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
+        fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(observed_chunk_distribution)
 
         # regions_dict = peaks.regions_dict
         with RareUpdateProgressBar(max_value=len(peaks.edges), prefix='FDR') as pb:
@@ -1307,7 +1279,7 @@ class RaoPeakCaller(PeakCaller):
 
 
 def process_matrix_segment_intra(data):
-    m_original, e, chunks, ix_offset, \
+    m_original, e, ix_offset, \
         i_range, i_inspect, mappable_i, c_i, \
         j_range, j_inspect, mappable_j, c_j, \
         w, p, min_locus_dist, min_ll_reads, min_mappable, \
@@ -1382,11 +1354,11 @@ def process_matrix_segment_intra(data):
 
             # find chunks
             cf = c_i[i] * c_j[j]
-            o_chunk = RaoPeakCaller.find_chunk(chunks, m_uncorrected[i, j])
-            e_ll_chunk = RaoPeakCaller.find_chunk(chunks, e_ll/cf)
-            e_h_chunk = RaoPeakCaller.find_chunk(chunks, e_h/cf)
-            e_v_chunk = RaoPeakCaller.find_chunk(chunks, e_v/cf)
-            e_d_chunk = RaoPeakCaller.find_chunk(chunks, e_d/cf)
+            o_chunk = RaoPeakCaller.find_chunk(m_uncorrected[i, j])
+            e_ll_chunk = RaoPeakCaller.find_chunk(e_ll/cf)
+            e_h_chunk = RaoPeakCaller.find_chunk(e_h/cf)
+            e_v_chunk = RaoPeakCaller.find_chunk(e_v/cf)
+            e_d_chunk = RaoPeakCaller.find_chunk(e_d/cf)
 
             result = [o_i + ix_offset, o_j + ix_offset, float(m_original.data[i, j]), w_corr, p,
                       int(m_uncorrected.data[i, j]),
