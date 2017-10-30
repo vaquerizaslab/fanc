@@ -1165,16 +1165,6 @@ class RaoPeakCaller(PeakCaller):
         c = hic.bias_vector()
         logger.info("Done.")
 
-        logger.info("Finding maximum observed value...")
-        max_observed = 0
-        with RareUpdateProgressBar(max_value=len(hic.edges), prefix='Max observed') as pb:
-            for i, edge in enumerate(hic.edges(lazy=True)):
-                new_max = edge.weight/(c[edge.source]*c[edge.sink])
-                if not math.isinf(new_max):
-                    max_observed = max(max_observed, new_max)
-                pb.update(i)
-        logger.info("Done.")
-
         # lambda chunks container
         observed_chunk_distribution = dict()
         for e_type in ('ll', 'h', 'v', 'd'):
