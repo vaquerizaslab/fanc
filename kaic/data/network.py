@@ -6,13 +6,11 @@ import numpy as np
 from scipy.stats import poisson
 from collections import defaultdict
 import tables as t
-from bisect import bisect_left
 from kaic.data.genomic import AccessOptimisedRegionMatrixTable, Edge, LazyEdge
 from kaic.data.general import MaskFilter
 import msgpack
 import msgpack_numpy
 import math
-from kaic.architecture.hic_architecture import ExpectedContacts
 from kaic.tools.general import RareUpdateProgressBar
 import warnings
 from future.utils import with_metaclass
