@@ -34,6 +34,7 @@ def kaic_parser():
             --- Pairs
             reads_to_pairs      Convert a Reads object into a Pairs object
             filter_pairs        Filter a Pairs object
+            pairs_from_hicpro   Load pairs from a HiC-Pro valid pairs file
 
             --- Hic
             pairs_to_hic        Convert a pairs object into a Hic object
@@ -1466,6 +1467,94 @@ def filter_pairs(argv):
             output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
         logger.info("Moving temporary output file to destination %s..." % output_path)
         shutil.move(input_path, output_path)
+
+    logger.info("All done.")
+
+
+def pairs_from_hicpro_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic pairs_from_hicpro",
+        description='Import a Pairs object from HiC-Pro'
+    )
+
+    parser.add_argument(
+        'input',
+        help='''Valid pairs file from HiC-Pro. Format:
+                name\\tchr1\\tpos1\\tstrand1\\tchr2\\tpos2\\tstrand2'''
+    )
+
+    parser.add_argument(
+        'genome',
+        help='''Path to genome (FASTA, folder with FASTA, hdf5 file)'''
+    )
+
+    parser.add_argument(
+        'restriction_enzyme',
+        help='''Name of restriction enzyme (case sensitive)'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output Pairs file.'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+    return parser
+
+
+def pairs_from_hicpro(argv):
+    parser = pairs_from_hicpro_parser()
+
+    args = parser.parse_args(argv[2:])
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    genome_path = os.path.expanduser(args.genome)
+    restriction_enzyme = args.restriction_enzyme
+    tmp = args.tmp
+
+    import kaic
+    from kaic.construct.seq import TxtReadPairGenerator, ReadPairs
+    from kaic.tools.files import create_temporary_copy
+
+    original_input_file = input_file
+    original_output_file = output_file
+    try:
+        if tmp:  # copy file if required
+            tmp = False  # to prevent deleting input file should this be interrupted at this point
+            logger.info("Copying input file...")
+            input_file = create_temporary_copy(original_input_file)
+            logger.info("New input file: {}".format(input_file))
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pairs')
+            tmp_file.close()
+            output_file = tmp_file.name
+            logger.info("Temporary output file: %s" % output_file)
+            tmp = True
+
+        logger.info("Getting regions")
+        genome = kaic.Genome.from_string(genome_path)
+        regions = genome.get_regions(restriction_enzyme)
+        genome.close()
+
+        sb = TxtReadPairGenerator(valid_pairs_file=input_file)
+        pairs = ReadPairs(file_name=output_file, mode='w')
+
+        pairs.add_regions(regions)
+        pairs.add_read_pairs(sb)
+
+        pairs.close()
+        logger.info("Done creating pairs.")
+
+    finally:
+        if tmp:
+            logger.info("Removing tmp files...")
+            os.remove(input_file)
+            shutil.copy(output_file, original_output_file)
+            os.remove(output_file)
 
     logger.info("All done.")
 
