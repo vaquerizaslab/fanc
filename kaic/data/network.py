@@ -429,11 +429,8 @@ class RaoPeakInfo(AccessOptimisedRegionMatrixTable):
 
                 logger.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
                 remaining_peaks_set = set()
-                for peak in self.peaks():
-                    region1 = regions_dict[peak.source]
-                    region2 = regions_dict[peak.sink]
-                    if region1.chromosome == chromosome_name1 and region2.chromosome == chromosome_name2:
-                        remaining_peaks_set.add(peak)
+                for peak in self.edge_subset((chromosome_name1, chromosome_name2), lazy=False):
+                    remaining_peaks_set.add(peak)
 
                 last_peak_number = 0
                 current_peaks = []
