@@ -140,24 +140,6 @@ class PeakInfo(AccessOptimisedRegionMatrixTable):
     def __iter__(self):
         return self.peaks()
 
-    def filter(self, peak_filter, queue=False, log_progress=False):
-        """
-        Filter edges in this object by using a :class:`~PeakFilter`.
-
-        :param peak_filter: Class implementing :class:`~PeakFilter`.
-                            Must override valid_peak method, ideally sets mask parameter
-                            during initialization.
-        :param queue: If True, filter will be queued and can be executed
-                      along with other queued filters using
-                      run_queued_filters
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        if not queue:
-            self.peak_table.filter(peak_filter, _logging=log_progress)
-        else:
-            self.peak_table.queue_filter(peak_filter)
-
     def filter_rao(self, queue=False):
         """
         Convenience function that applies a :class:`~RaoMergedPeakFilter`.
@@ -422,15 +404,20 @@ class RaoPeakInfo(AccessOptimisedRegionMatrixTable):
                                radius=radius, oe=oe)
             merged_peaks.add_edge(merged_peak, flush=False)
 
+        merged_peak_counter = 0
         chromosome_names = self.chromosomes()
         for i, chromosome_name1 in enumerate(chromosome_names):
             for j in range(i, len(chromosome_names)):
                 chromosome_name2 = chromosome_names[j]
 
-                logger.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
                 remaining_peaks_set = set()
                 for peak in self.edge_subset((chromosome_name1, chromosome_name2), lazy=False):
                     remaining_peaks_set.add(peak)
+
+                if len(remaining_peaks_set) == 0:
+                    continue
+
+                logger.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
 
                 last_peak_number = 0
                 current_peaks = []
@@ -444,6 +431,7 @@ class RaoPeakInfo(AccessOptimisedRegionMatrixTable):
                                 _append_merged_peak(current_peaks)
                                 current_peaks = []
                                 last_peak_number = 0
+                                merged_peak_counter += 1
 
                             # find highest peak
                             highest_peak = None
@@ -475,7 +463,10 @@ class RaoPeakInfo(AccessOptimisedRegionMatrixTable):
 
                 if len(current_peaks) > 0:
                     _append_merged_peak(current_peaks)
-            merged_peaks.flush()
+                    merged_peak_counter += 1
+
+        logger.info("Total merged peaks: {}".format(merged_peak_counter))
+        merged_peaks.flush()
         return merged_peaks
 
 
