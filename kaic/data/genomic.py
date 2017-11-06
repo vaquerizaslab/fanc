@@ -4539,6 +4539,35 @@ class RegionMatrixTable(RegionPairs):
         m_bottom[top_indices] = m_top[top_indices]
         return m_bottom
 
+    def filter(self, edge_filter, queue=False, log_progress=False):
+        """
+        Filter edges in this object by using a
+        :class:`~HicEdgeFilter`.
+
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        edge_filter.set_hic_object(self)
+        if not queue:
+            self._edges.filter(edge_filter, _logging=log_progress)
+        else:
+            self._edges.queue_filter(edge_filter)
+
+    def run_queued_filters(self, log_progress=False):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        self._edges.run_queued_filters(_logging=log_progress)
+
 
 class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionPairs):
     """
@@ -5168,35 +5197,6 @@ class Hic(RegionMatrixTable):
         RegionMatrixTable.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges,
                                 update_index=update_index, update_mappability=update_mappability)
         self._node_annotations.flush()
-
-    def filter(self, edge_filter, queue=False, log_progress=False):
-        """
-        Filter edges in this object by using a
-        :class:`~HicEdgeFilter`.
-
-        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
-                            Must override valid_edge method, ideally sets mask parameter
-                            during initialization.
-        :param queue: If True, filter will be queued and can be executed
-                      along with other queued filters using
-                      run_queued_filters
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        edge_filter.set_hic_object(self)
-        if not queue:
-            self._edges.filter(edge_filter, _logging=log_progress)
-        else:
-            self._edges.queue_filter(edge_filter)
-
-    def run_queued_filters(self, log_progress=False):
-        """
-        Run queued filters.
-
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        self._edges.run_queued_filters(_logging=log_progress)
 
     def filter_diagonal(self, distance=0, queue=False):
         """
