@@ -33,7 +33,7 @@ setup(
         'pillow',
         'matplotlib',
         'pandas>=0.15.0',
-        'pysam',
+        'pysam>=0.9.1',
         'biopython',
         'pytest',
         'msgpack-python',
