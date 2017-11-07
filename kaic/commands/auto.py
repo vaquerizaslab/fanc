@@ -647,8 +647,9 @@ def auto(argv):
                 sorted_sam_files = []
                 sort_results = []
                 for ix in sam_files:
-                    sam_basename, sam_extension = os.path.splitext(file_names[ix])
-                    sorted_sam_file = sam_basename + '_sort' + sam_extension
+                    sam_path, sam_extension = os.path.splitext(file_names[ix])
+                    sam_basename = os.path.basename(sam_path)
+                    sorted_sam_file = os.path.join(output_folder, 'sam', sam_basename + '_sort' + sam_extension)
                     sorted_sam_files.append(sorted_sam_file)
                     rt = tp.apply_async(sam_sort_worker, (file_names[ix], sorted_sam_file, args))
                     sort_results.append(rt)

@@ -436,7 +436,7 @@ def write_bigwig(file_name, regions, mode='w', score_field='score'):
 
 def sort_natural_sam(sam_file, output_file=None, sambamba=True, _sambamba_path='sambamba'):
     if which(_sambamba_path) is None and sambamba:
-        warnings.warn('Cannot find {} on this machine, falling back to samtools sort.'.format(_sambamba_path))
+        logger.info('Cannot find {} on this machine, falling back to samtools sort.'.format(_sambamba_path))
         sambamba = False
 
     basename, extension = os.path.splitext(sam_file)
