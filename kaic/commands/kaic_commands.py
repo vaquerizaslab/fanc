@@ -1130,6 +1130,7 @@ def sort_sam(argv):
                 with tempfile.NamedTemporaryFile(delete=False, prefix='kaic_', suffix=extension) as f:
                     output_file = f.name
             tmp = True
+            logger.info("Working in tmp: {}, ".format(sam_file, output_file))
 
         output_file = sort_natural_sam(sam_file, output_file)
         success = True
