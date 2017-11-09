@@ -1583,19 +1583,19 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
                 ii_by_chromosome = np.array(ii_by_chromosome)
                 if self.normalise:
-                    logger.info("Normalising insulation index")
+                    logger.debug("Normalising insulation index")
                     if self.normalisation_window is not None:
-                        logger.info("Sliding window average")
+                        logger.debug("Sliding window average")
                         mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window,
                                                       func=np.nanmean)
                     else:
-                        logger.info("Whole chromosome mean")
+                        logger.debug("Whole chromosome mean")
                         mean_ins = np.nanmean(ii_by_chromosome)
                     if not self.subtract_mean:
-                        logger.info("Dividing by mean")
+                        logger.debug("Dividing by mean")
                         ii_by_chromosome = ii_by_chromosome / mean_ins
                     else:
-                        logger.info("Subtracting mean")
+                        logger.debug("Subtracting mean")
                         ii_by_chromosome = ii_by_chromosome - mean_ins
             ii_list.append(ii_by_chromosome)
 
@@ -1605,7 +1605,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
             ins_matrix = ins_matrix[self.hic.region_bins(self.region_selection)]
 
         if self.log:
-            logger.info("Log-transforming insulation index")
+            logger.debug("Log-transforming insulation index")
             return np.log2(ins_matrix)
         else:
             return ins_matrix
