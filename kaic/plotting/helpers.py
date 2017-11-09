@@ -21,13 +21,18 @@ style_ticks_whitegrid = {
 }
 
 # Stupid workaround for bug in pyBigWig https://github.com/dpryan79/pyBigWig/issues/48
+_tmp_path = None
 try:
     _tmp_path = tempfile.mkstemp()[1]
     _bw_file = pyBigWig.open(_tmp_path, "w")
+    _bw_file.addHeader([('chr1', 10)])
+    _bw_file.addEntries(['chr1'], [1], ends=[2], values=[1.])
     _pyBigWig_type = type(_bw_file)
-finally:
     _bw_file.close()
-    os.remove(_tmp_path)
+finally:
+    if _tmp_path:
+        os.remove(_tmp_path)
+
 
 def region_to_pbt_interval(region):
     return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
