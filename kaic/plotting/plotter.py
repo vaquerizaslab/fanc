@@ -953,7 +953,8 @@ class BarPlot(RegionPlotBase):
         bars = []
         for x, w, h, c in self._bar_values(region):
             b = self.ax.bar(x, h, w, color=c, alpha=self.alpha)
-            bars.append(b[0])
+            if b is not None and len(b) > 0:
+                bars.append(b[0])
 
         if self.labels:
             self.ax.legend(bars, self.labels)
