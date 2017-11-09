@@ -813,13 +813,12 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         pass
 
 
-class LinePlot(ScalarDataPlot):
+class RegionPlotBase(ScalarDataPlot):
     """
     Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
     """
 
-    def __init__(self, data, labels=None, bin_size=None, fill=True,
-                 plot_kwargs=None, **kwargs):
+    def __init__(self, data, plot_kwargs=None, **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
                      data labels. Data can be paths to files on the disk or anthing
@@ -837,9 +836,8 @@ class LinePlot(ScalarDataPlot):
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
         """
         kwargs.setdefault("aspect", .2)
-        super(LinePlot, self).__init__(**kwargs)
+        ScalarDataPlot.__init__(self, **kwargs)
         self.data = []
-        self.labels = labels
         # If data has attribute keys, assume it's dictionary
         if hasattr(data, "keys"):
             self.labels = list(data.keys())
@@ -853,6 +851,32 @@ class LinePlot(ScalarDataPlot):
             self.data = [load_score_data(data)]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
 
+
+class LinePlot(RegionPlotBase):
+    """
+    Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
+    """
+
+    def __init__(self, data, labels=None, bin_size=None, fill=True,
+                 **kwargs):
+        """
+        :param data: Data or list of data. Or dictionary, where keys represent
+                     data labels. Data can be paths to files on the disk or anthing
+                     that pybedtools can parse [(chr, start, end, score), ...].
+                     If a list of data or dict is provided multiple lines are drawn.
+                     Examples:
+                     data=["x.bigwig", [("chr11", 40, 50, 1.8), ("chr11", 50, 70, 4.3)]]
+                     data=["y.bedgraph", "z.bigwig"]
+                     data={"x_chip": "x.bedgraph", "y_chip": "y.bigwig"}
+        :param labels: List of labels for each data file. Used as label in the legend.
+                       Ignored if labels are specified in data dictionary.
+        :param bin_size: Bin values using fixed size bins of the given size.
+                         If None, will plot values as they are in the data.
+        :param fill: Fill space between x-axis and data line. Default: True
+        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
+        """
+        super(LinePlot, self).__init__(data, **kwargs)
+        self.labels = labels
         self.bin_size = bin_size
         self.lines = []
         self.fill = fill
@@ -881,6 +905,64 @@ class LinePlot(ScalarDataPlot):
         for i, x, y in self._line_values(region):
             self.lines[i].set_xdata(x)
             self.lines[i].set_ydata(y)
+
+
+class BarPlot(RegionPlotBase):
+    """
+    Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
+    """
+
+    def __init__(self, data, labels=None, colors=None, alpha=0.5, **kwargs):
+        """
+        :param data: Data or list of data. Or dictionary, where keys represent
+                     data labels. Data can be paths to files on the disk or anthing
+                     that pybedtools can parse [(chr, start, end, score), ...].
+                     If a list of data or dict is provided multiple lines are drawn.
+                     Examples:
+                     data=["x.bigwig", [("chr11", 40, 50, 1.8), ("chr11", 50, 70, 4.3)]]
+                     data=["y.bedgraph", "z.bigwig"]
+                     data={"x_chip": "x.bedgraph", "y_chip": "y.bigwig"}
+        :param labels: List of labels for each data file. Used as label in the legend.
+                       Ignored if labels are specified in data dictionary.
+        :param bin_size: Bin values using fixed size bins of the given size.
+                         If None, will plot values as they are in the data.
+        :param fill: Fill space between x-axis and data line. Default: True
+        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
+        """
+        super(BarPlot, self).__init__(data, **kwargs)
+        self.labels = labels
+        self.lines = []
+
+        if colors is None:
+            colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black', 'orange', 'pink', 'cyan', 'lawngreen')
+        self.colors = itertools.cycle(colors)
+        self.alpha = alpha
+
+    def _bar_values(self, region):
+        for i, d in enumerate(self.data):
+            intervals = d.region_intervals(region)
+
+            x = [interval[0] for interval in intervals]
+            w = [interval[1] - interval[0] for interval in intervals]
+            h = [interval[2] for interval in intervals]
+            c = next(self.colors)
+
+            yield x, w, h, c
+
+    def _plot(self, region):
+        bars = []
+        for x, w, h, c in self._bar_values(region):
+            b = self.ax.bar(x, h, w, color=c, alpha=self.alpha)
+            bars.append(b[0])
+
+        if self.labels:
+            self.ax.legend(bars, self.labels)
+        self.remove_colorbar_ax()
+        sns.despine(ax=self.ax, top=True, right=True)
+
+    def _refresh(self, region):
+        self.ax.clear()
+        self._plot(region)
 
 
 class BigWigPlot(ScalarDataPlot):
