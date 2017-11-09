@@ -912,7 +912,7 @@ class BarPlot(RegionPlotBase):
     Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
     """
 
-    def __init__(self, data, labels=None, colors=None, alpha=0.5, **kwargs):
+    def __init__(self, data, labels=None, colors=None, alpha=0.5, min_score=None, **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
                      data labels. Data can be paths to files on the disk or anthing
@@ -937,6 +937,7 @@ class BarPlot(RegionPlotBase):
             colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black', 'orange', 'pink', 'cyan', 'lawngreen')
         self.colors = itertools.cycle(colors)
         self.alpha = alpha
+        self.min_score = min_score
 
     def _bar_values(self, region):
         for i, d in enumerate(self.data):
@@ -946,6 +947,9 @@ class BarPlot(RegionPlotBase):
             w = [interval[1] - interval[0] for interval in intervals]
             h = [interval[2] for interval in intervals]
             c = next(self.colors)
+
+            if self.min_score is not None and h < self.min_score:
+                continue
 
             yield x, w, h, c
 
