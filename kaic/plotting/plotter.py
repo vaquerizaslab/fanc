@@ -942,14 +942,14 @@ class BarPlot(RegionPlotBase):
     def _bar_values(self, region):
         for i, d in enumerate(self.data):
             intervals = d.region_intervals(region)
-
-            x = [interval[0] for interval in intervals]
-            w = [interval[1] - interval[0] for interval in intervals]
-            h = [interval[2] for interval in intervals]
+            x, w, h = [], [], []
+            for interval in intervals:
+                if self.min_score is not None and interval[2] < self.min_score:
+                    continue
+                x.append(interval[0])
+                w.append(interval[1] - interval[0])
+                h.append(interval[2])
             c = next(self.colors)
-
-            if self.min_score is not None and h < self.min_score:
-                continue
 
             yield x, w, h, c
 
