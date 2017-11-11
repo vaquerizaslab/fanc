@@ -259,7 +259,7 @@ def natural_cmp(pa, pb):
                 j += 1
     except IndexError:
         pass
-    return -1 if i < len(pa) else 1 if j < len(pb) else 0
+    return 1 if i < len(pa) else -1 if j < len(pb) else 0
 
 
 def add_dict(x, y):
