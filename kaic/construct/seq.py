@@ -1790,10 +1790,12 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                     if self._check_sorted:
                         if check1 and natural_cmp(previous_qname1, read1.qname) > 0:
                             raise ValueError("First SAM file is not sorted by "
-                                             "read name (samtools sort -n)!")
+                                             "read name (samtools sort -n)! Read names:"
+                                             "{} and {}".format(previous_qname1, read1.qname))
                         if check2 and natural_cmp(previous_qname2, read2.qname) > 0:
                             raise ValueError("Second SAM file is not sorted by "
-                                             "read name (samtools sort -n)!")
+                                             "read name (samtools sort -n)! Read names:"
+                                             "{} and {}".format(previous_qname2, read2.qname))
             except StopIteration:
                 logger.info("Done generating read pairs.")
         finally:
