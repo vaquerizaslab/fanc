@@ -912,7 +912,8 @@ class BarPlot(RegionPlotBase):
     Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
     """
 
-    def __init__(self, data, labels=None, colors=None, alpha=0.5, min_score=None, **kwargs):
+    def __init__(self, data, labels=None, colors=None, alpha=0.5, min_score=None,
+                 min_bar_width=0.0, **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
                      data labels. Data can be paths to files on the disk or anthing
@@ -924,9 +925,13 @@ class BarPlot(RegionPlotBase):
                      data={"x_chip": "x.bedgraph", "y_chip": "y.bigwig"}
         :param labels: List of labels for each data file. Used as label in the legend.
                        Ignored if labels are specified in data dictionary.
-        :param bin_size: Bin values using fixed size bins of the given size.
-                         If None, will plot values as they are in the data.
-        :param fill: Fill space between x-axis and data line. Default: True
+        :param colors: List of matplotlib-compatible colors. If this list is shorter than
+                       data, it will recycle from the beginning of the list
+        :param alpha: float, alpha (transparency) value of each bar (useful for overlapping bars)
+        :param min_score: Minimum score of a region to be plotted as a bar
+        :param min_bar_width: Minimum plotting width of a bar in fraction of the plotting window.
+                              Useful if regions in data are smaller than a pixel, making them
+                              invisible.
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
         """
         super(BarPlot, self).__init__(data, **kwargs)
@@ -938,8 +943,10 @@ class BarPlot(RegionPlotBase):
         self.colors = itertools.cycle(colors)
         self.alpha = alpha
         self.min_score = min_score
+        self.min_bar_width = min_bar_width
 
     def _bar_values(self, region):
+        min_width = self.min_bar_width * len(region)
         for i, d in enumerate(self.data):
             intervals = d.region_intervals(region)
             x, w, h = [], [], []
@@ -947,7 +954,10 @@ class BarPlot(RegionPlotBase):
                 if self.min_score is not None and interval[2] < self.min_score:
                     continue
                 x.append(interval[0])
-                w.append(interval[1] - interval[0])
+                width = interval[1] - interval[0]
+                if width < min_width:
+                    width = min_width
+                w.append(width)
                 h.append(interval[2])
             c = next(self.colors)
 
