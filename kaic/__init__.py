@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
-def load(file_name, mode='a', tmpdir=None):
+def load(file_name, *args, **kwargs):
     import os
     file_name = os.path.expanduser(file_name)
     try:
@@ -44,7 +44,7 @@ def load(file_name, mode='a', tmpdir=None):
             f.close()
             cls_ = class_id_dict[classid]
             logger.debug("Detected {}".format(cls_))
-            return cls_(file_name=file_name, mode=mode, tmpdir=tmpdir)
+            return cls_(file_name=file_name, *args, **kwargs)
         except AttributeError:
             # try to detect from file structure
 
@@ -60,7 +60,7 @@ def load(file_name, mode='a', tmpdir=None):
 
                 if hic_class is not None:
                     f.close()
-                    return hic_class(file_name, mode=mode, tmpdir=tmpdir)
+                    return hic_class(file_name, *args, **kwargs)
             except tables.NoSuchNodeError:
                 pass
 
@@ -89,7 +89,7 @@ def load(file_name, mode='a', tmpdir=None):
                 try:
                     f.file.get_node('/' + name)
                     f.close()
-                    return cls(file_name, mode=mode, tmpdir=tmpdir)
+                    return cls(file_name, *args, **kwargs)
                 except tables.NoSuchNodeError:
                     pass
 
@@ -107,16 +107,16 @@ def load(file_name, mode='a', tmpdir=None):
         import pysam
         try:
             sb = pysam.AlignmentFile(file_name, 'rb')
-            if mode != 'rb':
+            if kwargs.get('mode', 'r') != 'rb':
                 sb.close()
-                sb = pysam.AlignmentFile(file_name, mode)
+                sb = pysam.AlignmentFile(file_name, *args, **kwargs)
             return sb
         except (ValueError, IOError):
             pass
 
         # Tabix
         try:
-            f = Tabix(file_name)
+            f = Tabix(file_name, *args, **kwargs)
             return f
         except (IOError, OSError, ValueError):
             pass
@@ -124,14 +124,14 @@ def load(file_name, mode='a', tmpdir=None):
         # BEDPE
         if file_name.endswith('.bedpe'):
             try:
-                f = Bedpe(file_name)
+                f = Bedpe(file_name, *args, **kwargs)
                 _ = f.regions[0]
                 return f
             except (ValueError, TypeError):
                 pass
 
         import pybedtools
-        f = Bed(file_name)
+        f = Bed(file_name, *args, **kwargs)
         try:
             ft = f.file_type
             if ft != 'empty':
@@ -142,9 +142,9 @@ def load(file_name, mode='a', tmpdir=None):
         try:
             import pyBigWig
             f = pyBigWig.open(file_name, 'r')
-            if mode != 'r':
+            if kwargs.get('mode', 'r') != 'r':
                 f.close()
-                f = pyBigWig.open(file_name, mode)
+                f = pyBigWig.open(file_name, *args, **kwargs)
 
             return BigWig(f)
         except (ImportError, RuntimeError):
