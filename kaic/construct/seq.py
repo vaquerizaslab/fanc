@@ -73,6 +73,7 @@ from collections import defaultdict
 from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
 import gzip
+import warnings
 import logging
 logger = logging.getLogger(__name__)
 
@@ -2683,6 +2684,9 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
             except KeyError:
                 # potentially keep a record of unmatched chromosome names
                 pass
+            except IndexError:
+                warnings.warn("This read seems to map after the chromosome ends. Discarding."
+                              "Pos: {}, chromosome: {}".format(position, chromosome))
         else:
             for row in self._regions.where(
                             "(start <= %d) & (end >= %d) & (chromosome == b'%s')" % (position, position, chromosome)):
