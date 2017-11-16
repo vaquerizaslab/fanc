@@ -118,7 +118,7 @@ def load(file_name, *args, **kwargs):
         try:
             f = Tabix(file_name, *args, **kwargs)
             return f
-        except (IOError, OSError, ValueError):
+        except (IOError, OSError, ValueError, TypeError):
             pass
 
         # BEDPE
