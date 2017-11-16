@@ -171,7 +171,7 @@ def fc(parameters):
     )
 
     parser.add_argument(
-        '-d', '--maximum-distance', dest='max_dist',
+        '-m', '--maximum-distance', dest='max_dist',
         type=int,
         help='''Maximum distance between two points after which triangle will be truncated.'''
     )
@@ -204,6 +204,17 @@ def fc(parameters):
     )
 
     parser.add_argument(
+        '-d', '--default_value', dest='default_value',
+        type=float,
+        help='''Which value to use for missing edges. Default: 0'''
+    )
+
+    parser.add_argument(
+        '-f', '--weight-field', dest='weight_field',
+        help='''Which value to use for plotting. Default: weight'''
+    )
+
+    parser.add_argument(
         '-C', '--no-colorbar', dest='show_colorbar',
         action='store_false',
         help='''Do not show colorbar in plot'''
@@ -217,7 +228,8 @@ def fc(parameters):
     colorbar_symmetry = 0 if args.symmetry else None
     return kplt.HicPlot(matrix, colormap=args.colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
                         vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
-                        colorbar_symmetry=colorbar_symmetry), args
+                        colorbar_symmetry=colorbar_symmetry, default_value=args.default_value,
+                        weight_field=args.weight_field), args
 
 
 def hic_parser():
@@ -1049,7 +1061,13 @@ def gene_parser():
         '-t', '--text-position', dest='text_position',
         default='alternate',
         help='''Position of gene labels. Can be one of 'top' (above gene), 'bottom' (below gene),
-                    and 'alternate' (default, alternating between above and below gene).'''
+                        and 'alternate' (default, alternating between above and below gene).'''
+    )
+
+    parser.add_argument(
+        '--label-field', dest='label_field',
+        default='name',
+        help='''Which field to use as label.'''
     )
 
     parser.add_argument(
@@ -1096,7 +1114,7 @@ def gene(parameters):
                       arrow_size=args.arrow_size, line_width=args.line_width,
                       group_by=args.group_by, text_position=args.text_position,
                       show_labels=args.show_labels, collapse=args.collapse,
-                      squash=args.squash)
+                      squash=args.squash, label_field=args.label_field)
 
     return p, args
 
