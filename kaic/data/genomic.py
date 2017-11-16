@@ -1586,14 +1586,16 @@ class GffRegion(GenomicRegion):
                 try:
                     key, value = shlex.split(field)
                 except ValueError:
-                    continue
+                    try:
+                        key, value = re.split('=', field)
+                    except ValueError:
+                        continue
                 self._attribute_dict[key] = value
         return self._attribute_dict
 
     def __getattr__(self, item):
         try:
-            ad = self.attribute_dict
-            return self._attribute_dict[item]
+            return self.attribute_dict[item]
         except (IndexError, KeyError):
             raise AttributeError("Attribute {} cannot be found".format(item))
 
