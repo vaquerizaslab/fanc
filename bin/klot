@@ -32,7 +32,6 @@ class Klot(object):
         # sort and parse arguments
         global_args, subplot_data = self._parse_argument_vector(argv)
 
-
         if global_args.print_version:
             import kaic
             print(kaic.__version__)
@@ -87,7 +86,7 @@ class Klot(object):
                 path = os.path.expanduser(r)
                 if os.path.isfile(path):
                     import kaic
-                    path_regions = kaic.load(path, mode='r')
+                    path_regions = kaic.load(path)
                     if not hasattr(path_regions, 'regions'):
                         raise ValueError("Provided file does not contain any regions ({})".format(path))
                     regions += list(path_regions.regions)
