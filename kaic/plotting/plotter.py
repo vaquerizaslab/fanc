@@ -818,7 +818,7 @@ class RegionPlotBase(ScalarDataPlot):
     Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
     """
 
-    def __init__(self, data, plot_kwargs=None, **kwargs):
+    def __init__(self, data, plot_kwargs=None, labels=None, **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
                      data labels. Data can be paths to files on the disk or anthing
@@ -838,9 +838,11 @@ class RegionPlotBase(ScalarDataPlot):
         kwargs.setdefault("aspect", .2)
         ScalarDataPlot.__init__(self, **kwargs)
         self.data = []
+        self.labels = labels
+
         # If data has attribute keys, assume it's dictionary
         if hasattr(data, "keys"):
-            self.labels = list(data.keys())
+            self.labels = list(data.keys()) if self.labels is None else self.labels
             data = list(data.values())
         # First assume that input is an iterable with multiple datasets
         try:
@@ -857,7 +859,7 @@ class LinePlot(RegionPlotBase):
     Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
     """
 
-    def __init__(self, data, labels=None, bin_size=None, fill=True,
+    def __init__(self, data, bin_size=None, fill=True,
                  **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
@@ -876,7 +878,6 @@ class LinePlot(RegionPlotBase):
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
         """
         super(LinePlot, self).__init__(data, **kwargs)
-        self.labels = labels
         self.bin_size = bin_size
         self.lines = []
         self.fill = fill
