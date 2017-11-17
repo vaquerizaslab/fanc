@@ -290,9 +290,9 @@ def map_parser():
     parser.add_argument(
         '-b', '--batch-size', dest='batch_size',
         type=int,
-        default=20000,
+        default=100000,
         help='''Number of reads processed (mapped and merged) in one go per worker.
-                The default (20000) works well for large indexes (e.g. human, mouse).
+                The default (100000) works well for large indexes (e.g. human, mouse).
                 Smaller indexes (e.g. yeast) will finish individual bowtie2 processes
                 very quickly - set this number higher to spawn new processes 
                 less frequently.
@@ -390,8 +390,7 @@ def map(argv):
                                        additional_arguments=additional_arguments,
                                        threads=bowtie_threads)
         else:
-            mapper = map.SimpleBowtie2Mapper(index_path, min_quality=min_quality,
-                                             additional_arguments=additional_arguments,
+            mapper = map.SimpleBowtie2Mapper(index_path, additional_arguments=additional_arguments,
                                              threads=bowtie_threads)
 
         for input_file in input_files:
@@ -421,8 +420,7 @@ def map(argv):
 
                     logger.info("Starting mapping for {}".format(input_file))
                     map.iterative_mapping(input_file, output_file, mapper, threads=threads,
-                                          min_size=min_size, step_size=step_size, batch_size=batch_size,
-                                          header_timeout=1800, max_queue_size=20000)
+                                          min_size=min_size, step_size=step_size, batch_size=batch_size)
                 finally:
                     if tmp:
                         os.remove(input_file)
