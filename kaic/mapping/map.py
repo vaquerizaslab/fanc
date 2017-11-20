@@ -329,6 +329,7 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
             submission_counter += 1
     except Exception:
         import sys
+        logger.debug("".join(traceback.format_exception(*sys.exc_info())))
         exception_queue.put("".join(traceback.format_exception(*sys.exc_info())))
     finally:
         if tmp_output_file is not None and not tmp_output_file.closed:
