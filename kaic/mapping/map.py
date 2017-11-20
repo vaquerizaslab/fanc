@@ -261,13 +261,13 @@ def _iterative_mapping_worker(mapper, input_queue, output_folder, output_queue,
 
             # clean up
             os.remove(input_file)
-            logger.debug('{} waiting to put SAM in output queue')
+            logger.debug('{} waiting to put SAM in output queue'.format(worker_uuid))
             output_queue.put(sam_file)
 
             # send resubmissions back to writing thread
-            logger.debug('{} waiting to put FASTQ in resubmission queue')
+            logger.debug('{} waiting to put FASTQ in resubmission queue'.format(worker_uuid))
             resubmission_queue.put(unmapped_file)
-            logger.debug('{} finished mapping round.')
+            logger.debug('{} finished mapping round.'.format(worker_uuid))
     except Exception:
         import sys
         exception_queue.put("".join(traceback.format_exception(*sys.exc_info())))
