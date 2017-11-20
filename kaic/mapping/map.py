@@ -288,9 +288,10 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
         read_counter = 0
         with open_file(fastq_file) as f:
             tmp_output_file = tempfile.NamedTemporaryFile(suffix='.fastq', delete=False,
-                                                          dir=output_folder)
+                                                          dir=output_folder, mode='w+b')
 
             for i, line in enumerate(f):
+                line = line.encode('utf-8') if not isinstance(line, bytes) else line
                 tmp_output_file.write(line)
                 line_counter += 1
                 read_counter += 1
@@ -321,7 +322,7 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
                         monitor.increment()
                         submission_counter += 1
                     tmp_output_file = tempfile.NamedTemporaryFile(suffix='.fastq', delete=False,
-                                                                  dir=output_folder)
+                                                                  dir=output_folder, mode='w+b')
         tmp_output_file.close()
         if line_counter > 0:
             input_queue.put(tmp_output_file.name, True)
@@ -346,7 +347,7 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
     read_counter = 0
     try:
         tmp_output_file = tempfile.NamedTemporaryFile(suffix='.fastq', delete=False,
-                                                      dir=output_folder, mode='w')
+                                                      dir=output_folder, mode='w+b')
 
         while monitor.is_submitting() or collected_resubmits < monitor.value():
             logger.debug("Status: {}/{}".format(collected_resubmits, monitor.value()))
@@ -374,7 +375,9 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
 
                         if len(new_fastq[1]) != len(current_fastq[1]):
                             for fastq_line in new_fastq:
-                                tmp_output_file.write(fastq_line + '\n')
+                                new_line = fastq_line + '\n'
+                                new_line = new_line.encode('utf-8')
+                                tmp_output_file.write(new_line)
                             read_counter += 1
                         current_fastq = []
 
@@ -402,7 +405,7 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
                                 input_queue.put(tmp_output_file.name, True)
                                 monitor.increment()
                             tmp_output_file = tempfile.NamedTemporaryFile(suffix='.fastq', delete=False,
-                                                                          dir=output_folder, mode='w')
+                                                                          dir=output_folder, mode='w+b')
             os.remove(resubmission_file)
 
             if read_counter > 0 and monitor.workers_idle() and not monitor.is_submitting():
@@ -411,7 +414,7 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
                 input_queue.put(tmp_output_file.name, True)
                 monitor.increment()
                 tmp_output_file = tempfile.NamedTemporaryFile(suffix='.fastq', delete=False,
-                                                              dir=output_folder, mode='w')
+                                                              dir=output_folder, mode='w+b')
     except Exception:
         import sys
         exception_queue.put("".join(traceback.format_exception(*sys.exc_info())))
