@@ -330,8 +330,9 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
             submission_counter += 1
     except Exception:
         import sys
-        logger.debug("".join(traceback.format_exception(*sys.exc_info())))
-        exception_queue.put("".join(traceback.format_exception(*sys.exc_info())))
+        stacktrace = "".join(traceback.format_exception(*sys.exc_info()))
+        logger.error(stacktrace)
+        exception_queue.put(stacktrace)
     finally:
         if tmp_output_file is not None and not tmp_output_file.closed:
             tmp_output_file.close()
@@ -408,7 +409,8 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
                                                                           dir=output_folder, mode='w+b')
             os.remove(resubmission_file)
 
-            if read_counter > 0 and monitor.workers_idle() and not monitor.is_submitting():
+            if (read_counter > 0 and monitor.workers_idle()
+                    and not monitor.is_submitting() and resubmission_queue.empty()):
                 logger.debug("Resubmitting prematurely ({}) because workers are waiting for input".format(read_counter))
                 tmp_output_file.close()
                 input_queue.put(tmp_output_file.name, True)
@@ -417,7 +419,9 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
                                                               dir=output_folder, mode='w+b')
     except Exception:
         import sys
-        exception_queue.put("".join(traceback.format_exception(*sys.exc_info())))
+        stacktrace = "".join(traceback.format_exception(*sys.exc_info()))
+        logger.error(stacktrace)
+        exception_queue.put(stacktrace)
     finally:
         monitor.set_resubmitting(False)
         if tmp_output_file is not None and not tmp_output_file.closed:
@@ -502,6 +506,7 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
                 else:
                     worker_pool.terminate()
                     raise Exception(exc)
+
                 try:
                     partial_sam_file = output_queue.get(block=True, timeout=10)
                     logger.debug('Processing output file {}'.format(partial_sam_file))
