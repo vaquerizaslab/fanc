@@ -175,7 +175,7 @@ class Bowtie2Mapper(Mapper):
         resubmission_counter = 0
         total_counter = 0
         with io.open(input_fastq) as f:
-            with tempfile.NamedTemporaryFile(mode='w', prefix='resubmission', suffix='.fastq',
+            with tempfile.NamedTemporaryFile(mode='w', prefix='resubmission_', suffix='.fastq',
                                              delete=False, dir=output_folder) as o:
                 output_fastq = o.name
                 resubmit_current = False
