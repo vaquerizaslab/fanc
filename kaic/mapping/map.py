@@ -228,7 +228,7 @@ class SimpleBowtie2Mapper(Bowtie2Mapper):
 
 def _trim_read(input_seq, step_size=5, min_size=25):
     name, seq, plus, qual = input_seq
-    if len(seq) == min_size:
+    if len(seq) <= min_size:
         raise ValueError("Already reached minimum size, cannot truncate read further")
     if len(seq) - step_size < min_size:
         final_length = min_size
