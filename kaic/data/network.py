@@ -836,6 +836,10 @@ class RaoPeakCaller(PeakCaller):
         """
         self.p = p
         self.w_init = w_init
+        if p is not None and w_init is not None:
+            if not w_init > p:
+                raise ValueError("w_init ({}) must be strictly greater than p ({})!".format(w_init, p))
+
         self.min_locus_dist = min_locus_dist
         self.max_w = max_w
         self.min_ll_reads = min_ll_reads
