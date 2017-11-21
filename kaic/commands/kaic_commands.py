@@ -269,8 +269,8 @@ def map_parser():
     parser.add_argument(
         '-s', '--step-size', dest='step_size',
         type=int,
-        default=5,
-        help='''Number of base pairs to extend at each round of mapping. Default is 2.'''
+        default=10,
+        help='''Number of base pairs to extend at each round of mapping. Default is 10.'''
     )
 
     parser.add_argument(
