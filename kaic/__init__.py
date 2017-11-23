@@ -37,6 +37,7 @@ def load(file_name, *args, **kwargs):
     file_name = os.path.expanduser(file_name)
     try:
         f = FileBased(file_name, mode='r')
+        mode = kwargs.pop('mode', 'r')
         classid = None
         try:
             classid = f.meta._classid
@@ -44,7 +45,7 @@ def load(file_name, *args, **kwargs):
             f.close()
             cls_ = class_id_dict[classid]
             logger.debug("Detected {}".format(cls_))
-            return cls_(file_name=file_name, *args, **kwargs)
+            return cls_(file_name=file_name, mode=mode, *args, **kwargs)
         except AttributeError:
             # try to detect from file structure
 
@@ -60,7 +61,7 @@ def load(file_name, *args, **kwargs):
 
                 if hic_class is not None:
                     f.close()
-                    return hic_class(file_name, *args, **kwargs)
+                    return hic_class(file_name, mode=mode, *args, **kwargs)
             except tables.NoSuchNodeError:
                 pass
 
@@ -89,7 +90,7 @@ def load(file_name, *args, **kwargs):
                 try:
                     f.file.get_node('/' + name)
                     f.close()
-                    return cls(file_name, *args, **kwargs)
+                    return cls(file_name, mode=mode, *args, **kwargs)
                 except tables.NoSuchNodeError:
                     pass
 
