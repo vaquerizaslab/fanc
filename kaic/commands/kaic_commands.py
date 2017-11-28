@@ -72,6 +72,7 @@ def kaic_parser():
             insulation         Calculate insulation index for Hic object
             ii_to_bw           Convert insulation index object to BigWig 
             ab                 Calculate AB domain matrix for a Hi-C object
+            ab_domains         Assign A or B compartment to each region in matrix
             distance_decay     Calculate distance decay for a Hi-C object
             diff               Calculate difference between two vectors
             aggregate_tads     Make a TAD aggregate plot
@@ -3898,6 +3899,62 @@ def ab(argv):
 
     with ABDomainMatrix(matrix, file_name=output_file, mode='w', tmpdir=tmpdir) as ab:
         ab.calculate()
+
+
+def ab_domains_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic ab_domains",
+        description='Assign A or B compartment to each region in Hi-C object'
+    )
+    parser.add_argument(
+        'input',
+        help='Input matrix (Hi-C or ABDomains)'
+    )
+    parser.add_argument(
+        'output',
+        help='Output BED.'
+    )
+
+    parser.add_argument(
+        '-g', '--genome', dest='genome',
+        help='''Genome file (FASTA, folder with FASTA, comma-separated list of FASTA, Genome object)
+                used to change sign of eigenvector based on GC content.'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
+    return parser
+
+
+def ab_domains(argv):
+    parser = ab_domains_parser()
+
+    args = parser.parse_args(argv[2:])
+    import os
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    genome_file = args.genome
+    tmp = args.tmp
+
+    import kaic
+    from kaic.tools.files import write_bed
+
+    matrix = kaic.load(input_file, mode='r')
+    if isinstance(matrix, kaic.Hic):
+        matrix = kaic.ABDomainMatrix(matrix, tmpdir=tmp)
+        matrix.calculate()
+    elif not isinstance(matrix, kaic.ABDomainMatrix):
+        raise ValueError("Supplied input must be either a Hic object or an ABDomainMatrix")
+
+    with kaic.ABDomains(matrix, genome=genome_file, tmpdir=tmp) as abd:
+        regions = abd.ab_regions()
+        write_bed(output_file, regions)
+    matrix.close()
 
 
 def distance_decay_parser():

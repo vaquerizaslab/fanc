@@ -761,6 +761,8 @@ class ABDomains(VectorArchitecturalRegionFeature):
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
+    :param genome: A Genome for GC content calculation, used to decide if negative
+                   eigenvector means A or B
     :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param per_chromosome: If True, will only calculate the intra-chromosomal ABDomainMatrix,
@@ -768,7 +770,7 @@ class ABDomains(VectorArchitecturalRegionFeature):
     """
     _classid = 'ABDOMAINS'
 
-    def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
+    def __init__(self, data=None, file_name=None, mode='a', tmpdir=None, genome=None,
                  per_chromosome=True, regions=None, eigenvector=0, _table_name='ab_domains'):
         self.region_selection = regions
 
@@ -799,6 +801,8 @@ class ABDomains(VectorArchitecturalRegionFeature):
         except AttributeError:
             self._eigenvector = eigenvector
 
+        self.genome = genome
+
     def _calculate(self):
         if isinstance(self.data, Hic):
             ab_data = ABDomainMatrix(self.data, regions=self.region_selection, per_chromosome=self.per_chromosome)
@@ -807,7 +811,7 @@ class ABDomains(VectorArchitecturalRegionFeature):
             close_data = False
             ab_data = self.data
 
-        ab_results = dict()
+        ev = np.zeros(len(self.regions))
         if self.per_chromosome:
             for chromosome in self.chromosomes():
                 m = ab_data[chromosome, chromosome]
@@ -815,51 +819,22 @@ class ABDomains(VectorArchitecturalRegionFeature):
                 w, v = np.linalg.eig(m)
                 ab_vector = v[:, self._eigenvector]
                 for i, region in enumerate(m.row_regions):
-                    ab_results[region.ix] = ab_vector[i]
+                    ev[region.ix] = ab_vector[i]
         else:
             m = ab_data[:]
             m[np.isnan(m)] = 0
             w, v = np.linalg.eig(m)
             ab_vector = v[:, self._eigenvector]
             for i, region in enumerate(m.row_regions):
-                ab_results[region.ix] = ab_vector[i]
+                ev[region.ix] = ab_vector[i]
 
-        for region in self.regions(lazy=True):
-            region.ev = ab_results[region.ix]
-        self.flush()
+        if self.genome is not None:
+            logger.info("Using GC content to orient eigenvector...")
+            if isinstance(self.genome, string_types):
+                genome = Genome.from_string(self.genome)
+            else:
+                genome = self.genome
 
-        if close_data:
-            ab_data.close()
-
-    @calculateondemand
-    def ab_domain_eigenvector(self, region=None):
-        """
-        Get the eigenvector of the :class:`~ABDomainMatrix`
-        :return: list of floats
-        """
-        if region is None:
-            return self[:, 'ev']
-
-        return [r.ev for r in self.subset(region, lazy=True)]
-
-    @calculateondemand
-    def ab_regions(self, genome=None):
-        """
-        Get a list of regions, each with a 'type' attribute that is either 'A' or 'B',
-        depending on the sign of the matrix eigenvector.
-        :param genome: A Genome for GC content calculation, used to decide if negative
-                       eigenvector means A or B
-        :return: list of regions
-        """
-        ev = [r.ev for r in self.regions(lazy=False)]
-
-        # calculate GC content
-        if genome is not None:
-            if isinstance(genome, string_types):
-                logger.info("Loading genome...")
-                genome = Genome.from_string(genome)
-
-            logger.info("Calculating GC content...")
             gc_content = [np.nan] * len(self.regions)
             for chromosome in self.chromosomes():
                 logger.info("{}".format(chromosome))
@@ -882,25 +857,56 @@ class ABDomains(VectorArchitecturalRegionFeature):
                 if gc_a < gc_b:  # AB compartments are reversed!
                     ev[start:end] = -1 * ev_sub
 
+        for region in self.regions(lazy=True):
+            region.ev = ev[region.ix]
+        self.flush()
+
+        if close_data:
+            ab_data.close()
+
+    @calculateondemand
+    def ab_domain_eigenvector(self, region=None):
+        """
+        Get the eigenvector of the :class:`~ABDomainMatrix`
+        :return: list of floats
+        """
+        regions = self.regions(region, lazy=False)
+        return [r.ev for r in regions]
+
+    @calculateondemand
+    def ab_regions(self):
+        """
+        Get a list of regions, each with a 'type' attribute that is either 'A' or 'B',
+        depending on the sign of the matrix eigenvector.
+        :return: list of regions
+        """
+        ev = self.ab_domain_eigenvector()
+
         domains = []
         current_domain = None
         last_region = None
+        current_scores = []
         for i, region in enumerate(self.regions(lazy=False)):
             domain_type = 'A' if ev[i] >= 0 else 'B'
 
             if last_region is not None and region.chromosome != last_region.chromosome:
                 current_domain = None
+                current_scores = []
 
             if current_domain is None:
                 current_domain = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end,
-                                               type=domain_type)
+                                               score=ev[i], type=domain_type, name=domain_type)
+                current_scores = [ev[i]]
             else:
                 if (region.ev < 0 and last_region.ev < 0) or (region.ev >= 0 and last_region.ev >= 0):
                     current_domain.end = region.end
+                    current_scores.append(ev[i])
+                    current_domain.score = np.nanmean(current_scores)
                 else:
                     domains.append(current_domain)
                     current_domain = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end,
-                                                   type=domain_type)
+                                                   score=ev[i], type=domain_type, name=domain_type)
+                    current_scores = [ev[i]]
             last_region = region
         return domains
 
