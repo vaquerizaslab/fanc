@@ -831,7 +831,7 @@ class ABDomains(VectorArchitecturalRegionFeature):
         if self.genome is not None:
             logger.info("Using GC content to orient eigenvector...")
             if isinstance(self.genome, string_types):
-                genome = Genome.from_string(self.genome)
+                genome = Genome.from_string(self.genome, mode='r')
             else:
                 genome = self.genome
 
@@ -2773,42 +2773,29 @@ def region_score_enrichment_profile(hic, regions, per_chromosome=True,
 
 def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
                           per_chromosome=True, only_gc=False, exclude_chromosomes=()):
-    # calculate GC content
-    if isinstance(genome, string_types):
-        logger.info("Loading genome...")
-        genome = Genome.from_string(genome)
-
-    logger.info("Calculating GC content...")
-    gc_content = [np.nan] * len(hic.regions)
-    for chromosome in hic.chromosomes():
-        logger.info("{}".format(chromosome))
-        chromosome_sequence = genome[chromosome].sequence
-        for region in hic.regions(chromosome):
-            s = chromosome_sequence[region.start-1:region.end]
-            gc_content[region.ix] = calculate_gc_content(s)
-    gc_content = np.array(gc_content)
 
     logger.info("Generating profile...")
     with ObservedExpectedRatio(hic, per_chromosome=per_chromosome) as oe:
         if only_gc:
+            # calculate GC content
+            if isinstance(genome, string_types):
+                logger.info("Loading genome...")
+                genome = Genome.from_string(genome)
+
+            logger.info("Calculating GC content...")
+            gc_content = [np.nan] * len(hic.regions)
+            for chromosome in hic.chromosomes():
+                logger.info("{}".format(chromosome))
+                chromosome_sequence = genome[chromosome].sequence
+                for region in hic.regions(chromosome):
+                    s = chromosome_sequence[region.start - 1:region.end]
+                    gc_content[region.ix] = calculate_gc_content(s)
+            gc_content = np.array(gc_content)
             ev = gc_content
         else:
             with ABDomainMatrix(oe, ratio=False, per_chromosome=per_chromosome) as ab:
-                with ABDomains(ab) as abd:
+                with ABDomains(ab, genome=genome) as abd:
                     ev = np.array(abd.ab_domain_eigenvector())
-
-                    # use gc content to orient AB domain vector per chromosome
-                    cb = hic.chromosome_bins
-                    for chromosome, (start, end) in cb.items():
-                        ev_sub = ev[start:end]
-                        gc_sub = gc_content[start:end]
-                        a_ixs = np.where(ev_sub >= 0)
-                        b_ixs = np.where(ev_sub < 0)
-                        gc_a = np.nanmean(gc_sub[a_ixs])
-                        gc_b = np.nanmean(gc_sub[b_ixs])
-
-                        if gc_a < gc_b:  # AB compartments are reversed!
-                            ev[start:end] = -1*ev_sub
 
         mappable = hic.mappable()
         return vector_enrichment_profile(oe, ev, mappable=mappable, per_chromosome=per_chromosome,
