@@ -582,4 +582,4 @@ class HicPeakPlot(BaseOverlayPlotter):
         for p in peaks_gen:
             plot_func((p.source_node.start + p.source_node.end)/2,
                       (p.sink_node.start + p.sink_node.end)/2,
-                      self.radius if self.radius is not None else p.radius)
+                      self.radius if self.radius is not None else getattr(p, "radius", self.peaks.bin_size*3)*self.peaks.bin_size)
