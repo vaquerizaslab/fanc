@@ -15,8 +15,8 @@ import os
 @pytest.fixture(scope="session")
 def run_klot():
     def do_run(*args):
-        args = ["klot"] + list(args)
-        return sp.run(args, check=True)
+        args = ["klot"] + [str(x) for x in args]
+        return sp.check_call(args)
     return do_run
 
 @pytest.fixture
