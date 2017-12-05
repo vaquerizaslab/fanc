@@ -105,9 +105,7 @@ class PeakInfo(AccessOptimisedRegionMatrixTable):
         self.peak_table = self._edges
 
         if regions is not None:
-            for region in regions:
-                self.add_region(region, flush=False)
-            self._regions.flush()
+            self.add_regions(regions)
 
     def _row_to_edge(self, row, lazy=False, distances_in_bp=False, auto_update=True):
         if distances_in_bp:
@@ -389,8 +387,6 @@ class RaoPeakInfo(AccessOptimisedRegionMatrixTable):
         """
         merged_peaks = PeakInfo(file_name=file_name, mode='w', regions=self.regions(lazy=True))
 
-        # get region index
-        regions_dict = self.regions_dict
         bin_size = self.bin_size
 
         def _append_merged_peak(peak_list):
