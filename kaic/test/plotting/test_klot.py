@@ -1,13 +1,6 @@
 from __future__ import division, print_function
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
 import kaic
-import kaic.plotting as kplot
-import os.path
 import pytest
-import numpy as np
-import pybedtools as pbt
 import subprocess as sp
 import uuid
 import os
@@ -22,6 +15,9 @@ def run_klot():
 @pytest.fixture
 def output_filename():
     return "{}.pdf".format(uuid.uuid4().hex)
+
+def get_filesize(path):
+    return os.stat(str(path)).st_size
 
 @pytest.mark.plotting
 @pytest.mark.klot
@@ -40,7 +36,7 @@ class TestHicPlot:
             "-p", "-t", "hic", self.hic_path,
         ]
         result = run_klot(*args)
-        print(out_path)
+        assert get_filesize(out_path) > 10000
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
     def test_hicplot_2d(self, crange, tmpdir, run_klot, output_filename):
@@ -53,7 +49,7 @@ class TestHicPlot:
             "-p", "-t", "hic2d", self.hic_path,
         ]
         result = run_klot(*args)
-        print(out_path)
+        assert get_filesize(out_path) > 10000
 
 @pytest.mark.plotting
 @pytest.mark.klot
@@ -74,7 +70,7 @@ class TestScorePlots:
             "-p", "-t", "region", self.peak_path,
         ]
         result = run_klot(*args)
-        print(out_path)
+        assert get_filesize(out_path) > 10000
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
     def test_bigwig_bedgraph(self, crange, tmpdir, run_klot, output_filename):
@@ -88,4 +84,4 @@ class TestScorePlots:
             "-p", "-t", "bigwig", self.bedgraph_path,
         ]
         result = run_klot(*args)
-        print(out_path)
+        assert get_filesize(out_path) > 10000
