@@ -297,3 +297,16 @@ class TestPlots:
         fig, axes = gfig.plot("chr11:77497000-77500000")
         assert all(len(l.get_ydata()) > 5 for a in axes for l in a.get_lines())
         assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), data.keys()))
+
+    def test_genomic_feature_plot(self):
+        gfplot = kplot.GenomicFeaturePlot(self.peak_path)
+        gfig = kplot.GenomicFigure([gfplot])
+        fig, axes = gfig.plot("chr11:77497000-77500000")
+        assert len(axes[0].patches) == 2
+
+    @pytest.mark.parametrize("attribute", ["score"])
+    def test_genomic_feature_score_plot(self, attribute):
+        gfsplot = kplot.GenomicFeatureScorePlot(self.peak_path, attribute=attribute)
+        gfig = kplot.GenomicFigure([gfsplot])
+        fig, axes = gfig.plot("chr11:77497000-77500000")
+        assert len(axes[0].patches) == 2
