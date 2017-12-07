@@ -752,11 +752,14 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
             x.append(f.start)
             width.append(f.end-f.start)
-            try:
+            if isinstance(self.attribute, int):
+                score = f.fields[self.attribute]
+            else:
                 try:
                     score = getattr(f, self.attribute)
                 except AttributeError:
                     score = 1
+            try:
                 score = float(score)
             except ValueError:
                 score = 1

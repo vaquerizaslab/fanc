@@ -304,7 +304,7 @@ class TestPlots:
         fig, axes = gfig.plot("chr11:77497000-77500000")
         assert len(axes[0].patches) == 2
 
-    @pytest.mark.parametrize("attribute", ["score"])
+    @pytest.mark.parametrize("attribute", ["score", 6])
     def test_genomic_feature_score_plot(self, attribute):
         gfsplot = kplot.GenomicFeatureScorePlot(self.peak_path, attribute=attribute)
         gfig = kplot.GenomicFigure([gfsplot])
