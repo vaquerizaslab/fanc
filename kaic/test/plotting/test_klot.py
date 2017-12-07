@@ -5,12 +5,9 @@ import subprocess as sp
 import uuid
 import os
 
-@pytest.fixture(scope="session")
-def run_klot():
-    def do_run(*args):
-        args = ["klot"] + [str(x) for x in args]
-        return sp.check_call(args)
-    return do_run
+def run_klot(*args):
+    args = ["klot"] + [str(x) for x in args]
+    return sp.check_call(args)
 
 @pytest.fixture
 def output_filename():
@@ -26,7 +23,7 @@ class TestHicPlot:
         self.hic_path = kaic.example_data["hic"]
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
-    def test_hicplot(self, crange, tmpdir, run_klot, output_filename):
+    def test_hicplot(self, crange, tmpdir, output_filename):
         start, end = crange
         out_path = tmpdir.join(output_filename)
         # vmin, vmax = vrange
@@ -39,7 +36,7 @@ class TestHicPlot:
         assert get_filesize(out_path) > 10000
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
-    def test_hicplot_2d(self, crange, tmpdir, run_klot, output_filename):
+    def test_hicplot_2d(self, crange, tmpdir, output_filename):
         start, end = crange
         out_path = tmpdir.join(output_filename)
         # vmin, vmax = vrange
@@ -60,7 +57,7 @@ class TestScorePlots:
         self.peak_path = kaic.example_data["chip_peak_bed"]
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
-    def test_region(self, crange, tmpdir, run_klot, output_filename):
+    def test_region(self, crange, tmpdir, output_filename):
         start, end = crange
         out_path = tmpdir.join(output_filename)
         # vmin, vmax = vrange
@@ -73,7 +70,7 @@ class TestScorePlots:
         assert get_filesize(out_path) > 10000
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
-    def test_bigwig_bedgraph(self, crange, tmpdir, run_klot, output_filename):
+    def test_bigwig_bedgraph(self, crange, tmpdir, output_filename):
         start, end = crange
         out_path = tmpdir.join(output_filename)
         # vmin, vmax = vrange
