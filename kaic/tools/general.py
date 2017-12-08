@@ -1,4 +1,8 @@
 import itertools
+try:
+    from itertools import izip as zip
+except ImportError:
+    pass
 import random
 import collections
 import progressbar
@@ -308,3 +312,9 @@ class RareUpdateProgressBar(progressbar.ProgressBar):
         elif self.manual_poll_interval:
             delta = datetime.now() - self.last_update_time
             return delta > self.poll_interval
+
+def pairwise(iterable):
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b)

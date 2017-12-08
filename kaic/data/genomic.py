@@ -2509,7 +2509,7 @@ class Edge(TableObject):
         base_info = "%d--%d" % (self.source, self.sink)
         for field in self.field_names:
             base_info += "\n\t%s: %s" % (field, str(getattr(self, field)))
-        return base_info
+        return base_info + "\n"
 
 
 class LazyEdge(Edge):

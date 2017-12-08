@@ -12,7 +12,7 @@ import msgpack
 import msgpack_numpy
 import math
 import pandas as pd
-from kaic.tools.general import RareUpdateProgressBar
+from kaic.tools.general import RareUpdateProgressBar, pairwise
 import warnings
 from future.utils import with_metaclass, viewitems
 from itertools import tee
@@ -1370,12 +1370,6 @@ def overlap_peaks(peaks, max_distance=6000):
     """
     # Algorithm from https://github.com/theaidenlab/juicebox/blob/cb5999cb1e8e430dd29d4114fb208aca4b8d35ac/src/juicebox/tools/utils/juicer/hiccups/HiCCUPSUtils.java#L235
 
-    def pairwise(iterable):
-        "s -> (s0,s1), (s1,s2), (s2, s3), ..."
-        a, b = tee(iterable)
-        next(b, None)
-        return zip(a, b)
-
     def key_func(p):
         return p[1].weight
 
@@ -1426,7 +1420,7 @@ def overlap_peaks(peaks, max_distance=6000):
                 r = max(hypotenuse(cur_x - _p.x, cur_y - _p.y) for _s, _p in cur_p_list)
                 cluster_radius = max_distance + r
         summed_attrs = {attr: sum_func(getattr(p, attr) for s, p in cur_p_list) for sum_func, attr in summarize_attrs}
-        cons_p = kaic.data.network.Peak(
+        cons_p = Peak(
             x=cur_x,
             y=cur_y,
             radius=r,
@@ -1440,7 +1434,7 @@ def overlap_peaks(peaks, max_distance=6000):
     out_dict = {}
     out_stats = []
     for sample_set, p_list in viewitems(out_peaks):
-        pi = kaic.data.network.PeakInfo()
+        pi = PeakInfo()
         pi.add_regions(peaks1.regions())
         pi.add_edges(p_list)
         out_dict[sample_set] = pi
