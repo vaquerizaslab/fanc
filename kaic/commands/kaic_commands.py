@@ -8,6 +8,7 @@ import tempfile
 import subprocess
 import kaic.commands.auto
 
+
 # configure logging
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ def kaic_parser():
             filter_peaks        Filter peaks called with 'call_peaks'
             merge_peaks         Merge peaks
             filter_merged_peaks Filter merged peaks
+            overlap_peaks       Overlap peaks from multiple samples
 
             --- Plotting
             plot_ligation_err   Plot the ligation error of a Pairs object
@@ -2987,6 +2989,92 @@ def filter_merged_peaks(argv):
             output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
         logger.info("Moving temporary output file to destination %s..." % output_path)
         shutil.move(input_path, output_path)
+
+    logger.info("All done.")
+
+
+def overlap_peaks_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic overlap_peaks",
+        description='Overlap peaks from multiple samples'
+    )
+
+    parser.add_argument(
+        'input',
+        nargs='+',
+        help='''Input Peak files. Two or more.'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output directory. Overlapped peaks and stats are written there.'''
+    )
+
+    parser.add_argument(
+        '-d', '--distance', dest='distance',
+        type=int,
+        help='''Maximum distance between peaks for merging them. Default=3x bin size'''
+    )
+    parser.set_defaults(distance=None)
+
+    parser.add_argument(
+        '-n', '--names', dest='names',
+        nargs='+',
+        help='''Names for input Peak samples. Default: Use file names'''
+    )
+    parser.set_defaults(names=None)
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+    return parser
+
+
+def overlap_peaks(argv):
+    parser = overlap_peaks_parser()
+
+    args = parser.parse_args(argv[2:])
+
+    import kaic.data.network as kn
+    from kaic.tools.files import create_temporary_copy
+
+    original_input_paths = [os.path.expanduser(i) for i in args.input]
+    if not args.names:
+        names = [os.path.splitext(os.path.basename(i))[1] for i in original_input_paths]
+
+    if len(original_input_paths) <= 2:
+        raise ValueError("Need 2 or more inputs.")
+    if len(names) != len(original_input_paths):
+        raise ValueError("Number of inputs and names is different.")
+
+    # copy file if required
+    if args.tmp:
+        logger.info("Copying data to temporary file...")
+        input_paths = [create_temporary_copy(i) for i in original_input_paths]
+    else:
+        input_paths = original_input_paths
+
+    peaks = [kaic.load(i, mode="r") for i in input_paths]
+
+    if not args.distance:
+        distance = peaks[0].bin_size*3
+    else:
+        distance = args.distance
+
+    stats, merged = kn.overlap_peaks({n:p for n, p in zip(names, peaks)}, max_distance=distance)
+
+    if args.tmp:
+        for i in input_paths:
+            os.remove(i)
+    output_path = os.path.expanduser(args.output)
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    for stage_set, peaks in merged.items():
+        peaks.file.copy_file(os.path.join(output_path, "_".join(stage_set) + ".peaks"))
+    stats.to_csv(os.path.join(output_path, "_".join(stage_set) + ".tsv"), sep="\t", index=False)
 
     logger.info("All done.")
 
