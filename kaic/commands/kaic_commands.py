@@ -3043,7 +3043,9 @@ def overlap_peaks(argv):
 
     original_input_paths = [os.path.expanduser(i) for i in args.input]
     if not args.names:
-        names = [os.path.splitext(os.path.basename(i))[1] for i in original_input_paths]
+        names = [os.path.splitext(os.path.basename(i))[0] for i in original_input_paths]
+    else:
+        names = args.names
 
     if len(original_input_paths) <= 2:
         raise ValueError("Need 2 or more inputs.")
@@ -3069,12 +3071,14 @@ def overlap_peaks(argv):
     if args.tmp:
         for i in input_paths:
             os.remove(i)
+
     output_path = os.path.expanduser(args.output)
+    logger.info("Writing files...")
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    for stage_set, peaks in merged.items():
-        peaks.file.copy_file(os.path.join(output_path, "_".join(stage_set) + ".peaks"))
-    stats.to_csv(os.path.join(output_path, "_".join(stage_set) + ".tsv"), sep="\t", index=False)
+    for name_set, peaks in merged.items():
+        peaks.file.copy_file(os.path.join(output_path, "_".join(n for n in names if n in name_set) + ".peaks"), overwrite=True)
+    stats.to_csv(os.path.join(output_path, "stats_" + "_".join(names) + ".tsv"), sep="\t", index=False)
 
     logger.info("All done.")
 
