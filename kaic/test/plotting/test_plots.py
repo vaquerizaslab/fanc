@@ -174,13 +174,13 @@ class TestHicPlot:
         selector = "chr11:{}-{}".format(77400000, 78600000)
         fig, axes = gfig.plot(selector)
         # hplot2 should only be affected by ticks_last
-        assert ~(ticks_last ^ all(l.get_visible() for l in axes[2].get_xticklabels()))
+        assert not (ticks_last ^ all(l.get_visible() for l in axes[2].get_xticklabels()))
         # hplot is affected by the three draw parameters
-        should_have_labels = draw_x_axis & draw_labels
-        assert ~(should_have_labels ^ all(l.get_visible() for l in axes[1].get_xticklabels()))
+        should_have_labels = draw_x_axis & draw_labels & (not ticks_last)
+        assert not (should_have_labels ^ all(l.get_visible() for l in axes[1].get_xticklabels()))
         should_have_ticks = draw_x_axis & draw_ticks
-        assert ~(should_have_ticks ^ all(l.get_visible() for l in axes[1].xaxis.get_majorticklines()))
-        assert ~(should_have_ticks ^ all(l.get_visible() for l in axes[1].xaxis.get_minorticklines()))
+        assert not (should_have_ticks ^ all(l.get_visible() for l in axes[1].xaxis.get_majorticklines()))
+        assert not (should_have_ticks ^ all(l.get_visible() for l in axes[1].xaxis.get_minorticklines()))
         # splot should always have ticks and lines
         assert all(l.get_visible() for l in axes[0].xaxis.get_majorticklines())
         assert all(l.get_visible() for l in axes[0].xaxis.get_minorticklines())
