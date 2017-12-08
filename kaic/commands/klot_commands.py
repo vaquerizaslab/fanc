@@ -289,6 +289,7 @@ def hic_parser():
         type=float,
         help='''Which value to use for missing edges. Default: 0'''
     )
+    parser.set_defaults(default_value=0.)
 
     parser.add_argument(
         '-f', '--weight-field', dest='weight_field',
