@@ -1423,7 +1423,7 @@ def overlap_peaks(peaks, max_distance=6000):
         cons_p = Peak(
             x=cur_x,
             y=cur_y,
-            radius=r,
+            radius=r if len(cur_p_list) > 1 else 0.,
             source=math.floor(min(cur_x, cur_y)),
             sink=math.floor(max(cur_x, cur_y)),
             **summed_attrs
