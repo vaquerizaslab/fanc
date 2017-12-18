@@ -3019,7 +3019,7 @@ def overlap_peaks_parser():
 
     parser.add_argument(
         '-n', '--names', dest='names',
-        nargs='+',
+        nargs='*',
         help='''Names for input Peak samples. Default: Use file names'''
     )
     parser.set_defaults(names=None)
