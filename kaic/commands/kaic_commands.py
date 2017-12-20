@@ -36,6 +36,7 @@ def kaic_parser():
             reads_to_pairs      Convert a Reads object into a Pairs object
             filter_pairs        Filter a Pairs object
             pairs_from_hicpro   Load pairs from a HiC-Pro valid pairs file
+            pairs_to_homer      Write pairs in Homer compatible HiCSummary format
 
             --- Hic
             pairs_to_hic        Convert a pairs object into a Hic object
@@ -1560,6 +1561,85 @@ def pairs_from_hicpro(argv):
 
     logger.info("All done.")
 
+def pairs_to_homer_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic pairs_to_homer",
+        description='''Write pairs in Homer compatible "Hi-C Summary" format
+                       http://homer.ucsd.edu/homer/interactions/HiCtagDirectory.html
+
+                       Hi-C Summary Format (columns tab separated):
+                       1. Read Name (can be blank)
+                       2. chromosome for read 1
+                       3. positions for read 1 (5' end of read, one-indexed)
+                       4. strand of read 1 (+ or -)
+                       5. chromosome for read 2
+                       6. positions for read 2 (5' end of read, one-indexed)
+                       7. strand of read 2 (+ or -)'''
+    )
+
+    parser.add_argument(
+        'input',
+        help='''Kaic pairs file'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Path to output file. If extension is .gz will be gzipped.'''
+    )
+
+    parser.add_argument(
+        '-i', '--include-filtered', dest='include_filtered',
+        action='store_true',
+        help='''Include filtered read pairs in output.'''
+    )
+    parser.set_defaults(include_filtered=False)
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+    return parser
+
+
+def pairs_to_homer(argv):
+    parser = pairs_to_homer_parser()
+
+    args = parser.parse_args(argv[2:])
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    tmp = args.tmp
+    gz = output_file.endswith(".gz")
+
+    import kaic
+    from kaic.tools.files import create_temporary_copy
+
+    original_input_file = input_file
+    original_output_file = output_file
+    try:
+        if tmp:  # copy file if required
+            tmp = False  # to prevent deleting input file should this be interrupted at this point
+            logger.info("Copying input file...")
+            input_file = create_temporary_copy(original_input_file)
+            logger.info("New input file: {}".format(input_file))
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.tsv.gz' if gz else '.tsv')
+            tmp_file.close()
+            output_file = tmp_file.name
+            logger.info("Temporary output file: %s" % output_file)
+            tmp = True
+
+        pairs = kaic.load(input_file, mode="r")
+        pairs.to_homer(output_file, include_filtered=args.include_filtered)
+        pairs.close()
+    finally:
+        if tmp:
+            logger.info("Removing tmp files...")
+            os.remove(input_file)
+            shutil.copy(output_file, original_output_file)
+            os.remove(output_file)
+
+    logger.info("All done.")
 
 def pairs_to_hic_parser():
     parser = argparse.ArgumentParser(
