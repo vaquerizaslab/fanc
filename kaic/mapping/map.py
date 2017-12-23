@@ -226,16 +226,23 @@ class SimpleBowtie2Mapper(Bowtie2Mapper):
         return False
 
 
-def _trim_read(input_seq, step_size=5, min_size=25):
+def _trim_read(input_seq, step_size=5, min_size=25, front=False):
     name, seq, plus, qual = input_seq
     if len(seq) <= min_size:
         raise ValueError("Already reached minimum size, cannot truncate read further")
+
     if len(seq) - step_size < min_size:
         final_length = min_size
     else:
         final_length = len(seq) - step_size
-    seq = seq[:final_length]
-    qual = qual[:final_length]
+
+    if front:
+        sl = len(seq)
+        seq = seq[sl - final_length:]
+        qual = qual[sl - final_length:]
+    else:
+        seq = seq[:final_length]
+        qual = qual[:final_length]
     return name, seq, plus, qual
 
 
@@ -342,6 +349,7 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
 
 def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
                             input_queue, monitor, step_size=5, min_size=25,
+                            trim_front=False,
                             exception_queue=None, worker_pool=None):
     collected_resubmits = 0
     tmp_output_file = None
@@ -370,7 +378,7 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
                     if i % 4 == 3:  # FASTQ record is complete
                         try:
                             new_fastq = _trim_read(current_fastq, step_size=step_size,
-                                                   min_size=min_size)
+                                                   min_size=min_size, front=trim_front)
                         except ValueError:
                             continue
 
@@ -430,7 +438,7 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
 
 
 def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, min_size=25, step_size=5,
-                      batch_size=200000):
+                      batch_size=200000, trim_front=False):
     """
     Iteratively map sequencing reads using the provided mapper.
 
@@ -450,6 +458,7 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
     :param min_size: Minimum length of read for which an alignment is attempted.
     :param step_size: Number of base pairs by which to truncate read.
     :param batch_size: Maximum number of reads processed in one batch
+    :param trim_front: Trim bases from front of read instead of back
     :return:
     """
     if tmp_folder is None:
@@ -473,7 +482,7 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
 
         t_resub = threading.Thread(target=_resubmissions_to_queue, args=(resubmission_queue, tmp_folder,
                                                                          batch_size, input_queue, monitor,
-                                                                         step_size, min_size,
+                                                                         step_size, min_size, trim_front,
                                                                          exception_queue, worker_pool))
         t_resub.daemon = True
         t_resub.start()

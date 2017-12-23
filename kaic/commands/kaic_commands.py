@@ -275,6 +275,13 @@ def map_parser():
     )
 
     parser.add_argument(
+        '--trim-front', dest='trim_front',
+        action='store_true',
+        help='''Trim reads from front instead of back.'''
+    )
+    parser.set_defaults(trim_front=False)
+
+    parser.add_argument(
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
@@ -350,6 +357,7 @@ def map(argv):
 
     step_size = args.step_size
     min_size = args.min_size
+    trim_front = args.trim_front
     batch_size = args.batch_size
     min_quality = args.quality
     bowtie_parallel = args.bowtie_parallel
@@ -421,7 +429,8 @@ def map(argv):
 
                     logger.info("Starting mapping for {}".format(input_file))
                     map.iterative_mapping(input_file, output_file, mapper, threads=threads,
-                                          min_size=min_size, step_size=step_size, batch_size=batch_size)
+                                          min_size=min_size, step_size=step_size, batch_size=batch_size,
+                                          trim_front=trim_front)
                 finally:
                     if tmp:
                         os.remove(input_file)
@@ -456,6 +465,8 @@ def map(argv):
                             split_command += ['--bowtie-parallel']
                         if not memory_map:
                             split_command += ['--no-memory-map']
+                        if trim_front:
+                            split_command += ['--trim-front']
 
                         rt = subprocess.call(split_command)
                         split_fastq_results.append(rt)
