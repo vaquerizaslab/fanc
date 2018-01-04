@@ -160,7 +160,8 @@ class Bowtie2Mapper(Mapper):
                     sam_fields = line.split("\t")
 
                     if self._resubmit(sam_fields):
-                        resubmit[sam_fields[0]] = True
+                        if not sam_fields[0] in resubmit:
+                            resubmit[sam_fields[0]] = True
                     else:
                         resubmit[sam_fields[0]] = False
                         o.write(line + '\n')

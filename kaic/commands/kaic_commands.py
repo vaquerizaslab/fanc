@@ -296,6 +296,19 @@ def map_parser():
     )
 
     parser.add_argument(
+        '-k', '--max-alignments', dest='max_alignments',
+        type=int,
+        help='''Maximum number of alignments per read to be reported. Default: 1'''
+    )
+
+    parser.add_argument(
+        '-a', '--all-alignments', dest='all_alignments',
+        action='store_true',
+        help='''Report all valid alignments of a read (very slow!).'''
+    )
+    parser.set_defaults(all_alignments=False)
+
+    parser.add_argument(
         '-b', '--batch-size', dest='batch_size',
         type=int,
         default=100000,
@@ -363,6 +376,8 @@ def map(argv):
     bowtie_parallel = args.bowtie_parallel
     memory_map = args.memory_map
     iterative = args.iterative
+    max_alignments = args.max_alignments
+    all_alignments = args.all_alignments
     tmp = args.tmp
 
     if bowtie_parallel:
@@ -378,10 +393,13 @@ def map(argv):
     import shutil
     import glob
 
+    additional_arguments = []
     if memory_map:
-        additional_arguments = ['--mm']
-    else:
-        additional_arguments = []
+        additional_arguments += ['--mm']
+    if all_alignments:
+        additional_arguments += ['-a']
+    elif max_alignments is not None:
+        additional_arguments += ['-k', str(max_alignments)]
 
     index_dir = None
     try:
