@@ -660,6 +660,12 @@ class Bed(pybedtools.BedTool, RegionBased):
             else:
                 score = np.nan
 
+        try:
+            name = interval.name
+        except TypeError:
+            warnings.warn("Pybedtools could not retrieve interval name. Continuing anyways.")
+            name = None
+
         if self.intervals.file_type == 'gff':
             try:
                 attributes = {key: value for key, value in interval.attrs.items()}
@@ -680,7 +686,7 @@ class Bed(pybedtools.BedTool, RegionBased):
         else:
             region = GenomicRegion(chromosome=interval.chrom, start=interval.start, end=interval.end,
                                    strand=interval.strand, score=score, fields=interval.fields,
-                                   name=interval.name)
+                                   name=name)
         return region
 
     def merge_overlapping(self, stat=_weighted_mean, sort=True):
