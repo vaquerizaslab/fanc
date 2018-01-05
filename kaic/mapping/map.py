@@ -172,6 +172,7 @@ class Bowtie2Mapper(Mapper):
         logger.debug('Creating FASTQ file for resubmission')
 
         name_re = re.compile("^@(.+?)\s.*$")
+        name_nospace_re = re.compile("^@(.+)$")
 
         resubmission_counter = 0
         total_counter = 0
@@ -187,6 +188,8 @@ class Bowtie2Mapper(Mapper):
 
                     if i % 4 == 0:
                         matches = name_re.match(line)
+                        if matches is None:
+                            matches = name_nospace_re.match(line)
                         name = matches.group(1)
                         if name not in resubmit:
                             if self.resubmit_unmappable:
