@@ -8,6 +8,7 @@ import tempfile
 import subprocess
 import kaic.commands.auto
 
+
 # configure logging
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ def kaic_parser():
             reads_to_pairs      Convert a Reads object into a Pairs object
             filter_pairs        Filter a Pairs object
             pairs_from_hicpro   Load pairs from a HiC-Pro valid pairs file
+            pairs_to_homer      Write pairs in Homer compatible HiCSummary format
 
             --- Hic
             pairs_to_hic        Convert a pairs object into a Hic object
@@ -55,6 +57,7 @@ def kaic_parser():
             filter_peaks        Filter peaks called with 'call_peaks'
             merge_peaks         Merge peaks
             filter_merged_peaks Filter merged peaks
+            overlap_peaks       Overlap peaks from multiple samples
 
             --- Plotting
             plot_ligation_err   Plot the ligation error of a Pairs object
@@ -1587,6 +1590,85 @@ def pairs_from_hicpro(argv):
 
     logger.info("All done.")
 
+def pairs_to_homer_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic pairs_to_homer",
+        description='''Write pairs in Homer compatible "Hi-C Summary" format
+                       http://homer.ucsd.edu/homer/interactions/HiCtagDirectory.html
+
+                       Hi-C Summary Format (columns tab separated):
+                       1. Read Name (can be blank)
+                       2. chromosome for read 1
+                       3. positions for read 1 (5' end of read, one-indexed)
+                       4. strand of read 1 (+ or -)
+                       5. chromosome for read 2
+                       6. positions for read 2 (5' end of read, one-indexed)
+                       7. strand of read 2 (+ or -)'''
+    )
+
+    parser.add_argument(
+        'input',
+        help='''Kaic pairs file'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Path to output file. If extension is .gz will be gzipped.'''
+    )
+
+    parser.add_argument(
+        '-i', '--include-filtered', dest='include_filtered',
+        action='store_true',
+        help='''Include filtered read pairs in output.'''
+    )
+    parser.set_defaults(include_filtered=False)
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+    return parser
+
+
+def pairs_to_homer(argv):
+    parser = pairs_to_homer_parser()
+
+    args = parser.parse_args(argv[2:])
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    tmp = args.tmp
+    gz = output_file.endswith(".gz")
+
+    import kaic
+    from kaic.tools.files import create_temporary_copy
+
+    original_input_file = input_file
+    original_output_file = output_file
+    try:
+        if tmp:  # copy file if required
+            tmp = False  # to prevent deleting input file should this be interrupted at this point
+            logger.info("Copying input file...")
+            input_file = create_temporary_copy(original_input_file)
+            logger.info("New input file: {}".format(input_file))
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.tsv.gz' if gz else '.tsv')
+            tmp_file.close()
+            output_file = tmp_file.name
+            logger.info("Temporary output file: %s" % output_file)
+            tmp = True
+
+        pairs = kaic.load(input_file, mode="r")
+        pairs.to_homer(output_file, include_filtered=args.include_filtered)
+        pairs.close()
+    finally:
+        if tmp:
+            logger.info("Removing tmp files...")
+            os.remove(input_file)
+            shutil.copy(output_file, original_output_file)
+            os.remove(output_file)
+
+    logger.info("All done.")
 
 def pairs_to_hic_parser():
     parser = argparse.ArgumentParser(
@@ -3016,6 +3098,98 @@ def filter_merged_peaks(argv):
             output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
         logger.info("Moving temporary output file to destination %s..." % output_path)
         shutil.move(input_path, output_path)
+
+    logger.info("All done.")
+
+
+def overlap_peaks_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic overlap_peaks",
+        description='Overlap peaks from multiple samples'
+    )
+
+    parser.add_argument(
+        'input',
+        nargs='+',
+        help='''Input Peak files. Two or more.'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output directory. Overlapped peaks and stats are written there.'''
+    )
+
+    parser.add_argument(
+        '-d', '--distance', dest='distance',
+        type=int,
+        help='''Maximum distance between peaks for merging them. Default=3x bin size'''
+    )
+    parser.set_defaults(distance=None)
+
+    parser.add_argument(
+        '-n', '--names', dest='names',
+        nargs='*',
+        help='''Names for input Peak samples. Default: Use file names'''
+    )
+    parser.set_defaults(names=None)
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+    return parser
+
+
+def overlap_peaks(argv):
+    parser = overlap_peaks_parser()
+
+    args = parser.parse_args(argv[2:])
+
+    import kaic.data.network as kn
+    from kaic.tools.files import create_temporary_copy
+
+    original_input_paths = [os.path.expanduser(i) for i in args.input]
+    if not args.names:
+        names = [os.path.splitext(os.path.basename(i))[0] for i in original_input_paths]
+    else:
+        names = args.names
+
+    if len(original_input_paths) <= 2:
+        raise ValueError("Need 2 or more inputs.")
+    if len(names) != len(original_input_paths):
+        raise ValueError("Number of inputs and names is different.")
+    if len(set(names)) < len(names):
+        raise ValueError("Names not unique.")
+
+    # copy file if required
+    if args.tmp:
+        logger.info("Copying data to temporary file...")
+        input_paths = [create_temporary_copy(i) for i in original_input_paths]
+    else:
+        input_paths = original_input_paths
+
+    peaks = [kaic.load(i, mode="r") for i in input_paths]
+
+    if not args.distance:
+        distance = peaks[0].bin_size*3
+    else:
+        distance = args.distance
+
+    stats, merged = kn.overlap_peaks({n:p for n, p in zip(names, peaks)}, max_distance=distance)
+
+    if args.tmp:
+        for i in input_paths:
+            os.remove(i)
+
+    output_path = os.path.expanduser(args.output)
+    logger.info("Writing files...")
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    for name_set, peaks in merged.items():
+        peaks.file.copy_file(os.path.join(output_path, "_".join(n for n in names if n in name_set) + ".peaks"), overwrite=True)
+    stats.to_csv(os.path.join(output_path, "stats_" + "_".join(names) + ".tsv"), sep="\t", index=False)
 
     logger.info("All done.")
 

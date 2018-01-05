@@ -72,9 +72,7 @@ class Klot(object):
                     plot.aspect = plot_args.aspect_ratio
 
                 plot.fix_chromosome = plot_args.fix_chromosome
-
-                if plot_args.hide_x:
-                    plot.remove_genome_axis()
+                plot._draw_x_axis = not plot_args.hide_x
 
                 # set plot title
                 plot.title = plot_args.title

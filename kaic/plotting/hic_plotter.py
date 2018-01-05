@@ -413,11 +413,13 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
     """
 
     def __init__(self, hic_data, max_dist=None, proportional=True,
-                 rasterized=False, **kwargs):
+                 rasterized=True, **kwargs):
         """
         :param max_dist: Only draw interactions up to this distance
         :param proportional: Automatically determine aspect ratio of plot
                              so that x- and y-axis are proportional. Default: True
+        :param rasterized: Draw map as image (True) or vector graphic (False).
+                           Default: True
         """
         kwargs.setdefault("aspect", .5)
         super(HicPlot, self).__init__(hic_data=hic_data, **kwargs)

@@ -289,6 +289,7 @@ def hic_parser():
         type=float,
         help='''Which value to use for missing edges. Default: 0'''
     )
+    parser.set_defaults(default_value=0.)
 
     parser.add_argument(
         '-f', '--weight-field', dest='weight_field',
@@ -965,7 +966,7 @@ def bigwig(parameters):
 
     bigwigs = []
     for file_name in args.bigwig:
-        bigwigs.append(kaic.load(file_name, mode='r'))
+        bigwigs.append(kaic.load(file_name))
 
     p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim,
                         yscale="log" if args.log else "linear", condensed=args.condensed)

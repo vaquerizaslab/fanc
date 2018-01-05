@@ -1,7 +1,10 @@
 from __future__ import division
+import kaic
 from kaic.data.network import RaoPeakCaller, RaoPeakInfo
 from kaic.data.genomic import Hic, RegionMatrix, GenomicRegion
+from kaic.tools.general import pairwise
 import numpy as np
+import math
 import pickle
 import os.path
 
@@ -158,3 +161,30 @@ class TestRaoPeakCaller:
         for region1, region2 in zip(self.m.col_regions, m_load.col_regions):
             assert region1.start == region2.start
             assert region1.end == region2.end
+
+
+class TestOverlapPeaks:
+    def setup_method(self, method):
+        peaks = [
+            [(10, 12), (1, 4), (15, 8)],
+            [(11, 12), (5, 8), (15.2, 7.8)],
+            [(10.5, 11.8), (5.5, 8.1)],
+        ]
+        regions = [GenomicRegion(a + 1, b, 'chr1', ix=i) for i, (a, b) in enumerate(pairwise(np.arange(0, 10001, 100)))]
+        self.peaks = {}
+        for i in range(3):
+            p = kaic.data.network.PeakInfo()
+            p.add_regions(regions)
+            p.add_edges(kaic.data.network.Peak(x=x, y=y, source=math.floor(x), sink=math.floor(y)) for x, y in (tuple(sorted(xy)) for xy in peaks[i]))
+            self.peaks[i] = p
+
+    def test_overlap(self):
+        stats, merged = kaic.data.network.overlap_peaks(self.peaks, max_distance=100)
+        expected = {
+            (0, 1, 2): 1,
+            (0,): 1,
+            (1, 2): 1,
+            (0, 1): 1,
+        }
+        assert all(len(merged[frozenset(x)]) == n for x, n in expected.items())
+        assert all(stats["n"] == 1)

@@ -173,19 +173,20 @@ class TestHicPlot:
                                    width=width, ticks_last=ticks_last, cax_width=cax_width)
         selector = "chr11:{}-{}".format(77400000, 78600000)
         fig, axes = gfig.plot(selector)
-        # hplot2 should only be affected by ticks_last
-        assert ~(ticks_last ^ all(l.get_visible() for l in axes[2].get_xticklabels()))
-        # hplot is affected by the three draw parameters
-        should_have_labels = draw_x_axis & draw_labels
-        assert ~(should_have_labels ^ all(l.get_visible() for l in axes[1].get_xticklabels()))
-        should_have_ticks = draw_x_axis & draw_ticks
-        assert ~(should_have_ticks ^ all(l.get_visible() for l in axes[1].xaxis.get_majorticklines()))
-        assert ~(should_have_ticks ^ all(l.get_visible() for l in axes[1].xaxis.get_minorticklines()))
+        # hplot2 should always have labels and lines
+        assert all(l.get_visible() for l in axes[2].get_xticklabels()) and all(l.get_visible() for l in axes[2].xaxis.get_majorticklines())
+        # hplot labels are affected by the three draw parameters
+        should_have_labels = draw_x_axis and draw_labels and (not ticks_last)
+        assert should_have_labels == all(l.get_visible() for l in axes[1].get_xticklabels())
+        # But it should have tick lines even when ticks_last=True
+        should_have_ticks = draw_x_axis and draw_ticks
+        assert should_have_ticks == all(l.get_visible() for l in axes[1].xaxis.get_majorticklines())
+        assert should_have_ticks == all(l.get_visible() for l in axes[1].xaxis.get_minorticklines())
         # splot should always have ticks and lines
         assert all(l.get_visible() for l in axes[0].xaxis.get_majorticklines())
         assert all(l.get_visible() for l in axes[0].xaxis.get_minorticklines())
         # splot only labels if ticks_last=False
-        assert ticks_last ^ all(l.get_visible() for l in axes[0].get_xticklabels())
+        assert ticks_last != all(l.get_visible() for l in axes[0].get_xticklabels())
         bbox = axes[0].get_position()
         figsize = fig.get_size_inches()
         assert bbox.width*figsize[0] == pytest.approx(width)
@@ -297,3 +298,16 @@ class TestPlots:
         fig, axes = gfig.plot("chr11:77497000-77500000")
         assert all(len(l.get_ydata()) > 5 for a in axes for l in a.get_lines())
         assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), data.keys()))
+
+    def test_genomic_feature_plot(self):
+        gfplot = kplot.GenomicFeaturePlot(self.peak_path)
+        gfig = kplot.GenomicFigure([gfplot])
+        fig, axes = gfig.plot("chr11:77497000-77500000")
+        assert len(axes[0].patches) == 2
+
+    @pytest.mark.parametrize("attribute", ["score", 6])
+    def test_genomic_feature_score_plot(self, attribute):
+        gfsplot = kplot.GenomicFeatureScorePlot(self.peak_path, attribute=attribute)
+        gfig = kplot.GenomicFigure([gfsplot])
+        fig, axes = gfig.plot("chr11:77497000-77500000")
+        assert len(axes[0].patches) == 2

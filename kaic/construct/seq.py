@@ -3033,6 +3033,52 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
         hic.load_read_fragment_pairs(self)
         return hic
 
+    def to_homer(self, output, include_filtered=False):
+        """
+        Output aligned pairs in a HOMER compatible "Hi-C Summary" format
+        http://homer.ucsd.edu/homer/interactions/HiCtagDirectory.html
+
+        Hi-C Summary Format (columns tab separated):
+        1. Read Name (can be blank)
+        2. chromosome for read 1
+        3. positions for read 1 (5' end of read, one-indexed)
+        4. strand of read 1 (+ or -)
+        5. chromosome for read 2
+        6. positions for read 2 (5' end of read, one-indexed)
+        7. strand of read 2 (+ or -)
+
+        :param output: Path to output file. Will be gzipped if extension is .gz
+        :param include_filtered: Include pairs that are masked (filtered out). Default: False
+        """
+        excluded_filters = list(self.masks()) if include_filtered else ()
+        if output.endswith(".gz"):
+            import gzip, sys
+            file_handle = gzip.open(output, mode="wt" if sys.version_info.major == 3 else "w")
+        else:
+            file_handle = open(output, mode="w")
+        strand_lookup = {
+            -1: "-",
+            1: "+",
+        }
+        try:
+            l = 0
+            for edge_table in self._edge_table_iter():
+                l += edge_table._original_len()
+        except AttributeError:
+            l = self._pairs._original_len()
+        with RareUpdateProgressBar(max_value=l) as pb:
+            with file_handle:
+                for i, p in enumerate(self.pairs(lazy=True, excluded_filters=excluded_filters)):
+                    left = p.left
+                    right = p.right
+                    values = (
+                        "",
+                        left.fragment.chromosome, str(left.position), strand_lookup[left.strand],
+                        right.fragment.chromosome, str(right.position), strand_lookup[right.strand],
+                    )
+                    file_handle.write("\t".join(values) + "\n")
+                    pb.update(i)
+
 
 class AccessOptimisedReadPairs(FragmentMappedReadPairs, AccessOptimisedRegionPairs):
 

@@ -4,16 +4,22 @@ from kaic.config import config
 from abc import abstractmethod, ABCMeta
 import numpy as np
 from scipy.stats import poisson
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import tables as t
 from kaic.data.genomic import AccessOptimisedRegionMatrixTable, Edge, LazyEdge
 from kaic.data.general import MaskFilter
 import msgpack
 import msgpack_numpy
 import math
-from kaic.tools.general import RareUpdateProgressBar
+import pandas as pd
+from kaic.tools.general import RareUpdateProgressBar, pairwise
 import warnings
-from future.utils import with_metaclass
+from future.utils import with_metaclass, viewitems
+from itertools import tee
+try:
+    from itertools import izip as zip
+except ImportError:
+    pass
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1344,3 +1350,103 @@ def process_matrix_segment_intra(data):
 
             results.append(result)
     return msgpack.dumps(results)
+
+
+def overlap_peaks(peaks, max_distance=6000):
+    """
+    Calculate overlap between different peak calls.
+
+    Useful for comparing peak calls across different samples
+    or conditions.
+
+    :param dict peaks: Peaks to overlap. Dictionary of
+                       :class:`kaic.data.network.PeakInfo`,
+                       keys are dataset names.
+    :param int max_distance: Maximum distance between peaks for overlap
+    :return: DataFrame of overlap statistics and dictionary
+             containing overlapping peaks. Keys are sets
+             of dataset names.
+    :rtype: (pandas.DataFrame, kaic.data.network.PeakInfo)
+    """
+    # Algorithm from https://github.com/theaidenlab/juicebox/blob/cb5999cb1e8e430dd29d4114fb208aca4b8d35ac/src/juicebox/tools/utils/juicer/hiccups/HiCCUPSUtils.java#L235
+
+    def key_func(p):
+        return p[1].weight
+
+    def hypotenuse(x, y):
+        return math.sqrt(x*x + y*y)
+
+    def mean(data):
+        # https://stackoverflow.com/a/31062966
+        n = 0
+        mean = 0.0
+        for x in data:
+            n += 1
+            mean += (x - mean)/n
+        if n < 1:
+            return float("nan");
+        else:
+            return mean
+
+    summarize_attrs = [
+        (mean, "weight"),
+        (mean, "oe"),
+        (mean, "uncorrected"),
+        (mean, "expected"),
+        (sum, "p_value"),
+        (sum, "q_value_sum"),
+    ]
+
+    if not all(a == b for regions in zip(peaks.values()) for a, b in pairwise(regions)):
+        raise ValueError("All peak calls must have the same regions.")
+
+    peaks1 = next(iter(peaks.values()))
+    bin_size = peaks1.bin_size
+    max_distance = max_distance/bin_size
+    logger.info("Fetching and sorting peaks...")
+    all_peaks = list(sorted(((s, p) for s, pgen in viewitems(peaks) for p in pgen), key=key_func, reverse=True))
+    logger.info("Done.")
+    logger.info("Finding overlaps...")
+    out_peaks = defaultdict(list)
+    total_n = len(all_peaks)
+    with RareUpdateProgressBar(max_value=total_n, silent=config.hide_progressbars) as pb:
+        while len(all_peaks) > 0:
+            cur_p = all_peaks.pop(0)
+            cur_p_list = [cur_p]
+            cur_x = cur_p[1].x
+            cur_y = cur_p[1].y
+            cluster_radius = max_distance
+            for p in all_peaks:
+                if hypotenuse(cur_x - p[1].x, cur_y - p[1].y) <= cluster_radius:
+                    cur_p_list.append(p)
+                    cur_x = mean(_p.x for _s, _p in cur_p_list)
+                    cur_y = mean(_p.y for _s, _p in cur_p_list)
+                    r = max(hypotenuse(cur_x - _p.x, cur_y - _p.y) for _s, _p in cur_p_list)
+                    cluster_radius = max_distance + r
+            summed_attrs = {attr: sum_func(getattr(p, attr) for s, p in cur_p_list) for sum_func, attr in summarize_attrs}
+            cons_p = Peak(
+                x=cur_x,
+                y=cur_y,
+                radius=r if len(cur_p_list) > 1 else 0.,
+                source=math.floor(min(cur_x, cur_y)),
+                sink=math.floor(max(cur_x, cur_y)),
+                **summed_attrs
+            )
+            out_peaks[frozenset(s for s, p in cur_p_list)].append(cons_p)
+            for p in cur_p_list[1:]:
+                all_peaks.remove(p)
+            pb.update(total_n - len(all_peaks))
+    logger.info("Done.")
+    logger.info("Gathering overlapped peaks.")
+    out_dict = {}
+    out_stats = []
+    for sample_set, p_list in viewitems(out_peaks):
+        pi = PeakInfo()
+        pi.add_regions(peaks1.regions())
+        pi.add_edges(p_list)
+        out_dict[sample_set] = pi
+        stat = OrderedDict((s, s in sample_set) for s in peaks.keys())
+        stat["n"] = len(p_list)
+        out_stats.append(stat)
+    logger.info("Done.")
+    return pd.DataFrame(out_stats), out_dict

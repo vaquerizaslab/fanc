@@ -723,7 +723,7 @@ class GenomicFeatureScorePlot(BasePlotter1D):
         kwargs.setdefault("aspect", .2)
         kwargs.setdefault("axes_style", "ticks")
         super(GenomicFeatureScorePlot, self).__init__(**kwargs)
-        self.regions = parse_bedtool_input(regions)
+        self.regions = get_region_based_object(regions)
         if isinstance(feature_types, string_types):
             feature_types = [feature_types]
         self.feature_types = feature_types
@@ -752,11 +752,14 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
             x.append(f.start)
             width.append(f.end-f.start)
-            try:
+            if isinstance(self.attribute, int):
+                score = f.fields[self.attribute]
+            else:
                 try:
                     score = getattr(f, self.attribute)
                 except AttributeError:
                     score = 1
+            try:
                 score = float(score)
             except ValueError:
                 score = 1

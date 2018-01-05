@@ -467,6 +467,23 @@ class TestFragmentMappedReadPairs:
         assert len(list(self.pairs.pairs(excluded_filters=[in_filter, mask]))) == 28
         assert len(list(self.pairs.pairs(excluded_filters=[in_filter, 3]))) == 28
 
+    @pytest.mark.parametrize("gz", [False, True])
+    @pytest.mark.parametrize("include_filtered", [False, True])
+    def test_export_homer(self, gz, include_filtered, tmpdir_factory):
+        fn = str(tmpdir_factory.mktemp("output").join(".tsv.gz" if gz else ".tsv"))
+        mask = self.pairs.add_mask_description('self_ligated', 'Mask read pairs that represent self-ligated fragments')
+        self_ligation_filter = SelfLigationFilter(mask=mask)
+        self.pairs.filter(self_ligation_filter)
+        self.pairs.to_homer(fn, include_filtered=include_filtered)
+        if gz:
+            import gzip, sys
+            read_handle = gzip.open(fn, mode="rt" if sys.version_info.major == 3 else "r")
+        else:
+            read_handle = open(fn, mode="r")
+        with read_handle:
+            lines = read_handle.readlines()
+            assert len(lines) == 44 if include_filtered else 7
+
 
 class TestAccessOptimisedReadPairs(TestFragmentMappedReadPairs):
     @classmethod
