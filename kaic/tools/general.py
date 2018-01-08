@@ -12,6 +12,9 @@ import os
 import errno
 from builtins import object
 from datetime import datetime
+from Bio import Restriction
+from Bio.Seq import reverse_complement
+from future.utils import string_types
 
 
 class Map(dict):
@@ -266,6 +269,64 @@ def natural_cmp(pa, pb):
     return 1 if i < len(pa) else -1 if j < len(pb) else 0
 
 
+def ligation_site_pattern(restriction_enzyme):
+    if isinstance(restriction_enzyme, string_types):
+        restriction_enzyme = getattr(Restriction, restriction_enzyme)
+
+    cut_pattern = restriction_enzyme.elucidate()
+
+    left_side = []
+    right_side = []
+    for character in cut_pattern:
+        if not (len(left_side) > 0 and left_side[-1] == '_'):
+            if not character == '^':
+                left_side.append(character)
+
+        if character == '^' or len(right_side) > 0:
+            if not character == '_':
+                right_side.append(character)
+
+    left_side_re = "".join(left_side[:-1])
+    right_side_re = "".join(right_side[1:])
+
+    ll = len(left_side_re)
+    lr = len(right_side_re)
+
+    forward = left_side_re + right_side_re
+    reverse = reverse_complement(forward)
+
+    forward = forward.replace('N', '[ACGT]')
+    reverse = reverse.replace('N', '[ACGT]')
+
+    return forward, ll, reverse, lr
+
+
+def split_at_ligation_junction(sequence, pattern):
+    if isinstance(pattern, string_types):
+        pattern = ligation_site_pattern(pattern)
+
+    if isinstance(sequence, bytes):
+        sequence = sequence.decode()
+
+    hits = []
+    forward, lf, reverse, lr = pattern
+    for m in re.finditer(forward, sequence, re.IGNORECASE):
+        hits.append(m.start() + lf)
+
+    if forward != reverse:
+        for m in re.finditer(reverse, sequence, re.IGNORECASE):
+            hits.append(m.start() + lr)
+
+    sub_sequences = []
+    previous_hit = 0
+    for hit in hits:
+        sub_sequences.append(sequence[previous_hit:hit])
+        previous_hit = hit
+    sub_sequences.append(sequence[previous_hit:])
+
+    return sub_sequences
+
+
 def add_dict(x, y):
     return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
 
@@ -312,6 +373,7 @@ class RareUpdateProgressBar(progressbar.ProgressBar):
         elif self.manual_poll_interval:
             delta = datetime.now() - self.last_update_time
             return delta > self.poll_interval
+
 
 def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
