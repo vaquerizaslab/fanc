@@ -319,7 +319,7 @@ def split_at_ligation_junction(sequence, pattern):
 
     sub_sequences = []
     previous_hit = 0
-    for hit in hits:
+    for hit in sorted(hits):
         sub_sequences.append(sequence[previous_hit:hit])
         previous_hit = hit
     sub_sequences.append(sequence[previous_hit:])
