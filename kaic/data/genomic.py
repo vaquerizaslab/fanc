@@ -898,7 +898,7 @@ class Tabix(RegionBased):
         if isinstance(preset, string_types):
             if preset == 'gff' or preset == 'gtf':
                 self._region_object = GffRegion
-            elif preset == 'bed':
+            elif preset == 'bed' or preset == 'bdg':
                 self._region_object = BedRegion
             else:
                 raise ValueError("Preset {} not valid".format(preset))
