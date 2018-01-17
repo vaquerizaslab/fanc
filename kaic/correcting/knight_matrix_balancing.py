@@ -57,7 +57,7 @@ def correct(hic, whole_matrix=True, intra_chromosomal=True, inter_chromosomal=Tr
         m = hic[:, :]
         cb = hic.chromosome_bins
         if not intra_chromosomal:
-            for chromosome, bins in cb:
+            for chromosome, bins in cb.items():
                 m[bins[0]:bins[1], bins[0]:bins[1]] = 0
         if not inter_chromosomal:
             for chromosome, bins in cb:
