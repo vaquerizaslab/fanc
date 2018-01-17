@@ -6,7 +6,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optimise=True,
+def correct(hic, whole_matrix=True, intra_chromosomal=True, inter_chromosomal=True,
+            copy=False, file_name=None, optimise=True,
             restore_coverage=False):
     hic_new = None
     chromosome_starts = dict()
@@ -25,7 +26,7 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
         hic_new.flush()
         hic_new.disable_indexes()
 
-    if only_intra_chromosomal:
+    if not whole_matrix:
         bias_vectors = []
         for chromosome in hic.chromosomes():
             m = hic[chromosome, chromosome]
@@ -54,6 +55,15 @@ def correct(hic, only_intra_chromosomal=False, copy=False, file_name=None, optim
     else:
         logger.debug("Fetching whole genome matrix")
         m = hic[:, :]
+        cb = hic.chromosome_bins
+        if not intra_chromosomal:
+            for chromosome, bins in cb:
+                m[bins[0]:bins[1], bins[0]:bins[1]] = 0
+        if not inter_chromosomal:
+            for chromosome, bins in cb:
+                m[0:bins[0], bins[0]:bins[1]] = 0
+                m[bins[1]:, bins[0]:bins[1]] = 0
+
         m_corrected, bias_vector = correct_matrix(m, restore_coverage=restore_coverage)
         if hic_new is None:
             logger.debug("Replacing corrected edges in existing Hic object...")

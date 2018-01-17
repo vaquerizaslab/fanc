@@ -5,7 +5,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def correct(hic, tolerance=1e-2, max_iterations=500, only_intra_chromosomal=False, copy=False, file_name=None,
+def correct(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
+            inter_chromosomal=True, intra_chromosomal=True, copy=False, file_name=None,
             optimise=True):
     if copy:
         if optimise:
@@ -16,18 +17,15 @@ def correct(hic, tolerance=1e-2, max_iterations=500, only_intra_chromosomal=Fals
         hic_new.add_regions(hic.regions())
         hic_new.flush()
 
-        regions_dict = hic.regions_dict
         hic_new.disable_indexes()
-        for edge in hic.edges():
-            if (only_intra_chromosomal and
-                    regions_dict[edge.source].chromosome != regions_dict[edge.sink].chromosome):
-                continue
+        for edge in hic.edges(intra_chromosomal=intra_chromosomal,
+                              inter_chromosomal=inter_chromosomal):
             hic_new.add_edge(edge, flush=False)
         hic_new.enable_indexes()
         hic_new.flush()
         hic = hic_new
 
-    if only_intra_chromosomal:
+    if not whole_matrix:
         bias_vectors = []
         for chromosome in hic.chromosomes():
             region_converter = dict()
@@ -76,7 +74,8 @@ def correct(hic, tolerance=1e-2, max_iterations=500, only_intra_chromosomal=Fals
             m = hic.marginals()
             bias_vector *= m
             marginal_error = _marginal_error(m)
-            for edge in hic.edges(lazy=True):
+            for edge in hic.edges(lazy=True, intra_chromosomal=intra_chromosomal,
+                                  inter_chromosomal=inter_chromosomal):
                 source = edge.source
                 sink = edge.sink
                 weight = edge.weight

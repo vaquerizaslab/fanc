@@ -2036,10 +2036,18 @@ def correct_hic_parser():
         '-r', '--restore-coverage', dest='restore_coverage',
         action='store_true',
         help='''Restore coverage to the original total number of reads. 
-                Otherwise matrix entries will be contact probabilities.
-                Only available for KR matrix balancing.'''
+                    Otherwise matrix entries will be contact probabilities.
+                    Only available for KR matrix balancing.'''
     )
     parser.set_defaults(restore_coverage=False)
+
+    parser.add_argument(
+        '--only-inter', dest='only_inter',
+        action='store_true',
+        help='''Only correct inter-chromosomal contacts. Sets intra-chromosomal contacts to 0.
+                Always uses whole-matrix balancing, therefore incompatible with -c.'''
+    )
+    parser.set_defaults(only_inter=False)
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
@@ -2054,6 +2062,9 @@ def correct_hic(argv):
     parser = correct_hic_parser()
 
     args = parser.parse_args(argv[2:])
+
+    if args.only_inter and args.chromosome:
+        raise RuntimeError("--only-inter incompatible with -c! Aborting...")
 
     import kaic
     from kaic.tools.files import create_temporary_copy
@@ -2080,8 +2091,8 @@ def correct_hic(argv):
             raise ValueError("Restoring coverage (-r) only available for KR balancing!")
 
         hic = kaic.load_hic(file_name=input_path, mode='r')
-        ice.correct(hic, only_intra_chromosomal=args.chromosome, copy=True, optimise=args.optimise,
-                    file_name=output_path)
+        ice.correct(hic, whole_matrix=not args.chromosome, copy=True, optimise=args.optimise,
+                    file_name=output_path, intra_chromosomal=not args.only_inter)
         hic.close()
         if args.tmp:
             logger.info("Moving temporary output file to destination %s" % original_output_path)
@@ -2091,9 +2102,10 @@ def correct_hic(argv):
         import kaic.correcting.knight_matrix_balancing as knight
 
         hic = kaic.load_hic(file_name=input_path, mode='r')
-        hic_new = knight.correct(hic, only_intra_chromosomal=args.chromosome,
+        hic_new = knight.correct(hic, whole_matrix=not args.chromosome,
                                  copy=True, file_name=output_path, optimise=args.optimise,
-                                 restore_coverage=args.restore_coverage)
+                                 restore_coverage=args.restore_coverage,
+                                 intra_chromosomal=not args.only_inter)
         hic.close()
         hic_new.close()
         if args.tmp:

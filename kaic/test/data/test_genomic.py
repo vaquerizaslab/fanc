@@ -1465,7 +1465,7 @@ class TestHicBasic:
         for n in sum(m_corr):
             assert abs(1.0 - n) < 1e-5 or n == 0
 
-        hic_new2 = knight.correct(hic, copy=True, only_intra_chromosomal=True)
+        hic_new2 = knight.correct(hic, copy=True, whole_matrix=False)
         m_corr_pc = hic_new2[:, :]
         assert is_symmetric(m_corr_pc)
         assert m_corr_pc.shape == m.shape
