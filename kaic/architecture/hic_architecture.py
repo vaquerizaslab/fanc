@@ -2402,7 +2402,9 @@ def extract_submatrices(hic, region_pairs, norm=False,
                 region2_bins = _aggregate_region_bins(hic, region2, offset2)
 
                 if cache:
-                    m = matrix[region1_bins[0]:region1_bins[1], region2_bins[0]: region2_bins[1]]
+                    ms = matrix[region1_bins[0]:region1_bins[1], region2_bins[0]: region2_bins[1]]
+                    m = ms.copy()
+                    del ms
                 else:
                     s1 = slice(region1_bins[0], region1_bins[1])
                     s2 = slice(region2_bins[0], region2_bins[1])
@@ -2443,6 +2445,9 @@ def extract_submatrices(hic, region_pairs, norm=False,
                 pb.update(current_matrix)
                 matrices.append(m)
                 order.append(region_ix)
+
+            if cache:
+                del matrix
 
     if keep_invalid:
         for region_ix in invalid_region_pairs:
@@ -2800,6 +2805,53 @@ def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.
         mappable = hic.mappable()
         return vector_enrichment_profile(oe, ev, mappable=mappable, per_chromosome=per_chromosome,
                                          percentiles=percentiles, exclude_chromosomes=exclude_chromosomes)
+
+
+def contact_directionality_bias(hic, regions, distance=1000000, region_anchor='center', **kwargs):
+    forward_region_pairs = []
+    reverse_region_pairs = []
+    for region in regions:
+        pos = int(getattr(region, region_anchor))
+        new_region = GenomicRegion(chromosome=region.chromosome, start=pos, end=pos, strand=region.strand)
+        if region.is_forward():
+            forward_region_pairs.append((new_region, new_region.expand(absolute=distance)))
+        else:
+            reverse_region_pairs.append((new_region, new_region.expand(absolute=distance)))
+
+    cumulative_forward = np.zeros(int(distance / hic.bin_size) * 2 + 1)
+    count_forward = np.zeros(int(distance / hic.bin_size) * 2 + 1)
+    for matrix in extract_submatrices(hic, forward_region_pairs, **kwargs):
+        cumulative_forward += matrix[0, :]
+        if hasattr(matrix, 'mask'):
+            inverted_mask = ~matrix.mask
+            count_forward += inverted_mask.astype('int')[0, :]
+        else:
+            count_forward += np.ones(count_forward.shape)
+
+    cumulative_reverse = np.zeros(int(distance / hic.bin_size) * 2 + 1)
+    count_reverse = np.zeros(int(distance / hic.bin_size) * 2 + 1)
+    for matrix in extract_submatrices(hic, reverse_region_pairs, **kwargs):
+        cumulative_reverse += matrix[0, :]
+        if hasattr(matrix, 'mask'):
+            inverted_mask = ~matrix.mask
+            count_reverse += inverted_mask.astype('int')[0, :]
+        else:
+            count_reverse += np.ones(count_reverse.shape)
+
+    avg_forward = cumulative_forward / count_forward
+    avg_reverse = cumulative_reverse / count_reverse
+
+    bin_size = hic.bin_size
+    d = []
+    ratio_forward = []
+    ratio_reverse = []
+    center = int(len(avg_forward)/2)
+    for ix in range(center + 1):
+        d.append(ix * bin_size)
+        ratio_forward.append(avg_forward[center + ix] / avg_forward[center - ix])
+        ratio_reverse.append(avg_reverse[center + ix] / avg_reverse[center - ix])
+
+    return d, ratio_forward, ratio_reverse
 
 
 """
