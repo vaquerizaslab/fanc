@@ -1333,6 +1333,14 @@ class GenomicRegion(TableObject):
     def center(self):
         return self.start + (self.end - self.start)/2
 
+    @property
+    def five_prime(self):
+        return self.end if self.is_reverse() else self.start
+
+    @property
+    def three_prime(self):
+        return self.end if self.is_forward() else self.start
+
     def copy(self):
         d = {attribute: getattr(self, attribute) for attribute in self.attributes}
         return GenomicRegion(**d)
