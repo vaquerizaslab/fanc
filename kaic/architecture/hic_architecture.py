@@ -2380,6 +2380,7 @@ def extract_submatrices(hic, region_pairs, norm=False,
 
     intra_expected, inter_expected = dict(), None
     if norm:
+        logger.info("Calculating expected values...")
         _, intra_expected, inter_expected = hic.expected_values()
 
     order = []
@@ -2602,7 +2603,9 @@ def _loop_matrix_iterator(hic, loop_regions, pixels=16, **kwargs):
         except IndexError:
             invalid += 1
             region_pairs.append((None, None))
-    logger.warning("{} region pairs invalid, most likely due to missing chromosome data".format(invalid))
+
+    if invalid > 0:
+        logger.warning("{} region pairs invalid, most likely due to missing chromosome data".format(invalid))
 
     for m in extract_submatrices(hic, region_pairs, **kwargs):
         yield m
