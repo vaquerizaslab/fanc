@@ -2375,9 +2375,6 @@ def extract_submatrices(hic, region_pairs, norm=False,
             valid_region_pairs[(region1.chromosome, region2.chromosome)].append((ix, region1, region2))
     logger.info("{}/{} region pairs are invalid".format(invalid, valid))
 
-    intra_expected = dict()
-    inter_expected = None
-
     logger.info("Calculating mappability...")
     mappable = hic.mappable()
 
