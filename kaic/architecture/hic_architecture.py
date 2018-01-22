@@ -2381,6 +2381,10 @@ def extract_submatrices(hic, region_pairs, norm=False,
     logger.info("Calculating mappability...")
     mappable = hic.mappable()
 
+    intra_expected, inter_expected = dict(), None
+    if norm:
+        _, intra_expected, inter_expected = hic.expected_values()
+
     order = []
     matrices = []
     with RareUpdateProgressBar(max_value=valid, prefix='Matrices') as pb:
@@ -2413,17 +2417,8 @@ def extract_submatrices(hic, region_pairs, norm=False,
                 if norm:
                     e = np.ones(m.shape)
                     if chromosome1 != chromosome2:
-                        if inter_expected is None:
-                            logger.info("Getting inter-chromosomal expected value")
-                            with ExpectedContacts(hic) as ex:
-                                inter_expected = ex.inter_expected()
                         e.fill(inter_expected)
                     else:
-                        if chromosome1 not in intra_expected:
-                            logger.info("Getting {} expected values".format(chromosome1))
-                            with ExpectedContacts(hic, regions=chromosome1) as ex:
-                                intra_expected[chromosome1] = ex.intra_expected()
-
                         for i, row in enumerate(range(region1_bins[0], region1_bins[1])):
                             for j, col in enumerate(range(region2_bins[0], region2_bins[1])):
                                 ix = abs(col - row)
