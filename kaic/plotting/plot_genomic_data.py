@@ -5,15 +5,16 @@ import pandas
 import numpy as np
 from future.utils import string_types
 import kaic.data.genomic as genomic
+import matplotlib.pyplot as plt
 
 
 def _prepare_backend(output):
     if output is not None:
-        old_backend = sns.plt.get_backend()
+        old_backend = plt.get_backend()
         # extension = os.path.splitext(output)[1]
         sns.set_style("ticks")
-        sns.plt.switch_backend('pdf')
-        sns.plt.ioff()
+        plt.switch_backend('pdf')
+        plt.ioff()
         return old_backend
     return None
 
@@ -22,11 +23,11 @@ def _plot_figure(figure, output, old_backend):
     sns.despine()
     if output is not None:
         figure.savefig(output)
-        sns.plt.close(figure)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
+        plt.close(figure)
+        plt.ion()
+        plt.switch_backend(old_backend)
     else:
-        sns.plt.show()
+        plt.show()
 
 
 def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
@@ -66,20 +67,20 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
     df = pandas.DataFrame(contact_list, columns=["distance", "contacts", "region", "type"])
 
     if output is not None:
-        old_backend = sns.plt.get_backend()
-        sns.plt.switch_backend('pdf')
-        sns.plt.ioff()
+        old_backend = plt.get_backend()
+        plt.switch_backend('pdf')
+        plt.ioff()
 
     tsplot = sns.tsplot(data=df, time="distance", unit="region", condition="type", value="contacts",
                         estimator=np.median, err_style="unit_traces", err_palette="Reds")
 
     if output is not None:
         tsplot.figure.savefig(output)
-        sns.plt.close(tsplot.figure)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
+        plt.close(tsplot.figure)
+        plt.ion()
+        plt.switch_backend(old_backend)
     else:
-        sns.plt.show()
+        plt.show()
 
     return df
 
@@ -119,20 +120,20 @@ def hic_correlation_plot(hic1, hic2, output=None, include_zeros=False, colormap=
     corr_df = _correlation_df(hic1, hic2, include_zeros=include_zeros, in_percent=True)
 
     if output is not None:
-        old_backend = sns.plt.get_backend()
-        sns.plt.switch_backend('pdf')
-        sns.plt.ioff()
+        old_backend = plt.get_backend()
+        plt.switch_backend('pdf')
+        plt.ioff()
 
-    sns.plt.figure(figsize=(size, size))
+    plt.figure(figsize=(size, size))
     heatmap = sns.heatmap(corr_df, vmin=5, vmax=95, cmap=colormap, square=True, annot=True, fmt=".0f")
 
     if output is not None:
         heatmap.figure.savefig(output)
-        sns.plt.close(heatmap.figure)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
+        plt.close(heatmap.figure)
+        plt.ion()
+        plt.switch_backend(old_backend)
     else:
-        sns.plt.show()
+        plt.show()
 
 
 def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, None),
@@ -217,7 +218,7 @@ def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, Non
                     highlighted_colors.append(c)
 
     old_backend = _prepare_backend(output)
-    scatter = sns.plt.figure()
+    scatter = plt.figure()
 
     if not plot_3d:
         ax = scatter.add_subplot(111)
@@ -264,7 +265,7 @@ def hic_marginals_plot(hic, output=None, lower=None, upper=None, rel_cutoff=0.1)
             upper = upper_calc
 
     old_backend = _prepare_backend(output)
-    fig, ax = sns.plt.subplots()
+    fig, ax = plt.subplots()
     ax.plot(marginals)
     ax.axhline(upper, color='r', linestyle=':')
     ax.axhline(lower, color='r', linestyle=':')
