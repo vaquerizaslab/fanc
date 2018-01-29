@@ -299,6 +299,12 @@ def map_parser():
     )
 
     parser.add_argument(
+        '-r', '--restriction-enzyme', dest='restriction_enzyme',
+        help='''Name (case sensitive) of restriction enzyme used in Hi-C experiment.
+                Will be used to split reads by predicted ligation junction before mapping.'''
+    )
+
+    parser.add_argument(
         '-k', '--max-alignments', dest='max_alignments',
         type=int,
         help='''Maximum number of alignments per read to be reported. Default: 1'''
@@ -353,6 +359,13 @@ def map_parser():
     parser.set_defaults(iterative=True)
 
     parser.add_argument(
+        '--bwa', dest='bwa',
+        action='store_true',
+        help='''Use BWA as mapper.'''
+    )
+    parser.set_defaults(bwa=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
@@ -379,8 +392,10 @@ def map(argv):
     bowtie_parallel = args.bowtie_parallel
     memory_map = args.memory_map
     iterative = args.iterative
+    restriction_enzyme = args.restriction_enzyme
     max_alignments = args.max_alignments
     all_alignments = args.all_alignments
+    bwa = args.bwa
     tmp = args.tmp
 
     if bowtie_parallel:
@@ -415,12 +430,20 @@ def map(argv):
             index_path = os.path.join(index_dir, index_base)
             tmp = True
 
-        if iterative:
-            mapper = map.Bowtie2Mapper(index_path, min_quality=min_quality,
-                                       additional_arguments=additional_arguments,
-                                       threads=bowtie_threads)
+        if not bwa:
+            if iterative:
+                mapper = map.Bowtie2Mapper(index_path, min_quality=min_quality,
+                                           additional_arguments=additional_arguments,
+                                           threads=bowtie_threads)
+            else:
+                mapper = map.SimpleBowtie2Mapper(index_path, additional_arguments=additional_arguments,
+                                                 threads=bowtie_threads)
         else:
-            mapper = map.SimpleBowtie2Mapper(index_path, additional_arguments=additional_arguments,
+            if iterative:
+                mapper = map.BwaMapper(index_path, min_quality=min_quality,
+                                       threads=bowtie_threads)
+            else:
+                mapper = map.SimpleBwaMapper(index_path,
                                              threads=bowtie_threads)
 
         for input_file in input_files:
@@ -451,7 +474,7 @@ def map(argv):
                     logger.info("Starting mapping for {}".format(input_file))
                     map.iterative_mapping(input_file, output_file, mapper, threads=threads,
                                           min_size=min_size, step_size=step_size, batch_size=batch_size,
-                                          trim_front=trim_front)
+                                          trim_front=trim_front, restriction_enzyme=restriction_enzyme)
                 finally:
                     if tmp:
                         os.remove(input_file)
@@ -488,6 +511,8 @@ def map(argv):
                             split_command += ['--no-memory-map']
                         if trim_front:
                             split_command += ['--trim-front']
+                        if restriction_enzyme is not None:
+                            split_command += ['--restriction-enzyme', restriction_enzyme]
 
                         rt = subprocess.call(split_command)
                         split_fastq_results.append(rt)

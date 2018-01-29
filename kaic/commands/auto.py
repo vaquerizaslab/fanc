@@ -153,10 +153,24 @@ def auto_parser():
         '--restore-coverage', dest='restore_coverage',
         action='store_true',
         help='''Restore coverage to the original total number of reads. 
-                Otherwise matrix entries will be contact probabilities.
-                Only available for KR matrix balancing.'''
+                    Otherwise matrix entries will be contact probabilities.
+                    Only available for KR matrix balancing.'''
     )
     parser.set_defaults(restore_coverage=False)
+
+    parser.add_argument(
+        '--split-ligation-junction', dest='split_ligation_junction',
+        action='store_true',
+        help='''Split reads at predicted ligation junction before mapping.'''
+    )
+    parser.set_defaults(split_ligation_junction=False)
+
+    parser.add_argument(
+        '--bwa', dest='bwa',
+        action='store_true',
+        help='''Use BWA as mapper.'''
+    )
+    parser.set_defaults(bwa=False)
 
     return parser
 
@@ -177,7 +191,9 @@ def reads_worker(file_names, reads_file, args):
 
 
 def filtered_reads_worker(reads_file, filtered_reads_file, filtered_reads_stats_file, args):
-    filter_reads_command = ['kaic', 'filter_reads', '-m', '-us', '-q', '30']
+    filter_reads_command = ['kaic', 'filter_reads', '-m', '-q', '30']
+    if not args.bwa:
+        filter_reads_command.append('-us')
     if args.tmp:
         filter_reads_command.append('-tmp')
     filter_reads_command.append('-s')
@@ -198,7 +214,10 @@ def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme, p
     logger.info("Creating Pairs object...")
     pairs_command = ['kaic', 'sam_to_pairs', sam1_file, sam2_file, genome_file,
                      restriction_enzyme, pairs_file,
-                     '-m', '-us', '-q', '30']
+                     '-m', '-q', '30']
+    if not args.bwa:
+        pairs_command.append('-us')
+
     if args.tmp:
         pairs_command.append('-tmp')
 
@@ -337,6 +356,9 @@ def auto(argv):
     args = parser.parse_args(argv[2:])
 
     bin_sizes = args.bin_sizes
+    split_ligation_junction = args.split_ligation_junction
+    restriction_enzyme = args.restriction_enzyme
+    bwa = args.bwa
 
     def is_fastq_file(file_name):
         base, extension = os.path.splitext(file_name)
@@ -437,12 +459,18 @@ def auto(argv):
             check_path = os.path.expanduser(args.genome_index)
             if check_path.endswith('.'):
                 check_path = check_path[:-1]
-            for i in range(1, 5):
-                if not os.path.exists(check_path + '.{}.bt2'.format(i)):
-                    raise ValueError("Cannot find bowtie2 path!")
-            for i in range(1, 3):
-                if not os.path.exists(check_path + '.rev.{}.bt2'.format(i)):
-                    raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
+
+            if not bwa:
+                for i in range(1, 5):
+                    if not os.path.exists(check_path + '.{}.bt2'.format(i)):
+                        raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
+                for i in range(1, 3):
+                    if not os.path.exists(check_path + '.rev.{}.bt2'.format(i)):
+                        raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
+            else:
+                for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
+                    if not os.path.exists(check_path + '.{}'.format(ending)):
+                        raise ValueError("BWA index incomplete, check index files for completeness.")
 
         if not which('bowtie2'):
             raise ValueError("bowtie2 must be in PATH for iterative mapping!")
@@ -486,7 +514,13 @@ def auto(argv):
     def mapping_worker(file_name, index, bam_file, mapping_threads=1):
         iterative_mapping_command = ['kaic', 'map',
                                      '-m', '25', '-s', str(args.step_size),
-                                     '-q', '30', '-t', str(mapping_threads)]
+                                     '-t', str(mapping_threads)]
+
+        if not bwa:
+            iterative_mapping_command += ['-q', '30']
+        else:
+            iterative_mapping_command.append('--bwa')
+
         if args.tmp:
             iterative_mapping_command.append('-tmp')
 
@@ -498,6 +532,9 @@ def auto(argv):
             iterative_mapping_command.append('--no-memory-map')
         if not args.iterative:
             iterative_mapping_command.append('--simple')
+        if split_ligation_junction:
+            iterative_mapping_command.append('--restriction-enzyme')
+            iterative_mapping_command.append(restriction_enzyme)
 
         return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
 
