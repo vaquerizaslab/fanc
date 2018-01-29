@@ -423,6 +423,8 @@ def map(argv):
     try:
         if tmp:
             tmp = False
+            if index_path.endswith('.'):
+                index_path = index_path[:-1]
             index_dir = tempfile.mkdtemp()
             index_base = os.path.basename(index_path)
             if not bwa:
