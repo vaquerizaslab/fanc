@@ -425,8 +425,14 @@ def map(argv):
             tmp = False
             index_dir = tempfile.mkdtemp()
             index_base = os.path.basename(index_path)
-            for file_name in glob.glob(index_path + '*.bt2'):
-                shutil.copy(file_name, index_dir)
+            if not bwa:
+                for file_name in glob.glob(index_path + '*.bt2'):
+                    shutil.copy(file_name, index_dir)
+            else:
+                for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
+                    file_name = index_path + '.{}'.format(ending)
+                    shutil.copy(file_name, index_dir)
+
             index_path = os.path.join(index_dir, index_base)
             tmp = True
 
