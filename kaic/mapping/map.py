@@ -10,9 +10,24 @@ import threading
 import tempfile
 import shutil
 import uuid
-from kaic.tools.general import which
+from kaic.tools.general import which, ligation_site_pattern, split_at_ligation_junction
 import logging
 logger = logging.getLogger(__name__)
+
+_read_name_re = re.compile("^@(.+?)\s(.*)$")
+_read_name_nospace_re = re.compile("^@(.+)$")
+
+
+def read_name(line):
+    matches = _read_name_re.match(line)
+    if matches is None:
+        matches = _read_name_nospace_re.match(line)
+        name = matches.group(1)
+        info = None
+    else:
+        name = matches.group(1)
+        info = matches.group(2)
+    return name, info
 
 
 class Monitor(object):
@@ -81,32 +96,10 @@ class Monitor(object):
 class Mapper(object):
     def __init__(self):
         self.resubmit_unmappable = True
+        self.attempt_resubmit = True
 
-    def map(self, input_file, output_folder=None):
-        raise NotImplementedError("Mapper must implement 'map'")
-
-    def _resubmit(self, sam_fields):
-        raise NotImplementedError("Mapper must implement 'resubmit'")
-
-    def resubmit(self, sam_fields):
-        if self.resubmit_unmappable and int(sam_fields[1]) & 4:
-            return True
-        return self._resubmit(sam_fields)
-
-
-class Bowtie2Mapper(Mapper):
-    def __init__(self, bowtie2_index, min_quality=30, additional_arguments=(),
-                 threads=1, _bowtie2_path='bowtie2'):
-        Mapper.__init__(self)
-        self.index = os.path.expanduser(bowtie2_index)
-        if self.index.endswith('.'):
-            self.index = self.index[:-1]
-        self.args = [a for a in additional_arguments]
-        self._path = _bowtie2_path
-        if which(self._path) is None:
-            raise ValueError("Cannot find {}".format(self._path))
-        self.min_quality = min_quality
-        self.threads = threads
+    def _map(self, input_file, output_file, *args, **kwargs):
+        raise NotImplementedError("Must implement _map method!")
 
     def map(self, input_file, output_folder=None):
         if output_folder is None:
@@ -118,21 +111,14 @@ class Bowtie2Mapper(Mapper):
                                          delete=False) as tmp:
             sam_output_file = tmp.name
 
-        bowtie2_command = [self._path, '-x', self.index, '-U', input_file, '--no-unal',
-                           '--threads', str(self.threads), '-S', sam_output_file] + self.args
-        logger.debug('Bowtie2 command: {}'.format(bowtie2_command))
-
-        f_null = open(os.devnull, 'w')
-        ret = subprocess.call(bowtie2_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                              stderr=f_null, universal_newlines=True)
-        f_null.close()
+            ret = self._map(input_file, sam_output_file)
 
         if ret != 0:
-            raise RuntimeError('Bowtie2 had non-zero exit status {}'.format(ret))
+            raise RuntimeError('Mapping had non-zero exit status {}'.format(ret))
 
         logger.debug('Done mapping')
 
-        if not self.resubmit_unmappable and (self.min_quality is None or self.min_quality == 0):
+        if not self.resubmit_unmappable and self.attempt_resubmit:
             sam_valid_file, resubmission_file = sam_output_file, None
         else:
             sam_valid_file, resubmit = self._valid_and_resubmissions(sam_output_file, output_folder)
@@ -141,6 +127,14 @@ class Bowtie2Mapper(Mapper):
 
         logger.debug('Mapper done.')
         return sam_valid_file, resubmission_file
+
+    def _resubmit(self, sam_fields):
+        raise NotImplementedError("Mapper must implement 'resubmit'")
+
+    def resubmit(self, sam_fields):
+        if self.resubmit_unmappable and int(sam_fields[1]) & 4:
+            return True
+        return self._resubmit(sam_fields)
 
     def _valid_and_resubmissions(self, input_sam_file, output_folder):
         logger.debug('Getting mapped reads and resubmissions')
@@ -171,9 +165,6 @@ class Bowtie2Mapper(Mapper):
     def _resubmission_fastq(self, input_fastq, resubmit, output_folder):
         logger.debug('Creating FASTQ file for resubmission')
 
-        name_re = re.compile("^@(.+?)\s.*$")
-        name_nospace_re = re.compile("^@(.+)$")
-
         resubmission_counter = 0
         total_counter = 0
         with io.open(input_fastq) as f:
@@ -187,10 +178,7 @@ class Bowtie2Mapper(Mapper):
                         continue
 
                     if i % 4 == 0:
-                        matches = name_re.match(line)
-                        if matches is None:
-                            matches = name_nospace_re.match(line)
-                        name = matches.group(1)
+                        name, _ = read_name(line)
                         if name not in resubmit:
                             if self.resubmit_unmappable:
                                 resubmit_current = True
@@ -211,6 +199,37 @@ class Bowtie2Mapper(Mapper):
         logger.debug("Resubmitting {}/{}".format(resubmission_counter/4, total_counter/4))
         return output_fastq
 
+
+class Bowtie2Mapper(Mapper):
+    def __init__(self, bowtie2_index, min_quality=30, additional_arguments=(),
+                 threads=1, _bowtie2_path='bowtie2'):
+        Mapper.__init__(self)
+        self.index = os.path.expanduser(bowtie2_index)
+        if self.index.endswith('.'):
+            self.index = self.index[:-1]
+        self.args = [a for a in additional_arguments]
+        self._path = _bowtie2_path
+        if which(self._path) is None:
+            raise ValueError("Cannot find {}".format(self._path))
+        self.min_quality = min_quality
+        self.threads = threads
+        self.attempt_resubmit = (self.min_quality is not None and self.min_quality > 0)
+
+    def _map(self, input_file, output_file, *args, **kwargs):
+        bowtie2_command = [self._path, '-x', self.index, '-U', input_file, '--no-unal',
+                           '--threads', str(self.threads), '-S', output_file] + self.args
+        logger.debug('Bowtie2 command: {}'.format(bowtie2_command))
+
+        proc = subprocess.Popen(bowtie2_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, universal_newlines=True)
+        proc.wait()
+
+        if proc.returncode != 0:
+            print(proc.stderr.read())
+            print(" ".join(bowtie2_command))
+
+        return proc.returncode
+
     def _resubmit(self, sam_fields):
         if int(sam_fields[4]) < self.min_quality:
             return True
@@ -225,6 +244,59 @@ class SimpleBowtie2Mapper(Bowtie2Mapper):
                                threads=threads,
                                _bowtie2_path=_bowtie2_path)
         self.resubmit_unmappable = False
+
+    def _resubmit(self, sam_fields):
+        return False
+
+
+class BwaMapper(Mapper):
+    def __init__(self, bwa_index, min_quality=0, additional_arguments=(),
+                 threads=1, algorithm='mem', _bwa_path='bwa'):
+        Mapper.__init__(self)
+        self.index = os.path.expanduser(bwa_index)
+        if self.index.endswith('.'):
+            self.index = self.index[:-1]
+        self.args = [a for a in additional_arguments]
+        self._path = _bwa_path
+        if which(self._path) is None:
+            raise ValueError("Cannot find {}".format(self._path))
+        self.algorithm = algorithm
+        self.min_quality = min_quality
+        self.threads = threads
+        self.attempt_resubmit = (self.min_quality is not None and self.min_quality > 0)
+
+    def _map(self, input_file, output_file, *args, **kwargs):
+
+        bwa_command = [self._path, self.algorithm, '-t', str(self.threads), '-o', output_file] + \
+                          self.args + \
+                          [self.index, input_file]
+        logger.debug('BWA command: {}'.format(bwa_command))
+
+        proc = subprocess.Popen(bwa_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, universal_newlines=True)
+        proc.wait()
+
+        if proc.returncode != 0:
+            print(" ".join(bwa_command))
+            print(proc.stderr.read())
+
+        return proc.returncode
+
+    def _resubmit(self, sam_fields):
+        if int(sam_fields[4]) < self.min_quality:
+            return True
+        return False
+
+
+class SimpleBwaMapper(BwaMapper):
+    def __init__(self, bwa_index, additional_arguments=(),
+                 threads=1, _bwa_path='bwa'):
+        BwaMapper.__init__(self, bwa_index, min_quality=0,
+                           additional_arguments=additional_arguments,
+                           threads=threads,
+                           _bwa_path=_bwa_path)
+        self.resubmit_unmappable = False
+        self.attempt_resubmit = False
 
     def _resubmit(self, sam_fields):
         return False
@@ -285,8 +357,14 @@ def _iterative_mapping_worker(mapper, input_queue, output_folder, output_queue,
 
 
 def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
-                    exception_queue=None, worker_pool=None):
+                    exception_queue=None, worker_pool=None, restriction_enzyme=None):
     monitor.set_submitting(True)
+
+    if restriction_enzyme is not None:
+        ligation_pattern = ligation_site_pattern(restriction_enzyme)
+    else:
+        ligation_pattern = None
+
     tmp_output_file = None
     line_counter = 0
     submission_counter = 0
@@ -301,39 +379,71 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
             tmp_output_file = tempfile.NamedTemporaryFile(suffix='.fastq', delete=False,
                                                           dir=output_folder, mode='w+b')
 
+            current_fastq = []
             for i, line in enumerate(f):
                 line = line.encode('utf-8') if not isinstance(line, bytes) else line
-                tmp_output_file.write(line)
+                current_fastq.append(line)
                 line_counter += 1
-                read_counter += 1
 
                 # line = line.decode() if isinstance(line, bytes) else line
-                if line_counter % 4 == 0 and line_counter/4 >= batch_size:
-                    tmp_output_file.close()
-                    line_counter = 0
-
-                    if exception_queue is not None:
-                        while True:
-                            try:
-                                input_queue.put(tmp_output_file.name, True, 5)
-                                monitor.increment()
-                                submission_counter += 1
-                                break
-                            except Full:
-                                pass
-                            try:
-                                exc = exception_queue.get(block=False)
-                            except Empty:
-                                pass
-                            else:
-                                worker_pool.terminate()
-                                raise Exception(exc)
+                if line_counter % 4 == 0:
+                    if not ligation_pattern:
+                        for fastq_line in current_fastq:
+                            tmp_output_file.write(fastq_line)
+                        read_counter += 1
                     else:
-                        input_queue.put(tmp_output_file.name, True, 5)
-                        monitor.increment()
-                        submission_counter += 1
-                    tmp_output_file = tempfile.NamedTemporaryFile(suffix='.fastq', delete=False,
-                                                                  dir=output_folder, mode='w+b')
+                        name, info = read_name(current_fastq[0].rstrip().decode())
+                        seq = current_fastq[1].rstrip()
+                        qual = current_fastq[3].rstrip()
+                        seqs = split_at_ligation_junction(seq.decode(), ligation_pattern)
+
+                        qualities = []
+                        current_pos = 0
+                        for s in seqs:
+                            qualities.append(qual[current_pos:current_pos+len(s)])
+                            current_pos += len(s)
+
+                        for j in range(len(seqs)):
+                            if len(seqs) > 1:
+                                new_name = '@' + name + '__{}'.format(j)
+                            else:
+                                new_name = '@' + name
+
+                            if info is not None:
+                                new_name += ' ' + info
+                            tmp_output_file.write(new_name.encode('utf-8') + b'\n')
+                            tmp_output_file.write(seqs[j].encode('utf-8') + b'\n')
+                            tmp_output_file.write(b'+\n')
+                            tmp_output_file.write(qualities[j] + b'\n')
+                            read_counter += 1
+                    current_fastq = []
+
+                    if line_counter/4 >= batch_size:
+                        tmp_output_file.close()
+                        line_counter = 0
+
+                        if exception_queue is not None:
+                            while True:
+                                try:
+                                    input_queue.put(tmp_output_file.name, True, 5)
+                                    monitor.increment()
+                                    submission_counter += 1
+                                    break
+                                except Full:
+                                    pass
+                                try:
+                                    exc = exception_queue.get(block=False)
+                                except Empty:
+                                    pass
+                                else:
+                                    worker_pool.terminate()
+                                    raise Exception(exc)
+                        else:
+                            input_queue.put(tmp_output_file.name, True, 5)
+                            monitor.increment()
+                            submission_counter += 1
+                        tmp_output_file = tempfile.NamedTemporaryFile(suffix='.fastq', delete=False,
+                                                                      dir=output_folder, mode='w+b')
         tmp_output_file.close()
         if line_counter > 0:
             input_queue.put(tmp_output_file.name, True)
@@ -442,7 +552,7 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
 
 
 def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, min_size=25, step_size=5,
-                      batch_size=200000, trim_front=False):
+                      batch_size=200000, trim_front=False, restriction_enzyme=None):
     """
     Iteratively map sequencing reads using the provided mapper.
 
@@ -463,6 +573,9 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
     :param step_size: Number of base pairs by which to truncate read.
     :param batch_size: Maximum number of reads processed in one batch
     :param trim_front: Trim bases from front of read instead of back
+    :param restriction_enzyme: If provided, will calculate the expected ligation
+                               junction between reads and split reads accordingly.
+                               Both ends will be attempted to map
     :return:
     """
     if tmp_folder is None:
@@ -494,7 +607,7 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
         t_sub = threading.Thread(target=_fastq_to_queue, args=(fastq_file, tmp_folder,
                                                                batch_size, input_queue,
                                                                monitor, exception_queue,
-                                                               worker_pool))
+                                                               worker_pool, restriction_enzyme))
         t_sub.daemon = True
         t_sub.start()
 
@@ -508,6 +621,7 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
             convert_to_bam = True
             logger.info("Starting to output alignments to intermediate SAM file {}".format(intermediate_sam_file))
 
+        ligation_name_pattern = re.compile('(.+)__(\d)+$')
         sam_counter = 0
         with open(intermediate_sam_file, 'w') as o:
             while (sam_counter < monitor.value() or monitor.is_resubmitting()
@@ -526,11 +640,22 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
 
                     with open(partial_sam_file, 'r') as f:
                         for line in f:
-                            if sam_counter > 0 and line.startswith('@'):
+                            if line.startswith('@'):
+                                if sam_counter == 0:
+                                    o.write(line)
                                 continue
-                            if line.rstrip() == '':
+
+                            line = line.rstrip()
+                            if line == '':
                                 continue
-                            o.write(line)
+
+                            fields = line.split("\t")
+                            m = ligation_name_pattern.match(fields[0])
+                            if m is not None:
+                                fields[0] = m.group(1)
+                                fields[-1] += ' ZL:i:{}'.format(m.group(2))
+
+                            o.write("\t".join(fields) + '\n')
 
                     os.remove(partial_sam_file)
 
