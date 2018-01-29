@@ -56,7 +56,7 @@ from __future__ import division
 import tables as t
 import pysam
 from kaic.config import config
-from kaic.tools.general import RareUpdateProgressBar, natural_cmp, add_dict
+from kaic.tools.general import RareUpdateProgressBar, natural_cmp, add_dict, find_alignment_match_positions
 from kaic.tools.files import is_sambam_file, create_temporary_copy
 from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
 import os
@@ -1759,44 +1759,91 @@ class SamBamReadPairGenerator(ReadPairGenerator):
         self._check_sorted = check_sorted
 
     def _iter_read_pairs(self, *args, **kwargs):
+        max_dist_same_locus = kwargs.get('max_dist_same_locus', 100)
         logger.info("Starting to generate read pairs from SAM")
         sam1 = pysam.AlignmentFile(self.sam_file1)
         sam2 = pysam.AlignmentFile(self.sam_file2)
+
+        def _all_reads(iterator, last_read=None):
+            reads = []
+            if last_read is not None:
+                reads.append(last_read)
+
+            next_read = None
+            try:
+                next_read = next(iterator)
+                while len(reads) == 0 or next_read.qname == reads[0].qname:
+                    reads.append(next_read)
+                    next_read = next(iterator)
+            except StopIteration:
+                if len(reads) == 0:
+                    raise
+            return reads[0].qname, reads, next_read
+
+        def _find_pair(reads1, reads2):
+            if len(reads1) == len(reads2) == 1:
+                return reads1[0], reads2[0]
+            elif (len(reads1) == 1 and len(reads2) == 2) or (len(reads2) == 1 and len(reads1) == 2):
+                if len(reads2) > len(reads1):
+                    reads1, reads2 = reads2, reads1
+
+                read2 = reads2[0]
+                match_pos2 = find_alignment_match_positions(read2, longest=True)[0]
+
+                read1 = None
+                same_locus = False
+                for read in reads1:
+                    if read.reference_id != read2.reference_id:
+                        read1 = read
+                    else:
+                        match_pos1 = find_alignment_match_positions(read, longest=True)[0]
+                        if min(abs(match_pos1[0] - match_pos2[1]),
+                               abs(match_pos1[1]-match_pos2[0])) > max_dist_same_locus:
+                            read1 = read
+                        else:
+                            same_locus = True
+
+                if same_locus:
+                    return read1, read2
+            return None, None
+
         try:
             sam1_iter = iter(sam1)
             sam2_iter = iter(sam2)
             try:
-                read1 = next(sam1_iter)
-                read2 = next(sam2_iter)
+                qname1, reads1, next_read1 = _all_reads(sam1_iter)
+                qname2, reads2, next_read2 = _all_reads(sam2_iter)
                 while True:
                     check1 = False
                     check2 = False
-                    previous_qname1 = read1.qname
-                    previous_qname2 = read2.qname
+                    previous_qname1 = qname1
+                    previous_qname2 = qname2
 
-                    cmp = natural_cmp(read1.qname, read2.qname)
+                    cmp = natural_cmp(qname1, qname2)
                     if cmp == 0:  # read name identical
-                        yield (read1, read2)
-                        read1 = next(sam1_iter)
-                        read2 = next(sam2_iter)
+                        read1, read2 = _find_pair(reads1, reads2)
+                        if read1 is not None and read2 is not None:
+                            yield (read1, read2)
+                        qname1, reads1, next_read1 = _all_reads(sam1_iter, last_read=next_read1)
+                        qname2, reads2, next_read2 = _all_reads(sam2_iter, last_read=next_read2)
                         check1, check2 = True, True
                     elif cmp < 0:  # first pointer behind
-                        read1 = next(sam1_iter)
+                        qname1, reads1, next_read1 = _all_reads(sam1_iter, last_read=next_read1)
                         check1 = True
                     else:  # second pointer behind
-                        read2 = next(sam2_iter)
+                        qname2, reads2, next_read2 = _all_reads(sam2_iter, last_read=next_read2)
                         check2 = True
 
                     # check that the files are sorted
                     if self._check_sorted:
-                        if check1 and natural_cmp(previous_qname1, read1.qname) > 0:
+                        if check1 and natural_cmp(previous_qname1, qname1) > 0:
                             raise ValueError("First SAM file is not sorted by "
                                              "read name (samtools sort -n)! Read names:"
-                                             "{} and {}".format(previous_qname1, read1.qname))
-                        if check2 and natural_cmp(previous_qname2, read2.qname) > 0:
+                                             "{} and {}".format(previous_qname1, qname1))
+                        if check2 and natural_cmp(previous_qname2, qname2) > 0:
                             raise ValueError("Second SAM file is not sorted by "
                                              "read name (samtools sort -n)! Read names:"
-                                             "{} and {}".format(previous_qname2, read2.qname))
+                                             "{} and {}".format(previous_qname2, qname2.qname))
             except StopIteration:
                 logger.info("Done generating read pairs.")
         finally:
