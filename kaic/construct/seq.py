@@ -1798,7 +1798,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                     else:
                         match_pos1 = find_alignment_match_positions(read, longest=True)[0]
                         if min(abs(match_pos1[0] - match_pos2[1]),
-                               abs(match_pos1[1]-match_pos2[0])) > max_dist_same_locus:
+                               abs(match_pos1[1] - match_pos2[0])) > max_dist_same_locus:
                             read1 = read
                         else:
                             same_locus = True
