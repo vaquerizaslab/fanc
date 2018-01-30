@@ -1771,10 +1771,12 @@ class SamBamReadPairGenerator(ReadPairGenerator):
 
             next_read = None
             try:
-                next_read = next(iterator)
-                while len(reads) == 0 or next_read.qname == reads[0].qname:
-                    reads.append(next_read)
+                while next_read is None or len(reads) == 0 or next_read.qname == reads[0].qname:
                     next_read = next(iterator)
+                    if next_read.is_unmapped:
+                        next_read = None
+                    else:
+                        reads.append(next_read)
             except StopIteration:
                 if len(reads) == 0:
                     raise
