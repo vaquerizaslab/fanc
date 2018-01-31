@@ -653,7 +653,7 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
                             m = ligation_name_pattern.match(fields[0])
                             if m is not None:
                                 fields[0] = m.group(1)
-                                fields[-1] += ' ZL:i:{}'.format(m.group(2))
+                                fields[-1] += '\tZL:i:{}'.format(m.group(2))
 
                             o.write("\t".join(fields) + '\n')
 
