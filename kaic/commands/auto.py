@@ -165,13 +165,6 @@ def auto_parser():
     )
     parser.set_defaults(split_ligation_junction=False)
 
-    parser.add_argument(
-        '--bwa', dest='bwa',
-        action='store_true',
-        help='''Use BWA as mapper.'''
-    )
-    parser.set_defaults(bwa=False)
-
     return parser
 
 
@@ -358,7 +351,6 @@ def auto(argv):
     bin_sizes = args.bin_sizes
     split_ligation_junction = args.split_ligation_junction
     restriction_enzyme = args.restriction_enzyme
-    bwa = args.bwa
 
     def is_fastq_file(file_name):
         base, extension = os.path.splitext(file_name)
@@ -451,6 +443,8 @@ def auto(argv):
     threads = args.threads
 
     # 0. Do some sanity checks on required flags
+    is_bwa = False
+    is_bowtie2 = False
     if 'fastq' in file_types:
         if args.genome_index is None:
             print("Error: Must provide genome index (-i) when mapping FASTQ files!")
@@ -460,20 +454,27 @@ def auto(argv):
             if check_path.endswith('.'):
                 check_path = check_path[:-1]
 
-            if not bwa:
-                for i in range(1, 5):
-                    if not os.path.exists(check_path + '.{}.bt2'.format(i)):
-                        raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
-                for i in range(1, 3):
-                    if not os.path.exists(check_path + '.rev.{}.bt2'.format(i)):
-                        raise ValueError("Bowtie2 index incomplete, check index files for completeness.")
-            else:
-                for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
-                    if not os.path.exists(check_path + '.{}'.format(ending)):
-                        raise ValueError("BWA index incomplete, check index files for completeness.")
+            is_bowtie2 = True
+            for i in range(1, 5):
+                if not os.path.exists(check_path + '.{}.bt2'.format(i)):
+                    is_bowtie2 = False
+            for i in range(1, 3):
+                if not os.path.exists(check_path + '.rev.{}.bt2'.format(i)):
+                    is_bowtie2 = False
 
-        if not which('bowtie2'):
-            raise ValueError("bowtie2 must be in PATH for iterative mapping!")
+            is_bwa = True
+            for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
+                if not os.path.exists(check_path + '.{}'.format(ending)):
+                    is_bwa = False
+
+            if not is_bowtie2 and not is_bwa:
+                raise RuntimeError("Cannot detect Bowtie2 or BWA index.")
+
+            if is_bowtie2 and not which('bowtie2'):
+                raise ValueError("bowtie2 must be in PATH for mapping!")
+
+            if is_bwa and not which('bwa'):
+                raise ValueError("bwa must be in PATH for mapping!")
 
     if 'fastq' in file_types or 'sam' in file_types or 'reads' in file_types:
         if args.genome is None:
@@ -516,10 +517,10 @@ def auto(argv):
                                      '-m', '25', '-s', str(args.step_size),
                                      '-t', str(mapping_threads)]
 
-        if not bwa:
-            iterative_mapping_command += ['-q', '30']
+        if is_bwa:
+            iterative_mapping_command += ['-q', '3']
         else:
-            iterative_mapping_command.append('--bwa')
+            iterative_mapping_command += ['-q', '30']
 
         if args.tmp:
             iterative_mapping_command.append('-tmp')

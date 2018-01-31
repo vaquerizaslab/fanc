@@ -359,13 +359,6 @@ def map_parser():
     parser.set_defaults(iterative=True)
 
     parser.add_argument(
-        '--bwa', dest='bwa',
-        action='store_true',
-        help='''Use BWA as mapper.'''
-    )
-    parser.set_defaults(bwa=False)
-
-    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
@@ -395,7 +388,6 @@ def map(argv):
     restriction_enzyme = args.restriction_enzyme
     max_alignments = args.max_alignments
     all_alignments = args.all_alignments
-    bwa = args.bwa
     tmp = args.tmp
 
     if bowtie_parallel:
@@ -419,18 +411,41 @@ def map(argv):
     elif max_alignments is not None:
         additional_arguments += ['-k', str(max_alignments)]
 
+    if index_path.endswith('.'):
+        index_path = index_path[:-1]
+
+    mapper_type = 'bwa'
+    for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
+        file_name = index_path + '.{}'.format(ending)
+        if not os.path.isfile(file_name):
+            mapper_type = None
+            break
+
+    if mapper_type is None:
+        mapper_type = 'bowtie2'
+        for i in range(1, 5):
+            if not os.path.exists(index_path + '.{}.bt2'.format(i)):
+                mapper_type = None
+                break
+        for i in range(1, 3):
+            if not os.path.exists(index_path + '.rev.{}.bt2'.format(i)):
+                mapper_type = None
+                break
+
+    if mapper_type is None:
+        raise RuntimeError("Cannot detect mapper type from index (supported are Bowtie2 and BWA)")
+
     index_dir = None
     try:
         if tmp:
             tmp = False
-            if index_path.endswith('.'):
-                index_path = index_path[:-1]
+
             index_dir = tempfile.mkdtemp()
             index_base = os.path.basename(index_path)
-            if not bwa:
+            if mapper_type == 'bowtie2':
                 for file_name in glob.glob(index_path + '*.bt2'):
                     shutil.copy(file_name, index_dir)
-            else:
+            elif mapper_type == 'bwa':
                 for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
                     file_name = index_path + '.{}'.format(ending)
                     shutil.copy(file_name, index_dir)
@@ -438,7 +453,8 @@ def map(argv):
             index_path = os.path.join(index_dir, index_base)
             tmp = True
 
-        if not bwa:
+        mapper = None
+        if mapper_type == 'bowtie2':
             if iterative:
                 mapper = map.Bowtie2Mapper(index_path, min_quality=min_quality,
                                            additional_arguments=additional_arguments,
@@ -446,7 +462,7 @@ def map(argv):
             else:
                 mapper = map.SimpleBowtie2Mapper(index_path, additional_arguments=additional_arguments,
                                                  threads=bowtie_threads)
-        else:
+        elif mapper_type == 'bwa':
             if iterative:
                 mapper = map.BwaMapper(index_path, min_quality=min_quality,
                                        threads=bowtie_threads)
