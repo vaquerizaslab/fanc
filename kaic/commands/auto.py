@@ -183,9 +183,9 @@ def reads_worker(file_names, reads_file, args):
     return subprocess.call(load_reads_command)
 
 
-def filtered_reads_worker(reads_file, filtered_reads_file, filtered_reads_stats_file, args):
+def filtered_reads_worker(reads_file, filtered_reads_file, filtered_reads_stats_file, is_bwa, args):
     filter_reads_command = ['kaic', 'filter_reads', '-m', '-q', '30']
-    if not args.bwa:
+    if not is_bwa:
         filter_reads_command.append('-us')
     if args.tmp:
         filter_reads_command.append('-tmp')
@@ -203,12 +203,12 @@ def pairs_worker(pairs_file, filtered_reads_file1, filtered_reads_file2, genome,
     return subprocess.call(pairs_command)
 
 
-def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme, pairs_file, args):
+def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme, pairs_file, is_bwa, args):
     logger.info("Creating Pairs object...")
     pairs_command = ['kaic', 'sam_to_pairs', sam1_file, sam2_file, genome_file,
                      restriction_enzyme, pairs_file,
                      '-m', '-q', '30']
-    if not args.bwa:
+    if is_bwa:
         pairs_command.append('-us')
 
     if args.tmp:
@@ -616,7 +616,8 @@ def auto(argv):
                 filtered_reads_files.append(filtered_reads_file)
 
                 rt = tp.apply_async(filtered_reads_worker,
-                                    (file_names[ix], filtered_reads_file, filtered_reads_stats_file, args))
+                                    (file_names[ix], filtered_reads_file,
+                                     filtered_reads_stats_file, is_bwa, args))
                 filter_reads_results.append(rt)
             tp.close()
             tp.join()
@@ -726,7 +727,8 @@ def auto(argv):
             else:
                 pairs_file = output_folder + 'pairs/' + basename + '.pairs'
             rt = tp.apply_async(sam_to_pairs_worker,
-                                (file_names[i], file_names[j], genome, restriction_enzyme, pairs_file, args))
+                                (file_names[i], file_names[j], genome,
+                                 restriction_enzyme, pairs_file, is_bwa, args))
             pairs_results.append(rt)
             pairs_files.append(pairs_file)
         tp.close()
