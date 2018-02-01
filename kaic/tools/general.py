@@ -15,6 +15,7 @@ from datetime import datetime
 from Bio import Restriction
 from Bio.Seq import reverse_complement
 from future.utils import string_types
+import threading
 
 
 sam_reference_consumers = {0, 2, 3, 7, 8}  # M, D, N, =, X
@@ -414,3 +415,42 @@ def pairwise(iterable):
     a, b = itertools.tee(iterable)
     next(b, None)
     return zip(a, b)
+
+
+class WorkerMonitor(object):
+    def __init__(self, value=0):
+        self.counter_lock = threading.Lock()
+        self.worker_lock = threading.Lock()
+
+        with self.counter_lock:
+            self.val = value
+
+        with self.worker_lock:
+            self.worker_states = dict()
+
+    def increment(self):
+        with self.counter_lock:
+            self.val += 1
+
+    def value(self):
+        with self.counter_lock:
+            return self.val
+
+    def set_worker_busy(self, worker_uuid):
+        with self.worker_lock:
+            self.worker_states[worker_uuid] = True
+
+    def set_worker_idle(self, worker_uuid):
+        with self.worker_lock:
+            self.worker_states[worker_uuid] = False
+
+    def get_worker_state(self, worker_uuid):
+        with self.worker_lock:
+            return self.worker_states[worker_uuid]
+
+    def workers_idle(self):
+        with self.worker_lock:
+            for busy in self.worker_states.values():
+                if busy:
+                    return False
+            return True

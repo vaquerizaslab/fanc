@@ -10,7 +10,7 @@ import threading
 import tempfile
 import shutil
 import uuid
-from kaic.tools.general import which, ligation_site_pattern, split_at_ligation_junction
+from kaic.tools.general import which, ligation_site_pattern, split_at_ligation_junction, WorkerMonitor
 import logging
 logger = logging.getLogger(__name__)
 
@@ -30,32 +30,17 @@ def read_name(line):
     return name, info
 
 
-class Monitor(object):
+class Monitor(WorkerMonitor):
     def __init__(self, value=0):
-        self.counter_lock = threading.Lock()
+        WorkerMonitor.__init__(self, value=value)
         self.resubmitting_lock = threading.Lock()
         self.submitting_lock = threading.Lock()
-        self.worker_lock = threading.Lock()
-
-        with self.counter_lock:
-            self.val = value
 
         with self.resubmitting_lock:
             self.resubmitting = False
 
         with self.submitting_lock:
             self.submitting = False
-
-        with self.worker_lock:
-            self.worker_states = dict()
-
-    def increment(self):
-        with self.counter_lock:
-            self.val += 1
-
-    def value(self):
-        with self.counter_lock:
-            return self.val
 
     def set_resubmitting(self, value):
         with self.resubmitting_lock:
@@ -72,25 +57,6 @@ class Monitor(object):
     def is_submitting(self):
         with self.submitting_lock:
             return self.submitting
-
-    def set_worker_busy(self, worker_uuid):
-        with self.worker_lock:
-            self.worker_states[worker_uuid] = True
-
-    def set_worker_idle(self, worker_uuid):
-        with self.worker_lock:
-            self.worker_states[worker_uuid] = False
-
-    def get_worker_state(self, worker_uuid):
-        with self.worker_lock:
-            return self.worker_states[worker_uuid]
-
-    def workers_idle(self):
-        with self.worker_lock:
-            for busy in self.worker_states.values():
-                if busy:
-                    return False
-            return True
 
 
 class Mapper(object):
