@@ -1771,20 +1771,22 @@ class SamBamReadPairGenerator(ReadPairGenerator):
 
             next_read = None
             try:
-                while next_read is None or len(reads) == 0 or next_read.qname == reads[0].qname:
-                    next_read = next(iterator)
-                    if next_read.is_unmapped:
-                        next_read = None
-                    else:
+                next_read = next(iterator)
+                while len(reads) == 0 or next_read.qname == reads[0].qname:
+                    if not next_read.is_unmapped:
                         reads.append(next_read)
+                    next_read = next(iterator)
             except StopIteration:
                 if len(reads) == 0:
                     raise
             return reads[0].qname, reads, next_read
 
         def _find_pair(reads1, reads2):
+            """
+            :return: read1, read2, is_chimeric
+            """
             if len(reads1) == len(reads2) == 1:
-                return reads1[0], reads2[0]
+                return reads1[0], reads2[0], False
             elif (len(reads1) == 1 and len(reads2) == 2) or (len(reads2) == 1 and len(reads1) == 2):
                 if len(reads2) > len(reads1):
                     reads1, reads2 = reads2, reads1
@@ -1806,9 +1808,12 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                             same_locus = True
 
                 if same_locus:
-                    return read1, read2
-            return None, None
+                    return read1, read2, True
+            return None, None, False
 
+        normal_pairs = 0
+        chimeric_pairs = 0
+        abnormal_pairs = 0
         try:
             sam1_iter = iter(sam1)
             sam2_iter = iter(sam2)
@@ -1823,9 +1828,15 @@ class SamBamReadPairGenerator(ReadPairGenerator):
 
                     cmp = natural_cmp(qname1, qname2)
                     if cmp == 0:  # read name identical
-                        read1, read2 = _find_pair(reads1, reads2)
+                        read1, read2, is_chimeric = _find_pair(reads1, reads2)
                         if read1 is not None and read2 is not None:
                             yield (read1, read2)
+                            if is_chimeric:
+                                chimeric_pairs += 1
+                            else:
+                                normal_pairs += 1
+                        else:
+                            abnormal_pairs += 1
                         qname1, reads1, next_read1 = _all_reads(sam1_iter, last_read=next_read1)
                         qname2, reads2, next_read2 = _all_reads(sam2_iter, last_read=next_read2)
                         check1, check2 = True, True
@@ -1848,6 +1859,9 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                                              "{} and {}".format(previous_qname2, qname2.qname))
             except StopIteration:
                 logger.info("Done generating read pairs.")
+                logger.info("Normal pairs: {}".format(normal_pairs))
+                logger.info("Chimeric pairs: {}".format(chimeric_pairs))
+                logger.info("Abnormal pairs: {}".format(abnormal_pairs))
         finally:
             sam1.close()
             sam2.close()
@@ -2001,6 +2015,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
             self.flush()
 
     def add_read_pairs(self, read_pairs, flush=True):
+        self.disable_indexes()
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs):
             self._add_infos(fi1, fi2)
 
@@ -2010,7 +2025,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
                 self.meta.read_filter_stats = stats
             else:
                 self.meta.read_filter_stats = add_dict(self.meta.read_filter_stats, stats)
-
+        self.enable_indexes()
         if flush:
             self.flush()
 
