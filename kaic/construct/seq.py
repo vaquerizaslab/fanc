@@ -1766,7 +1766,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
 
         def _all_reads(iterator, last_read=None):
             reads = []
-            if last_read is not None:
+            if last_read is not None and not last_read.is_unmapped:
                 reads.append(last_read)
 
             next_read = None
