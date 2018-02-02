@@ -16,7 +16,7 @@ from Bio import Restriction
 from Bio.Seq import reverse_complement
 from future.utils import string_types
 import threading
-
+import warnings
 
 sam_reference_consumers = {0, 2, 3, 7, 8}  # M, D, N, =, X
 sam_query_consumers = {0, 1, 4, 7, 8}  # M, I, S, =, X
@@ -130,27 +130,34 @@ def find_alignment_match_positions(alignment, longest=False):
     query_matches = []
     longest_match_ix = None
     longest_match_length = 0
-    for operation, n in alignment.cigartuples:
-        # longest actual match
-        if operation == 0 or operation == '=':
-            match_start_ref, match_end_ref = reference_pos, reference_pos + n
-            match_start_query, match_end_query = query_pos, query_pos + n
-            reference_matches.append((match_start_ref, match_end_ref))
-            query_matches.append((match_start_query, match_end_query))
-            if longest_match_length < n:
-                longest_match_ix = len(reference_matches) - 1
-                longest_match_length = n
+    try:
+        for operation, n in alignment.cigartuples:
+            # longest actual match
+            if operation == 0 or operation == 7:
+                match_start_ref, match_end_ref = reference_pos, reference_pos + n
+                match_start_query, match_end_query = query_pos, query_pos + n
+                reference_matches.append((match_start_ref, match_end_ref))
+                query_matches.append((match_start_query, match_end_query))
+                if longest_match_length < n:
+                    longest_match_ix = len(reference_matches) - 1
+                    longest_match_length = n
 
-        if operation in sam_reference_consumers:
-            reference_pos += n
+            if operation in sam_reference_consumers:
+                reference_pos += n
 
-        if operation in sam_query_consumers:
-            query_pos += n
+            if operation in sam_query_consumers:
+                query_pos += n
 
-    if longest:
-        return reference_matches[longest_match_ix], query_matches[longest_match_ix]
-    else:
-        return reference_matches, query_matches
+        if longest:
+            return reference_matches[longest_match_ix], query_matches[longest_match_ix]
+        else:
+            return reference_matches, query_matches
+    except TypeError:
+        if alignment.is_unmapped:
+            warnings.warn("Cannot extract match positions for {} because it is unmapped!".format(alignment.qname))
+        else:
+            warnings.warn("Cannot extract match positions for {} (unknown reason)!".format(alignment.qname))
+        return (None, None), (None, None)
 
 
 def distribute_integer(value, divisor, _shuffle=True):
