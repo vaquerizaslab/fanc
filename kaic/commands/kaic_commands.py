@@ -923,6 +923,13 @@ def filter_reads_parser():
     parser.set_defaults(unique_strict=False)
 
     parser.add_argument(
+        '--bwa', dest='bwa',
+        action='store_true',
+        help='''Use filters appropriate for BWA and not Bowtie2'''
+    )
+    parser.set_defaults(bwa=False)
+
+    parser.add_argument(
         '-q', '--quality', dest='quality',
         type=int,
         help='''Cutoff for the minimum mapping quality of a read'''
@@ -957,6 +964,8 @@ def filter_reads(argv):
     from kaic.tools.files import copy_or_expand, create_temporary_copy
     from kaic.construct.seq import ContaminantFilter
 
+    bwa = args.bwa
+
     # copy file if required
     original_input_path = os.path.expanduser(args.input)
     if args.tmp:
@@ -974,10 +983,10 @@ def filter_reads(argv):
 
     if args.unique_strict:
         logger.info("Strict multi-map filter enabled")
-        reads.filter_non_unique(strict=True, queue=True)
+        reads.filter_non_unique(strict=True, queue=True, bwa=bwa)
     elif args.unique:
         logger.info("Soft multi-map filter enabled")
-        reads.filter_non_unique(strict=False, queue=True)
+        reads.filter_non_unique(strict=False, queue=True, bwa=bwa)
 
     if args.quality:
         logger.info("Quality filter enabled (%d)" % args.quality)
@@ -1304,6 +1313,13 @@ def sam_to_pairs_parser():
     parser.set_defaults(check_sorted=True)
 
     parser.add_argument(
+        '--bwa', dest='bwa',
+        action='store_true',
+        help='''Use filters appropriate for BWA and not Bowtie2'''
+    )
+    parser.set_defaults(bwa=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -1319,9 +1335,10 @@ def sam_to_pairs(argv):
 
     import kaic
     from kaic.tools.files import create_temporary_copy
+    from kaic.tools.general import get_sam_mapper
     from kaic.data.general import Mask
     from kaic.construct.seq import SamBamReadPairGenerator, ReadPairs, \
-        UnmappedFilter, UniquenessFilter, QualityFilter, ContaminantFilter
+        UnmappedFilter, UniquenessFilter, QualityFilter, ContaminantFilter, BwaMemUniquenessFilter
     import tempfile
     import shutil
 
@@ -1337,6 +1354,7 @@ def sam_to_pairs(argv):
     filter_contaminant = args.contaminant
     stats_file = args.stats
     check_sorted = args.check_sorted
+    bwa = get_sam_mapper(sam1_file) == 'bwa' or args.bwa
     tmp = args.tmp
 
     logger.info("Preparing filters...")
@@ -1346,7 +1364,10 @@ def sam_to_pairs(argv):
         filters.append(f)
 
     if filter_unique or filter_unique_strict:
-        f = UniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
+        if bwa:
+            f = BwaMemUniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
+        else:
+            f = UniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
         filters.append(f)
 
     if filter_quality is not None:
@@ -1718,6 +1739,7 @@ def pairs_to_homer(argv):
             os.remove(output_file)
 
     logger.info("All done.")
+
 
 def pairs_to_hic_parser():
     parser = argparse.ArgumentParser(

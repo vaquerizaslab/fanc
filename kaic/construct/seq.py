@@ -800,7 +800,7 @@ class Reads(Maskable, FileBased):
         unmapped_filter = UnmappedFilter(mask)
         self.filter(unmapped_filter, queue)
             
-    def filter_non_unique(self, strict=True, cutoff=3, queue=False):
+    def filter_non_unique(self, strict=True, cutoff=3, queue=False, bwa=False):
         """
         Convenience function that applies a UniquenessFilter.
         The actual algorithm and rationale used for filtering will depend on the
@@ -814,10 +814,10 @@ class Reads(Maskable, FileBased):
                       along with other queued filters using
                       run_queued_filters
         """
-        if self._mapper == 'bwa':
+        if bwa or self._mapper == 'bwa':
             mask = self.add_mask_description('uniqueness', 'Mask reads that do not map '
-                                                           'uniquely (mapq <= {})'.format(cutoff))
-            uniqueness_filter = BwaMemUniquenessFilter(cutoff, mask)
+                                                           'uniquely (XA tag)'.format(cutoff))
+            uniqueness_filter = BwaMemUniquenessFilter(strict, mask)
         else:
             mask = self.add_mask_description('uniqueness', 'Mask reads that do not map uniquely (according to XS tag)')
             uniqueness_filter = UniquenessFilter(strict, mask)
@@ -1292,22 +1292,47 @@ class BwaMemUniquenessFilter(ReadFilter):
     The presence of a non-zero XS tag does not mean a read is a multi-mapping one.
     Instead, we make sure that the ratio XS/AS is inferior to a certain threshold.
     """
-    def __init__(self, cutoff=3, mask=None):
+    def __init__(self, strict=False, mask=None):
         """
-        :param cutoff: MAPQ score above which an alignment should be in order to be considered
-                       unique. In practice, a cutoff of 3 ensures that no other alignment is
-                       equally good.
+        :param strict: If True, valid_read checks only for the
+                       presence of an XA tag. If False, the edit
+                       distance (NM) of an alternative alignment has to be
+                       the same or better as the original NM.
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered reads.
         """
         super(BwaMemUniquenessFilter, self).__init__(mask)
-        self.cutoff = cutoff
+        if strict:
+            self.valid_read = self._valid_read_strict
+        else:
+            self.valid_read = self._valid_read
+
+    def _valid_read(self, read):
+        try:
+            xa = read.get_tag('XA')
+        except KeyError:
+            return True
+
+        try:
+            nm = read.get_tag('NM')
+        except KeyError:
+            return False
+
+        for alt in xa.split(';'):
+            if alt == '':
+                continue
+            _, _, _, nm_alt = alt.split(',')
+            if int(nm_alt) <= nm:
+                return False
+        return True
+
+    def _valid_read_strict(self, read):
+        if read.has_tag('XA'):
+            return False
+        return True
 
     def valid_read(self, read):
-        """
-        Check if a read has a high alignment score.
-        """
-        return read.mapq > self.cutoff
+        pass
 
 
 class UnmappedFilter(ReadFilter):

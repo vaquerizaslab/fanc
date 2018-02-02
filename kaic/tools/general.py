@@ -15,6 +15,7 @@ from datetime import datetime
 from Bio import Restriction
 from Bio.Seq import reverse_complement
 from future.utils import string_types
+import pysam
 import threading
 import warnings
 
@@ -461,3 +462,14 @@ class WorkerMonitor(object):
                 if busy:
                     return False
             return True
+
+
+def get_sam_mapper(sam_file):
+    try:
+        if isinstance(sam_file, pysam.AlignmentFile):
+            return sam_file.header['PG'][0]['ID']
+        else:
+            with pysam.AlignmentFile(sam_file) as sam:
+                return sam_file.header['PG'][0]['ID']
+    except Exception:
+        return False

@@ -184,9 +184,9 @@ def reads_worker(file_names, reads_file, args):
 
 
 def filtered_reads_worker(reads_file, filtered_reads_file, filtered_reads_stats_file, is_bwa, args):
-    filter_reads_command = ['kaic', 'filter_reads', '-m', '-q', '30']
+    filter_reads_command = ['kaic', 'filter_reads', '-m', '-us', '-q', '30']
     if not is_bwa:
-        filter_reads_command.append('-us')
+        filter_reads_command.append('--bwa')
     if args.tmp:
         filter_reads_command.append('-tmp')
     filter_reads_command.append('-s')
@@ -207,9 +207,9 @@ def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme, p
     logger.info("Creating Pairs object...")
     pairs_command = ['kaic', 'sam_to_pairs', sam1_file, sam2_file, genome_file,
                      restriction_enzyme, pairs_file,
-                     '-m', '-q', '30']
+                     '-m', '-us', '-q', '30']
     if is_bwa:
-        pairs_command.append('-us')
+        pairs_command.append('--bwa')
 
     if args.tmp:
         pairs_command.append('-tmp')
