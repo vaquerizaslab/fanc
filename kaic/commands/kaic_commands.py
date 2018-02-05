@@ -1336,6 +1336,7 @@ def sam_to_pairs(argv):
     import kaic
     from kaic.tools.files import create_temporary_copy
     from kaic.tools.general import get_sam_mapper
+    from kaic.data.genomic import RegionBased
     from kaic.data.general import Mask
     from kaic.construct.seq import SamBamReadPairGenerator, ReadPairs, \
         UnmappedFilter, UniquenessFilter, QualityFilter, ContaminantFilter, BwaMemUniquenessFilter
@@ -1390,9 +1391,16 @@ def sam_to_pairs(argv):
             tmp = True
 
         logger.info("Getting regions")
-        genome = kaic.Genome.from_string(genome_file)
-        regions = genome.get_regions(restriction_enzyme)
-        genome.close()
+        try:
+            bed = kaic.load(genome_file)
+            if isinstance(bed, RegionBased):
+                regions = list(bed.regions)
+            else:
+                raise ValueError('Not a region-based file')
+        except (OSError, TypeError, ValueError):
+            genome = kaic.Genome.from_string(genome_file)
+            regions = genome.get_regions(restriction_enzyme)
+            genome.close()
 
         sb = SamBamReadPairGenerator(sam1_file, sam2_file, check_sorted=check_sorted)
         for f in filters:
