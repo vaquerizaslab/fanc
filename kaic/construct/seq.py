@@ -102,7 +102,7 @@ class Monitor(WorkerMonitor):
 
 def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
     worker_uuid = uuid.uuid4()
-    logger.info("Starting fragment info worker {}".format(worker_uuid))
+    logger.debug("Starting fragment info worker {}".format(worker_uuid))
 
     while True:
         # wait for input
@@ -133,7 +133,7 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
 
 
 def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=1000000):
-    logger.info("Starting read pairs worker")
+    logger.debug("Starting read pairs worker")
     try:
         read_pairs_batch = []
         for read1, read2 in read_pairs:
@@ -2100,8 +2100,8 @@ class ReadPairs(AccessOptimisedRegionPairs):
         t_pairs = None
         try:
             monitor = Monitor()
-            input_queue = mp.Queue(maxsize=threads)
-            output_queue = mp.Queue(maxsize=threads)
+            input_queue = mp.Queue(maxsize=3*threads)
+            output_queue = mp.Queue(maxsize=3*threads)
 
             monitor.set_generating_pairs(True)
             t_pairs = threading.Thread(target=_read_pairs_worker, args=(read_pairs, input_queue,
@@ -2150,6 +2150,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
         self.disable_indexes()
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs, batch_size=batch_size, threads=threads):
             self._add_infos(fi1, fi2)
+        logger.info('Done saving read pairs.')
 
         if isinstance(read_pairs, ReadPairGenerator):
             stats = read_pairs.stats()
@@ -2157,9 +2158,12 @@ class ReadPairs(AccessOptimisedRegionPairs):
                 self.meta.read_filter_stats = stats
             else:
                 self.meta.read_filter_stats = add_dict(self.meta.read_filter_stats, stats)
+
+        logger.info("Re-enabling pairs index...")
         self.enable_indexes()
         if flush:
             self.flush()
+        logger.info("Done adding pairs.")
 
     def _add_pair(self, pair):
         self.add_edge(pair, check_nodes_exist=False, flush=False, replace=True)
