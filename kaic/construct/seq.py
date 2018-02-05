@@ -146,7 +146,7 @@ def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=1000000):
                 read_pairs_batch = []
                 monitor.increment()
         if len(read_pairs_batch) > 0:
-            input_queue.put(read_pairs_batch)
+            input_queue.put(msgpack.dumps(read_pairs_batch))
             monitor.increment()
     finally:
         monitor.set_generating_pairs(False)
