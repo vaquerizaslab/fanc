@@ -1431,6 +1431,10 @@ def sam_to_pairs(argv):
             shutil.copy(output_file, original_output_file)
             os.remove(output_file)
 
+            os.remove(sam1_file)
+            os.remove(sam2_file)
+            os.remove(genome_file)
+
     logger.info("All done.")
 
 
