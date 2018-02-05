@@ -203,11 +203,12 @@ def pairs_worker(pairs_file, filtered_reads_file1, filtered_reads_file2, genome,
     return subprocess.call(pairs_command)
 
 
-def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme, pairs_file, is_bwa, args):
+def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme, pairs_file, is_bwa, load_threads,
+                        args):
     logger.info("Creating Pairs object...")
     pairs_command = ['kaic', 'sam_to_pairs', sam1_file, sam2_file, genome_file,
                      restriction_enzyme, pairs_file,
-                     '-m', '-us', '-q', '30']
+                     '-m', '-us', '-q', '30', '-t', str(load_threads)]
     if is_bwa:
         pairs_command.append('--bwa')
 
@@ -715,7 +716,10 @@ def auto(argv):
 
         pair_basenames = [basename + '_' + str(i) for i in range(len(sam_file_pairs))]
 
-        tp = Pool(threads)
+        pool_threads = min(threads, len(sam_file_pairs))
+        load_threads = max(int((threads - pool_threads)/len(sam_file_pairs)), 1)
+
+        tp = Pool(pool_threads)
         genome = args.genome
         restriction_enzyme = args.restriction_enzyme
 
@@ -728,7 +732,7 @@ def auto(argv):
                 pairs_file = output_folder + 'pairs/' + basename + '.pairs'
             rt = tp.apply_async(sam_to_pairs_worker,
                                 (file_names[i], file_names[j], genome,
-                                 restriction_enzyme, pairs_file, is_bwa, args))
+                                 restriction_enzyme, pairs_file, is_bwa, load_threads, args))
             pairs_results.append(rt)
             pairs_files.append(pairs_file)
         tp.close()
