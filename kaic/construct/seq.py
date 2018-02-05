@@ -1708,9 +1708,9 @@ class ReadPairGenerator(object):
         self._total_pairs = 0
         self._valid_pairs = 0
 
-        unmapped_filter = UnmappedFilter(mask=Mask('unmapped', 'Mask unmapped reads'))
+        unmapped_filter = UnmappedFilter(mask=Mask('unmapped', 'Mask unmapped reads', ix=len(self.filters)))
         self.add_filter(unmapped_filter)
-        self._unmapped_filter_ix = len(self.filters)
+        self._unmapped_filter_ix = len(self.filters) - 1
 
     def _iter_read_pairs(self, *args, **kwargs):
         raise NotImplementedError("Class must override iter_read_pairs")
@@ -1920,7 +1920,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
         :param cutoff: Minimum mapping quality (mapq) a read must have to pass
                        the filter
         """
-        mask = Mask('mapq', 'Mask read pairs with a mapping quality lower than {}'.format(cutoff))
+        mask = Mask('mapq', 'Mask read pairs with a mapping quality lower than {}'.format(cutoff), ix=len(self.filters))
         quality_filter = QualityFilter(cutoff, mask)
         self.add_filter(quality_filter)
 
@@ -1928,7 +1928,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
         """
         Convenience function that registers an UnmappedFilter.
         """
-        mask = Mask('unmapped', 'Mask read pairs that are unmapped')
+        mask = Mask('unmapped', 'Mask read pairs that are unmapped', ix=len(self.filters))
         unmapped_filter = UnmappedFilter(mask)
         self.add_filter(unmapped_filter)
 
@@ -1942,7 +1942,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                        will filter only when XS tag is not 0. This is applied if
                        alignments are from bowtie2.
         """
-        mask = Mask('uniqueness', 'Mask reads that do not map uniquely (according to XS tag)')
+        mask = Mask('uniqueness', 'Mask reads that do not map uniquely (according to XS tag)', ix=len(self.filters))
         uniqueness_filter = UniquenessFilter(strict, mask)
         self.add_filter(uniqueness_filter)
 

@@ -9,12 +9,12 @@ from kaic.tools.files import create_or_open_pytables_file
 class TestMask:
     
     def test_instantiate(self):
-        mask = Mask(0, 'test', 'test description')
+        mask = Mask(ix=0, name='test', description='test description')
         assert mask.ix == 0
         assert mask.name == 'test'
         assert mask.description == 'test description'
         
-        mask = Mask(0, 'test')
+        mask = Mask(ix=0, name='test')
         assert mask.ix == 0
         assert mask.name == 'test'
         assert mask.description == ''

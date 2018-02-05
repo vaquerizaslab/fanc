@@ -230,8 +230,11 @@ class Mask(object):
     Class providing Mask details.
     """
     
-    def __init__(self, ix, name, description=''):
-        self.ix = ix
+    def __init__(self, name=None, description='', ix=None):
+        if ix is not None:
+            self.ix = ix
+        else:
+            self.ix = 0
         self.name = name.decode() if isinstance(name, bytes) else name
         self.description = description.decode() if isinstance(description, bytes) else description
 
@@ -365,7 +368,7 @@ class Maskable(FileBased):
         row.append()
         self._mask.flush()
 
-        return Mask(ix, name, description)
+        return Mask(ix=ix, name=name, description=description)
 
     def masks(self):
         this = self
