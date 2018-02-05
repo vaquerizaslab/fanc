@@ -1306,6 +1306,20 @@ def sam_to_pairs_parser():
     )
 
     parser.add_argument(
+        '-t', '--threads', dest='threads',
+        type=int,
+        default=1,
+        help='''Number of threads to use for extracting fragment information'''
+    )
+
+    parser.add_argument(
+        '-b', '--batch-size', dest='batch_size',
+        type=int,
+        default=1000000,
+        help='''Batch size for read pairs to be submitted to individual processes.'''
+    )
+
+    parser.add_argument(
         '-S', '--no-check-sorted', dest='check_sorted',
         action='store_false',
         help='''Assume SAM files are sorted and do not check if that is actually the case'''
@@ -1354,6 +1368,8 @@ def sam_to_pairs(argv):
     filter_quality = args.quality
     filter_contaminant = args.contaminant
     stats_file = args.stats
+    threads = args.threads
+    batch_size = args.batch_size
     check_sorted = args.check_sorted
     bwa = get_sam_mapper(sam1_file) == 'bwa' or args.bwa
     tmp = args.tmp
@@ -1409,7 +1425,7 @@ def sam_to_pairs(argv):
         pairs = ReadPairs(file_name=output_file, mode='w')
 
         pairs.add_regions(regions)
-        pairs.add_read_pairs(sb)
+        pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
 
         statistics = pairs.filter_statistics()
         pairs.close()
@@ -1613,6 +1629,20 @@ def pairs_from_hicpro_parser():
     )
 
     parser.add_argument(
+        '-t', '--threads', dest='threads',
+        type=int,
+        default=1,
+        help='''Number of threads to use for extracting fragment information'''
+    )
+
+    parser.add_argument(
+        '-b', '--batch-size', dest='batch_size',
+        type=int,
+        default=1000000,
+        help='''Batch size for read pairs to be submitted to individual processes.'''
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -1629,6 +1659,8 @@ def pairs_from_hicpro(argv):
     output_file = os.path.expanduser(args.output)
     genome_path = os.path.expanduser(args.genome)
     restriction_enzyme = args.restriction_enzyme
+    threads = args.threads
+    batch_size = args.batch_size
     tmp = args.tmp
 
     import kaic
@@ -1658,7 +1690,7 @@ def pairs_from_hicpro(argv):
         pairs = ReadPairs(file_name=output_file, mode='w')
 
         pairs.add_regions(regions)
-        pairs.add_read_pairs(sb)
+        pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
 
         pairs.close()
         logger.info("Done creating pairs.")
@@ -1671,6 +1703,7 @@ def pairs_from_hicpro(argv):
             os.remove(output_file)
 
     logger.info("All done.")
+
 
 def pairs_to_homer_parser():
     parser = argparse.ArgumentParser(
