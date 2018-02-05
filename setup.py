@@ -60,7 +60,7 @@ setup(
     },
     ext_modules=[
         Extension(
-            'sambam',
+            'kaic.tools.sambam',
             sources=['kaic/tools/sambam.pyx'],
         ),
     ],
