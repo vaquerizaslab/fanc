@@ -275,10 +275,8 @@ class TestBWAReads:
     def test_bwamem_uniqueness_filter(self):
         with Reads(self.bwamem_sam1_file) as reads:
             assert len(reads) == 995
-            reads.filter_non_unique(cutoff=3, queue=False)
-            assert len(reads) == 626
-            for read in reads:
-                assert read.mapq > 3
+            reads.filter_non_unique(queue=False)
+            assert len(reads) == 995
 
 
 class TestFragmentMappedReadPairs:
