@@ -1097,6 +1097,12 @@ class LazyRead(Read):
                      value.decode() if isinstance(value, bytes) else value) for key, value in tags]
         return None
 
+    def has_tag(self, tag):
+        for t in self.tags:
+            if t == tag:
+                return True
+        return False
+
     @property
     def reference_id(self):
         return self.row['ref']
@@ -1702,6 +1708,10 @@ class ReadPairGenerator(object):
         self._total_pairs = 0
         self._valid_pairs = 0
 
+        unmapped_filter = UnmappedFilter(mask=Mask('unmapped', 'Mask unmapped reads'))
+        self.add_filter(unmapped_filter)
+        self._unmapped_filter_ix = len(self.filters)
+
     def _iter_read_pairs(self, *args, **kwargs):
         raise NotImplementedError("Class must override iter_read_pairs")
 
@@ -1791,8 +1801,11 @@ class SamBamReadPairGenerator(ReadPairGenerator):
 
         def _all_reads(iterator, last_read=None):
             reads = []
-            if last_read is not None and not last_read.is_unmapped:
-                reads.append(last_read)
+            if last_read is not None:
+                if last_read.is_unmapped:
+                    self._filter_stats[self._unmapped_filter_ix] += 1
+                else:
+                    reads.append(last_read)
 
             next_read = None
             try:
@@ -1800,6 +1813,8 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                 while len(reads) == 0 or next_read.qname == reads[0].qname:
                     if not next_read.is_unmapped:
                         reads.append(next_read)
+                    else:
+                        self._filter_stats[self._unmapped_filter_ix] += 1
                     next_read = next(iterator)
             except StopIteration:
                 if len(reads) == 0:
