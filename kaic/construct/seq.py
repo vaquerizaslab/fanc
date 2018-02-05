@@ -56,7 +56,8 @@ from __future__ import division
 import tables as t
 import pysam
 from kaic.config import config
-from kaic.tools.general import RareUpdateProgressBar, natural_cmp, add_dict, find_alignment_match_positions
+from kaic.tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions
+from kaic.tools.sambam import natural_cmp
 from kaic.tools.files import is_sambam_file, create_temporary_copy
 from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
 import os
@@ -1810,7 +1811,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
             next_read = None
             try:
                 next_read = next(iterator)
-                while len(reads) == 0 or next_read.qname == reads[0].qname:
+                while len(reads) == 0 or natural_cmp(next_read.qname.encode(), reads[0].qname.encode()) == 0:
                     if not next_read.is_unmapped:
                         reads.append(next_read)
                     else:
@@ -1819,7 +1820,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
             except StopIteration:
                 if len(reads) == 0:
                     raise
-            return reads[0].qname, reads, next_read
+            return reads[0].qname.encode(), reads, next_read
 
         def _find_pair(reads1, reads2):
             """
