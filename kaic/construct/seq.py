@@ -130,6 +130,7 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
             except (KeyError, IndexError):
                 pass
         output_queue.put(msgpack.dumps(fragment_infos))
+        del read_pairs
 
 
 def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=1000000):
@@ -2100,8 +2101,8 @@ class ReadPairs(AccessOptimisedRegionPairs):
         t_pairs = None
         try:
             monitor = Monitor()
-            input_queue = mp.Queue(maxsize=3*threads)
-            output_queue = mp.Queue(maxsize=3*threads)
+            input_queue = mp.Queue(maxsize=2*threads)
+            output_queue = mp.Queue(maxsize=2*threads)
 
             monitor.set_generating_pairs(True)
             t_pairs = threading.Thread(target=_read_pairs_worker, args=(read_pairs, input_queue,
@@ -2119,6 +2120,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
                 for read1_info, read2_info in msgpack.loads(read_pair_infos):
                     yield read1_info, read2_info
                 output_counter += 1
+                del read_pair_infos
         finally:
             if worker_pool is not None:
                 worker_pool.terminate()
