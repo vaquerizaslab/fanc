@@ -133,7 +133,7 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
         del read_pairs
 
 
-def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=1000000):
+def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=100000):
     logger.debug("Starting read pairs worker")
     try:
         read_pairs_batch = []
@@ -2148,7 +2148,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
         if flush:
             self.flush()
 
-    def add_read_pairs(self, read_pairs, flush=True, batch_size=500000, threads=1):
+    def add_read_pairs(self, read_pairs, flush=True, batch_size=100000, threads=1):
         self.disable_indexes()
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs, batch_size=batch_size, threads=threads):
             self._add_infos(fi1, fi2)

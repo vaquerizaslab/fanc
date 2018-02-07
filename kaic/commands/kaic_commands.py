@@ -1315,7 +1315,7 @@ def sam_to_pairs_parser():
     parser.add_argument(
         '-b', '--batch-size', dest='batch_size',
         type=int,
-        default=1000000,
+        default=100000,
         help='''Batch size for read pairs to be submitted to individual processes.'''
     )
 
