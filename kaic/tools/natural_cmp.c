@@ -1,6 +1,5 @@
 #include <ctype.h>
 
-
 static int strnum_cmp(const char *_a, const char *_b)
 {
     const unsigned char *a = (const unsigned char*)_a, *b = (const unsigned char*)_b;
