@@ -2667,7 +2667,7 @@ class RegionPairs(Maskable, RegionsTable):
             return len(self.this._edges)
 
     def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
-                 _table_name_nodes='nodes', _table_name_edges='edges'):
+                 _table_name_nodes='nodes', _table_name_edges='edges', _edge_buffer_size=100000):
 
         """
         Initialize a :class:`~RegionPairs` object.
@@ -2707,6 +2707,8 @@ class RegionPairs(Maskable, RegionsTable):
         self._source_field_ix = 0
         self._sink_field_ix = 0
         self.field_names = []
+        self._field_names_dict = dict()
+        self._edge_field_defaults = dict()
         self._field_dict = self._edges.coldescrs
         for i, name in enumerate(self._edges.colnames):
             if not name.startswith("_"):
@@ -2715,6 +2717,11 @@ class RegionPairs(Maskable, RegionsTable):
                 self._source_field_ix = i
             if name == 'sink':
                 self._sink_field_ix = i
+            self._field_names_dict[name] = i
+            self._edge_field_defaults[name] = self._edges.coldescrs[name].dflt
+
+        self._edge_buffer = []
+        self._edge_buffer_size = _edge_buffer_size
 
     def disable_indexes(self):
         try:
@@ -2835,26 +2842,41 @@ class RegionPairs(Maskable, RegionsTable):
         if source > sink:
             source, sink = sink, source
 
-        update = True
         if row is None:
-            update = False
-            row = self._edges.row
-        row['source'] = source
-        row['sink'] = sink
-        for name in self.field_names:
-            if not name == 'source' and not name == 'sink':
+            record = [None] * len(self._field_names_dict)
+            for name, ix in self._field_names_dict.items():
                 try:
-                    value = getattr(edge, name)
-                    if replace or not update:
-                        row[name] = value
-                    else:
-                        row[name] += value
+                    record[ix] = getattr(edge, name)
                 except AttributeError:
-                    pass
-        if update:
-            row.update()
+                    record[ix] = self._edge_field_defaults[name]
+            record[self._field_names_dict['source']] = source
+            record[self._field_names_dict['sink']] = sink
+
+            self._edge_buffer.append(tuple(record))
+            if len(self._edge_buffer) > self._edge_buffer_size:
+                self._edges.append(self._edge_buffer)
+                self._edge_buffer = []
         else:
-            row.append()
+            update = True
+            if row is None:
+                update = False
+                row = self._edges.row
+            row['source'] = source
+            row['sink'] = sink
+            for name in self.field_names:
+                if not name == 'source' and not name == 'sink':
+                    try:
+                        value = getattr(edge, name)
+                        if replace or not update:
+                            row[name] = value
+                        else:
+                            row[name] += value
+                    except AttributeError:
+                        pass
+            if update:
+                row.update()
+            else:
+                row.append()
 
     def _edge_from_object(self, edge):
         return edge
@@ -2918,6 +2940,9 @@ class RegionPairs(Maskable, RegionsTable):
             self._regions.flush()
 
         if flush_edges:
+            if len(self._edge_buffer) > 0:
+                self._edges.append(self._edge_buffer)
+                self._edge_buffer = []
             self._edges.flush(update_index=update_index)
 
         if update_mappability:
@@ -3368,7 +3393,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
             return len(self.this)
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
-                 _table_name_nodes='nodes', _table_name_edges='edges'):
+                 _table_name_nodes='nodes', _table_name_edges='edges', _edge_buffer_size=1000000):
         # private variables
         self._max_node_ix = -1
 
@@ -3384,6 +3409,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._field_dict = None
         self.field_names = None
         self._edge_table_dict = dict()
+        self._edge_field_defaults = dict()
         self._source_field_ix = 0
         self._sink_field_ix = 1
 
@@ -3409,6 +3435,17 @@ class AccessOptimisedRegionPairs(RegionPairs):
         # update partitions
         self._update_partitions()
 
+        self._edge_buffer = defaultdict(list)
+        self._edge_buffer_size = _edge_buffer_size
+
+    def _flush_table_edge_buffer(self):
+        for (source_partition, sink_partition), records in self._edge_buffer.items():
+            if not (source_partition, sink_partition) in self._edge_table_dict:
+                self._create_edge_table(source_partition, sink_partition)
+            table = self._edge_table_dict[(source_partition, sink_partition)]
+            table.append(records)
+        self._edge_buffer = defaultdict(list)
+
     def _update_field_names(self, edge_table=None):
         """
         Set internal object variables related to edge table field names.
@@ -3425,6 +3462,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._source_field_ix = 0
         self._sink_field_ix = 0
         self.field_names = []
+        self._field_names_dict = dict()
         for i, name in enumerate(edge_table.colnames):
             if not name.startswith("_"):
                 self.field_names.append(name)
@@ -3432,6 +3470,8 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 self._source_field_ix = i
             if name == 'sink':
                 self._sink_field_ix = i
+            self._field_names_dict[name] = i
+            self._edge_field_defaults[name] = edge_table.coldescrs[name].dflt
 
     def _update_partitions(self):
         """
@@ -3462,8 +3502,12 @@ class AccessOptimisedRegionPairs(RegionPairs):
             self._update_partitions()
 
         if flush_edges:
+            if len(self._edge_buffer) > 0:
+                self._flush_table_edge_buffer()
+
             if update_index:
                 logger.info("Updating mask indices...")
+
             with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges), silent=silent) as pb:
                 for i, edge_table in enumerate(self._edges):
                     edge_table.flush(update_index=update_index, log_progress=False)
@@ -3525,22 +3569,24 @@ class AccessOptimisedRegionPairs(RegionPairs):
             create_col_index(edge_table.cols.sink)
             edge_table.enable_mask_index()
 
-    def _get_edge_table(self, source, sink):
-        """
-        Return an edge table for this particular region index combination.
-        """
+    def _get_edge_table_tuple(self, source, sink):
         if source > sink:
             source, sink = sink, source
 
         source_partition = self._get_partition_ix(source)
         sink_partition = self._get_partition_ix(sink)
 
-        if (source_partition, sink_partition) in self._edge_table_dict:
-            return self._edge_table_dict[(source_partition, sink_partition)]
+        return source_partition, sink_partition
 
-        edge_table = self._create_edge_table(source_partition, sink_partition)
+    def _get_edge_table(self, source, sink):
+        """
+        Return an edge table for this particular region index combination.
+        """
+        source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
 
-        return edge_table
+        if not (source_partition, sink_partition) in self._edge_table_dict:
+            self._create_edge_table(source_partition, sink_partition)
+        return self._edge_table_dict[(source_partition, sink_partition)]
 
     def _edge_table_iter(self, intrachromosomal=True, interchromosomal=True):
         """
@@ -3577,27 +3623,43 @@ class AccessOptimisedRegionPairs(RegionPairs):
         if source > sink:
             source, sink = sink, source
 
-        update = True
         if row is None:
-            update = False
-            table = self._get_edge_table(source, sink)
-            row = table.row
-        row['source'] = source
-        row['sink'] = sink
-        for name in self.field_names:
-            if not name == 'source' and not name == 'sink':
+            record = [None] * len(self._field_names_dict)
+            for name, ix in self._field_names_dict.items():
                 try:
-                    value = getattr(edge, name)
-                    if replace or not update:
-                        row[name] = value
-                    else:
-                        row[name] += value
+                    record[ix] = getattr(edge, name)
                 except AttributeError:
-                    pass
-        if update:
-            row.update()
+                    record[ix] = self._edge_field_defaults[name]
+            record[self._field_names_dict['source']] = source
+            record[self._field_names_dict['sink']] = sink
+
+            source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
+
+            self._edge_buffer[(source_partition, sink_partition)].append(tuple(record))
+            if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
+                self._flush_table_edge_buffer()
         else:
-            row.append()
+            update = True
+            if row is None:
+                update = False
+                table = self._get_edge_table(source, sink)
+                row = table.row
+            row['source'] = source
+            row['sink'] = sink
+            for name in self.field_names:
+                if not name == 'source' and not name == 'sink':
+                    try:
+                        value = getattr(edge, name)
+                        if replace or not update:
+                            row[name] = value
+                        else:
+                            row[name] += value
+                    except AttributeError:
+                        pass
+            if update:
+                row.update()
+            else:
+                row.append()
 
     def get_edge(self, item, intrachromosomal=True, interchromosomal=True,
                  *row_conversion_args, **row_conversion_kwargs):
