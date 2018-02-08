@@ -332,10 +332,17 @@ def map_parser():
     parser.add_argument(
         '--bowtie-parallel', dest='bowtie_parallel',
         action='store_true',
-        help='''Use bowtie parallelisation rather than spawning multiple Bowtie2 processes.
-                This is slower, but consumes potentially less memory.'''
+        help='''Deprecated. Use --mapper-parallel instead.'''
     )
     parser.set_defaults(bowtie_parallel=False)
+
+    parser.add_argument(
+        '--mapper-parallel', dest='mapper_parallel',
+        action='store_true',
+        help='''Use mapper-internal parallelisation rather than spawning multiple mapping processes.
+                This is slower, but consumes potentially less memory.'''
+    )
+    parser.set_defaults(mapper_parallel=False)
 
     parser.add_argument(
         '--split-fastq', dest='split_fastq',
@@ -382,7 +389,7 @@ def map(argv):
     trim_front = args.trim_front
     batch_size = args.batch_size
     min_quality = args.quality
-    bowtie_parallel = args.bowtie_parallel
+    mapper_parallel = args.bowtie_parallel or args.mapper_parallel
     memory_map = args.memory_map
     iterative = args.iterative
     restriction_enzyme = args.restriction_enzyme
@@ -390,10 +397,10 @@ def map(argv):
     all_alignments = args.all_alignments
     tmp = args.tmp
 
-    if bowtie_parallel:
-        threads, bowtie_threads = 1, args.threads
+    if mapper_parallel:
+        threads, mapper_threads = 1, args.threads
     else:
-        threads, bowtie_threads = args.threads, 1
+        threads, mapper_threads = args.threads, 1
 
     import kaic.mapping.map as map
     from kaic.tools.general import mkdir
@@ -458,17 +465,17 @@ def map(argv):
             if iterative:
                 mapper = map.Bowtie2Mapper(index_path, min_quality=min_quality,
                                            additional_arguments=additional_arguments,
-                                           threads=bowtie_threads)
+                                           threads=mapper_threads)
             else:
                 mapper = map.SimpleBowtie2Mapper(index_path, additional_arguments=additional_arguments,
-                                                 threads=bowtie_threads)
+                                                 threads=mapper_threads)
         elif mapper_type == 'bwa':
             if iterative:
                 mapper = map.BwaMapper(index_path, min_quality=min_quality,
-                                       threads=bowtie_threads)
+                                       threads=mapper_threads)
             else:
                 mapper = map.SimpleBwaMapper(index_path,
-                                             threads=bowtie_threads)
+                                             threads=mapper_threads)
 
         for input_file in input_files:
             input_file = os.path.expanduser(input_file)
