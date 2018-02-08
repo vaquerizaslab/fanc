@@ -2743,6 +2743,11 @@ def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
                 c[j_bin, i_bin] += 1
 
     m /= c
+    for i in range(len(bin_cutoffs) - 1):
+        if np.isclose(bin_cutoffs[::-1][i], bin_cutoffs[::-1][i+1]):
+            m[:, i] = m[:, i + 1]
+            m[i, :] = m[i + 1, :]
+
     return np.log2(m)
 
 
