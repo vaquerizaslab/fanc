@@ -108,11 +108,16 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
         # wait for input
         monitor.set_worker_idle(worker_uuid)
         read_pairs = input_queue.get(True)
+        logger.debug('Worker {} reveived input!'.format(worker_uuid))
         read_pairs = msgpack.loads(read_pairs)
 
         monitor.set_worker_busy(worker_uuid)
         fragment_infos = []
+        skipped_counter = 0
         for (chrom1, pos1, flag1), (chrom2, pos2, flag2) in read_pairs:
+            chrom1 = chrom1.decode() if isinstance(chrom1, bytes) else chrom1
+            chrom2 = chrom2.decode() if isinstance(chrom2, bytes) else chrom2
+
             try:
                 pos_ix1 = bisect_right(fe[chrom1], pos1)
                 pos_ix2 = bisect_right(fe[chrom2], pos2)
@@ -128,7 +133,8 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
                      (pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
                 )
             except (KeyError, IndexError):
-                pass
+                skipped_counter += 1
+        logger.debug("Worker {} skipped {} pairs".format(worker_uuid, skipped_counter))
         output_queue.put(msgpack.dumps(fragment_infos))
         del read_pairs
 
