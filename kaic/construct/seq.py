@@ -108,10 +108,10 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
         # wait for input
         monitor.set_worker_idle(worker_uuid)
         read_pairs = input_queue.get(True)
+        monitor.set_worker_busy(worker_uuid)
         logger.debug('Worker {} reveived input!'.format(worker_uuid))
         read_pairs = msgpack.loads(read_pairs)
 
-        monitor.set_worker_busy(worker_uuid)
         fragment_infos = []
         skipped_counter = 0
         for (chrom1, pos1, flag1), (chrom2, pos2, flag2) in read_pairs:
