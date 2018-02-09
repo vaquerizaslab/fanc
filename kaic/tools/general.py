@@ -271,6 +271,10 @@ def natural_cmp(pa, pb):
     i = 0
     j = 0
 
+    if pa[-2] == '/' == pb[-2]:
+        pa = pa[:-2]
+        pb = pb[:-2]
+
     try:
         while i < len(pa) and j < len(pb):
             if pa[i].isdigit() and pb[j].isdigit():
