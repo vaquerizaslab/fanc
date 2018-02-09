@@ -536,8 +536,8 @@ def map(argv):
                             split_command += ['--simple']
                         if tmp:
                             split_command += ['-tmp']
-                        if bowtie_parallel:
-                            split_command += ['--bowtie-parallel']
+                        if mapper_parallel:
+                            split_command += ['--mapper-parallel']
                         if not memory_map:
                             split_command += ['--no-memory-map']
                         if trim_front:
@@ -4851,6 +4851,13 @@ def ab_profile_parser():
     )
 
     parser.add_argument(
+        '-s', '--symmetric-at', dest='symmetric_at',
+        type=int,
+        help='''Make profile plot symmetric around this value 
+                (e.g. to ensure that 0 is in the center of the plot)'''
+    )
+
+    parser.add_argument(
         '--vmin', dest='vmin',
         type=float,
         default=-1,
@@ -4911,6 +4918,7 @@ def ab_profile(argv):
     output_file = os.path.expanduser(args.output)
     percentiles = args.percentiles
     per_chromosome = args.per_chromosome
+    symmetric_at = args.symmetric_at
     cmap = args.colormap
     matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
     vmin = args.vmin
@@ -4924,25 +4932,46 @@ def ab_profile(argv):
     import matplotlib
     matplotlib.use('agg')
     import matplotlib.pyplot as plt
+    import matplotlib.gridspec as grd
+    import numpy as np
 
     with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
         with kaic.Genome.from_string(genome_file, tmpdir=tmp, mode='r') as genome:
-            m = ab_enrichment_profile(hic, genome, percentiles=percentiles,
-                                      per_chromosome=per_chromosome, only_gc=only_gc,
-                                      exclude_chromosomes=exclude)
+            m, cutoffs = ab_enrichment_profile(hic, genome, percentiles=percentiles,
+                                               per_chromosome=per_chromosome, only_gc=only_gc,
+                                               symmetric_at=symmetric_at, exclude_chromosomes=exclude)
 
     if matrix_file is not None:
         import numpy as np
         np.savetxt(matrix_file, m)
 
-    fig, ax = plt.subplots()
-    im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest')
-    cb = plt.colorbar(im)
+    fig = plt.figure(figsize=(5, 5), dpi=300)
+    gs = grd.GridSpec(2, 2,
+                      height_ratios=[5, 1],
+                      width_ratios=[5, 1])
+    heatmap_ax = plt.subplot(gs[0, 0])
+    im = heatmap_ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest', aspect='auto')
+    cax = plt.subplot(gs[0, 1])
+    cb = plt.colorbar(im, cax=cax)
     cb.set_label('log enrichment')
-    ax.set_xticks([0, m.shape[1] - 1])
-    ax.set_xticklabels(['active', 'inactive'])
-    ax.set_yticks([0, m.shape[1] - 1])
-    ax.set_yticklabels(['active', 'inactive'])
+    heatmap_ax.set_xticks([0, m.shape[1] - 1])
+    heatmap_ax.set_xticklabels(['active', 'inactive'])
+    heatmap_ax.set_yticks([0, m.shape[1] - 1])
+    heatmap_ax.set_yticklabels(['active', 'inactive'])
+
+    print(cutoffs)
+    pos = np.arange(m.shape[1])
+    barplot_ax = plt.subplot(gs[1, 0])
+    barplot_ax.bar(pos, cutoffs, color='grey')
+    extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
+    barplot_ax.set_yticks([-1*extent, 0, extent])
+    barplot_ax.get_xaxis().set_visible(False)
+    barplot_ax.spines['right'].set_visible(False)
+    barplot_ax.spines['top'].set_visible(False)
+    barplot_ax.spines['bottom'].set_visible(False)
+    barplot_ax.yaxis.set_ticks_position('left')
+    barplot_ax.xaxis.set_ticks_position('none')
+    barplot_ax.set_xlim([pos[0], pos[-1]])
     fig.savefig(output_file)
     plt.close(fig)
 

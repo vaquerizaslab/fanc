@@ -2681,7 +2681,7 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
 
 def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
                               percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
-                              exclude_chromosomes=()):
+                              symmetric_at=None, exclude_chromosomes=()):
     if len(exclude_chromosomes) > 0:
         chromosome_bins = oe.chromosome_bins
         exclude_vector = []
@@ -2691,7 +2691,14 @@ def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
                 for v in vector[b[0]:b[1]]:
                     exclude_vector.append(v)
                 # exclude_vector += vector[b[0]:b[1]]
-        bin_cutoffs = np.nanpercentile(exclude_vector, percentiles)
+        vector = exclude_vector
+
+    if symmetric_at is not None:
+        lv = vector[vector <= symmetric_at]
+        gv = vector[vector > symmetric_at]
+        lv_cutoffs = np.nanpercentile(lv, percentiles)
+        gv_cutoffs = np.nanpercentile(gv, percentiles)
+        bin_cutoffs = np.concatenate((lv_cutoffs, gv_cutoffs))
     else:
         bin_cutoffs = np.nanpercentile(vector, percentiles)
 
@@ -2743,12 +2750,13 @@ def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
                 c[j_bin, i_bin] += 1
 
     m /= c
-    for i in range(len(bin_cutoffs) - 1):
-        if np.isclose(bin_cutoffs[::-1][i], bin_cutoffs[::-1][i+1]):
-            m[:, i] = m[:, i + 1]
-            m[i, :] = m[i + 1, :]
+    rev_cutoffs = bin_cutoffs[::-1]
+    for i in range(len(rev_cutoffs) - 1, 0, -1):
+        if np.isclose(rev_cutoffs[i - 1], rev_cutoffs[i]):
+            m[:, i - 1] = m[:, i]
+            m[i - 1, :] = m[i, :]
 
-    return np.log2(m)
+    return np.log2(m), rev_cutoffs
 
 
 def region_score_enrichment_profile(hic, regions, per_chromosome=True,
@@ -2777,7 +2785,8 @@ def region_score_enrichment_profile(hic, regions, per_chromosome=True,
 
 
 def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
-                          per_chromosome=True, only_gc=False, exclude_chromosomes=()):
+                          per_chromosome=True, only_gc=False, symmetric_at=None,
+                          exclude_chromosomes=()):
 
     logger.info("Generating profile...")
     with ObservedExpectedRatio(hic, per_chromosome=per_chromosome) as oe:
@@ -2804,7 +2813,8 @@ def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.
 
         mappable = hic.mappable()
         return vector_enrichment_profile(oe, ev, mappable=mappable, per_chromosome=per_chromosome,
-                                         percentiles=percentiles, exclude_chromosomes=exclude_chromosomes)
+                                         percentiles=percentiles, symmetric_at=symmetric_at,
+                                         exclude_chromosomes=exclude_chromosomes)
 
 
 def contact_directionality_bias(hic, regions, distance=1000000, region_anchor='center', **kwargs):
