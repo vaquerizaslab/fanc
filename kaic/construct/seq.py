@@ -76,6 +76,7 @@ import uuid
 from functools import partial
 from collections import defaultdict
 from future.utils import with_metaclass, string_types, viewitems
+from timeit import default_timer as timer
 from builtins import object
 import gzip
 import warnings
@@ -2156,8 +2157,22 @@ class ReadPairs(AccessOptimisedRegionPairs):
 
     def add_read_pairs(self, read_pairs, flush=True, batch_size=100000, threads=1):
         self.disable_indexes()
+        start_time = timer()
+        chunck_start_time = timer()
+        pairs_counter = 0
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs, batch_size=batch_size, threads=threads):
             self._add_infos(fi1, fi2)
+            pairs_counter += 1
+            if pairs_counter % 1000000 == 0:
+                end_time = timer()
+                logger.debug("Wrote {} pairs in {}s (current 1M chunk: {}s)".format(
+                    pairs_counter, end_time - start_time, end_time - chunck_start_time
+                ))
+        end_time = timer()
+        logger.debug("Wrote {} pairs in {}s".format(
+            pairs_counter, end_time - start_time
+        ))
+
         logger.info('Done saving read pairs.')
 
         if isinstance(read_pairs, ReadPairGenerator):
