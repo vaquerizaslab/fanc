@@ -2667,7 +2667,7 @@ class RegionPairs(Maskable, RegionsTable):
             return len(self.this._edges)
 
     def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
-                 _table_name_nodes='nodes', _table_name_edges='edges', _edge_buffer_size=100000):
+                 _table_name_nodes='nodes', _table_name_edges='edges', _edge_buffer_size=1000000):
 
         """
         Initialize a :class:`~RegionPairs` object.
