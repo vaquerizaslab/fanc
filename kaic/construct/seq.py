@@ -2155,7 +2155,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
         if flush:
             self.flush()
 
-    def add_read_pairs(self, read_pairs, flush=True, batch_size=100000, threads=1):
+    def add_read_pairs(self, read_pairs, flush=True, batch_size=1000000, threads=1):
         self.disable_indexes()
         start_time = timer()
         chunk_start_time = timer()
