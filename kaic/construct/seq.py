@@ -2158,7 +2158,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
     def add_read_pairs(self, read_pairs, flush=True, batch_size=100000, threads=1):
         self.disable_indexes()
         start_time = timer()
-        chunck_start_time = timer()
+        chunk_start_time = timer()
         pairs_counter = 0
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs, batch_size=batch_size, threads=threads):
             self._add_infos(fi1, fi2)
@@ -2166,8 +2166,9 @@ class ReadPairs(AccessOptimisedRegionPairs):
             if pairs_counter % 1000000 == 0:
                 end_time = timer()
                 logger.debug("Wrote {} pairs in {}s (current 1M chunk: {}s)".format(
-                    pairs_counter, end_time - start_time, end_time - chunck_start_time
+                    pairs_counter, end_time - start_time, end_time - chunk_start_time
                 ))
+                chunk_start_time = timer()
         end_time = timer()
         logger.debug("Wrote {} pairs in {}s".format(
             pairs_counter, end_time - start_time
