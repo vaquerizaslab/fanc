@@ -5542,16 +5542,22 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
             # this is an old-style Hi-C object
             partitions_identical = False
 
+        partition_keys = set()
+        for hic in hics:
+            for partition_key in hic._edge_table_dict.keys():
+                partition_keys.add(partition_key)
+
         merged_hic.disable_indexes()
         if partitions_identical:
             logger.info("Partitions identical, performing fast merge.")
-            for partition_key in hics[0]._edge_table_dict.keys():
+            for partition_key in partition_keys:
 
                 edge_buffer = defaultdict(int)
                 for hic in hics:
-                    for row in hic._edge_table_dict[partition_key]:
-                        source, sink, weight = row['source'], row['sink'], row[hic.default_field]
-                        edge_buffer[(source, sink)] += weight
+                    if partition_key in hic._edge_table_dict:
+                        for row in hic._edge_table_dict[partition_key]:
+                            source, sink, weight = row['source'], row['sink'], row[hic.default_field]
+                            edge_buffer[(source, sink)] += weight
 
                 merged_edge_table = merged_hic._create_edge_table(partition_key[0], partition_key[1])
                 merged_row = merged_edge_table.row
