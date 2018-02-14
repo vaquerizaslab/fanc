@@ -714,39 +714,40 @@ def auto(argv):
                 i += 1
             i += 1
 
-        pair_basenames = [basename + '_' + str(i) for i in range(len(sam_file_pairs))]
+        if len(sam_file_pairs) > 0:
+            pair_basenames = [basename + '_' + str(i) for i in range(len(sam_file_pairs))]
 
-        pool_threads = min(threads, len(sam_file_pairs))
-        load_threads = max(int((threads - pool_threads)/len(sam_file_pairs)), 1)
+            pool_threads = min(threads, len(sam_file_pairs))
+            load_threads = max(int((threads - pool_threads)/len(sam_file_pairs)), 1)
 
-        tp = Pool(pool_threads)
-        genome = args.genome
-        restriction_enzyme = args.restriction_enzyme
+            tp = Pool(pool_threads)
+            genome = args.genome
+            restriction_enzyme = args.restriction_enzyme
 
-        pairs_files = []
-        pairs_results = []
-        for i, j in sam_file_pairs:
-            if len(sam_file_pairs) > 1:
-                pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
-            else:
-                pairs_file = output_folder + 'pairs/' + basename + '.pairs'
-            rt = tp.apply_async(sam_to_pairs_worker,
-                                (file_names[i], file_names[j], genome,
-                                 restriction_enzyme, pairs_file, is_bwa, load_threads, args))
-            pairs_results.append(rt)
-            pairs_files.append(pairs_file)
-        tp.close()
-        tp.join()
+            pairs_files = []
+            pairs_results = []
+            for i, j in sam_file_pairs:
+                if len(sam_file_pairs) > 1:
+                    pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
+                else:
+                    pairs_file = output_folder + 'pairs/' + basename + '.pairs'
+                rt = tp.apply_async(sam_to_pairs_worker,
+                                    (file_names[i], file_names[j], genome,
+                                     restriction_enzyme, pairs_file, is_bwa, load_threads, args))
+                pairs_results.append(rt)
+                pairs_files.append(pairs_file)
+            tp.close()
+            tp.join()
 
-        for rt in pairs_results:
-            if rt.get() != 0:
-                raise RuntimeError("Pairs loading from reads had non-zero exit status")
+            for rt in pairs_results:
+                if rt.get() != 0:
+                    raise RuntimeError("Pairs loading from reads had non-zero exit status")
 
-        for ix, sam_pair in enumerate(reversed(sam_file_pairs)):
-            file_names[sam_pair[0]] = pairs_files[ix]
-            del file_names[sam_pair[1]]
-            file_types[sam_pair[0]] = 'pairs'
-            del file_types[sam_pair[1]]
+            for ix, sam_pair in enumerate(reversed(sam_file_pairs)):
+                file_names[sam_pair[0]] = pairs_files[ix]
+                del file_names[sam_pair[1]]
+                file_types[sam_pair[0]] = 'pairs'
+                del file_types[sam_pair[1]]
 
     # 7. Pairs stats and filtering
     pairs_files = []
