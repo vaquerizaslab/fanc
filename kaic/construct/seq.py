@@ -2149,6 +2149,29 @@ class ReadPairs(AccessOptimisedRegionPairs):
 
         self._add_pair(edge)
 
+    def _fast_add_infos(self, fi1, fi2, default_edge):
+        r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
+        r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi2
+
+        edge = default_edge.copy()
+        edge[self._field_names_dict['ix']] = self._pair_count
+        edge[self._field_names_dict['source']] = f_ix1
+        edge[self._field_names_dict['sink']] = f_ix2
+        edge[self._field_names_dict['left_read_position']] = r_pos1
+        edge[self._field_names_dict['right_read_position']] = r_pos2
+        edge[self._field_names_dict['left_read_strand']] = r_strand1
+        edge[self._field_names_dict['right_read_strand']] = r_strand2
+        edge[self._field_names_dict['left_fragment_start']] = f_start1
+        edge[self._field_names_dict['right_fragment_start']] = f_start2
+        edge[self._field_names_dict['left_fragment_end']] = f_end1
+        edge[self._field_names_dict['right_fragment_end']] = f_end2
+        edge[self._field_names_dict['left_fragment_chromosome']] = f_chromosome_ix1
+        edge[self._field_names_dict['right_fragment_chromosome']] = f_chromosome_ix2
+
+        self._add_edge_from_tuple(tuple(edge))
+
+        self._pair_count += 1
+
     def add_read_pair(self, read_pair, flush=True):
         fi1, fi2 = self._read_pair_fragment_info(read_pair)
         self._add_infos(fi1, fi2)
@@ -2160,8 +2183,9 @@ class ReadPairs(AccessOptimisedRegionPairs):
         start_time = timer()
         chunk_start_time = timer()
         pairs_counter = 0
+        default_edge = self._default_edge_list()
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs, batch_size=batch_size, threads=threads):
-            self._add_infos(fi1, fi2)
+            self._fast_add_infos(fi1, fi2, default_edge)
             pairs_counter += 1
             if pairs_counter % 1000000 == 0:
                 end_time = timer()

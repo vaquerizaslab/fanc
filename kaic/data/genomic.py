@@ -2878,17 +2878,6 @@ class RegionPairs(Maskable, RegionsTable):
             else:
                 row.append()
 
-    def _add_edge_from_tuple(self, edge):
-        source = edge[self._source_field_ix]
-        sink = edge[self._sink_field_ix]
-        if source > sink:
-            source, sink = sink, source
-        source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
-
-        self._edge_buffer[(source_partition, sink_partition)].append(tuple(edge))
-        if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
-            self._flush_table_edge_buffer()
-
     def _edge_from_object(self, edge):
         return edge
 
@@ -3677,6 +3666,17 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 row.update()
             else:
                 row.append()
+
+    def _add_edge_from_tuple(self, edge):
+        source = edge[self._source_field_ix]
+        sink = edge[self._sink_field_ix]
+        if source > sink:
+            source, sink = sink, source
+        source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
+
+        self._edge_buffer[(source_partition, sink_partition)].append(tuple(edge))
+        if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
+            self._flush_table_edge_buffer()
 
     def get_edge(self, item, intrachromosomal=True, interchromosomal=True,
                  *row_conversion_args, **row_conversion_kwargs):
