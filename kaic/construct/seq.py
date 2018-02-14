@@ -408,9 +408,10 @@ class Reads(Maskable, FileBased):
 
             # header
             try:
-                self._reads._v_attrs.header = {k: sambam.header[k]
-                                               for k in sambam.header
-                                               if k in ('HD', 'RG', 'PG')}
+                self._reads._v_attrs.header = dict()
+                for key, value in sambam.header.items():
+                    if key in ('HD', 'RG', 'PG'):
+                        self._reads._v_attrs.header[key] = value
             except t.HDF5ExtError:
                 logger.warning("Header too large to save (this is only a problem "
                                "if you are planning on using it downstream)")
