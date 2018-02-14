@@ -2150,8 +2150,12 @@ class ReadPairs(AccessOptimisedRegionPairs):
         self._add_pair(edge)
 
     def _fast_add_infos(self, fi1, fi2, default_edge):
-        r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
-        r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi2
+        if fi1[2] > fi2[2]:
+            r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi2
+            r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi1
+        else:
+            r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
+            r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi2
 
         edge = default_edge.copy()
         edge[self._field_names_dict['ix']] = self._pair_count

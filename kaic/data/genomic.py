@@ -3672,6 +3672,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         sink = edge[self._sink_field_ix]
         if source > sink:
             source, sink = sink, source
+
         source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
 
         self._edge_buffer[(source_partition, sink_partition)].append(tuple(edge))
