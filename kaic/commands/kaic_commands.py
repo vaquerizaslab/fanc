@@ -472,10 +472,10 @@ def map(argv):
         elif mapper_type == 'bwa':
             if iterative:
                 mapper = map.BwaMapper(index_path, min_quality=min_quality,
-                                       threads=mapper_threads)
+                                       threads=mapper_threads, memory_map=memory_map)
             else:
                 mapper = map.SimpleBwaMapper(index_path,
-                                             threads=mapper_threads)
+                                             threads=mapper_threads, memory_map=memory_map)
 
         for input_file in input_files:
             input_file = os.path.expanduser(input_file)
@@ -511,6 +511,7 @@ def map(argv):
                         os.remove(input_file)
                         shutil.copy(output_file, original_output_file)
                         os.remove(output_file)
+                    mapper.close()
             else:
                 from kaic.tools.files import split_fastq, merge_sam, gzip_splitext
 
@@ -555,10 +556,10 @@ def map(argv):
                     logger.info("Merging BAM files into {}".format(output_file))
                     merge_sam(split_bam_files, output_file, tmp=args.copy)
                 finally:
-                    shutil.rmtree(split_tmpdir)
+                    shutil.rmtree(split_tmpdir, ignore_errors=True)
     finally:
         if tmp:
-            shutil.rmtree(index_dir)
+            shutil.rmtree(index_dir, ignore_errors=True)
 
 
 def iterative_mapping_parser():
