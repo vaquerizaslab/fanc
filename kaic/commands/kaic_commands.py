@@ -404,7 +404,7 @@ def map(argv):
 
     import kaic.mapping.map as map
     from kaic.tools.general import mkdir
-    from kaic.tools.files import create_temporary_copy
+    from kaic.tools.files import create_temporary_copy, random_name
     import subprocess
     import tempfile
     import shutil
@@ -453,11 +453,13 @@ def map(argv):
                 for file_name in glob.glob(index_path + '*.bt2'):
                     shutil.copy(file_name, index_dir)
             elif mapper_type == 'bwa':
+                index_base = random_name()
                 for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
                     file_name = index_path + '.{}'.format(ending)
-                    shutil.copy(file_name, index_dir)
+                    shutil.copy(file_name, os.path.join(index_dir, '{}.{}'.format(index_base, ending)))
 
             index_path = os.path.join(index_dir, index_base)
+            logger.debug('Index path: {}'.format(index_path))
             tmp = True
 
         mapper = None
