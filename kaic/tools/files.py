@@ -1,3 +1,4 @@
+import sys
 import tables as t
 import os.path
 import string
@@ -351,7 +352,10 @@ def merge_sam(input_sams, output_sam, tmp=None):
 
 
 def write_bed(file_name, regions, mode='w', **kwargs):
-    if hasattr(file_name, 'write'):
+    if file_name == '-':
+        bed_file = sys.stdout
+        must_close = False
+    elif hasattr(file_name, 'write'):
         must_close = False
         bed_file = file_name
     else:
@@ -371,7 +375,10 @@ def write_bed(file_name, regions, mode='w', **kwargs):
 
 
 def write_gff(file_name, regions, mode='w', **kwargs):
-    if hasattr(file_name, 'write'):
+    if file_name == '-':
+        gff_file = sys.stdout
+        must_close = False
+    elif hasattr(file_name, 'write'):
         must_close = False
         gff_file = file_name
     else:
