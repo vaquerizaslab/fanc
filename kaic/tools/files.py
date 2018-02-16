@@ -1,3 +1,4 @@
+import sys
 import tables as t
 import os.path
 import string
@@ -351,7 +352,10 @@ def merge_sam(input_sams, output_sam, tmp=None):
 
 
 def write_bed(file_name, regions, mode='w', **kwargs):
-    if hasattr(file_name, 'write'):
+    if file_name == '-':
+        bed_file = sys.stdout
+        must_close = False
+    elif hasattr(file_name, 'write'):
         must_close = False
         bed_file = file_name
     else:
@@ -371,7 +375,10 @@ def write_bed(file_name, regions, mode='w', **kwargs):
 
 
 def write_gff(file_name, regions, mode='w', **kwargs):
-    if hasattr(file_name, 'write'):
+    if file_name == '-':
+        gff_file = sys.stdout
+        must_close = False
+    elif hasattr(file_name, 'write'):
         must_close = False
         gff_file = file_name
     else:
@@ -436,7 +443,9 @@ def write_bigwig(file_name, regions, mode='w', score_field='score'):
 
 def sort_natural_sam(sam_file, output_file=None, sambamba=True, _sambamba_path='sambamba'):
     if which(_sambamba_path) is None and sambamba:
-        logger.info('Cannot find {} on this machine, falling back to samtools sort.'.format(_sambamba_path))
+        logger.info('Cannot find {} on this machine, falling back to samtools sort. '
+                    'This is not a problem, but if you want to speed up your SAM/BAM '
+                    'file sorting, install sambamba and ensure it is in your PATH!'.format(_sambamba_path))
         sambamba = False
 
     basename, extension = os.path.splitext(sam_file)
