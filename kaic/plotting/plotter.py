@@ -1535,3 +1535,32 @@ class GenomicDataFramePlot(ScalarDataPlot):
             self.lines.pop(0).remove()
         plt.gca().set_prop_cycle(plt.matplotlib.rcParams['axes.prop_cycle'])
         self._draw_lines(region)
+
+
+class Virtual4CPlot(BasePlotter1D):
+    def __init__(self, hic, viewpoint, *args, **kwargs):
+        BasePlotter1D.__init__(self, *args, **kwargs)
+        self.hic = hic
+
+        if isinstance(viewpoint, string_types):
+            viewpoint = kaic.GenomicRegion.from_string(viewpoint)
+
+        self.viewpoint = viewpoint
+        self.lines = []
+
+    def _plot(self, region):
+        submatrix = self.hic.as_matrix((self.viewpoint, region))
+        v4c_signal = np.nanmean(submatrix, axis=0)
+        x = []
+        for r in self.hic.regions(region):
+            x.append(r.center)
+
+        line = self.ax.plot(x, v4c_signal)
+        self.lines.append(line)
+
+    def _refresh(self, region):
+        while len(self.lines) > 0:
+            self.lines.pop(0).remove()
+
+        self._plot(region)
+
