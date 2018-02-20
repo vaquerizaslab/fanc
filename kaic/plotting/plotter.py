@@ -6,7 +6,7 @@ from kaic import load
 from kaic.data.genomic import GenomicRegion, GenomicDataFrame, merge_regions
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
                                        BasePlotter, BaseAnnotation
-from kaic.plotting.hic_plotter import BasePlotterMatrix
+from kaic.plotting.hic_plotter import BasePlotterMatrix, HicPlot2D
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
                                   box_coords_abs_to_rel, figure_line, figure_rectangle, \
@@ -157,10 +157,14 @@ class GenomicFigure(object):
     def _figure_setup(self):
         ax_specs, figsize = self._calc_figure_setup()
         fig = plt.figure(figsize=figsize)
+        sharey = None
         for i in range(self.n):
             with sns.axes_style("ticks" if self.plots[i].axes_style is None else
                                 self.plots[i].axes_style):
-                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 and not self._independent_x else None)
+                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 and not self._independent_x else None,
+                                  sharey=sharey if isinstance(self.plots[i], HicPlot2D) else None)
+            if not sharey and isinstance(self.plots[i], HicPlot2D):
+                sharey = ax
             cax = fig.add_axes(ax_specs[i]["cax"])
             self.plots[i].ax = ax
             self.plots[i].cax = cax
