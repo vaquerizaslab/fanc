@@ -157,15 +157,20 @@ class GenomicFigure(object):
     def _figure_setup(self):
         ax_specs, figsize = self._calc_figure_setup()
         fig = plt.figure(figsize=figsize)
+        sharey_ax = None
         for i in range(self.n):
-            with sns.axes_style("ticks" if self.plots[i].axes_style is None else
-                                self.plots[i].axes_style):
-                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 and not self._independent_x else None)
+            plot = self.plots[i]
+            with sns.axes_style("ticks" if plot.axes_style is None else
+                                plot.axes_style):
+                ax = fig.add_axes(ax_specs[i]["ax"], sharex=self.axes[0] if i > 0 and not self._independent_x else None,
+                                  sharey=sharey_ax if getattr(plot, "sharey", False) else None)
+            if not sharey_ax and getattr(plot, "sharey", False):
+                sharey_ax = ax
             cax = fig.add_axes(ax_specs[i]["cax"])
-            self.plots[i].ax = ax
-            self.plots[i].cax = cax
+            plot.ax = ax
+            plot.cax = cax
             if self.invert_x:
-                self.plots[i].invert_x = True
+                plot.invert_x = True
 
     def _update_figure_setup(self):
         ax_specs, figsize = self._calc_figure_setup()

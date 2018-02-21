@@ -262,6 +262,8 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
     """
     Plot Hi-C map as a square matrix.
     """
+    sharey = True
+
     def __init__(self, hic_data, flip=False, **kwargs):
         """
         :param flip: Transpose matrix before plotting
