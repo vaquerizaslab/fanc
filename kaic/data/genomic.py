@@ -1790,7 +1790,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         Description of a genomic region for PyTables Table
         """
         ix = t.Int32Col(pos=0)
-        chromosome = t.StringCol(50, pos=1)
+        chromosome = t.StringCol(100, pos=1)
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
         strand = t.Int8Col(pos=4)
