@@ -1231,9 +1231,9 @@ class GenePlot(BasePlotter1D):
 
         def _plot_gene(name, gene_region, exons, offset, text_position='top'):
             if exons[0].strand == 1:
-                bar_marker = '$>$'
+                bar_marker = '$>$' if not self.invert_x else '$<$'
             elif exons[0].strand == -1:
-                bar_marker = '$<$'
+                bar_marker = '$<$' if not self.invert_x else '$>$'
             else:
                 bar_marker = 0
 
