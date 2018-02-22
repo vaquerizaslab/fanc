@@ -125,7 +125,7 @@ def bit_flags_from_int(number, base=2):
 
 
 def find_alignment_match_positions(alignment, longest=False):
-    reference_pos = alignment.pos
+    reference_pos = alignment.reference_start
     query_pos = 0
     reference_matches = []
     query_matches = []
