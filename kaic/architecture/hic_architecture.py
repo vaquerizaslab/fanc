@@ -2351,7 +2351,7 @@ def _aggregate_region_bins(hic, region, offset=0):
 
 def extract_submatrices(hic, region_pairs, norm=False,
                         log=True, cache=True, mask=True, mask_inf=True,
-                        keep_invalid=False):
+                        keep_invalid=False, orient_strand=False):
     cl = hic.chromosome_lengths
     cb = hic.chromosome_bins
 
@@ -2435,6 +2435,9 @@ def extract_submatrices(hic, region_pairs, norm=False,
                         m = np.ma.masked_where(m_mask, m)
                     m.mask += m_mask
 
+                if orient_strand and region1.is_reverse() and region2.is_reverse():
+                    m = np.flip(np.flip(m, 0), 1)
+
                 pb.update(current_matrix)
                 matrices.append(m)
                 order.append(region_ix)
@@ -2477,7 +2480,8 @@ def aggregate_boundaries(hic, boundary_regions, window=200000,
     for region in boundary_regions:
         new_start = int(region.center - int(window / 2))
         new_end = int(region.center + int(window / 2))
-        new_region = GenomicRegion(chromosome=region.chromosome, start=new_start, end=new_end)
+        new_region = GenomicRegion(chromosome=region.chromosome, start=new_start, end=new_end,
+                                   strand=region.strand)
         region_pairs.append((new_region, new_region))
 
     counter_matrix = None
