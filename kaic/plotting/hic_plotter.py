@@ -10,6 +10,7 @@ from matplotlib.widgets import Slider
 import matplotlib.patches as patches
 from abc import ABCMeta
 import numpy as np
+from scipy.ndimage.filters import gaussian_filter
 import itertools as it
 import types
 import seaborn as sns
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
-                       weight_field=None, default_value=None):
+                       weight_field=None, default_value=None, smooth_sigma=None):
     """
     Prepare :class:`~BufferedMatrix` from hic data.
 
@@ -38,10 +39,10 @@ def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
     if isinstance(hic_data, kaic.data.genomic.RegionMatrixTable):
         return BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
                               buffering_arg=buffering_arg, weight_field=weight_field,
-                              default_value=default_value)
+                              default_value=default_value, smooth_sigma=smooth_sigma)
     elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
         return BufferedMatrix.from_hic_matrix(hic_data, weight_field=weight_field,
-                                              default_value=default_value)
+                                              default_value=default_value, smooth_sigma=smooth_sigma)
     else:
         raise ValueError("Unknown type for hic_data")
 
@@ -58,7 +59,7 @@ class BufferedMatrix(object):
     _STRATEGY_RELATIVE = "relative"
 
     def __init__(self, data, buffering_strategy="relative", buffering_arg=1,
-                 weight_field=None, default_value=None):
+                 weight_field=None, default_value=None, smooth_sigma=None):
         """
         Initialize a buffer for Matrix-like objects that support
         indexing using class:`~GenomicRegion` objects, such as class:`~kaic.Hic`
@@ -84,9 +85,10 @@ class BufferedMatrix(object):
         self.buffered_matrix = None
         self.weight_field = weight_field
         self.default_value = default_value
+        self.smooth_sigma = smooth_sigma
 
     @classmethod
-    def from_hic_matrix(cls, hic_matrix, weight_field=None, default_value=None):
+    def from_hic_matrix(cls, hic_matrix, weight_field=None, default_value=None, smooth_sigma=None):
         """
         Wrap a :class:`~HicMatrix` in a :class:`~BufferedMatrix` container.
         Default buffering strategy is set to "all" by default.
@@ -94,7 +96,8 @@ class BufferedMatrix(object):
         :param hic_matrix: :class:`~HicMatrix`
         :return: :class:`~BufferedMatrix`
         """
-        bm = cls(data=None, buffering_strategy="all", weight_field=weight_field, default_value=default_value)
+        bm = cls(data=None, buffering_strategy="all", weight_field=weight_field,
+                 default_value=default_value, smooth_sigma=smooth_sigma)
         bm.buffered_region = bm._STRATEGY_ALL
         bm.buffered_matrix = hic_matrix
         return bm
@@ -125,7 +128,11 @@ class BufferedMatrix(object):
         if not self.is_buffered_region(*regions):
             logger.info("Buffering matrix")
             self._BUFFERING_STRATEGIES[self.buffering_strategy](self, *regions)
-        return self.buffered_matrix[tuple(regions)]
+        m = self.buffered_matrix[tuple(regions)]
+        if self.smooth_sigma is not None:
+            mf = gaussian_filter(m, self.smooth_sigma)
+            m = kaic.data.genomic.RegionMatrix(mf, row_regions=m.row_regions, col_regions=m.col_regions)
+        return m
 
     def _buffer_all(self, *regions):
         """
@@ -238,7 +245,7 @@ class BasePlotterHic(BasePlotterMatrix):
     """
 
     def __init__(self, hic_data, adjust_range=False, buffering_strategy="relative",
-                 buffering_arg=1, weight_field=None, default_value=None, **kwargs):
+                 buffering_arg=1, weight_field=None, default_value=None, smooth_sigma=None, **kwargs):
         """
         :param hic_data: Path to Hi-C data on disk or
                         :class:`~kaic.data.genomic.Hic` or :class:`~kaic.data.genomic.RegionMatrix`
@@ -252,7 +259,7 @@ class BasePlotterHic(BasePlotterMatrix):
         self.hic_data = hic_data
         self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
                                              buffering_arg=buffering_arg, weight_field=weight_field,
-                                             default_value=default_value)
+                                             default_value=default_value, smooth_sigma=smooth_sigma)
         self.slider = None
         self.adjust_range = adjust_range
         self.vmax_slider = None
