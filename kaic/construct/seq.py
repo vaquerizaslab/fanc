@@ -56,7 +56,8 @@ from __future__ import division
 import tables as t
 import pysam
 from kaic.config import config
-from kaic.tools.general import RareUpdateProgressBar, natural_cmp, add_dict, find_alignment_match_positions
+from kaic.tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions, WorkerMonitor
+from kaic.tools.sambam import natural_cmp
 from kaic.tools.files import is_sambam_file, create_temporary_copy
 from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
 import os
@@ -68,14 +69,95 @@ from kaic.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegion
 import msgpack as pickle
 import numpy as np
 import hashlib
+import multiprocessing as mp
+import threading
+import msgpack
+import uuid
 from functools import partial
 from collections import defaultdict
 from future.utils import with_metaclass, string_types, viewitems
+from timeit import default_timer as timer
 from builtins import object
 import gzip
 import warnings
 import logging
 logger = logging.getLogger(__name__)
+
+
+class Monitor(WorkerMonitor):
+    def __init__(self, value=0):
+        WorkerMonitor.__init__(self, value=value)
+        self.generating_pairs_lock = threading.Lock()
+
+        with self.generating_pairs_lock:
+            self.generating_pairs = True
+
+    def set_generating_pairs(self, value):
+        with self.generating_pairs_lock:
+            self.generating_pairs = value
+
+    def is_generating_pairs(self):
+        with self.generating_pairs_lock:
+            return self.generating_pairs
+
+
+def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
+    worker_uuid = uuid.uuid4()
+    logger.debug("Starting fragment info worker {}".format(worker_uuid))
+
+    while True:
+        # wait for input
+        monitor.set_worker_idle(worker_uuid)
+        read_pairs = input_queue.get(True)
+        monitor.set_worker_busy(worker_uuid)
+        logger.debug('Worker {} reveived input!'.format(worker_uuid))
+        read_pairs = msgpack.loads(read_pairs)
+
+        fragment_infos = []
+        skipped_counter = 0
+        for (chrom1, pos1, flag1), (chrom2, pos2, flag2) in read_pairs:
+            chrom1 = chrom1.decode() if isinstance(chrom1, bytes) else chrom1
+            chrom2 = chrom2.decode() if isinstance(chrom2, bytes) else chrom2
+
+            try:
+                pos_ix1 = bisect_right(fe[chrom1], pos1)
+                pos_ix2 = bisect_right(fe[chrom2], pos2)
+
+                f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi[chrom1][pos_ix1]
+                f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi[chrom2][pos_ix2]
+
+                r_strand1 = -1 if flag1 & 16 else 1
+                r_strand2 = -1 if flag2 & 16 else 1
+
+                fragment_infos.append(
+                    ((pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
+                     (pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
+                )
+            except (KeyError, IndexError):
+                skipped_counter += 1
+        logger.debug("Worker {} skipped {} pairs".format(worker_uuid, skipped_counter))
+        output_queue.put(msgpack.dumps(fragment_infos))
+        del read_pairs
+
+
+def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=100000):
+    logger.debug("Starting read pairs worker")
+    try:
+        read_pairs_batch = []
+        for read1, read2 in read_pairs:
+            read_pairs_batch.append((
+                (read1.reference_name, read1.pos, read1.flag),
+                (read2.reference_name, read2.pos, read2.flag)
+            ))
+            if len(read_pairs_batch) >= batch_size:
+                input_queue.put(msgpack.dumps(read_pairs_batch))
+                read_pairs_batch = []
+                monitor.increment()
+        if len(read_pairs_batch) > 0:
+            input_queue.put(msgpack.dumps(read_pairs_batch))
+            monitor.increment()
+    finally:
+        monitor.set_generating_pairs(False)
 
 
 class Reads(Maskable, FileBased):
@@ -1811,7 +1893,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
             next_read = None
             try:
                 next_read = next(iterator)
-                while len(reads) == 0 or next_read.qname == reads[0].qname:
+                while len(reads) == 0 or natural_cmp(next_read.qname.encode(), reads[0].qname.encode()) == 0:
                     if not next_read.is_unmapped:
                         reads.append(next_read)
                     else:
@@ -1820,7 +1902,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
             except StopIteration:
                 if len(reads) == 0:
                     raise
-            return reads[0].qname, reads, next_read
+            return reads[0].qname.encode(), reads, next_read
 
         def _find_pair(reads1, reads2):
             """
@@ -2014,7 +2096,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
         return ((read1.pos, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
                 (read2.pos, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
 
-    def _read_pairs_fragment_info(self, read_pairs):
+    def _read_pairs_fragment_info(self, read_pairs, threads=4, batch_size=1000000):
         fragment_infos = defaultdict(list)
         fragment_ends = defaultdict(list)
         for region in self.regions(lazy=True):
@@ -2023,21 +2105,35 @@ class ReadPairs(AccessOptimisedRegionPairs):
                                                region.start, region.end))
             fragment_ends[chromosome].append(region.end)
 
-        def _fragment_info(read, fi, fe):
-            chrom = read.reference_name
-            pos_ix = bisect_right(fe[chrom], read.pos)
-            return fi[chrom][pos_ix]
+        worker_pool = None
+        t_pairs = None
+        try:
+            monitor = Monitor()
+            input_queue = mp.Queue(maxsize=2*threads)
+            output_queue = mp.Queue(maxsize=2*threads)
 
-        for read1, read2 in read_pairs:
-            try:
-                f_ix1, f_chromosome_ix1, f_start1, f_end1 = _fragment_info(read1, fragment_infos, fragment_ends)
-                f_ix2, f_chromosome_ix2, f_start2, f_end2 = _fragment_info(read2, fragment_infos, fragment_ends)
-            except (KeyError, IndexError):
-                continue
-            r_strand1 = -1 if read1.flag & 16 else 1
-            r_strand2 = -1 if read2.flag & 16 else 1
-            yield ((read1.pos, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
-                   (read2.pos, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
+            monitor.set_generating_pairs(True)
+            t_pairs = threading.Thread(target=_read_pairs_worker, args=(read_pairs, input_queue,
+                                                                        monitor, batch_size))
+            t_pairs.daemon = True
+            t_pairs.start()
+
+            worker_pool = mp.Pool(threads, _fragment_info_worker,
+                                  (monitor, input_queue, output_queue, fragment_infos, fragment_ends))
+
+            output_counter = 0
+            while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
+                read_pair_infos = output_queue.get(block=True)
+
+                for read1_info, read2_info in msgpack.loads(read_pair_infos):
+                    yield read1_info, read2_info
+                output_counter += 1
+                del read_pair_infos
+        finally:
+            if worker_pool is not None:
+                worker_pool.terminate()
+            if t_pairs is not None:
+                t_pairs.join()
 
     def _add_infos(self, fi1, fi2):
         r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
@@ -2054,16 +2150,60 @@ class ReadPairs(AccessOptimisedRegionPairs):
 
         self._add_pair(edge)
 
+    def _fast_add_infos(self, fi1, fi2, default_edge):
+        if fi1[2] > fi2[2]:
+            r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi2
+            r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi1
+        else:
+            r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
+            r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi2
+
+        edge = default_edge.copy()
+        edge[self._field_names_dict['ix']] = self._pair_count
+        edge[self._field_names_dict['source']] = f_ix1
+        edge[self._field_names_dict['sink']] = f_ix2
+        edge[self._field_names_dict['left_read_position']] = r_pos1
+        edge[self._field_names_dict['right_read_position']] = r_pos2
+        edge[self._field_names_dict['left_read_strand']] = r_strand1
+        edge[self._field_names_dict['right_read_strand']] = r_strand2
+        edge[self._field_names_dict['left_fragment_start']] = f_start1
+        edge[self._field_names_dict['right_fragment_start']] = f_start2
+        edge[self._field_names_dict['left_fragment_end']] = f_end1
+        edge[self._field_names_dict['right_fragment_end']] = f_end2
+        edge[self._field_names_dict['left_fragment_chromosome']] = f_chromosome_ix1
+        edge[self._field_names_dict['right_fragment_chromosome']] = f_chromosome_ix2
+
+        self._add_edge_from_tuple(tuple(edge))
+
+        self._pair_count += 1
+
     def add_read_pair(self, read_pair, flush=True):
         fi1, fi2 = self._read_pair_fragment_info(read_pair)
         self._add_infos(fi1, fi2)
         if flush:
             self.flush()
 
-    def add_read_pairs(self, read_pairs, flush=True):
+    def add_read_pairs(self, read_pairs, flush=True, batch_size=1000000, threads=1):
         self.disable_indexes()
-        for fi1, fi2 in self._read_pairs_fragment_info(read_pairs):
-            self._add_infos(fi1, fi2)
+        start_time = timer()
+        chunk_start_time = timer()
+        pairs_counter = 0
+        default_edge = self._default_edge_list()
+        for fi1, fi2 in self._read_pairs_fragment_info(read_pairs, batch_size=batch_size, threads=threads):
+            self._fast_add_infos(fi1, fi2, default_edge)
+            pairs_counter += 1
+            if pairs_counter % 1000000 == 0:
+                end_time = timer()
+                logger.debug("Wrote {} pairs in {}s (current 1M chunk: {}s)".format(
+                    pairs_counter, end_time - start_time, end_time - chunk_start_time
+                ))
+                chunk_start_time = timer()
+        end_time = timer()
+        logger.debug("Wrote {} pairs in {}s".format(
+            pairs_counter, end_time - start_time
+        ))
+
+        logger.info('Done saving read pairs.')
 
         if isinstance(read_pairs, ReadPairGenerator):
             stats = read_pairs.stats()
@@ -2071,9 +2211,12 @@ class ReadPairs(AccessOptimisedRegionPairs):
                 self.meta.read_filter_stats = stats
             else:
                 self.meta.read_filter_stats = add_dict(self.meta.read_filter_stats, stats)
+
+        logger.info("Re-enabling pairs index...")
         self.enable_indexes()
         if flush:
             self.flush()
+        logger.info("Done adding pairs.")
 
     def _add_pair(self, pair):
         self.add_edge(pair, check_nodes_exist=False, flush=False, replace=True)

@@ -165,6 +165,9 @@ class Mapper(object):
         logger.debug("Resubmitting {}/{}".format(resubmission_counter/4, total_counter/4))
         return output_fastq
 
+    def close(self):
+        pass
+
 
 class Bowtie2Mapper(Mapper):
     def __init__(self, bowtie2_index, min_quality=30, additional_arguments=(),
@@ -217,7 +220,7 @@ class SimpleBowtie2Mapper(Bowtie2Mapper):
 
 class BwaMapper(Mapper):
     def __init__(self, bwa_index, min_quality=0, additional_arguments=(),
-                 threads=1, algorithm='mem', _bwa_path='bwa'):
+                 threads=1, algorithm='mem', memory_map=False, _bwa_path='bwa'):
         Mapper.__init__(self)
         self.index = os.path.expanduser(bwa_index)
         if self.index.endswith('.'):
@@ -230,12 +233,18 @@ class BwaMapper(Mapper):
         self.min_quality = min_quality
         self.threads = threads
         self.attempt_resubmit = (self.min_quality is not None and self.min_quality > 0)
+        self.memory_map = memory_map
 
     def _map(self, input_file, output_file, *args, **kwargs):
+        if self.memory_map:
+            with open(os.devnull, 'w') as f_null:
+                ret = subprocess.call(['bwa', 'shm', self.index], stderr=subprocess.STDOUT, stdout=f_null)
+                if ret == 0:
+                    logger.debug("Memory mapped BWA index")
 
         bwa_command = [self._path, self.algorithm, '-t', str(self.threads), '-o', output_file] + \
-                          self.args + \
-                          [self.index, input_file]
+                      self.args + \
+                      [self.index, input_file]
         logger.debug('BWA command: {}'.format(bwa_command))
 
         proc = subprocess.Popen(bwa_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -253,13 +262,26 @@ class BwaMapper(Mapper):
             return True
         return False
 
+    def close(self):
+        logger.debug("Deleting shared memory index")
+        try:
+            with open(os.devnull, 'w') as f_null:
+                ret = subprocess.call(['pgrep', '-x', 'bwa'], stderr=subprocess.STDOUT, stdout=f_null)
+                if ret == 1:
+                    ret2 = subprocess.call(['bwa', 'shm', '-d'], stderr=subprocess.STDOUT, stdout=f_null)
+                    if ret2 == 0:
+                        logger.debug("Deleted memory mapped BWA index")
+
+        except FileNotFoundError:
+            pass
+
 
 class SimpleBwaMapper(BwaMapper):
     def __init__(self, bwa_index, additional_arguments=(),
-                 threads=1, _bwa_path='bwa'):
+                 threads=1, memory_map=False, _bwa_path='bwa'):
         BwaMapper.__init__(self, bwa_index, min_quality=0,
                            additional_arguments=additional_arguments,
-                           threads=threads,
+                           threads=threads, memory_map=memory_map,
                            _bwa_path=_bwa_path)
         self.resubmit_unmappable = False
         self.attempt_resubmit = False
@@ -644,4 +666,4 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
                 logger.error("Could not convert to BAM, but your output is still in {}".format(intermediate_sam_file))
     finally:
         logger.debug(tmp_folder)
-        shutil.rmtree(tmp_folder)
+        shutil.rmtree(tmp_folder, ignore_errors=True)

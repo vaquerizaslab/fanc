@@ -900,6 +900,8 @@ class Tabix(RegionBased):
                 self._region_object = GffRegion
             elif preset == 'bed' or preset == 'bdg':
                 self._region_object = BedRegion
+            elif preset == 'vcf':
+                self._region_object = BedRegion
             else:
                 raise ValueError("Preset {} not valid".format(preset))
         else:
@@ -926,8 +928,14 @@ class Tabix(RegionBased):
                 yield region
 
     def _region_subset(self, region):
-        for fields in self._file.fetch(region.chromosome, region.start, region.end):
-            yield self._region_object(fields)
+        try:
+            for fields in self._file.fetch(region.chromosome, region.start, region.end):
+                yield self._region_object(fields)
+        except ValueError:
+            if region.chromosome not in self.chromosomes():
+                warnings.warn('{} not in list of contigs'.format(region.chromosome))
+            else:
+                raise
 
     def chromosomes(self):
         return self._file.contigs
@@ -2667,7 +2675,7 @@ class RegionPairs(Maskable, RegionsTable):
             return len(self.this._edges)
 
     def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
-                 _table_name_nodes='nodes', _table_name_edges='edges'):
+                 _table_name_nodes='nodes', _table_name_edges='edges', _edge_buffer_size=1000000):
 
         """
         Initialize a :class:`~RegionPairs` object.
@@ -2707,6 +2715,8 @@ class RegionPairs(Maskable, RegionsTable):
         self._source_field_ix = 0
         self._sink_field_ix = 0
         self.field_names = []
+        self._field_names_dict = dict()
+        self._edge_field_defaults = dict()
         self._field_dict = self._edges.coldescrs
         for i, name in enumerate(self._edges.colnames):
             if not name.startswith("_"):
@@ -2715,6 +2725,11 @@ class RegionPairs(Maskable, RegionsTable):
                 self._source_field_ix = i
             if name == 'sink':
                 self._sink_field_ix = i
+            self._field_names_dict[name] = i
+            self._edge_field_defaults[name] = self._edges.coldescrs[name].dflt
+
+        self._edge_buffer = []
+        self._edge_buffer_size = _edge_buffer_size
 
     def disable_indexes(self):
         try:
@@ -2835,26 +2850,41 @@ class RegionPairs(Maskable, RegionsTable):
         if source > sink:
             source, sink = sink, source
 
-        update = True
         if row is None:
-            update = False
-            row = self._edges.row
-        row['source'] = source
-        row['sink'] = sink
-        for name in self.field_names:
-            if not name == 'source' and not name == 'sink':
+            record = [None] * len(self._field_names_dict)
+            for name, ix in self._field_names_dict.items():
                 try:
-                    value = getattr(edge, name)
-                    if replace or not update:
-                        row[name] = value
-                    else:
-                        row[name] += value
+                    record[ix] = getattr(edge, name)
                 except AttributeError:
-                    pass
-        if update:
-            row.update()
+                    record[ix] = self._edge_field_defaults[name]
+            record[self._field_names_dict['source']] = source
+            record[self._field_names_dict['sink']] = sink
+
+            self._edge_buffer.append(tuple(record))
+            if len(self._edge_buffer) > self._edge_buffer_size:
+                self._edges.append(self._edge_buffer)
+                self._edge_buffer = []
         else:
-            row.append()
+            update = True
+            if row is None:
+                update = False
+                row = self._edges.row
+            row['source'] = source
+            row['sink'] = sink
+            for name in self.field_names:
+                if not name == 'source' and not name == 'sink':
+                    try:
+                        value = getattr(edge, name)
+                        if replace or not update:
+                            row[name] = value
+                        else:
+                            row[name] += value
+                    except AttributeError:
+                        pass
+            if update:
+                row.update()
+            else:
+                row.append()
 
     def _edge_from_object(self, edge):
         return edge
@@ -2881,6 +2911,12 @@ class RegionPairs(Maskable, RegionsTable):
                     break
 
         return Edge(source, sink, **attributes)
+
+    def _default_edge_list(self):
+        record = [None] * len(self._field_names_dict)
+        for name, ix in self._field_names_dict.items():
+            record[ix] = self._edge_field_defaults[name]
+        return record
 
     def add_nodes(self, nodes):
         """
@@ -2918,6 +2954,9 @@ class RegionPairs(Maskable, RegionsTable):
             self._regions.flush()
 
         if flush_edges:
+            if len(self._edge_buffer) > 0:
+                self._edges.append(self._edge_buffer)
+                self._edge_buffer = []
             self._edges.flush(update_index=update_index)
 
         if update_mappability:
@@ -3368,7 +3407,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
             return len(self.this)
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
-                 _table_name_nodes='nodes', _table_name_edges='edges'):
+                 _table_name_nodes='nodes', _table_name_edges='edges', _edge_buffer_size=1000000):
         # private variables
         self._max_node_ix = -1
 
@@ -3384,6 +3423,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._field_dict = None
         self.field_names = None
         self._edge_table_dict = dict()
+        self._edge_field_defaults = dict()
         self._source_field_ix = 0
         self._sink_field_ix = 1
 
@@ -3409,6 +3449,17 @@ class AccessOptimisedRegionPairs(RegionPairs):
         # update partitions
         self._update_partitions()
 
+        self._edge_buffer = defaultdict(list)
+        self._edge_buffer_size = _edge_buffer_size
+
+    def _flush_table_edge_buffer(self):
+        for (source_partition, sink_partition), records in self._edge_buffer.items():
+            if not (source_partition, sink_partition) in self._edge_table_dict:
+                self._create_edge_table(source_partition, sink_partition)
+            table = self._edge_table_dict[(source_partition, sink_partition)]
+            table.append(records)
+        self._edge_buffer = defaultdict(list)
+
     def _update_field_names(self, edge_table=None):
         """
         Set internal object variables related to edge table field names.
@@ -3425,6 +3476,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._source_field_ix = 0
         self._sink_field_ix = 0
         self.field_names = []
+        self._field_names_dict = dict()
         for i, name in enumerate(edge_table.colnames):
             if not name.startswith("_"):
                 self.field_names.append(name)
@@ -3432,6 +3484,8 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 self._source_field_ix = i
             if name == 'sink':
                 self._sink_field_ix = i
+            self._field_names_dict[name] = i
+            self._edge_field_defaults[name] = edge_table.coldescrs[name].dflt
 
     def _update_partitions(self):
         """
@@ -3462,8 +3516,12 @@ class AccessOptimisedRegionPairs(RegionPairs):
             self._update_partitions()
 
         if flush_edges:
+            if len(self._edge_buffer) > 0:
+                self._flush_table_edge_buffer()
+
             if update_index:
                 logger.info("Updating mask indices...")
+
             with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges), silent=silent) as pb:
                 for i, edge_table in enumerate(self._edges):
                     edge_table.flush(update_index=update_index, log_progress=False)
@@ -3525,22 +3583,24 @@ class AccessOptimisedRegionPairs(RegionPairs):
             create_col_index(edge_table.cols.sink)
             edge_table.enable_mask_index()
 
-    def _get_edge_table(self, source, sink):
-        """
-        Return an edge table for this particular region index combination.
-        """
+    def _get_edge_table_tuple(self, source, sink):
         if source > sink:
             source, sink = sink, source
 
         source_partition = self._get_partition_ix(source)
         sink_partition = self._get_partition_ix(sink)
 
-        if (source_partition, sink_partition) in self._edge_table_dict:
-            return self._edge_table_dict[(source_partition, sink_partition)]
+        return source_partition, sink_partition
 
-        edge_table = self._create_edge_table(source_partition, sink_partition)
+    def _get_edge_table(self, source, sink):
+        """
+        Return an edge table for this particular region index combination.
+        """
+        source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
 
-        return edge_table
+        if not (source_partition, sink_partition) in self._edge_table_dict:
+            self._create_edge_table(source_partition, sink_partition)
+        return self._edge_table_dict[(source_partition, sink_partition)]
 
     def _edge_table_iter(self, intrachromosomal=True, interchromosomal=True):
         """
@@ -3577,27 +3637,55 @@ class AccessOptimisedRegionPairs(RegionPairs):
         if source > sink:
             source, sink = sink, source
 
-        update = True
         if row is None:
-            update = False
-            table = self._get_edge_table(source, sink)
-            row = table.row
-        row['source'] = source
-        row['sink'] = sink
-        for name in self.field_names:
-            if not name == 'source' and not name == 'sink':
+            record = [None] * len(self._field_names_dict)
+            for name, ix in self._field_names_dict.items():
                 try:
-                    value = getattr(edge, name)
-                    if replace or not update:
-                        row[name] = value
-                    else:
-                        row[name] += value
+                    record[ix] = getattr(edge, name)
                 except AttributeError:
-                    pass
-        if update:
-            row.update()
+                    record[ix] = self._edge_field_defaults[name]
+            record[self._field_names_dict['source']] = source
+            record[self._field_names_dict['sink']] = sink
+
+            source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
+
+            self._edge_buffer[(source_partition, sink_partition)].append(tuple(record))
+            if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
+                self._flush_table_edge_buffer()
         else:
-            row.append()
+            update = True
+            if row is None:
+                update = False
+                table = self._get_edge_table(source, sink)
+                row = table.row
+            row['source'] = source
+            row['sink'] = sink
+            for name in self.field_names:
+                if not name == 'source' and not name == 'sink':
+                    try:
+                        value = getattr(edge, name)
+                        if replace or not update:
+                            row[name] = value
+                        else:
+                            row[name] += value
+                    except AttributeError:
+                        pass
+            if update:
+                row.update()
+            else:
+                row.append()
+
+    def _add_edge_from_tuple(self, edge):
+        source = edge[self._source_field_ix]
+        sink = edge[self._sink_field_ix]
+        if source > sink:
+            source, sink = sink, source
+
+        source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
+
+        self._edge_buffer[(source_partition, sink_partition)].append(tuple(edge))
+        if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
+            self._flush_table_edge_buffer()
 
     def get_edge(self, item, intrachromosomal=True, interchromosomal=True,
                  *row_conversion_args, **row_conversion_kwargs):
@@ -3897,6 +3985,7 @@ class RegionMatrixTable(RegionPairs):
         # private variables
         self.default_field = default_field
         self.default_value = default_value
+        self._expected_values = None
         RegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields, tmpdir=tmpdir,
                              _table_name_nodes=_table_name_nodes, _table_name_edges=_table_name_edges)
 
@@ -4409,73 +4498,78 @@ class RegionMatrixTable(RegionPairs):
         return intra_total, chromosome_intra_total, inter_total
 
     def expected_values(self, selected_chromosome=None):
-        # get all the bins of the different chromosomes
-        chromosome_bins = self.chromosome_bins
-        chromosome_dict = defaultdict(list)
+        if self._expected_values is not None:
+            intra_expected, chromosome_intra_expected, inter_expected = self._expected_values
+        else:
+            # get all the bins of the different chromosomes
+            chromosome_bins = self.chromosome_bins
+            chromosome_dict = defaultdict(list)
 
-        chromosome_max_distance = defaultdict(int)
-        max_distance = 0
-        for chromosome, (start, stop) in chromosome_bins.items():
-            max_distance = max(max_distance, stop - start)
-            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+            chromosome_max_distance = defaultdict(int)
+            max_distance = 0
+            for chromosome, (start, stop) in chromosome_bins.items():
+                max_distance = max(max_distance, stop - start)
+                chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
 
-            for i in range(start, stop):
-                chromosome_dict[i] = chromosome
+                for i in range(start, stop):
+                    chromosome_dict[i] = chromosome
 
-        chromosome_intra_sums = dict()
-        chromosome_intra_expected = dict()
-        for chromosome, d in chromosome_max_distance.items():
-            chromosome_intra_sums[chromosome] = [0.0] * d
-            chromosome_intra_expected[chromosome] = [0.0] * d
+            chromosome_intra_sums = dict()
+            chromosome_intra_expected = dict()
+            for chromosome, d in chromosome_max_distance.items():
+                chromosome_intra_sums[chromosome] = [0.0] * d
+                chromosome_intra_expected[chromosome] = [0.0] * d
 
-        # get the sums of edges at any given distance
-        marginals = [0.0] * len(self.regions)
-        inter_sums = 0.0
-        intra_sums = [0.0] * max_distance
-        with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
-            for i, edge in enumerate(self.edges(lazy=True)):
-                source, sink = edge.source, edge.sink
-                weight = getattr(edge, self.default_field)
+            # get the sums of edges at any given distance
+            marginals = [0.0] * len(self.regions)
+            inter_sums = 0.0
+            intra_sums = [0.0] * max_distance
+            with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
+                for i, edge in enumerate(self.edges(lazy=True)):
+                    source, sink = edge.source, edge.sink
+                    weight = getattr(edge, self.default_field)
 
-                source_chromosome = chromosome_dict[source]
-                sink_chromosome = chromosome_dict[sink]
+                    source_chromosome = chromosome_dict[source]
+                    sink_chromosome = chromosome_dict[sink]
 
-                marginals[source] += weight
-                marginals[sink] += weight
+                    marginals[source] += weight
+                    marginals[sink] += weight
 
-                if sink_chromosome != source_chromosome:
-                    inter_sums += weight
-                else:
-                    distance = sink - source
-                    intra_sums[distance] += weight
-                    chromosome_intra_sums[source_chromosome][distance] += weight
-                pb.update(i)
+                    if sink_chromosome != source_chromosome:
+                        inter_sums += weight
+                    else:
+                        distance = sink - source
+                        intra_sums[distance] += weight
+                        chromosome_intra_sums[source_chromosome][distance] += weight
+                    pb.update(i)
 
-        intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
+            intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
 
-        # expected values
-        inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
+            # expected values
+            inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
 
-        intra_expected = [0.0] * max_distance
-        bin_size = self.bin_size
-        distances = []
-        for d in range(max_distance):
-            distances.append(bin_size * d)
+            intra_expected = [0.0] * max_distance
+            bin_size = self.bin_size
+            distances = []
+            for d in range(max_distance):
+                distances.append(bin_size * d)
 
-            # whole genome
-            count = intra_total[d]
-            if count > 0:
-                intra_expected[d] = intra_sums[d] / count
+                # whole genome
+                count = intra_total[d]
+                if count > 0:
+                    intra_expected[d] = intra_sums[d] / count
 
-        # chromosomes
-        for chromosome in chromosome_intra_expected:
-            for d in range(chromosome_max_distance[chromosome]):
-                chromosome_count = chromosome_intra_total[chromosome][d]
-                if chromosome_count > 0:
-                    chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+            # chromosomes
+            for chromosome in chromosome_intra_expected:
+                for d in range(chromosome_max_distance[chromosome]):
+                    chromosome_count = chromosome_intra_total[chromosome][d]
+                    if chromosome_count > 0:
+                        chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+
+            self._expected_values = intra_expected, chromosome_intra_expected, inter_expected
 
         if selected_chromosome is not None:
-            return chromosome_intra_expected[chromosome]
+            return chromosome_intra_expected[selected_chromosome]
 
         return intra_expected, chromosome_intra_expected, inter_expected
 
@@ -4607,6 +4701,7 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
         # private variables
         self.default_field = default_field
         self.default_value = default_value
+        self._expected_values = None
         AccessOptimisedRegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields,
                                             tmpdir=tmpdir, _table_name_nodes=_table_name_nodes,
                                             _table_name_edges=_table_name_edges)

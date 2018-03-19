@@ -332,10 +332,17 @@ def map_parser():
     parser.add_argument(
         '--bowtie-parallel', dest='bowtie_parallel',
         action='store_true',
-        help='''Use bowtie parallelisation rather than spawning multiple Bowtie2 processes.
-                This is slower, but consumes potentially less memory.'''
+        help='''Deprecated. Use --mapper-parallel instead.'''
     )
     parser.set_defaults(bowtie_parallel=False)
+
+    parser.add_argument(
+        '--mapper-parallel', dest='mapper_parallel',
+        action='store_true',
+        help='''Use mapper-internal parallelisation rather than spawning multiple mapping processes.
+                This is slower, but consumes potentially less memory.'''
+    )
+    parser.set_defaults(mapper_parallel=False)
 
     parser.add_argument(
         '--split-fastq', dest='split_fastq',
@@ -382,7 +389,7 @@ def map(argv):
     trim_front = args.trim_front
     batch_size = args.batch_size
     min_quality = args.quality
-    bowtie_parallel = args.bowtie_parallel
+    mapper_parallel = args.bowtie_parallel or args.mapper_parallel
     memory_map = args.memory_map
     iterative = args.iterative
     restriction_enzyme = args.restriction_enzyme
@@ -390,14 +397,14 @@ def map(argv):
     all_alignments = args.all_alignments
     tmp = args.tmp
 
-    if bowtie_parallel:
-        threads, bowtie_threads = 1, args.threads
+    if mapper_parallel:
+        threads, mapper_threads = 1, args.threads
     else:
-        threads, bowtie_threads = args.threads, 1
+        threads, mapper_threads = args.threads, 1
 
     import kaic.mapping.map as map
     from kaic.tools.general import mkdir
-    from kaic.tools.files import create_temporary_copy
+    from kaic.tools.files import create_temporary_copy, random_name
     import subprocess
     import tempfile
     import shutil
@@ -446,11 +453,13 @@ def map(argv):
                 for file_name in glob.glob(index_path + '*.bt2'):
                     shutil.copy(file_name, index_dir)
             elif mapper_type == 'bwa':
+                index_base = random_name()
                 for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
                     file_name = index_path + '.{}'.format(ending)
-                    shutil.copy(file_name, index_dir)
+                    shutil.copy(file_name, os.path.join(index_dir, '{}.{}'.format(index_base, ending)))
 
             index_path = os.path.join(index_dir, index_base)
+            logger.debug('Index path: {}'.format(index_path))
             tmp = True
 
         mapper = None
@@ -458,17 +467,17 @@ def map(argv):
             if iterative:
                 mapper = map.Bowtie2Mapper(index_path, min_quality=min_quality,
                                            additional_arguments=additional_arguments,
-                                           threads=bowtie_threads)
+                                           threads=mapper_threads)
             else:
                 mapper = map.SimpleBowtie2Mapper(index_path, additional_arguments=additional_arguments,
-                                                 threads=bowtie_threads)
+                                                 threads=mapper_threads)
         elif mapper_type == 'bwa':
             if iterative:
                 mapper = map.BwaMapper(index_path, min_quality=min_quality,
-                                       threads=bowtie_threads)
+                                       threads=mapper_threads, memory_map=memory_map)
             else:
                 mapper = map.SimpleBwaMapper(index_path,
-                                             threads=bowtie_threads)
+                                             threads=mapper_threads, memory_map=memory_map)
 
         for input_file in input_files:
             input_file = os.path.expanduser(input_file)
@@ -504,6 +513,7 @@ def map(argv):
                         os.remove(input_file)
                         shutil.copy(output_file, original_output_file)
                         os.remove(output_file)
+                    mapper.close()
             else:
                 from kaic.tools.files import split_fastq, merge_sam, gzip_splitext
 
@@ -529,8 +539,8 @@ def map(argv):
                             split_command += ['--simple']
                         if tmp:
                             split_command += ['-tmp']
-                        if bowtie_parallel:
-                            split_command += ['--bowtie-parallel']
+                        if mapper_parallel:
+                            split_command += ['--mapper-parallel']
                         if not memory_map:
                             split_command += ['--no-memory-map']
                         if trim_front:
@@ -548,10 +558,10 @@ def map(argv):
                     logger.info("Merging BAM files into {}".format(output_file))
                     merge_sam(split_bam_files, output_file, tmp=args.copy)
                 finally:
-                    shutil.rmtree(split_tmpdir)
+                    shutil.rmtree(split_tmpdir, ignore_errors=True)
     finally:
         if tmp:
-            shutil.rmtree(index_dir)
+            shutil.rmtree(index_dir, ignore_errors=True)
 
 
 def iterative_mapping_parser():
@@ -1306,6 +1316,20 @@ def sam_to_pairs_parser():
     )
 
     parser.add_argument(
+        '-t', '--threads', dest='threads',
+        type=int,
+        default=1,
+        help='''Number of threads to use for extracting fragment information'''
+    )
+
+    parser.add_argument(
+        '-b', '--batch-size', dest='batch_size',
+        type=int,
+        default=1000000,
+        help='''Batch size for read pairs to be submitted to individual processes.'''
+    )
+
+    parser.add_argument(
         '-S', '--no-check-sorted', dest='check_sorted',
         action='store_false',
         help='''Assume SAM files are sorted and do not check if that is actually the case'''
@@ -1354,6 +1378,8 @@ def sam_to_pairs(argv):
     filter_quality = args.quality
     filter_contaminant = args.contaminant
     stats_file = args.stats
+    threads = args.threads
+    batch_size = args.batch_size
     check_sorted = args.check_sorted
     bwa = get_sam_mapper(sam1_file) == 'bwa' or args.bwa
     tmp = args.tmp
@@ -1409,7 +1435,7 @@ def sam_to_pairs(argv):
         pairs = ReadPairs(file_name=output_file, mode='w')
 
         pairs.add_regions(regions)
-        pairs.add_read_pairs(sb)
+        pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
 
         statistics = pairs.filter_statistics()
         pairs.close()
@@ -1613,6 +1639,20 @@ def pairs_from_hicpro_parser():
     )
 
     parser.add_argument(
+        '-t', '--threads', dest='threads',
+        type=int,
+        default=1,
+        help='''Number of threads to use for extracting fragment information'''
+    )
+
+    parser.add_argument(
+        '-b', '--batch-size', dest='batch_size',
+        type=int,
+        default=1000000,
+        help='''Batch size for read pairs to be submitted to individual processes.'''
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -1629,6 +1669,8 @@ def pairs_from_hicpro(argv):
     output_file = os.path.expanduser(args.output)
     genome_path = os.path.expanduser(args.genome)
     restriction_enzyme = args.restriction_enzyme
+    threads = args.threads
+    batch_size = args.batch_size
     tmp = args.tmp
 
     import kaic
@@ -1658,7 +1700,7 @@ def pairs_from_hicpro(argv):
         pairs = ReadPairs(file_name=output_file, mode='w')
 
         pairs.add_regions(regions)
-        pairs.add_read_pairs(sb)
+        pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
 
         pairs.close()
         logger.info("Done creating pairs.")
@@ -1671,6 +1713,7 @@ def pairs_from_hicpro(argv):
             os.remove(output_file)
 
     logger.info("All done.")
+
 
 def pairs_to_homer_parser():
     parser = argparse.ArgumentParser(
@@ -4811,6 +4854,13 @@ def ab_profile_parser():
     )
 
     parser.add_argument(
+        '-s', '--symmetric-at', dest='symmetric_at',
+        type=int,
+        help='''Make profile plot symmetric around this value 
+                (e.g. to ensure that 0 is in the center of the plot)'''
+    )
+
+    parser.add_argument(
         '--vmin', dest='vmin',
         type=float,
         default=-1,
@@ -4871,6 +4921,7 @@ def ab_profile(argv):
     output_file = os.path.expanduser(args.output)
     percentiles = args.percentiles
     per_chromosome = args.per_chromosome
+    symmetric_at = args.symmetric_at
     cmap = args.colormap
     matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
     vmin = args.vmin
@@ -4884,25 +4935,46 @@ def ab_profile(argv):
     import matplotlib
     matplotlib.use('agg')
     import matplotlib.pyplot as plt
+    import matplotlib.gridspec as grd
+    import numpy as np
 
     with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
         with kaic.Genome.from_string(genome_file, tmpdir=tmp, mode='r') as genome:
-            m = ab_enrichment_profile(hic, genome, percentiles=percentiles,
-                                      per_chromosome=per_chromosome, only_gc=only_gc,
-                                      exclude_chromosomes=exclude)
+            m, cutoffs = ab_enrichment_profile(hic, genome, percentiles=percentiles,
+                                               per_chromosome=per_chromosome, only_gc=only_gc,
+                                               symmetric_at=symmetric_at, exclude_chromosomes=exclude)
 
     if matrix_file is not None:
         import numpy as np
         np.savetxt(matrix_file, m)
 
-    fig, ax = plt.subplots()
-    im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest')
-    cb = plt.colorbar(im)
+    fig = plt.figure(figsize=(5, 5), dpi=300)
+    gs = grd.GridSpec(2, 2,
+                      height_ratios=[5, 1],
+                      width_ratios=[5, 1])
+    heatmap_ax = plt.subplot(gs[0, 0])
+    im = heatmap_ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest', aspect='auto')
+    cax = plt.subplot(gs[0, 1])
+    cb = plt.colorbar(im, cax=cax)
     cb.set_label('log enrichment')
-    ax.set_xticks([0, 4])
-    ax.set_xticklabels(['active', 'inactive'])
-    ax.set_yticks([0, 4])
-    ax.set_yticklabels(['active', 'inactive'])
+    heatmap_ax.set_xticks([0, m.shape[1] - 1])
+    heatmap_ax.set_xticklabels(['active', 'inactive'])
+    heatmap_ax.set_yticks([0, m.shape[1] - 1])
+    heatmap_ax.set_yticklabels(['active', 'inactive'])
+
+    print(cutoffs)
+    pos = np.arange(m.shape[1])
+    barplot_ax = plt.subplot(gs[1, 0])
+    barplot_ax.bar(pos, cutoffs, color='grey')
+    extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
+    barplot_ax.set_yticks([-1*extent, 0, extent])
+    barplot_ax.get_xaxis().set_visible(False)
+    barplot_ax.spines['right'].set_visible(False)
+    barplot_ax.spines['top'].set_visible(False)
+    barplot_ax.spines['bottom'].set_visible(False)
+    barplot_ax.yaxis.set_ticks_position('left')
+    barplot_ax.xaxis.set_ticks_position('none')
+    barplot_ax.set_xlim([pos[0], pos[-1]])
     fig.savefig(output_file)
     plt.close(fig)
 

@@ -1,5 +1,6 @@
 import os
-from setuptools import setup, find_packages, Command
+from setuptools import setup, find_packages, Command, Extension
+
 
 __version__ = None
 exec(open('kaic/version.py').read())
@@ -25,6 +26,10 @@ setup(
     name='kaic',
     version=__version__,
     description='Hi-C data analysis tools.',
+    setup_requires=[
+        'setuptools>=18.0',
+        'cython'
+    ],
     packages=find_packages(),
     package_data={'kaic': ['test/data/*/*']},
     install_requires=[
@@ -53,4 +58,10 @@ setup(
     cmdclass={
         'clean': CleanCommand
     },
+    ext_modules=[
+        Extension(
+            'kaic.tools.sambam',
+            sources=['kaic/tools/sambam.pyx'],
+        ),
+    ],
 )
