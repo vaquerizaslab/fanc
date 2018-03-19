@@ -900,6 +900,8 @@ class Tabix(RegionBased):
                 self._region_object = GffRegion
             elif preset == 'bed' or preset == 'bdg':
                 self._region_object = BedRegion
+            elif preset == 'vcf':
+                self._region_object = BedRegion
             else:
                 raise ValueError("Preset {} not valid".format(preset))
         else:
@@ -926,8 +928,14 @@ class Tabix(RegionBased):
                 yield region
 
     def _region_subset(self, region):
-        for fields in self._file.fetch(region.chromosome, region.start, region.end):
-            yield self._region_object(fields)
+        try:
+            for fields in self._file.fetch(region.chromosome, region.start, region.end):
+                yield self._region_object(fields)
+        except ValueError:
+            if region.chromosome not in self.chromosomes():
+                warnings.warn('{} not in list of contigs'.format(region.chromosome))
+            else:
+                raise
 
     def chromosomes(self):
         return self._file.contigs
@@ -3977,6 +3985,7 @@ class RegionMatrixTable(RegionPairs):
         # private variables
         self.default_field = default_field
         self.default_value = default_value
+        self._expected_values = None
         RegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields, tmpdir=tmpdir,
                              _table_name_nodes=_table_name_nodes, _table_name_edges=_table_name_edges)
 
@@ -4489,73 +4498,78 @@ class RegionMatrixTable(RegionPairs):
         return intra_total, chromosome_intra_total, inter_total
 
     def expected_values(self, selected_chromosome=None):
-        # get all the bins of the different chromosomes
-        chromosome_bins = self.chromosome_bins
-        chromosome_dict = defaultdict(list)
+        if self._expected_values is not None:
+            intra_expected, chromosome_intra_expected, inter_expected = self._expected_values
+        else:
+            # get all the bins of the different chromosomes
+            chromosome_bins = self.chromosome_bins
+            chromosome_dict = defaultdict(list)
 
-        chromosome_max_distance = defaultdict(int)
-        max_distance = 0
-        for chromosome, (start, stop) in chromosome_bins.items():
-            max_distance = max(max_distance, stop - start)
-            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+            chromosome_max_distance = defaultdict(int)
+            max_distance = 0
+            for chromosome, (start, stop) in chromosome_bins.items():
+                max_distance = max(max_distance, stop - start)
+                chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
 
-            for i in range(start, stop):
-                chromosome_dict[i] = chromosome
+                for i in range(start, stop):
+                    chromosome_dict[i] = chromosome
 
-        chromosome_intra_sums = dict()
-        chromosome_intra_expected = dict()
-        for chromosome, d in chromosome_max_distance.items():
-            chromosome_intra_sums[chromosome] = [0.0] * d
-            chromosome_intra_expected[chromosome] = [0.0] * d
+            chromosome_intra_sums = dict()
+            chromosome_intra_expected = dict()
+            for chromosome, d in chromosome_max_distance.items():
+                chromosome_intra_sums[chromosome] = [0.0] * d
+                chromosome_intra_expected[chromosome] = [0.0] * d
 
-        # get the sums of edges at any given distance
-        marginals = [0.0] * len(self.regions)
-        inter_sums = 0.0
-        intra_sums = [0.0] * max_distance
-        with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
-            for i, edge in enumerate(self.edges(lazy=True)):
-                source, sink = edge.source, edge.sink
-                weight = getattr(edge, self.default_field)
+            # get the sums of edges at any given distance
+            marginals = [0.0] * len(self.regions)
+            inter_sums = 0.0
+            intra_sums = [0.0] * max_distance
+            with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
+                for i, edge in enumerate(self.edges(lazy=True)):
+                    source, sink = edge.source, edge.sink
+                    weight = getattr(edge, self.default_field)
 
-                source_chromosome = chromosome_dict[source]
-                sink_chromosome = chromosome_dict[sink]
+                    source_chromosome = chromosome_dict[source]
+                    sink_chromosome = chromosome_dict[sink]
 
-                marginals[source] += weight
-                marginals[sink] += weight
+                    marginals[source] += weight
+                    marginals[sink] += weight
 
-                if sink_chromosome != source_chromosome:
-                    inter_sums += weight
-                else:
-                    distance = sink - source
-                    intra_sums[distance] += weight
-                    chromosome_intra_sums[source_chromosome][distance] += weight
-                pb.update(i)
+                    if sink_chromosome != source_chromosome:
+                        inter_sums += weight
+                    else:
+                        distance = sink - source
+                        intra_sums[distance] += weight
+                        chromosome_intra_sums[source_chromosome][distance] += weight
+                    pb.update(i)
 
-        intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
+            intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
 
-        # expected values
-        inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
+            # expected values
+            inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
 
-        intra_expected = [0.0] * max_distance
-        bin_size = self.bin_size
-        distances = []
-        for d in range(max_distance):
-            distances.append(bin_size * d)
+            intra_expected = [0.0] * max_distance
+            bin_size = self.bin_size
+            distances = []
+            for d in range(max_distance):
+                distances.append(bin_size * d)
 
-            # whole genome
-            count = intra_total[d]
-            if count > 0:
-                intra_expected[d] = intra_sums[d] / count
+                # whole genome
+                count = intra_total[d]
+                if count > 0:
+                    intra_expected[d] = intra_sums[d] / count
 
-        # chromosomes
-        for chromosome in chromosome_intra_expected:
-            for d in range(chromosome_max_distance[chromosome]):
-                chromosome_count = chromosome_intra_total[chromosome][d]
-                if chromosome_count > 0:
-                    chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+            # chromosomes
+            for chromosome in chromosome_intra_expected:
+                for d in range(chromosome_max_distance[chromosome]):
+                    chromosome_count = chromosome_intra_total[chromosome][d]
+                    if chromosome_count > 0:
+                        chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+
+            self._expected_values = intra_expected, chromosome_intra_expected, inter_expected
 
         if selected_chromosome is not None:
-            return chromosome_intra_expected[chromosome]
+            return chromosome_intra_expected[selected_chromosome]
 
         return intra_expected, chromosome_intra_expected, inter_expected
 
@@ -4687,6 +4701,7 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
         # private variables
         self.default_field = default_field
         self.default_value = default_value
+        self._expected_values = None
         AccessOptimisedRegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields,
                                             tmpdir=tmpdir, _table_name_nodes=_table_name_nodes,
                                             _table_name_edges=_table_name_edges)
