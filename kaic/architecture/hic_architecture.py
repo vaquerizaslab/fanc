@@ -2695,16 +2695,17 @@ def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
                 for v in vector[b[0]:b[1]]:
                     exclude_vector.append(v)
                 # exclude_vector += vector[b[0]:b[1]]
-        vector = exclude_vector
+    else:
+        exclude_vector = vector
 
     if symmetric_at is not None:
-        lv = vector[vector <= symmetric_at]
-        gv = vector[vector > symmetric_at]
+        lv = exclude_vector[exclude_vector <= symmetric_at]
+        gv = exclude_vector[exclude_vector > symmetric_at]
         lv_cutoffs = np.nanpercentile(lv, percentiles)
         gv_cutoffs = np.nanpercentile(gv, percentiles)
         bin_cutoffs = np.concatenate((lv_cutoffs, gv_cutoffs))
     else:
-        bin_cutoffs = np.nanpercentile(vector, percentiles)
+        bin_cutoffs = np.nanpercentile(exclude_vector, percentiles)
 
     bins = []
     for value in vector:
