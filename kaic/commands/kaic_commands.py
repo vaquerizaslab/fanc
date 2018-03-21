@@ -4966,8 +4966,11 @@ def ab_profile(argv):
     pos = np.arange(m.shape[1])
     barplot_ax = plt.subplot(gs[1, 0])
     barplot_ax.bar(pos, cutoffs, color='grey')
-    extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
-    barplot_ax.set_yticks([-1*extent, 0, extent])
+    if not only_gc:
+        extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
+        barplot_ax.set_yticks([-1*extent, 0, extent])
+    else:
+        barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
     barplot_ax.get_xaxis().set_visible(False)
     barplot_ax.spines['right'].set_visible(False)
     barplot_ax.spines['top'].set_visible(False)

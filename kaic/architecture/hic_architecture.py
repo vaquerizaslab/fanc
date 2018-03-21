@@ -2697,6 +2697,7 @@ def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
                 # exclude_vector += vector[b[0]:b[1]]
     else:
         exclude_vector = vector
+    exclude_vector = np.array(exclude_vector)
 
     if symmetric_at is not None:
         lv = exclude_vector[exclude_vector <= symmetric_at]
@@ -2755,6 +2756,7 @@ def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
                 c[j_bin, i_bin] += 1
 
     m /= c
+    # m[c == 0] = 0
     rev_cutoffs = bin_cutoffs[::-1]
     for i in range(len(rev_cutoffs) - 1, 0, -1):
         if np.isclose(rev_cutoffs[i - 1], rev_cutoffs[i]):
