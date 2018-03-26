@@ -2475,10 +2475,11 @@ def dump(argv):
             for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
                 source, i = row_regions_dict[edge.source]
                 sink, j = col_regions_dict[edge.sink]
+                weight = getattr(edge, hic.default_field)
                 print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
                     source.chromosome, source.start, source.end,
                     sink.chromosome, sink.start, sink.end,
-                    edge.weight
+                    weight
                 ))
         else:
             with open(output_matrix, 'w') as o:
@@ -2486,17 +2487,19 @@ def dump(argv):
                     for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
                         source, i = row_regions_dict[edge.source]
                         sink, j = col_regions_dict[edge.sink]
+                        weight = getattr(edge, hic.default_field)
                         o.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
                             source.chromosome, source.start, source.end,
                             sink.chromosome, sink.start, sink.end,
-                            edge.weight
+                            weight
                         ))
                 else:
                     for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
                         source, i = row_regions_dict[edge.source]
                         sink, j = col_regions_dict[edge.sink]
+                        weight = getattr(edge, hic.default_field)
                         o.write("{}\t{}\t{}\n".format(
-                            i, j, edge.weight
+                            i, j, weight
                         ))
 
     # write regions to file
