@@ -5097,7 +5097,7 @@ def stats(argv):
         reads_summary = defaultdict(int)
         for reads_file in reads_files:
             logger.info("{}".format(reads_file))
-            reads = Reads(reads_file, mode='r')
+            reads = kaic.load(reads_file, mode='r')
             statistics, total = stats(reads, reads._reads)
 
             with open(output_file, 'a') as o:
@@ -5126,7 +5126,7 @@ def stats(argv):
         pairs_summary = defaultdict(int)
         for pairs_file in pairs_files:
             logger.info("{}".format(pairs_file))
-            pairs = kaic.Pairs(pairs_file, mode='r')
+            pairs = kaic.load(pairs_file, mode='r')
             statistics, total = stats(pairs, pairs._pairs)
 
             with open(output_file, 'a') as o:
@@ -5157,7 +5157,7 @@ def stats(argv):
         hic_summary = defaultdict(int)
         for hic_file in hic_files:
             logger.info("{}".format(hic_file))
-            hic = load_hic(hic_file, mode='r')
+            hic = kaic.load(hic_file, mode='r')
             statistics, total = stats(hic, hic._edges)
 
             with open(output_file, 'a') as o:
