@@ -5078,7 +5078,7 @@ def stats(argv):
                 read = open
 
             with read(fastq_file, 'r') as f:
-                line_count = sum(1 for line in f)
+                line_count = sum(1 for _ in f)
             total_count += line_count/4
 
             with open(output_file, 'a') as o:
@@ -5091,6 +5091,7 @@ def stats(argv):
     if args.reads is not None:
         logger.info("Processing Reads files.")
 
+        import kaic
         from kaic.construct.seq import Reads
         reads_files = get_files(args.reads, ('.reads',))
 
