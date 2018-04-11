@@ -279,7 +279,7 @@ class Maskable(FileBased):
         name = t.StringCol(50, pos=1)
         description = t.StringCol(255, pos=2)
 
-    def __init__(self, data=None, file_name=None, table_name="mask", tmpdir=None):
+    def __init__(self, data=None, file_name=None, table_name="mask", mode='a', tmpdir=None):
         """
         Enable recording of masking in pytables-backed object.
         
@@ -322,7 +322,7 @@ class Maskable(FileBased):
             if hasattr(self, '_mask'):
                 self._set_mask_table(self._mask)
 
-        FileBased.__init__(self, file_name, tmpdir=tmpdir)
+        FileBased.__init__(self, file_name, tmpdir=tmpdir, mode=mode)
                 
         if (not hasattr(self, '_mask') or self._mask is None) and self.file is not None:
             try:
