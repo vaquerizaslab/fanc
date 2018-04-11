@@ -5265,3 +5265,58 @@ def cis_trans(argv):
         print("\tratio: {:.3f}".format(r))
         print("\tfactor: {:.3f}".format(f))
         hic.close()
+
+
+def hic_sample_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic hic_sample",
+        description='Sample contacts from a Hic object.'
+    )
+
+    parser.add_argument(
+        'hic',
+        help="Hic object to be sampled."
+    )
+
+    parser.add_argument(
+        'n',
+        help="Sample size or reference Hi-C object."
+    )
+
+    parser.add_argument(
+        'output',
+        help="Hic object to be sampled."
+    )
+
+    parser.add_argument(
+        '-e', '--exact', dest='exact',
+        action='store_true',
+        default=False,
+        help='''Use sampling of pairs without replacement. 
+                Warning: This only works on uncorrected Hi-C matrices
+                and might consume a lot of memory!.'''
+    )
+
+    return parser
+
+
+def hic_sample(argv):
+    parser = hic_sample_parser()
+
+    args = parser.parse_args(argv[2:])
+
+    import kaic
+
+    hic_file = args.hic
+
+    n = args.n
+    if os.path.exists(os.path.expanduser(n)):
+        n = kaic.load(n)
+    else:
+        n = int(n)
+    output_file = args.output
+    exact = args.exact
+
+    with kaic.load(hic_file) as hic:
+        output_hic = hic.sample(n, exact=exact, file_name=output_file)
+        output_hic.close()

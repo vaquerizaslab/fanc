@@ -67,7 +67,7 @@ class Kaic(object):
             print(kaic.__version__)
             exit()
 
-        if args.command is None or not hasattr(commands, args.command):
+        if args.command is None or not hasattr(commands, args.command.replace("-", "_")):
             print('Unrecognized command')
             parser.print_help()
             exit(1)
@@ -82,7 +82,9 @@ class Kaic(object):
         try:
             if config.raise_exception_on_trapped_signal:
                 enable_signal_traps()
-            getattr(commands, args.command)([sys.argv[0]] + sys.argv[option_ix:])
+
+            fixed_command = args.command.replace("-", "_")
+            getattr(commands, fixed_command)([sys.argv[0]] + sys.argv[option_ix:])
             disable_signal_traps()
         except Exception:
             if args.email_to_address is not None:

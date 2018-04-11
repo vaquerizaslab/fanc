@@ -5461,6 +5461,36 @@ class Hic(RegionMatrixTable):
 
         return hic
 
+    def sample(self, n, exact=False, file_name=None):
+        if isinstance(n, Hic):
+            n = len(n.edges)
+
+        region_pairs = []
+        if not exact:
+            weights = []
+            logger.info("Using sampling with replacement")
+            for edge in self.edges(lazy=True):
+                region_pairs.append((edge.source, edge.sink))
+                weights.append(edge.weight)
+            s = sum(weights)
+            p = [w / s for w in weights]
+        else:
+            p = None
+            logger.info("Using sampling without replacement")
+            for edge in self.edges(lazy=True):
+                for i in range(int(edge.weight)):
+                    region_pairs.append((edge.source, edge.sink))
+
+        new_hic = self.__class__(file_name=file_name, mode='w')
+        new_hic.add_regions(self.regions)
+        new_edges = defaultdict(int)
+        for new_pair_ix in np.random.choice(len(region_pairs), size=n, replace=not exact, p=p):
+            new_edges[region_pairs[new_pair_ix]] += 1
+        new_edges = [[source, sink, weight] for (source, sink), weight in new_edges.items()]
+        new_hic.add_edges(new_edges)
+
+        return new_hic
+
 
 class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
     """
