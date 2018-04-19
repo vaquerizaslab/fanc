@@ -688,13 +688,15 @@ class FoldChangeMatrix(ComparisonMatrix):
 
     def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, scale_matrices=False, log2=True,
-                 weight_column='weight', _table_name='expected_contacts'):
+                 weight_column='weight', ignore_zero=False,
+                 _table_name='expected_contacts'):
 
         ComparisonMatrix.__init__(self, matrix1=matrix1, matrix2=matrix2,
                                   comparison_function=lambda x: x[0] / x[1],
                                   file_name=file_name, mode=mode, tmpdir=tmpdir,
                                   regions=regions, scale_matrices=scale_matrices,
                                   log2=log2, weight_column=weight_column,
+                                  ignore_zero=ignore_zero,
                                   _table_name=_table_name)
 
 
@@ -723,13 +725,15 @@ class DifferenceMatrix(ComparisonMatrix):
 
     def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, scale_matrices=False, log2=True,
-                 weight_column='weight', _table_name='expected_contacts'):
+                 weight_column='weight', ignore_zero=False,
+                 _table_name='expected_contacts'):
 
         ComparisonMatrix.__init__(self, matrix1=matrix1, matrix2=matrix2,
                                   comparison_function=lambda x: x[0] - x[1],
                                   file_name=file_name, mode=mode, tmpdir=tmpdir,
                                   regions=regions, scale_matrices=scale_matrices,
                                   log2=log2, weight_column=weight_column,
+                                  ignore_zero=ignore_zero,
                                   _table_name=_table_name)
 
 

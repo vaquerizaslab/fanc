@@ -3857,6 +3857,13 @@ def fold_change_parser():
     parser.set_defaults(log=False)
 
     parser.add_argument(
+        '-Z', '--ignore-zero', dest='ignore_zero',
+        action='store_true',
+        help='''Do not consider pixels where one matrix entry is zero'''
+    )
+    parser.set_defaults(ignore_zero=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -3884,7 +3891,7 @@ def fold_change(argv):
 
     output_file = os.path.expanduser(args.output)
     with FoldChangeMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
-                          scale_matrices=args.scale, log2=args.log) as fcm:
+                          scale_matrices=args.scale, log2=args.log, ignore_zero=args.ignore_zero) as fcm:
         fcm.calculate()
 
 
@@ -3918,6 +3925,13 @@ def difference_parser():
     parser.set_defaults(log=False)
 
     parser.add_argument(
+        '-Z', '--ignore-zero', dest='ignore_zero',
+        action='store_true',
+        help='''Do not consider pixels where one matrix entry is zero'''
+    )
+    parser.set_defaults(ignore_zero=False)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -3945,7 +3959,7 @@ def difference(argv):
 
     output_file = os.path.expanduser(args.output)
     with DifferenceMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
-                          scale_matrices=args.scale, log2=args.log) as diff:
+                          scale_matrices=args.scale, log2=args.log, ignore_zero=args.ignore_zero) as diff:
         diff.calculate()
 
 
