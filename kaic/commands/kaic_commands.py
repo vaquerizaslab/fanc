@@ -3900,7 +3900,7 @@ def difference_parser():
     )
     parser.add_argument(
         'output',
-        help='Output FoldChangeMatrix file.'
+        help='Output DifferenceMatrix file.'
     )
 
     parser.add_argument(
@@ -3913,7 +3913,7 @@ def difference_parser():
     parser.add_argument(
         '-l', '--log2', dest='log',
         action='store_true',
-        help='''Log2-convert fold-change values'''
+        help='''Log2-convert difference values'''
     )
     parser.set_defaults(log=False)
 
@@ -3932,7 +3932,7 @@ def difference(argv):
     args = parser.parse_args(argv[2:])
 
     import kaic
-    from kaic.architecture.hic_architecture import FoldChangeMatrix
+    from kaic.architecture.hic_architecture import DifferenceMatrix
     import os.path
 
     tmpdir = None
@@ -3944,9 +3944,9 @@ def difference(argv):
     hic2 = kaic.load_hic(os.path.expanduser(args.input[1]), mode='r')
 
     output_file = os.path.expanduser(args.output)
-    with FoldChangeMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
-                          scale_matrices=args.scale, log2=args.log) as fcm:
-        fcm.calculate()
+    with DifferenceMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
+                          scale_matrices=args.scale, log2=args.log) as diff:
+        diff.calculate()
 
 
 def average_tracks_parser():
