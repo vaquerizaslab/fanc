@@ -51,6 +51,7 @@ def kaic_parser():
             dump                Dump Hic file to txt file(s)
             hic_from_juicer     Convert juicer .hic file to Kai-C Hic
             hic_to_cooler       Convert Hic file into cooler format
+            hic_sample          Sample contacts from a Hi-C matrix
 
             --- Network
             call_peaks          Call enriched peaks in a Hic object
@@ -70,6 +71,7 @@ def kaic_parser():
             structure_tracks   Calculate structural features of a Hic object
             boundaries         Call boundaries in an Hic object
             fold_change        Create pairwise fold-change Hi-C comparison maps
+            difference         Create pairwise differences of Hi-C maps
             average_tracks     Calculate average Hi-C contact profiles per region
             directionality     Calculate directionality index for Hic object
             insulation         Calculate insulation index for Hic object
@@ -3886,6 +3888,67 @@ def fold_change(argv):
         fcm.calculate()
 
 
+def difference_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic difference",
+        description='Create pairwise differences of Hi-C maps'
+    )
+    parser.add_argument(
+        'input',
+        nargs=2,
+        help='Input Hic files'
+    )
+    parser.add_argument(
+        'output',
+        help='Output FoldChangeMatrix file.'
+    )
+
+    parser.add_argument(
+        '-S', '--no-scale', dest='scale',
+        action='store_false',
+        help='''Do not scale input matrices'''
+    )
+    parser.set_defaults(scale=True)
+
+    parser.add_argument(
+        '-l', '--log2', dest='log',
+        action='store_true',
+        help='''Log2-convert fold-change values'''
+    )
+    parser.set_defaults(log=False)
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+    return parser
+
+
+def difference(argv):
+    parser = difference_parser()
+
+    args = parser.parse_args(argv[2:])
+
+    import kaic
+    from kaic.architecture.hic_architecture import FoldChangeMatrix
+    import os.path
+
+    tmpdir = None
+    if args.tmp:
+        import tempfile
+        tmpdir = tempfile.gettempdir()
+
+    hic1 = kaic.load_hic(os.path.expanduser(args.input[0]), mode='r')
+    hic2 = kaic.load_hic(os.path.expanduser(args.input[1]), mode='r')
+
+    output_file = os.path.expanduser(args.output)
+    with FoldChangeMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
+                          scale_matrices=args.scale, log2=args.log) as fcm:
+        fcm.calculate()
+
+
 def average_tracks_parser():
     parser = argparse.ArgumentParser(
         prog="kaic average_tracks",
@@ -5285,7 +5348,7 @@ def hic_sample_parser():
 
     parser.add_argument(
         'output',
-        help="Hic object to be sampled."
+        help="Sampled Hic output."
     )
 
     parser.add_argument(

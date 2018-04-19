@@ -565,11 +565,11 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
         self.flush()
 
 
-class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
+class ComparisonMatrix(MatrixArchitecturalRegionFeature):
     """
-    Calculate the fold-change matrix of two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
+    Compare two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
 
-    fc_ij = matrix1_ij/matrix2_ij
+    Define edge comparison function manually.
 
     :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
     :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
@@ -586,9 +586,10 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
                           expected value calculation. If None, this will be the default field
                           in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
     """
-    _classid = 'FOLDCHANGEMATRIX'
+    _classid = 'COMPARISONMATRIX'
 
-    def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
+    def __init__(self, matrix1=None, matrix2=None, comparison_function=lambda x: x[0] / x[1],
+                 file_name=None, mode='a', tmpdir=None,
                  regions=None, scale_matrices=False, log2=True,
                  weight_column='weight', _table_name='expected_contacts'):
         self.region_selection = regions
@@ -616,6 +617,7 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
         self.weight_column = weight_column
         self.scale_matrices = scale_matrices
         self.log2 = log2
+        self.compare = comparison_function
 
     def _calculate(self):
         if self.scale_matrices:
@@ -648,12 +650,82 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
                         continue
 
                     if (source, sink) in edges1:
-                        weight = edges1[(source, sink)] / (scaling_factor*edge.weight)
+                        weight = self.compare([edges1[(source, sink)], scaling_factor*edge.weight])
                         if self.log2:
                             weight = np.log2(weight)
                         self.add_edge([source, sink, weight], flush=False)
 
         self.flush()
+
+
+class FoldChangeMatrix(ComparisonMatrix):
+    """
+    Calculate the fold-change matrix of two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
+
+    fc_ij = matrix1_ij/matrix2_ij
+
+    :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param scale_matrices: If True, will scale the matrices naively by artificially increasing the number of
+                           reads in one matrix uniformly, so that it has the same number of total contacts
+                           as the other matrix.
+    :param log2: If True, will log2-transform the output values.
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    """
+    _classid = 'FOLDCHANGEMATRIX'
+
+    def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
+                 regions=None, scale_matrices=False, log2=True,
+                 weight_column='weight', _table_name='expected_contacts'):
+
+        ComparisonMatrix.__init__(self, matrix1=matrix1, matrix2=matrix2,
+                                  comparison_function=lambda x: x[0] / x[1],
+                                  file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                  regions=regions, scale_matrices=scale_matrices,
+                                  log2=log2, weight_column=weight_column,
+                                  _table_name=_table_name)
+
+
+class DifferenceMatrix(ComparisonMatrix):
+    """
+    Calculate the fold-change matrix of two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
+
+    fc_ij = matrix1_ij/matrix2_ij
+
+    :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param scale_matrices: If True, will scale the matrices naively by artificially increasing the number of
+                           reads in one matrix uniformly, so that it has the same number of total contacts
+                           as the other matrix.
+    :param log2: If True, will log2-transform the output values.
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    """
+    _classid = 'DIFFERENCEMATRIX'
+
+    def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
+                 regions=None, scale_matrices=False, log2=True,
+                 weight_column='weight', _table_name='expected_contacts'):
+
+        ComparisonMatrix.__init__(self, matrix1=matrix1, matrix2=matrix2,
+                                  comparison_function=lambda x: x[0] - x[1],
+                                  file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                  regions=regions, scale_matrices=scale_matrices,
+                                  log2=log2, weight_column=weight_column,
+                                  _table_name=_table_name)
 
 
 class ABDomainMatrix(MatrixArchitecturalRegionFeature):
