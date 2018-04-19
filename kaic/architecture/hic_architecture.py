@@ -591,7 +591,8 @@ class ComparisonMatrix(MatrixArchitecturalRegionFeature):
     def __init__(self, matrix1=None, matrix2=None, comparison_function=lambda x: x[0] / x[1],
                  file_name=None, mode='a', tmpdir=None,
                  regions=None, scale_matrices=False, log2=True,
-                 weight_column='weight', _table_name='expected_contacts'):
+                 weight_column='weight', ignore_zero=False,
+                 _table_name='expected_contacts'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -618,6 +619,7 @@ class ComparisonMatrix(MatrixArchitecturalRegionFeature):
         self.scale_matrices = scale_matrices
         self.log2 = log2
         self.compare = comparison_function
+        self.ignore_zero = ignore_zero
 
     def _calculate(self):
         if self.scale_matrices:
@@ -649,11 +651,14 @@ class ComparisonMatrix(MatrixArchitecturalRegionFeature):
                     except KeyError:
                         continue
 
-                    if (source, sink) in edges1:
-                        weight = self.compare([edges1[(source, sink)], scaling_factor*edge.weight])
-                        if self.log2:
-                            weight = np.log2(weight)
-                        self.add_edge([source, sink, weight], flush=False)
+                    edge1_weight = edges1[(source, sink)] if (source, sink) in edges1 else self.matrix1.default_value
+                    if self.ignore_zero and edge1_weight == 0 or edge.weight == 0:
+                        continue
+
+                    weight = self.compare([edge1_weight, scaling_factor*edge.weight])
+                    if self.log2:
+                        weight = np.log2(weight)
+                    self.add_edge([source, sink, weight], flush=False)
 
         self.flush()
 
