@@ -39,6 +39,7 @@ import numpy as np
 import tables as t
 import itertools
 from scipy.misc import imresize
+from scipy.stats import trim_mean
 from bisect import bisect_left
 from kaic.tools.general import RareUpdateProgressBar
 from future.utils import string_types
@@ -1485,7 +1486,8 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, offset=0, normalise=False, impute_missing=False,
                  window_sizes=(200000,), log=False, _normalisation_window=300,
-                 subtract_mean=False, _table_name='insulation_index'):
+                 subtract_mean=False, trim_mean_proportion=0.0,
+                 _table_name='insulation_index'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
@@ -1525,6 +1527,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         self.normalise = normalise
         self.normalisation_window = _normalisation_window
         self.subtract_mean = subtract_mean
+        self.trim_mean_proportion = trim_mean_proportion
         self.log = log
 
     def _insulation_index_lowmem(self, window_size, window_offset=0, aggr_func=None, _mappable=None,
@@ -1674,10 +1677,13 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                     if self.normalisation_window is not None:
                         logger.debug("Sliding window average")
                         mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window,
-                                                      func=np.nanmean)
+                                                      func=lambda x: trim_mean(x[np.isfinite(x)],
+                                                                               self.trim_mean_proportion))
                     else:
                         logger.debug("Whole chromosome mean")
-                        mean_ins = np.nanmean(ii_by_chromosome)
+                        mean_ins = trim_mean(ii_by_chromosome[np.isfinite(ii_by_chromosome)],
+                                             self.trim_mean_proportion)
+
                     if not self.subtract_mean:
                         logger.debug("Dividing by mean")
                         ii_by_chromosome = ii_by_chromosome / mean_ins

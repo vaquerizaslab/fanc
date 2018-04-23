@@ -4180,10 +4180,17 @@ def insulation_parser():
         '-s', '--subtract-mean', dest='subtract',
         action='store_true',
         help='''Subtract mean instead of dividing by it when '--normalise' is enabled.
-                You probably don't want this, unless you are working with 
-                log-transformed matrices (e.g. fold-change matrices)'''
+                    You probably don't want this, unless you are working with 
+                    log-transformed matrices (e.g. fold-change matrices)'''
     )
-    parser.set_defaults(subtract=False)
+
+    parser.add_argument(
+        '--trim-mean', dest='trim_mean',
+        type=float,
+        default=0.0,
+        help='''Use a trimmed mean for insulation index normalisation with 
+                this cutoff (fraction of scores)'''
+    )
     return parser
 
 
@@ -4207,7 +4214,7 @@ def insulation(argv):
 
     with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                          impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
-                         mode='w', subtract_mean=args.subtract, log=args.log,
+                         mode='w', subtract_mean=args.subtract, log=args.log, trim_mean_proportion=args.trim_mean,
                          _normalisation_window=args.normalisation_window) as ii:
         ii.calculate()
 
