@@ -4573,6 +4573,10 @@ class RegionMatrixTable(RegionPairs):
 
         return intra_expected, chromosome_intra_expected, inter_expected
 
+    def iter_edge_attribute(self, attribute):
+        for value in getattr(self._edges.cols, attribute):
+            yield value
+
     def scaling_factor(self, matrix, weight_column=None):
         """
         Compute the scaling factor to another matrix.
@@ -4589,13 +4593,8 @@ class RegionMatrixTable(RegionPairs):
             weight_column = self.default_field
 
         logger.info("Calculating scaling factor...")
-        m1_sum = 0.0
-        for edge in self.edges(lazy=True):
-            m1_sum += getattr(edge, weight_column)
-
-        m2_sum = 0.0
-        for edge in matrix.edges(lazy=True):
-            m2_sum += getattr(edge, weight_column)
+        m1_sum = np.sum(self.iter_edge_attribute(weight_column))
+        m2_sum = np.sum(matrix.iter_edge_attribute(weight_column))
 
         scaling_factor = m1_sum / m2_sum
         logger.debug("Scaling factor: %f" % scaling_factor)
@@ -4851,6 +4850,11 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
                 pb.update(i)
         if log_progress:
             logger.info("Total: {}. Filtered: {}".format(total, filtered))
+
+    def iter_edge_attribute(self, attribute):
+        for edge_table in self._edge_table_iter():
+            for value in getattr(edge_table.cols, attribute):
+                yield value
 
 
 class Hic(RegionMatrixTable):
