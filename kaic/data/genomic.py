@@ -1302,6 +1302,12 @@ class GenomicRegion(TableObject):
                 return True
         return False
 
+    def overlap(self, region):
+        if region.chromosome != self.chromosome:
+            return 0
+
+        return max(0, min(self.end, region.end) - max(self.start, region.start))
+
     def contains(self, region):
         """
         Check if the specified region is completely contained in this region.
