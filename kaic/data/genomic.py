@@ -1236,13 +1236,13 @@ class GenomicRegion(TableObject):
             start_end_bp = fields[1].split('-')
             if len(start_end_bp) > 0:
                 try:
-                    start = int(start_end_bp[0])
+                    start = int(start_end_bp[0].replace(',', ''))
                 except ValueError:
                     raise ValueError("Start of genomic range must be integer")
             
             if len(start_end_bp) > 1:
                 try:
-                    end = int(start_end_bp[1])
+                    end = int(start_end_bp[1].replace(',', ''))
                 except ValueError:
                     raise ValueError("End of genomic range must be integer")
 
