@@ -150,6 +150,14 @@ def _weighted_mean(intervals):
     return np.average(valid[:, 2], weights=weights)
 
 
+def as_region(region):
+    if isinstance(region, string_types):
+        return GenomicRegion.from_string(region)
+    elif isinstance(region, GenomicRegion):
+        return region
+    raise ValueError("region parameter cannot be converted to GenomicRegion!")
+
+
 class RegionBased(object):
     """
     Base class for working with genomic regions.
