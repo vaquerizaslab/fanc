@@ -42,9 +42,9 @@ class GenomeCoordFormatter(Formatter):
         oom_range = int(math.floor(math.log10(abs(view_range[1] - view_range[0]))))
 
         if oom_loc >= 6:
-            return "{:.{prec}f}Mb".format(x / 1000000, prec=max(0, 6 + prec_offset - oom_range))
+            return "{:.{prec}f}Mb".format(x / 1000000, prec=max(1, 6 + prec_offset - oom_range))
         elif oom_loc >= 3:
-            return "{:.{prec}f}kb".format(x/1000, prec=max(0, 3 + prec_offset - oom_range))
+            return "{:.{prec}f}kb".format(x/1000, prec=max(1, 3 + prec_offset - oom_range))
         return "{:.0f}b".format(x)
 
     def __call__(self, x, pos=None):
@@ -68,7 +68,7 @@ class GenomeCoordFormatter(Formatter):
             return ""
         view_range = self.axis.axes.get_xlim()
         view_dist = abs(view_range[1] - view_range[0])
-        tick_dist = abs(self.locs[2] - self.locs[1])
+        tick_dist = abs(self.locs[1] - self.locs[0])
         minor_tick_dist = abs(tick_dist/self.minor_div)
         minor_tick_dist_str = self._format_val(minor_tick_dist, prec_offset=2)
         tick_dist_str = self._format_val(tick_dist, prec_offset=1)
@@ -112,7 +112,7 @@ class MinorGenomeCoordLocator(mpl.ticker.AutoMinorLocator):
     def __call__(self):
         majorlocs = self.axis.get_majorticklocs()
         try:
-            majorstep = majorlocs[2] - majorlocs[1]
+            majorstep = majorlocs[1] - majorlocs[0]
         except IndexError:
             # Need at least two major ticks to find minor tick locations
             # TODO: Figure out a way to still be able to display minor
@@ -136,7 +136,7 @@ class MinorGenomeCoordLocator(mpl.ticker.AutoMinorLocator):
         if vmin > vmax:
             vmin, vmax = vmax, vmin
         if len(majorlocs) > 0:
-            t0 = majorlocs[1]
+            t0 = majorlocs[0]
             tmin = ((vmin - t0) // minorstep + 1) * minorstep
             tmax = ((vmax - t0) // minorstep + 1) * minorstep
             locs = np.arange(tmin, tmax, minorstep) + t0
