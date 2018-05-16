@@ -1681,9 +1681,6 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                     logger.debug("Normalising insulation index")
                     if self.normalisation_window is not None:
                         logger.debug("Sliding window average")
-                        # mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window,
-                        #                               func=lambda x: trim_mean(x[np.isfinite(x)],
-                        #                                                        self.trim_mean_proportion))
                         mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window,
                                                       func=lambda x: trim_stats(x[np.isfinite(x)],
                                                                                 self.trim_mean_proportion,
