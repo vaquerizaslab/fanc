@@ -4179,9 +4179,18 @@ def insulation_parser():
     parser.add_argument(
         '-s', '--subtract-mean', dest='subtract',
         action='store_true',
+        default=False,
         help='''Subtract mean instead of dividing by it when '--normalise' is enabled.
-                    You probably don't want this, unless you are working with 
-                    log-transformed matrices (e.g. fold-change matrices)'''
+                        You probably don't want this, unless you are working with 
+                        log-transformed matrices (e.g. fold-change matrices)'''
+    )
+
+    parser.add_argument(
+        '-g', '--geom-mean', dest='geom_mean',
+        action='store_true',
+        default=False,
+        help='''Use geometric mean for normalisation (rather than arithmetic mean).
+                Useful in conjunction with --log to center the distribution at 0.'''
     )
 
     parser.add_argument(
@@ -4214,7 +4223,8 @@ def insulation(argv):
 
     with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
                          impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
-                         mode='w', subtract_mean=args.subtract, log=args.log, trim_mean_proportion=args.trim_mean,
+                         mode='w', subtract_mean=args.subtract, log=args.log,
+                         trim_mean_proportion=args.trim_mean, geometric_mean=args.geom_mean,
                          _normalisation_window=args.normalisation_window) as ii:
         ii.calculate()
 

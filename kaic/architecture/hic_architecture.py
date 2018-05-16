@@ -32,7 +32,7 @@ from kaic.architecture.maxima_callers import MaximaCallerDelta
 from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic, Genome, Bedpe
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
-from kaic.tools.matrix import apply_sliding_func, kth_diag_indices
+from kaic.tools.matrix import apply_sliding_func, kth_diag_indices, trim_stats
 from kaic.data.general import FileGroup
 from Bio.SeqUtils import GC as calculate_gc_content
 import numpy as np
@@ -40,6 +40,7 @@ import tables as t
 import itertools
 from scipy.misc import imresize
 from scipy.stats import trim_mean
+from scipy.stats.mstats import gmean
 from bisect import bisect_left
 from kaic.tools.general import RareUpdateProgressBar
 from future.utils import string_types
@@ -1486,7 +1487,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, offset=0, normalise=False, impute_missing=False,
                  window_sizes=(200000,), log=False, _normalisation_window=300,
-                 subtract_mean=False, trim_mean_proportion=0.0,
+                 subtract_mean=False, trim_mean_proportion=0.0, geometric_mean=False,
                  _table_name='insulation_index'):
         self.region_selection = regions
 
@@ -1529,6 +1530,10 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         self.subtract_mean = subtract_mean
         self.trim_mean_proportion = trim_mean_proportion
         self.log = log
+        if geometric_mean:
+            self._stat = gmean
+        else:
+            self._stat = np.nanmean
 
     def _insulation_index_lowmem(self, window_size, window_offset=0, aggr_func=None, _mappable=None,
                                  _na_threshold=0.5, _expected=None):
@@ -1676,13 +1681,17 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                     logger.debug("Normalising insulation index")
                     if self.normalisation_window is not None:
                         logger.debug("Sliding window average")
+                        # mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window,
+                        #                               func=lambda x: trim_mean(x[np.isfinite(x)],
+                        #                                                        self.trim_mean_proportion))
                         mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window,
-                                                      func=lambda x: trim_mean(x[np.isfinite(x)],
-                                                                               self.trim_mean_proportion))
+                                                      func=lambda x: trim_stats(x[np.isfinite(x)],
+                                                                                self.trim_mean_proportion,
+                                                                                stat=self._stat))
                     else:
                         logger.debug("Whole chromosome mean")
-                        mean_ins = trim_mean(ii_by_chromosome[np.isfinite(ii_by_chromosome)],
-                                             self.trim_mean_proportion)
+                        mean_ins = trim_stats(ii_by_chromosome[np.isfinite(ii_by_chromosome)],
+                                              self.trim_mean_proportion, stat=self._stat)
 
                     if not self.subtract_mean:
                         logger.debug("Dividing by mean")

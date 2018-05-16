@@ -89,3 +89,17 @@ def kth_diag_indices(n, k):
         return rows[:-k], cols[k:]
     else:
         return rows, cols
+
+
+def trim_stats(a, proportiontocut=0.0, axis=0, stat=np.nanmean):
+    if proportiontocut >= 0.5:
+        raise ValueError("Cannot cut more than 50% of values off distribution tails!")
+
+    s = np.sort(a, axis=axis)
+    ix = int(s.shape[axis] * proportiontocut)
+
+    sl = [slice(None)] * s.ndim
+    sl[axis] = slice(ix, len(s)-ix, 1)
+    s_sub = s[sl]
+
+    return stat(s_sub)
