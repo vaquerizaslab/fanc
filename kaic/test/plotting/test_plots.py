@@ -300,7 +300,7 @@ class TestPlots:
         assert all(l.get_label() == n_p for l, n_p in zip(axes[0].get_lines(), data.keys()))
 
     def test_genomic_feature_plot(self):
-        gfplot = kplot.GenomicFeaturePlot(self.peak_path)
+        gfplot = kplot.GenomicFeaturePlot(self.peak_path, label_field=8)
         gfig = kplot.GenomicFigure([gfplot])
         fig, axes = gfig.plot("chr11:77497000-77500000")
         assert len(axes[0].patches) == 2

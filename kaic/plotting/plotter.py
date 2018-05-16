@@ -694,7 +694,8 @@ class GenomicFeaturePlot(BasePlotter1D):
                 transform=trans, color="black"
             )
             self.ax.add_patch(gene_patch)
-            self.ax.text((g.start + g.end)/2, pos[feature_type] + stroke_length + .05,
+            label_x = .5*(max(region.start, g.start) + min(region.end, g.end))
+            self.ax.text(label_x, pos[feature_type] + stroke_length + .05,
                          label if not self.label_func else self.label_func(g),
                          transform=trans, ha="center", size="small")
 
