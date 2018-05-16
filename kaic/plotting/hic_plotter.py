@@ -126,7 +126,7 @@ class BufferedMatrix(object):
         """
         regions = tuple(reversed([r for r in regions]))
         if not self.is_buffered_region(*regions):
-            logger.info("Buffering matrix")
+            logger.debug("Buffering matrix")
             self._BUFFERING_STRATEGIES[self.buffering_strategy](self, *regions)
         m = self.buffered_matrix[tuple(regions)]
         if self.smooth_sigma is not None:
