@@ -1543,7 +1543,7 @@ class GenomicDataFramePlot(ScalarDataPlot):
 
 
 class Virtual4CPlot(BasePlotter1D):
-    def __init__(self, hic, viewpoint, *args, **kwargs):
+    def __init__(self, hic, viewpoint, color='blue', alpha=1.0, *args, **kwargs):
         BasePlotter1D.__init__(self, *args, **kwargs)
         self.hic = hic
 
@@ -1552,6 +1552,8 @@ class Virtual4CPlot(BasePlotter1D):
 
         self.viewpoint = viewpoint
         self.lines = []
+        self.color = color
+        self.alpha = alpha
 
     def _plot(self, region):
         submatrix = self.hic.as_matrix((self.viewpoint, region))
@@ -1560,7 +1562,7 @@ class Virtual4CPlot(BasePlotter1D):
         for r in self.hic.regions(region):
             x.append(r.center)
 
-        line = self.ax.plot(x, v4c_signal)
+        line = self.ax.plot(x, v4c_signal, color=self.color, alpha=self.alpha)
         self.lines.append(line)
 
     def _refresh(self, region):
