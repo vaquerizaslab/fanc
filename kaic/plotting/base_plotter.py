@@ -19,7 +19,7 @@ class GenomeCoordFormatter(Formatter):
     Process axis tick labels to give nice representations
     of genomic coordinates
     """
-    def __init__(self, chromosome, minor_div=None, display_scale=True):
+    def __init__(self, chromosome, minor_div=None, display_scale=True, display_chromosome=True):
         """
         :param chromosome: :class:`~kaic.data.genomic.GenomicRegion` or string
         :param minor_div: Divide each major tick by this many minor ticks.
@@ -32,6 +32,7 @@ class GenomeCoordFormatter(Formatter):
             self.chromosome = chromosome
         self.minor_div = minor_div
         self.display_scale = display_scale
+        self.display_chromosome = display_chromosome
 
     def _format_val(self, x, prec_offset=0):
         if x == 0:
@@ -53,7 +54,7 @@ class GenomeCoordFormatter(Formatter):
         ticks can be specified with pos. First tick gets chromosome name.
         """
         s = self._format_val(x, prec_offset=1)
-        if pos == 0 or x == 0:
+        if self.display_chromosome and (pos == 0 or x == 0):
             return "{}:{}".format(self.chromosome, s)
         return s
 
@@ -187,7 +188,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
     def __init__(self, title='', aspect=1., axes_style="ticks", ylabel=None,
                  draw_ticks=True, draw_minor_ticks=True, draw_major_ticks=True,
                  draw_tick_labels=True, draw_tick_legend=True, draw_x_axis=True,
-                 padding=None, extra_padding=0,
+                 draw_chromosome_label=True, padding=None, extra_padding=0,
                  fix_chromosome=False, invert_x=False, ax=None, **kwargs):
         """
         :param str title: Title drawn on top of the figure panel.
@@ -236,6 +237,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
             self._draw_minor_ticks = False
         elif not self._draw_major_ticks or not self._draw_minor_ticks:
             self._draw_ticks = False
+        self._draw_chromosome_label = draw_chromosome_label
 
         self._draw_tick_labels = draw_tick_labels
         self._draw_x_axis = draw_x_axis
@@ -395,7 +397,9 @@ class BasePlotter1D(BasePlotter):
 
     def _before_plot(self, region):
         super(BasePlotter1D, self)._before_plot(region)
-        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region, minor_div=self.n_minor_ticks))
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region,
+                                                               minor_div=self.n_minor_ticks,
+                                                               display_chromosome=self._draw_chromosome_label))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self.ax.set_xlim(region.start, region.end)
@@ -675,10 +679,12 @@ class BasePlotter2D(BasePlotter):
     def _before_plot(self, region):
         x_region, y_region = region
         super(BasePlotter2D, self)._before_plot(x_region)
-        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region, minor_div=self.n_minor_ticks))
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region, minor_div=self.n_minor_ticks,
+                                                               display_chromosome=self._draw_chromosome_label))
         self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
-        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region, minor_div=self.n_minor_ticks))
+        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region, minor_div=self.n_minor_ticks,
+                                                               display_chromosome=self._draw_chromosome_label))
         self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
         self.ax.set_xlim(x_region.start, x_region.end)
