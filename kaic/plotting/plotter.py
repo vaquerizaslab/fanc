@@ -1074,7 +1074,7 @@ class BigWigPlot(ScalarDataPlot):
             self.lines[i].set_ydata(y)
 
 
-class GenePlot(BasePlotter1D):
+class OldGenePlot(BasePlotter1D):
     """
     Plot genes including exon/intron structure from BED, GTF files or similar.
     """
@@ -1084,7 +1084,8 @@ class GenePlot(BasePlotter1D):
                  color_score=False, vdist=0.2, box_height=0.1, show_labels=True,
                  label_field='name', font_size=9, arrow_size=8,
                  line_width=1, group_by='transcript_id', text_position='alternate',
-                 collapse=False, squash=False, min_gene_size=None, **kwargs):
+                 collapse=False, squash=False, min_gene_size=None,
+                 lookahead=2000000, **kwargs):
         """
         :param genes: Any input that pybedtools can parse. Can be a path to a
                       GTF/BED file
@@ -1135,6 +1136,7 @@ class GenePlot(BasePlotter1D):
         self.collapse = collapse
         self.squash = squash
         self.min_gene_size = min_gene_size
+        self.lookahead = lookahead
 
         self.lines = []
         self.patches = []
@@ -1144,7 +1146,7 @@ class GenePlot(BasePlotter1D):
 
     def _plot_genes(self, region):
         plot_range = region.end - region.start
-        exon_hits = self.genes.regions(region)
+        exon_hits = self.genes.regions(region.expand(absolute=self.lookahead))
         # trans = self.ax.get_xaxis_transform()
 
         gene_number = 0
@@ -1282,7 +1284,7 @@ class GenePlot(BasePlotter1D):
                 )
                 self.patches.append(patch)
 
-            if self.show_labels:
+            if self.show_labels and exons[0].start < region.end and exons[-1].end > region.start:
                 if text_position == 'top':
                     text_y = offset - (self.box_height/2)*1.05
                     text_valign = 'bottom'
@@ -1292,7 +1294,10 @@ class GenePlot(BasePlotter1D):
                 else:
                     raise ValueError("Text position '{}' not supported".format(text_position))
 
-                text = self.ax.text(exons[0].start, text_y, exons[0].name,
+                text_x = max(exons[0].start, region.start)
+                text_x = min(text_x, region.end)
+
+                text = self.ax.text(text_x, text_y, exons[0].name,
                                     verticalalignment=text_valign, horizontalalignment='left',
                                     fontsize=self.font_size, family='monospace', color='gray')
                 self.texts.append(text)
@@ -1571,3 +1576,380 @@ class Virtual4CPlot(BasePlotter1D):
 
         self._plot(region)
 
+
+class GenePlot(BasePlotter1D):
+    """
+    Plot genes including exon/intron structure from BED, GTF files or similar.
+    """
+
+    def __init__(self, genes, feature_types=('exon',), color_neutral='gray',
+                 color_forward='orangered', color_reverse='darkturquoise',
+                 color_score=False, box_height=0.1, show_labels=True,
+                 label_field='name', font_size=9, arrow_size=8,
+                 line_width=1, group_by='transcript_id',
+                 collapse=False, squash=False, min_gene_size=None,
+                 lookahead=2000000, score_colormap='RdBu', relative_text_offset=0.01,
+                 relative_marker_step=0.03, no_labels_outside_plot=False,
+                 include=None, exclude=None, **kwargs):
+        """
+        :param genes: Any input that pybedtools can parse. Can be a path to a
+                      GTF/BED file
+        :param feature_types: If the input file is a GTF, only draw certain feature types (3rd column)
+                              If False, draw all features on a common track
+                              If None, automatically draw different feature types on separate tracks
+                              If a list, draw only the feature types in the list on separate tracks,
+                              don't draw the rest.
+        :param label_field: Field of input file for labelling transcripts/genes. Default: name
+        :param collapse: Draw all transcripts on a single row. Everything will overlap. Default: False
+        :param squash: Squash all exons belonging to a single grouping unit (merging overlapping exons).
+                       Useful especially when setting group_by="gene_id" or "gene_symbol".
+                       Genes will still draw on separate rows, if necessary. Default: False
+        """
+        kwargs.setdefault("aspect", .5)
+        kwargs.setdefault("axes_style", "ticks")
+        super(GenePlot, self).__init__(**kwargs)
+        self.genes = get_region_based_object(genes)
+        # ignore feature types if input is not GFF or GTF
+        if self.genes.file_type != "gff" and self.genes.file_type != "gtf":
+            feature_types = None
+
+        self.color_score = color_score
+        if color_score:
+            scores = []
+            for region in self.genes.regions:
+                try:
+                    scores.append(region.score)
+                except ValueError:
+                    scores.append(0.0)
+            self.abs_max_score = max([min(scores), max(scores)])
+
+        if isinstance(feature_types, string_types):
+            feature_types = [feature_types]
+        self.feature_types = feature_types
+        self.color_forward = color_forward
+        self.color_reverse = color_reverse
+        self.color_neutral = color_neutral
+        self.box_height = box_height
+        self.font_size = font_size if font_size is not None else 9
+        self.group_by = group_by
+        self.arrow_size = arrow_size
+        self.line_width = line_width
+        self.show_labels = self._normalise_include_exclude(show_labels)
+        self.label_field = label_field
+        self.collapse = collapse
+        self.squash = squash
+        self.min_gene_size = min_gene_size
+        self.lookahead = lookahead
+        self.score_colormap = score_colormap
+        self.relative_text_offset = relative_text_offset
+        self.relative_marker_step = relative_marker_step
+        self.include = self._normalise_include_exclude(include)
+        self.exclude = self._normalise_include_exclude(exclude)
+        if isinstance(no_labels_outside_plot, bool):
+            if no_labels_outside_plot:
+                self.no_labels_outside_plot = 0.05
+            else:
+                self.no_labels_outside_plot = 2.0
+        else:
+            self.no_labels_outside_plot = float(no_labels_outside_plot)
+
+        self.lines = []
+        self.patches = []
+        self.texts = []
+
+        self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
+
+    def _normalise_include_exclude(self, ie_dict):
+        if ie_dict is None or isinstance(ie_dict, bool):
+            return ie_dict
+
+        new_ie = dict()
+        for key in ie_dict.keys():
+            if isinstance(ie_dict[key], string_types):
+                new_ie[key] = {ie_dict[key]}
+            else:
+                new_ie[key] = set(ie_dict[key])
+        return new_ie
+
+    def _plot_genes(self, region):
+        fig = self.ax.figure
+
+        plot_range = region.end - region.start
+        exon_hits = self.genes.regions(region.expand(absolute=self.lookahead))
+        # trans = self.ax.get_xaxis_transform()
+
+        gene_number = 0
+        genes = defaultdict(list)
+        for exon in exon_hits:
+            if self.exclude is not None:
+                exclude_exon = False
+                for attribute_name, disallowed in self.exclude.items():
+                    a = getattr(exon, attribute_name, None)
+                    if a in disallowed:
+                        exclude_exon = True
+                        break
+
+                if exclude_exon:
+                    continue
+
+            if self.include is not None:
+                exclude_exon = False
+                for attribute_name, allowed in self.include.items():
+                    a = getattr(exon, attribute_name, None)
+                    if a not in allowed:
+                        exclude_exon = True
+                        break
+
+                if exclude_exon:
+                    continue
+
+            if self.feature_types is not None:
+                try:
+                    if exon.feature not in self.feature_types:
+                        continue
+                except ValueError:
+                    pass
+
+            # get gene name
+            try:
+                name = getattr(exon, self.label_field)
+            except AttributeError:
+                name = None
+
+            # get transcript id for grouping
+            try:
+                transcript_id = getattr(exon, self.group_by)
+            except AttributeError:
+                transcript_id = name
+
+            if name is None and transcript_id is None:
+                warnings.warn("Could not find either gene name or {}".format(self.group_by))
+                name = str(gene_number)
+                transcript_id = str(gene_number)
+            elif name is None:
+                name = transcript_id
+            elif transcript_id is None:
+                transcript_id = name
+
+            # exon_region = GenomicRegion(chromosome=region.chromosome, start=exon.start, end=exon.end,
+            #                             name=name, id=transcript_id, strand=exon.strand)
+            exon_region = exon.copy()
+            exon_region.set_attribute('name', name)
+            exon_region.set_attribute('id', transcript_id)
+
+            genes[transcript_id].append(exon_region)
+            gene_number = len(genes)
+
+        plot_labels = dict()
+        for gene, exons in genes.items():
+            plot_labels[gene] = True
+            if isinstance(self.show_labels, bool) and not self.show_labels:
+                plot_labels[gene] = False
+            elif isinstance(self.show_labels, dict):
+                for attribute_name, allowed in self.show_labels.items():
+                    a = getattr(exons[0], attribute_name, None)
+                    if a is None or a not in allowed:
+                        plot_labels[gene] = False
+                        break
+
+        # Squash transcripts
+        if self.squash:
+            for group_id, exons in genes.items():
+                names = [exon.name for exon in exons]
+                name = max(set(names), key=names.count)
+                merged_exons = merge_regions(exons)
+                for exon in merged_exons:
+                    exon.name = name
+                genes[group_id] = merged_exons
+
+        # sort exons
+        for transcript_id, exons in genes.items():
+            exons.sort(key=lambda x: (x.chromosome, x.start))
+
+        # sort transcripts
+        genes = [(name, exons) for name, exons in genes.items()]
+        genes.sort(key=lambda x: x[1][0].start)
+
+        # first plot all of the genes and labels in one place,
+        # then figure out their non-overlapping positions
+        def _plot_label(label):
+            text = self.ax.text(0, 0, label,
+                                verticalalignment='center', horizontalalignment='right',
+                                fontsize=self.font_size,
+                                family='monospace', color='gray')
+            self.texts.append(text)
+            return text
+
+        def _set_gene_color(exons, color_score=False):
+            cmap = plt.get_cmap(self.score_colormap)
+            if color_score:
+                norm_score = (exons[0].score - (-self.abs_max_score)) / (self.abs_max_score - (-self.abs_max_score))
+                gene_color = cmap(norm_score)
+            else:
+                if exons[0].strand == 1:
+                    gene_color = self.color_forward
+                elif exons[0].strand == -1:
+                    gene_color = self.color_reverse
+                else:
+                    gene_color = self.color_neutral
+            return gene_color
+
+        def _add_patch(x, y, width, height, color, alpha=1.0):
+            return self.ax.add_patch(
+                patches.Rectangle(
+                    (x, y),  # (x,y)
+                    width,  # width
+                    height,  # height
+                    facecolor=color,
+                    alpha=alpha,
+                    edgecolor="none"
+                )
+            )
+
+        def _plot_gene(exons, offset):
+            if exons[0].strand == 1:
+                bar_marker = '$>$' if not self.invert_x else '$<$'
+            elif exons[0].strand == -1:
+                bar_marker = '$<$' if not self.invert_x else '$>$'
+            else:
+                bar_marker = 0
+
+            gene_color = _set_gene_color(exons, self.color_score)
+
+            bar_start, bar_end = exons[0].start, exons[-1].end
+            bar_step_size = int(self.relative_marker_step * plot_range)
+            marker_correction = -1
+
+            if bar_start == bar_end:
+                bar_end += 1
+
+            bar_x = list(range(bar_start, bar_end, bar_step_size))
+            if bar_x[-1] != bar_end:
+                bar_x += [bar_end]
+                marker_correction -= 1
+            bar_y = [offset] * len(bar_x)
+
+            bar, = self.ax.plot(bar_x, bar_y, c=gene_color, linewidth=self.line_width)
+            #bar = _add_patch()
+            # transparent markers
+            marker_bar, = self.ax.plot(bar_x[1:marker_correction], bar_y[1:marker_correction], marker=bar_marker,
+                                       markersize=self.arrow_size, c=gene_color)
+            self.lines.append(bar)
+            self.lines.append(marker_bar)
+
+            # plot exons
+            exon_patches = []
+            for exon in exons:
+                actual_width = exon.end - exon.start + 1
+                if self.min_gene_size is None:
+                    width = actual_width
+                    exon_start = exon.start
+                else:
+                    width = max(self.min_gene_size, actual_width)
+                    start_offset = (width - actual_width) / 2
+                    exon_start = exon.start - start_offset
+                width = width if not self.min_gene_size else max(self.min_gene_size, width)
+                patch = _add_patch(exon_start, offset - self.box_height / 2,
+                                   width, self.box_height, gene_color, alpha=0.5)
+                self.patches.append(patch)
+                exon_patches.append(patch)
+
+            # if self.show_labels and exons[0].start < region.end and exons[-1].end > region.start:
+            #     _plot_label(exons[0].name)
+            return [bar, marker_bar] + exon_patches
+
+        gene_elements = []
+        for gene, exons in genes:
+            if exons[0].start < region.end and exons[-1].end > region.start:
+                if plot_labels[gene]:
+                    text = _plot_label(exons[0].name)
+                else:
+                    text = _plot_label('')
+
+                bars = _plot_gene(exons, 0)
+                gene_elements.append((text, bars))
+
+        renderer = fig.canvas.get_renderer()
+
+        genes_by_row = []
+        inv = self.ax.transData.inverted()
+        for text, bars in gene_elements:
+            bb = text.get_window_extent(renderer=renderer)
+            text_start, text_end = inv.transform(bb.intervalx)
+            text_width = text_end - text_start
+
+            x = bars[0].get_xdata(orig=True)
+            gene_start, gene_end = x[0], x[-1]
+
+            new_text_start = gene_start - self.relative_text_offset * plot_range
+            start = new_text_start - text_width
+            end = gene_end + self.relative_text_offset * plot_range
+
+            gene_region = GenomicRegion(chromosome=region.chromosome, start=start, end=end)
+            gene_fraction = (start - region.start) / len(region)
+            if gene_fraction < -1*self.no_labels_outside_plot:
+                text.set_text('')
+
+            if self.collapse:
+                offset = 0
+            else:
+                # find empty spot in row
+                offset = -1
+                for i, row in enumerate(genes_by_row):
+                    overlaps = False
+                    for row_gene in row:
+                        if gene_region.overlaps(row_gene):
+                            overlaps = True
+                            break
+                    if not overlaps:
+                        row.append(gene_region)
+                        offset = i
+                        break
+
+                if offset < 0:
+                    offset = len(genes_by_row)
+                    genes_by_row.append([gene_region])
+
+            # move text and bars to new position(s)
+            bars[0].set_ydata([offset] * len(bars[0].get_ydata()))
+            bars[1].set_ydata([offset] * len(bars[1].get_ydata()))
+            for bar in bars[2:]:
+                bar.set_y(offset - self.box_height/2)
+            text.set_x(new_text_start)
+            text.set_y(offset)
+
+        # if self.font_size is None:
+        #     bbox = self.ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        #     font_size = (bbox.height*10 / (len(genes_by_row)-1))
+        #     print(font_size, bbox.height, (bbox.y1-bbox.y0), self.ax.get_window_extent())
+        #     for text, _ in gene_elements:
+        #         text.set_size(font_size)
+
+        self.ax.set_ylim(len(genes_by_row), -1)
+
+    def _plot(self, region):
+        self._plot_genes(region=region)
+
+        def drag_pan(self, button, key, x, y):
+            mpl.axes.Axes.drag_pan(self, button, 'x', x, y)  # pretend key=='x'
+
+        self.ax.drag_pan = types.MethodType(drag_pan, self.ax)
+        self.ax.get_yaxis().set_visible(False)
+        sns.despine(ax=self.ax, top=True, right=True, left=True)
+        self.remove_colorbar_ax()
+
+    def _refresh(self, region):
+        while len(self.lines) > 0:
+            el = self.lines.pop()
+            el.remove()
+            del el
+        while len(self.patches) > 0:
+            el = self.patches.pop()
+            el.remove()
+            del el
+        while len(self.texts) > 0:
+            el = self.texts.pop()
+            el.remove()
+            del el
+
+        self._plot_genes(region)

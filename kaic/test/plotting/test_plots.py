@@ -245,7 +245,7 @@ class TestPlots:
         gfig = kplot.GenomicFigure([gplot])
         selector = "chr11:77490000-77500000"
         fig, axes = gfig.plot(selector)
-        assert len(axes[0].patches) == (6 if squash else 13)
+        assert len(axes[0].patches) == (19 if squash else 49)
         plt.close(fig)
 
     @pytest.mark.parametrize("crange", [(77497000, 77500000)])
