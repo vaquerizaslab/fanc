@@ -2669,7 +2669,7 @@ def hic_pca(argv):
                     input_path = create_temporary_copy(file_name)
                 else:
                     input_path = os.path.expanduser(file_name)
-                hics.append(kaic.load_hic(input_path, mode='r'))
+                hics.append(kaic.load(input_path, mode='r'))
 
             coll = HicCollectionWeightMeanVariance(hics, file_name=output_path, only_intra_chromosomal=args.intra,
                                                    scale_libraries=True, mode='w')
