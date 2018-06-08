@@ -799,7 +799,7 @@ def auto(argv):
             continue
         pairs_files.append(i)
 
-    if len(pairs_files) > 0:
+    if len(pairs_files) > 0 and args.process_hic:
         tp = Pool(threads)
 
         hic_files = []
@@ -832,7 +832,7 @@ def auto(argv):
             continue
         hic_files.append(i)
 
-    if len(hic_files) > 1 and args.process_hic:
+    if len(hic_files) > 1:
         output_hic = output_folder + 'hic/' + basename + '.hic'
         logger.info("Merging Hi-C files...")
         merge_hic_command = ['kaic', 'merge_hic']
