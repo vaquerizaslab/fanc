@@ -165,6 +165,13 @@ def auto_parser():
     )
     parser.set_defaults(split_ligation_junction=False)
 
+    parser.add_argument(
+        '--no-hic', dest='process_hic',
+        action='store_false',
+        default=True,
+        help='''Do not process pairs into Hi-C maps (stop after read pairing step).'''
+    )
+
     return parser
 
 
@@ -825,7 +832,7 @@ def auto(argv):
             continue
         hic_files.append(i)
 
-    if len(hic_files) > 1:
+    if len(hic_files) > 1 and args.process_hic:
         output_hic = output_folder + 'hic/' + basename + '.hic'
         logger.info("Merging Hi-C files...")
         merge_hic_command = ['kaic', 'merge_hic']
