@@ -261,6 +261,35 @@ def human_format(num, precision=0):
     return '{:.{prec}f}{}'.format(num, ['', 'k', 'M', 'G', 'T', 'P'][magnitude], prec=precision)
 
 
+def str_to_int(num_string, decimal_separator='.', thousand_separator=','):
+    num_string = num_string.replace(thousand_separator, '').lower()
+    try:
+        return int(num_string)
+    except ValueError:
+        i = 0
+        while i < len(num_string) and (num_string[i].isdigit() or num_string[i] == decimal_separator):
+            i += 1
+
+        try:
+            number = float(num_string[:i])
+            suffix = num_string[i:]
+
+            multipliers = {
+                'gb': 1000000000,
+                'mb': 1000000,
+                'kb': 1000,
+                'bp': 1,
+                'g': 1000000000,
+                'm': 1000000,
+                'k': 1000,
+                'b': 1,
+            }
+
+            return int(number * multipliers[suffix])
+        except (KeyError, ValueError):
+            raise ValueError("Cannot convert '{}' to integer!".format(num_string))
+
+
 def natural_sort(l):
     def convert(text):
         return int(text) if text.isdigit() else text.lower()
