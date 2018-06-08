@@ -69,6 +69,7 @@ from kaic.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegion
 import msgpack as pickle
 import numpy as np
 import hashlib
+import copy
 import multiprocessing as mp
 import threading
 import msgpack
@@ -2158,7 +2159,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
             r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
             r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi2
 
-        edge = default_edge.copy()
+        edge = copy.copy(default_edge)
         edge[self._field_names_dict['ix']] = self._pair_count
         edge[self._field_names_dict['source']] = f_ix1
         edge[self._field_names_dict['sink']] = f_ix2
