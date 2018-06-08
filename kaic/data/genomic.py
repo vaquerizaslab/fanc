@@ -72,7 +72,8 @@ from Bio import SeqIO, Restriction, Seq
 from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
 import os.path
-from kaic.tools.general import ranges, distribute_integer, create_col_index, RareUpdateProgressBar, range_overlap
+from kaic.tools.general import ranges, distribute_integer, create_col_index, \
+    RareUpdateProgressBar, range_overlap, str_to_int
 try:
     from itertools import izip as zip
 except ImportError:
@@ -1235,16 +1236,10 @@ class GenomicRegion(TableObject):
         if len(fields) > 1 and fields[1] != '':
             start_end_bp = fields[1].split('-')
             if len(start_end_bp) > 0:
-                try:
-                    start = int(start_end_bp[0].replace(',', ''))
-                except ValueError:
-                    raise ValueError("Start of genomic range must be integer")
+                start = str_to_int(start_end_bp[0])
             
             if len(start_end_bp) > 1:
-                try:
-                    end = int(start_end_bp[1].replace(',', ''))
-                except ValueError:
-                    raise ValueError("End of genomic range must be integer")
+                end = str_to_int(start_end_bp[1])
 
                 if not end >= start:
                     raise ValueError("The end coordinate must be bigger than the start.")
