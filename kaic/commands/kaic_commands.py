@@ -66,6 +66,7 @@ def kaic_parser():
             plot_hic_corr       Plot the correlation of two Hic objects
             plot_hic_marginals  Plot marginals in a Hic object
             plot_diff           Plot the difference between two Hic matrices
+            plot_pair_stats     Plot the filtering statistics of a Pairs file
 
             --- Architecture
             structure_tracks   Calculate structural features of a Hic object
@@ -3378,6 +3379,70 @@ def plot_ligation_err(argv):
     pairs = kaic.load(file_name=input_path, mode='r')
     hic_ligation_structure_biases_plot(pairs, output=output_path, sampling=args.points)
     pairs.close()
+
+    logger.info("All done.")
+
+
+def plot_pair_stats_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic plot_pair_stats",
+        description='Plot the filtering statistics of a Pairs object'
+    )
+
+    parser.add_argument(
+        'input',
+        help='''Input filtered Pairs file'''
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output pdf'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='''Work in temporary directory'''
+    )
+    return parser
+
+
+def plot_pair_stats(argv):
+    parser = plot_pair_stats_parser()
+    args = parser.parse_args(argv[2:])
+
+    import matplotlib
+    matplotlib.use('agg')
+    import kaic
+    from kaic.tools.files import create_temporary_copy, copy_or_expand
+    import matplotlib.pyplot as plt
+    from kaic.plotting.plot_statistics import statistics_plot
+
+    stats_file = os.path.expanduser(args.output)
+    original_input_path = os.path.expanduser(args.input)
+    if args.tmp:
+        logger.info("Creating temporary copy of input file...")
+        input_path = create_temporary_copy(original_input_path)
+        logger.info("Working from copy in %s" % input_path)
+    else:
+        input_path = copy_or_expand(args.input, args.output)
+
+    pairs = kaic.load(file_name=input_path, mode='r')
+
+    statistics = pairs.filter_statistics()
+    pairs.close()
+    logger.info("Done creating pairs.")
+
+    logger.info("Saving statistics...")
+
+    fig, ax = plt.subplots()
+    statistics_plot(statistics)
+    fig.savefig(stats_file)
+    plt.close(fig)
+
+    if args.tmp:
+        os.remove(input_path)
 
     logger.info("All done.")
 
