@@ -359,7 +359,8 @@ class GenomicRegionsPlot(ScalarDataPlot):
     Plot scalar values from one or more :class:`~GenomicRegions` objects
     """
 
-    def __init__(self, regions, attributes=None, names=None, legend=True, **kwargs):
+    def __init__(self, regions, attributes=None, names=None,
+                 colors=None, linestyles=None, legend=True, **kwargs):
         """
         :param regions: :class:`~GenomicRegions`
         :param attributes: Only draw attributes from the track objects
@@ -376,6 +377,15 @@ class GenomicRegionsPlot(ScalarDataPlot):
         self.attributes = attributes
         self.lines = []
         self.names = names
+        if colors is None:
+            self.colors = itertools.cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+        else:
+            self.colors = itertools.cycle(colors)
+
+        if linestyles is None:
+            self.linestyles = itertools.cycle(['-'])
+        else:
+            self.linestyles = itertools.cycle(linestyles)
         self.legend = legend
 
     def _plot(self, region):
@@ -397,7 +407,9 @@ class GenomicRegionsPlot(ScalarDataPlot):
                     label = "{}".format(self.regions.y_values[i])
                 else:
                     label = "{}".format(name)
-                l = self.ax.plot(x, y, label=label)
+                l = self.ax.plot(x, y, label=label,
+                                 color=next(self.colors),
+                                 linestyle=next(self.linestyles))
                 self.lines.append(l[0])
                 line_counter += 1
 
