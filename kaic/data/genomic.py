@@ -671,7 +671,7 @@ class Bed(pybedtools.BedTool, RegionBased):
 
         try:
             name = interval.name
-        except TypeError:
+        except (TypeError, ValueError):
             warnings.warn("Pybedtools could not retrieve interval name. Continuing anyways.")
             name = None
 
