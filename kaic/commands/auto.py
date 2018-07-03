@@ -890,8 +890,8 @@ def auto(argv):
         tp.close()
         tp.join()
 
-    for rt in hic_results:
-        if rt.get() != 0:
-            raise RuntimeError("Hi-C binning/filtering/correcting had non-zero exit status")
+        for rt in hic_results:
+            if rt.get() != 0:
+                raise RuntimeError("Hi-C binning/filtering/correcting had non-zero exit status")
 
     return 0
