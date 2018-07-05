@@ -13,6 +13,28 @@ import kaic.commands.auto
 logger = logging.getLogger(__name__)
 
 
+def genome_regions(re_or_file, restriction_enzyme=None):
+    import kaic
+    from kaic.data.genomic import RegionBased
+
+    logger.info("Getting regions")
+    try:
+        regions_object = kaic.load(re_or_file)
+        if isinstance(regions_object, RegionBased):
+            regions = list(regions_object.regions())
+        else:
+            raise ValueError("Not a region-based file, trying FASTA next...")
+    except (ValueError, TypeError):
+        if restriction_enzyme is None:
+            raise ValueError("Cannot calculate Hi-C regions. You must supply "
+                             "either a restriction enzyme name or bin size")
+        genome = kaic.Genome.from_string(re_or_file)
+        regions = genome.get_regions(restriction_enzyme)
+        genome.close()
+
+    return regions
+
+
 def kaic_parser():
     usage = '''\
         kaic <command> [options]
@@ -31,6 +53,7 @@ def kaic_parser():
 
             -- Genome
             build_genome        Convenience command to build a Genome object
+            fragments           Create a BED file with RE fragments
 
             --- Pairs
             reads_to_pairs      Convert a Reads object into a Pairs object
@@ -1075,6 +1098,53 @@ def build_genome(argv):
     logger.info("All done.")
 
 
+def fragments_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic fragments",
+        description='Create a BED file with RE fragments'
+    )
+
+    parser.add_argument(
+        'input',
+        help="Path to genome file (FASTA, folder with FASTA, hdf5 file), " +
+             "which will be used in conjunction with the type of restriction enzyme to " +
+             "calculate fragments directly."
+    )
+
+    parser.add_argument(
+        're_or_bin_size',
+        help="Restriction enzyme name or bin size to divide genome into fragments."
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output file with restriction fragments in BED format.'''
+    )
+
+    return parser
+
+
+def fragments(argv):
+    parser = fragments_parser()
+    args = parser.parse_args(argv[2:])
+
+    import os
+
+    genome_file = os.path.expanduser(args.input)
+    re_or_bin_size = args.re_or_bin_size
+    output_file = os.path.expanduser(args.output)
+
+    regions = genome_regions(genome_file, re_or_bin_size)
+
+    from kaic.tools.files import write_bed
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        write_bed(output_file, regions)
+
+
 def reads_to_pairs_parser():
     parser = argparse.ArgumentParser(
         prog="kaic reads_to_pairs",
@@ -1156,9 +1226,7 @@ def reads_to_pairs(argv):
     logger.info("Loading right side of reads...")
     reads2 = kaic.Reads(reads2_path, mode='r')
     logger.info("Building genome...")
-    genome = kaic.Genome.from_string(genome_path)
-    logger.info("Getting fragments...")
-    nodes = genome.get_regions(args.restriction_enzyme)
+    nodes = genome_regions(genome_path, restriction_enzyme=args.restriction_enzyme)
 
     logger.info("Building pairs...")
     pairs = kaic.Pairs(file_name=output_path, mode='w')
@@ -1266,9 +1334,11 @@ def sam_to_pairs_parser():
 
     parser.add_argument(
         'genome',
-        help="Can be an HDF5 Genome object, a FASTA file, "
-             "a folder with FASTA files, or a "
-             "comma-separated list of FASTA files."
+        help='''Path to region-based file (BED, GFF, ...) containing the non-overlapping
+                regions to be used for Hi-C binning. Typically restriction-enzyme fragments.
+                Alternatively: Path to genome file (FASTA, folder with FASTA, hdf5 file),
+                which will be used in conjunction with the type of restriction enzyme to 
+                calculate fragments directly.'''
     )
 
     parser.add_argument(
@@ -1420,16 +1490,7 @@ def sam_to_pairs(argv):
             tmp = True
 
         logger.info("Getting regions")
-        try:
-            bed = kaic.load(genome_file)
-            if isinstance(bed, RegionBased):
-                regions = list(bed.regions)
-            else:
-                raise ValueError('Not a region-based file')
-        except (OSError, TypeError, ValueError):
-            genome = kaic.Genome.from_string(genome_file)
-            regions = genome.get_regions(restriction_enzyme)
-            genome.close()
+        regions = genome_regions(genome_file, restriction_enzyme=restriction_enzyme)
 
         sb = SamBamReadPairGenerator(sam1_file, sam2_file, check_sorted=check_sorted)
         for f in filters:
@@ -1628,7 +1689,11 @@ def pairs_from_hicpro_parser():
 
     parser.add_argument(
         'genome',
-        help='''Path to genome (FASTA, folder with FASTA, hdf5 file)'''
+        help='''Path to region-based file (BED, GFF, ...) containing the non-overlapping
+                regions to be used for Hi-C binning. Typically restriction-enzyme fragments.
+                Alternatively: Path to genome file (FASTA, folder with FASTA, hdf5 file),
+                which will be used in conjunction with the type of restriction enzyme to 
+                calculate fragments directly.'''
     )
 
     parser.add_argument(
@@ -1676,7 +1741,6 @@ def pairs_from_hicpro(argv):
     batch_size = args.batch_size
     tmp = args.tmp
 
-    import kaic
     from kaic.construct.seq import TxtReadPairGenerator, ReadPairs
     from kaic.tools.files import create_temporary_copy
 
@@ -1694,10 +1758,7 @@ def pairs_from_hicpro(argv):
             logger.info("Temporary output file: %s" % output_file)
             tmp = True
 
-        logger.info("Getting regions")
-        genome = kaic.Genome.from_string(genome_path)
-        regions = genome.get_regions(restriction_enzyme)
-        genome.close()
+        regions = genome_regions(genome_path, restriction_enzyme=restriction_enzyme)
 
         sb = TxtReadPairGenerator(valid_pairs_file=input_file)
         pairs = ReadPairs(file_name=output_file, mode='w')
