@@ -1454,6 +1454,15 @@ class GenomicRegion(TableObject):
             new_region.end = int(self.end) + extend_right_bp
         return new_region
 
+    def __add__(self, distance):
+        new_region = self.copy()
+        new_region.start += distance
+        new_region.end += distance
+        return new_region
+
+    def __sub__(self, distance):
+        return self.__add__(-distance)
+
 
 class LazyGenomicRegion(GenomicRegion):
     def __init__(self, row, ix=None, auto_update=True):
