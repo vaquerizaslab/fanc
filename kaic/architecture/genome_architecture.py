@@ -34,8 +34,10 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
                                                   _table_name_edges=_table_name_edges)
         ArchitecturalFeature.__init__(self)
 
-        if (0, 0) in self._edge_table_dict and len(self._edge_table_dict[(0, 0)]) > 0:
-            self._calculated = True
+        for edge_table in self._edge_table_iter():
+            if len(edge_table) > 0:
+                self._calculated = True
+                break
 
         if regions is not None:
             self.add_regions(regions)
