@@ -2455,6 +2455,7 @@ def hic_to_cooler(argv):
     hic.to_cooler(output_file)
     logger.info("All done.")
 
+
 def dump_parser():
     parser = argparse.ArgumentParser(
         prog="kaic dump",
@@ -2494,6 +2495,14 @@ def dump_parser():
         help='''Store full, square matrix instead of sparse format.'''
     )
     parser.set_defaults(sparse=True)
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        help='''Work in temporary directory'''
+    )
+    parser.set_defaults(tmp=False)
+
     return parser
 
 
@@ -2505,6 +2514,7 @@ def dump(argv):
     output_regions = None if args.regions is None else os.path.expanduser(args.regions)
     subset_string = args.subset
     sparse = args.sparse
+    tmp = args.tmp
 
     import kaic
 
@@ -2520,51 +2530,51 @@ def dump(argv):
         if col_subset_string is not None:
             col_subset_region = kaic.GenomicRegion.from_string(col_subset_string)
 
-    hic = kaic.load(hic_file, mode='r')
+    with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
 
-    row_regions = [region for region in hic.regions(row_subset_region)]
-    col_regions = [region for region in hic.regions(col_subset_region)]
-    row_regions_dict = {region.ix: (region, i) for i, region in enumerate(row_regions)}
-    col_regions_dict = {region.ix: (region, i) for i, region in enumerate(col_regions)}
+        row_regions = [region for region in hic.regions(row_subset_region)]
+        col_regions = [region for region in hic.regions(col_subset_region)]
+        row_regions_dict = {region.ix: (region, i) for i, region in enumerate(row_regions)}
+        col_regions_dict = {region.ix: (region, i) for i, region in enumerate(col_regions)}
 
-    if not sparse:
-        if output_matrix is None or output_regions is None:
-            raise ValueError("Cannot write matrix to stdout, must provide "
-                             "both matrix and regions file for output")
-        m = hic.as_matrix(key=(row_subset_region, col_subset_region))
-        import numpy as np
-        np.savetxt(output_matrix, m)
-    else:
-        if output_matrix is None:
-            for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
-                source, i = row_regions_dict[edge.source]
-                sink, j = col_regions_dict[edge.sink]
-                weight = getattr(edge, hic.default_field)
-                print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-                    source.chromosome, source.start, source.end,
-                    sink.chromosome, sink.start, sink.end,
-                    weight
-                ))
+        if not sparse:
+            if output_matrix is None or output_regions is None:
+                raise ValueError("Cannot write matrix to stdout, must provide "
+                                 "both matrix and regions file for output")
+            m = hic.as_matrix(key=(row_subset_region, col_subset_region))
+            import numpy as np
+            np.savetxt(output_matrix, m)
         else:
-            with open(output_matrix, 'w') as o:
-                if output_regions is None:
-                    for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
-                        source, i = row_regions_dict[edge.source]
-                        sink, j = col_regions_dict[edge.sink]
-                        weight = getattr(edge, hic.default_field)
-                        o.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                            source.chromosome, source.start, source.end,
-                            sink.chromosome, sink.start, sink.end,
-                            weight
-                        ))
-                else:
-                    for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
-                        source, i = row_regions_dict[edge.source]
-                        sink, j = col_regions_dict[edge.sink]
-                        weight = getattr(edge, hic.default_field)
-                        o.write("{}\t{}\t{}\n".format(
-                            i, j, weight
-                        ))
+            if output_matrix is None:
+                for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                    source, i = row_regions_dict[edge.source]
+                    sink, j = col_regions_dict[edge.sink]
+                    weight = getattr(edge, hic.default_field)
+                    print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                        source.chromosome, source.start, source.end,
+                        sink.chromosome, sink.start, sink.end,
+                        weight
+                    ))
+            else:
+                with open(output_matrix, 'w') as o:
+                    if output_regions is None:
+                        for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                            source, i = row_regions_dict[edge.source]
+                            sink, j = col_regions_dict[edge.sink]
+                            weight = getattr(edge, hic.default_field)
+                            o.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                                source.chromosome, source.start, source.end,
+                                sink.chromosome, sink.start, sink.end,
+                                weight
+                            ))
+                    else:
+                        for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                            source, i = row_regions_dict[edge.source]
+                            sink, j = col_regions_dict[edge.sink]
+                            weight = getattr(edge, hic.default_field)
+                            o.write("{}\t{}\t{}\n".format(
+                                i, j, weight
+                            ))
 
     # write regions to file
     if output_regions is not None:
