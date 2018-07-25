@@ -293,7 +293,7 @@ def map_parser():
         '-m', '--min-size', dest='min_size',
         type=int,
         default=30,
-        help='''Minimum length of read before extension. Default 25.'''
+        help='''Minimum length of read before extension. Default 30.'''
     )
 
     parser.add_argument(
