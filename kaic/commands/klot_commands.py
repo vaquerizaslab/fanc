@@ -1016,13 +1016,6 @@ def gene_parser():
     )
 
     parser.add_argument(
-        '-v', '--vertical-distance', dest='vdist',
-        type=float,
-        default=0.2,
-        help='''Vertical distance between rows of genes in the plot.'''
-    )
-
-    parser.add_argument(
         '-b', '--box-height', dest='box_height',
         type=float,
         default=0.1,
@@ -1040,13 +1033,13 @@ def gene_parser():
         '-a', '--arrow-size', dest='arrow_size',
         type=float,
         default=8.,
-        help='''Size of directionality arrows. Defalt: 8'''
+        help='''Size of directionality arrows. Default: 8'''
     )
 
     parser.add_argument(
         '-l', '--line-width', dest='line_width',
         type=float,
-        default=2.,
+        default=1.,
         help='''Width of the line along the length of the gene. Default: 2.'''
     )
 
@@ -1056,13 +1049,6 @@ def gene_parser():
         help='''Group exons according to this attribute (e.g. for
                             plotting multiple transcripts of the same gene.
                             Default: transcript_id'''
-    )
-
-    parser.add_argument(
-        '-t', '--text-position', dest='text_position',
-        default='alternate',
-        help='''Position of gene labels. Can be one of 'top' (above gene), 'bottom' (below gene),
-                        and 'alternate' (default, alternating between above and below gene).'''
     )
 
     parser.add_argument(
@@ -1111,9 +1097,9 @@ def gene(parameters):
     p = kplt.GenePlot(genes_file, feature_types=args.feature_types,
                       color_neutral=args.color_neutral, color_forward=args.color_forward,
                       color_reverse=args.color_reverse, color_score=args.color_score,
-                      vdist=args.vdist, box_height=args.box_height, font_size=args.font_size,
+                      box_height=args.box_height, font_size=args.font_size,
                       arrow_size=args.arrow_size, line_width=args.line_width,
-                      group_by=args.group_by, text_position=args.text_position,
+                      group_by=args.group_by,
                       show_labels=args.show_labels, collapse=args.collapse,
                       squash=args.squash, label_field=args.label_field)
 
