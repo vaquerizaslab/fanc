@@ -1774,7 +1774,8 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
         return ii
 
-    def boundaries(self, window_size, min_score=None, delta_window=3, log=False, sub_bin_precision=False):
+    def boundaries(self, window_size, min_score=None, delta_window=3, log=False, sub_bin_precision=False,
+                   call_maxima=False):
         """
         Call insulation boundaries based on minima in an insulation vector of this object.
 
@@ -1789,13 +1790,17 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         :param log: Log2-transform insulation index before boundary calls
         :param sub_bin_precision: Call boundaries with sub bin precision, by taking
                                   into account the precise zero transition of the delta vector.
+        :param call_maxima: Call maxima instead of minima as boundaries
         :return: list of :class:`~kaic.data.genomic.GenomicRegion`
         """
         index = self.insulation_index(window_size)
         if log:
             index = np.log2(index)
         peaks = MaximaCallerDelta(index, window_size=delta_window, sub_bin_precision=sub_bin_precision)
-        minima, scores = peaks.get_minima()
+        if call_maxima:
+            minima, scores = peaks.get_maxima()
+        else:
+            minima, scores = peaks.get_minima()
         regions = list(self.regions)
 
         boundaries = []
