@@ -1693,7 +1693,7 @@ class GenePlot(BasePlotter1D):
 
         gene_number = 0
         genes = defaultdict(list)
-        for exon in exon_hits:
+        for i, exon in enumerate(exon_hits):
             if self.exclude is not None:
                 exclude_exon = False
                 for attribute_name, disallowed in self.exclude.items():
@@ -1733,7 +1733,7 @@ class GenePlot(BasePlotter1D):
             try:
                 transcript_id = getattr(exon, self.group_by)
             except AttributeError:
-                transcript_id = name
+                transcript_id = i
 
             if name is None and transcript_id is None:
                 warnings.warn("Could not find either gene name or {}".format(self.group_by))
