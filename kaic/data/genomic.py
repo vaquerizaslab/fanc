@@ -5528,7 +5528,10 @@ class Hic(RegionMatrixTable):
 
         return new_hic
 
-    def subset_hic(self, *regions, file_name=None, tmpdir=None):
+    def subset_hic(self, *regions, **kwargs):
+        file_name = kwargs.get("file_name", None)
+        tmpdir = kwargs.get('tmpdir', None)
+
         new_hic = AccessOptimisedHic(file_name=file_name, mode='w', tmpdir=tmpdir)
 
         bias_vector = self.bias_vector()
