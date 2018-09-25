@@ -5529,6 +5529,15 @@ class Hic(RegionMatrixTable):
         return new_hic
 
     def subset_hic(self, *regions, **kwargs):
+        """
+        Subset a Hic object by specifying one or more subset regions.
+
+        :param regions: string or GenomicRegion object(s)
+        :param kwargs: Supports
+                       file_name: destination file name of subset Hic object;
+                       tmpdir: if True works in tmp until object is closed
+        :return: Hic
+        """
         file_name = kwargs.get("file_name", None)
         tmpdir = kwargs.get('tmpdir', None)
 
