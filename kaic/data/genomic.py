@@ -239,11 +239,26 @@ class RegionBased(object):
             def __iter__(self):
                 return self()
 
+            def _fix_chromosome(self, regions):
+                for r in regions:
+                    if r.chromosome.startswith('chr'):
+                        r.chromosome = r.chromosome[3:]
+                    else:
+                        r.chromosome = 'chr' + r.chromosome
+                    yield r
+
             def __call__(self, key=None, *args, **kwargs):
+                fix_chromosome = kwargs.pop('fix_chromosome', False)
+
                 if key is None:
-                    return self._region_based._region_iter(*args, **kwargs)
+                    iterator = self._region_based._region_iter(*args, **kwargs)
                 else:
-                    return self._region_based.subset(key, *args, **kwargs)
+                    iterator = self._region_based.subset(key, *args, **kwargs)
+
+                if fix_chromosome:
+                    return self._fix_chromosome(iterator)
+                else:
+                    return iterator
 
             def __getitem__(self, item):
                 return self._region_based._get_regions(item)
@@ -1431,11 +1446,11 @@ class GenomicRegion(TableObject):
                                                            self.strand_string, frame,
                                                            group)
 
-    def expand(self, from_center=False,
+    def expand(self,
                absolute=None, relative=None,
                absolute_left=0, absolute_right=0,
                relative_left=0.0, relative_right=0.0,
-               copy=True):
+               copy=True, from_center=False):
         if absolute is not None:
             absolute_left, absolute_right = absolute, absolute
         if relative is not None:
