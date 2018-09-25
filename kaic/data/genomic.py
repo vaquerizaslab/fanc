@@ -5528,6 +5528,35 @@ class Hic(RegionMatrixTable):
 
         return new_hic
 
+    def subset_hic(self, *regions, file_name=None, tmpdir=None):
+        new_hic = AccessOptimisedHic(file_name=file_name, mode='w', tmpdir=tmpdir)
+
+        bias_vector = self.bias_vector()
+
+        new_bias_vector = []
+        ix_converter = {}
+        ix = 0
+        for region_string in regions:
+            for region in self.regions(region_string):
+                ix_converter[region.ix] = ix
+                ix += 1
+
+                new_hic.add_region(region, flush=False)
+                new_bias_vector.append(bias_vector[region.ix])
+        new_hic.flush()
+
+        for i, region_string1 in enumerate(regions):
+            for j in range(i, len(regions)):
+                region_string2 = regions[j]
+                for edge in self.edge_subset(key=(region_string1, region_string2), lazy=True):
+                    source = ix_converter[edge.source]
+                    sink = ix_converter[edge.sink]
+                    new_hic.add_edge([source, sink, edge.weight], flush=False)
+        new_hic.flush()
+
+        new_hic.bias_vector(new_bias_vector)
+        return new_hic
+
 
 class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
     """
