@@ -3371,7 +3371,7 @@ def overlap_peaks(argv):
     else:
         names = args.names
 
-    if len(original_input_paths) <= 2:
+    if len(original_input_paths) < 2:
         raise ValueError("Need 2 or more inputs.")
     if len(names) != len(original_input_paths):
         raise ValueError("Number of inputs and names is different.")
