@@ -2497,6 +2497,15 @@ def dump_parser():
     parser.set_defaults(sparse=True)
 
     parser.add_argument(
+        '--only-intra', dest='only_intra',
+        default=False,
+        action='store_true',
+        help='''Only dump intra-chromosomal data. 
+                Dumps everything by default.'''
+    )
+    parser.set_defaults(sparse=True)
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -2514,6 +2523,7 @@ def dump(argv):
     output_regions = None if args.regions is None else os.path.expanduser(args.regions)
     subset_string = args.subset
     sparse = args.sparse
+    only_intra = args.only_intra
     tmp = args.tmp
 
     import kaic
@@ -2531,6 +2541,9 @@ def dump(argv):
             col_subset_region = kaic.GenomicRegion.from_string(col_subset_string)
 
     with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
+        ix_to_chromosome = dict()
+        for i, region in enumerate(hic.regions):
+            ix_to_chromosome[region.ix] = region.chromosome
 
         row_regions = [region for region in hic.regions(row_subset_region)]
         col_regions = [region for region in hic.regions(col_subset_region)]
@@ -2549,6 +2562,10 @@ def dump(argv):
                 for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
                     source, i = row_regions_dict[edge.source]
                     sink, j = col_regions_dict[edge.sink]
+
+                    if only_intra and ix_to_chromosome[source.ix] != ix_to_chromosome[sink.ix]:
+                        continue
+
                     weight = getattr(edge, hic.default_field)
                     print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
                         source.chromosome, source.start, source.end,
