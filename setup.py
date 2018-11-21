@@ -52,7 +52,8 @@ setup(
         'tables>=3.2.3',
         'seaborn',
         'future',
-        'gridmap'
+        'gridmap',
+        'intervaltree'
     ],
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={
