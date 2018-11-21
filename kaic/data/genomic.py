@@ -90,6 +90,7 @@ from builtins import object
 from pandas import DataFrame, read_table
 import subprocess
 import pyBigWig
+import intervaltree
 import logging
 logger = logging.getLogger(__name__)
 
@@ -167,7 +168,6 @@ class RegionBased(object):
     
     MUST (basic functionality):
         _region_iter
-        _region_len
         _get_regions
     
     SHOULD (works if above are implemented, but is highly inefficient):
@@ -244,7 +244,11 @@ class RegionBased(object):
                     if r.chromosome.startswith('chr'):
                         r.chromosome = r.chromosome[3:]
                     else:
-                        r.chromosome = 'chr' + r.chromosome
+                        try:
+                            r.chromosome = 'chr' + r.chromosome
+                        except AttributeError:
+                            r = r.copy()
+                            r.chromosome = 'chr' + r.chromosome
                     yield r
 
             def __call__(self, key=None, *args, **kwargs):
@@ -610,6 +614,40 @@ class RegionBased(object):
         Export regions as BigWig file.
         """
         write_bigwig(file_name, self.regions(subset), mode='w', **kwargs)
+
+
+class RegionWrapper(RegionBased):
+    def __init__(self, regions):
+        super(RegionWrapper, self).__init__()
+        region_intervals = defaultdict(list)
+
+        self._regions = []
+        for region in regions:
+            self._regions.append(region)
+            interval = intervaltree.Interval(region.start - 1, region.end, data=region)
+            region_intervals[region.chromosome].append(interval)
+
+        self.region_trees = {}
+        for chromosome, intervals in region_intervals.items():
+            self.region_trees[chromosome] = intervaltree.IntervalTree(intervals)
+
+    def _get_regions(self, item, *args, **kwargs):
+        return self._regions[item]
+
+    def _region_iter(self, *args, **kwargs):
+        for region in self._regions:
+            yield region
+
+    def _region_subset(self, region, *args, **kwargs):
+        tree = self.region_trees[region.chromosome]
+        for interval in tree[region.start:region.end]:
+            yield interval.data
+
+    def _region_len(self):
+        return len(self._regions)
+
+    def chromosomes(self):
+        return list(self.region_trees.keys())
 
 
 class Bed(pybedtools.BedTool, RegionBased):
@@ -1477,6 +1515,12 @@ class GenomicRegion(TableObject):
 
     def __sub__(self, distance):
         return self.__add__(-distance)
+
+    def fix_chromosome(self):
+        if self.chromosome.startswith('chr'):
+            self.chromosome = self.chromosome[3:]
+        else:
+            self.chromosome = 'chr' + self.chromosome
 
 
 class LazyGenomicRegion(GenomicRegion):
