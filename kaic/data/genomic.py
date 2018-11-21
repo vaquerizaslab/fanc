@@ -5504,6 +5504,7 @@ class Hic(RegionMatrixTable):
         chromosome_bins = hic.chromosome_bins
 
         logger.info("Extracting edges from hic file")
+        nan_counter = 0
         for i in range(len(chromosomes)):
             chromosome1 = chromosomes[i]
             offset1 = chromosome_bins[chromosome1][0]
@@ -5535,10 +5536,18 @@ class Hic(RegionMatrixTable):
                     if start_ix > end_ix:
                         start_ix, end_ix = end_ix, start_ix
 
+                    if not np.isfinite(weight):
+                        nan_counter += 1
+                        continue
+
                     hic.add_edge([start_ix, end_ix, weight], check_nodes_exist=False, flush=False,
                                  replace=True)
 
         hic.flush()
+
+        if nan_counter > 0:
+            logger.warning("{} contacts could not be imported, "
+                           "because they had non-finite values.".format(nan_counter))
 
         return hic
 
