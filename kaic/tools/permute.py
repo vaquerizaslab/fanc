@@ -93,7 +93,8 @@ def _random_regions_unconstrained(original_regions, chromosome_sizes, preserve_a
                 if a not in protected_attributes:
                     attributes[a] = getattr(region, a)
 
-        random_region = GenomicRegion(chromosome=region.chromosome, start=random_start, end=random_end)
+        random_region = GenomicRegion(chromosome=region.chromosome, start=random_start, end=random_end,
+                                      **attributes)
 
         random_regions.append(random_region)
     return random_regions
