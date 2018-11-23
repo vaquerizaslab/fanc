@@ -4670,8 +4670,15 @@ class RegionMatrixTable(RegionPairs):
             weight_column = self.default_field
 
         logger.info("Calculating scaling factor...")
-        m1_sum = np.nansum(self.iter_edge_attribute(weight_column))
-        m2_sum = np.nansum(matrix.iter_edge_attribute(weight_column))
+        m1_sum = 0
+        for v1 in self.iter_edge_attribute(weight_column):
+            if np.isfinite(v1):
+                m1_sum += v1
+
+        m2_sum = 0
+        for v2 in matrix.iter_edge_attribute(weight_column):
+            if np.isfinite(v2):
+                m2_sum += v2
 
         scaling_factor = m1_sum / m2_sum
         logger.debug("Scaling factor: {}".format(scaling_factor))
