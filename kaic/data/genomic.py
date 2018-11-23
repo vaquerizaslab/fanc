@@ -4670,11 +4670,11 @@ class RegionMatrixTable(RegionPairs):
             weight_column = self.default_field
 
         logger.info("Calculating scaling factor...")
-        m1_sum = np.sum(self.iter_edge_attribute(weight_column))
-        m2_sum = np.sum(matrix.iter_edge_attribute(weight_column))
+        m1_sum = np.nansum(self.iter_edge_attribute(weight_column))
+        m2_sum = np.nansum(matrix.iter_edge_attribute(weight_column))
 
         scaling_factor = m1_sum / m2_sum
-        logger.debug("Scaling factor: %f" % scaling_factor)
+        logger.debug("Scaling factor: {}".format(scaling_factor))
         return scaling_factor
 
     def get_combined_matrix(self, matrix, key=None, scaling_factor=None, weight_column=None):
