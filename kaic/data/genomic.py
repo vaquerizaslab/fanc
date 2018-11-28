@@ -6188,20 +6188,20 @@ class RegionMatrix(np.ndarray):
             key = GenomicRegion.from_string(key)
 
         if isinstance(key, GenomicRegion):
+            start = None
+            stop = None
             try:
                 key_start = 0 if key.start is None else max(0, key.start - 1)
                 key_end = key.end
-                start = None
-                stop = None
                 for interval in region_trees[key.chromosome][key_start:key_end]:
                     i = interval.data
                     try:
-                        start = min(i, start)
+                        start = min(i, start) if start is not None else i
                     except TypeError:
                         start = i
 
                     try:
-                        stop = max(i + 1, stop)
+                        stop = max(i + 1, stop) if stop is not None else i
                     except TypeError:
                         stop = i + 1
             except KeyError:
