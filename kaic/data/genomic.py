@@ -6067,16 +6067,43 @@ class LowCoverageFilter(HicEdgeFilter):
 class RegionMatrix(np.ndarray):
     def __new__(cls, input_matrix, col_regions=None, row_regions=None):
         obj = np.asarray(input_matrix).view(cls)
-        obj.col_regions = col_regions
-        obj.row_regions = row_regions
+        obj._row_region_trees = None
+        obj._col_region_trees = None
+        obj.set_col_regions(col_regions)
+        obj.set_row_regions(row_regions)
         return obj
+
+    def _interval_tree_regions(self, regions):
+        intervals = defaultdict(list)
+        for i, region in enumerate(regions):
+            interval = intervaltree.Interval(region.start - 1, region.end,
+                                             data=i)
+            intervals[region.chromosome].append(interval)
+
+        interval_trees = {chromosome: intervaltree.IntervalTree(intervals)
+                          for chromosome, intervals in intervals.items()}
+        return interval_trees
+
+    def set_row_regions(self, regions):
+        self.row_regions = regions
+        if regions is not None:
+            self._row_region_trees = self._interval_tree_regions(regions)
+        else:
+            self._row_region_trees = None
+
+    def set_col_regions(self, regions):
+        self.col_regions = regions
+        if regions is not None:
+            self._col_region_trees = self._interval_tree_regions(regions)
+        else:
+            self._col_region_trees = None
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
 
-        self.row_regions = getattr(obj, 'row_regions', None)
-        self.col_regions = getattr(obj, 'col_regions', None)
+        self.set_row_regions(getattr(obj, 'row_regions', None))
+        self.set_col_regions(getattr(obj, 'col_regions', None))
 
     def __setitem__(self, key, item):
         self._setitem = True
@@ -6093,11 +6120,26 @@ class RegionMatrix(np.ndarray):
 
         # convert string types into region indexes
         if isinstance(index, tuple):
-            row_key = self._convert_key(index[0], self.row_regions)
-            col_key = self._convert_key(index[1], self.col_regions)
-            index = (row_key, col_key)
+            if len(index) == 2:
+                row_key = self._convert_key(
+                    index[0],
+                    self._row_region_trees if hasattr(self, '_row_region_trees') else None
+                )
+                col_key = self._convert_key(
+                    index[1],
+                    self._col_region_trees if hasattr(self, '_col_region_trees') else None
+                )
+                index = (row_key, col_key)
+            elif len(index) == 1:
+                row_key = self._convert_key(index[0], self._row_region_trees)
+                col_key = slice(0, len(self.col_regions), 1)
+                index = (row_key, )
+            else:
+                col_key = slice(0, len(self.col_regions), 1)
+                row_key = index
+                index = row_key
         else:
-            row_key = self._convert_key(index, self.row_regions)
+            row_key = self._convert_key(index, self._row_region_trees)
             try:
                 col_key = slice(0, len(self.col_regions), 1)
             except TypeError:
@@ -6126,32 +6168,69 @@ class RegionMatrix(np.ndarray):
         except TypeError:
             col_regions = None
 
-        out.col_regions = col_regions
-        out.row_regions = row_regions
+        if isinstance(row_regions, GenomicRegion):
+            out.row_regions = [row_regions]
+        else:
+            out.row_regions = row_regions
+
+        if isinstance(col_regions, GenomicRegion):
+            out.col_regions = [col_regions]
+        else:
+            out.col_regions = col_regions
 
         return out
 
     def __getslice__(self, start, stop):
         return self.__getitem__(slice(start, stop))
 
-    def _convert_key(self, key, regions):
+    def _convert_key(self, key, region_trees):
         if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
+
         if isinstance(key, GenomicRegion):
-            key_start = 0 if key.start is None else max(0, key.start)
-            key_end = key.end
-            start = None
-            stop = None
-            for i, region in enumerate(regions):
-                if region.chromosome == key.chromosome:
-                    if (key_end is None or region.start <= key_end) and region.end >= key_start:
-                        if start is None:
-                            start = i
-                        stop = i
+            try:
+                key_start = 0 if key.start is None else max(0, key.start - 1)
+                key_end = key.end
+                start = None
+                stop = None
+                for interval in region_trees[key.chromosome][key_start:key_end]:
+                    i = interval.data
+                    try:
+                        start = min(i, start)
+                    except TypeError:
+                        start = i
+
+                    try:
+                        stop = max(i + 1, stop)
+                    except TypeError:
+                        stop = i + 1
+            except KeyError:
+                raise ValueError("Requested region {} was not found in this matrix.".format(key))
+
             if start is None or stop is None:
                 raise ValueError("Requested region {} was not found in this matrix.".format(key))
-            return slice(start, stop+1, 1)
+
+            return slice(start, stop, 1)
         return key
+
+    # def _convert_key(self, key, regions):
+    #     if isinstance(key, string_types):
+    #         key = GenomicRegion.from_string(key)
+    #     if isinstance(key, GenomicRegion):
+    #         key_start = 0 if key.start is None else max(0, key.start)
+    #         key_end = key.end
+    #         start = None
+    #         stop = None
+    #         for i, region in enumerate(regions):
+    #             if region.chromosome == key.chromosome:
+    #                 if (key_end is None or region.start <= key_end) and region.end >= key_start:
+    #                     if start is None:
+    #                         start = i
+    #                     stop = i
+    #         if start is None or stop is None:
+    #             raise ValueError("Requested region {} was not found in this matrix.".format(key))
+    #         return slice(start, stop+1, 1)
+    #     return key
 
     def __reduce__(self):
         # Get the parent's __reduce__ tuple

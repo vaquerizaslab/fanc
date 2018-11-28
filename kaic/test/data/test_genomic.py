@@ -1646,15 +1646,15 @@ class TestRegionMatrix:
         repr(self.m)
 
     def test_convert_key(self):
-        key = self.m._convert_key('chr1:2001-5000', self.m.row_regions)
+        key = self.m._convert_key('chr1:2001-5000', self.m._row_region_trees)
         assert key.start == 2
         assert key.stop == 5
 
-        key = self.m._convert_key('chr1', self.m.row_regions)
+        key = self.m._convert_key('chr1', self.m._row_region_trees)
         assert key.start == 0
         assert key.stop == 5
 
-        key = self.m._convert_key('chr2', self.m.row_regions)
+        key = self.m._convert_key('chr2', self.m._row_region_trees)
         assert key.start == 5
         assert key.stop == 8
 
@@ -1679,20 +1679,20 @@ class TestRegionMatrix:
         assert _equal(res_rect.col_regions, self.m.col_regions[5:7])
         res_row = self.m[1]
         assert _equal(res_row.shape, (12,))
-        assert res_row.row_regions == self.m.row_regions[1]
+        assert _equal(res_row.row_regions, [self.m.row_regions[1]])
         assert _equal(res_row.col_regions, self.m.col_regions[:])
         res_col = self.m[:, 1]
         assert _equal(res_col.shape, (12,))
         assert _equal(res_col.row_regions, self.m.row_regions[:])
-        assert res_col.col_regions == self.m.col_regions[1]
+        assert _equal(res_col.col_regions, [self.m.col_regions[1]])
         res_row_sub = self.m[1, 2:6]
         assert _equal(res_row_sub.shape, (4,))
-        assert res_row_sub.row_regions == self.m.row_regions[1]
+        assert _equal(res_row_sub.row_regions, [self.m.row_regions[1]])
         assert _equal(res_row_sub.col_regions, self.m.col_regions[2:6])
         res_col_sub = self.m[2:6, 1]
         assert _equal(res_col_sub.shape, (4,))
         assert _equal(res_col_sub.row_regions, self.m.row_regions[2:6])
-        assert res_col_sub.col_regions == self.m.col_regions[1]
+        assert _equal(res_col_sub.col_regions, [self.m.col_regions[1]])
         res_single = self.m[0, 0]
         assert isinstance(res_single, float)
 
