@@ -581,6 +581,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
 
         :param matrix: Data matrix with values to be plotted
         """
+        matrix = np.array(matrix)
         if self.replacement_color is not None:
             cv = mpl.colors.ColorConverter()
             replacement_color = cv.to_rgba(self.replacement_color)
