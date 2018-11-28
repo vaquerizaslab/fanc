@@ -6196,7 +6196,7 @@ class RegionMatrix(np.ndarray):
                 for interval in region_trees[key.chromosome][key_start:key_end]:
                     i = interval.data
                     start = min(i, start) if start is not None else i
-                    stop = max(i + 1, stop) if stop is not None else i
+                    stop = max(i + 1, stop) if stop is not None else i + 1
             except KeyError:
                 raise ValueError("Requested chromosome {} was not "
                                  "found in this matrix.".format(key.chromosome))
