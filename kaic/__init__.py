@@ -11,8 +11,8 @@ Provides
 from .version import __version__
 
 from kaic.config import config
-from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion, \
-    BigWig, GenomicDataFrame, GenomicRegions, Tabix, Bedpe, as_region
+from genomic_regions import GenomicRegion, as_region, load as gr_load
+from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, AccessOptimisedHic, load_hic
 from kaic.data.general import FileBased
 from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
@@ -102,54 +102,7 @@ def load(file_name, *args, **kwargs):
         except KeyError:
             raise ValueError("classid attribute ({}) does not have a registered class.".format(classid))
     except tables.HDF5ExtError:
-        # try some well-known file types
-
-        # SAM/BAM
-        import pysam
-        try:
-            sb = pysam.AlignmentFile(file_name, 'rb')
-            if kwargs.get('mode', 'r') != 'rb':
-                sb.close()
-                sb = pysam.AlignmentFile(file_name, *args, **kwargs)
-            return sb
-        except (ValueError, IOError):
-            pass
-
-        # Tabix
-        try:
-            f = Tabix(file_name, *args, **kwargs)
-            return f
-        except (IOError, OSError, ValueError, TypeError):
-            pass
-
-        # BEDPE
-        if file_name.endswith('.bedpe'):
-            try:
-                f = Bedpe(file_name, *args, **kwargs)
-                _ = f.regions[0]
-                return f
-            except (ValueError, TypeError):
-                pass
-
-        import pybedtools
-        f = Bed(file_name, *args, **kwargs)
-        try:
-            ft = f.file_type
-            if ft != 'empty':
-                return f
-        except (IndexError, pybedtools.MalformedBedLineError):
-            pass
-
-        try:
-            import pyBigWig
-            f = pyBigWig.open(file_name, 'r')
-            if kwargs.get('mode', 'r') != 'r':
-                f.close()
-                f = pyBigWig.open(file_name, *args, **kwargs)
-
-            return BigWig(f)
-        except (ImportError, RuntimeError):
-            raise ValueError("File type not recognised ({}).".format(file_name))
+        return gr_load(file_name, *args, **kwargs)
 
 
 example_data = dict(

@@ -1,6 +1,7 @@
 import kaic
 from kaic.data.registry import class_name_dict
 from kaic.tools import dummy
+import genomic_regions as gr
 import pytest
 import pysam
 import os
@@ -102,7 +103,7 @@ class TestAuto:
         bed_file = this_dir + '/test_auto/test.bed'
 
         with kaic.load(bed_file) as bed:
-            assert isinstance(bed, kaic.Bed)
+            assert isinstance(bed, gr.Bed)
 
         with pytest.raises(ValueError):
             foo_file = this_dir + '/test_auto/foo.txt'
@@ -113,7 +114,7 @@ class TestAuto:
         bw_file = this_dir + '/test_auto/test.bw'
 
         with kaic.load(bw_file) as bw:
-            assert isinstance(bw, kaic.BigWig)
+            assert isinstance(bw, gr.BigWig)
 
     def test_sambam(self):
         this_dir = os.path.dirname(os.path.realpath(__file__))

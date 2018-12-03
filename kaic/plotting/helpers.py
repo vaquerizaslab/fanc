@@ -5,7 +5,7 @@ from math import log10, floor
 import pybedtools as pbt
 import kaic
 import pyBigWig
-from kaic.data.genomic import RegionBased, Bed, BigWig
+from genomic_regions import RegionBased, Bed, BigWig
 import tempfile
 import os
 

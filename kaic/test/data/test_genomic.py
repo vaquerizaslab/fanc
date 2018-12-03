@@ -3,7 +3,7 @@ import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
     GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao, \
     RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
-    AccessOptimisedRegionMatrixTable, AccessOptimisedHic, Bed, BigWig, Tabix
+    AccessOptimisedRegionMatrixTable, AccessOptimisedHic
 from kaic.tools.files import write_bed, write_gff, write_bigwig
 from kaic.tools.general import which
 from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
@@ -62,13 +62,13 @@ class TestGenome:
         for i in range(0, len(regions)):
             region = regions[i]
             if i == 0:
-                assert region['chromosome'] == 'chr1'
-                assert region['start'] == 1
-                assert region['end'] == 12
+                assert region.chromosome == 'chr1'
+                assert region.start == 1
+                assert region.end == 12
             if i == 5:
-                assert region['chromosome'] == 'chr2'
-                assert region['start'] == 25
-                assert region['end'] == 5000
+                assert region.chromosome == 'chr2'
+                assert region.start == 25
+                assert region.end == 5000
             i += 1
 
         regions.close()
@@ -79,13 +79,13 @@ class TestGenome:
         for i in range(0, len(nl)):
             node = nl[i]
             if i == 0:
-                assert node['chromosome'] == 'chr1'
-                assert node['start'] == 1
-                assert node['end'] == 4000
+                assert node.chromosome == 'chr1'
+                assert node.start == 1
+                assert node.end == 4000
             if i == 5:
-                assert node['chromosome'] == 'chr2'
-                assert node['start'] == 4001
-                assert node['end'] == 5000
+                assert node.chromosome == 'chr2'
+                assert node.start == 4001
+                assert node.end == 5000
             i += 1
 
         nl.close()
@@ -102,49 +102,6 @@ class TestGenome:
         chr4 = genome[3]
         assert len(chr4) == 2
         genome.close()
-
-
-class TestGenomicRegion:
-    def test_from_string(self):
-        region1 = GenomicRegion.from_string('chr1')
-        assert region1.chromosome == 'chr1'
-        assert region1.start is None
-        assert region1.end is None
-        assert region1.strand is None
-
-        region2 = GenomicRegion.from_string('chr1:0')
-        assert region2.chromosome == 'chr1'
-        assert region2.start == 0
-        assert region2.end == 0
-        assert region2.strand is None
-
-        region3 = GenomicRegion.from_string('chr1:0-4956')
-        assert region3.chromosome == 'chr1'
-        assert region3.start == 0
-        assert region3.end == 4956
-        assert region3.strand is None
-
-        region4 = GenomicRegion.from_string('chr1:0-4956:-')
-        assert region4.chromosome == 'chr1'
-        assert region4.start == 0
-        assert region4.end == 4956
-        assert region4.strand == -1
-
-        region5 = GenomicRegion.from_string('chr1:0-4956:+1')
-        assert region5.chromosome == 'chr1'
-        assert region5.start == 0
-        assert region5.end == 4956
-        assert region5.strand == 1
-
-        with pytest.raises(ValueError):
-            # invalid start
-            GenomicRegion.from_string('chr1:x-4956:-')
-        with pytest.raises(ValueError):
-            # too many fields
-            GenomicRegion.from_string('chr1:0:4956:-')
-        with pytest.raises(ValueError):
-            # invalid strand
-            GenomicRegion.from_string('chr1:0-4956:0')
 
 
 class RegionBasedTestFactory:
@@ -276,77 +233,6 @@ class TestRegionsTable(TestGenomicRegions):
         assert self.empty_regions[2].chromosome == 'chr1'
         assert self.empty_regions[2].a == 0
         assert self.empty_regions[2].b == ''
-
-
-class TestBed(RegionBasedTestFactory):
-    @pytest.fixture(autouse=True)
-    def setup_method(self, tmpdir):
-        chromosomes = [
-            {'name': 'chr1', 'end': 10000},
-            {'name': 'chr2', 'end': 15000},
-            {'name': 'chr3', 'end': 7000}
-        ]
-
-        regions = []
-        for chromosome in chromosomes:
-            for start in range(1, chromosome["end"] - 1000, 1000):
-                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
-
-        bed_file = os.path.join(str(tmpdir), 'test.bed')
-        write_bed(bed_file, regions)
-
-        self.regions = Bed(bed_file)
-
-
-class TestBigWig(RegionBasedTestFactory):
-    @pytest.fixture(autouse=True)
-    def setup_method(self, tmpdir):
-        chromosomes = [
-            {'name': 'chr1', 'end': 10000},
-            {'name': 'chr2', 'end': 15000},
-            {'name': 'chr3', 'end': 7000}
-        ]
-
-        regions = []
-        for chromosome in chromosomes:
-            for start in range(1, chromosome["end"] - 1000, 1000):
-                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
-
-        bw_file = os.path.join(str(tmpdir), 'test.bw')
-        write_bigwig(bw_file, regions)
-
-        self.regions = BigWig(bw_file)
-
-    def test_get_item(self):
-        pass
-
-
-@pytest.mark.skipif(which('tabix') is None, reason="Cannot find tabix in PATH")
-class TestTabix(RegionBasedTestFactory):
-    @pytest.fixture(autouse=True)
-    def setup_method(self, tmpdir):
-        chromosomes = [
-            {'name': 'chr1', 'end': 10000},
-            {'name': 'chr2', 'end': 15000},
-            {'name': 'chr3', 'end': 7000}
-        ]
-
-        regions = []
-        for chromosome in chromosomes:
-            for start in range(1, chromosome["end"] - 1000, 1000):
-                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
-
-        bed_file = os.path.join(str(tmpdir), 'test.bed')
-        write_bed(bed_file, regions)
-        bed = Bed(bed_file)
-        bed.tabix()
-
-        tabix_file = os.path.join(str(tmpdir), 'test.bed.gz')
-
-        self.regions = Tabix(tabix_file)
-
-    def test_get_item(self):
-        pass
 
 
 class TestRegionPairs:

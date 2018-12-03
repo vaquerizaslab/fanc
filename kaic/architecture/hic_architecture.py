@@ -29,7 +29,8 @@ from kaic.architecture.architecture import TableArchitecturalFeature, calculateo
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
     MatrixArchitecturalRegionFeatureFilter
 from kaic.architecture.maxima_callers import MaximaCallerDelta
-from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic, Genome, Bedpe
+from genomic_regions import Bedpe
+from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic, Genome
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
 from kaic.tools.matrix import apply_sliding_func, kth_diag_indices, trim_stats

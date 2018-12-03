@@ -3,7 +3,7 @@ from kaic.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
-from kaic.data.genomic import GenomicRegion, GenomicDataFrame, merge_regions
+from genomic_regions import GenomicRegion, GenomicDataFrame, merge_regions
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
                                        BasePlotter, BaseAnnotation
 from kaic.plotting.hic_plotter import BasePlotterMatrix
