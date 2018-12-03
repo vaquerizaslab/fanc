@@ -166,7 +166,7 @@ class TestGenomicRegions(RegionBasedTestFactory):
         regions = []
         for chromosome in chromosomes:
             for start in range(1, chromosome["end"] - 1000, 1000):
-                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
+                regions.append(GenomicRegion(start=start, end=start + 999, chromosome=chromosome["name"]))
         self.regions = GenomicRegions(regions)
         self.empty_regions = GenomicRegions()
 
@@ -201,7 +201,7 @@ class TestRegionsTable(TestGenomicRegions):
         regions = []
         for chromosome in chromosomes:
             for start in range(1, chromosome["end"] - 1000, 1000):
-                regions.append(GenomicRegion(start, start + 999, chromosome=chromosome["name"]))
+                regions.append(GenomicRegion(start=start, end=start + 999, chromosome=chromosome["name"]))
         self.regions = RegionsTable(regions)
         self.empty_regions = RegionsTable(additional_fields={'a': t.Int32Col(), 'b': t.StringCol(10)})
 
@@ -593,8 +593,8 @@ class TestHicBasic:
         dest_file = str(tmpdir) + "/hic.h5"
 
         hic1 = self.hic_class(file_name=dest_file, mode='w')
-        hic1.add_node(GenomicRegion(1, 1000, 'chr1'))
-        hic1.add_node(GenomicRegion(1, 1000, 'chr2'))
+        hic1.add_node(GenomicRegion('chr1', 1, 1000))
+        hic1.add_node(GenomicRegion('chr2', 1, 1000))
         hic1.add_edge([0, 1])
         hic1.close()
 

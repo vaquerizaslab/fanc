@@ -510,8 +510,8 @@ class TestAccessOptimisedReadPairs(TestFragmentMappedReadPairs):
 
 class TestFragmentRead:
     def setup_method(self, method):
-        fragment1 = GenomicRegion(1, 1000, chromosome='chr1', strand=1, ix=0)
-        fragment2 = GenomicRegion(1001, 2000, chromosome='chr2', strand=-1, ix=1)
+        fragment1 = GenomicRegion(start=1, end=1000, chromosome='chr1', strand=1, ix=0)
+        fragment2 = GenomicRegion(start=1001, end=2000, chromosome='chr2', strand=-1, ix=1)
         self.read1 = FragmentRead(fragment1, position=500, strand=1, qname_ix=1)
         self.read2 = FragmentRead(fragment2, position=1200, strand=1, qname_ix=2)
 
@@ -577,11 +577,11 @@ class TestFragmentReadPair:
     def test_convenience_functions(self):
         pair = FragmentReadPair(
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=500, strand=1
             ),
             FragmentRead(
-                GenomicRegion(10001, 11000, chromosome='chr1'),
+                GenomicRegion(start=10001, end=11000, chromosome='chr1'),
                 position=10500, strand=-1
             )
         )
@@ -594,11 +594,11 @@ class TestFragmentReadPair:
 
         pair = FragmentReadPair(
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=500, strand=1
             ),
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=600, strand=1
             )
         )
@@ -611,11 +611,11 @@ class TestFragmentReadPair:
 
         pair = FragmentReadPair(
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=500, strand=-1
             ),
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr2'),
+                GenomicRegion(start=1, end=1000, chromosome='chr2'),
                 position=600, strand=1
             )
         )
@@ -628,11 +628,11 @@ class TestFragmentReadPair:
 
         pair = FragmentReadPair(
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=500, strand=-1
             ),
             FragmentRead(
-                GenomicRegion(1001, 2000, chromosome='chr1'),
+                GenomicRegion(start=1001, end=2000, chromosome='chr1'),
                 position=1200, strand=1
             )
         )

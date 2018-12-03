@@ -21,10 +21,13 @@ class TestRaoPeakCaller:
             [0, 1, 2, 3, 4, 5, 6]
         ]
 
-        regions = [GenomicRegion(1, 1000, 'chr1', ix=0), GenomicRegion(1001, 2000, 'chr1', ix=1),
-                   GenomicRegion(2001, 3000, 'chr1', ix=2), GenomicRegion(3001, 4000, 'chr1', ix=3),
-                   GenomicRegion(4001, 5000, 'chr1', ix=4), GenomicRegion(5001, 6000, 'chr1', ix=5),
-                   GenomicRegion(6001, 7000, 'chr1', ix=6)]
+        regions = [GenomicRegion(start=1, end=1000, chromosome='chr1', ix=0),
+                   GenomicRegion(start=1001, end=2000, chromosome='chr1', ix=1),
+                   GenomicRegion(start=2001, end=3000, chromosome='chr1', ix=2),
+                   GenomicRegion(start=3001, end=4000, chromosome='chr1', ix=3),
+                   GenomicRegion(start=4001, end=5000, chromosome='chr1', ix=4),
+                   GenomicRegion(start=5001, end=6000, chromosome='chr1', ix=5),
+                   GenomicRegion(start=6001, end=7000, chromosome='chr1', ix=6)]
         self.regions_dict = {i: region for i, region in enumerate(regions)}
         self.m = RegionMatrix(np.array(l), col_regions=regions, row_regions=regions)
         self.e = np.ones(self.m.shape)
@@ -170,7 +173,7 @@ class TestOverlapPeaks:
             [(11, 12), (5, 8), (15.2, 7.8)],
             [(10.5, 11.8), (5.5, 8.1)],
         ]
-        regions = [GenomicRegion(a + 1, b, 'chr1', ix=i) for i, (a, b) in enumerate(pairwise(np.arange(0, 10001, 100)))]
+        regions = [GenomicRegion('chr1', a + 1, b, ix=i) for i, (a, b) in enumerate(pairwise(np.arange(0, 10001, 100)))]
         self.peaks = {}
         for i in range(3):
             p = kaic.data.network.PeakInfo()

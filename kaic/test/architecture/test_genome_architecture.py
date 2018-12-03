@@ -20,10 +20,10 @@ class VAF(VectorArchitecturalRegionFeature):
                                                   tmpdir=tmpdir)
 
     def _calculate(self, *args, **kwargs):
-        self.add_regions([GenomicRegion(1, 1000, 'chr1', a=1, b='a'),
-                          GenomicRegion(1001, 2000, 'chr1', a=2, b='b'),
-                          GenomicRegion(2001, 3000, 'chr1', a=3, b='c'),
-                          GenomicRegion(1, 1000, 'chr2', a=4, b='d')])
+        self.add_regions([GenomicRegion('chr1', 1, 1000, a=1, b='a'),
+                          GenomicRegion('chr1', 1001, 2000, a=2, b='b'),
+                          GenomicRegion('chr1', 2001, 3000, a=3, b='c'),
+                          GenomicRegion('chr2', 1, 1000, a=4, b='d')])
 
 
 class TestVectorArchitecturalRegionFeature:
@@ -70,7 +70,7 @@ class TestVectorArchitecturalRegionFeature:
         regions = self.vaf['chr1:1-2001']
         assert len(list(regions)) == 3
 
-        regions = self.vaf[GenomicRegion(1, 2000, None)]
+        regions = self.vaf[GenomicRegion(start=1, end=2000, chromosome=None)]
         assert isinstance(regions, types.GeneratorType)
         for i, r in enumerate(regions):
             if i < 2:
@@ -82,10 +82,10 @@ class TestVectorArchitecturalRegionFeature:
                 assert r.a == 4
                 assert r.b == 'd'
 
-        regions = self.vaf[GenomicRegion(1, 2000, None)]
+        regions = self.vaf[GenomicRegion(start=1, end=2000, chromosome=None)]
         assert len(list(regions)) == 3
 
-        regions = self.vaf[GenomicRegion(None, None, None)]
+        regions = self.vaf[GenomicRegion(start=None, end=None, chromosome=None)]
         assert len(list(regions)) == 4
 
     def test_get_columns(self):
