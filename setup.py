@@ -53,7 +53,8 @@ setup(
         'seaborn',
         'future',
         'gridmap',
-        'intervaltree'
+        'intervaltree',
+        'genomic_regions',
     ],
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={
