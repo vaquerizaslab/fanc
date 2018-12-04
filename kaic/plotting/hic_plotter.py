@@ -444,7 +444,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         if region.start is None:
             region.start = 1
         if region.end is None:
-            region.end = self.hic_data.chromosome_lens[region.chromosome]
+            region.end = self.hic_data.chromosome_lengths[region.chromosome]
         if self.proportional:
             if self.max_dist is None:
                 self.aspect = .5

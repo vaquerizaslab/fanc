@@ -971,6 +971,17 @@ class Node(GenomicRegion, TableObject):
         else:
             return "%d: %s, %d-%d" % (self.ix, self.chromosome, self.start, self.end)
 
+    @classmethod
+    def from_row(cls, row):
+        """
+        Create a :class:`~Node` from a PyTables row.
+        """
+        strand = row['strand']
+        if strand == 0:
+            strand = None
+        return cls(start=row["start"], end=row["end"],
+                   strand=strand, chromosome=row["chromosome"])
+
 
 class LazyNode(LazyGenomicRegion, Node):
     def __init__(self, row, ix=None):
@@ -3586,7 +3597,7 @@ class Hic(RegionMatrixTable):
 
         chromosome_list = []
         for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lens[chromosome]))
+            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lengths[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
         regions = genome.get_regions(bin_size)
