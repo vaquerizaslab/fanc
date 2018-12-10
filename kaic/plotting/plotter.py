@@ -1598,7 +1598,7 @@ class GenePlot(BasePlotter1D):
     def __init__(self, genes, feature_types=('exon',), color_neutral='gray',
                  color_forward='orangered', color_reverse='darkturquoise',
                  color_score=False, box_height=0.1, show_labels=True,
-                 label_field='name', font_size=9, arrow_size=8,
+                 label_field='name', font_size=9, arrow_size=8, show_arrows=True,
                  line_width=1, group_by='transcript_id',
                  collapse=False, squash=False, min_gene_size=None,
                  lookahead=2000000, score_colormap='RdBu', relative_text_offset=0.01,
@@ -1646,6 +1646,7 @@ class GenePlot(BasePlotter1D):
         self.font_size = font_size if font_size is not None else 9
         self.group_by = group_by
         self.arrow_size = arrow_size
+        self.show_arrows = show_arrows
         self.line_width = line_width
         self.show_labels = self._normalise_include_exclude(show_labels)
         self.label_field = label_field
@@ -1820,12 +1821,15 @@ class GenePlot(BasePlotter1D):
             )
 
         def _plot_gene(exons, offset):
-            if exons[0].strand == 1:
-                bar_marker = '$>$' if not self.invert_x else '$<$'
-            elif exons[0].strand == -1:
-                bar_marker = '$<$' if not self.invert_x else '$>$'
+            if self.show_arrows:
+                if exons[0].is_forward():
+                    bar_marker = '$>$' if not self.invert_x else '$<$'
+                elif exons[0].is_reverse():
+                    bar_marker = '$<$' if not self.invert_x else '$>$'
+                else:
+                    bar_marker = ''
             else:
-                bar_marker = 0
+                bar_marker = ''
 
             gene_color = _set_gene_color(exons, self.color_score)
 
