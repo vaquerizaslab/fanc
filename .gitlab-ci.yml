@@ -10,6 +10,7 @@ test_kaic:
         - "pip install --upgrade pip setuptools"
         - "git clone git@10.84.50.12:kkruse/genomic-regions.git"
         - "pip install ./genomic-regions/"
+        - "rm -rf ./genomic-regions"
         - "pip install ."
     script:
         - "py.test kaic -m 'not plotting'"
@@ -25,6 +26,7 @@ test_plotting:
         - "pip install --upgrade pip setuptools"
         - "git clone git@10.84.50.12:kkruse/genomic-regions.git"
         - "pip install ./genomic-regions/"
+        - "rm -rf ./genomic-regions"
         - "pip install ."
     script:
         - "py.test kaic -m plotting"
@@ -39,6 +41,7 @@ test_doc:
         - "pip install --upgrade pip setuptools"
         - "git clone git@10.84.50.12:kkruse/genomic-regions.git"
         - "pip install ./genomic-regions/"
+        - "rm -rf ./genomic-regions"
         - "pip install sphinx sphinx-argparse sphinx_rtd_theme"
         - "pip install ."
     script:
