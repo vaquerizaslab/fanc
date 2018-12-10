@@ -14,7 +14,7 @@ test_kaic:
         - "pip install ./genomic-regions/"
         - "cd .."
         - "rm -rf ./dependencies"
-        - "pip install ."
+        - "pip -v install ."
     script:
         - "py.test kaic -m 'not plotting'"
     tags:
@@ -33,7 +33,7 @@ test_plotting:
         - "pip install ./genomic-regions/"
         - "cd .."
         - "rm -rf ./dependencies"
-        - "pip install ."
+        - "pip -v install ."
     script:
         - "py.test kaic -m plotting"
     tags:
@@ -52,7 +52,7 @@ test_doc:
         - "cd .."
         - "rm -rf ./dependencies"
         - "pip install sphinx sphinx-argparse sphinx_rtd_theme"
-        - "pip install ."
+        - "pip -v install ."
     script:
         - cd kaic-doc
         - make html
