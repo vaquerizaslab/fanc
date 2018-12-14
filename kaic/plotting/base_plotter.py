@@ -425,7 +425,7 @@ class BasePlotter1D(BasePlotter):
         if xlim != self._last_xlim:
             self._last_xlim = xlim
             x_start, x_end = (max(xlim[0], 0), xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
-            x_region = GenomicRegion(int(x_start), int(x_end), self._current_chromosome)
+            x_region = GenomicRegion(chromosome=self._current_chromosome, start=int(x_start), end=int(x_end))
             self.refresh(region=x_region)
 
 
@@ -718,9 +718,9 @@ class BasePlotter2D(BasePlotter):
             self._last_xlim = xlim
             self._last_ylim = ylim
             x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
-            x_region = GenomicRegion(x_start, x_end, self._current_chromosome_x)
+            x_region = GenomicRegion(chromosome=self._current_chromosome_x, start=x_start, end=x_end)
             y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
-            y_region = GenomicRegion(y_start, y_end, self._current_chromosome_y)
+            y_region = GenomicRegion(chromosome=self._current_chromosome_y, start=y_start, end=y_end)
             self.refresh(region=(x_region, y_region))
 
     def plot(self, regions):
