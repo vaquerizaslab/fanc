@@ -24,22 +24,57 @@ A recalculation is also avoided when restoring data from file.
 
 
 from __future__ import division
+from kaic.config import config
 from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand, ArchitecturalFeature
 from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
     MatrixArchitecturalRegionFeatureFilter
 from kaic.architecture.maxima_callers import MaximaCallerDelta
-from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic
+from genomic_regions import Bedpe
+from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic, Genome
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
-from kaic.tools.matrix import apply_sliding_func
+from kaic.tools.matrix import apply_sliding_func, kth_diag_indices, trim_stats
 from kaic.data.general import FileGroup
+from Bio.SeqUtils import GC as calculate_gc_content
 import numpy as np
 import tables as t
 import itertools
+from scipy.misc import imresize
+from scipy.stats import trim_mean
+from scipy.stats.mstats import gmean
 from bisect import bisect_left
 from kaic.tools.general import RareUpdateProgressBar
+from future.utils import string_types
+import warnings
 import logging
 logger = logging.getLogger(__name__)
+
+
+def cis_trans_ratio(hic, normalise=False):
+    """
+    Calculate the cis/trans ratio for a Hic object.
+    
+    :param hic: :class:`~kaic,data.genomic.Hic` object
+    :param normalise: If True, will normalise ratio to the possible number of cis/trans contacts
+                      in this genome. Makes ratio comparable across different genomes
+    :return: tuple (ratio, cis, trans, factor)
+    """
+    cis = 0
+    trans = 0
+    regions_dict = hic.regions_dict
+    for edge in hic.edges(lazy=True):
+        if regions_dict[edge.source].chromosome == regions_dict[edge.sink].chromosome:
+            cis += edge.weight
+        else:
+            trans += edge.weight
+    if not normalise:
+        return cis / (cis + trans), cis, trans, 1.0
+    with PossibleContacts(hic) as possible:
+        possible_intra = possible.intra_possible()
+        possible_inter = possible.inter_possible()
+        f = possible_intra / possible_inter
+
+        return cis / (cis + trans * f), cis, trans, f
 
 
 class HicArchitecture(object):
@@ -83,7 +118,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
         :param tmpdir: Temporary directory
         :param only_intra_chromosomal: If True, ignore inter-chromosomal edges.
         """
-        if not isinstance(hics, str) and hics is not None:
+        if not isinstance(hics, string_types) and hics is not None:
 
             if additional_fields is not None:
                 if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
@@ -97,12 +132,12 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
             self.shared_base_field_names = []
             for i, hic in enumerate(hics):
                 field_descriptions = hic._field_dict
-                for name, description in field_descriptions.iteritems():
+                for name, description in field_descriptions.items():
 
                     if name.startswith("_") or name in {'source', 'sink'}:
                         continue
 
-                    for j in xrange(len(hics)):
+                    for j in range(len(hics)):
                         new_name = "%s_%d" % (name, j)
                         if new_name in original_fields:
                             raise ValueError("%s already in hic object, please choose different name." % new_name)
@@ -136,7 +171,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
         # step 1: combine all hic objects into one
         #         and calculate variance
         for chr_i, chromosome1 in enumerate(chromosomes):
-            for chr_j in xrange(chr_i, len(chromosomes)):
+            for chr_j in range(chr_i, len(chromosomes)):
                 chromosome2 = chromosomes[chr_j]
 
                 if self.only_intra_chromosomal and chromosome1 != chromosome2:
@@ -157,8 +192,19 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
                                 edges[key][field] = [None] * len(self.hics)
                             edges[key][field][i] = getattr(edge, field, None)
 
-                for key, d in edges.iteritems():
-                    for field, values in d.iteritems():
+                try:
+                    # noinspection PyCompatibility
+                    edge_items = edges.iteritems()
+                except AttributeError:
+                    edge_items = edges.items()
+
+                for key, d in edge_items:
+                    try:
+                        # noinspection PyCompatibility
+                        d_items = d.iteritems()
+                    except AttributeError:
+                        d_items = d.items()
+                    for field, values in d_items:
                         source = key[0]
                         sink = key[1]
 
@@ -195,18 +241,18 @@ class ExpectedContacts(TableArchitecturalFeature):
     """
     _classid = 'EXPECTEDCONTACTS'
 
-    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, smooth=True, min_reads=400,
+    def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, smooth=False, min_reads=400,
                  regions=None, weight_column=None, _table_name='distance_decay'):
         """
         Initialize an :class:`~ExpectedContacts` object.
         """
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
         TableArchitecturalFeature.__init__(self, _table_name,
-                                           {'distance': t.Int64Col(), 'intra': t.Float32Col(),
-                                            'contacts': t.Float32Col(), 'pixels': t.Float32Col()},
+                                           {'distance': t.Int64Col(), 'intra': t.Float64Col(),
+                                            'contacts': t.Float64Col(), 'pixels': t.Float64Col()},
                                            file_name=file_name, mode=mode, tmpdir=tmpdir)
 
         self.hic = hic
@@ -226,151 +272,132 @@ class ExpectedContacts(TableArchitecturalFeature):
         Get intra- and inter-chromosomal expected contact counts.
         """
 
-        # extract mappable regions from Hic object
-        marginals = np.array(self.hic.marginals(weight_column=self.weight_column))
+        if self.regions is None:
+            regions = [region for region in self.hic.regions]
+            edges_iter = self.hic.edges(lazy=True)
+        else:
+            regions = [region for region in self.hic.subset(self.regions)]
+            edges_iter = self.hic.edge_subset(key=(self.regions, self.regions))
+
+        chromosome_offsets = dict()
+        chromosome_regions = defaultdict(list)
+        regions_dict = dict()
+        for i, r in enumerate(regions):
+            regions_dict[r.ix] = (i, r.chromosome)
+            chromosome_regions[r.chromosome].append(r)
+            if r.chromosome not in chromosome_offsets:
+                chromosome_offsets[r.chromosome] = i
+        max_distance = max([len(chromosome_regions[chromosome]) for chromosome in chromosome_regions])
+
+        try:
+            bias_vector = self.hic.bias_vector()
+        except AttributeError:
+            bias_vector = [1.0] * len(self.hic.regions)
+            if self.smooth:
+                warnings.warn("This object does not support smoothing, returning unsmoothed values.")
+                self.smooth = False
+
+        # get the sums of edges at any given distance
+        marginals = [0.0] * len(regions)
+        inter_sums = 0.0
+        intra_sums = [0.0] * max_distance
+        intra_uncorrected = [0] * max_distance
+        for edge in edges_iter:
+            source, sink = edge.source, edge.sink
+            weight = getattr(edge, self.weight_column)
+
+            source_i, source_chromosome = regions_dict[source]
+            sink_i, sink_chromosome = regions_dict[sink]
+
+            marginals[source_i] += weight
+            marginals[sink_i] += weight
+
+            if sink_chromosome != source_chromosome:
+                inter_sums += weight
+            else:
+                distance = sink - source
+                intra_sums[distance] += weight
+                intra_uncorrected[distance] += int(weight / (bias_vector[source] * bias_vector[sink]) + 0.5)
+
+        logger.info("Calculating possible counts")
+        # getting per-chromosome subtractions
+        chromosome_subtractions = dict()
+        chromosomes = list(chromosome_regions.keys())
+        for chromosome in chromosomes:
+            chromosome_subtractions[chromosome] = np.zeros(len(chromosome_regions[chromosome]), dtype='int32')
+
+        chromosome_mappable = defaultdict(int)
+        chromosome_unmappable = defaultdict(set)
+        for i, marginal in enumerate(marginals):
+            chromosome = regions[i].chromosome
+            if marginal < 10e-10:  # unmappable
+                s = chromosome_subtractions[chromosome]
+                o = chromosome_offsets[chromosome]
+                ix = i - o
+                # horizontal
+                s[0: len(s) - ix] += 1
+                # vertical
+                for j in range(1, ix + 1):
+                    if ix - j not in chromosome_unmappable[chromosome]:
+                        s[j] += 1
+                chromosome_unmappable[chromosome].add(ix)
+            else:
+                chromosome_mappable[chromosome] += 1
+
+        inter_total = 0
+        intra_total = [0] * max_distance
+        for i in range(len(chromosomes)):
+            count = len(chromosome_regions[chromosomes[i]])
+
+            # intra-chromosomal
+            s = chromosome_subtractions[chromosomes[i]]
+            for distance in range(0, count):
+                intra_total[distance] += count - distance - s[distance]
+
+            # inter-chromosomal
+            for j in range(i + 1, len(chromosomes)):
+                count_mappable = chromosome_mappable[chromosomes[i]]
+                count2_mappable = chromosome_mappable[chromosomes[j]]
+                inter_total += count_mappable * count2_mappable
+
+        try:
+            inter_expected = inter_sums / inter_total
+        except ZeroDivisionError:
+            inter_expected = 0.0
+
+        intra_expected = [0.0] * max_distance
+        bin_size = self.hic.bin_size
+        distances = []
+        for distance in range(max_distance):
+            distances.append(bin_size * distance)
+            count = intra_total[distance]
+            if count > 0:
+                intra_expected[distance] = intra_sums[distance] / count
 
         # save marginals in object
+        marginals = np.array(marginals)
         self._marginals_array = self.file.create_carray(self._group, 'marginals',
                                                         t.Atom.from_dtype(marginals.dtype),
                                                         marginals.shape)
         self._marginals_array[:] = marginals
 
-        regions = []
-        all_regions = []
-        region_ix = set()
-        if self.regions is None:
-            for region in self.hic.regions(lazy=False):
-                all_regions.append(region)
-                if marginals[region.ix] > 0:
-                    regions.append(region)
-                    region_ix.add(region.ix)
-        else:
-            if isinstance(self.regions, str) or isinstance(self.regions, GenomicRegion):
-                self.regions = [self.regions]
-
-            for region in self.regions:
-                if isinstance(region, str):
-                    region = GenomicRegion.from_string(region)
-
-                for r in self.hic.subset(region, lazy=False):
-                    all_regions.append(r)
-                    if marginals[r.ix] > 0:
-                        regions.append(r)
-                        region_ix.add(r.ix)
-
-        # count the number of regions per chromosome
-        # and find the first and last region in each chromosome
-        regions_by_chromosome = defaultdict(int)
-        min_region_by_chromosome = dict()
-        max_region_by_chromosome = dict()
-        for region in regions:
-            if (region.chromosome not in max_region_by_chromosome or
-                        max_region_by_chromosome[region.chromosome] < region.ix):
-                max_region_by_chromosome[region.chromosome] = region.ix
-
-            if (region.chromosome not in min_region_by_chromosome or
-                        min_region_by_chromosome[region.chromosome] > region.ix):
-                min_region_by_chromosome[region.chromosome] = region.ix
-
-            regions_by_chromosome[region.chromosome] += 1
-
-        # find the largest distance between two regions
-        # in the entire intra-chromosomal genome
-        max_distance = 0
-        for chromosome in min_region_by_chromosome:
-            max_distance = max(max_distance,
-                               max_region_by_chromosome[chromosome] - min_region_by_chromosome[chromosome])
-
-        # find maximum theoretical distance, even if unmappable
-        min_region_by_chromosome_t = dict()
-        max_region_by_chromosome_t = dict()
-        for region in all_regions:
-            if (region.chromosome not in max_region_by_chromosome_t or
-                        max_region_by_chromosome_t[region.chromosome] < region.ix):
-                max_region_by_chromosome_t[region.chromosome] = region.ix
-
-            if (region.chromosome not in min_region_by_chromosome_t or
-                        min_region_by_chromosome_t[region.chromosome] > region.ix):
-                min_region_by_chromosome_t[region.chromosome] = region.ix
-
-        # find the largest distance between two regions
-        # in the entire intra-chromosomal genome
-        max_distance_t = 0
-        for chromosome in min_region_by_chromosome_t:
-            max_distance_t = max(max_distance_t,
-                                 max_region_by_chromosome_t[chromosome] - min_region_by_chromosome_t[chromosome])
-
-        # get the number of pixels at a given bin distance
-        pixels_by_distance = [0.0] * (max_distance + 1)
-        for chromosome, n in regions_by_chromosome.iteritems():
-            for distance in xrange(0, n):
-                pixels_by_distance[distance] += n-distance
-
-        # build a reverse-lookup chromosome map to quickly
-        # determine if an edge is intra-chromosomal
-        chromosome_map = dict()
-        for i, chromosome in enumerate(self.hic.chromosomes()):
-            chromosome_map[chromosome] = i
-
-        chromosomes = np.zeros(len(self.hic.regions), dtype=int)
-        for i, region in enumerate(self.hic.regions(lazy=True)):
-            chromosomes[i] = chromosome_map[region.chromosome]
-
-        bias_vector = self.hic.bias_vector()
-        # get the number of reads at a given bin distance
-        uncorrected_reads_by_distance = [0.0] * (max_distance + 1)
-        reads_by_distance = [0.0] * (max_distance + 1)
-        inter_observed = 0
-        for edge in self.hic.edges(lazy=True):
-            source = edge.source
-            sink = edge.sink
-            weight = getattr(edge, self.weight_column)
-            cf = bias_vector[source] * bias_vector[sink]
-            reads = int(weight / cf + 0.5)
-
-            # skip excluded regions
-            if source not in region_ix or sink not in region_ix:
-                continue
-            # only intra-chromosomal distances
-            if chromosomes[edge.source] == chromosomes[edge.sink]:
-                uncorrected_reads_by_distance[edge.sink - edge.source] += reads
-                reads_by_distance[edge.sink - edge.source] += weight
-            else:
-                inter_observed += weight
-
-        with PossibleContacts(self.hic, regions=self.regions, weight_column=self.weight_column) as pc:
-            intra_possible, inter_possible = pc.intra_possible(), pc.inter_possible()
-
-        try:
-            inter_expected = inter_observed / inter_possible
-        except ZeroDivisionError:
-            inter_expected = 0
-
-        while len(reads_by_distance) < max_distance_t + 1:
-            uncorrected_reads_by_distance.append(uncorrected_reads_by_distance[-1])
-            reads_by_distance.append(reads_by_distance[-1])
-            pixels_by_distance.append(pixels_by_distance[-1])
-
-        distance = np.arange(len(reads_by_distance)) * self.hic.bin_size
-        self.data('distance', distance)
+        self.data('distance', distances)
+        self.meta['inter'] = inter_expected
 
         # return here if smoothing not requested
         if not self.smooth:
-            intra_expected = np.array(reads_by_distance) / np.array(pixels_by_distance)
-
             self.data('intra', intra_expected)
-            self.data('contacts', reads_by_distance)
-            self.data('pixels', pixels_by_distance)
-            self._table.attrs['inter'] = inter_expected
+            self.data('contacts', intra_sums)
+            self.data('pixels', intra_total)
             return
 
         # smoothing
-        smoothed_reads_by_distance = np.zeros(len(reads_by_distance))
-        smoothed_pixels_by_distance = np.zeros(len(pixels_by_distance))
-        for i in range(len(reads_by_distance)):
-            uncorrected_reads = uncorrected_reads_by_distance[i]
-            smoothed_reads = reads_by_distance[i]
-            smoothed_pixels = pixels_by_distance[i]
+        smoothed_intra_sums = np.zeros(len(intra_sums))
+        smoothed_intra_total = np.zeros(len(intra_sums))
+        for i in range(len(intra_sums)):
+            uncorrected_reads = intra_uncorrected[i]
+            smoothed_reads = intra_sums[i]
+            smoothed_pixels = intra_total[i]
             window_size = 0
             can_extend = True
             # smooth to a minimum number of reads per distance
@@ -379,25 +406,24 @@ class ExpectedContacts(TableArchitecturalFeature):
                 can_extend = False
                 # check if we can increase the window to the left
                 if i - window_size >= 0:
-                    uncorrected_reads += uncorrected_reads_by_distance[i - window_size]
-                    smoothed_reads += reads_by_distance[i - window_size]
-                    smoothed_pixels += pixels_by_distance[i - window_size]
+                    uncorrected_reads += intra_uncorrected[i-window_size]
+                    smoothed_reads += intra_sums[i-window_size]
+                    smoothed_pixels += intra_total[i-window_size]
                     can_extend = True
                 # check if we can increase the window to the right
-                if i + window_size < len(reads_by_distance):
-                    uncorrected_reads += uncorrected_reads_by_distance[i + window_size]
-                    smoothed_reads += reads_by_distance[i + window_size]
-                    smoothed_pixels += pixels_by_distance[i + window_size]
+                if i + window_size < len(intra_sums):
+                    uncorrected_reads += intra_uncorrected[i + window_size]
+                    smoothed_reads += intra_sums[i+window_size]
+                    smoothed_pixels += intra_total[i+window_size]
                     can_extend = True
-            smoothed_reads_by_distance[i] = smoothed_reads
-            smoothed_pixels_by_distance[i] = smoothed_pixels
+            smoothed_intra_sums[i] = smoothed_reads
+            smoothed_intra_total[i] = smoothed_pixels
 
-        intra_expected = smoothed_reads_by_distance/smoothed_pixels_by_distance
+        intra_expected = smoothed_intra_sums/smoothed_intra_total
 
         self.data('intra', intra_expected)
-        self.data('contacts', smoothed_reads_by_distance)
-        self.data('pixels', smoothed_pixels_by_distance)
-        self._table.attrs['inter'] = inter_expected
+        self.data('contacts', smoothed_intra_sums)
+        self.data('pixels', smoothed_intra_total)
 
     @calculateondemand
     def marginals(self):
@@ -417,7 +443,7 @@ class ExpectedContacts(TableArchitecturalFeature):
         Get the inter-chromosomal expected (normalized) contact count
         :return: float
         """
-        return self._table.attrs['inter']
+        return self.meta['inter']
 
     @calculateondemand
     def distance(self):
@@ -462,11 +488,11 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
     _classid = 'OBSERVEDEXPECTEDRATIO'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
-                 weight_column='weight', _table_name='observed_expected'):
+                 weight_column='weight', per_chromosome=True, _table_name='observed_expected'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -482,32 +508,165 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
                 regions = hic.subset(regions)
             MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                       data_fields={'ratio': t.Float32Col()}, regions=regions,
-                                                      default_field='ratio', _table_name_edges=_table_name)
+                                                      default_field='ratio',
+                                                      _table_name_edges=_table_name)
+        self.default_value = 1.0
         self.hic = hic
         self.weight_column = weight_column
+        self.per_chromosome = per_chromosome
+        self._expected_by_chromosome = dict()
+        self._expected_inter = None
+        self._expected_intra = None
+
+    def _expected(self, chromosome1, chromosome2):
+        try:
+            return self._expected_by_chromosome[(chromosome1, chromosome2)]
+        except KeyError:
+            if self.per_chromosome:
+                if chromosome1 == chromosome2:
+                    with ExpectedContacts(self.hic, regions=chromosome1, weight_column=self.weight_column) as ex:
+                        e = ex.intra_expected()
+                else:
+                    if self._expected_inter is None:
+                        with ExpectedContacts(self.hic, weight_column=self.weight_column) as ex_inter:
+                            self._expected_inter = ex_inter.inter_expected()
+                    e = self._expected_inter
+            else:
+                if self._expected_inter is None or self._expected_intra is None:
+                    with ExpectedContacts(self.hic, regions=self.region_selection,
+                                          weight_column=self.weight_column) as ex_inter:
+                        self._expected_inter = ex_inter.inter_expected()
+                        self._expected_intra = ex_inter.intra_expected()
+                if chromosome1 == chromosome2:
+                    e = self._expected_intra
+                else:
+                    e = self._expected_inter
+            self._expected_by_chromosome[(chromosome1, chromosome2)] = e
+
+            return e
 
     def _calculate(self):
-        with ExpectedContacts(self.hic, regions=self.region_selection, weight_column=self.weight_column) as ex:
-            inter_expected = ex.inter_expected()
-            intra_expected = ex.intra_expected()
+        region_selection = self.region_selection if self.region_selection is not None else slice(0, None, None)
+        regions_dict = self.hic.regions_dict
 
-            regions_dict = self.hic.regions_dict
-            region_selection = self.region_selection if self.region_selection is not None else slice(0, None, None)
-            for edge in self.hic.edge_subset(key=(region_selection, region_selection), lazy=True):
-                source = edge.source
-                new_source = self.region_conversion[source]
-                sink = edge.sink
-                new_sink = self.region_conversion[sink]
-                weight = getattr(edge, self.weight_column)
-                if regions_dict[source].chromosome == regions_dict[sink].chromosome:
-                    expected = intra_expected[new_sink-new_source]
-                else:
-                    expected = inter_expected
-                self.add_edge(Edge(new_source, new_sink, ratio=weight/expected), flush=False)
-            self.flush()
+        for edge in self.hic.edge_subset(key=(region_selection, region_selection), lazy=True):
+            source = edge.source
+            new_source = self.region_conversion[source]
+            sink = edge.sink
+            new_sink = self.region_conversion[sink]
+            weight = getattr(edge, self.weight_column)
+
+            e = self._expected(regions_dict[source].chromosome, regions_dict[sink].chromosome)
+            try:
+                d = new_sink - new_source
+                e = e[d]
+            except (TypeError, IndexError):
+                pass
+
+            if e != 0:
+                self.add_edge(Edge(new_source, new_sink, ratio=weight/e), flush=False)
+        self.flush()
 
 
-class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
+class ComparisonMatrix(MatrixArchitecturalRegionFeature):
+    """
+    Compare two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
+
+    Define edge comparison function manually.
+
+    :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param scale_matrices: If True, will scale the matrices naively by artificially increasing the number of
+                           reads in one matrix uniformly, so that it has the same number of total contacts
+                           as the other matrix.
+    :param log2: If True, will log2-transform the output values.
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    """
+    _classid = 'COMPARISONMATRIX'
+
+    def __init__(self, matrix1=None, matrix2=None, comparison_function=lambda x: x[0] / x[1],
+                 file_name=None, mode='a', tmpdir=None,
+                 regions=None, scale_matrices=False, log2=True,
+                 weight_column='weight', ignore_zero=False,
+                 _table_name='expected_contacts'):
+        self.region_selection = regions
+
+        # are we retrieving an existing object?
+        if isinstance(matrix1, string_types) and matrix2 is None and file_name is None:
+            file_name = matrix1
+            matrix1 = None
+
+        if matrix1 is None and matrix2 is None and file_name is not None:
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      default_field='fc', _table_name_edges=_table_name)
+        else:
+            if regions is None:
+                regions = matrix1.regions
+                self.region_conversion = {region.ix: region.ix for region in matrix1.regions}
+            else:
+                self.region_conversion = {region.ix: i for i, region in enumerate(matrix1.subset(regions))}
+                regions = matrix1.subset(regions)
+            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                                      data_fields={'fc': t.Float32Col()}, regions=regions,
+                                                      default_field='fc', _table_name_edges=_table_name)
+        self.matrix1 = matrix1
+        self.matrix2 = matrix2
+        self.weight_column = weight_column
+        self.scale_matrices = scale_matrices
+        self.log2 = log2
+        self.compare = comparison_function
+        self.ignore_zero = ignore_zero
+
+    def _calculate(self):
+        if self.scale_matrices:
+            scaling_factor = self.matrix1.scaling_factor(self.matrix2)
+        else:
+            scaling_factor = 1.
+
+        chromosomes = self.chromosomes()
+
+        for i in range(len(chromosomes)):
+            chromosome1 = chromosomes[i]
+            for j in range(i, len(chromosomes)):
+                chromosome2 = chromosomes[j]
+
+                edges1 = dict()
+                for edge in self.matrix1.edge_subset(key=(chromosome1, chromosome2), lazy=True):
+                    try:
+                        source = self.region_conversion[edge.source]
+                        sink = self.region_conversion[edge.sink]
+                    except KeyError:
+                        continue
+
+                    edges1[(source, sink)] = getattr(edge, self.weight_column)
+
+                for edge in self.matrix2.edge_subset(key=(chromosome1, chromosome2), lazy=True):
+                    try:
+                        source = self.region_conversion[edge.source]
+                        sink = self.region_conversion[edge.sink]
+                    except KeyError:
+                        continue
+
+                    edge1_weight = edges1[(source, sink)] if (source, sink) in edges1 else self.matrix1.default_value
+                    if self.ignore_zero and edge1_weight == 0 or edge.weight == 0:
+                        continue
+
+                    weight = self.compare([edge1_weight, scaling_factor*edge.weight])
+                    if self.log2:
+                        weight = np.log2(weight)
+                    self.add_edge([source, sink, weight], flush=False)
+
+        self.flush()
+
+
+class FoldChangeMatrix(ComparisonMatrix):
     """
     Calculate the fold-change matrix of two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
 
@@ -532,75 +691,58 @@ class FoldChangeMatrix(MatrixArchitecturalRegionFeature):
 
     def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
                  regions=None, scale_matrices=False, log2=True,
-                 weight_column='weight', _table_name='expected_contacts'):
-        self.region_selection = regions
+                 weight_column='weight', ignore_zero=False,
+                 _table_name='expected_contacts'):
 
-        # are we retrieving an existing object?
-        if isinstance(matrix1, str) and matrix2 is None and file_name is None:
-            file_name = matrix1
-            matrix1 = None
+        ComparisonMatrix.__init__(self, matrix1=matrix1, matrix2=matrix2,
+                                  comparison_function=lambda x: x[0] / x[1],
+                                  file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                  regions=regions, scale_matrices=scale_matrices,
+                                  log2=log2, weight_column=weight_column,
+                                  ignore_zero=ignore_zero,
+                                  _table_name=_table_name)
 
-        if matrix1 is None and matrix2 is None and file_name is not None:
-            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      default_field='fc', _table_name_edges=_table_name)
-        else:
-            if regions is None:
-                regions = matrix1.regions
-                self.region_conversion = {region.ix: region.ix for region in matrix1.regions}
-            else:
-                self.region_conversion = {region.ix: i for i, region in enumerate(matrix1.subset(regions))}
-                regions = matrix1.subset(regions)
-            MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                                      data_fields={'fc': t.Float32Col()}, regions=regions,
-                                                      default_field='fc', _table_name_edges=_table_name)
-        self.matrix1 = matrix1
-        self.matrix2 = matrix2
-        self.weight_column = weight_column
-        self.scale_matrices = scale_matrices
-        self.log2 = log2
 
-    def _calculate(self):
-        if self.scale_matrices:
-            scaling_factor = self.matrix1.scaling_factor(self.matrix2)
-        else:
-            scaling_factor = 1.
+class DifferenceMatrix(ComparisonMatrix):
+    """
+    Calculate the fold-change matrix of two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
 
-        chromosomes = self.chromosomes()
+    fc_ij = matrix1_ij/matrix2_ij
 
-        for i in xrange(len(chromosomes)):
-            chromosome1 = chromosomes[i]
-            for j in xrange(i, len(chromosomes)):
-                chromosome2 = chromosomes[j]
+    :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param file_name: Path to save file location
+    :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
+    :param tmpdir: Temporary directory
+    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                    Will subset both matrices using these region(s) before the calculation
+    :param scale_matrices: If True, will scale the matrices naively by artificially increasing the number of
+                           reads in one matrix uniformly, so that it has the same number of total contacts
+                           as the other matrix.
+    :param log2: If True, will log2-transform the output values.
+    :param weight_column: Name of the column containing the weights/values for the
+                          expected value calculation. If None, this will be the default field
+                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+    """
+    _classid = 'DIFFERENCEMATRIX'
 
-                edges1 = dict()
-                for edge in self.matrix1.edge_subset(key=(chromosome1, chromosome2), lazy=True):
-                    try:
-                        source = self.region_conversion[edge.source]
-                        sink = self.region_conversion[edge.sink]
-                    except KeyError:
-                        continue
+    def __init__(self, matrix1=None, matrix2=None, file_name=None, mode='a', tmpdir=None,
+                 regions=None, scale_matrices=False, log2=True,
+                 weight_column='weight', ignore_zero=False,
+                 _table_name='expected_contacts'):
 
-                    edges1[(source, sink)] = getattr(edge, self.weight_column)
-
-                for edge in self.matrix2.edge_subset(key=(chromosome1, chromosome2), lazy=True):
-                    try:
-                        source = self.region_conversion[edge.source]
-                        sink = self.region_conversion[edge.sink]
-                    except KeyError:
-                        continue
-
-                    if (source, sink) in edges1:
-                        weight = edges1[(source, sink)] / (scaling_factor*edge.weight)
-                        if self.log2:
-                            weight = np.log2(weight)
-                        self.add_edge([source, sink, weight], flush=False)
-
-        self.flush()
+        ComparisonMatrix.__init__(self, matrix1=matrix1, matrix2=matrix2,
+                                  comparison_function=lambda x: x[0] - x[1],
+                                  file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                  regions=regions, scale_matrices=scale_matrices,
+                                  log2=log2, weight_column=weight_column,
+                                  ignore_zero=ignore_zero,
+                                  _table_name=_table_name)
 
 
 class ABDomainMatrix(MatrixArchitecturalRegionFeature):
     """
-    Calculate the AB domain/compartent matrix by first calculating the observed/expected matrix
+    Calculate the AB domain/compartment matrix by first calculating the observed/expected matrix
     and then returning a matrix in which every entry m_ij is the correlation between row i and row j
     of the observed/expected matrix.
     You can also directly calculate the Hi-C correlation matrix by setting 'ratio' to False.
@@ -626,7 +768,7 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -634,6 +776,7 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
             MatrixArchitecturalRegionFeature.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                                       _table_name_edges=_table_name)
         else:
+            self._region_selection = regions
             if regions is None:
                 regions = hic.regions
                 self.region_conversion = {region.ix: region.ix for region in hic.regions}
@@ -651,39 +794,45 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
     def _calculate(self):
         oer = self.hic
         if self.ratio:
-            oer = ObservedExpectedRatio(self.hic, weight_column=self.weight_column)
+            oer = ObservedExpectedRatio(self.hic, weight_column=self.weight_column,
+                                        regions=self._region_selection, per_chromosome=self.per_chromosome)
 
         if self.per_chromosome:
             chromosomes = self.chromosomes()
             for chromosome in chromosomes:
-                    m = oer[chromosome, chromosome]
-                    corr_m = np.corrcoef(m)
-                    logger.info("Chromosome {}".format(chromosome))
-                    with RareUpdateProgressBar(max_value=m.shape[0]) as pb:
-                        for i, row_region in enumerate(m.row_regions):
-                            for j, col_region in enumerate(m.col_regions):
-                                if j < i:
-                                    continue
+                m = oer[chromosome, chromosome]
+                corr_m = np.corrcoef(m)
 
-                                source = self.region_conversion[row_region.ix]
-                                sink = self.region_conversion[col_region.ix]
+                logger.info("Chromosome {}".format(chromosome))
+                with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars) as pb:
+                    for i, row_region in enumerate(m.row_regions):
+                        for j, col_region in enumerate(m.col_regions):
+                            if j < i:
+                                continue
+                            source = self.region_conversion[row_region.ix]
+                            sink = self.region_conversion[col_region.ix]
+                            try:
+                                if np.isnan(corr_m[i, j]):
+                                    continue
                                 self.add_edge([source, sink, corr_m[i, j]], flush=False)
-                            pb.update(i)
+                            except IndexError:
+                                pass
+                        pb.update(i)
         else:
             m = oer[:]
             corr_m = np.corrcoef(m)
-            with RareUpdateProgressBar(max_value=m.shape[0]) as pb:
+            with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars) as pb:
                 for i, row_region in enumerate(m.row_regions):
-                    for j in xrange(i, len(m.row_regions)):
+                    for j in range(i, len(m.row_regions)):
                         col_region = m.row_regions[j]
                         source = self.region_conversion[row_region.ix]
                         sink = self.region_conversion[col_region.ix]
                         self.add_edge([source, sink, corr_m[i, j]], flush=False)
                     pb.update(i)
-        self.flush()
-
         if self.ratio:
             oer.close()
+
+        self.flush()
 
 
 class ABDomains(VectorArchitecturalRegionFeature):
@@ -696,6 +845,8 @@ class ABDomains(VectorArchitecturalRegionFeature):
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
+    :param genome: A Genome for GC content calculation, used to decide if negative
+                   eigenvector means A or B
     :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param per_chromosome: If True, will only calculate the intra-chromosomal ABDomainMatrix,
@@ -703,12 +854,12 @@ class ABDomains(VectorArchitecturalRegionFeature):
     """
     _classid = 'ABDOMAINS'
 
-    def __init__(self, data=None, file_name=None, mode='a', tmpdir=None,
-                 per_chromosome=True, regions=None, _table_name='ab_domains'):
+    def __init__(self, data=None, file_name=None, mode='a', tmpdir=None, genome=None,
+                 per_chromosome=True, regions=None, eigenvector=0, _table_name='ab_domains'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(data, str) and file_name is None:
+        if isinstance(data, string_types) and file_name is None:
             file_name = data
             data = None
 
@@ -729,41 +880,82 @@ class ABDomains(VectorArchitecturalRegionFeature):
 
         self.per_chromosome = per_chromosome
         self.data = data
+        try:
+            self._eigenvector = self.meta.eigenvector
+        except AttributeError:
+            self._eigenvector = eigenvector
+
+        self.genome = genome
 
     def _calculate(self):
         if isinstance(self.data, Hic):
             ab_data = ABDomainMatrix(self.data, regions=self.region_selection, per_chromosome=self.per_chromosome)
+            close_data = True
         else:
+            close_data = False
             ab_data = self.data
 
-        ab_results = dict()
+        ev = np.zeros(len(self.regions))
         if self.per_chromosome:
             for chromosome in self.chromosomes():
                 m = ab_data[chromosome, chromosome]
                 m[np.isnan(m)] = 0
                 w, v = np.linalg.eig(m)
-                ab_vector = v[:, 1]
+                ab_vector = v[:, self._eigenvector]
                 for i, region in enumerate(m.row_regions):
-                    ab_results[region.ix] = ab_vector[i]
+                    ev[region.ix] = ab_vector[i]
         else:
             m = ab_data[:]
             m[np.isnan(m)] = 0
             w, v = np.linalg.eig(m)
-            ab_vector = v[:, 1]
+            ab_vector = v[:, self._eigenvector]
             for i, region in enumerate(m.row_regions):
-                ab_results[region.ix] = ab_vector[i]
+                ev[region.ix] = ab_vector[i]
+
+        if self.genome is not None:
+            logger.info("Using GC content to orient eigenvector...")
+            if isinstance(self.genome, string_types):
+                genome = Genome.from_string(self.genome, mode='r')
+            else:
+                genome = self.genome
+
+            gc_content = [np.nan] * len(self.regions)
+            for chromosome in self.chromosomes():
+                logger.info("{}".format(chromosome))
+                chromosome_sequence = genome[chromosome].sequence
+                for region in self.regions(chromosome):
+                    s = chromosome_sequence[region.start - 1:region.end]
+                    gc_content[region.ix] = calculate_gc_content(s)
+            gc_content = np.array(gc_content)
+
+            # use gc content to orient AB domain vector per chromosome
+            cb = self.chromosome_bins
+            for chromosome, (start, end) in cb.items():
+                ev_sub = ev[start:end]
+                gc_sub = gc_content[start:end]
+                a_ixs = np.where(ev_sub >= 0.)
+                b_ixs = np.where(ev_sub < 0.)
+                gc_a = np.nanmean(gc_sub[a_ixs])
+                gc_b = np.nanmean(gc_sub[b_ixs])
+
+                if gc_a < gc_b:  # AB compartments are reversed!
+                    ev[start:end] = -1 * ev_sub
 
         for region in self.regions(lazy=True):
-            region.ev = ab_results[region.ix]
+            region.ev = ev[region.ix]
         self.flush()
 
+        if close_data:
+            ab_data.close()
+
     @calculateondemand
-    def ab_domain_eigenvector(self):
+    def ab_domain_eigenvector(self, region=None):
         """
         Get the eigenvector of the :class:`~ABDomainMatrix`
         :return: list of floats
         """
-        return self[:, 'ev']
+        regions = self.regions(region, lazy=False)
+        return [r.ev for r in regions]
 
     @calculateondemand
     def ab_regions(self):
@@ -772,25 +964,33 @@ class ABDomains(VectorArchitecturalRegionFeature):
         depending on the sign of the matrix eigenvector.
         :return: list of regions
         """
+        ev = self.ab_domain_eigenvector()
+
         domains = []
         current_domain = None
         last_region = None
-        for region in self.regions(lazy=False):
-            domain_type = 'A' if region.ev >= 0 else 'B'
+        current_scores = []
+        for i, region in enumerate(self.regions(lazy=False)):
+            domain_type = 'A' if ev[i] >= 0 else 'B'
 
             if last_region is not None and region.chromosome != last_region.chromosome:
                 current_domain = None
+                current_scores = []
 
             if current_domain is None:
                 current_domain = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end,
-                                               type=domain_type)
+                                               score=ev[i], type=domain_type, name=domain_type)
+                current_scores = [ev[i]]
             else:
                 if (region.ev < 0 and last_region.ev < 0) or (region.ev >= 0 and last_region.ev >= 0):
                     current_domain.end = region.end
+                    current_scores.append(ev[i])
+                    current_domain.score = np.nanmean(current_scores)
                 else:
                     domains.append(current_domain)
                     current_domain = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end,
-                                                   type=domain_type)
+                                                   score=ev[i], type=domain_type, name=domain_type)
+                    current_scores = [ev[i]]
             last_region = region
         return domains
 
@@ -815,7 +1015,7 @@ class PossibleContacts(TableArchitecturalFeature):
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None, regions=None,
                  weight_column='weight', _table_name='possible_contacts'):
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -836,11 +1036,11 @@ class PossibleContacts(TableArchitecturalFeature):
                 if marginals[r.ix] > 0:
                     mappable[r.chromosome] += 1
         else:
-            if isinstance(self.regions, str) or isinstance(self.regions, GenomicRegion):
+            if isinstance(self.regions, string_types) or isinstance(self.regions, GenomicRegion):
                 self.regions = [self.regions]
 
             for region in self.regions:
-                if isinstance(region, str):
+                if isinstance(region, string_types):
                     region = GenomicRegion.from_string(region)
 
                 for r in self.hic.subset(region, lazy=True):
@@ -850,12 +1050,12 @@ class PossibleContacts(TableArchitecturalFeature):
         # calculate possible combinations
         intra_possible = 0
         inter_possible = 0
-        chromosomes = mappable.keys()
-        for i in xrange(len(chromosomes)):
+        chromosomes = list(mappable.keys())
+        for i in range(len(chromosomes)):
             chromosome1 = chromosomes[i]
             n1 = mappable[chromosome1]
             intra_possible += n1**2/2 + n1/2
-            for j in xrange(i+1, len(chromosomes)):
+            for j in range(i+1, len(chromosomes)):
                 chromosome2 = chromosomes[j]
                 n2 = mappable[chromosome2]
                 inter_possible += n1*n2
@@ -918,7 +1118,7 @@ class RowRegionMatrix(np.ndarray):
         """
         if self._region_index is None or self._chromosome_index is None:
             self._build_region_index()
-        if isinstance(region, str):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
         start_ix = bisect_left(self._chromosome_index[region.chromosome], region.start)
         end_ix = bisect_left(self._chromosome_index[region.chromosome], region.end)
@@ -976,14 +1176,14 @@ class RowRegionMatrix(np.ndarray):
         return self.__getitem__(slice(start, stop))
 
     def _convert_region_key(self, key):
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
         if isinstance(key, GenomicRegion):
             return self.region_bins(key)
         return key
 
     def _convert_field_key(self, key):
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             return self.fields.index(key)
 
         if isinstance(key, list):
@@ -991,7 +1191,7 @@ class RowRegionMatrix(np.ndarray):
                 raise ValueError("Length of supplied list is 0.")
             l = []
             for k in key:
-                if isinstance(k, str):
+                if isinstance(k, string_types):
                     k = self.fields.index(k)
                 l.append(k)
             return l
@@ -1092,6 +1292,9 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
                                                                                           len(self.data_field_names)))
         self._y_values = values
 
+    def _calculate(self, *args, **kwargs):
+        pass
+
 
 class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
     """
@@ -1100,8 +1303,8 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
     The directionality index (Dixon 2012 et al.) is a measure for up-/downstream biases of contact counts any
     given region displays.
 
-    :param hic: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
-    a :class:`~kaic.data.genomic.Hic`object
+    :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+                a :class:`~kaic.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Path to temporary directory
@@ -1122,7 +1325,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -1168,12 +1371,12 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
             chromosome = region.chromosome
             if last_chromosome is not None and chromosome != last_chromosome:
                 chromosome_length = i-last_chromosome_index
-                for j in xrange(chromosome_length):
+                for j in range(chromosome_length):
                     boundary_dist[last_chromosome_index+j] = min(j, i-last_chromosome_index-1-j)
                 last_chromosome_index = i
             last_chromosome = chromosome
         chromosome_length = n_bins-last_chromosome_index
-        for j in xrange(chromosome_length):
+        for j in range(chromosome_length):
             boundary_dist[last_chromosome_index+j] = min(j, n_bins-last_chromosome_index-1-j)
 
         return boundary_dist
@@ -1205,7 +1408,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
                 if boundary_dist[source] >= sink-source:
                     right_sums[source] += weight
 
-        for i in xrange(n_bins):
+        for i in range(n_bins):
             A = left_sums[i]
             B = right_sums[i]
             E = (A+B)/2
@@ -1257,15 +1460,13 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     should work well in many cases, it is highly recommended that you read through the options listed below
     to get the most out of your analysis.
 
-    :param hic: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
-    a :class:`~kaic.data.genomic.Hic`object
+    :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+                a :class:`~kaic.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Path to temporary directory
     :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
-    :param relative: if True, will normalise the insuation index for any given region by
-                     dividing it by the insulation of neighboring regions (TODO: fix description by @chug)
     :param offset: Offset of the insulation square from the diagonal. Can be useful to avoid biases
                    stemming from very bright diagonals
     :param normalise: If True, will normalise the insulation values by the chromosome average. You can change
@@ -1285,13 +1486,14 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     _classid = 'INSULATIONINDEX'
 
     def __init__(self, hic=None, file_name=None, mode='a', tmpdir=None,
-                 regions=None, relative=False, offset=0, normalise=False, impute_missing=True,
+                 regions=None, offset=0, normalise=False, impute_missing=False,
                  window_sizes=(200000,), log=False, _normalisation_window=300,
-                 subtract_mean=False, _table_name='insulation_index'):
+                 subtract_mean=False, trim_mean_proportion=0.0, geometric_mean=False,
+                 _table_name='insulation_index'):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(hic, str) and file_name is None:
+        if isinstance(hic, string_types) and file_name is None:
             file_name = hic
             hic = None
 
@@ -1323,18 +1525,26 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
         self.offset = offset
         self.hic = hic
-        self.relative = relative
         self.impute_missing = impute_missing
         self.normalise = normalise
         self.normalisation_window = _normalisation_window
         self.subtract_mean = subtract_mean
+        self.trim_mean_proportion = trim_mean_proportion
         self.log = log
-
-    def _insulation_index(self, d1, d2, mask_thresh=.5, aggr_func=np.ma.mean, _mappable=None, _expected=None):
-        if self.region_selection is not None:
-            regions = self.hic.subset(self.region_selection)
+        if geometric_mean:
+            self._stat = gmean
         else:
-            regions = self.hic.regions
+            self._stat = np.nanmean
+
+    def _insulation_index_lowmem(self, window_size, window_offset=0, aggr_func=None, _mappable=None,
+                                 _na_threshold=0.5, _expected=None):
+        lowmem = False
+        if aggr_func is None:
+            lowmem = True
+            aggr_func = np.ma.mean
+
+        chromosome_bins = self.hic.chromosome_bins
+        window_offset += 1
 
         if _mappable is None:
             _mappable = self.hic.mappable()
@@ -1342,100 +1552,160 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         if self.impute_missing and _expected is None:
             _expected = ExpectedContacts(self.hic, smooth=True)
 
-        nan_chromosome_counter = 0
-        nan_mask_counter = 0
-        nan_invalid_counter = 0
-        logger.debug("Starting processing")
-        skipped = 0
-        last_chromosome = None
-        ins_by_chromosome = []
-        for i, r in enumerate(regions):
-            if r.chromosome != last_chromosome:
-                logger.info("Processing chromosome {}".format(r.chromosome))
-                last_chromosome = r.chromosome
-                ins_by_chromosome.append(list())
-                unmasked = self.hic.as_matrix(key=(r.chromosome, r.chromosome),
-                                              mask_missing=False, impute_missing=False)
-                mask = np.zeros(unmasked.shape, dtype=bool)
-                for z, ix in enumerate(xrange(r.ix, r.ix + unmasked.shape[0])):
-                    if not _mappable[ix]:
-                        mask[z, :] = True
-                        mask[:, z] = True
-                hic_matrix = np.ma.MaskedArray(unmasked, mask=mask)
-                if self.impute_missing:
-                    hic_matrix = self.hic._impute_missing_contacts(hic_matrix=hic_matrix,
-                                                                   _expected_contacts=_expected)
-                logger.info("Matrix loaded.")
+        if _expected is not None:
+            intra_expected = _expected.intra_expected()
+        else:
+            intra_expected = None
 
-            rix = len(ins_by_chromosome[-1])
+        def _pair_to_bins(source, sink):
+            # correct index by chromosome and window offset
+            i = source - chromosome_start + window_offset
+            j = sink - chromosome_start - window_offset
 
-            if rix < d2 or hic_matrix.shape[0] - rix <= d2 + 1:
-                ins_by_chromosome[-1].append(np.nan)
-                nan_chromosome_counter += 1
-                continue
+            start = max(i, j - window_size + 1)
+            stop = min(j + 1, i + window_size)
+            for ii_bin in range(start, stop):
+                yield ii_bin
 
-            if not _mappable[i]:
-                ins_by_chromosome[-1].append(np.nan)
-                nan_mask_counter += 1
-                continue
-
-            up_rel_slice = (slice(rix - d2, rix - d1), slice(rix - d2, rix - d1))
-            down_rel_slice = (slice(rix + d1 + 1, rix + d2 + 1), slice(rix + d1 + 1, rix + d2 + 1))
-            ins_slice = (slice(rix + d1 + 1, rix + d2 + 1), slice(rix - d2, rix - d1))
-
-            if ((self.relative and np.sum(hic_matrix.mask[up_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
-                    (self.relative and np.sum(hic_matrix.mask[down_rel_slice]) > ((d2-d1)**2)*mask_thresh) or
-                    np.sum(hic_matrix.mask[ins_slice]) > ((d2-d1)**2)*mask_thresh):
-                # If too close to the edge of chromosome or
-                # if more than half of the entries in this quadrant are masked (unmappable)
-                # exclude it from the analysis
-                skipped += 1
-                ins_by_chromosome[-1].append(np.nan)
-                nan_invalid_counter += 1
-                continue
-
-            if not self.relative:
-                s = aggr_func(hic_matrix[ins_slice].data
-                              if self.impute_missing else hic_matrix[ins_slice])
-                ins_by_chromosome[-1].append(s)
+        ii_list = []
+        chromosomes = self.hic.chromosomes()
+        for chromosome in chromosomes:
+            chromosome_start, chromosome_stop = chromosome_bins[chromosome]
+            if lowmem:
+                values_by_chromosome = [0 for _ in range(chromosome_start, chromosome_stop)]
             else:
-                if not self.impute_missing:
-                    s = (aggr_func(hic_matrix[ins_slice]) /
-                         aggr_func(np.ma.dstack((hic_matrix[up_rel_slice],
-                                                 hic_matrix[down_rel_slice]))))
-                    ins_by_chromosome[-1].append(s)
-                else:
-                    s = (aggr_func(hic_matrix[ins_slice].data) /
-                         aggr_func(np.ma.dstack((hic_matrix[up_rel_slice].data,
-                                                 hic_matrix[down_rel_slice].data))))
-                    ins_by_chromosome[-1].append(s)
+                values_by_chromosome = [list() for _ in range(chromosome_start, chromosome_stop)]
 
-        logger.info("Skipped {} regions because >{:.1%} of matrix positions were masked".format(skipped, mask_thresh))
+            # add each edge weight to every insulation window that contains it
+            for edge in self.hic.edge_subset((chromosome, chromosome), lazy=True):
+                for ii_bin in _pair_to_bins(edge.source, edge.sink):
+                    weight = getattr(edge, self.hic.default_field)
+                    if lowmem:
+                        values_by_chromosome[ii_bin] += weight
+                    else:
+                        values_by_chromosome[ii_bin].append(weight)
 
-        for i in xrange(len(ins_by_chromosome)):
-            ins_by_chromosome[i] = np.array(ins_by_chromosome[i])
-            if self.normalise:
-                logger.info("Normalising insulation index")
-                if self.normalisation_window is not None:
-                    logger.info("Sliding window average")
-                    mean_ins = apply_sliding_func(ins_by_chromosome[i], self.normalisation_window, func=np.nanmean)
-                else:
-                    logger.info("Whole chromosome mean")
-                    mean_ins = np.nanmean(ins_by_chromosome[i])
-                if not self.subtract_mean:
-                    logger.info("Dividing by mean")
-                    ins_by_chromosome[i] = ins_by_chromosome[i] / mean_ins
-                else:
-                    logger.info("Subtracting mean")
-                    ins_by_chromosome[i] = ins_by_chromosome[i] - mean_ins
+            # add imputed values, if requested
+            if intra_expected is not None:
+                covered = set()
+                for ix in range(chromosome_start, chromosome_stop):
+                    if not _mappable[ix]:
+                        sink = ix
+                        for source in range(max(chromosome_start, ix - window_size - window_offset - 2), ix):
+                            if (source, sink) in covered:
+                                continue
+                            covered.add((source, sink))
+                            weight = intra_expected[sink - source]
+                            for ii_bin in _pair_to_bins(source, sink):
+                                if lowmem:
+                                    values_by_chromosome[ii_bin] += weight
+                                else:
+                                    values_by_chromosome[ii_bin].append(weight)
 
-        ins_matrix = np.array(list(itertools.chain.from_iterable(ins_by_chromosome)))
+                        source = ix
+                        for sink in range(ix, min(chromosome_stop, ix + window_offset + window_size + 2)):
+                            if (source, sink) in covered:
+                                continue
+                            covered.add((source, sink))
+                            weight = intra_expected[sink - source]
+                            for ii_bin in _pair_to_bins(source, sink):
+                                if lowmem:
+                                    values_by_chromosome[ii_bin] += weight
+                                else:
+                                    values_by_chromosome[ii_bin].append(weight)
 
-        logger.info("__nans__\nchromosome boundary: {}\nmasked region: {}\ninvalid balance: {}\n total: {}/{}".format(
-            nan_chromosome_counter, nan_mask_counter, nan_invalid_counter, np.sum(np.isnan(ins_matrix)), len(ins_matrix)
-        ))
+                for k in range(len(values_by_chromosome)):
+                    if (k - window_offset < window_size - 1
+                            or k + window_offset > len(values_by_chromosome) - window_size):
+                        if lowmem:
+                            values_by_chromosome[k] = np.nan
+                        else:
+                            values_by_chromosome[k] = []
+                    else:
+                        if not lowmem:
+                            for _ in range(len(values_by_chromosome[k]), window_size**2):
+                                values_by_chromosome[k].append(0)
+                        else:
+                            values_by_chromosome[k] /= window_size**2
+            # count unmappable bins in every window
+            else:
+                unmappable_horizontal = [0 for _ in range(chromosome_start, chromosome_stop)]
+                unmappable_vertical = [0 for _ in range(chromosome_start, chromosome_stop)]
+
+                for ix in range(chromosome_start, chromosome_stop):
+                    if not _mappable[ix]:
+                        # horizontal
+                        start_bin = ix - chromosome_start + window_offset
+                        for ii_bin in range(start_bin, start_bin + window_size):
+                            if 0 <= ii_bin < len(unmappable_horizontal):
+                                unmappable_horizontal[ii_bin] += 1
+                        # vertical
+                        start_bin = ix - chromosome_start - window_offset
+                        for ii_bin in range(start_bin - window_size + 1, start_bin + 1):
+                            if 0 <= ii_bin < len(unmappable_vertical):
+                                unmappable_vertical[ii_bin] += 1
+
+                for k in range(len(values_by_chromosome)):
+                    values = values_by_chromosome[k]
+                    na_vertical = unmappable_vertical[k] * window_size
+                    na_horizontal = unmappable_horizontal[k] * window_size
+                    na_overlap = unmappable_horizontal[k] * unmappable_vertical[k]
+                    na_total = na_vertical + na_horizontal - na_overlap
+
+                    # take into account nan values when adding zeros
+                    if ((na_total > (window_size**2 * _na_threshold))
+                            or k - window_offset < window_size - 1
+                            or k + window_offset > len(values_by_chromosome) - window_size):
+                        if lowmem:
+                            values_by_chromosome[k] = np.nan
+                        else:
+                            values_by_chromosome[k] = []
+                    else:
+                        if not lowmem:
+                            for _ in range(len(values), window_size**2 - na_total):
+                                values_by_chromosome[k].append(0)
+                        else:
+                            values_by_chromosome[k] /= (window_size**2 - na_total)
+
+            if lowmem:
+                ii_by_chromosome = values_by_chromosome
+            else:
+                ii_by_chromosome = []
+                for values in values_by_chromosome:
+                    ii_by_chromosome.append(np.nan) if len(values) == 0 else ii_by_chromosome.append(aggr_func(values))
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+
+                ii_by_chromosome = np.array(ii_by_chromosome)
+                if self.normalise:
+                    logger.debug("Normalising insulation index")
+                    if self.normalisation_window is not None:
+                        logger.debug("Sliding window average")
+                        mean_ins = apply_sliding_func(ii_by_chromosome, self.normalisation_window,
+                                                      func=lambda x: trim_stats(x[np.isfinite(x)],
+                                                                                self.trim_mean_proportion,
+                                                                                stat=self._stat))
+                    else:
+                        logger.debug("Whole chromosome mean")
+                        mean_ins = trim_stats(ii_by_chromosome[np.isfinite(ii_by_chromosome)],
+                                              self.trim_mean_proportion, stat=self._stat)
+
+                    if not self.subtract_mean:
+                        logger.debug("Dividing by mean")
+                        ii_by_chromosome = ii_by_chromosome / mean_ins
+                    else:
+                        logger.debug("Subtracting mean")
+                        ii_by_chromosome = ii_by_chromosome - mean_ins
+            ii_list.append(ii_by_chromosome)
+
+        ins_matrix = np.array(list(itertools.chain.from_iterable(ii_list)))
+
+        if self.region_selection is not None:
+            ins_matrix = ins_matrix[self.hic.region_bins(self.region_selection)]
+
         if self.log:
-            logger.info("Log-transforming insulation index")
+            logger.debug("Log-transforming insulation index")
             return np.log2(ins_matrix)
         else:
             return ins_matrix
@@ -1447,11 +1717,13 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         else:
             ex = None
         offset_bins = self.hic.distance_to_bins(self.offset)
+
         for window_size in self.window_sizes:
             logger.info("Calculating insulation index for window size {}".format(window_size))
             bins = self.hic.distance_to_bins(window_size)
-            insulation_index = self._insulation_index(offset_bins, offset_bins+bins,
-                                                      _mappable=mappable, _expected=ex)
+            insulation_index = self._insulation_index_lowmem(bins, offset_bins,
+                                                             _mappable=mappable, _expected=ex)
+
             self.data("ii_%d" % window_size, insulation_index)
         if ex is not None:
             ex.close()
@@ -1503,7 +1775,8 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
 
         return ii
 
-    def boundaries(self, window_size, min_score=None, delta_window=7, log=False):
+    def boundaries(self, window_size, min_score=None, delta_window=3, log=False, sub_bin_precision=False,
+                   call_maxima=False):
         """
         Call insulation boundaries based on minima in an insulation vector of this object.
 
@@ -1512,23 +1785,37 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
                           in the insulation vector for a region to be considered a
                           boundary
         :param delta_window: Window size in bins to control smoothing of the delta function
-                             used in the derivative if the insulation index.
+                             used to calculate the derivative of the insulation index.
+                             Calculation takes into account d bins upstream and d
+                             bins downstream for a total window size of 2*d + 1 bins.
         :param log: Log2-transform insulation index before boundary calls
+        :param sub_bin_precision: Call boundaries with sub bin precision, by taking
+                                  into account the precise zero transition of the delta vector.
+        :param call_maxima: Call maxima instead of minima as boundaries
         :return: list of :class:`~kaic.data.genomic.GenomicRegion`
         """
         index = self.insulation_index(window_size)
         if log:
             index = np.log2(index)
-        peaks = MaximaCallerDelta(index, window_size=delta_window)
-        minima, scores = peaks.get_minima()
+        peaks = MaximaCallerDelta(index, window_size=delta_window, sub_bin_precision=sub_bin_precision)
+        if call_maxima:
+            minima, scores = peaks.get_maxima()
+        else:
+            minima, scores = peaks.get_minima()
         regions = list(self.regions)
 
         boundaries = []
         for i, ix in enumerate(minima):
             if min_score is not None and scores[i] < min_score:
                 continue
-            region = regions[ix]
-            b = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end, score=scores[i])
+            if sub_bin_precision:
+                region = regions[int(ix)]
+                frac = ix % 1
+                shift = int((frac - .5)*(region.end - region.start))
+                b = GenomicRegion(chromosome=region.chromosome, start=region.start + shift, end=region.end + shift, score=scores[i])
+            else:
+                region = regions[ix]
+                b = GenomicRegion(chromosome=region.chromosome, start=region.start, end=region.end, score=scores[i])
             boundaries.append(b)
 
         logger.info("Found {} boundaries for window size {}".format(len(boundaries), window_size))
@@ -1544,7 +1831,7 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
     index window has a width of 1, region contact average can be as wide as required) and can be offset
     from the diagonal.
 
-    :param matrix: :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
+    :param matrix: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
                    a :class:`~kaic.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
@@ -1567,7 +1854,7 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
         self.region_selection = regions
 
         # are we retrieving an existing object?
-        if isinstance(matrix, str) and file_name is None:
+        if isinstance(matrix, string_types) and file_name is None:
             file_name = matrix
             matrix = None
 
@@ -1673,7 +1960,7 @@ class VectorDifference(MultiVectorArchitecturalRegionFeature):
 
     def __init__(self, vector1=None, vector2=None, absolute=False, file_name=None, mode='a', tmpdir=None,
                  _table_name='vector_diff'):
-        if isinstance(vector1, str) and file_name is None and vector2 is None:
+        if isinstance(vector1, string_types) and file_name is None and vector2 is None:
             file_name = vector1
             vector1 = None
 
@@ -1755,7 +2042,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
 
         ArchitecturalFeature.__init__(self)
 
-        if isinstance(array, str) and file_name is None:
+        if isinstance(array, string_types) and file_name is None:
             file_name = array
             array = None
 
@@ -1788,17 +2075,17 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         if selection is None:
             selection = range(0, len(self.array.data_field_names))
 
-        if isinstance(selection, xrange):
+        if isinstance(selection, range):
             selection = list(selection)
 
-        if isinstance(selection, int) or isinstance(selection, str):
+        if isinstance(selection, int) or isinstance(selection, string_types):
             selection = [selection]
 
         if isinstance(selection, list) or isinstance(selection, tuple):
             new_list = []
             for i in selection:
                 ix = i
-                if isinstance(i, str):
+                if isinstance(i, string_types):
                     ix = self.array.data_field_names.index(i)
                 if ix <= len(self.array.data_field_names):
                     new_list.append(ix)
@@ -1828,7 +2115,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         except ValueError:
             pass
 
-        with RareUpdateProgressBar(max_value=region_counter) as pb:
+        with RareUpdateProgressBar(max_value=region_counter, silent=config.hide_progressbars) as pb:
             counter = 0
             for chromosome in chromosomes:
                 matrix = self.array.as_matrix(chromosome)
@@ -1844,7 +2131,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
                         yield i, region, sub_matrix
                         continue
 
-                    for region_ix in xrange(bin_range.start, bin_range.stop):
+                    for region_ix in range(bin_range.start, bin_range.stop):
                         sub_matrix = matrix[region_ix - self.window_width:region_ix + self.window_width + 1, ds]
                         if self.orient_strand and hasattr(region, 'strand') and region.is_reverse():
                             sub_matrix = np.fliplr(sub_matrix)
@@ -1909,7 +2196,7 @@ class MetaArray(MetaMatrixBase):
         :return: list of ints
         """
         x = []
-        for i in xrange(-1*self.window_width, self.window_width + 1):
+        for i in range(-1*self.window_width, self.window_width + 1):
             d = self.array.bins_to_distance(i)
             x.append(d)
         return x
@@ -1947,11 +2234,11 @@ class MetaHeatmap(MetaMatrixBase):
         if data_selection is None and array is not None:
             data_selection = array.data_field_names[0]
 
-        if not isinstance(data_selection, str) and not isinstance(data_selection, int):
+        if not isinstance(data_selection, string_types) and not isinstance(data_selection, int):
             raise ValueError("data_selection parameter must be "
                              "int, str, or None, but is {}".format(type(data_selection)))
 
-        if isinstance(array, str) and file_name is None:
+        if isinstance(array, string_types) and file_name is None:
             file_name = array
             array = None
 
@@ -2000,7 +2287,7 @@ class MetaHeatmap(MetaMatrixBase):
         :return: list of ints
         """
         x = []
-        for i in xrange(-1*self.window_width, self.window_width + 1):
+        for i in range(-1*self.window_width, self.window_width + 1):
             d = self.array.bins_to_distance(i)
             x.append(d)
         return x
@@ -2029,11 +2316,11 @@ class MetaRegionAverage(MetaMatrixBase):
         if data_selection is None and array is not None:
             data_selection = array.data_field_names[0]
 
-        if not isinstance(data_selection, str) and not isinstance(data_selection, int):
+        if not isinstance(data_selection, string_types) and not isinstance(data_selection, int):
             raise ValueError("data_selection parameter must be "
                              "int, str, or None, but is {}".format(type(data_selection)))
 
-        if isinstance(array, str) and file_name is None:
+        if isinstance(array, string_types) and file_name is None:
             file_name = array
             array = None
 
@@ -2064,6 +2351,628 @@ class MetaRegionAverage(MetaMatrixBase):
         :return: numpy array
         """
         return self.meta_matrix[:]
+
+
+def cumulative_matrix(hic, regions, window, cache_matrix=False, norm=False, silent=False,
+                      _mappable=None):
+    """
+    Construct a matrix by superimposing subsets of the Hi-C matrix from different regions.
+
+    For each region, a matrix of a certain window size (region at the center) will be
+    extracted. All matrices will be added and divided by the number of regions.
+
+    :param hic: Hic object (or any RegionMatrix compatible)
+    :param regions: Iterable with :class:`GenomicRegion` objects
+    :param window: Window size in base pairs around each region
+    :param cache_matrix: Load chromosome matrices into memory to speed up matrix generation
+    :param norm: If True, will normalise the averaged maps to the expected map (per chromosome)
+    :param silent: Suppress progress bar output
+    :return: numpy array
+    """
+    bins = window/hic.bin_size
+    bins_half = max(1, int(bins/2))
+    shape = bins_half * 2 + 1
+
+    chromosome_bins = hic.chromosome_bins
+    regions_by_chromosome = defaultdict(list)
+    region_counter = 0
+    for region in regions:
+        regions_by_chromosome[region.chromosome].append(region)
+        region_counter += 1
+
+    cmatrix = np.zeros((shape, shape))
+    counter = 0
+    counter_matrix = np.zeros((shape, shape))
+    with RareUpdateProgressBar(max_value=len(regions), silent=silent) as pb:
+        i = 0
+        for chromosome, chromosome_regions in regions_by_chromosome.items():
+            if chromosome not in chromosome_bins:
+                continue
+
+            matrix_expected = np.ones((shape, shape))
+            if norm:
+                with ExpectedContacts(hic, regions=chromosome) as ex:
+                    intra_expected = ex.intra_expected()
+
+                    for j in range(shape):
+                        matrix_expected[kth_diag_indices(shape, j)] = intra_expected[j]
+                        matrix_expected[kth_diag_indices(shape, -1 * j)] = intra_expected[j]
+
+            if cache_matrix:
+                chromosome_matrix = hic.as_matrix((chromosome, chromosome), mask_missing=True,
+                                                  _mappable=_mappable)
+                offset = chromosome_bins[chromosome][0]
+            else:
+                chromosome_matrix = hic
+                offset = 0
+
+            for region in chromosome_regions:
+                i += 1
+
+                center_region = GenomicRegion(chromosome=chromosome, start=region.center, end=region.center)
+                center_bin = list(hic.subset(center_region))[0].ix
+                if center_bin - bins_half < chromosome_bins[chromosome][0] \
+                        or chromosome_bins[chromosome][1] <= center_bin + bins_half + 1:
+                    continue
+                center_bin -= offset
+
+                s = slice(center_bin-bins_half, center_bin+bins_half+1)
+                if cache_matrix:
+                    matrix = chromosome_matrix[s, s]
+                else:
+                    matrix = chromosome_matrix.as_matrix((s, s), mask_missing=True,
+                                                         _mappable=_mappable)
+
+                if matrix.shape[0] != matrix.shape[1] or matrix.shape[0] != shape:
+                    continue
+
+                cmatrix += matrix / matrix_expected
+                inverted_mask = ~matrix.mask
+                counter_matrix += inverted_mask.astype('int')
+                counter += 1
+                pb.update(i)
+
+    if counter is None:
+        raise ValueError("No valid regions found!")
+
+    cmatrix /= counter_matrix
+
+    if norm:
+        cmatrix = np.log2(cmatrix)
+
+    return cmatrix
+
+
+def _aggregate_region_bins(hic, region, offset=0):
+    region_slice = hic.region_bins(region)
+    return region_slice.start-offset, region_slice.stop-offset
+
+
+def extract_submatrices(hic, region_pairs, norm=False,
+                        log=True, cache=True, mask=True, mask_inf=True,
+                        keep_invalid=False, orient_strand=False):
+    cl = hic.chromosome_lengths
+    cb = hic.chromosome_bins
+
+    valid_region_pairs = defaultdict(list)
+    invalid_region_pairs = list()
+    logger.info("Checking region pair validity...")
+    valid, invalid = 0, 0
+    for ix, (region1, region2) in enumerate(region_pairs):
+        is_invalid = False
+        if region1 is None or region2 is None:
+            is_invalid = True
+        elif region1.start < 1 or region1.chromosome not in cl or region1.end > cl[region1.chromosome]:
+            is_invalid = True
+        elif region2.start < 1 or region2.chromosome not in cl or region2.end > cl[region2.chromosome]:
+            is_invalid = True
+        if is_invalid:
+            invalid += 1
+            invalid_region_pairs.append(ix)
+        else:
+            valid += 1
+            valid_region_pairs[(region1.chromosome, region2.chromosome)].append((ix, region1, region2))
+    logger.info("{}/{} region pairs are invalid".format(invalid, valid))
+
+    logger.info("Calculating mappability...")
+    mappable = hic.mappable()
+
+    intra_expected, inter_expected = dict(), None
+    if norm:
+        logger.info("Calculating expected values...")
+        _, intra_expected, inter_expected = hic.expected_values()
+
+    order = []
+    matrices = []
+    with RareUpdateProgressBar(max_value=valid, prefix='Matrices') as pb:
+        current_matrix = 0
+        for (chromosome1, chromosome2), regions_pairs_by_chromosome in valid_region_pairs.items():
+            if cache:
+                matrix = hic.as_matrix((chromosome1, chromosome2), mask_missing=mask,
+                                       _mappable=mappable)
+                offset1 = cb[chromosome1][0]
+                offset2 = cb[chromosome2][0]
+            else:
+                matrix = hic
+                offset1 = 0
+                offset2 = 0
+
+            for (region_ix, region1, region2) in regions_pairs_by_chromosome:
+                current_matrix += 1
+                region1_bins = _aggregate_region_bins(hic, region1, offset1)
+                region2_bins = _aggregate_region_bins(hic, region2, offset2)
+
+                if cache:
+                    ms = matrix[region1_bins[0]:region1_bins[1], region2_bins[0]: region2_bins[1]]
+                    m = ms.copy()
+                    del ms
+                else:
+                    s1 = slice(region1_bins[0], region1_bins[1])
+                    s2 = slice(region2_bins[0], region2_bins[1])
+                    m = hic.as_matrix((s1, s2), mask_missing=mask, _mappable=mappable)
+
+                if norm:
+                    e = np.ones(m.shape)
+                    if chromosome1 != chromosome2:
+                        e.fill(inter_expected)
+                    else:
+                        for i, row in enumerate(range(region1_bins[0], region1_bins[1])):
+                            for j, col in enumerate(range(region2_bins[0], region2_bins[1])):
+                                ix = abs(col - row)
+                                e[i, j] = intra_expected[chromosome1][ix]
+
+                    if log:
+                        m = np.log2(m/e)
+                        m[np.isnan(m)] = 0.
+                    else:
+                        m = m/e
+                        m[np.isnan(m)] = 1
+
+                if mask_inf:
+                    m_mask = np.isinf(m)
+                    if not hasattr(m, 'mask'):
+                        m = np.ma.masked_where(m_mask, m)
+                    m.mask += m_mask
+
+                if orient_strand and region1.is_reverse() and region2.is_reverse():
+                    m = np.flip(np.flip(m, 0), 1)
+
+                pb.update(current_matrix)
+                matrices.append(m)
+                order.append(region_ix)
+
+            if cache:
+                del matrix
+
+    if keep_invalid:
+        for region_ix in invalid_region_pairs:
+            matrices.append(None)
+            order.append(region_ix)
+
+    return [matrices[ix] for ix in np.argsort(order)]
+
+
+def _rescale_oe_matrix(matrix, bin_size, scaling_exponent=-0.25):
+    rm = np.zeros(matrix.shape)
+    b = bin_size
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            v = (abs(i - j) * b + b) ** scaling_exponent
+            try:
+                if matrix.mask[i, j]:
+                    continue
+            except AttributeError:
+                pass
+            rm[i, j] = v * matrix[i, j]
+            rm[j, i] = v * matrix[j, i]
+    return rm
+
+
+def aggregate_boundaries(hic, boundary_regions, window=200000,
+                         rescale=False, scaling_exponent=-0.25,
+                         **kwargs):
+    kwargs.setdefault('norm', True)
+    kwargs.setdefault('keep_invalid', False)
+    kwargs.setdefault('log', True)
+
+    region_pairs = []
+    for region in boundary_regions:
+        new_start = int(region.center - int(window / 2))
+        new_end = int(region.center + int(window / 2))
+        new_region = GenomicRegion(chromosome=region.chromosome, start=new_start, end=new_end,
+                                   strand=region.strand)
+        region_pairs.append((new_region, new_region))
+
+    counter_matrix = None
+    matrix_sum = None
+    for m in extract_submatrices(hic, region_pairs, **kwargs):
+        if counter_matrix is None:
+            shape = m.shape
+            counter_matrix = np.zeros(shape)
+            matrix_sum = np.zeros(shape)
+
+        if hasattr(m, 'mask'):
+            inverted_mask = ~m.mask
+            counter_matrix += inverted_mask.astype('int')
+        else:
+            counter_matrix += np.ones(counter_matrix.shape)
+
+        matrix_sum += m
+
+    am = matrix_sum / counter_matrix
+
+    if rescale:
+        am = _rescale_oe_matrix(am, hic.bin_size, scaling_exponent=scaling_exponent)
+
+    return am
+
+
+def _tad_matrix_iterator(hic, tad_regions, absolute_extension=0, relative_extension=1., **kwargs):
+    region_pairs = []
+    for region in tad_regions:
+        new_region = region.expand(absolute=absolute_extension, relative=relative_extension)
+        region_pairs.append((new_region, new_region))
+
+    for m in extract_submatrices(hic, region_pairs, **kwargs):
+        yield m
+
+
+def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=-0.25,
+                   interpolation='nearest', keep_mask=True,
+                   absolute_extension=0, relative_extension=1.0,
+                   **kwargs):
+    kwargs.setdefault('norm', True)
+    kwargs.setdefault('keep_invalid', False)
+    kwargs.setdefault('log', True)
+
+    shape = (pixels, pixels)
+    counter_matrix = np.zeros(shape)
+    matrix_sum = np.zeros(shape)
+    for m in _tad_matrix_iterator(hic, tad_regions,
+                                  absolute_extension=absolute_extension,
+                                  relative_extension=relative_extension, **kwargs):
+        ms = imresize(m, shape, interp=interpolation, mode='F')
+
+        if keep_mask and hasattr(ms, 'mask'):
+            mask = imresize(m.mask, shape, interp='nearest').astype('bool')
+            ms = np.ma.masked_where(mask, ms)
+            inverted_mask = ~mask
+            counter_matrix += inverted_mask.astype('int')
+        else:
+            counter_matrix += np.ones(shape)
+
+        matrix_sum += ms
+
+    am = matrix_sum/counter_matrix
+
+    if rescale:
+        am = _rescale_oe_matrix(am, hic.bin_size, scaling_exponent=scaling_exponent)
+
+    return am
+
+
+def tad_strength(hic, tad_regions, **kwargs):
+    kwargs.setdefault('norm', True)
+    kwargs.setdefault('keep_invalid', False)
+    kwargs.setdefault('log', False)
+    kwargs['relative_extension'] = 1.
+    kwargs['absolute_extension'] = 0
+
+    tad_strengths = []
+    for m in _tad_matrix_iterator(hic, tad_regions, **kwargs):
+        tl = int(m.shape[0]/3)
+        upper_third = slice(0, tl)
+        middle_third = slice(tl, 2*tl)
+        lower_third = slice(2*tl, m.shape[0])
+        tad_sum = m[middle_third, middle_third].sum() / np.logical_not(m.mask)[middle_third, middle_third].sum()
+        upper_sum = m[upper_third, middle_third].sum() / np.logical_not(m.mask)[upper_third, middle_third].sum()
+        lower_sum = m[lower_third, upper_third].sum() / np.logical_not(m.mask)[lower_third, upper_third].sum()
+        ts = float(tad_sum / ((upper_sum + lower_sum) / 2))
+        tad_strengths.append(np.log2(ts))
+    return tad_strengths
+
+
+def _loop_regions_from_bedpe(bedpe):
+    anchors = []
+    for region in bedpe.regions:
+        a1 = GenomicRegion(chromosome=region.chromosome1, start=region.start1, end=region.end1)
+        a2 = GenomicRegion(chromosome=region.chromosome2, start=region.start2, end=region.end2)
+        anchors.append((a1, a2))
+    return anchors
+
+
+def _loop_matrix_iterator(hic, loop_regions, pixels=16, **kwargs):
+    left = int(pixels / 2)
+    right = left if pixels % 2 == 1 else left - 1
+
+    if isinstance(loop_regions, Bedpe):
+        loop_regions = _loop_regions_from_bedpe(loop_regions)
+
+    bin_size = hic.bin_size
+    region_pairs = []
+    invalid = 0
+    for (anchor1, anchor2) in loop_regions:
+        a1 = GenomicRegion(chromosome=anchor1.chromosome, start=anchor1.center, end=anchor1.center)
+        a2 = GenomicRegion(chromosome=anchor2.chromosome, start=anchor2.center, end=anchor2.center)
+
+        try:
+            r1 = list(hic.regions(a1))[0].copy()
+            r2 = list(hic.regions(a2))[0].copy()
+            r1.start -= left * bin_size
+            r1.end += right * bin_size
+            r2.start -= left * bin_size
+            r2.end += right * bin_size
+            region_pairs.append((r1, r2))
+        except IndexError:
+            invalid += 1
+            region_pairs.append((None, None))
+
+    if invalid > 0:
+        logger.warning("{} region pairs invalid, most likely due to missing chromosome data".format(invalid))
+
+    for m in extract_submatrices(hic, region_pairs, **kwargs):
+        yield m
+
+
+def aggregate_loops(hic, loop_regions, pixels=16, **kwargs):
+    kwargs.setdefault('norm', True)
+    kwargs.setdefault('keep_invalid', False)
+    kwargs.setdefault('log', True)
+
+    shape = (pixels, pixels)
+    counter_matrix = np.zeros(shape)
+    matrix_sum = np.zeros(shape)
+    for m in _loop_matrix_iterator(hic, loop_regions, pixels=pixels, **kwargs):
+        if hasattr(m, 'mask'):
+            inverted_mask = ~m.mask
+            counter_matrix += inverted_mask.astype('int')
+        else:
+            counter_matrix += np.ones(shape)
+        matrix_sum += m
+
+    return matrix_sum/counter_matrix
+
+
+def loop_strength(hic, loop_regions, pixels=16, **kwargs):
+    kwargs.setdefault('log', False)
+    kwargs.setdefault('norm', True)
+    kwargs['keep_invalid'] = True
+
+    if isinstance(loop_regions, Bedpe):
+        loop_regions = _loop_regions_from_bedpe(loop_regions)
+
+    # generating new regions
+    new_region_pairs = []  # 0: original, 1: control left, 2: control right
+    for (region1, region2) in loop_regions:
+        d = int(abs(region1.center - region2.center))
+        new_left = GenomicRegion(chromosome=region1.chromosome, start=region1.start - d, end=region1.end - d)
+        new_right = GenomicRegion(chromosome=region1.chromosome, start=region2.start + d, end=region2.end + d)
+        new_region_pairs.append((region1, region2))
+        new_region_pairs.append((new_left, region1))
+        new_region_pairs.append((region2, new_right))
+
+    original, left, right = [], [], []
+    for i, m in enumerate(_loop_matrix_iterator(hic, new_region_pairs, pixels=pixels, **kwargs)):
+        if m is not None:
+            value = float(m.sum()/np.logical_not(m.mask).sum())
+        else:
+            value = None
+
+        if i % 3 == 0:
+            original.append(value)
+        elif i % 3 == 1:
+            left.append(value)
+        else:
+            right.append(value)
+
+    ratios = []
+    for i in range(len(original)):
+        if original[i] is None:
+            continue
+        if left[i] is None and right[i] is None:
+            continue
+
+        if left[i] is None:
+            r = original[i]/right[i]
+        elif right[i] is None:
+            r = original[i]/left[i]
+        else:
+            r = original[i]/((left[i]+right[i])/2)
+        ratios.append(np.log2(r))
+    return ratios
+
+
+def vector_enrichment_profile(oe, vector, mappable=None, per_chromosome=True,
+                              percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
+                              symmetric_at=None, exclude_chromosomes=()):
+    if len(exclude_chromosomes) > 0:
+        chromosome_bins = oe.chromosome_bins
+        exclude_vector = []
+        for chromosome in oe.chromosomes():
+            if chromosome not in exclude_chromosomes:
+                b = chromosome_bins[chromosome]
+                for v in vector[b[0]:b[1]]:
+                    exclude_vector.append(v)
+                # exclude_vector += vector[b[0]:b[1]]
+    else:
+        exclude_vector = vector
+    exclude_vector = np.array(exclude_vector)
+
+    if symmetric_at is not None:
+        lv = exclude_vector[exclude_vector <= symmetric_at]
+        gv = exclude_vector[exclude_vector > symmetric_at]
+        lv_cutoffs = np.nanpercentile(lv, percentiles)
+        gv_cutoffs = np.nanpercentile(gv, percentiles)
+        bin_cutoffs = np.concatenate((lv_cutoffs, gv_cutoffs))
+    else:
+        bin_cutoffs = np.nanpercentile(exclude_vector, percentiles)
+
+    bins = []
+    for value in vector:
+        bins.append(bisect_left(bin_cutoffs, value))
+
+    s = len(bin_cutoffs)
+    m = np.zeros((s, s))
+    c = np.zeros((s, s))
+
+    if mappable is None:
+        mappable = oe.mappable()
+
+    if per_chromosome:
+        for chromosome in oe.chromosomes():
+            if chromosome in exclude_chromosomes:
+                continue
+            oem = oe[chromosome, chromosome]
+            for i, row_region in enumerate(oem.row_regions):
+                if not mappable[row_region.ix]:
+                    continue
+                i_bin = s - bins[row_region.ix] - 1
+                for j, col_region in enumerate(oem.col_regions):
+                    if not mappable[col_region.ix]:
+                        continue
+                    j_bin = s - bins[col_region.ix] - 1
+                    value = oem[i, j]
+
+                    m[i_bin, j_bin] += value
+                    c[i_bin, j_bin] += 1
+                    m[j_bin, i_bin] += value
+                    c[j_bin, i_bin] += 1
+    else:
+        oem = oe[:]
+        for i in range(oem.shape):
+            if not mappable[i]:
+                continue
+            i_bin = s - bins[i] - 1
+            for j in range(i, oem.shape):
+                if not mappable[j]:
+                    continue
+                j_bin = s - bins[j] - 1
+                value = oem[i, j]
+
+                m[i_bin, j_bin] += value
+                c[i_bin, j_bin] += 1
+                m[j_bin, i_bin] += value
+                c[j_bin, i_bin] += 1
+
+    m /= c
+    # m[c == 0] = 0
+    rev_cutoffs = bin_cutoffs[::-1]
+    for i in range(len(rev_cutoffs) - 1, 0, -1):
+        if np.isclose(rev_cutoffs[i - 1], rev_cutoffs[i]):
+            m[:, i - 1] = m[:, i]
+            m[i - 1, :] = m[i, :]
+
+    return np.log2(m), rev_cutoffs
+
+
+def region_score_enrichment_profile(hic, regions, per_chromosome=True,
+                                    percentiles=(20.0, 40.0, 60.0, 80.0, 100.0)):
+
+    regions_chromosomes = set(hic.chromosomes())
+    vector = []
+    for chromosome in hic.chromosomes():
+        if chromosome not in regions_chromosomes:
+            continue
+
+        v = [r.score for r in regions.subset(chromosome)]
+
+        lh = len(list(hic.regions(chromosome)))
+        if lh != len(v):
+            raise ValueError("The number of values in chromosome {} is not equal to the "
+                             "number of regions in the Hi-C object ({} vs {})!".format(chromosome,
+                                                                                       len(v), lh))
+
+        vector += v
+
+    with ObservedExpectedRatio(hic, per_chromosome=per_chromosome) as oe:
+        mappable = hic.mappable()
+        return vector_enrichment_profile(oe, vector, mappable=mappable, per_chromosome=per_chromosome,
+                                         percentiles=percentiles)
+
+
+def ab_enrichment_profile(hic, genome, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
+                          per_chromosome=True, only_gc=False, symmetric_at=None,
+                          exclude_chromosomes=()):
+
+    logger.info("Generating profile...")
+    with ObservedExpectedRatio(hic, per_chromosome=per_chromosome) as oe:
+        if only_gc:
+            # calculate GC content
+            if isinstance(genome, string_types):
+                logger.info("Loading genome...")
+                genome = Genome.from_string(genome)
+
+            logger.info("Calculating GC content...")
+            gc_content = [np.nan] * len(hic.regions)
+            for chromosome in hic.chromosomes():
+                logger.info("{}".format(chromosome))
+                chromosome_sequence = genome[chromosome].sequence
+                for region in hic.regions(chromosome):
+                    s = chromosome_sequence[region.start - 1:region.end]
+                    gc_content[region.ix] = calculate_gc_content(s)
+            gc_content = np.array(gc_content)
+            ev = gc_content
+        else:
+            with ABDomainMatrix(oe, ratio=False, per_chromosome=per_chromosome) as ab:
+                with ABDomains(ab, genome=genome) as abd:
+                    ev = np.array(abd.ab_domain_eigenvector())
+
+        mappable = hic.mappable()
+        return vector_enrichment_profile(oe, ev, mappable=mappable, per_chromosome=per_chromosome,
+                                         percentiles=percentiles, symmetric_at=symmetric_at,
+                                         exclude_chromosomes=exclude_chromosomes)
+
+
+def contact_directionality_bias(hic, regions, distance=1000000, region_anchor='center', **kwargs):
+    forward_region_pairs = []
+    reverse_region_pairs = []
+    for region in regions:
+        pos = int(getattr(region, region_anchor))
+        new_region = GenomicRegion(chromosome=region.chromosome, start=pos, end=pos, strand=region.strand)
+        if region.is_forward():
+            forward_region_pairs.append((new_region, new_region.expand(absolute=distance)))
+        else:
+            reverse_region_pairs.append((new_region, new_region.expand(absolute=distance)))
+
+    cumulative_forward = np.zeros(int(distance / hic.bin_size) * 2 + 1)
+    count_forward = np.zeros(int(distance / hic.bin_size) * 2 + 1)
+    for matrix in extract_submatrices(hic, forward_region_pairs, **kwargs):
+        cumulative_forward += matrix[0, :]
+        if hasattr(matrix, 'mask'):
+            inverted_mask = ~matrix.mask
+            count_forward += inverted_mask.astype('int')[0, :]
+        else:
+            count_forward += np.ones(count_forward.shape)
+
+    cumulative_reverse = np.zeros(int(distance / hic.bin_size) * 2 + 1)
+    count_reverse = np.zeros(int(distance / hic.bin_size) * 2 + 1)
+    for matrix in extract_submatrices(hic, reverse_region_pairs, **kwargs):
+        cumulative_reverse += matrix[0, :]
+        if hasattr(matrix, 'mask'):
+            inverted_mask = ~matrix.mask
+            count_reverse += inverted_mask.astype('int')[0, :]
+        else:
+            count_reverse += np.ones(count_reverse.shape)
+
+    avg_forward = cumulative_forward / count_forward
+    avg_reverse = cumulative_reverse / count_reverse
+
+    bin_size = hic.bin_size
+    d = []
+    ratio_forward = []
+    ratio_reverse = []
+    center = int(len(avg_forward)/2)
+    for ix in range(center + 1):
+        d.append(ix * bin_size)
+        ratio_forward.append(avg_forward[center + ix] / avg_forward[center - ix])
+        ratio_reverse.append(avg_reverse[center + ix] / avg_reverse[center - ix])
+
+    return d, ratio_forward, ratio_reverse
+
+
+"""
+Filters for architecture objects
+"""
 
 
 class ZeroWeightFilter(MatrixArchitecturalRegionFeatureFilter):
@@ -2114,8 +3023,7 @@ class ExpectedObservedCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
 
         self.intra_expected = dict()
         self.inter_expected = dict()
-        for i in xrange(n_hic):
-            print 'weight_' + str(i)
+        for i in range(n_hic):
             with ExpectedContacts(collection, weight_column='weight_' + str(i)) as ex:
                 self.intra_expected[i] = ex.intra_expected()
                 self.inter_expected[i] = ex.inter_expected()
@@ -2136,7 +3044,7 @@ class ExpectedObservedCollectionFilter(MatrixArchitecturalRegionFeatureFilter):
         if self.regions_dict[source].chromosome == self.regions_dict[sink].chromosome:
             intra = True
         n_failed = 0
-        for i in xrange(self.n_hic):
+        for i in range(self.n_hic):
             if intra:
                 expected = self.intra_expected[i][abs(sink-source)]
             else:
@@ -2176,18 +3084,18 @@ class BackgroundLigationCollectionFilter(MatrixArchitecturalRegionFeatureFilter)
         inter_sum = defaultdict(int)
         for edge in collection.edges(lazy=True):
             intra = regions_dict[edge.source].chromosome == regions_dict[edge.sink].chromosome
-            for i in xrange(n_hic):
+            for i in range(n_hic):
                 if intra:
                     inter_count[i] += 1
                     inter_sum[i] += getattr(edge, 'weight_' + str(i))
 
         if all_contacts:
             with PossibleContacts(collection, weight_column='weight_0') as pc:
-                for i in xrange(n_hic):
+                for i in range(n_hic):
                     inter_count[i] = pc.inter_possible()
 
         self.cutoff = dict()
-        for i in xrange(n_hic):
+        for i in range(n_hic):
             if inter_count[i] == 0:
                 self.cutoff[i] = 0
             else:
@@ -2202,7 +3110,7 @@ class BackgroundLigationCollectionFilter(MatrixArchitecturalRegionFeatureFilter)
         the expected weight for this contact.
         """
         n_failed = 0
-        for i in xrange(self.n_hic):
+        for i in range(self.n_hic):
             if getattr(edge, 'weight_' + str(i)) < self.cutoff[i]:
                 if self.filter_single:
                     return False

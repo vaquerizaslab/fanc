@@ -1,17 +1,17 @@
 from __future__ import division, print_function
 from kaic.config import config
-from kaic.plotting.helpers import style_ticks_whitegrid
+from kaic.plotting.helpers import style_ticks_whitegrid, LimitGroup
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from kaic.data.genomic import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
 import numpy as np
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import seaborn as sns
 import math
+from future.utils import with_metaclass, string_types
 import logging
 logger = logging.getLogger(__name__)
-
-plt = sns.plt
 
 
 class GenomeCoordFormatter(Formatter):
@@ -19,9 +19,10 @@ class GenomeCoordFormatter(Formatter):
     Process axis tick labels to give nice representations
     of genomic coordinates
     """
-    def __init__(self, chromosome, display_scale=True):
+    def __init__(self, chromosome, minor_div=None, display_scale=True, display_chromosome=True):
         """
         :param chromosome: :class:`~kaic.data.genomic.GenomicRegion` or string
+        :param minor_div: Divide each major tick by this many minor ticks.
         :param display_scale: Boolean
                               Display distance scale at bottom right
         """
@@ -29,7 +30,9 @@ class GenomeCoordFormatter(Formatter):
             self.chromosome = chromosome.chromosome
         else:
             self.chromosome = chromosome
+        self.minor_div = minor_div
         self.display_scale = display_scale
+        self.display_chromosome = display_chromosome
 
     def _format_val(self, x, prec_offset=0):
         if x == 0:
@@ -38,8 +41,11 @@ class GenomeCoordFormatter(Formatter):
             oom_loc = int(math.floor(math.log10(abs(x))))
         view_range = self.axis.axes.get_xlim()
         oom_range = int(math.floor(math.log10(abs(view_range[1] - view_range[0]))))
-        if oom_loc >= 3:
-            return "{:.{prec}f}kb".format(x/1000, prec=max(0, 3 + prec_offset - oom_range))
+
+        if oom_loc >= 6:
+            return "{:.{prec}f}Mb".format(x / 1000000, prec=max(1, 6 + prec_offset - oom_range))
+        elif oom_loc >= 3:
+            return "{:.{prec}f}kb".format(x/1000, prec=max(1, 3 + prec_offset - oom_range))
         return "{:.0f}b".format(x)
 
     def __call__(self, x, pos=None):
@@ -48,7 +54,7 @@ class GenomeCoordFormatter(Formatter):
         ticks can be specified with pos. First tick gets chromosome name.
         """
         s = self._format_val(x, prec_offset=1)
-        if pos == 0 or x == 0:
+        if self.display_chromosome and (pos == 0 or x == 0):
             return "{}:{}".format(self.chromosome, s)
         return s
 
@@ -63,8 +69,8 @@ class GenomeCoordFormatter(Formatter):
             return ""
         view_range = self.axis.axes.get_xlim()
         view_dist = abs(view_range[1] - view_range[0])
-        tick_dist = self.locs[2] - self.locs[1]
-        minor_tick_dist = tick_dist/5
+        tick_dist = abs(self.locs[1] - self.locs[0])
+        minor_tick_dist = abs(tick_dist/self.minor_div)
         minor_tick_dist_str = self._format_val(minor_tick_dist, prec_offset=2)
         tick_dist_str = self._format_val(tick_dist, prec_offset=1)
         view_dist_str = self._format_val(view_dist)
@@ -77,6 +83,7 @@ class GenomeCoordLocator(MaxNLocator):
     Behaves like default Matplotlib locator, except that it always
     places a tick at the start and the end of the window.
     """
+
     def __call__(self):
         vmin, vmax = self.axis.get_view_interval()
         ticks = self.tick_values(vmin, vmax)
@@ -92,20 +99,21 @@ class GenomeCoordLocator(MaxNLocator):
         return self.raise_if_exceeds(np.array(ticks))
 
 
-class MinorGenomeCoordLocator(Locator):
+class MinorGenomeCoordLocator(mpl.ticker.AutoMinorLocator):
     """
     Choose locations of minor tick marks between major
     tick labels. Modification of the Matplotlib AutoMinorLocator,
     except that it uses the distance between 2nd and 3rd major
     mark as reference, instead of 2nd and 3rd.
     """
+
     def __init__(self, n):
         self.ndivs = n
 
     def __call__(self):
         majorlocs = self.axis.get_majorticklocs()
         try:
-            majorstep = majorlocs[2] - majorlocs[1]
+            majorstep = majorlocs[1] - majorlocs[0]
         except IndexError:
             # Need at least two major ticks to find minor tick locations
             # TODO: Figure out a way to still be able to display minor
@@ -129,7 +137,7 @@ class MinorGenomeCoordLocator(Locator):
         if vmin > vmax:
             vmin, vmax = vmax, vmin
         if len(majorlocs) > 0:
-            t0 = majorlocs[1]
+            t0 = majorlocs[0]
             tmin = ((vmin - t0) // minorstep + 1) * minorstep
             tmax = ((vmax - t0) // minorstep + 1) * minorstep
             locs = np.arange(tmin, tmax, minorstep) + t0
@@ -153,42 +161,142 @@ def _prepare_normalization(norm="lin", vmin=None, vmax=None):
         raise ValueError("'{}'' not a valid normalization method.".format(norm))
 
 
-class BasePlotter(object):
+class PlotMeta(ABCMeta):
+    """
+    Metaclass for all plotting classes. Automatically adds
+    all parent classes' __init__ method docstrings to the subclasses'
+    __init__ method docstring.
+    """
 
-    __metaclass__ = ABCMeta
+    def __new__(cls, clsname, bases, dct):
+        new_init_doc = dct["__init__"].__doc__
+        if new_init_doc is None:
+            new_init_doc = ""
+        for b in bases:
+            if b.__name__ == "object":
+                continue
+            if b.__init__.__doc__ is not None and len(b.__init__.__doc__) > 1:
+                # new_init_doc += "\nArguments from {}:".format(b.__name__)
+                new_init_doc += b.__init__.__doc__
+        if len(new_init_doc) > 0:
+            dct["__init__"].__doc__ = new_init_doc
+        return super(PlotMeta, cls).__new__(cls, clsname, bases, dct)
 
-    def __init__(self, title='', aspect=1., axes_style="ticks"):
-        self.ax = None
+
+class BasePlotter(with_metaclass(PlotMeta, object)):
+
+    def __init__(self, title='', aspect=1., axes_style="ticks", ylabel=None,
+                 draw_ticks=True, draw_minor_ticks=True, draw_major_ticks=True,
+                 draw_tick_labels=True, draw_tick_legend=True, draw_x_axis=True,
+                 draw_chromosome_label=True, padding=None, extra_padding=0,
+                 fix_chromosome=False, invert_x=False, ax=None, **kwargs):
+        """
+        :param str title: Title drawn on top of the figure panel.
+        :param float aspect: Aspect ratio of the plot, height/width.
+                             So 0.5 means half as high as wide.
+                             Default: Plot type specific sensible value
+        :param axes_style: Set styling of the axes, can be anything
+                           that seaborn supports. See
+                           http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style
+        :param str ylabel: Label for y-axis. Default: None
+        :param bool draw_ticks: Draw tickmarks. Default: True
+        :param bool draw_major_ticks: Draw major tickmarks. Default: True
+        :param bool draw_minor_ticks: Draw minor tickmarks. Default: True
+        :param bool draw_tick_labels: Draw tick labels. Default: True
+        :param bool draw_x_axis: If False, remove genome x-axis completely.
+                                 Default: True
+        :param bool draw_tick_legend: Draw legend for the tick distances. Default: True
+        :param float padding: Padding in inches to the next plot. Default: None,
+                              automatically calculated.
+        :param float extra_padding: Add or subtract the specified inches from
+                                    the automatically calculated padding from
+                                    this panel to the next.
+        :param bool fix_chromosome: If True modify chromosome identifiers for this plot,
+                                    removing or adding 'chr' as necessary. Default: False
+        :param bool invert_x: Invert x-axis. Default=False
+                              Caution: This only works reliably when ``independent_x=True``
+                              in the GenomicFigure instance, since x-axis of all plots
+                              are linked otherwise.
+        :param Axes ax: Matplotlib axes instance that the plot will be drawn on.
+                        Only necessary if you don't intend to use a 
+                        :class:`~kaic.plotting.plotter.GenomicFigure` to draw the
+                        plot. Default: None
+        """
+        if len(kwargs) > 0:
+            raise TypeError("Unexpected keyword argument used: {}".format(kwargs))
+        self.ax = ax
         self.cax = None
         self.title = title
-        self.has_legend = False
-        self._aspect = aspect
+        self._has_legend = False
+
+        self._draw_ticks = draw_ticks
+        self._draw_major_ticks = draw_major_ticks
+        self._draw_minor_ticks = draw_minor_ticks
+        if not self._draw_ticks:
+            self._draw_major_ticks = False
+            self._draw_minor_ticks = False
+        elif not self._draw_major_ticks or not self._draw_minor_ticks:
+            self._draw_ticks = False
+        self._draw_chromosome_label = draw_chromosome_label
+
+        self._draw_tick_labels = draw_tick_labels
+        self._draw_x_axis = draw_x_axis
+        self._draw_tick_legend = draw_tick_legend
+        self.aspect = aspect
+        self.padding = padding
+        # Total padding excl title and adj slider padding, set from GenomicFigure
+        self._total_padding = None
+        self.extra_padding = extra_padding
         self.axes_style = axes_style
         self.overlays = []
+        self.ylabel = ylabel
+        self.fix_chromosome = fix_chromosome
+        self._dimensions_stale = False
+        self.invert_x = invert_x
+        self._drawn = False
 
-    def _before_plot(self, region=None, *args, **kwargs):
+    def _before_plot(self, region):
+        if self._drawn:
+            self._clear()
+        self._drawn = True
         self.ax.set_title(self.title)
+        if self.ylabel and len(self.ylabel) > 0:
+            self.ax.set_ylabel(self.ylabel)
 
-    def _after_plot(self, region=None, *args, **kwargs):
+    def _after_plot(self, region):
         for o in self.overlays:
             o.plot(self, region)
+        if not self._draw_ticks:
+            self.remove_genome_ticks(major=not self._draw_major_ticks,
+                                     minor=not self._draw_minor_ticks)
+        if not self._draw_tick_labels:
+            self.remove_genome_labels()
+        if not self._draw_x_axis:
+            self.remove_genome_axis()
+        if not self._draw_tick_legend:
+            self.remove_tick_legend()
+        if self.invert_x and not self.ax.xaxis_inverted():
+            self.ax.invert_xaxis()
 
     @abstractmethod
-    def _plot(self, region=None, *args, **kwargs):
+    def _plot(self, region):
         raise NotImplementedError("Subclasses need to override _plot function")
 
-    def plot(self, region=None, ax=None, *args, **kwargs):
-        if ax is None:
-            self.ax = plt.gca()
-        else:
-            self.ax = ax
-
-        if isinstance(region, basestring):
+    def plot(self, region):
+        if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
-
-        self._before_plot(region=region, *args, **kwargs)
-        plot_output = self._plot(region=region, *args, **kwargs)
-        self._after_plot(region=region, *args, **kwargs)
+        if self.fix_chromosome:
+            chromosome = region.chromosome
+            if chromosome.startswith('chr'):
+                chromosome = chromosome[3:]
+            else:
+                chromosome = 'chr' + chromosome
+            region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
+        if self.ax is None:
+            self.ax = plt.gca()
+        self._before_plot(region)
+        plot_output = self._plot(region)
+        self._after_plot(region)
 
         if plot_output is None:
             return self.fig, self.ax
@@ -199,15 +307,48 @@ class BasePlotter(object):
         return self.ax.figure
 
     def add_legend(self, *args, **kwargs):
-        if not self.has_legend:
+        if not self._has_legend:
             self.ax.legend(*args, **kwargs)
+            self._has_legend = True
 
-    def get_default_aspect(self):
-        return self._aspect
+    def remove_genome_ticks(self, major=True, minor=True):
+        """
+        Remove all genome coordinate tickmarks.
+        """
+        if major:
+            plt.setp(self.ax.xaxis.get_majorticklines(), visible=False)
+        if minor:
+            plt.setp(self.ax.xaxis.get_minorticklines(), visible=False)
+        self._draw_ticks = False
 
-    def remove_genome_ticks(self):
-        plt.setp(self.ax.get_xticklabels(), visible=False)
-        self.ax.xaxis.offsetText.set_visible(False)
+    def remove_genome_labels(self):
+        """
+        Remove all genome coordinate labels.
+        """
+        if self.ax:
+            plt.setp(self.ax.get_xticklabels(), visible=False)
+        self._draw_tick_labels = False
+
+    def remove_genome_axis(self):
+        """
+        Remove the genome x-axis completely.
+        """
+        if self.ax:
+            self.ax.xaxis.set_visible(False)
+            self.ax.spines["bottom"].set_visible(False)
+        self._draw_x_axis = False
+        self.remove_genome_labels()
+        self.remove_genome_ticks()
+        self.remove_tick_legend()
+
+    def remove_tick_legend(self):
+        """
+        Remove the tick mark legend.
+        """
+        if self.ax:
+            self.ax.xaxis.offsetText.set_visible(False)
+            self.ax.yaxis.offsetText.set_visible(False)
+        self._draw_tick_legend = False
 
     def remove_colorbar_ax(self):
         if self.cax is None:
@@ -225,39 +366,57 @@ class BasePlotter(object):
                 overlay.__class__.__name__, plot_class))
         self.overlays.append(overlay)
 
+    def _clear(self):
+        """
+        Clear all axes of this plot.
+
+        Called when the plot() is called a second time in order to clear
+        the axes for the second plotting.
+        """
+        if self.ax:
+            self.ax.cla()
+        if self.cax:
+            self.cax.cla()
+
 
 class BasePlotter1D(BasePlotter):
 
-    __metaclass__ = ABCMeta
-
-    def __init__(self, title='', aspect=1., axes_style="ticks"):
-        BasePlotter.__init__(self, title=title, aspect=aspect,
-                             axes_style=axes_style)
+    def __init__(self, n_ticks=5, n_minor_ticks=5, **kwargs):
+        """
+        :param int n_ticks: Number of major x-axis genome coordinate ticks
+        :param int n_minor_ticks: Number of minor ticks per major tick
+        """
+        super(BasePlotter1D, self).__init__(**kwargs)
+        if n_ticks < 2:
+            raise ValueError("Need at least two ticks. Set draw_ticks to False to hide all ticks.")
+        self.n_tick_bins = n_ticks - 1
+        self.n_minor_ticks = n_minor_ticks
         self._mouse_release_handler = None
         self._last_xlim = None
         self._current_chromosome = None
 
-    def _before_plot(self, region=None, *args, **kwargs):
-        BasePlotter._before_plot(self, region=region, *args, **kwargs)
-        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region))
-        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=5))
-        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
+    def _before_plot(self, region):
+        super(BasePlotter1D, self)._before_plot(region)
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(region,
+                                                               minor_div=self.n_minor_ticks,
+                                                               display_chromosome=self._draw_chromosome_label))
+        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
+        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
+        self.ax.set_xlim(region.start, region.end)
         self._current_chromosome = region.chromosome
 
-    def _after_plot(self, region=None, *args, **kwargs):
-        BasePlotter._after_plot(self, region=region, *args, **kwargs)
-        self.ax.set_xlim(region.start, region.end)
+    def _after_plot(self, region):
+        super(BasePlotter1D, self)._after_plot(region)
         self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
 
-    def refresh(self, region=None, *args, **kwargs):
-        self._refresh(region, *args, **kwargs)
-
+    def refresh(self, region):
+        self._refresh(region)
         # this should take care of any unwanted ylim changes
         # from custom _refresh methods
         self.ax.set_xlim(self._last_xlim)
 
     @abstractmethod
-    def _refresh(self, region=None, *args, **kwargs):
+    def _refresh(self, region):
         raise NotImplementedError("Subclasses need to override _refresh function")
 
     def _mouse_release_event(self, event):
@@ -265,8 +424,8 @@ class BasePlotter1D(BasePlotter):
 
         if xlim != self._last_xlim:
             self._last_xlim = xlim
-            x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
-            x_region = GenomicRegion(x_start, x_end, self._current_chromosome)
+            x_start, x_end = (max(xlim[0], 0), xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
+            x_region = GenomicRegion(chromosome=self._current_chromosome, start=int(x_start), end=int(x_end))
             self.refresh(region=x_region)
 
 
@@ -279,11 +438,58 @@ class ScalarDataPlot(BasePlotter1D):
     _STYLE_STEP = "step"
     _STYLE_MID = "mid"
 
-    def __init__(self, style="step", title='', aspect=.2, axes_style=style_ticks_whitegrid):
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
+    def __init__(self, style="step", ylim=None, yscale="linear",
+                 condensed=False, n_yticks=3, **kwargs):
+        """
+        :param str style: 'step' Draw values in a step-wise manner for each bin
+                          'mid' Draw values connecting mid-points of bins
+        :param tupleylim: Set y-axis limits as tuple. Can leave upper or lower
+                          limit undetermined by setting None, e.g. (2.5, None).
+                          Alternatively, a :class:`~kaic.plotting.helpers.LimitGroup` instance can
+                          be passed to synchronize limits across multiple plots.
+                          Default: Automatically determined by data limits
+        :type lim: tuple(float, float)
+        :param str yscale: Scale of y-axis. Is passed to Matplotlib set_yscale,
+                           so any valid argument ("linear", "log", etc.) works
+                           Default: "linear"
+        :param bool condensed: Only show maximum y-axis tick.
+                          Default: False
+        :param int n_yticks: Number of y-axis ticks. If only the maximum
+                             tick should be displayed set condensed to True.
+                             Default: 3
+        """
+        kwargs.setdefault("aspect", .2)
+        kwargs.setdefault("axes_style", style_ticks_whitegrid)
+        super(ScalarDataPlot, self).__init__(**kwargs)
         self.style = style
+        if isinstance(ylim, LimitGroup):
+            self.ylim = None
+            self.ylim_group = ylim
+        else:
+            self.ylim = ylim
+            self.ylim_group = None
+        self.yscale = yscale
+        self.condensed = condensed
+        if n_yticks < 2:
+            raise ValueError("At least 2 ticks needed. Use condensed argument for only one.")
+        self.n_yticks = n_yticks
         if style not in self._STYLES:
-            raise ValueError("Only the styles {} are supported.".format(self._STYLES.keys()))
+            raise ValueError("Only the styles {} are supported.".format(list(self._STYLES.keys())))
+
+    def _before_plot(self, region):
+        super(ScalarDataPlot, self)._before_plot(region)
+        self.ax.set_yscale(self.yscale)
+        self.ax.yaxis.set_major_locator(MaxNLocator(nbins=self.n_yticks - 1,
+                                                    min_n_ticks=self.n_yticks))
+
+    def _after_plot(self, region):
+        super(ScalarDataPlot, self)._after_plot(region)
+        if self.ylim:
+            self.ax.set_ylim(self.ylim)
+        if self.condensed:
+            low, high = self.ax.get_ylim()
+            self.ax.set_yticks([high])
+            self.ax.set_yticklabels([high], va='top', size='large')
 
     def _get_values_per_step(self, values, region_list):
         x = np.empty(len(region_list)*2)
@@ -297,7 +503,7 @@ class ScalarDataPlot(BasePlotter1D):
     def _get_values_per_mid(self, values, region_list):
         x = np.empty(len(values), dtype=np.int_)
         for i, r in enumerate(region_list):
-            x[i] = int(round((r.end + r.start)/2))
+            x[i] = int((r.end + r.start)/2 + 0.5)
         return x, values
 
     def get_plot_values(self, values, region_list):
@@ -306,8 +512,10 @@ class ScalarDataPlot(BasePlotter1D):
         coordinates for plotting, based on the selected style.
 
         :param values: List or array of scalar values
+        :type values: numpy.ndarray or list
         :param region_list: List of class:`~kaic.data.genomic.GenomicRegion`,
                             one for each value
+        :type region_list: list(kaic.data.genomic.GenomicRegion)
         """
         return self._STYLES[self.style](self, values, region_list)
 
@@ -315,7 +523,7 @@ class ScalarDataPlot(BasePlotter1D):
                _STYLE_MID: _get_values_per_mid}
 
 
-class BasePlotterMatrix(object):
+class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
     """
     Mix-in class to provide methods for mapping colorvalues
     in special areas in the plots etc.
@@ -323,15 +531,29 @@ class BasePlotterMatrix(object):
     together with another BasePlotter class.
     """
 
-    __metaclass__ = ABCMeta
-
     def __init__(self, colormap=config.colormap_hic, norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, replacement_color=None,
-                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
-
-        if isinstance(colormap, basestring):
+                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None, **kwargs):
+        """
+        :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
+        :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
+        :param float vmin: Clip interactions below this value
+        :param float vmax: Clip interactions above this value
+        :param bool show_colorbar: Draw a colorbar. Default: True
+        :param bool blend_zero: If True then zero count bins will be drawn using replacement_color
+        :param str replacement_color: If None use the lowest color in the colormap, otherwise
+                                      use the specified color. Can be any valid matplotlib
+                                      color name or specification.
+        :param unmappable_color: Draw unmappable bins using this color. Defaults to
+                                 light gray (".9")
+        :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+                                 None (no special color).
+        :param float colorbar_symmetry: Set to enforce that the colorbar is symemtric around
+                                        this value. Default: None
+        """
+        super(BasePlotterMatrix, self).__init__(**kwargs)
+        if isinstance(colormap, string_types):
             colormap = mpl.cm.get_cmap(colormap)
-
         self.colormap = colormap
         self._vmin = vmin
         self._vmax = vmax
@@ -344,8 +566,13 @@ class BasePlotterMatrix(object):
         self.colorbar = None
         self.replacement_color = replacement_color
         self.cax = None
-        if isinstance(self.show_colorbar, mpl.axes.Axes):
-            self.cax = self.show_colorbar
+
+    def _after_plot(self, region):
+        super(BasePlotterMatrix, self)._after_plot(region)
+        if self.show_colorbar:
+            self.add_colorbar()
+        else:
+            self.remove_colorbar_ax()
 
     def get_color_matrix(self, matrix):
         """
@@ -354,6 +581,7 @@ class BasePlotterMatrix(object):
 
         :param matrix: Data matrix with values to be plotted
         """
+        matrix = np.array(matrix)
         if self.replacement_color is not None:
             cv = mpl.colors.ColorConverter()
             replacement_color = cv.to_rgba(self.replacement_color)
@@ -363,7 +591,7 @@ class BasePlotterMatrix(object):
         color_matrix = self.colormap(self.norm(matrix))
         if self.blend_zero or self.unmappable_color:
             if not hasattr(matrix, 'mask'):
-                zero_mask = np.isclose(matrix, 0.)
+                zero_mask = np.isclose(matrix, 0.) | np.isnan(matrix)
             else:
                 zero_mask = np.ma.getmaskarray(matrix)
 
@@ -377,13 +605,14 @@ class BasePlotterMatrix(object):
                 color_matrix[:, np.all(zero_mask, axis=0)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
         return color_matrix
 
-    def add_colorbar(self, ax=None, baseline=None):
+    def add_colorbar(self, ax=None, baseline=None, **kwargs):
         """
         Add colorbar to the plot.
 
-        :param ax: Optional axis on which to draw the colorbar
+        :param ax: Optional axis on which to draw the colorbar. Default: colorbar ax
         :param baseline: symmetric axis around this value. Asymmetric if None.
         """
+        kwargs.setdefault('orientation', 'vertical')
         if baseline is None and self.colorbar_symmetry is not None:
             baseline = self.colorbar_symmetry
 
@@ -392,8 +621,9 @@ class BasePlotterMatrix(object):
         cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
 
         cmap_data.set_array(np.array([self.vmin, self.vmax]))
-        self.colorbar = plt.colorbar(cmap_data, cax=ax, orientation="vertical")
+        self.colorbar = plt.colorbar(cmap_data, cax=ax, **kwargs)
         self.update_colorbar(vmin=self.vmin, vmax=self.vmax, baseline=baseline)
+        return self.colorbar
 
     def update_colorbar(self, vmin=None, vmax=None, baseline=None):
         if baseline is None and self.colorbar_symmetry is not None:
@@ -432,46 +662,52 @@ class BasePlotterMatrix(object):
 
 class BasePlotter2D(BasePlotter):
 
-    __metaclass__ = ABCMeta
-
-    def __init__(self, title, aspect=1., axes_style="ticks"):
-        BasePlotter.__init__(self, title=title, aspect=aspect,
-                                   axes_style=axes_style)
+    def __init__(self, n_ticks=3, n_minor_ticks=5, **kwargs):
+        """
+        :param int n_ticks: Number of major ticks
+        :param int n_minor_ticks: Number of minor ticks per major tick
+        """
+        kwargs.setdefault("aspect", 1.)
+        super(BasePlotter2D, self).__init__(**kwargs)
+        self.n_tick_bins = n_ticks + 2
+        self.n_minor_ticks = n_minor_ticks
         self._mouse_release_handler = None
         self._current_chromosome_x = None
         self._current_chromosome_y = None
         self._last_ylim = None
         self._last_xlim = None
 
-    def _before_plot(self, region=None, *args, **kwargs):
+    def _before_plot(self, region):
         x_region, y_region = region
-        BasePlotter._before_plot(self, region=x_region, *args, **kwargs)
-        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region))
-        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=5))
-        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
-        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region))
-        self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=5))
-        self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=5))
+        super(BasePlotter2D, self)._before_plot(x_region)
+        self.ax.xaxis.set_major_formatter(GenomeCoordFormatter(x_region, minor_div=self.n_minor_ticks,
+                                                               display_chromosome=self._draw_chromosome_label))
+        self.ax.xaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
+        self.ax.xaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
+        self.ax.yaxis.set_major_formatter(GenomeCoordFormatter(y_region, minor_div=self.n_minor_ticks,
+                                                               display_chromosome=self._draw_chromosome_label))
+        self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
+        self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
+        self.ax.set_xlim(x_region.start, x_region.end)
+        self.ax.set_ylim(y_region.start, y_region.end)
         self._current_chromosome_x = x_region.chromosome
         self._current_chromosome_y = y_region.chromosome
 
-    def _after_plot(self, region=None, *args, **kwargs):
+    def _after_plot(self, region):
         x_region, y_region = region
-        BasePlotter._after_plot(self, region=x_region, *args, **kwargs)
-        self.ax.set_xlim(x_region.start, x_region.end)
-        self.ax.set_ylim(y_region.start, y_region.end)
+        super(BasePlotter2D, self)._after_plot(region)
         self._mouse_release_handler = self.fig.canvas.mpl_connect('button_release_event', self._mouse_release_event)
 
-    def refresh(self, region=None, *args, **kwargs):
-        self._refresh(region, *args, **kwargs)
+    def refresh(self, region):
+        self._refresh(region)
 
         # this should take care of any unwanted ylim changes
-        # from custom _refresh methods
+        # from custom _refresh method
         self.ax.set_xlim(self._last_xlim)
         self.ax.set_ylim(self._last_ylim)
 
     @abstractmethod
-    def _refresh(self, region=None, *args, **kwargs):
+    def _refresh(self, region):
         raise NotImplementedError("Subclasses need to override _refresh function")
 
     def _mouse_release_event(self, event):
@@ -482,46 +718,41 @@ class BasePlotter2D(BasePlotter):
             self._last_xlim = xlim
             self._last_ylim = ylim
             x_start, x_end = (xlim[0], xlim[1]) if xlim[0] < xlim[1] else (xlim[1], xlim[0])
-            x_region = GenomicRegion(x_start, x_end, self._current_chromosome_x)
+            x_region = GenomicRegion(chromosome=self._current_chromosome_x, start=x_start, end=x_end)
             y_start, y_end = (ylim[0], ylim[1]) if ylim[0] < ylim[1] else (ylim[1], ylim[0])
-            y_region = GenomicRegion(y_start, y_end, self._current_chromosome_y)
+            y_region = GenomicRegion(chromosome=self._current_chromosome_y, start=y_start, end=y_end)
             self.refresh(region=(x_region, y_region))
 
-    def plot(self, regions=None, ax=None, *args, **kwargs):
-        if ax is None:
-            self.ax = plt.gca()
-        else:
-            self.ax = ax
-
+    def plot(self, regions):
         if isinstance(regions, tuple):
             x_region, y_region = regions
         else:
             x_region = regions
             y_region = x_region
 
-        if isinstance(x_region, basestring):
+        if isinstance(x_region, string_types):
             x_region = GenomicRegion.from_string(x_region)
 
-        if isinstance(y_region, basestring):
+        if isinstance(y_region, string_types):
             y_region = GenomicRegion.from_string(y_region)
 
         self._current_chromosome_x = x_region.chromosome
         self._current_chromosome_y = y_region.chromosome
 
-        self._before_plot(region=(x_region, y_region), *args, **kwargs)
-        plot_output = self._plot(region=(x_region, y_region), *args, **kwargs)
-        self._after_plot(region=(x_region, y_region), *args, **kwargs)
+        if self.ax is None:
+            self.ax = plt.gca()
+        self._before_plot((x_region, y_region))
+        plot_output = self._plot((x_region, y_region))
+        self._after_plot((x_region, y_region))
 
         if plot_output is None:
             return self.fig, self.ax
         return plot_output
 
 
-class BaseOverlayPlotter(object):
+class BaseOverlayPlotter(with_metaclass(PlotMeta, object)):
 
-    __metaclass__ = ABCMeta
-
-    def __init__(self):
+    def __init__(self, **kwargs):
         pass
 
     @abstractproperty
@@ -534,3 +765,29 @@ class BaseOverlayPlotter(object):
 
     def plot(self, base_plot, region):
         self._plot(base_plot, region)
+
+
+class BaseAnnotation(with_metaclass(PlotMeta, object)):
+
+    def __init__(self, fix_chromosome=False):
+        """
+        :param bool fix_chromosome: If True modify chromosome identifiers for this plot,
+                                    removing or adding 'chr' as necessary. Default: False
+        """
+        self.fix_chromosome = fix_chromosome
+
+    def plot(self, region):
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+        if self.fix_chromosome:
+            chromosome = region.chromosome
+            if chromosome.startswith('chr'):
+                chromosome = chromosome[3:]
+            else:
+                chromosome = 'chr' + chromosome
+            region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
+        self._plot(region)
+
+    @abstractmethod
+    def _plot(self, region):
+        raise NotImplementedError("Subclasses need to override _plot function")

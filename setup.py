@@ -1,5 +1,6 @@
 import os
-from setuptools import setup, find_packages, Command
+from setuptools import setup, find_packages, Command, Extension
+
 
 __version__ = None
 exec(open('kaic/version.py').read())
@@ -18,35 +19,51 @@ class CleanCommand(Command):
         pass
 
     def run(self):
-        os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
+        os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info ./htmlcov')
 
 
 setup(
     name='kaic',
     version=__version__,
     description='Hi-C data analysis tools.',
-    packages=find_packages(exclude=["test"]),
+    setup_requires=[
+        'setuptools>=18.0',
+        'cython'
+    ],
+    packages=find_packages(),
+    package_data={'kaic': ['test/data/*/*']},
     install_requires=[
         'numpy>=1.8.0',
         'scipy',
+        'pillow',
         'matplotlib',
-        'pandas',
-        'pysam',
+        'pandas>=0.15.0',
+        'pysam>=0.9.1',
         'biopython',
         'pytest',
         'msgpack-python',
+        'msgpack-numpy',
         'gridmap',
         'scikit-learn',
         'progressbar2',
         'pybedtools',
         'pyBigWig',
         'PyYAML',
-        'tables>=3.2.3,<=3.4.0',
+        'tables>=3.2.3',
         'seaborn',
-        'gridmap'
+        'future',
+        'gridmap',
+        'intervaltree',
+        'genomic_regions',
     ],
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={
         'clean': CleanCommand
-    }
+    },
+    ext_modules=[
+        Extension(
+            'kaic.tools.sambam',
+            sources=['kaic/tools/sambam.pyx'],
+        ),
+    ],
 )

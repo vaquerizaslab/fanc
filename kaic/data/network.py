@@ -1,23 +1,31 @@
 from __future__ import division
 import os
+from kaic.config import config
 from abc import abstractmethod, ABCMeta
 import numpy as np
 from scipy.stats import poisson
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import tables as t
-from bisect import bisect_left
-from functools import partial
-from kaic.data.genomic import RegionMatrixTable, Edge, LazyEdge
+from kaic.data.genomic import AccessOptimisedRegionMatrixTable, Edge, LazyEdge
 from kaic.data.general import MaskFilter
 import msgpack
-import time
-import multiprocessing
+import msgpack_numpy
 import math
-from kaic.architecture.hic_architecture import ExpectedContacts
-from kaic.tools.general import RareUpdateProgressBar
+import pandas as pd
+from kaic.tools.general import RareUpdateProgressBar, pairwise
 import warnings
+from future.utils import with_metaclass, viewitems
+from itertools import tee
+try:
+    from itertools import izip as zip
+except ImportError:
+    pass
 import logging
 logger = logging.getLogger(__name__)
+
+
+msgpack_numpy.patch()
+
 
 try:
     with warnings.catch_warnings():
@@ -28,13 +36,21 @@ try:
         import gridmap
         gridmap_logger.disabled = False
     has_gridmap = True
+
+    # prepare environment for better success rate
+    if 'MAX_TIME_BETWEEN_HEARTBEATS' not in os.environ:
+        os.environ['MAX_TIME_BETWEEN_HEARTBEATS'] = '600'
+    if 'SEND_ERROR_MAIL' not in os.environ:
+        os.environ['SEND_ERROR_MAIL'] = '0'
+    if 'MAX_IDLE_HEARTBEATS' not in os.environ:
+        os.environ['MAX_IDLE_HEARTBEATS'] = '20'
+    if 'IDLE_THRESHOLD' not in os.environ:
+        os.environ['IDLE_THRESHOLD'] = '0.5'
 except ImportError:
     has_gridmap = False
 
 
-class PeakCaller(object):
-
-    __metaclass__ = ABCMeta
+class PeakCaller(with_metaclass(ABCMeta, object)):
 
     def __init__(self):
         pass
@@ -44,7 +60,7 @@ class PeakCaller(object):
         pass
 
 
-class PeakInfo(RegionMatrixTable):
+class PeakInfo(AccessOptimisedRegionMatrixTable):
     """
     General-purpose class for recording peaks in Hic (and similar) data.
 
@@ -63,13 +79,15 @@ class PeakInfo(RegionMatrixTable):
     class MergedPeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
-        observed = t.Int32Col(pos=2)
-        expected = t.Float32Col(pos=3)
-        p_value = t.Float32Col(pos=4)
-        q_value_sum = t.Float32Col(pos=5)
-        x = t.Float32Col(pos=6)
-        y = t.Float32Col(pos=7)
-        radius = t.Float32Col(pos=8)
+        weight = t.Float32Col(pos=2)
+        uncorrected = t.Int32Col(pos=3)
+        expected = t.Float32Col(pos=4)
+        oe = t.Float32Col(pos=5)
+        p_value = t.Float32Col(pos=6)
+        q_value_sum = t.Float32Col(pos=7)
+        x = t.Float32Col(pos=8)
+        y = t.Float32Col(pos=9)
+        radius = t.Float32Col(pos=10)
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, regions=None, _table_name_regions='regions',
                  _table_name_peaks='edges'):
@@ -85,16 +103,15 @@ class PeakInfo(RegionMatrixTable):
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
         """
 
-        RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
-                                   additional_fields=PeakInfo.MergedPeakInformation,
-                                   _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
+        AccessOptimisedRegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
+                                                  additional_fields=PeakInfo.MergedPeakInformation,
+                                                  _table_name_nodes=_table_name_regions,
+                                                  _table_name_edges=_table_name_peaks)
 
         self.peak_table = self._edges
 
         if regions is not None:
-            for region in regions:
-                self.add_region(region, flush=False)
-            self._regions.flush()
+            self.add_regions(regions)
 
     def _row_to_edge(self, row, lazy=False, distances_in_bp=False, auto_update=True):
         if distances_in_bp:
@@ -127,24 +144,6 @@ class PeakInfo(RegionMatrixTable):
     def __iter__(self):
         return self.peaks()
 
-    def filter(self, peak_filter, queue=False, log_progress=False):
-        """
-        Filter edges in this object by using a :class:`~PeakFilter`.
-
-        :param peak_filter: Class implementing :class:`~PeakFilter`.
-                            Must override valid_peak method, ideally sets mask parameter
-                            during initialization.
-        :param queue: If True, filter will be queued and can be executed
-                      along with other queued filters using
-                      run_queued_filters
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        if not queue:
-            self.peak_table.filter(peak_filter, _logging=log_progress)
-        else:
-            self.peak_table.queue_filter(peak_filter)
-
     def filter_rao(self, queue=False):
         """
         Convenience function that applies a :class:`~RaoMergedPeakFilter`.
@@ -157,8 +156,41 @@ class PeakInfo(RegionMatrixTable):
         rao_filter = RaoMergedPeakFilter(mask=mask)
         self.filter(rao_filter, queue)
 
+    def to_bedpe(self, file_name, anchor_radius=True, score_field='q_value_sum', name_field=None):
+        regions = list(self.regions)
+        with open(file_name, 'w') as f:
+            for peak in self.peaks(lazy=True, distances_in_bp=True):
+                r1 = regions[peak.source]
+                r2 = regions[peak.sink]
+                if score_field is not None:
+                    score = getattr(peak, score_field)
+                else:
+                    score = '.'
+                if name_field is not None:
+                    name = getattr(peak, name_field)
+                else:
+                    name = '.'
 
-class RaoPeakInfo(RegionMatrixTable):
+                if anchor_radius:
+                    r = peak.radius
+                    start1 = r1.start - r
+                    end1 = r1.end + r
+                    start2 = r2.start - r
+                    end2 = r2.end + r
+                else:
+                    start1 = r1.start
+                    end1 = r1.end
+                    start2 = r2.start
+                    end2 = r2.end
+
+                f.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                    r1.chromosome, int(start1), int(end1),
+                    r2.chromosome, int(start2), int(end2),
+                    name, score
+                ))
+
+
+class RaoPeakInfo(AccessOptimisedRegionMatrixTable):
     """
     Information about peaks called by :class:`~RaoPeakCaller`.
 
@@ -188,21 +220,33 @@ class RaoPeakInfo(RegionMatrixTable):
     class PeakInformation(t.IsDescription):
         source = t.Int32Col(pos=0)
         sink = t.Int32Col(pos=1)
-        observed = t.Int32Col(pos=2)
-        e_ll = t.Float32Col(pos=3)
-        e_h = t.Float32Col(pos=4)
-        e_v = t.Float32Col(pos=5)
-        e_d = t.Float32Col(pos=6)
-        e_ll_chunk = t.Int32Col(pos=7)
-        e_h_chunk = t.Int32Col(pos=8)
-        e_v_chunk = t.Int32Col(pos=9)
-        e_d_chunk = t.Int32Col(pos=10)
-        fdr_ll = t.Float32Col(pos=11)
-        fdr_h = t.Float32Col(pos=12)
-        fdr_v = t.Float32Col(pos=13)
-        fdr_d = t.Float32Col(pos=14)
+        weight = t.Float32Col(pos=2)
+        uncorrected = t.Int32Col(pos=3)
+        w = t.Int32Col(pos=4)
+        p = t.Int32Col(pos=5)
+        e_ll = t.Float32Col(pos=6, dflt=1.0)
+        e_h = t.Float32Col(pos=7, dflt=1.0)
+        e_v = t.Float32Col(pos=8, dflt=1.0)
+        e_d = t.Float32Col(pos=9, dflt=1.0)
+        oe_ll = t.Float32Col(pos=10, dflt=1.0)
+        oe_h = t.Float32Col(pos=11, dflt=1.0)
+        oe_v = t.Float32Col(pos=12, dflt=1.0)
+        oe_d = t.Float32Col(pos=13, dflt=1.0)
+        mappability_ll = t.Float32Col(pos=14, dflt=1.0)
+        mappability_h = t.Float32Col(pos=15, dflt=1.0)
+        mappability_v = t.Float32Col(pos=16, dflt=1.0)
+        mappability_d = t.Float32Col(pos=17, dflt=1.0)
+        fdr_ll = t.Float32Col(pos=18, dflt=1.0)
+        fdr_h = t.Float32Col(pos=19, dflt=1.0)
+        fdr_v = t.Float32Col(pos=20, dflt=1.0)
+        fdr_d = t.Float32Col(pos=21, dflt=1.0)
+        e_ll_chunk = t.Int32Col(pos=22, dflt=1.0)
+        e_h_chunk = t.Int32Col(pos=23, dflt=1.0)
+        e_v_chunk = t.Int32Col(pos=24, dflt=1.0)
+        e_d_chunk = t.Int32Col(pos=25, dflt=1.0)
+        ll_sum = t.Int32Col(pos=26, dflt=0)
 
-    def __init__(self, file_name=None, mode='a', tmpdir=None, regions=None,
+    def __init__(self, file_name=None, mode='a', tmpdir=None,
                  _table_name_regions='regions', _table_name_peaks='edges'):
         """
         Initialize a RaoPeakInfo object.
@@ -216,16 +260,12 @@ class RaoPeakInfo(RegionMatrixTable):
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
         """
 
-        RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
-                                   additional_fields=RaoPeakInfo.PeakInformation,
-                                   _table_name_nodes=_table_name_regions, _table_name_edges=_table_name_peaks)
+        AccessOptimisedRegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
+                                                  additional_fields=RaoPeakInfo.PeakInformation,
+                                                  _table_name_nodes=_table_name_regions,
+                                                  _table_name_edges=_table_name_peaks)
 
         self.peak_table = self._edges
-
-        if regions is not None:
-            for region in regions:
-                self.add_region(region, flush=False)
-            self._regions.flush()
 
     def peaks(self, lazy=False, auto_update=True):
         return self.edges(lazy=lazy, auto_update=auto_update)
@@ -235,24 +275,6 @@ class RaoPeakInfo(RegionMatrixTable):
 
     def __iter__(self):
         return self.peaks()
-
-    def filter(self, peak_filter, queue=False, log_progress=False):
-        """
-        Filter edges in this object by using a :class:`~PeakFilter`.
-
-        :param peak_filter: Class implementing :class:`~PeakFilter`.
-                            Must override valid_peak method, ideally sets mask parameter
-                            during initialization.
-        :param queue: If True, filter will be queued and can be executed
-                      along with other queued filters using
-                      run_queued_filters
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        if not queue:
-            self.peak_table.filter(peak_filter, _logging=log_progress)
-        else:
-            self.peak_table.queue_filter(peak_filter)
 
     def filter_fdr(self, fdr_cutoff, queue=False):
         """
@@ -270,7 +292,38 @@ class RaoPeakInfo(RegionMatrixTable):
         fdr_filter = FdrPeakFilter(fdr_cutoff=fdr_cutoff, mask=mask)
         self.filter(fdr_filter, queue)
 
-    def filter_observed_expected_ratio(self, ll_ratio=1.0, h_ratio=1.0, v_ratio=1.0, d_ratio=1.0, queue=False):
+    def filter_observed(self, cutoff, queue=False):
+        """
+        Convenience function that applies a :class:`~ObservedPeakFilter`.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
+
+        :param cutoff: Minimum observed value
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('fdr', 'Mask peaks with an observed value lower than %e' % cutoff)
+        observed_filter = ObservedPeakFilter(cutoff=cutoff, mask=mask)
+        self.filter(observed_filter, queue)
+
+    def filter_mappability(self, cutoff, queue=False):
+        """
+        Convenience function that applies a :class:`~MappabilityPeakFilter`.
+        The actual algorithm and rationale used for filtering will depend on the
+        internal _mapper attribute.
+
+        :param cutoff: Minimum mappability (fraction of 1)
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('mappability', 'Mask peaks with a mappability lower than %e' % cutoff)
+        mappability_filter = MappabilityPeakFilter(mappability_cutoff=cutoff, mask=mask)
+        self.filter(mappability_filter, queue)
+
+    def filter_enrichment(self, enrichment_ll_cutoff=1.0, enrichment_h_cutoff=1.0,
+                          enrichment_v_cutoff=1.0, enrichment_d_cutoff=1.0, queue=False):
         """
         Convenience function that applies a :class:`~ObservedExpectedRatioPeakFilter`.
         The actual algorithm and rationale used for filtering will depend on the
@@ -281,10 +334,12 @@ class RaoPeakInfo(RegionMatrixTable):
                       run_queued_filters
         """
         mask = self.add_mask_description('o/e', 'Mask peaks with a low observed/expected ratio')
-        oe_filter = ObservedExpectedRatioPeakFilter(ll_ratio=ll_ratio, h_ratio=h_ratio,
-                                                    v_ratio=v_ratio, d_ratio=d_ratio,
-                                                    mask=mask)
-        self.filter(oe_filter, queue)
+        enrichment_filter = EnrichmentPeakFilter(enrichment_ll_cutoff=enrichment_ll_cutoff,
+                                                 enrichment_h_cutoff=enrichment_h_cutoff,
+                                                 enrichment_v_cutoff=enrichment_v_cutoff,
+                                                 enrichment_d_cutoff=enrichment_d_cutoff,
+                                                 mask=mask)
+        self.filter(enrichment_filter, queue)
 
     def filter_rao(self, queue=False):
         """
@@ -338,37 +393,38 @@ class RaoPeakInfo(RegionMatrixTable):
         """
         merged_peaks = PeakInfo(file_name=file_name, mode='w', regions=self.regions(lazy=True))
 
-        # get region index
-        regions_dict = self.regions_dict
         bin_size = self.bin_size
 
         def _append_merged_peak(peak_list):
             # add merged peak
             hp = peak_list[0]
             q_value_sum = hp.fdr_ll + hp.fdr_d + hp.fdr_h + hp.fdr_v
-            merged_peak = Peak(source=hp.source, sink=hp.sink,
-                               observed=hp.observed, expected=hp.e_d,
+            oe = 1 if hp.e_d == 0 else hp.weight/hp.e_d
+            merged_peak = Peak(source=hp.source, sink=hp.sink, weight=hp.weight,
+                               uncorrected=hp.uncorrected, expected=hp.e_d,
                                p_value=hp.fdr_d, q_value_sum=q_value_sum, x=x, y=y,
-                               radius=radius)
+                               radius=radius, oe=oe)
             merged_peaks.add_edge(merged_peak, flush=False)
 
+        merged_peak_counter = 0
         chromosome_names = self.chromosomes()
         for i, chromosome_name1 in enumerate(chromosome_names):
-            for j in xrange(i, len(chromosome_names)):
+            for j in range(i, len(chromosome_names)):
                 chromosome_name2 = chromosome_names[j]
 
-                logger.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
                 remaining_peaks_set = set()
-                for peak in self.peaks():
-                    region1 = regions_dict[peak.source]
-                    region2 = regions_dict[peak.sink]
-                    if region1.chromosome == chromosome_name1 and region2.chromosome == chromosome_name2:
-                        remaining_peaks_set.add(peak)
+                for peak in self.edge_subset((chromosome_name1, chromosome_name2), lazy=False):
+                    remaining_peaks_set.add(peak)
+
+                if len(remaining_peaks_set) == 0:
+                    continue
+
+                logger.info("Merging peaks in %s/%s" % (chromosome_name1, chromosome_name2))
 
                 last_peak_number = 0
                 current_peaks = []
-                l = len(remaining_peaks_set)
-                with RareUpdateProgressBar(max_value=l, poll_interval=20) as pb:
+                n_remaining = len(remaining_peaks_set)
+                with RareUpdateProgressBar(max_value=n_remaining, silent=config.hide_progressbars) as pb:
                     while len(remaining_peaks_set) > 0:
                         x, y, radius = RaoPeakInfo._centroid_and_radius(current_peaks)
 
@@ -377,6 +433,7 @@ class RaoPeakInfo(RegionMatrixTable):
                                 _append_merged_peak(current_peaks)
                                 current_peaks = []
                                 last_peak_number = 0
+                                merged_peak_counter += 1
 
                             # find highest peak
                             highest_peak = None
@@ -384,7 +441,7 @@ class RaoPeakInfo(RegionMatrixTable):
                                 if highest_peak is None:
                                     highest_peak = peak
                                 else:
-                                    if highest_peak.observed < peak.observed:
+                                    if highest_peak.weight < peak.weight:
                                         highest_peak = peak
 
                             current_peaks.append(highest_peak)
@@ -404,11 +461,14 @@ class RaoPeakInfo(RegionMatrixTable):
                                 current_peaks.append(closest_peak)
                                 remaining_peaks_set.remove(closest_peak)
 
-                        pb.update(l-len(remaining_peaks_set))
+                        pb.update(n_remaining-len(remaining_peaks_set))
 
                 if len(current_peaks) > 0:
                     _append_merged_peak(current_peaks)
-            merged_peaks.flush()
+                    merged_peak_counter += 1
+
+        logger.info("Total merged peaks: {}".format(merged_peak_counter))
+        merged_peaks.flush()
         return merged_peaks
 
 
@@ -417,10 +477,16 @@ class Peak(Edge):
     Container for a Peak/enriched contact in a Hi-C matrix.
     """
     def __init__(self, source, sink, *args, **kwargs):
+        self.weight = None
+        self.e_ll = None
+        self.e_h = None
+        self.e_d = None
+        self.e_v = None
+        self.expected = None
         super(Peak, self).__init__(source, sink, *args, **kwargs)
 
 
-class LazyPeak(LazyEdge):
+class LazyPeak(LazyEdge, Peak):
     """
     Container for a Peak/enriched contact in a Hi-C matrix.
 
@@ -428,18 +494,18 @@ class LazyPeak(LazyEdge):
     loading of attributes from a PyTables table row.
     """
     def __init__(self, row, nodes_table, auto_update=True, bin_size=1):
-        super(LazyPeak, self).__init__(row, nodes_table, auto_update=auto_update)
-        self.reserved.append('bin_size')
+        LazyEdge.__init__(self, row, nodes_table, auto_update=auto_update)
+        self.reserved.add('bin_size')
         self.bin_size = bin_size
 
     def __getattr__(self, item):
-        res = super(LazyPeak, self).__getattr__(item)
+        res = LazyEdge.__getattr__(self, item)
         if item in ('x', 'y', 'radius'):
-            return self.bin_size*res
+            return self.bin_size * res
         return res
 
 
-class PeakFilter(MaskFilter):
+class PeakFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     peaks in a :class:`~RaoPeakInfo` object.
@@ -456,8 +522,6 @@ class PeakFilter(MaskFilter):
     Pass a custom filter to the :func:`~RaoPeakInfo.filter` method in :class:`~Hic`
     to apply it.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, mask=None):
         """
@@ -499,6 +563,31 @@ class PeakFilter(MaskFilter):
         return self.valid_peak(peak)
 
 
+class ObservedPeakFilter(PeakFilter):
+    """
+    Filter for peaks that do not pass a certain FDR cutoff.
+    """
+    def __init__(self, cutoff=1, mask=None):
+        """
+        Initialize filter object.
+
+        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param cutoff: Minimum observed value to consider peak
+        """
+        super(ObservedPeakFilter, self).__init__(mask=mask)
+        self.cutoff = cutoff
+
+    def valid_peak(self, peak):
+        """
+        Evaluate whether a peak passes FDR cutoffs set in __init__
+        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :return: True if peak passes interal FDR cutoffs, False otherwise
+        """
+        if peak.uncorrected < self.cutoff:
+            return False
+        return True
+
+
 class FdrPeakFilter(PeakFilter):
     """
     Filter for peaks that do not pass a certain FDR cutoff.
@@ -534,22 +623,70 @@ class FdrPeakFilter(PeakFilter):
         :param peak: An :class:`~kaic.data.genomic.Edge` object
         :return: True if peak passes interal FDR cutoffs, False otherwise
         """
-        if peak.fdr_ll > self.fdr_ll_cutoff:
+        if self.fdr_ll_cutoff is not None and peak.fdr_ll > self.fdr_ll_cutoff:
             return False
-        if peak.fdr_h > self.fdr_h_cutoff:
+        if self.fdr_h_cutoff is not None and peak.fdr_h > self.fdr_h_cutoff:
             return False
-        if peak.fdr_v > self.fdr_v_cutoff:
+        if self.fdr_v_cutoff is not None and peak.fdr_v > self.fdr_v_cutoff:
             return False
-        if peak.fdr_d > self.fdr_d_cutoff:
+        if self.fdr_d_cutoff is not None and peak.fdr_d > self.fdr_d_cutoff:
             return False
         return True
 
 
-class ObservedExpectedRatioPeakFilter(PeakFilter):
+class MappabilityPeakFilter(PeakFilter):
+    """
+    Filter for peaks that do not pass a certain FDR cutoff.
+    """
+    def __init__(self, mask=None, mappability_cutoff=None,
+                 mappability_ll_cutoff=0.1, mappability_v_cutoff=0.1,
+                 mappability_h_cutoff=0.1, mappability_d_cutoff=0.1):
+        """
+        Initialize filter object.
+
+        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param mappability_cutoff: Global mappability cutoff. Is overridden by the
+                                   neighborhood-specific cutoffs
+        :param mappability_ll_cutoff: Mappability cutoff for the lower-left neighborhood
+        :param mappability_v_cutoff: Mappability cutoff for the vertical neighborhood
+        :param mappability_h_cutoff: Mappability cutoff for the horizontal neighborhood
+        :param mappability_d_cutoff: Mappability cutoff for the donut neighborhood
+        """
+        super(MappabilityPeakFilter, self).__init__(mask=mask)
+        if mappability_cutoff is not None:
+            mappability_ll_cutoff = mappability_cutoff
+            mappability_h_cutoff = mappability_cutoff
+            mappability_v_cutoff = mappability_cutoff
+            mappability_d_cutoff = mappability_cutoff
+        self.mappability_cutoff = mappability_cutoff
+        self.mappability_ll_cutoff = mappability_ll_cutoff
+        self.mappability_h_cutoff = mappability_h_cutoff
+        self.mappability_v_cutoff = mappability_v_cutoff
+        self.mappability_d_cutoff = mappability_d_cutoff
+
+    def valid_peak(self, peak):
+        """
+        Evaluate whether a peak passes FDR cutoffs set in __init__
+        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :return: True if peak passes interal FDR cutoffs, False otherwise
+        """
+        if self.mappability_ll_cutoff is not None and peak.mappability_ll < self.mappability_ll_cutoff:
+            return False
+        if self.mappability_h_cutoff is not None and peak.mappability_h < self.mappability_h_cutoff:
+            return False
+        if self.mappability_v_cutoff is not None and peak.mappability_v < self.mappability_v_cutoff:
+            return False
+        if self.mappability_d_cutoff is not None and peak.mappability_d < self.mappability_d_cutoff:
+            return False
+        return True
+
+
+class EnrichmentPeakFilter(PeakFilter):
     """
     Filter peaks that do not have a sufficiently strong observed/expected ratio.
     """
-    def __init__(self, ll_ratio=1.0, h_ratio=1.0, v_ratio=1.0, d_ratio=1.0, mask=None):
+    def __init__(self, enrichment_ll_cutoff=1.0, enrichment_h_cutoff=1.0,
+                 enrichment_v_cutoff=1.0, enrichment_d_cutoff=1.0, mask=None):
         """
         Initialize filter object.
 
@@ -561,24 +698,24 @@ class ObservedExpectedRatioPeakFilter(PeakFilter):
         :return: True if all observed/expected ratios pass the thresholds,
                  False otherwise
         """
-        super(ObservedExpectedRatioPeakFilter, self).__init__(mask=mask)
-        self.ll_ratio = ll_ratio
-        self.h_ratio = h_ratio
-        self.v_ratio = v_ratio
-        self.d_ratio = d_ratio
+        super(EnrichmentPeakFilter, self).__init__(mask=mask)
+        self.ll_ratio = enrichment_ll_cutoff
+        self.h_ratio = enrichment_h_cutoff
+        self.v_ratio = enrichment_v_cutoff
+        self.d_ratio = enrichment_d_cutoff
 
     def valid_peak(self, peak):
         # covering my ass for legacy bug
         if peak.e_d == 0 or peak.e_ll == 0 or peak.e_h == 0 or peak.e_v == 0:
             return False
 
-        if self.ll_ratio is not None and peak.observed/peak.e_ll < self.ll_ratio:
+        if self.ll_ratio is not None and peak.oe_ll < self.ll_ratio:
             return False
-        if self.h_ratio is not None and peak.observed/peak.e_h < self.h_ratio:
+        if self.h_ratio is not None and peak.oe_h < self.h_ratio:
             return False
-        if self.v_ratio is not None and peak.observed/peak.e_v < self.v_ratio:
+        if self.v_ratio is not None and peak.oe_v < self.v_ratio:
             return False
-        if self.d_ratio is not None and peak.observed/peak.e_d < self.d_ratio:
+        if self.d_ratio is not None and peak.oe_d < self.d_ratio:
             return False
         return True
 
@@ -603,15 +740,15 @@ class RaoPeakFilter(PeakFilter):
             return False
 
         # 1.
-        if peak.observed/peak.e_d <= peak.observed/peak.e_ll < 2.0:
+        if peak.oe_d <= peak.oe_ll < 2.0:
             return False
 
         # 2.
-        if peak.observed/peak.e_h < 1.5 and peak.observed/peak.e_v < 1.5:
+        if peak.oe_h < 1.5 and peak.oe_v < 1.5:
             return False
 
         # 3.
-        if peak.observed/peak.e_d < 1.75 or peak.observed/peak.e_ll < 1.75:
+        if peak.oe_d < 1.75 or peak.oe_ll < 1.75:
             return False
 
         # 4.
@@ -679,9 +816,8 @@ class RaoPeakCaller(PeakCaller):
     """
 
     def __init__(self, p=None, w_init=None, min_locus_dist=3, max_w=20, min_ll_reads=16,
-                 observed_cutoff=1, e_ll_cutoff=1.0, e_h_cutoff=1.0, e_v_cutoff=1.0,
-                 e_d_cutoff=1.0, process_inter=False, correct_inter='fdr', n_processes=4,
-                 batch_size=500000, cluster=False):
+                 process_inter=False, correct_inter='fdr', n_processes=4,
+                 slice_size=200, min_mappable_fraction=0.7, cluster=False):
         """
         Initialize RaoPeakCaller with peak calling parameters.
 
@@ -691,57 +827,36 @@ class RaoPeakCaller(PeakCaller):
         :param max_w: Maximal width after extending investigated area around peak
         :param min_ll_reads: Threshold for the number of reads in the lower-left
                              neighborhood of a pixel to consider it as a peak
-        :param observed_cutoff: Minimum (uncorrected) observed contact count for
-                                a pixel to be reported
-        :param e_ll_cutoff: Only report peaks with an observed/e_ll ratio >= e_ll_cutoff
-        :param e_h_cutoff: Only report peaks with an observed/e_h ratio >= e_h_cutoff
-        :param e_v_cutoff: Only report peaks with an observed/e_v ratio >= e_v_cutoff
-        :param e_d_cutoff: Only report peaks with an observed/e_d ratio >= e_d_cutoff
         :param process_inter: If False, ignores inter-chromosomal peaks
         :param correct_inter: If None, does not correct inter-chromosomal peaks for
                               multiple testing. Other options are 'fdr' for Benjamini-
                               Hochberg correction of 'bonferroni' for Bonferroni correction
         :param n_processes: Number of processes to use for peak calling.
-        :param batch_size: Number of pixels to investigate per batch.
+        :param slice_size: length of the matrix square investigated by each process.
         :param cluster: If True, attempts to call peaks using an SGE cluster. If False,
                         will use multiprocessing.
         """
         self.p = p
         self.w_init = w_init
+        if p is not None and w_init is not None:
+            if not w_init > p:
+                raise ValueError("w_init ({}) must be strictly greater than p ({})!".format(w_init, p))
+
         self.min_locus_dist = min_locus_dist
         self.max_w = max_w
         self.min_ll_reads = min_ll_reads
-        self.observed_cutoff = observed_cutoff
-        self.e_ll_cutoff = e_ll_cutoff
-        self.e_h_cutoff = e_h_cutoff
-        self.e_v_cutoff = e_v_cutoff
-        self.e_d_cutoff = e_d_cutoff
         self.process_inter = process_inter
         self.correct_inter = correct_inter
         self.n_processes = n_processes
-        self.batch_size = batch_size
-        self.mpqueue = None
+        self.slice_size = slice_size
+        self.min_mappable_fraction = min_mappable_fraction
         self.cluster = cluster
         if self.cluster is True:
             if not has_gridmap:
-                logger.warn("Cannot use the cluster because of previous error.")
+                logger.warning("Cannot use the cluster because of previous error.")
                 self.cluster = False
 
         super(RaoPeakCaller, self).__init__()
-
-    @staticmethod
-    def chromosome_map(hic):
-        """
-        Make a quick-lookup chromosome map.
-        """
-        chromosome_map = dict()
-        for i, chromosome in enumerate(hic.chromosomes()):
-            chromosome_map[chromosome] = i
-
-        chromosomes = np.zeros(len(hic.regions()), dtype=int)
-        for i, region in enumerate(hic.regions(lazy=True)):
-            chromosomes[i] = chromosome_map[region.chromosome]
-        return chromosomes
 
     # sum of reads in lower-left neighborhood
     @staticmethod
@@ -751,10 +866,56 @@ class RaoPeakCaller(PeakCaller):
         """
         i_max, j_max = m.shape
 
-        sum1 = np.sum(m[max(0, i+1):min(i_max, i+w+1), max(0, j-w):min(j_max, j)])
-        sum2 = np.sum(m[max(0, i+1):min(i_max, i+p+1), max(0, j-p):min(j_max, j)])
+        sum1 = np.ma.sum(m[max(0, i+1):min(i_max, i+w+1), max(0, j-w):min(j_max, j)])
+        sum2 = np.ma.sum(m[max(0, i+1):min(i_max, i+p+1), max(0, j-p):min(j_max, j)])
 
         return sum1 - sum2
+
+    @staticmethod
+    def enrichment(m, e, i, j, neighborhood_method, w=1, p=0):
+        dividend = neighborhood_method(m, i, j, w, p)
+        divisor = neighborhood_method(e, i, j, w, p)
+        return float(dividend / divisor * e[i, j])
+
+    @staticmethod
+    def e_ll_sum(m, i, j, w=1, p=0):
+        i_max, j_max = m.shape
+        sum1 = np.ma.sum(m[max(0, i + 1):min(i + w + 1, i_max), max(0, j - w):min(j_max, j)])
+        sum2 = np.ma.sum(m[max(0, i + 1):min(i_max, i + p + 1), max(0, j - p):min(j_max, j)])
+        return sum1 - sum2
+
+    @staticmethod
+    def e_h_sum(m, i, j, w=1, p=0):
+        i_max, j_max = m.shape
+        sum1 = np.ma.sum(m[max(0, i - 1):min(i_max, i + 2), max(0, j - w):min(j_max, j + w + 1)])
+        sum2 = np.ma.sum(m[max(0, i - 1):min(i_max, i + 2), max(0, j - p):min(j_max, j + p + 1)])
+        return sum1 - sum2
+
+    @staticmethod
+    def e_v_sum(m, i, j, w=1, p=0):
+        i_max, j_max = m.shape
+        sum1 = np.ma.sum(m[max(0, i - w):min(i_max, i + w + 1), max(0, j - 1):min(j_max, j + 2)])
+        sum2 = np.ma.sum(m[max(0, i - p):min(i_max, i + p + 1), max(0, j - 1):min(j_max, j + 2)])
+        return sum1 - sum2
+
+    @staticmethod
+    def e_d_sum(m, i, j, w=1, p=0):
+        i_max, j_max = m.shape
+        sum1 = np.ma.sum(m[max(0, i - w):min(i_max, i + w + 1), max(0, j - w):min(j_max, j + w + 1)])
+        sum2 = np.ma.sum(m[max(0, i - p):min(i_max, i + p + 1), max(0, j - p):min(j_max, j + p + 1)])
+        sum3 = np.ma.sum(m[max(0, i - w):max(0, i - p), j])
+        sum4 = np.ma.sum(m[max(0, i + p + 1):min(i_max, i + w + 1), j])
+        sum5 = np.ma.sum(m[i, max(0, j - w):max(0, j - p)])
+        sum6 = np.ma.sum(m[i, max(0, j + p + 1):min(j_max, j + w + 1)])
+
+        sum1 = 0 if np.ma.is_masked(sum1) else sum1
+        sum2 = 0 if np.ma.is_masked(sum2) else sum2
+        sum3 = 0 if np.ma.is_masked(sum3) else sum3
+        sum4 = 0 if np.ma.is_masked(sum4) else sum4
+        sum5 = 0 if np.ma.is_masked(sum5) else sum5
+        sum6 = 0 if np.ma.is_masked(sum6) else sum6
+
+        return sum1 - sum2 - sum3 - sum4 - sum5 - sum6
 
     # lower-left neighborhood
     @staticmethod
@@ -762,27 +923,7 @@ class RaoPeakCaller(PeakCaller):
         """
         Compute the average value of pixels in the lower-left neighborhood of a pixel.
         """
-        i_max, j_max = m.shape
-
-        # dividend
-        sum1 = np.sum(m[max(0, i+1):min(i+w+1, i_max), max(0, j-w):min(j_max, j)])
-        sum2 = np.sum(m[max(0, i+1):min(i_max, i+p+1), max(0, j-p):min(j_max, j)])
-
-        if sum1-sum2 == 0:
-            return 0
-
-        # divisor
-        sum3 = 0
-        for a in xrange(max(0, i+1), min(i_max, i+w+1)):
-            for b in xrange(max(0, j-w), min(j_max, j)):
-                sum3 += e(a, b)
-
-        sum4 = 0
-        for a in xrange(max(0, i+1), min(i_max, i+p+1)):
-            for b in xrange(max(0, j-p), min(j_max, j)):
-                sum4 += e(a, b)
-
-        return (sum1-sum2)/(sum3-sum4)*e(i, j)
+        return RaoPeakCaller.enrichment(m, e, i, j, RaoPeakCaller.e_ll_sum, w=w, p=p)
 
     # horizontal neighborhood
     @staticmethod
@@ -790,27 +931,7 @@ class RaoPeakCaller(PeakCaller):
         """
         Compute the average value of pixels in the horizontal neighborhood of a pixel.
         """
-        i_max, j_max = m.shape
-
-        # dividend
-        sum1 = np.sum(m[max(0, i-1):min(i_max, i+2), max(0, j-w):min(j_max, j+w+1)])
-        sum2 = np.sum(m[max(0, i-1):min(i_max, i+2), max(0, j-p):min(j_max, j+p+1)])
-
-        if sum1-sum2 == 0:
-            return 0
-
-        # divisor
-        sum3 = 0
-        for a in xrange(max(0, i-1), min(i_max, i+2)):
-            for b in xrange(max(0, j-w), min(j_max, j+w+1)):
-                sum3 += e(a, b)
-
-        sum4 = 0
-        for a in xrange(max(0, i-1), min(i_max, i+2)):
-            for b in xrange(max(0, j-p), min(j_max, j+p+1)):
-                sum4 += e(a, b)
-
-        return (sum1-sum2)/(sum3-sum4)*e(i, j)
+        return RaoPeakCaller.enrichment(m, e, i, j, RaoPeakCaller.e_h_sum, w=w, p=p)
 
     # vertical neighborhood
     @staticmethod
@@ -818,27 +939,7 @@ class RaoPeakCaller(PeakCaller):
         """
         Compute the average value of pixels in the vertical neighborhood of a pixel.
         """
-        i_max, j_max = m.shape
-
-        # dividend
-        sum1 = np.sum(m[max(0, i-w):min(i_max, i+w+1), max(0, j-1):min(j_max, j+2)])
-        sum2 = np.sum(m[max(0, i-p):min(i_max, i+p+1), max(0, j-1):min(j_max, j+2)])
-
-        if sum1-sum2 == 0:
-            return 0
-
-        # divisor
-        sum3 = 0
-        for a in xrange(max(0, i-w), min(i_max, i+w+1)):
-            for b in xrange(max(0, j-1), min(j_max, j+2)):
-                sum3 += e(a, b)
-
-        sum4 = 0
-        for a in xrange(max(0, i-p), min(i_max, i+p+1)):
-            for b in xrange(max(0, j-1), min(j_max, j+2)):
-                sum4 += e(a, b)
-
-        return (sum1-sum2)/(sum3-sum4)*e(i, j)
+        return RaoPeakCaller.enrichment(m, e, i, j, RaoPeakCaller.e_v_sum, w=w, p=p)
 
     # donut neighborhood
     @staticmethod
@@ -846,215 +947,69 @@ class RaoPeakCaller(PeakCaller):
         """
         Compute the average value of pixels in the "donut" neighborhood of a pixel.
         """
-        i_max, j_max = m.shape
-
-        top_sum1 = np.sum(m[max(0, i-w):min(i_max, i+w+1), max(0, j-w):min(j_max, j+w+1)])
-        top_sum2 = np.sum(m[max(0, i-p):min(i_max, i+p+1), max(0, j-p):min(j_max, j+p+1)])
-        top_sum3 = np.sum(m[max(0, i-w):min(i_max, i-p), j])
-        top_sum4 = np.sum(m[max(0, i+p+1):min(i_max, i+w+1), j])
-        top_sum5 = np.sum(m[i, max(0, j-w):min(j_max, j-p)])
-        top_sum6 = np.sum(m[i, max(0, j+p+1):min(j_max, j+w+1)])
-
-        top = (top_sum1-top_sum2-top_sum3-top_sum4-top_sum5-top_sum6)
-        if top == 0:
-            return 0
-
-        bottom_sum1 = 0
-        for a in xrange(max(0, i-w), min(i_max, i+w+1)):
-            for b in xrange(max(0, j-w), min(j_max, j+w+1)):
-                bottom_sum1 += e(a, b)
-
-        bottom_sum2 = 0
-        for a in xrange(max(0, i-p), min(i_max, i+p+1)):
-            for b in xrange(max(0, j-p), min(j_max, j+p+1)):
-                bottom_sum2 += e(a, b)
-
-        bottom_sum3 = 0
-        for a in xrange(max(0, i-w), min(i_max, i-p)):
-            bottom_sum3 += e(a, j)
-
-        bottom_sum4 = 0
-        for a in xrange(max(0, i+p+1), min(i_max, i+w+1)):
-            bottom_sum4 += e(a, j)
-
-        bottom_sum5 = 0
-        for b in xrange(max(0, j-w), min(j_max, j-p)):
-            bottom_sum5 += e(i, b)
-
-        bottom_sum6 = 0
-        for b in xrange(max(0, j+p+1), min(j_max, j+w+1)):
-            bottom_sum6 += e(i, b)
-
-        return top / \
-            (bottom_sum1-bottom_sum2-bottom_sum3-bottom_sum4-bottom_sum5-bottom_sum6) * \
-            e(i, j)
+        return RaoPeakCaller.enrichment(m, e, i, j, RaoPeakCaller.e_d_sum, w=w, p=p)
 
     @staticmethod
-    def e_all(m, i, j, e, w=1, p=0):
-        """
-        Compute the average value of pixels in all neighborhoods of a pixel.
-        """
-        if isinstance(e, int) or isinstance(e, float):
-            def e_f(ix, jx):
-                return e
-        else:
-            def e_f(ix, jx):
-                return e[abs(ix-jx)]
-
-        # neighborhood expected values
-        e_ll = RaoPeakCaller.e_ll(m, i, j, e_f, w=w, p=p)
-        e_h = RaoPeakCaller.e_h(m, i, j, e_f, w=w, p=p)
-        e_v = RaoPeakCaller.e_v(m, i, j, e_f, w=w, p=p)
-        e_d = RaoPeakCaller.e_d(m, i, j, e_f, w=w, p=p)
-
-        e_ll = None if e_ll is None else float(e_ll)
-        e_h = None if e_h is None else float(e_h)
-        e_v = None if e_v is None else float(e_v)
-        e_d = None if e_d is None else float(e_d)
-
-        return e_ll, e_h, e_v, e_d
-
-    @staticmethod
-    def _lambda_chunks(max_expected, max_chunk_function=lambda x: 2**(x/3)):
-        """
-        Compute the expected value "lambda chunks" to classify pixels.
-        """
-        e_max_chunk = 1
-        e_exp = 0
-        chunks_max_list = []
-        while e_max_chunk < max_expected:
-            chunks_max_list.append(e_max_chunk)
-            e_exp += 1
-            # increment power in steps of 1/3
-            e_max_chunk = max_chunk_function(e_exp)
-        # final chunk
-        chunks_max_list.append(e_max_chunk)
-
-        return chunks_max_list
-
-    @staticmethod
-    def _find_chunk(chunk_list, value):
+    def find_chunk(value, chunk_func=lambda x: 3*np.log2(x)):
         """
         Use bisection to find a matching lambda chunk for a given expected value.
         """
         if value is None:
             return None
-        return bisect_left(chunk_list, value)
-
-    @staticmethod
-    def _submatrix_indices(m, ij_pairs, w_max=20):
-        """
-        Given a matrix and a list of index pairs, return a submatrix (and matching converted indices)
-        that accommodates all pairs.
-        """
-        if len(ij_pairs) == 0:
-            return None, None
-
-        # find boundaries including padding through w
-        min_i, min_j, max_i, max_j = ij_pairs[0][0]-w_max, ij_pairs[0][1]-w_max, w_max+1, w_max+1
-        for i, j in ij_pairs:
-            min_i, min_j, max_i, max_j = (min(min_i, i-w_max), min(min_j, j-w_max),
-                                          max(max_i, i+w_max+1), max(max_j, j+w_max+1))
-
-        # ensure that we don't cross matrix boundaries
-        min_i, min_j, max_i, max_j = (max(0, min_i), max(0, min_j),
-                                      min(m.shape[0], max_i), min(m.shape[1], max_j))
-
-        # extract sub-matrix
-        m_sub = m[min_i:max_i, min_j:max_j]
-
-        # convert ij_pairs
-        ij_converted = []
-        for i, j in ij_pairs:
-            ij_converted.append((i-min_i, j-min_j))
-
-        return m_sub, ij_converted
+        if value < 1:
+            return 0
+        return max(0, int(chunk_func(value)) + 1)
 
     def _process_jobs(self, jobs, peaks, observed_chunk_distribution):
         """
         Process the output from :func:`~process_matrix_range` and save in peak table.
         """
-        if self.cluster:
-            # if the grid does not work for some reason, this will fall back on
-            # multiprocessing itself
-            job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes)
-        else:
-            # use multiprocessing
-            for p in jobs:
-                p.start()
+        # if the grid does not work for some reason, this will fall back on
+        # multiprocessing itself
+        logger.debug("Getting gridmap output...")
 
-            # Exit the completed processes
-            for p in jobs:
-                p.join()
+        job_kwargs = {}
+        if config.gridmap_tmpdir is not None:
+            job_kwargs['temp_dir'] = config.gridmap_tmpdir
+        job_outputs = gridmap.process_jobs(jobs, max_processes=self.n_processes,
+                                           local=not self.cluster, **job_kwargs)
+        logger.debug("Got gridmap output.")
 
-            # Get process results from the output queue
-            job_outputs = [self.mpqueue.get() for _ in jobs]
-            self.mpqueue = None
+        for compressed_results in job_outputs:
+            results = msgpack.loads(compressed_results)
+            for result in results:
+                source, sink, weight, w_corr, p, observed, \
+                    ll_sum, e_ll, e_v, e_h, e_d, \
+                    o_chunk, e_ll_chunk, e_v_chunk, e_h_chunk, e_d_chunk, \
+                    e_ll_mappable, e_v_mappable, e_h_mappable, e_d_mappable = result
 
-        for output in job_outputs:
-            rv = output
+                # update observed distribution
+                observed_chunk_distribution['ll'][e_ll_chunk][observed] += 1
+                observed_chunk_distribution['h'][e_h_chunk][observed] += 1
+                observed_chunk_distribution['v'][e_v_chunk][observed] += 1
+                observed_chunk_distribution['d'][e_d_chunk][observed] += 1
 
-            (region_pairs, observed_list, e_ll_list,
-             e_h_list, e_v_list, e_d_list,
-             observed_chunk_distribution_part) = msgpack.loads(rv)
+                if weight == 0.0:
+                    continue
 
-            # intra-chromosomal
-            if observed_chunk_distribution_part is not None:
-                for ix in xrange(len(region_pairs)):
-                    source = region_pairs[ix][0]
-                    sink = region_pairs[ix][1]
+                oe_ll = 1 if e_ll == 0 else weight / e_ll
+                oe_h = 1 if e_h == 0 else weight / e_h
+                oe_v = 1 if e_v == 0 else weight / e_v
+                oe_d = 1 if e_d == 0 else weight / e_d
 
-                    observed, observed_chunk = observed_list[ix]
-                    e_ll, e_ll_chunk = e_ll_list[ix]
-                    e_h, e_h_chunk = e_h_list[ix]
-                    e_v, e_v_chunk = e_v_list[ix]
-                    e_d, e_d_chunk = e_d_list[ix]
-
-                    if (e_ll is not None and e_h is not None and
-                            e_v is not None and e_d is not None):
-                        peak = Edge(source=source, sink=sink, observed=observed, e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
-                                    e_ll_chunk=e_ll_chunk, e_h_chunk=e_h_chunk, e_v_chunk=e_v_chunk, e_d_chunk=e_d_chunk)
-                        peaks.add_edge(peak, flush=False)
-
-                for e_type in observed_chunk_distribution_part.iterkeys():
-                    for chunk_ix in xrange(len(observed_chunk_distribution_part[e_type])):
-                        for o in observed_chunk_distribution_part[e_type][chunk_ix].iterkeys():
-                            observed_chunk_distribution[e_type][chunk_ix][o] += observed_chunk_distribution_part[e_type][chunk_ix][o]
-            else:
-                for ix in xrange(len(region_pairs)):
-                    source = region_pairs[ix][0]
-                    sink = region_pairs[ix][1]
-
-                    observed, _ = observed_list[ix]
-                    e_ll, fdr_ll = e_ll_list[ix]
-                    e_h, fdr_h = e_h_list[ix]
-                    e_v, fdr_v = e_v_list[ix]
-                    e_d, fdr_d = e_d_list[ix]
-
-                    if (e_ll is not None and e_h is not None and
-                            e_v is not None and e_d is not None):
-                        peak = Edge(source=source, sink=sink, observed=observed, e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
-                                    fdr_ll=fdr_ll, fdr_v=fdr_v, fdr_h=fdr_h, fdr_d=fdr_d)
-                        peaks.add_edge(peak, flush=False)
-        peaks.flush()
+                peak = Edge(source=source, sink=sink,
+                            weight=weight, uncorrected=observed,
+                            w=w_corr, p=p, ll_sum=ll_sum,
+                            e_ll=e_ll, e_h=e_h, e_v=e_v, e_d=e_d,
+                            oe_ll=oe_ll, oe_h=oe_h, oe_v=oe_v, oe_d=oe_d,
+                            e_ll_chunk=e_ll_chunk, e_v_chunk=e_v_chunk,
+                            e_h_chunk=e_h_chunk, e_d_chunk=e_d_chunk,
+                            mappability_ll=e_ll_mappable, mappability_v=e_v_mappable,
+                            mappability_h=e_h_mappable, mappability_d=e_d_mappable)
+                peaks.add_edge(peak, flush=False)
 
     @staticmethod
-    def _get_chunk_distribution_container(lambda_chunks):
-        observed_chunk_distribution = {
-            'll': [],
-            'h': [],
-            'v': [],
-            'd': []
-        }
-        for _ in xrange(len(lambda_chunks)):
-            observed_chunk_distribution['ll'].append(defaultdict(int))
-            observed_chunk_distribution['h'].append(defaultdict(int))
-            observed_chunk_distribution['v'].append(defaultdict(int))
-            observed_chunk_distribution['d'].append(defaultdict(int))
-        return observed_chunk_distribution
-
-    @staticmethod
-    def _get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution):
+    def _get_fdr_cutoffs(observed_chunk_distribution, e_func=lambda x: 2**(x/3)):
         """
         For all possible observed values in each lambda chunk, determine the
         FDR cutoff that denotes the lower significance bound.
@@ -1063,13 +1018,13 @@ class RaoPeakCaller(PeakCaller):
 
         fdr_cutoffs = dict()
         for e_type in observed_chunk_distribution:  # ll, h, v, d
-            fdr_cutoffs[e_type] = []
-            for chunk, max_e in enumerate(lambda_chunks):  # (0, 1), (1, 1.26), (2, 1.59), ...
-                fdr_cutoffs[e_type].append(dict())
+            fdr_cutoffs[e_type] = defaultdict(lambda: defaultdict(int))
+            for chunk in observed_chunk_distribution[e_type].keys():
+                max_e = e_func(chunk)
                 poisson_e = poisson(max_e)
 
                 observed_sum = 0
-                for observed_count in observed_chunk_distribution[e_type][chunk].itervalues():
+                for observed_count in observed_chunk_distribution[e_type][chunk].values():
                     observed_sum += observed_count
 
                 observed_distribution_integral_left = 0
@@ -1087,106 +1042,58 @@ class RaoPeakCaller(PeakCaller):
                         fdr_cutoffs[e_type][chunk][observed] = 0
         return fdr_cutoffs
 
-    def _create_e_job(self, m, ij_pairs, ij_region_pairs, e=1, c=None,
-                      chunks=None, w=1, p=0, min_locus_dist=3,
-                      min_ll_reads=16, max_w=20, observed_cutoff=1,
-                      e_ll_cutoff=None, e_h_cutoff=None,
-                      e_v_cutoff=None, e_d_cutoff=None):
+    @staticmethod
+    def segment_matrix_intra(m, chunk_size, w_max):
+        for i in range(0, m.shape[0], chunk_size):
+            i_start = max(0, i - w_max)
+            i_end = min(i + chunk_size + w_max, m.shape[0])
+            i_range = (i_start, i_end)
+            i_inspect = (i, min(i + chunk_size, m.shape[0]))
+            for j in range(i, m.shape[1], chunk_size):
+                j_start = max(0, j - w_max)
+                j_end = min(j + chunk_size + w_max, m.shape[1])
+                j_range = (j_start, j_end)
+                j_inspect = (j, min(j + chunk_size, m.shape[1]))
+                ms = m[i_start:i_end, j_start:j_end]
+                yield ms, i_range, i_inspect, j_range, j_inspect
 
-        ij_pairs_compressed = msgpack.dumps(ij_pairs)
-        ij_region_pairs_compressed = msgpack.dumps(ij_region_pairs)
-
-        if self.cluster:
-            job = gridmap.Job(process_matrix_range, [m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
-                              chunks, w, p, min_locus_dist, min_ll_reads,
-                              max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
-                              e_v_cutoff, e_d_cutoff])
-        else:
-            if self.mpqueue is None:
-                self.mpqueue = multiprocessing.Queue(self.n_processes)
-            # process with multiprocessing
-            job = multiprocessing.Process(target=multiprocessing_matrix_range,
-                                          args=(m, ij_pairs_compressed, ij_region_pairs_compressed, e, c,
-                                                chunks, w, p, min_locus_dist, min_ll_reads,
-                                                max_w, observed_cutoff, e_ll_cutoff, e_h_cutoff,
-                                                e_v_cutoff, e_d_cutoff, self.mpqueue))
-        return job
-
-    def _find_peaks_in_matrix(self, m, e, c, mappable, peak_info,
-                              observed_chunk_distribution, lambda_chunks, w, p):
+    def _find_peaks_intra_matrix(self, m, e, c, peak_info, mappable, ix_offset,
+                                 observed_chunk_distribution, w, p):
         """
-        Given a matrix (strictly inter- OR intra-chromosomal), calculate peak
+        Given a matrix (strictly intra-chromosomal), calculate peak
         information for all pixels.
         """
+
         jobs = []
-        ij_pairs = []
-        ij_region_pairs = []
-        for i in xrange(m.shape[0]):
-            i_region = m.row_regions[i].ix
+        for segment in RaoPeakCaller.segment_matrix_intra(m, self.slice_size, self.max_w):
+            ms, i_range, i_inspect, j_range, j_inspect = segment
 
-            if not mappable[i_region]:
-                continue
+            args = [ms, e, ix_offset,
+                    i_range, i_inspect, mappable[i_range[0]:i_range[1]], c[i_range[0]:i_range[1]],
+                    j_range, j_inspect, mappable[j_range[0]:j_range[1]], c[j_range[0]:j_range[1]],
+                    w, p, self.min_locus_dist, self.min_ll_reads, self.min_mappable_fraction,
+                    self.max_w]
 
-            # make sure we investigate whole inter-chromosomal matrix
-            if lambda_chunks is None:
-                start_j = 0
-            else:
-                start_j = i
-
-            for j in xrange(start_j, m.shape[1]):
-                j_region = m.col_regions[j].ix
-
-                if not mappable[j_region]:
-                    continue
-
-                # if this is inter-chromosomal data, and we don't
-                # have a positive value, skip it
-                if lambda_chunks is None and m[i, j] == 0:
-                    continue
-
-                ij_pairs.append((i, j))
-                ij_region_pairs.append((i_region, j_region))
-
-                if len(ij_pairs) > self.batch_size:
-                    m_segment, updated_ij_pairs = RaoPeakCaller._submatrix_indices(m, ij_pairs, w_max=self.max_w)
-
-                    job = self._create_e_job(m_segment, updated_ij_pairs,
-                                             ij_region_pairs[:], e, c, lambda_chunks,
-                                             w, p, self.min_locus_dist, self.min_ll_reads,
-                                             self.max_w, observed_cutoff=self.observed_cutoff,
-                                             e_ll_cutoff=self.e_ll_cutoff, e_h_cutoff=self.e_h_cutoff,
-                                             e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
-                    jobs.append(job)
-                    if len(jobs) >= self.n_processes:
-                        self._process_jobs(jobs, peak_info, observed_chunk_distribution)
-                        jobs = []
-                    ij_pairs = []
-                    ij_region_pairs = []
-
-        if len(ij_pairs) > 0:
-            # one last flush
-            m_segment, updated_ij_pairs = RaoPeakCaller._submatrix_indices(m, ij_pairs, w_max=self.max_w)
-
-            job = self._create_e_job(m_segment, updated_ij_pairs,
-                                     ij_region_pairs[:], e, c, lambda_chunks,
-                                     w, p, self.min_locus_dist, self.min_ll_reads,
-                                     self.max_w, observed_cutoff=self.observed_cutoff,
-                                     e_ll_cutoff=self.e_ll_cutoff, e_h_cutoff=self.e_h_cutoff,
-                                     e_v_cutoff=self.e_v_cutoff, e_d_cutoff=self.e_d_cutoff)
+            args = msgpack.dumps(args)
+            job = gridmap.Job(process_matrix_segment_intra, [args])
             jobs.append(job)
+
+            # submit intermediate segments if maximum number of jobs reached
+            if len(jobs) >= self.n_processes:
+                self._process_jobs(jobs, peak_info, observed_chunk_distribution)
+                jobs = []
 
         if len(jobs) > 0:
             self._process_jobs(jobs, peak_info, observed_chunk_distribution)
-        peak_info.flush()
 
-    def call_peaks(self, hic, chromosome_pairs=None, file_name=None, expected=None):
+    def call_peaks(self, hic, chromosome_pairs=None, file_name=None, intra_expected=None, inter_expected=None):
         """
         Call peaks in Hi-C matrix.
 
         This method will determine each pixel's likelihood to
         be a "true" peak. By default, only pixels with non-zero count and
         an observed/expected ratio > 1.0 for each neighborhood will be
-        reported, because these can by defninition not be true peaks.
+        reported, because these can by definition not be true peaks.
 
         The peak calling behavior can be influenced by modifying
         the object attributes set when initializing :class:`~RaoPeakCaller`.
@@ -1199,26 +1106,37 @@ class RaoPeakCaller(PeakCaller):
                                  ('chr1', 'chr3'), ...])
         :param file_name: An optional filename that backs the returned
                           :class:`~RaoPeakInfo` object
+        :param intra_expected: A dict of the form
+                               <chromosome>:<list of expected values> to override
+                               expected value calculation
+        :param inter_expected: A float describing the expected value
+                               for inter-chromosomal contact matrix entries
         :return: :class:`~RaoPeakInfo` object
         """
-        peaks = RaoPeakInfo(file_name, regions=hic.regions(lazy=True), mode='w')
+        if self.process_inter:
+            raise RuntimeError("Inter-chromosomal peak calling not currently supported!")
 
-        logger.info("Expected values...")
-        calculated_expected = False
-        if expected is None:
-            calculated_expected = True
-            expected = ExpectedContacts(hic, smooth=True)
+        peaks = RaoPeakInfo(file_name, mode='w')
+        peaks.add_regions(hic.regions)
 
-        intra_expected = expected.intra_expected()
-        inter_expected = expected.inter_expected()
+        # expected values
+        if intra_expected is None:
+            logger.info("Calculating intra-chromosomal expected values...")
+            _, intra_expected, _ = hic.expected_values()
+            logger.info("Done.")
+        # if self.process_inter and inter_expected is None:
+        #     logger.info("Inter-chromosomal expected values...")
+        #     with ExpectedContacts(hic, smooth=False) as expected:
+        #         inter_expected = expected.inter_expected()
+        #
+        # if self.process_inter:
+        #     intra_possible, inter_possible = hic.possible_contacts()
+        # else:
+        #     intra_possible, inter_possible = None, None
 
         # mappability
-        mappable = expected.marginals() > 0
-
-        logger.info("Done.")
-
-        intra_possible, inter_possible = hic.possible_contacts()
-
+        mappable = hic.mappable()
+        
         # initialize peak parameters
         p = self.p
         w_init = self.w_init
@@ -1232,27 +1150,17 @@ class RaoPeakCaller(PeakCaller):
                 w_init = 3 if w_init is None else w_init
             else:
                 p = int(24999/bin_size) if p is None else p
-                w_init = int(round(25000/bin_size) + 2) if w_init is None else w_init
+                w_init = int(25000/bin_size + 0.5) + 2 if w_init is None else w_init
         logger.info("Initial parameter values: p=%d, w=%d" % (p, w_init))
 
         logger.info("Obtaining bias vector...")
         c = hic.bias_vector()
         logger.info("Done.")
 
-        logger.info("Finding maximum observed value...")
-        max_observed = 0
-        for edge in hic.edges(lazy=True):
-            new_max = edge.weight/(c[edge.source]*c[edge.sink])
-            if not math.isinf(new_max):
-                max_observed = max(max_observed, new_max)
-        logger.info("Done.")
-
-        logger.info("Calculating lambda-chunk boundaries...")
-        lambda_chunks = RaoPeakCaller._lambda_chunks(max_observed*2)
-        logger.info("Done.")
-
-        observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(lambda_chunks)
-        inter_stats = {'total': 0, 'observed': 0}
+        # lambda chunks container
+        observed_chunk_distribution = dict()
+        for e_type in ('ll', 'h', 'v', 'd'):
+            observed_chunk_distribution[e_type] = defaultdict(lambda: defaultdict(int))
 
         # start processing chromosome pairs
         if chromosome_pairs is None:
@@ -1260,237 +1168,285 @@ class RaoPeakCaller(PeakCaller):
             chromosomes = list(hic.chromosomes())
 
             for i_chr, chromosome1 in enumerate(chromosomes):
-                for j_chr in xrange(i_chr, len(chromosomes)):
+                for j_chr in range(i_chr, len(chromosomes)):
                     chromosome2 = chromosomes[j_chr]
                     chromosome_pairs.append((chromosome1, chromosome2))
 
+        chromosome_bins = hic.chromosome_bins
         for chromosome1, chromosome2 in chromosome_pairs:
             logger.info("Processing %s-%s" % (chromosome1, chromosome2))
 
-            m = hic[chromosome1, chromosome2]
+            start1, end1 = chromosome_bins[chromosome1]
+            ix_offset = start1
+            start2, end2 = chromosome_bins[chromosome2]
             if chromosome1 == chromosome2:
-                self._find_peaks_in_matrix(m, intra_expected, c, mappable, peaks,
-                                           observed_chunk_distribution, lambda_chunks, w_init, p)
+                m = hic.as_matrix((chromosome1, chromosome2), mask_missing=True)
+                self._find_peaks_intra_matrix(m, intra_expected[chromosome1], c[start1:end1],
+                                              peaks, mappable[start1:end1], ix_offset,
+                                              observed_chunk_distribution, w_init, p)
             elif self.process_inter:
-                self._find_peaks_in_matrix(m, inter_expected, c, mappable, peaks,
-                                           None, None, w_init, p)
+                warnings.warn("Inter-chromosomal peak calling not currently supported!")
+                # self._find_peaks_inter_matrix(m, inter_expected, c[start1:end1], c[start2:end2],
+                #                              peaks, mappable[start1:end1], mappable[start2:end2],
+                #                              None, None, w_init, p)
         peaks.flush()
 
         # calculate fdrs
-        fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(lambda_chunks, observed_chunk_distribution)
+        logger.info("Finding FDR cutoffs...")
+        fdr_cutoffs = RaoPeakCaller._get_fdr_cutoffs(observed_chunk_distribution)
 
-        regions_dict = peaks.regions_dict
-        for peak in peaks.peaks(lazy=True, auto_update=False):
-            region1 = regions_dict[peak.source]
-            region2 = regions_dict[peak.sink]
-            if region1.chromosome == region2.chromosome:
+        # regions_dict = peaks.regions_dict
+        with RareUpdateProgressBar(max_value=len(peaks.edges), prefix='FDR') as pb:
+            for i, peak in enumerate(peaks.peaks(lazy=True, auto_update=False)):
+                # region1 = regions_dict[peak.source]
+                # region2 = regions_dict[peak.sink]
+                # if region1.chromosome == region2.chromosome:
                 try:
-                    peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.observed]
-                    peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.observed]
-                    peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.observed]
-                    peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.observed]
-                    peak.update()
+                    peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.uncorrected]
+                    peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.uncorrected]
+                    peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.uncorrected]
+                    peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.uncorrected]
                 except KeyError:
-                    peak.fdr_ll = 0
-                    peak.fdr_h = 0
-                    peak.fdr_v = 0
-                    peak.fdr_d = 0
-            else:
-                # Bonferroni correction
-                if self.correct_inter == 'bonferroni':
-                    peak.fdr_ll *= inter_possible
-                    peak.fdr_h *= inter_possible
-                    peak.fdr_v *= inter_possible
-                    peak.fdr_d *= inter_possible
-                    peak.update()
+                    peak.fdr_ll = 1
+                    peak.fdr_h = 1
+                    peak.fdr_v = 1
+                    peak.fdr_d = 1
+                peak.update()
+                pb.update(i)
+                # else:
+                #     # Bonferroni correction
+                #     if self.correct_inter == 'bonferroni':
+                #         peak.fdr_ll *= inter_possible
+                #         peak.fdr_h *= inter_possible
+                #         peak.fdr_v *= inter_possible
+                #         peak.fdr_d *= inter_possible
+                #         peak.update()
         peaks.flush()
 
-        if self.process_inter and self.correct_inter == 'fdr':
-            # fdr_ll
-            for i, peak in enumerate(peaks.peaks_sorted('fdr_ll', lazy=True, auto_update=False)):
-                region1 = regions_dict[peak.source]
-                region2 = regions_dict[peak.sink]
-                if region1.chromosome != region2.chromosome:
-                    peak.fdr_ll *= inter_possible/(i+1)
-                    peak.update()
-            peaks.flush()
-            # fdr_h
-            for i, peak in enumerate(peaks.peaks_sorted('fdr_h', lazy=True, auto_update=False)):
-                region1 = regions_dict[peak.source]
-                region2 = regions_dict[peak.sink]
-                if region1.chromosome != region2.chromosome:
-                    peak.fdr_h *= inter_possible/(i+1)
-                    peak.update()
-            peaks.flush()
-            # fdr_v
-            for i, peak in enumerate(peaks.peaks_sorted('fdr_v', lazy=True, auto_update=False)):
-                region1 = regions_dict[peak.source]
-                region2 = regions_dict[peak.sink]
-                if region1.chromosome != region2.chromosome:
-                    peak.fdr_v *= inter_possible/(i+1)
-                    peak.update()
-            peaks.flush()
-            # fdr_d
-            for i, peak in enumerate(peaks.peaks_sorted('fdr_d', lazy=True, auto_update=False)):
-                region1 = regions_dict[peak.source]
-                region2 = regions_dict[peak.sink]
-                if region1.chromosome != region2.chromosome:
-                    peak.fdr_d *= inter_possible/(i+1)
-                    peak.update()
-            peaks.flush()
-
-        if calculated_expected:
-            expected.close()
+        # if self.process_inter and self.correct_inter == 'fdr':
+        #     # fdr_ll
+        #     for i, peak in enumerate(peaks.peaks_sorted('fdr_ll', lazy=True, auto_update=False)):
+        #         region1 = regions_dict[peak.source]
+        #         region2 = regions_dict[peak.sink]
+        #         if region1.chromosome != region2.chromosome:
+        #             peak.fdr_ll *= inter_possible/(i+1)
+        #             peak.update()
+        #     peaks.flush()
+        #     # fdr_h
+        #     for i, peak in enumerate(peaks.peaks_sorted('fdr_h', lazy=True, auto_update=False)):
+        #         region1 = regions_dict[peak.source]
+        #         region2 = regions_dict[peak.sink]
+        #         if region1.chromosome != region2.chromosome:
+        #             peak.fdr_h *= inter_possible/(i+1)
+        #             peak.update()
+        #     peaks.flush()
+        #     # fdr_v
+        #     for i, peak in enumerate(peaks.peaks_sorted('fdr_v', lazy=True, auto_update=False)):
+        #         region1 = regions_dict[peak.source]
+        #         region2 = regions_dict[peak.sink]
+        #         if region1.chromosome != region2.chromosome:
+        #             peak.fdr_v *= inter_possible/(i+1)
+        #             peak.update()
+        #     peaks.flush()
+        #     # fdr_d
+        #     for i, peak in enumerate(peaks.peaks_sorted('fdr_d', lazy=True, auto_update=False)):
+        #         region1 = regions_dict[peak.source]
+        #         region2 = regions_dict[peak.sink]
+        #         if region1.chromosome != region2.chromosome:
+        #             peak.fdr_d *= inter_possible/(i+1)
+        #             peak.update()
+        #     peaks.flush()
 
         return peaks
 
 
-def multiprocessing_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
-                                 min_locus_dist=3, min_ll_reads=16, max_w=20,
-                                 observed_cutoff=0, e_ll_cutoff=None, e_h_cutoff=None,
-                                 e_v_cutoff=None, e_d_cutoff=None, queue=None):
-    output = process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=w, p=p,
-                                  min_locus_dist=min_locus_dist, min_ll_reads=min_ll_reads, max_w=max_w,
-                                  observed_cutoff=observed_cutoff, e_ll_cutoff=e_ll_cutoff, e_h_cutoff=e_h_cutoff,
-                                  e_v_cutoff=e_v_cutoff, e_d_cutoff=e_d_cutoff)
-    queue.put(output)
+def process_matrix_segment_intra(data):
+    m_original, e, ix_offset, \
+        i_range, i_inspect, mappable_i, c_i, \
+        j_range, j_inspect, mappable_j, c_j, \
+        w, p, min_locus_dist, min_ll_reads, min_mappable, \
+        max_w = msgpack.loads(data)
 
+    # construct convenient matrices
+    row_ixs = np.arange(i_range[0], i_range[1])
+    col_ixs = np.arange(j_range[0], j_range[1])
+    m_uncorrected = np.rint(m_original/c_i[:, None]/c_j)
+    m_distance = np.array([abs(col_ixs - i) for i in row_ixs])
+    expected_f = np.vectorize(lambda x: e[x])
+    m_expected = expected_f(m_distance)
 
-def process_matrix_range(m, ij_pairs, ij_region_pairs, e, c, chunks, w=1, p=0,
-                         min_locus_dist=3, min_ll_reads=16, max_w=20,
-                         observed_cutoff=0, e_ll_cutoff=None, e_h_cutoff=None,
-                         e_v_cutoff=None, e_d_cutoff=None):
+    # mask above matrices by mappability
+    mask = np.zeros(m_original.shape, dtype=bool)
+    mask[np.logical_not(mappable_i)] = True
+    mask[:, np.logical_not(mappable_j)] = True
 
-    t1 = time.time()
-    ij_pairs = msgpack.loads(ij_pairs)
-    ij_region_pairs = msgpack.loads(ij_region_pairs)
+    m_original = np.ma.masked_where(mask, m_original)
+    m_uncorrected = np.ma.masked_where(mask, m_uncorrected)
+    m_expected = np.ma.masked_where(mask, m_expected)
+    m_ones = np.ones(m_original.shape)
 
-    if chunks is not None:
-        observed_chunk_distribution = RaoPeakCaller._get_chunk_distribution_container(chunks)
-    else:
-        observed_chunk_distribution = None
+    results = []
+    for o_i in range(i_inspect[0], i_inspect[1]):
+        i = o_i - i_range[0]
+        for o_j in range(j_inspect[0], j_inspect[1]):
+            j = o_j - j_range[0]
 
-    e_all = partial(RaoPeakCaller.e_all, e=e, w=w, p=p)
+            # only inspect pixels at a certain distance
+            # above the diagonal
+            if o_j - o_i < p + min_locus_dist:
+                continue
 
-    c_row_sub = c[m.row_regions[0].ix:m.row_regions[-1].ix+1]
-    c_col_sub = c[m.col_regions[0].ix:m.col_regions[-1].ix+1]
-    m_corr = np.zeros(m.shape)
+            # only inspect mappable pixels
+            if mask[i, j]:
+                continue
 
-    for i in xrange(m.shape[0]):
-        for j in xrange(m.shape[1]):
-            m_corr[i, j] = m[i, j]/c_row_sub[i]/c_col_sub[j]
-
-    observed_list = []
-    e_ll_list = []
-    e_h_list = []
-    e_v_list = []
-    e_d_list = []
-    region_list = []
-    for ij_pair, ij_region_pair in zip(ij_pairs, ij_region_pairs):
-        i = ij_pair[0]
-        j = ij_pair[1]
-        i_region = ij_region_pair[0]
-        j_region = ij_region_pair[1]
-        cf = c[i_region]*c[j_region]
-        observed = m[i, j]
-        observed_c = int(round(observed/cf))
-
-        # do not examine loci closer than p+3
-        if abs(i_region-j_region) <= p + min_locus_dist:
-            e_ll, e_h, e_v, e_d = None, None, None, None
-        else:
-            # check the lower-left condition
-            # assure minimum number of reads
+            # only inspect pixels if they have more than
+            # a minimum number of reads
             w_corr = w
-            while RaoPeakCaller.ll_sum(m_corr, i, j, w=w_corr, p=p) < min_ll_reads and w_corr <= max_w:
+            ll_sum = 0
+            while ll_sum < min_ll_reads and w_corr <= max_w:
+                ll_sum = RaoPeakCaller.ll_sum(m_uncorrected, i, j, w=w_corr, p=p)
+                if np.ma.is_masked(ll_sum):
+                    ll_sum = 0
                 w_corr += 1
 
             if w_corr > max_w:
-                e_ll, e_h, e_v, e_d = None, None, None, None
-            else:
-                e_ll, e_h, e_v, e_d = e_all(m, i, j, w=w_corr)
+                continue
 
-        if e_ll is None or e_ll == 0:
-            continue
-        if e_d is None or e_d == 0:
-            continue
-        if e_h is None or e_h == 0:
-            continue
-        if e_v is None or e_v == 0:
-            continue
+            # calculate mappability and enrichment values
+            ll_mappable = 1 - RaoPeakCaller.e_ll_sum(mask, i, j, w, p) / RaoPeakCaller.e_ll_sum(m_ones, i, j, w, p)
+            if ll_mappable < min_mappable:
+                continue
+            e_ll = RaoPeakCaller.e_ll(m_original, i, j, m_expected, w=w_corr, p=p)
 
-        e_ll_c = e_ll/cf
-        e_h_c = e_h/cf
-        e_v_c = e_v/cf
-        e_d_c = e_d/cf
+            v_mappable = 1 - RaoPeakCaller.e_v_sum(mask, i, j, w, p) / RaoPeakCaller.e_v_sum(m_ones, i, j, w, p)
+            if v_mappable < min_mappable:
+                continue
+            e_v = RaoPeakCaller.e_v(m_original, i, j, m_expected, w=w_corr, p=p)
 
-        if observed_chunk_distribution is not None:
-            e_ll_chunk = RaoPeakCaller._find_chunk(chunks, e_ll_c)
-            e_h_chunk = RaoPeakCaller._find_chunk(chunks, e_h_c)
-            e_v_chunk = RaoPeakCaller._find_chunk(chunks, e_v_c)
-            e_d_chunk = RaoPeakCaller._find_chunk(chunks, e_d_c)
+            h_mappable = 1 - RaoPeakCaller.e_h_sum(mask, i, j, w, p) / RaoPeakCaller.e_h_sum(m_ones, i, j, w, p)
+            if h_mappable < min_mappable:
+                continue
+            e_h = RaoPeakCaller.e_h(m_original, i, j, m_expected, w=w_corr, p=p)
 
-            # update observed distribution
-            try:
-                if e_ll_chunk is not None:
-                    observed_chunk_distribution['ll'][e_ll_chunk][observed_c] += 1
+            d_mappable = 1 - RaoPeakCaller.e_d_sum(mask, i, j, w, p) / RaoPeakCaller.e_d_sum(m_ones, i, j, w, p)
+            if d_mappable < min_mappable:
+                continue
+            e_d = RaoPeakCaller.e_d(m_original, i, j, m_expected, w=w_corr, p=p)
 
-                if e_h_chunk is not None:
-                    observed_chunk_distribution['h'][e_h_chunk][observed_c] += 1
+            # find chunks
+            cf = c_i[i] * c_j[j]
+            o_chunk = RaoPeakCaller.find_chunk(m_uncorrected[i, j])
+            e_ll_chunk = RaoPeakCaller.find_chunk(e_ll/cf)
+            e_h_chunk = RaoPeakCaller.find_chunk(e_h/cf)
+            e_v_chunk = RaoPeakCaller.find_chunk(e_v/cf)
+            e_d_chunk = RaoPeakCaller.find_chunk(e_d/cf)
 
-                if e_v_chunk is not None:
-                    observed_chunk_distribution['v'][e_v_chunk][observed_c] += 1
+            result = [o_i + ix_offset, o_j + ix_offset, float(m_original.data[i, j]), w_corr, p,
+                      int(m_uncorrected.data[i, j]),
+                      int(ll_sum), e_ll, e_v, e_h, e_d,
+                      o_chunk, e_ll_chunk, e_v_chunk, e_h_chunk, e_d_chunk,
+                      ll_mappable, v_mappable, h_mappable, d_mappable]
 
-                if e_d_chunk is not None:
-                    observed_chunk_distribution['d'][e_d_chunk][observed_c] += 1
+            results.append(result)
+    return msgpack.dumps(results)
 
-            except IndexError:
-                logger.error("Chunk distribution index error")
-                logger.error("observed_c: %d" % observed_c)
-                logger.error("e_ll_chunk: %s" % str(e_ll_chunk))
-                logger.error("e_h_chunk: %s" % str(e_h_chunk))
-                logger.error("e_v_chunk: %s" % str(e_v_chunk))
-                logger.error("e_d_chunk: %s" % str(e_d_chunk))
-                #continue
 
+def overlap_peaks(peaks, max_distance=6000):
+    """
+    Calculate overlap between different peak calls.
+
+    Useful for comparing peak calls across different samples
+    or conditions.
+
+    :param dict peaks: Peaks to overlap. Dictionary of
+                       :class:`kaic.data.network.PeakInfo`,
+                       keys are dataset names.
+    :param int max_distance: Maximum distance between peaks for overlap
+    :return: DataFrame of overlap statistics and dictionary
+             containing overlapping peaks. Keys are sets
+             of dataset names.
+    :rtype: (pandas.DataFrame, kaic.data.network.PeakInfo)
+    """
+    # Algorithm from https://github.com/theaidenlab/juicebox/blob/cb5999cb1e8e430dd29d4114fb208aca4b8d35ac/src/juicebox/tools/utils/juicer/hiccups/HiCCUPSUtils.java#L235
+
+    def key_func(p):
+        return p[1].weight
+
+    def hypotenuse(x, y):
+        return math.sqrt(x*x + y*y)
+
+    def mean(data):
+        # https://stackoverflow.com/a/31062966
+        n = 0
+        mean = 0.0
+        for x in data:
+            n += 1
+            mean += (x - mean)/n
+        if n < 1:
+            return float("nan");
         else:
-            # calculate fdrs instead
-            e_ll_chunk = 1-poisson(e_ll_c).cdf(observed_c)
-            e_h_chunk = 1-poisson(e_h_c).cdf(observed_c)
-            e_v_chunk = 1-poisson(e_v_c).cdf(observed_c)
-            e_d_chunk = 1-poisson(e_d_c).cdf(observed_c)
+            return mean
 
-        # do filtering here to reduce message size
-        # check that we have enough observed reads
-        if not observed_c > observed_cutoff:
-            continue
+    summarize_attrs = [
+        (mean, "weight"),
+        (mean, "oe"),
+        (mean, "uncorrected"),
+        (mean, "expected"),
+        (sum, "p_value"),
+        (sum, "q_value_sum"),
+    ]
 
-        # check that we have a high-enough o/e ratio for ll
-        if e_ll_cutoff is not None and e_ll_c > 0 and observed_c/e_ll_c < e_ll_cutoff:
-            continue
-        # check that we have a high-enough o/e ratio for ll
-        if e_h_cutoff is not None and e_h_c > 0 and observed_c/e_h_c < e_h_cutoff:
-            continue
-        # check that we have a high-enough o/e ratio for ll
-        if e_v_cutoff is not None and e_v_c > 0 and observed_c/e_v_c < e_v_cutoff:
-            continue
-        # check that we have a high-enough o/e ratio for ll
-        if e_d_cutoff is not None and e_d_c > 0 and observed_c/e_d_c < e_d_cutoff:
-            continue
+    if not all(a == b for regions in zip(peaks.values()) for a, b in pairwise(regions)):
+        raise ValueError("All peak calls must have the same regions.")
 
-        if observed_chunk_distribution is not None:
-            observed_list.append((observed_c, RaoPeakCaller._find_chunk(chunks, observed_c)))
-        else:
-            observed_list.append((observed_c, None))
-        e_ll_list.append((e_ll_c, e_ll_chunk))
-        e_h_list.append((e_h_c, e_h_chunk))
-        e_v_list.append((e_v_c, e_v_chunk))
-        e_d_list.append((e_d_c, e_d_chunk))
-        region_list.append((i_region, j_region))
-
-    t2 = time.time()
-
-    # speed up information-passing between processes
-    rv = msgpack.dumps((region_list, observed_list, e_ll_list,
-                        e_h_list, e_v_list, e_d_list, observed_chunk_distribution))
-    return rv
+    peaks1 = next(iter(peaks.values()))
+    bin_size = peaks1.bin_size
+    max_distance = max_distance/bin_size
+    logger.info("Fetching and sorting peaks...")
+    all_peaks = list(sorted(((s, p) for s, pgen in viewitems(peaks) for p in pgen), key=key_func, reverse=True))
+    logger.info("Done.")
+    logger.info("Finding overlaps...")
+    out_peaks = defaultdict(list)
+    total_n = len(all_peaks)
+    with RareUpdateProgressBar(max_value=total_n, silent=config.hide_progressbars) as pb:
+        while len(all_peaks) > 0:
+            cur_p = all_peaks.pop(0)
+            cur_p_list = [cur_p]
+            cur_x = cur_p[1].x
+            cur_y = cur_p[1].y
+            cluster_radius = max_distance
+            for p in all_peaks:
+                if hypotenuse(cur_x - p[1].x, cur_y - p[1].y) <= cluster_radius:
+                    cur_p_list.append(p)
+                    cur_x = mean(_p.x for _s, _p in cur_p_list)
+                    cur_y = mean(_p.y for _s, _p in cur_p_list)
+                    r = max(hypotenuse(cur_x - _p.x, cur_y - _p.y) for _s, _p in cur_p_list)
+                    cluster_radius = max_distance + r
+            summed_attrs = {attr: sum_func(getattr(p, attr) for s, p in cur_p_list) for sum_func, attr in summarize_attrs}
+            cons_p = Peak(
+                x=cur_x,
+                y=cur_y,
+                radius=r if len(cur_p_list) > 1 else 0.,
+                source=math.floor(min(cur_x, cur_y)),
+                sink=math.floor(max(cur_x, cur_y)),
+                **summed_attrs
+            )
+            out_peaks[frozenset(s for s, p in cur_p_list)].append(cons_p)
+            for p in cur_p_list[1:]:
+                all_peaks.remove(p)
+            pb.update(total_n - len(all_peaks))
+    logger.info("Done.")
+    logger.info("Gathering overlapped peaks.")
+    out_dict = {}
+    out_stats = []
+    for sample_set, p_list in viewitems(out_peaks):
+        pi = PeakInfo()
+        pi.add_regions(peaks1.regions())
+        pi.add_edges(p_list)
+        out_dict[sample_set] = pi
+        stat = OrderedDict((s, s in sample_set) for s in peaks.keys())
+        stat["n"] = len(p_list)
+        out_stats.append(stat)
+    logger.info("Done.")
+    return pd.DataFrame(out_stats), out_dict

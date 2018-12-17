@@ -11,44 +11,41 @@ Provides
 from .version import __version__
 
 from kaic.config import config
-from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, Bed, AccessOptimisedHic, load_hic, GenomicRegion, \
-    BigWig
+from genomic_regions import GenomicRegion, as_region, load as gr_load
+from kaic.data.genomic import Hic, Node, Edge, Genome, Chromosome, AccessOptimisedHic, load_hic
 from kaic.data.general import FileBased
 from kaic.data.registry import class_id_dict
 from kaic.construct.seq import Reads, FragmentMappedReadPairs
-from kaic.construct.seq import FragmentMappedReadPairs as Pairs  # alias for FragmentMappedReadPairs
+from kaic.construct.seq import AccessOptimisedReadPairs as Pairs  # alias
 from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIndex, PossibleContacts, \
     ExpectedContacts, RegionContactAverage, FoldChangeMatrix, ObservedExpectedRatio, ABDomains, \
     ABDomainMatrix, MetaArray, MetaHeatmap, VectorDifference, VectorArchitecturalRegionFeature, \
-    MultiVectorArchitecturalRegionFeature
+    MultiVectorArchitecturalRegionFeature, cumulative_matrix
 from kaic.data.network import RaoPeakInfo
 from kaic.architecture.genome_architecture import GenomicTrack
 import tables
+import os
 import logging
 
 # configure logging
 logger = logging.getLogger(__name__)
-try:  # Python 2.7+
-    from logging import NullHandler
-except ImportError:
-    class NullHandler(logging.Handler):
-        def emit(self, record):
-            pass
-logger.addHandler(NullHandler())
+logger.addHandler(logging.NullHandler())
 
 
-def load(file_name, mode='a', tmpdir=None):
+def load(file_name, *args, **kwargs):
     import os
     file_name = os.path.expanduser(file_name)
     try:
         f = FileBased(file_name, mode='r')
+        mode = kwargs.pop('mode', 'r')
         classid = None
         try:
             classid = f.meta._classid
+            classid = classid.decode() if isinstance(classid, bytes) else classid
             f.close()
             cls_ = class_id_dict[classid]
             logger.debug("Detected {}".format(cls_))
-            return cls_(file_name=file_name, mode=mode, tmpdir=tmpdir)
+            return cls_(file_name=file_name, mode=mode, *args, **kwargs)
         except AttributeError:
             # try to detect from file structure
 
@@ -64,7 +61,7 @@ def load(file_name, mode='a', tmpdir=None):
 
                 if hic_class is not None:
                     f.close()
-                    return hic_class(file_name, mode=mode, tmpdir=tmpdir)
+                    return hic_class(file_name, mode=mode, *args, **kwargs)
             except tables.NoSuchNodeError:
                 pass
 
@@ -93,7 +90,7 @@ def load(file_name, mode='a', tmpdir=None):
                 try:
                     f.file.get_node('/' + name)
                     f.close()
-                    return cls(file_name, mode=mode, tmpdir=tmpdir)
+                    return cls(file_name, mode=mode, *args, **kwargs)
                 except tables.NoSuchNodeError:
                     pass
 
@@ -105,34 +102,15 @@ def load(file_name, mode='a', tmpdir=None):
         except KeyError:
             raise ValueError("classid attribute ({}) does not have a registered class.".format(classid))
     except tables.HDF5ExtError:
-        # try some well-known file types
+        return gr_load(file_name, *args, **kwargs)
 
-        # SAM/BAM
-        import pysam
-        try:
-            sb = pysam.AlignmentFile(file_name, 'rb')
-            if mode != 'rb':
-                sb.close()
-                sb = pysam.AlignmentFile(file_name, mode)
-            return sb
-        except (ValueError, IOError):
-            pass
 
-        import pybedtools
-        f = Bed(file_name)
-        try:
-            _ = f.file_type
-            return f
-        except (IndexError, pybedtools.MalformedBedLineError):
-            pass
-
-        try:
-            import pyBigWig
-            f = pyBigWig.open(file_name, 'r')
-            if mode != 'r':
-                f.close()
-                f = pyBigWig.open(file_name, mode)
-
-            return BigWig(f)
-        except (ImportError, RuntimeError):
-            raise ValueError("File type not recognised ({}).".format(file_name))
+example_data = dict(
+    hic="test/data/test_network/rao2014.chr11_77400000_78600000.hic",
+    chip_bigwig="test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig",
+    chip_bedgraph="test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bedgraph.gz",
+    chip_peak_bed="test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.peaks.bed.gz",
+    gene_gtf="test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz",
+)
+_basepath = os.path.abspath(os.path.dirname(__file__))
+example_data = {k: os.path.join(_basepath, v) for k, v in example_data.items()}

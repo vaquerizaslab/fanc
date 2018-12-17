@@ -1,7 +1,8 @@
 from kaic.data.general import FileGroup
-from abc import abstractmethod, ABCMeta
+from abc import abstractmethod
 import tables as t
 from collections import defaultdict
+from future.utils import string_types
 import inspect
 
 
@@ -103,7 +104,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
 
     def __init__(self, group, fields=None, file_name=None, mode='a',
                  tmpdir=None, _table_name='table_architecture'):
-        if isinstance(fields, str):
+        if isinstance(fields, string_types):
             if file_name is None:
                 file_name = fields
             else:
@@ -132,7 +133,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             }
 
         data_fields = dict()
-        for data_name, vector in data.iteritems():
+        for data_name, vector in data.items():
             string_size = 0
             for value in vector:
                 table_type = _get_pytables_data_type(value)
@@ -167,7 +168,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             self._table.flush()
 
             row = self._table.row
-            for i in xrange(len(self._table), len(value)):
+            for i in range(len(self._table), len(value)):
                 row[key] = value[i]
                 row.append()
             self._table.flush()
@@ -193,7 +194,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
                 data_name: data
             }
 
-        for data_name, vector in data.iteritems():
+        for data_name, vector in data.items():
             self.data(data_name, vector)
 
     @calculateondemand
@@ -214,11 +215,10 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
         for column_selector in column_selectors:
             if isinstance(column_selector, int) or isinstance(column_selector, slice):
                 colnames.append(self._table.colnames[column_selector])
-            elif isinstance(column_selector, str):
+            elif isinstance(column_selector, string_types):
                 colnames.append(column_selector)
 
         if isinstance(value, list):
-            print len(value), n_rows
             if len(value) != n_rows:
                 raise ValueError("Number of elements in selection does not "
                                  "match number of elements to be replaced!")
@@ -260,7 +260,9 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             return row
         d = dict()
         for colname in self._table.colnames:
-            d[colname] = row[colname]
+            value = row[colname]
+            value = value.decode() if isinstance(value, bytes) else value
+            d[colname] = value
         return d
 
     @calculateondemand
@@ -289,7 +291,7 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             is_list = False
         elif isinstance(item, slice):
             colnames = self._table.colnames[item]
-        elif isinstance(item, str):
+        elif isinstance(item, string_types):
             colnames = [item]
             is_list = False
         elif isinstance(item, list):
@@ -301,7 +303,9 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
             results_dict = defaultdict(list)
             for row in rows:
                 for name in colnames:
-                    results_dict[name].append(row[name])
+                    value = row[name]
+                    value = value.decode() if isinstance(value, bytes) else value
+                    results_dict[name].append(value)
         else:
             results_dict = dict()
             for name in colnames:
@@ -315,6 +319,10 @@ class TableArchitecturalFeature(FileGroup, ArchitecturalFeature):
     def _calculate(self, *args, **kwargs):
         raise NotImplementedError("This method must be overridden in subclass!")
 
+    @calculateondemand
+    def close(self, **kwargs):
+        FileGroup.close(self, **kwargs)
+
 
 class BasicTable(TableArchitecturalFeature):
     """
@@ -324,7 +332,7 @@ class BasicTable(TableArchitecturalFeature):
 
     def __init__(self, fields, types=None, file_name=None, mode='a',
                  _string_size=100, _group_name='basic_table'):
-        if isinstance(fields, str):
+        if isinstance(fields, string_types):
             if file_name is None:
                 file_name = fields
                 fields = None
@@ -336,7 +344,7 @@ class BasicTable(TableArchitecturalFeature):
         else:
             pt_fields = {}
             if isinstance(fields, dict):
-                for field, field_type in fields.iteritems():
+                for field, field_type in fields.items():
                     pt_fields[field] = _get_pytables_data_type(field_type)
             else:
                 if types is None or len(fields) != len(types):
@@ -345,7 +353,7 @@ class BasicTable(TableArchitecturalFeature):
                     pt_fields[field] = _get_pytables_data_type(types[i])
 
             data_fields = {}
-            for data_name, table_type in pt_fields.iteritems():
+            for data_name, table_type in pt_fields.items():
                 if table_type != t.StringCol:
                     data_fields[data_name] = table_type(pos=len(data_fields))
                 else:

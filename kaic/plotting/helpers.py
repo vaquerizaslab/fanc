@@ -1,36 +1,40 @@
 from __future__ import division
 import matplotlib as mpl
 import numpy as np
+from math import log10, floor
+import pybedtools as pbt
+import kaic
+import pyBigWig
+from genomic_regions import RegionBased, Bed, BigWig
+import tempfile
+import os
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,
     'axes.edgecolor': '.15',
     'axes.facecolor': 'white',
     'axes.grid': True,
-    'axes.labelcolor': '.15',
-    'axes.linewidth': 1.25,
     'figure.facecolor': 'white',
-    'font.family': ['sans-serif'],
     'grid.color': '.8',
     'grid.linestyle': '-',
-    'image.cmap': 'Greys',
-    'legend.frameon': False,
-    'legend.numpoints': 1,
-    'legend.scatterpoints': 1,
     'lines.solid_capstyle': 'round',
-    'text.color': '.15',
-    'xtick.color': '.15',
-    'xtick.direction': 'out',
-    'xtick.major.size': 6,
-    'xtick.minor.size': 3,
-    'ytick.color': '.15',
-    'ytick.direction': 'out',
-    'ytick.major.size': 6,
-    'ytick.minor.size': 3}
+}
+
+# Stupid workaround for bug in pyBigWig https://github.com/dpryan79/pyBigWig/issues/48
+_tmp_path = None
+try:
+    _tmp_path = tempfile.mkstemp()[1]
+    _bw_file = pyBigWig.open(_tmp_path, "w")
+    _bw_file.addHeader([('chr1', 10)])
+    _bw_file.addEntries(['chr1'], [1], ends=[2], values=[1.])
+    _pyBigWig_type = type(_bw_file)
+    _bw_file.close()
+finally:
+    if _tmp_path:
+        os.remove(_tmp_path)
 
 
 def region_to_pbt_interval(region):
-    import pybedtools as pbt
     return pbt.cbedtools.Interval(chrom=region.chromosome, start=region.start - 1, end=region.end)
 
 
@@ -187,3 +191,138 @@ class SymmetricNorm(mpl.colors.Normalize):
         abs_max = max(abs(vmin), abs(vmax))
         self.vmin = -1.*abs_max
         self.vmax = abs_max
+
+
+def box_coords_abs_to_rel(top, left, width, height, figsize):
+    f_width, f_height = figsize
+    rel_bottom = (f_height - top - height)/f_height
+    rel_left = left/f_width
+    rel_width = width/f_width
+    rel_height = height/f_height
+    return rel_left, rel_bottom, rel_width, rel_height
+
+
+# Borrowed from figure.text method
+# https://github.com/matplotlib/matplotlib/blob/a4999acbbf6ebd6fa211f70becd49887dce663ab/lib/matplotlib/figure.py#L1495
+def figure_line(fig, xdata, ydata, **kwargs):
+    """
+    Add a line to the figure, independent of axes.
+    Coordinates in (0, 1) relative to bottom left of the figure.
+    All kwargs are passed to Line2D constructor.
+    """
+    l = mpl.lines.Line2D(xdata, ydata, **kwargs)
+    fig._set_artist_props(l)
+    fig.lines.append(l)
+    l._remove_method = lambda h: fig.lines.remove(h)
+    fig.stale = True
+    return l
+
+
+# Borrowed from figure.text method
+# https://github.com/matplotlib/matplotlib/blob/a4999acbbf6ebd6fa211f70becd49887dce663ab/lib/matplotlib/figure.py#L1495
+def figure_rectangle(fig, xy, width, height, **kwargs):
+    """
+    Add a rectangle to the given figure independent of axes.
+    Coordinates in (0, 1) relative to bottom left of the figure.
+    All kwargs are passed to Rectangle constructor.
+    """
+    p = mpl.patches.Rectangle(xy, width, height, **kwargs)
+    fig._set_artist_props(p)
+    fig.patches.append(p)
+    p._remove_method = lambda h: fig.patches.remove(h)
+    fig.stale = True
+    return p
+
+
+# From https://stackoverflow.com/a/3413529/4603385
+def round_sig(x, sig=2):
+    if x == 0:
+        return 0.
+    return round(x, sig - int(floor(log10(abs(x)))) - 1)
+
+
+class LimitGroup(object):
+    """
+    Can be used for synchronizing axis limits across multiple
+    plots. Pass the same instance of this class to all plots
+    that should have synchronized axis limits.
+    """
+
+    def __init__(self, limit=None, sig=2):
+        """
+        :param limit: tuple (vmin, vmax) to set absolute limits
+                      for axis. Final limits will be chosen
+                      within this absolute limit. Pass None
+                      for vmin or vmax to set no limit.
+                      Default: (None, None)
+        :param sig: Round limits to sig significant digits.
+                    If None, don't round.
+                    Default: 2
+        """
+        self.limit = limit
+        if self.limit is None:
+            self.limit = (None, None)
+        self.sig = sig
+        self.limit_list = []
+
+    def add_limit(self, limit):
+        self.limit_list.append(limit)
+
+    def get_limit(self):
+        if len(self.limit_list) < 1:
+            return self.limit
+        vmin = min(x[0] if x[0] is not None else float("+Inf") for x in self.limit_list if x is not None)
+        vmax = max(x[1] if x[1] is not None else float("-Inf") for x in self.limit_list if x is not None)
+        if vmin is None or (self.limit[0] is not None and vmin < self.limit[0]):
+            vmin = self.limit[0]
+        if vmax is None or (self.limit[1] is not None and vmax > self.limit[1]):
+            vmax = self.limit[1]
+        if self.sig is not None:
+            vmin = round_sig(vmin, self.sig)
+            vmax = round_sig(vmax, self.sig)
+        return (vmin, vmax)
+
+    def reset_limit(self):
+        self.limit_list = []
+
+
+def parse_bedtool_input(x):
+    """
+    Pass x to BedTool constructor and return.
+    If x is already BedTool return withouth modification.
+    """
+    if isinstance(x, pbt.BedTool):
+        return x
+    return pbt.BedTool(x)
+
+
+def get_region_based_object(input_object):
+    if isinstance(input_object, RegionBased):
+        return input_object
+    return kaic.load(input_object)
+
+
+def load_score_data(data):
+    # If it's already an instance of kaic data, just return it
+    if isinstance(data, RegionBased):
+        return data
+    # If it's a pyBigWig instance, turn it into a RegionBased instance
+    if isinstance(data, _pyBigWig_type):
+        return BigWig(data)
+    try:
+        # First attempt to load into pybedtools
+        # Used for [("chr", start, end), ...] queries
+        try:
+            bt = pbt.BedTool(data)
+            # check if the bedtools object actually can sucessfully
+            # parse the file. Happily opens e.g. bigwig, but can't
+            # parse it
+            bt[0]
+            # Turn into kaic Bed object
+            return Bed(bt.fn)
+        except (pbt.MalformedBedLineError, IndexError):
+            pass
+        # If it's anything else let's hope kaic.load can deal with it
+        return kaic.load(data)
+    except:
+        raise ValueError("Can't load data")

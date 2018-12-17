@@ -1,11 +1,11 @@
 import os.path
-import numpy as np
 import pytest
 from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter,\
-    LazyFragmentRead, ContaminantFilter
+    LazyFragmentRead, ContaminantFilter, AccessOptimisedReadPairs
 from kaic.data.genomic import Genome, GenomicRegion, Chromosome
+import msgpack as pickle
 import numpy as np
 
 
@@ -35,27 +35,32 @@ class TestReads:
             assert read.strand == values[12]
         
         reads = Reads()
-        reads.load(self.sam1_file, is_sorted=False)
-        
-        compare(reads[0], ['SRR038105.1',0,'chrXI',128390,35,[(0,15)],-1,-1,0,'GATATGATGGATTTG','FDFFFFFFFFFFFCF',9,1])
-        
+        reads.load(self.sam1_file)
+
+        compare(reads[0],
+                ['SRR038105.1', 0, 'chrXI', 128390, 35, [(0, 15)], -1, -1, 0, 'GATATGATGGATTTG', 'FDFFFFFFFFFFFCF', 9,
+                 1])
+
         # SRR038105.1000167    0    chrXIV    703158    42    15M    *    0    0    TACGGTATTGGTCGG    FFFFCFFFFFFFFCF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000167')
-        compare(res, ['SRR038105.1000167',0,'chrXIV',703158,42,[(0,15)],-1,-1,0,'TACGGTATTGGTCGG','FFFFCFFFFFFFFCF',8,1])
-        
+        compare(res, ['SRR038105.1000167', 0, 'chrXIV', 703158, 42, [(0, 15)], -1, -1, 0, 'TACGGTATTGGTCGG',
+                      'FFFFCFFFFFFFFCF', 8, 1])
+
         # SRR038105.1000320    0    chrXVI    577162    35    15M    *    0    0    TTGATAAAATAGTCC    <<@FF<FFFFAFAFA    AS:i:0    XS:i:-5    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:15    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000320')
-        compare(res, ['SRR038105.1000320',0,'chrXVI',577162,35,[(0,15)],-1,-1,0,'TTGATAAAATAGTCC','<<@FF<FFFFAFAFA',9,1])
+        compare(res, ['SRR038105.1000320', 0, 'chrXVI', 577162, 35, [(0, 15)], -1, -1, 0, 'TTGATAAAATAGTCC',
+                      '<<@FF<FFFFAFAFA', 9, 1])
 
         # check unpaired right
         # SRR038105.1000002    16    chrIV    203242    42    16M    *    0    0    ACCCATTATTTCTCGA    IIIIIFIICIFIIIII    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000002')
         assert res is None
-        
+
         # check unpaired left
         # SRR038105.1000011    16    chrIV    526796    42    16M    *    0    0    GGTGAATTAGAAGATA    FFFFFFFFFFFFFFFF    AS:i:0    XN:i:0    XM:i:0    XO:i:0    XG:i:0    NM:i:0    MD:Z:16    YT:Z:UU
         res = reads.get_read_by_qname('SRR038105.1000011')
-        compare(res, ['SRR038105.1000011',16,'chrIV',526796,42,[(0,16)],-1,-1,0,'GGTGAATTAGAAGATA','FFFFFFFFFFFFFFFF',8,-1])
+        compare(res, ['SRR038105.1000011', 16, 'chrIV', 526796, 42, [(0, 16)], -1, -1, 0, 'GGTGAATTAGAAGATA',
+                      'FFFFFFFFFFFFFFFF', 8, -1])
 
         reads.close()
         
@@ -119,7 +124,8 @@ class TestReads:
         read = reads[0]
         assert read.get_tag('AS') == 0
         assert read.get_tag('MD') == '15'
-        assert read.get_tag('X0') == None
+        with pytest.raises(KeyError):
+            read.get_tag('X0')
         reads.close()
     
     def test_quality_filter(self):
@@ -139,7 +145,14 @@ class TestReads:
         reads.filter_non_unique(strict=True)
         for row in reads._reads._iter_visible_and_masked():
             if row['pos'] > 0:
-                tags = reads._tags[row['ix']]
+                tags_str = reads._tags[row['ix']]
+                try:
+                    tags = pickle.loads(tags_str)
+                except pickle.UnpackValueError:
+                    tags = pickle.loads(tags_str + '\x00')
+                tags = [(key.decode() if isinstance(key, bytes) else key,
+                         value.decode() if isinstance(value, bytes) else value) for key, value in tags]
+
                 has_xs = False
                 for tag in tags:
                     if tag[0] == 'XS':
@@ -262,13 +275,11 @@ class TestBWAReads:
     def test_bwamem_uniqueness_filter(self):
         with Reads(self.bwamem_sam1_file) as reads:
             assert len(reads) == 995
-            reads.filter_non_unique(cutoff=3, queue=False)
-            assert len(reads) == 626
-            for read in reads:
-                assert read.mapq > 3
+            reads.filter_non_unique(queue=False)
+            assert len(reads) == 995
 
 
-class TestFragmentMappedReads:
+class TestFragmentMappedReadPairs:
     @classmethod
     def setup_method(self, method):
         self.dir = os.path.dirname(os.path.realpath(__file__))
@@ -279,8 +290,9 @@ class TestFragmentMappedReads:
         self.reads1.filter_unmapped()
         self.reads2.filter_unmapped()
         self.genome = Genome.from_folder(self.dir + "/test_seq/lambda_genome/")
-        
-        self.pairs = FragmentMappedReadPairs()
+
+        self.pairs_class = FragmentMappedReadPairs
+        self.pairs = self.pairs_class()
         regions = self.genome.get_regions(1000)
         self.pairs.load(self.reads1, self.reads2, regions=regions)
         regions.close()
@@ -363,7 +375,7 @@ class TestFragmentMappedReads:
         assert len(self.pairs._single) == 6
 
     def test_auto_mindist(self):
-        ad = FragmentMappedReadPairs._auto_dist
+        ad = self.pairs_class._auto_dist
         np.random.seed(101)
         x = np.linspace(1, 100, 10)
         i = [4.0, 3.0, 1.0, 1.2, 0.4, 0.8, 0.5, 0.4, 0.6, 0.5, 0.6, 0.5, 0.5, 0.5]
@@ -378,11 +390,7 @@ class TestFragmentMappedReads:
         
         assert len(self.pairs) == 44
         self.pairs.filter(in_filter)
-        
-#         print "Valid pairs:"
-#         for pair in self.pairs:
-#             print pair[0]
-#             print pair[1]
+
         assert len(self.pairs) == 18
 
     def test_filter_outward(self):
@@ -414,7 +422,7 @@ class TestFragmentMappedReads:
         reads2 = Reads(self.dir + "/../data/test_genomic/yeast.sample.chrI.2.sam")
         chrI = Chromosome.from_fasta(self.dir + "/../data/test_genomic/chrI.fa")
         genome = Genome(chromosomes=[chrI])
-        pairs = FragmentMappedReadPairs()
+        pairs = self.pairs_class()
         regions = genome.get_regions('HindIII')
         pairs.load(reads1, reads2, regions)
         reads1.close()
@@ -457,11 +465,53 @@ class TestFragmentMappedReads:
         assert len(list(self.pairs.pairs(excluded_filters=[in_filter, mask]))) == 28
         assert len(list(self.pairs.pairs(excluded_filters=[in_filter, 3]))) == 28
 
+    @pytest.mark.parametrize("gz", [False, True])
+    @pytest.mark.parametrize("include_filtered", [False, True])
+    def test_export_homer(self, gz, include_filtered, tmpdir_factory):
+        fn = str(tmpdir_factory.mktemp("output").join(".tsv.gz" if gz else ".tsv"))
+        mask = self.pairs.add_mask_description('self_ligated', 'Mask read pairs that represent self-ligated fragments')
+        self_ligation_filter = SelfLigationFilter(mask=mask)
+        self.pairs.filter(self_ligation_filter)
+        self.pairs.to_homer(fn, include_filtered=include_filtered)
+        if gz:
+            import gzip, sys
+            read_handle = gzip.open(fn, mode="rt" if sys.version_info.major == 3 else "r")
+        else:
+            read_handle = open(fn, mode="r")
+        with read_handle:
+            lines = read_handle.readlines()
+            assert len(lines) == 44 if include_filtered else 7
+
+
+class TestAccessOptimisedReadPairs(TestFragmentMappedReadPairs):
+    @classmethod
+    def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        sam1_file = self.dir + "/test_seq/lambda_reads1.sam"
+        sam2_file = self.dir + "/test_seq/lambda_reads2.sam"
+        self.reads1 = Reads(sam1_file)
+        self.reads2 = Reads(sam2_file)
+        self.reads1.filter_unmapped()
+        self.reads2.filter_unmapped()
+        self.genome = Genome.from_folder(self.dir + "/test_seq/lambda_genome/")
+
+        self.pairs_class = AccessOptimisedReadPairs
+        self.pairs = self.pairs_class()
+        regions = self.genome.get_regions(1000)
+        self.pairs.load(self.reads1, self.reads2, regions=regions)
+        regions.close()
+
+    def teardown_method(self, method):
+        self.reads1.close()
+        self.reads2.close()
+        self.genome.close()
+        self.pairs.close()
+
 
 class TestFragmentRead:
     def setup_method(self, method):
-        fragment1 = GenomicRegion(1, 1000, chromosome='chr1', strand=1, ix=0)
-        fragment2 = GenomicRegion(1001, 2000, chromosome='chr2', strand=-1, ix=1)
+        fragment1 = GenomicRegion(start=1, end=1000, chromosome='chr1', strand=1, ix=0)
+        fragment2 = GenomicRegion(start=1001, end=2000, chromosome='chr2', strand=-1, ix=1)
         self.read1 = FragmentRead(fragment1, position=500, strand=1, qname_ix=1)
         self.read2 = FragmentRead(fragment2, position=1200, strand=1, qname_ix=2)
 
@@ -527,11 +577,11 @@ class TestFragmentReadPair:
     def test_convenience_functions(self):
         pair = FragmentReadPair(
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=500, strand=1
             ),
             FragmentRead(
-                GenomicRegion(10001, 11000, chromosome='chr1'),
+                GenomicRegion(start=10001, end=11000, chromosome='chr1'),
                 position=10500, strand=-1
             )
         )
@@ -544,11 +594,11 @@ class TestFragmentReadPair:
 
         pair = FragmentReadPair(
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=500, strand=1
             ),
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=600, strand=1
             )
         )
@@ -561,11 +611,11 @@ class TestFragmentReadPair:
 
         pair = FragmentReadPair(
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=500, strand=-1
             ),
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr2'),
+                GenomicRegion(start=1, end=1000, chromosome='chr2'),
                 position=600, strand=1
             )
         )
@@ -578,11 +628,11 @@ class TestFragmentReadPair:
 
         pair = FragmentReadPair(
             FragmentRead(
-                GenomicRegion(1, 1000, chromosome='chr1'),
+                GenomicRegion(start=1, end=1000, chromosome='chr1'),
                 position=500, strand=-1
             ),
             FragmentRead(
-                GenomicRegion(1001, 2000, chromosome='chr1'),
+                GenomicRegion(start=1001, end=2000, chromosome='chr1'),
                 position=1200, strand=1
             )
         )

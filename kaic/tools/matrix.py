@@ -30,11 +30,10 @@ def restore_sparse_rows(m, idx_sets, rows=None):
     return a
 
 
-def is_symmetric(M, tol=1e-10):
-    for i in range(0,M.shape[0]):
-        for j in range(i,M.shape[1]):
-            if abs(M[i,j]-M[j,i]) > tol:
-                print "(%d,%d) %.6f != %.6f (%d,%d)" % (i,j,M[i,j],M[j,i],j,i)
+def is_symmetric(m, tol=1e-10):
+    for i in range(0, m.shape[0]):
+        for j in range(i, m.shape[1]):
+            if abs(m[i, j]-m[j, i]) > tol:
                 return False
     return True
 
@@ -75,3 +74,32 @@ def delta_window(x, window, ignore_mask=False, mask_thresh=.5):
             delta[i] = np.nan
         delta[i] = np.ma.mean(x[down_slice] - x[i]) - np.ma.mean(x[up_slice] - x[i])
     return delta
+
+
+def kth_diag_indices(n, k):
+    """
+    Return indices of bins k steps away from the diagonal.
+    (from http://stackoverflow.com/questions/10925671/numpy-k-th-diagonal-indices)
+    """
+
+    rows, cols = np.diag_indices(n)
+    if k < 0:
+        return rows[-k:], cols[:k]
+    elif k > 0:
+        return rows[:-k], cols[k:]
+    else:
+        return rows, cols
+
+
+def trim_stats(a, proportiontocut=0.0, axis=0, stat=np.nanmean):
+    if proportiontocut >= 0.5:
+        raise ValueError("Cannot cut more than 50% of values off distribution tails!")
+
+    s = np.sort(a, axis=axis)
+    ix = int(s.shape[axis] * proportiontocut)
+
+    sl = [slice(None)] * s.ndim
+    sl[axis] = slice(ix, len(s)-ix, 1)
+    s_sub = s[sl]
+
+    return stat(s_sub)

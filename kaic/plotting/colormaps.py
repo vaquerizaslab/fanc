@@ -13,7 +13,8 @@
 # work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
-__all__ = ['magma', 'inferno', 'plasma', 'viridis', 'fc_cmap', 'germany_cmap', 'white_red', 'white_red_r']
+__all__ = ['magma', 'inferno', 'plasma', 'viridis', 'fc_cmap',
+           'germany_cmap', 'germany_r', 'white_red', 'white_red_r']
 
 _magma_data = [[0.001462, 0.000466, 0.013866],
                [0.002258, 0.001295, 0.018331],
@@ -1564,6 +1565,7 @@ for (name, data) in (('magma', _magma_data),
                      ('plasma', _plasma_data),
                      ('viridis', _viridis_data),
                      ('germany', _germany_data),
+                     ('germany_r', _germany_data[::-1]),
                      ('white_red', _white_red_data[::-1]),
                      ('white_red_r', _white_red_data)):
 
@@ -1656,5 +1658,6 @@ inferno = cmaps['inferno']
 plasma = cmaps['plasma']
 viridis = cmaps['viridis']
 germany_cmap = cmaps['germany']
+germany_r = cmaps['germany_r']
 white_red = cmaps['white_red']
 white_red_r = cmaps['white_red_r']

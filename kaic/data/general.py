@@ -7,6 +7,7 @@ files. Other features include indexing and querying.
 """
 
 from __future__ import division
+from kaic.config import config
 import tables as t
 from tables.nodes import filenode
 from kaic.tools.files import create_or_open_pytables_file, tmp_file_name
@@ -14,13 +15,13 @@ from kaic.tools.general import RareUpdateProgressBar, create_col_index
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
-from kaic.tools.lru import lru_cache
 import shutil
 import warnings
 from collections import defaultdict
 from .registry import class_id_dict, class_name_dict
-import six
 import tempfile
+from future.utils import with_metaclass, string_types
+from builtins import object
 import logging
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class MetaFileBased(type):
                 class_id_dict[cid] = cls
 
 
-class FileBased(six.with_metaclass(MetaFileBased, object)):
+class FileBased(with_metaclass(MetaFileBased, object)):
     _classid = 'FILEBASED'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
@@ -82,7 +83,7 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
                 logger.info("Temporary output file: {}".format(self.tmp_file_name))
                 if mode in ('r+', 'r'):
                     shutil.copyfile(file_name, self.tmp_file_name)
-                elif mode == 'a' and os.path.isfile(file_name):
+                elif mode == 'a' and file_name is not None and os.path.isfile(file_name):
                     shutil.copyfile(file_name, self.tmp_file_name)
                 self._init_file(self.tmp_file_name, mode)
 
@@ -132,6 +133,12 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
                 except KeyError:
                     return False
 
+            def keys(self):
+                return vars(self._meta_attributes).keys()
+
+            def values(self):
+                return vars(self._meta_attributes).values()
+
         # existing?
         try:
             meta_group = self.file.get_node('/' + self._meta_group_name)
@@ -169,7 +176,7 @@ class FileBased(six.with_metaclass(MetaFileBased, object)):
         file_mode = self.file.mode
         self.file.close()
         if self.tmp_file_name is not None:
-            if copy_tmp and file_mode not in ('r', 'r+'):
+            if copy_tmp and self.file_name is not None and file_mode not in ('r', 'r+'):
                 logger.info("Moving temporary output file to destination {}".format(self.file_name))
                 shutil.copyfile(self.tmp_file_name, self.file_name)
             if remove_tmp:
@@ -223,10 +230,13 @@ class Mask(object):
     Class providing Mask details.
     """
     
-    def __init__(self, ix, name, description=''):
-        self.ix = ix
-        self.name = name
-        self.description = description
+    def __init__(self, name=None, description='', ix=None):
+        if ix is not None:
+            self.ix = ix
+        else:
+            self.ix = 0
+        self.name = name.decode() if isinstance(name, bytes) else name
+        self.description = description.decode() if isinstance(description, bytes) else description
 
     def __repr__(self):
         return "%d. %s: %s" % (self.ix, self.name, self.description)
@@ -269,7 +279,7 @@ class Maskable(FileBased):
         name = t.StringCol(50, pos=1)
         description = t.StringCol(255, pos=2)
 
-    def __init__(self, data=None, file_name=None, table_name="mask", tmpdir=None):
+    def __init__(self, data=None, file_name=None, table_name="mask", mode='a', tmpdir=None):
         """
         Enable recording of masking in pytables-backed object.
         
@@ -312,7 +322,7 @@ class Maskable(FileBased):
             if hasattr(self, '_mask'):
                 self._set_mask_table(self._mask)
 
-        FileBased.__init__(self, file_name, tmpdir=tmpdir)
+        FileBased.__init__(self, file_name, tmpdir=tmpdir, mode=mode)
                 
         if (not hasattr(self, '_mask') or self._mask is None) and self.file is not None:
             try:
@@ -357,26 +367,21 @@ class Maskable(FileBased):
         row['description'] = description
         row.append()
         self._mask.flush()
-        self.clear_caches()
-        
-        return Mask(ix, name, description)
 
-    def clear_caches(self):
-        self.get_mask.cache_clear()
-        self.get_masks.cache_clear()
+        return Mask(ix=ix, name=name, description=description)
 
     def masks(self):
         this = self
 
-        class MaskIter:
+        class MaskIter(object):
             def __init__(self):
                 self.iter = iter(this._mask)
 
             def __iter__(self):
                 return self
 
-            def next(self):
-                row = self.iter.next()
+            def __next__(self):
+                row = next(self.iter)
                 return Maskable._row_to_mask(row)
 
         return MaskIter()
@@ -388,19 +393,18 @@ class Maskable(FileBased):
     def get_binary_mask_from_masks(self, masks):
         o = []
         for m in masks:
-            if type(m) == type('str'):
+            if isinstance(m, string_types):
                 o.append(2**self.get_mask(m).ix)
             elif isinstance(m, MaskFilter):
                 o.append(2**m.mask_ix)
             elif isinstance(m, Mask):
                 o.append(2**m.ix)
-            elif type(m) == type(1):
+            elif isinstance(m, int):
                 o.append(2**m)
             else:
                 raise ValueError('Can only get binary mask from mask names, indexes and MaskFilter instances')
         return sum(o)
 
-    @lru_cache(maxsize=1000)
     def get_mask(self, key):
         """
         Search _mask table for key and return Mask.
@@ -413,15 +417,14 @@ class Maskable(FileBased):
             Mask
         """
         
-        if type(key) == int:
+        if isinstance(key, int):
             for row in self._mask.where("ix == %d" % key):
                 return Maskable._row_to_mask(row)
         else:
-            for row in self._mask.where("name == '%s'" % str(key)):
+            for row in self._mask.where("name == b'%s'" % str(key)):
                 return Maskable._row_to_mask(row)
         return KeyError("Unrecognised key type")
     
-    @lru_cache(maxsize=1000)
     def get_masks(self, ix):
         """
         Extract mask IDs encoded in parameter and return masks.
@@ -460,12 +463,12 @@ class Maskable(FileBased):
         if include_unmasked:
             masks['unmasked'] = 0
 
-        stats = defaultdict(int)
+        if 'mask_stats' in table.attrs:
+            stats = table.attrs['mask_stats']
+        else:
+            stats = table.mask_stats()
 
-        for row in table._iter_visible_and_masked():
-            stats[row[table._mask_field]] += 1
-
-        for mask_bit, count in stats.iteritems():
+        for mask_bit, count in stats.items():
             row_masks = self.get_masks(mask_bit)
 
             found_masks = False
@@ -479,11 +482,9 @@ class Maskable(FileBased):
 
     def _mask_statistics_group(self, group, include_unmasked=True):
         masks = defaultdict(int)
-        if include_unmasked:
-            masks['unmasked'] = 0
 
         for table in group:
-            for mask, count in self._mask_statistics_table(table, include_unmasked=include_unmasked).iteritems():
+            for mask, count in self._mask_statistics_table(table, include_unmasked=include_unmasked).items():
                 masks[mask] += count
 
         return masks
@@ -494,7 +495,7 @@ class Maskable(FileBased):
         elif isinstance(table, MaskedTable):
             return self._mask_statistics_table(table, include_unmasked=include_unmasked)
         else:
-            raise ValueError("Fisrt arg must be PyTable Group or MaskedTable!")
+            raise ValueError("First arg must be PyTable Group or MaskedTable!")
 
 
 class MaskedTableView(object):
@@ -506,13 +507,13 @@ class MaskedTableView(object):
     def __iter__(self):
         return self
 
-    def next(self):
-        row = self.iter.next()
+    def __next__(self):
+        row = next(self.iter)
         # bit-shift magic! Go @alexis!
         # a is a subset of b if and only if a | b == b.
         # If this condition is satisfied for each byte, return TRUE. Otherwise return FALSE
         while row[self.masked_table._mask_field] | self.excluded_mask_ix != self.excluded_mask_ix:
-            row = self.iter.next()
+            row = next(self.iter)
         return row
 
 
@@ -555,12 +556,6 @@ class MaskedTable(t.Table):
                  mask_field='_mask', mask_index_field='_mask_ix'):
         """
         Pytables Table extension to provide masking functionality.
-        
-        Args:
-            table (tables.Table):
-                pytables Table with at least a 'mask' column.
-                'mask_ix' column required for full indexing
-                functionality.
         """
         
         # set instance variables
@@ -582,9 +577,9 @@ class MaskedTable(t.Table):
                 raise ValueError("Unrecognised description type (%s)" % str(type(description)))
             
             # check that reserved keys are not used
-            if masked_description.has_key(mask_field):
+            if mask_field in masked_description:
                 raise ValueError("%s field is reserved in MaskedTable!" % mask_field)
-            if masked_description.has_key(mask_index_field):
+            if mask_index_field in masked_description:
                 raise ValueError("%s field is reserved in MaskedTable!" % mask_index_field)
             
             # add mask fields to description
@@ -601,23 +596,30 @@ class MaskedTable(t.Table):
                          chunkshape=chunkshape,
                          byteorder=byteorder)
         
+        self.enable_mask_index()
+
+    def disable_mask_index(self):
+        mask_ix_col = getattr(self.cols, self._mask_index_field)
+        mask_ix_col.remove_index()
+
+    def enable_mask_index(self):
         mask_ix_col = getattr(self.cols, self._mask_index_field)
         create_col_index(mask_ix_col)
 
-    def flush(self, update_index=False):
+    def flush(self, update_index=False, log_progress=True):
         """
         Flush buffered rows.
         
         Also updates the mask index, if requested.
         """
-        self._flush(update_index)
+        self._flush(update_index, log_progress=log_progress)
     
-    def _flush(self, update_index=False):
+    def _flush(self, update_index=False, log_progress=True):
         # commit any previous changes
         t.Table.flush(self)
 
         if update_index:
-            self._update_ix()
+            self._update_ix(log_progress=log_progress)
             # force flush of index if
             # autoindex is disabled
             if not self.autoindex:
@@ -649,13 +651,13 @@ class MaskedTable(t.Table):
         it = self._iter_visible_and_masked()
 
         class MaskedRows(MaskedTableView):
-            def __init__(self, masked_table, it):
-                super(MaskedRows, self).__init__(masked_table, it)
+            def __init__(self, masked_table, it_):
+                super(MaskedRows, self).__init__(masked_table, it_)
 
-            def next(self):
-                row = self.iter.next()
+            def __next__(self):
+                row = next(self.iter)
                 while row[this._mask_field] == 0:
-                    row = self.iter.next()
+                    row = next(self.iter)
                 return row
 
             def __getitem__(self, key):
@@ -708,7 +710,7 @@ class MaskedTable(t.Table):
                 key = int(key)
                 
                 if key >= 0:
-                    res = [x.fetch_all_fields() for x in self.where("%s == %d" % (self._mask_index_field,key))]
+                    res = [x.fetch_all_fields() for x in self.where("%s == %d" % (self._mask_index_field, key))]
                     if len(res) == 1:
                         return res[0]
                     if len(res) == 0:
@@ -743,7 +745,7 @@ class MaskedTable(t.Table):
         return t.Table.__len__(self)
     
     # new index update method
-    def _update_ix(self):
+    def _update_ix(self, log_progress=not config.hide_progressbars):
         """
         Update the row indexes of the Table.
         
@@ -752,15 +754,21 @@ class MaskedTable(t.Table):
         field of each row in the table if it is not 
         masked, -1 otherwise.
         """
-        
-        logger.info("Updating mask indices")
+
+        if log_progress:
+            logger.debug("Updating mask indices")
+
+        stats = defaultdict(int)
 
         l = self._original_len()
-        with RareUpdateProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l, silent=not log_progress) as pb:
             ix = 0
             masked_ix = -1
             for i, row in enumerate(self._iter_visible_and_masked()):
-                if row[self._mask_field] > 0:
+                m = row[self._mask_field]
+                stats[m] += 1
+
+                if m > 0:
                     row[self._mask_index_field] = masked_ix
                     masked_ix -= 1
                 else:
@@ -769,8 +777,23 @@ class MaskedTable(t.Table):
                 row.update()
                 pb.update(i)
             self.attrs['masked_length'] = ix
+        try:
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
+
+    def mask_stats(self):
+        stats = defaultdict(int)
+        for row in self._iter_visible_and_masked():
+            stats[row[self._mask_field]] += 1
+
+        try:
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
+
+        return stats
     
-    @lru_cache(maxsize=1000)
     def _get_masks(self, binary_mask):
         def bits(n):
             while n:
@@ -785,7 +808,7 @@ class MaskedTable(t.Table):
     def _has_mask(self, row, mask):
         return mask in self._row_masks(row)
 
-    def filter(self, mask_filter, _logging=False):
+    def filter(self, mask_filter, _logging=not config.hide_progressbars):
         """
         Run a MaskFilter on this table.
         
@@ -802,40 +825,36 @@ class MaskedTable(t.Table):
         ix = 0
         mask_ix = -1
 
-        # progress bar
-        l = self._original_len()
-        pb = RareUpdateProgressBar(max_value=l)
-        if _logging:
-            pb.start()
-
         # statistics
         stats = defaultdict(int)
+        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging) as pb:
+            for i, row in enumerate(self._iter_visible_and_masked()):
+                total += 1
 
-        for i, row in enumerate(self._iter_visible_and_masked()):
-            total += 1
+                if not mask_filter.valid(row):
+                    row[self._mask_field] += 2**mask_filter.mask_ix
 
-            if not mask_filter.valid(row):
-                row[self._mask_field] += 2**mask_filter.mask_ix
+                stats[row[self._mask_field]] += 1
 
-            stats[row[self._mask_field]] += 1
-
-            # update index
-            if row[self._mask_field] > 0:
-                row[self._mask_index_field] = mask_ix
-                mask_ix -= 1
-            else:
-                row[self._mask_index_field] = ix
-                ix += 1
-            row.update()
-
-            if _logging:
+                # update index
+                if row[self._mask_field] > 0:
+                    row[self._mask_index_field] = mask_ix
+                    mask_ix -= 1
+                else:
+                    row[self._mask_index_field] = ix
+                    ix += 1
+                row.update()
                 pb.update(i)
         self.attrs['masked_length'] = ix
 
         if _logging:
-            pb.finish()
             logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
-                    
+
+        try:
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
+
         self.flush(update_index=False)
 
         return stats
@@ -849,7 +868,7 @@ class MaskedTable(t.Table):
         """
         self._queued_filters.append(filter_definition)
         
-    def run_queued_filters(self, _logging=False):
+    def run_queued_filters(self, _logging=not config.hide_progressbars):
         """
         Run queued MaskFilters.
         
@@ -862,37 +881,38 @@ class MaskedTable(t.Table):
         mask_ix = -1
         total = 0
 
-        # progress bar
-        l = self._original_len()
-        pb = RareUpdateProgressBar(max_value=l)
-        if _logging:
-            pb.start()
+        stats = defaultdict(int)
+        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging) as pb:
+            for i, row in enumerate(self._iter_visible_and_masked()):
+                total += 1
+                for f in self._queued_filters:
+                    if not f.valid(row):
+                        row[self._mask_field] += 2**f.mask_ix
 
-        for i, row in enumerate(self._iter_visible_and_masked()):
-            total += 1
-            for f in self._queued_filters:
-                if not f.valid(row):
-                    row[self._mask_field] += 2**f.mask_ix
-                    
-            # update index
-            if row[self._mask_field] > 0:
-                row[self._mask_index_field] = mask_ix
-                mask_ix -= 1
-            else:
-                row[self._mask_index_field] = ix
-                ix += 1
-            row.update()
-            
-            if _logging:
+                stats[row[self._mask_field]] += 1
+
+                # update index
+                if row[self._mask_field] > 0:
+                    row[self._mask_index_field] = mask_ix
+                    mask_ix -= 1
+                else:
+                    row[self._mask_index_field] = ix
+                    ix += 1
+                row.update()
                 pb.update(i)
 
         self.attrs['masked_length'] = ix
 
         if _logging:
-            pb.finish()
             logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
 
+        try:
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
+
         self.flush(update_index=False)
+        return stats
 
     def where(self, condition, condvars=None,
               start=None, stop=None, step=None):
@@ -901,13 +921,11 @@ class MaskedTable(t.Table):
                                               start=None, stop=None, step=None)
 
 
-class MaskFilter(object):
+class MaskFilter(with_metaclass(ABCMeta, object)):
     """
     Abstract class that defines a filter for MaskedTable.
     """
 
-    __metaclass__ = ABCMeta
-    
     def __init__(self, mask=None, mask_ix=0, mask_name='default', mask_description="Default mask."):
         """
         Create a MaskFilter.
@@ -934,15 +952,15 @@ class MaskFilter(object):
         if mask is not None:
             if isinstance(mask, Mask):
                 self.mask_ix = mask.ix
-                self.maks_name = mask.name
+                self.mask_name = mask.name
                 self.mask_description = mask.description
             else:
                 self.mask_ix = mask
-                self.maks_name = mask_name
+                self.mask_name = mask_name
                 self.mask_description = mask_description
         else:
             self.mask_ix = mask_ix
-            self.maks_name = mask_name
+            self.mask_name = mask_name
             self.mask_description = mask_description
             
         if not type(self.mask_ix) == int:

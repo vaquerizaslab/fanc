@@ -59,24 +59,33 @@ Example:
 """
 
 from __future__ import division, print_function
-import tables as t
-import pandas as p
-import numpy as np
-import pybedtools
-from kaic.tools.files import is_fasta_file
-from kaic.tools.matrix import apply_sliding_func
-from Bio import SeqIO, Restriction, Seq
-from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
-from abc import abstractmethod, ABCMeta
+
 import os.path
-from kaic.tools.general import ranges, distribute_integer, create_col_index
-from itertools import izip as zip
+from abc import abstractmethod, ABCMeta
+
+import numpy as np
+import pandas as p
+import tables as t
+from Bio import SeqIO, Restriction, Seq
+from genomic_regions import RegionBased, GenomicRegion
+from kaic.config import config
+from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
+from kaic.tools.files import is_fasta_file
+from kaic.tools.general import ranges, distribute_integer, create_col_index, \
+    RareUpdateProgressBar, range_overlap
+
+try:
+    from itertools import izip as zip
+except ImportError:
+    pass
 import pickle
 from collections import defaultdict
-import copy
-from kaic.tools.general import RareUpdateProgressBar
-from kaic.tools.general import range_overlap
-from bisect import bisect_right, bisect_left
+
+from bisect import bisect_right
+from future.utils import with_metaclass, string_types, viewitems
+from builtins import object
+import subprocess
+import intervaltree
 import logging
 logger = logging.getLogger(__name__)
 
@@ -123,249 +132,6 @@ def _edge_overlap_split_rao(original_edge, overlap_map):
     return edges_list
 
 
-def _weighted_mean(intervals):
-    intervals = np.array(intervals)
-    if len(intervals) == 0:
-        return np.nan
-    mask = np.isfinite(intervals[:, 2])
-    valid = intervals[mask]
-    if len(valid) == 0:
-        return np.nan
-    weights = (valid[:, 1] - valid[:, 0])
-    weights += 1
-    # safety
-    weights = [weight if weight > 0 else 1 for weight in weights]
-    return np.average(valid[:, 2], weights=weights)
-
-
-class Bed(pybedtools.BedTool):
-    """
-    Data type representing a BED file.
-
-    Only exists to support 'with' statements
-    """
-
-    def __init__(self, *args, **kwargs):
-        pybedtools.BedTool.__init__(self, *args, **kwargs)
-    
-    def __exit__(self, exec_type, exec_val, exec_tb):
-        pass
-
-    def __enter__(self):
-        return self
-
-    @property
-    def regions(self):
-        class RegionIter(object):
-            def __init__(self, bed):
-                self.bed = bed
-
-            def __iter__(self):
-                for region in self.bed:
-                    score = float(region.score) if region.score != "." else None
-
-                    if self.bed.file_type == 'gff':
-                        try:
-                            attributes = {key: value for key, value in region.attrs.iteritems()}
-                        except ValueError:
-                            attributes = {}
-
-                        attributes['chromosome'] = region.chrom
-                        attributes['start'] = region.start
-                        attributes['end'] = region.end
-                        attributes['strand'] = region.strand
-                        attributes['score'] = score
-                        attributes['fields'] = region.fields
-
-                        gr = GenomicRegion(**attributes)
-                    else:
-                        gr = GenomicRegion(chromosome=region.chrom, start=region.start, end=region.end,
-                                           strand=region.strand, score=score, fields=region.fields)
-
-                    yield gr
-
-            def __call__(self):
-                return iter(self)
-
-            def __len__(self):
-                return len(self.bed)
-
-        return RegionIter(self)
-
-    def merge_overlapping(self, stat=_weighted_mean, sort=True):
-        if sort:
-            bed = self
-        else:
-            bed = self.sort()
-
-        current_intervals = []
-        for interval in bed:
-            if len(current_intervals) == 0 or (current_intervals[-1].start < interval.end and
-                                               current_intervals[-1].end > interval.start and
-                                               current_intervals[-1].chrom == interval.chrom):
-                current_intervals.append(interval)
-            else:
-                # merge
-                intervals = np.array([(current.start, current.end,
-                                       float(current.score) if current.score != '.' else np.nan)
-                                      for current in current_intervals])
-                merged_score = "{:0.6f}".format(stat(intervals))
-                merged_strand = current_intervals[0].strand
-                merged_start = min(intervals[:, 0])
-                merged_end = max(intervals[:, 1])
-                merged_chrom = current_intervals[0].chrom
-                merged_name = current_intervals[0].name
-                merged_interval = pybedtools.Interval(merged_chrom, merged_start, merged_end, name=merged_name,
-                                                      score=merged_score, strand=merged_strand)
-                current_intervals = [interval]
-                yield merged_interval
-
-
-class BigWig(object):
-    def __init__(self, bw):
-        self.bw = bw
-
-    def __exit__(self, exec_type, exec_val, exec_tb):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __getattr__(self, name):
-        try:
-            func = getattr(self.__dict__['bw'], name)
-            return func
-        except AttributeError:
-            if name == '__enter__':
-                return BigWig.__enter__
-            elif name == '__exit__':
-                return BigWig.__exit__
-            raise
-
-    @property
-    def regions(self):
-        class RegionIter(object):
-            def __init__(self, bw):
-                self.bw = bw
-
-            def __iter__(self):
-                for chromosome, length in self.bw.chroms().iteritems():
-                    for start, end, score in self.bw.intervals(chromosome, 1, length):
-                        yield GenomicRegion(chromosome=chromosome, start=start, end=end, score=score)
-
-            def __call__(self):
-                return iter(self)
-
-        return RegionIter(self)
-
-    def subset(self, region):
-        if isinstance(region, str):
-            region = GenomicRegion.from_string(region)
-
-        if isinstance(region, GenomicRegion):
-            regions = [region]
-        else:
-            regions = region
-
-        for r in regions:
-            for start, end, score in self.intervals(r):
-                yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
-
-    def region_stats(self, region, bins=1, stat='mean'):
-        if isinstance(region, str):
-            region = GenomicRegion.from_string(region)
-
-        chroms = self.bw.chroms()
-        r_start = region.start - 1 if region.start is not None else 0
-        r_end = region.end if region.end is not None else chroms[region.chromosome]
-
-        return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
-
-    def intervals(self, chromosome, start=None, end=None):
-        chroms = self.chroms()
-        if isinstance(chromosome, str):
-            chromosome = GenomicRegion.from_string(chromosome)
-
-        if isinstance(chromosome, GenomicRegion):
-            if start is None:
-                start = chromosome.start - 1 if chromosome.start is not None else 0
-            if end is None:
-                end = chromosome.end if chromosome.end is not None else chroms[chromosome.chromosome]
-            chromosome = chromosome.chromosome
-
-        intervals = self.bw.intervals(chromosome, start, end)
-        if intervals is None:
-            intervals = ()
-        return [(interval[0]+1, interval[1], interval[2]) for interval in intervals]
-
-    @staticmethod
-    def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None, stat=_weighted_mean,
-                      nan_replacement=None):
-        intervals = np.array(intervals)
-
-        if interval_range is None:
-            if intervals is None or len(intervals) == 0:
-                raise ValueError("intervals cannot be None or length 0 if not providing interval_range!")
-            interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
-
-        if isinstance(interval_range, GenomicRegion):
-            interval_range = (interval_range.start, interval_range.end)
-
-        bin_size = (interval_range[1] - interval_range[0] + 1) / bins
-        logging.debug("Bin size: {}".format(bin_size))
-
-        current_interval = 0
-        bin_coordinates = []
-        binned_intervals = [list() for _ in xrange(0, bins)]
-        bin_start = interval_range[0]
-        for bin_counter in xrange(len(binned_intervals)):
-            bin_end = round(interval_range[0] + bin_size + (bin_size * bin_counter)) - 1
-            bin_coordinates.append((bin_start, bin_end))
-
-            if current_interval < len(intervals):
-                interval = intervals[current_interval]
-            else:
-                interval = None
-
-            # add all successive, fully-contained intervals to bin
-            while interval is not None and (interval[0] <= interval[1] <= bin_end and interval[1] >= bin_start):
-                binned_intervals[bin_counter].append((max(bin_start, interval[0]), interval[1], interval[2]))
-
-                current_interval += 1
-                if current_interval < len(intervals):
-                    interval = intervals[current_interval]
-                else:
-                    interval = None
-
-            # add partially-contained interval to bin
-            if interval is not None and (interval[0] <= bin_end and interval[1] >= bin_start):
-                binned_intervals[bin_counter].append((max(bin_start, interval[0]),
-                                                      min(bin_end, interval[1]),
-                                                      interval[2]))
-
-            bin_start = bin_end + 1
-
-        result = np.array([stat(interval_bins) for interval_bins in binned_intervals])
-        if nan_replacement is not None:
-            result[np.isnan(result)] = nan_replacement
-
-        if smoothing_window is not None:
-            result = apply_sliding_func(result, smoothing_window)
-
-        return tuple((bin_coordinates[i][0], bin_coordinates[i][1], result[i]) for i in xrange(len(result)))
-
-    def binned_values(self, region, bins, smoothing_window=None):
-        if isinstance(region, str):
-            region = GenomicRegion.from_string(region)
-        chroms = self.chroms()
-        chromosome = region.chromosome
-        start = region.start if region.start is not None else 1
-        end = region.end if region.end is not None else chroms[chromosome]
-        return BigWig.bin_intervals(self.intervals(chromosome, start, end),
-                                    bins, interval_range=(start, end),
-                                    smoothing_window=smoothing_window)
-
-
 class Chromosome(object):
     """
     Chromosome data type.
@@ -390,9 +156,9 @@ class Chromosome(object):
         :param length: Length of the chromosome in base-pairs
         :param sequence: Base-pair sequence of DNA in the chromosome
         """
-        self.name = name
+        self.name = name.decode() if isinstance(name, bytes) else name
         self.length = length
-        self.sequence = sequence
+        self.sequence = sequence.decode() if isinstance(sequence, bytes) else sequence
         if length is None and sequence is not None:
             self.length = len(sequence)
         if sequence is None and length is not None:
@@ -439,18 +205,16 @@ class Chromosome(object):
                  sequence in the file, list(:class:`~Chromosome`) if
                  there are multiple sequences.
         """
-        if type(file_name) is file:
-            fastas = SeqIO.parse(file_name, 'fasta')
-        else:
-            fastas = SeqIO.parse(open(file_name, 'r'), 'fasta')
+        with open(file_name, 'r') as fasta_file:
+            fastas = SeqIO.parse(fasta_file, 'fasta')
 
-        chromosomes = []
-        for fasta in fastas:
-            if include_sequence:
-                chromosome = cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
-            else:
-                chromosome = cls(name if name else fasta.id, length=len(fasta))
-            chromosomes.append(chromosome)
+            chromosomes = []
+            for fasta in fastas:
+                if include_sequence:
+                    chromosome = cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
+                else:
+                    chromosome = cls(name if name else fasta.id, length=len(fasta))
+                chromosomes.append(chromosome)
 
         if len(chromosomes) == 0:
             raise ValueError("File %s does not appear to be a FASTA file" % file_name)
@@ -475,239 +239,13 @@ class Chromosome(object):
             raise ValueError("restriction_enzyme must be a string")
         except AttributeError:
             raise ValueError("restriction_enzyme string is not recognized: %s" % restriction_enzyme)
-        
+
         return re.search(Seq.Seq(self.sequence))
-
-
-class GenomicRegion(TableObject):
-    """
-    Class representing a genomic region.
-
-    .. attribute:: chromosome
-
-        Name of the chromosome this region is located on
-
-    .. attribute:: start
-
-        Start position of the region in base pairs
-
-    .. attribute:: end
-
-        End position of the region in base pairs
-
-    .. attribute:: strand
-
-        Strand this region is on (+1, -1)
-
-    .. attribute:: ix
-
-        Index of the region in the context of all genomic
-        regions.
-
-    """
-
-    def __init__(self, start, end=None, chromosome=None, strand=None, ix=None, **kwargs):
-        """
-        Initialize this object.
-
-        :param start: Start position of the region in base pairs
-        :param end: End position of the region in base pairs
-        :param chromosome: Name of the chromosome this region is located on
-        :param strand: Strand this region is on (+1, -1)
-        :param ix: Index of the region in the context of all genomic
-                   regions.
-        """
-        self.start = start
-        if end is None:
-            end = start
-        self.end = end
-        if strand == "+":
-            strand = 1
-        elif strand == "-":
-            strand = -1
-        elif strand == "0" or strand == ".":
-            strand = None
-        self.strand = strand
-        self.chromosome = chromosome
-        self.ix = ix
-
-        for name, value in kwargs.iteritems():
-            setattr(self, name, value)
-
-    @classmethod
-    def from_row(cls, row):
-        """
-        Create a :class:`~GenomicRegion` from a PyTables row.
-        """
-        strand = row['strand']
-        if strand == 0:
-            strand = None
-        return cls(start=row["start"], end=row["end"],
-                   strand=strand, chromosome=row["chromosome"])
-
-    @classmethod
-    def from_string(cls, region_string):
-        """
-        Convert a string into a :class:`~GenomicRegion`.
-
-        This is a very useful convenience function to quickly
-        define a :class:`~GenomicRegion` object from a descriptor
-        string.
-
-        :param region_string: A string of the form
-                              <chromosome>[:<start>-<end>[:<strand>]]
-                              (with square brackets indicating optional
-                              parts of the string). If any optional
-                              part of the string is omitted, intuitive
-                              defaults will be chosen.
-        :return: :class:`~GenomicRegion`
-        """
-        chromosome = None
-        start = None
-        end = None
-        strand = None
-        
-        # strip whitespace
-        no_space_region_string = "".join(region_string.split())
-        fields = no_space_region_string.split(':')
-        
-        if len(fields) > 3:
-            raise ValueError("Genomic range string must be of the form <chromosome>[:<start>-<end>:[<strand>]]")
-        
-        # there is chromosome information
-        if len(fields) > 0:
-            chromosome = fields[0]
-        
-        # there is range information
-        if len(fields) > 1 and fields[1] != '':
-            start_end_bp = fields[1].split('-')
-            if len(start_end_bp) > 0:
-                try:
-                    start = int(start_end_bp[0])
-                except ValueError:
-                    raise ValueError("Start of genomic range must be integer")
-            
-            if len(start_end_bp) > 1:
-                try:
-                    end = int(start_end_bp[1])
-                except ValueError:
-                    raise ValueError("End of genomic range must be integer")
-
-                if not end >= start:
-                    raise ValueError("The end coordinate must be bigger than the start.")
-
-        # there is strand information
-        if len(fields) > 2:
-            if fields[2] == '+' or fields[2] == '+1' or fields[2] == '1':
-                strand = 1
-            elif fields[2] == '-' or fields[2] == '-1':
-                strand = -1
-            else:
-                raise ValueError("Strand only can be one of '+', '-', '+1', '-1', and '1'")
-        return cls(start=start, end=end, chromosome=chromosome, strand=strand)
-    
-    def to_string(self):
-        """
-        Convert this :class:`~GenomicRegion` to its string representation.
-
-        :return: str
-        """
-        region_string = ''
-        if self.chromosome is not None:
-            region_string += '%s' % self.chromosome
-            
-            if self.start is not None:
-                region_string += ':%d' % self.start
-                
-                if self.end is not None:
-                    region_string += '-%d' % self.end
-                
-                if self.strand is not None:
-                    if self.strand == 1:
-                        region_string += ':+'
-                    else:
-                        region_string += ':-'
-        return region_string
-    
-    def __repr__(self):
-        return self.to_string()
-
-    def overlaps(self, region):
-        """
-        Check if this region overlaps with the specified region.
-
-        :param region: :class:`~GenomicRegion` object or string
-        """
-        if isinstance(region, str):
-            region = GenomicRegion.from_string(region)
-
-        if region.chromosome != self.chromosome:
-            return False
-
-        if region.start <= self.end or self.end is None or region.start is None:
-            if region.end >= self.start or self.start is None or region.end is None:
-                return True
-        return False
-
-    def contains(self, region):
-        """
-        Check if the specified region is completely contained in this region.
-
-        :param region: :class:`~GenomicRegion` object or string
-        """
-        if isinstance(region, str):
-            region = GenomicRegion.from_string(region)
-
-        if region.chromosome != self.chromosome:
-            return False
-
-        if region.start >= self.start and region.end <= self.end:
-            return True
-        return False
-
-    def _equals(self, region):
-        if region.chromosome != self.chromosome:
-            return False
-        if region.start != self.start:
-            return False
-        if region.end != self.end:
-            return False
-        return True
-
-    def is_reverse(self):
-        if self.strand == -1 or self.strand == '-':
-            return True
-        return False
-
-    def is_forward(self):
-        if self.strand == 1 or self.strand == '+' or self.strand == 0 or self.strand is None:
-            return True
-        return False
-
-    @property
-    def center(self):
-        return self.start + (self.end - self.start)/2
-
-    def __eq__(self, other):
-        return self._equals(other)
-
-    def __ne__(self, other):
-        return not self._equals(other)
-
-    def __len__(self):
-        return self.end - self.start
-
-
-class BedElement(GenomicRegion):
-    def __init__(self, chromosome, start, end, **kwargs):
-        super(BedElement, self).__init__(start, end, chromosome)
-        for key, value in kwargs.iteritems():
-            setattr(self, key, value)
 
 
 class LazyGenomicRegion(GenomicRegion):
     def __init__(self, row, ix=None, auto_update=True):
-        self.reserved = {'_row', 'static_ix', 'strand', 'auto_update'}
+        self.reserved = {'_row', 'static_ix', 'strand', 'auto_update', 'attributes'}
         self._row = row
         self.static_ix = ix
         self.auto_update = auto_update
@@ -716,7 +254,9 @@ class LazyGenomicRegion(GenomicRegion):
         if item == 'reserved' or item in self.reserved:
             return object.__getattribute__(self, item)
         try:
-            return self._row[item]
+            value = self._row[item]
+            value = value.decode() if isinstance(value, bytes) else value
+            return value
         except KeyError:
             raise AttributeError
 
@@ -744,177 +284,14 @@ class LazyGenomicRegion(GenomicRegion):
             return self._row["ix"]
         return self.static_ix
 
-
-class GenomicRegions(object):
-
-    def __init__(self, regions=None):
-        self._regions = []
-        self._max_region_ix = -1
-
-        if regions is not None:
-            for region in regions:
-                self.add_region(region)
-
-    def add_region(self, region):
-        """
-        Add a genomic region to this object.
-
-        This method offers some flexibility in the types of objects
-        that can be loaded. See below for details.
-
-        :param region: Can be a :class:`~GenomicRegion`, a str in the form
-                       '<chromosome>:<start>-<end>[:<strand>], a dict with
-                       at least the fields 'chromosome', 'start', and
-                       'end', optionally 'ix', or a list of length 3
-                       (chromosome, start, end) or 4 (ix, chromosome,
-                       start, end).
-        """
-        ix = -1
-
-        if isinstance(region, GenomicRegion):
-            return self._add_region(copy.copy(region))
-        elif isinstance(region, str):
-            return self._add_region(GenomicRegion.from_string(region))
-        elif type(region) is dict:
-            return self._add_region(GenomicRegion(**copy.copy(region)))
-        else:
-            try:
-                offset = 0
-                if len(region) == 4:
-                    ix = region[0]
-                    offset += 1
-                chromosome = region[offset]
-                start = region[offset + 1]
-                end = region[offset + 2]
-                strand = 1
-            except TypeError:
-                raise ValueError("Node parameter has to be GenomicRegion, dict, or list")
-
-        new_region = GenomicRegion(chromosome=chromosome, start=start, end=end, strand=strand, ix=ix)
-        return self._add_region(new_region)
-
-    def _add_region(self, region):
-        region.ix = self._max_region_ix + 1
-
-        self._regions.append(region)
-
-        if region.ix > self._max_region_ix:
-            self._max_region_ix = region.ix
-
-        return self._len()
-
-    def _len(self):
-        return len(self._regions)
-
-    def __len__(self):
-        return self._len()
-
-    def _get_regions(self, key):
-        return self._regions[key]
-
     @property
-    def regions(self):
-        """
-        Iterate over genomic regions in this object.
+    def attributes(self):
+        return self._row.tables.colnames
 
-        Will return a :class:`~GenomicRegion` object in every iteration.
-        Can also be used to get the number of regions by calling
-        len() on the object returned by this method.
 
-        :return: Iterator over requested :class:`~GenomicRegion` objects
-        """
-
-        this = self
-
-        class RegionIter:
-            def __init__(self):
-                self.regions = this._regions
-                self.iter = iter(self.regions)
-
-            def __iter__(self):
-                return self
-
-            def next(self):
-                return self.iter.next()
-
-            def __len__(self):
-                return this._len()
-
-            def __getitem__(self, key):
-                return this._get_regions(key)
-
-            def __call__(self):
-                return this.regions
-
-        return RegionIter()
-
-    def __iter__(self):
-        return self.regions
-
-    def __getitem__(self, item):
-        return self.regions[item]
-
-    def region_bins(self, region):
-        """
-        Takes a genomic region and returns a slice of the bin
-        indices that are covered by the region.
-
-        :param region: String or class:`~GenomicRegion`
-                       object for which covered bins will
-                       be returned.
-        :return: slice
-        """
-        if isinstance(region, basestring):
-            region = GenomicRegion.from_string(region)
-        start_ix = None
-        end_ix = None
-        for r in self.regions:
-            if not (r.chromosome == region.chromosome and r.start <= region.end and r.end >= region.start):
-                continue
-            if start_ix is None:
-                start_ix = r.ix
-                end_ix = r.ix + 1
-                continue
-            end_ix = r.ix + 1
-        return slice(start_ix, end_ix)
-
-    def intersect(self, region):
-        """
-        Takes a class:`~GenomicRegion` and returns all regions that
-        overlap with the supplied region.
-
-        :param region: String or class:`~GenomicRegion`
-                       object for which covered bins will
-                       be returned.
-        """
-        return self.regions[self.region_bins(region)]
-
-    def chromosomes(self):
-        """
-        Get a list of chromosome names.
-        """
-        chromosomes_set = set()
-        chromosomes = []
-        for region in self.regions():
-            if region.chromosome not in chromosomes_set:
-                chromosomes_set.add(region.chromosome)
-                chromosomes.append(region.chromosome)
-        return chromosomes
-
-    @property
-    def chromosome_lens(self):
-        """
-        Returns a dictionary of chromosomes and their length
-        in bp.
-        """
-        chr_lens = {}
-        for r in self.regions:
-            if chr_lens.get(r.chromosome) is None:
-                chr_lens[r.chromosome] = r.end
-                continue
-            if r.end > chr_lens[r.chromosome]:
-                chr_lens[r.chromosome] = r.end
-        return chr_lens
+class RegionBasedWithBins(RegionBased):
+    def __init__(self):
+        super(RegionBasedWithBins, self).__init__()
 
     @property
     def chromosome_bins(self):
@@ -922,110 +299,65 @@ class GenomicRegions(object):
         Returns a dictionary of chromosomes and the start
         and end index of the bins they cover.
 
-        Returned list is xrange-compatible, i.e. chromosome
+        Returned list is range-compatible, i.e. chromosome
         bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.
         """
+        return self._chromosome_bins()
+
+    def _chromosome_bins(self):
         chr_bins = {}
         for r in self.regions:
             if chr_bins.get(r.chromosome) is None:
                 chr_bins[r.chromosome] = [r.ix, r.ix + 1]
-                continue
-            chr_bins[r.chromosome][1] = r.ix + 1
+            else:
+                chr_bins[r.chromosome][1] = r.ix + 1
         return chr_bins
-
-    def range(self, range_region):
-        regions = []
-
-        for region in self.regions:
-            if not range_region.chromosome == region.chromosome:
-                if len(regions) == 0:
-                    continue
-                break
-
-            if ((range_region.end is None or region.start <= range_region.end) and
-                    (range_region.start is None and region.end >= range_region.start)):
-                regions.append(region)
-
-        return regions
-
-    def to_bed(self, file):
-        """
-        Export regions as BED file
-        """
-        with open(file, 'w') as f:
-            for i, r in enumerate(self.regions):
-                print(r.chromosome, r.start - 1, r.end, i, sep="\t", file=f)
-
-    @property
-    def regions_dict(self):
-        regions_dict = dict()
-        for r in self.regions:
-            regions_dict[r.ix] = r
-        return regions_dict
 
     @property
     def bin_size(self):
-        node = self.regions[0]
-        return node.end - node.start + 1
+        """
+        Return the size of the first region in the dataset.
+
+        Assumes all regions have equal size.
+
+        :return: int
+        """
+        return len(self.regions[0]) + 1
 
     def distance_to_bins(self, distance):
+        """
+        Convert base pairs to fraction of bins.
+
+        :param distance: distance in base pairs
+        :return: float, distance as fraction of bin size
+        """
         bin_size = self.bin_size
-        bin_distance = int(distance/bin_size)
+        bin_distance = int(distance / bin_size)
         if distance % bin_size > 0:
             bin_distance += 1
         return bin_distance
 
     def bins_to_distance(self, bins):
-        return self.bin_size*bins
-
-    def find_region(self, query_regions):
         """
-        Find the region that is at the center of a region.
+        Convert fraction of bins to base pairs
 
-        :param query_regions: Region selector string, :class:~GenomicRegion, or
-                              list of the former
-        :return: index (or list of indexes) of the region at the center of the
-                 query region
+        :param bins: float, fraction of bins
+        :return: int, base pairs
         """
-        is_single = False
-        if isinstance(query_regions, str):
-            is_single = True
-            query_regions = [GenomicRegion.from_string(query_regions)]
+        return int(self.bin_size * bins)
 
-        if isinstance(query_regions, GenomicRegion):
-            is_single = True
-            query_regions = [query_regions]
-
-        regions = defaultdict(list)
-        region_ends = defaultdict(list)
-        chromosomes = set()
-
-        for region in self.regions:
-            regions[region.chromosome].append(region)
-            region_ends[region.chromosome].append(region.end)
-            chromosomes.add(region.chromosome)
-
-        hit_regions = []
-        for query_region in query_regions:
-            if isinstance(query_region, str):
-                query_region = GenomicRegion.from_string(query_region)
-
-            if query_region.chromosome not in chromosomes:
-                hit_regions.append(None)
-                continue
-
-            center = query_region.start + (query_region.end-query_region.start)/2
-            ix = bisect_left(region_ends[query_region.chromosome], center)
-            try:
-                hit_regions.append(regions[query_region.chromosome][ix])
-            except IndexError:
-                hit_regions.append(None)
-        if is_single:
-            return hit_regions[0]
-        return hit_regions
+    def region_bins(self, region):
+        start_ix = None
+        end_ix = None
+        for i, r in enumerate(self.regions(region)):
+            ix = getattr(r, 'ix', i)
+            if start_ix is None:
+                start_ix = ix
+            end_ix = ix + 1
+        return slice(start_ix, end_ix, 1)
 
 
-class RegionsTable(GenomicRegions, FileGroup):
+class RegionsTable(RegionBasedWithBins, FileGroup):
     """
     PyTables Table wrapper for storing genomic regions.
 
@@ -1042,10 +374,11 @@ class RegionsTable(GenomicRegions, FileGroup):
         Description of a genomic region for PyTables Table
         """
         ix = t.Int32Col(pos=0)
-        chromosome = t.StringCol(50, pos=1)
+        chromosome = t.StringCol(100, pos=1)
         start = t.Int64Col(pos=2)
         end = t.Int64Col(pos=3)
         strand = t.Int8Col(pos=4)
+        _mask_ix = t.Int32Col(pos=5)
 
     def __init__(self, regions=None, file_name=None, mode='a',
                  additional_fields=None, _table_name_regions='regions',
@@ -1062,7 +395,6 @@ class RegionsTable(GenomicRegions, FileGroup):
                                     node that stores data for this
                                     object
         """
-        
         # parse potential unnamed argument
         if regions is not None:
             # data is file name
@@ -1074,8 +406,8 @@ class RegionsTable(GenomicRegions, FileGroup):
         try:
             FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
         except TypeError:
-            logger.warn("RegionsTable is now a FileGroup-based object and "
-                         "this object will no longer be compatible in the future")
+            logger.warning("RegionsTable is now a FileGroup-based object and "
+                           "this object will no longer be compatible in the future")
 
         # check if this is an existing regions file
         try:
@@ -1091,19 +423,34 @@ class RegionsTable(GenomicRegions, FileGroup):
             else:
                 self._max_region_ix = -1
         except t.NoSuchNodeError:
-            basic_fields = RegionsTable.RegionDescription().columns.copy()
+            basic_fields = dict()
+            hidden_fields = dict()
+            for field, description in RegionsTable.RegionDescription().columns.copy().items():
+                if field.startswith('_'):
+                    hidden_fields[field] = description
+                else:
+                    basic_fields[field] = description
+
+            current = len(basic_fields)
             if additional_fields is not None:
                 if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
                     # IsDescription subclass case
                     additional_fields = additional_fields.columns
 
-                current = len(basic_fields)
-                for key, value in sorted(additional_fields.iteritems(), key=lambda x: x[1]._v_pos):
+                # add additional user-defined fields
+                for key, value in sorted(additional_fields.items(),
+                                         key=lambda x: x[1]._v_pos if x[1]._v_pos is not None else 1):
                     if key not in basic_fields:
-                        if value._v_pos is not None:
-                            value._v_pos = current
-                            current += 1
+                        value._v_pos = current
+                        current += 1
                         basic_fields[key] = value
+            # add hidden fields
+            for key, value in sorted(hidden_fields.items(),
+                                     key=lambda x: x[1]._v_pos if x[1]._v_pos is not None else 1):
+                value._v_pos = current
+                current += 1
+                basic_fields[key] = value
+
             self._regions = t.Table(self._group, 'regions', basic_fields)
             self._max_region_ix = -1
 
@@ -1122,16 +469,9 @@ class RegionsTable(GenomicRegions, FileGroup):
 
     def flush(self):
         self._regions.flush()
+        self._update_references()
 
-    def add_region(self, region, flush=True):
-        # super-method, calls below '_add_region'
-        ix = GenomicRegions.add_region(self, region)
-        if flush:
-            self.flush()
-            self._update_references()
-        return ix
-
-    def _add_region(self, region):
+    def _add_region(self, region, *args, **kwargs):
         ix = self._max_region_ix + 1
         
         # actually append
@@ -1151,6 +491,10 @@ class RegionsTable(GenomicRegions, FileGroup):
         
         if ix > self._max_region_ix:
             self._max_region_ix = ix
+
+        if kwargs.get('flush', True):
+            self.flush()
+            self._update_references()
 
         return ix
 
@@ -1179,7 +523,7 @@ class RegionsTable(GenomicRegions, FileGroup):
             l = None
             _log = False
 
-        pb = RareUpdateProgressBar(max_value=l)
+        pb = RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars)
         if _log:
             pb.start()
 
@@ -1190,7 +534,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         if _log:
             pb.finish()
 
-        self.flush()
+        self._regions.flush()
         self._update_references()
 
     def data(self, key, value=None):
@@ -1216,8 +560,8 @@ class RegionsTable(GenomicRegions, FileGroup):
         """
         Get index from other region properties (chromosome, start, end)
         """
-        condition = "(start == %d) & (end == %d) & (chromosome == '%s')"
-        condition = condition % (region.start, region.end, region.chromosome)
+        condition = "(start == %d) & (end == %d) & (chromosome == b'%s')"
+        condition %= region.start, region.end, region.chromosome
         for res in self._regions.where(condition):
             return res["ix"]
         return None
@@ -1229,113 +573,87 @@ class RegionsTable(GenomicRegions, FileGroup):
         kwargs = {}
         for name in self._regions.colnames:
             if name not in RegionsTable.RegionDescription().columns.keys():
-                kwargs[name] = row[name]
-        return GenomicRegion(chromosome=row["chromosome"], start=row["start"],
-                             end=row["end"], ix=row["ix"], **kwargs)
+                value = row[name]
+                value = value.decode() if isinstance(value, bytes) else value
+                kwargs[name] = value
 
-    @property
-    def regions(self):
-        """
-        Iterate over genomic regions in this object.
+        try:
+            mask_ix = row['_mask_ix']
+        except (KeyError, ValueError):
+            mask_ix = 0
 
-        Will return a :class:`~Node` object in every iteration.
-        Can also be used to get the number of regions by calling
-        len() on the object returned by this method.
+        return GenomicRegion(chromosome=row["chromosome"].decode(), start=row["start"],
+                             end=row["end"], ix=row["ix"], _mask_ix=mask_ix, **kwargs)
 
-        :param lazy: If True, will only retrieve properties in
-                     a lazy fashion, i.e. on request
+    def _region_iter(self, lazy=False, auto_update=True, *args, **kwargs):
+        for row in self._regions:
+            yield self._row_to_region(row, lazy=lazy, auto_update=auto_update)
 
-        :return: RegionIter
-        """
-        this = self
+    def _region_subset(self, region, lazy=False, auto_update=True, *args, **kwargs):
+        for row in self._subset_rows(region):
+            sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+            yield sub_region
 
-        class RegionIter:
-            def __init__(self):
-                self.iter = iter(this._regions)
-                self.lazy = False
-                self.auto_update = True
+    def _get_regions(self, key):
+        res = self._regions[key]
 
-            def __iter__(self):
-                return self
-            
-            def next(self):
-                return this._row_to_region(self.iter.next(), lazy=self.lazy)
-            
-            def __len__(self):
-                return len(this._regions)
+        if isinstance(res, np.ndarray):
+            regions = []
+            for region in res:
+                regions.append(self._row_to_region(region))
+            return regions
+        else:
+            return self._row_to_region(res)
 
-            def __call__(self, lazy=False, auto_update=True):
-                self.lazy = lazy
-                self.auto_update = auto_update
-                return iter(self)
+    def _region_len(self):
+        return len(self._regions)
 
-            def __getitem__(self, item):
-                res = this._regions[item]
-
-                if isinstance(res, np.ndarray):
-                    regions = []
-                    for region in res:
-                        regions.append(this._row_to_region(region, lazy=self.lazy,
-                                                           auto_update=self.auto_update))
-                    return regions
-                else:
-                    return this._row_to_region(res, lazy=self.lazy,
-                                               auto_update=self.auto_update)
-
-        return RegionIter()
-
-    def subset(self, region, lazy=False, auto_update=True):
+    def _subset_rows(self, key):
         """
         Iterate over a subset of regions given the specified key.
 
-        :param region: A :class:`~kaic.data.genomic.GenomicRegion` object,
-                       or a list of the former.
-        :param lazy: Load region attributes on demand only.
-        :param auto_update: Auto update regions upon modification
+        :param key: A :class:`~kaic.data.genomic.GenomicRegion` object,
+                    or a list of the former. Also accepts slices and integers
         :return: Iterator over the specified subset of regions
         """
-        if isinstance(region, slice):
-            for row in self._regions.where("(ix >= {}) & (ix < {})".format(region.start, region.stop)):
-                sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
-                yield sub_region
-        elif isinstance(region, int):
-            sub_region = self._row_to_region(self._regions[region], lazy=lazy, auto_update=auto_update)
-            yield sub_region
-        elif isinstance(region, list) and len(region) > 0 and isinstance(region[0], int):
-            for ix in region:
-                sub_region = self._row_to_region(self._regions[ix], lazy=lazy, auto_update=auto_update)
-                yield sub_region
+        if isinstance(key, slice):
+            for row in self._regions.where("(ix >= {}) & (ix < {})".format(key.start, key.stop)):
+                yield row
+        elif isinstance(key, int):
+            yield self._regions[key]
+        elif isinstance(key, list) and len(key) > 0 and isinstance(key[0], int):
+            for ix in key:
+                yield self._regions[ix]
         else:
-            if isinstance(region, str):
-                region = GenomicRegion.from_string(region)
+            if isinstance(key, string_types):
+                key = GenomicRegion.from_string(key)
 
-            if isinstance(region, GenomicRegion):
-                regions = [region]
+            if isinstance(key, GenomicRegion):
+                keys = [key]
             else:
-                regions = region
+                keys = key
 
-            for r in regions:
-                if isinstance(r, str):
-                    r = GenomicRegion.from_string(r)
+            for k in keys:
+                if isinstance(k, string_types):
+                    k = GenomicRegion.from_string(k)
 
                 query = '('
-                if r.chromosome is not None:
-                    query += "(chromosome == '%s') & " % r.chromosome
-                if r.end is not None:
-                    query += "(start <= %d) & " % r.end
-                if r.start is not None:
-                    query += "(end >= %d) & " % r.start
+                if k.chromosome is not None:
+                    query += "(chromosome == b'%s') & " % k.chromosome
+                if k.end is not None:
+                    query += "(start <= %d) & " % k.end
+                if k.start is not None:
+                    query += "(end >= %d) & " % k.start
                 if query.endswith(' & '):
                     query = query[:-3]
                 query += ')'
 
                 if len(query) == 2:
-                    for region in self.regions(lazy=lazy, auto_update=auto_update):
-                        yield region
+                    for row in self._regions:
+                        yield row
                 else:
                     for row in self._regions.where(query):
-                        sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
-                        yield sub_region
+                        yield row
 
 
 class Genome(FileGroup):
@@ -1349,6 +667,10 @@ class Genome(FileGroup):
 
     This object can be saved to file.
     """
+
+    class ChromosomeDefinition(t.IsDescription):
+        name = t.StringCol(255, pos=0)
+        length = t.Int64Col(pos=1)
 
     def __init__(self, file_name=None, chromosomes=None, mode='a', tmpdir=None,
                  _table_name_chromosomes='chromosomes'):
@@ -1368,6 +690,16 @@ class Genome(FileGroup):
         except t.NoSuchNodeError:
             self._sequences = self.file.create_vlarray(self._group, 'sequences', t.VLStringAtom())
 
+        try:
+            self._chromosome_table = self._group.chromosomes
+        except t.NoSuchNodeError:
+            try:
+                self._chromosome_table = self.file.create_table(self._group, 'chromosomes',
+                                                                Genome.ChromosomeDefinition)
+            except t.FileModeError:
+                self._chromosome_table = None
+                pass
+
         if chromosomes is not None:
             if isinstance(chromosomes, Chromosome):
                 chromosomes = [chromosomes]
@@ -1380,28 +712,59 @@ class Genome(FileGroup):
 
     @property
     def _names(self):
-        try:
-            return self.meta['chromosome_names']
-        except KeyError:
-            return []
+        if self._chromosome_table is None:
+            try:
+                return self.meta['chromosome_names']
+            except KeyError:
+                return []
+        else:
+            return [row['name'].decode() if isinstance(row['name'], bytes) else row['name']
+                    for row in self._chromosome_table]
 
     @_names.setter
     def _names(self, names):
-        self.meta['chromosome_names'] = names
+        if self._chromosome_table is None:
+            self.meta['chromosome_names'] = names
+        else:
+            counter = 0
+            for i, row in enumerate(self._chromosome_table):
+                row['name'] = names[i]
+                row.update()
+                counter += 1
+            for i in range(counter, len(names)):
+                self._chromosome_table.row['name'] = names[i]
+                self._chromosome_table.row.append()
+        self._chromosome_table.flush()
 
     @property
     def _lengths(self):
-        try:
-            return self.meta['chromosome_lengths']
-        except KeyError:
-            return []
+        if self._chromosome_table is None:
+            try:
+                return self.meta['chromosome_lengths']
+            except KeyError:
+                return []
+        else:
+            return [row['length'] for row in self._chromosome_table]
 
     @_lengths.setter
     def _lengths(self, lengths):
+        if self._chromosome_table is None:
+            self.meta['chromosome_lengths'] = lengths
+        else:
+            counter = 0
+            for i, row in enumerate(self._chromosome_table):
+                row['length'] = lengths[i]
+                row.update()
+                counter += 1
+            for i in range(counter, len(lengths)):
+                self._chromosome_table.row['length'] = lengths[i]
+                self._chromosome_table.row.append()
+        self._chromosome_table.flush()
         self.meta['chromosome_lengths'] = lengths
 
     @classmethod
-    def from_folder(cls, folder_name, file_name=None, exclude=None, include_sequence=True):
+    def from_folder(cls, folder_name, file_name=None, exclude=None,
+                    include_sequence=True, tmpdir=None):
         """
         Load every FASTA file from a folder as a chromosome.
 
@@ -1417,7 +780,8 @@ class Genome(FileGroup):
         folder_name = os.path.expanduser(folder_name)
         for f in os.listdir(folder_name):
             try:
-                chromosome = Chromosome.from_fasta(folder_name + "/" + f, include_sequence=include_sequence)
+                chromosome = Chromosome.from_fasta(folder_name + "/" + f,
+                                                   include_sequence=include_sequence)
                 logger.info("Adding chromosome %s" % chromosome.name)
                 if exclude is None:
                     chromosomes.append(chromosome)
@@ -1426,10 +790,10 @@ class Genome(FileGroup):
             except (ValueError, IOError):
                 pass
 
-        return cls(chromosomes=chromosomes, file_name=file_name)
+        return cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
 
     @classmethod
-    def from_string(cls, genome_string, file_name=None):
+    def from_string(cls, genome_string, file_name=None, tmpdir=None, mode='a'):
         """
         Convenience function to load a :class:`~Genome` from a string.
 
@@ -1442,13 +806,13 @@ class Genome(FileGroup):
         # case 1: FASTA file = Chromosome
         if is_fasta_file(genome_string):
             chromosomes = Chromosome.from_fasta(genome_string)
-            genome = cls(chromosomes=chromosomes, file_name=file_name)
+            genome = cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
         # case 2: Folder with FASTA files
         elif os.path.isdir(genome_string):
-            genome = cls.from_folder(genome_string, file_name=file_name)
+            genome = cls.from_folder(genome_string, file_name=file_name, tmpdir=tmpdir)
         # case 3: path to HDF5 file
         elif os.path.isfile(genome_string):
-            genome = cls(genome_string)
+            genome = cls(genome_string, tmpdir=tmpdir, mode=mode)
         # case 4: List of FASTA files
         else:
             chromosome_files = genome_string.split(',')
@@ -1456,7 +820,7 @@ class Genome(FileGroup):
             for chromosome_file in chromosome_files:
                 chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
                 chromosomes.append(chromosome)
-            genome = cls(chromosomes=chromosomes, file_name=file_name)
+            genome = cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
 
         return genome
 
@@ -1471,7 +835,7 @@ class Genome(FileGroup):
         names = self._names
         lengths = self._lengths
 
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             key = names.index(key)
 
         if isinstance(key, int):
@@ -1482,14 +846,14 @@ class Genome(FileGroup):
             stop = key.stop if key.stop is not None else len(names)
             step = key.step if key.step is None else 1
 
-            for i in xrange(start, stop, step):
+            for i in range(start, stop, step):
                 c = Chromosome(name=names[i], length=lengths[i], sequence=self._sequences[i])
                 l.append(c)
             return l
         else:
             l = []
             for i in key:
-                if isinstance(i, str):
+                if isinstance(i, string_types):
                     i = names.index(i)
                 c = Chromosome(name=names[i], length=lengths[i], sequence=self._sequences[i])
                 l.append(c)
@@ -1504,7 +868,7 @@ class Genome(FileGroup):
         """
         this = self
 
-        class Iter:
+        class Iter(object):
             def __init__(self):
                 self.current = 0
 
@@ -1512,7 +876,7 @@ class Genome(FileGroup):
                 self.current = 0
                 return self
 
-            def next(self):
+            def __next__(self):
                 if self.current >= len(this):
                     raise StopIteration
                 self.current += 1
@@ -1545,12 +909,17 @@ class Genome(FileGroup):
             if l == 0:
                 l = len(s)
 
-        self._names = self._names + [n]
-        self._lengths = self._lengths + [l]
+        self._chromosome_table.row['name'] = n
+        self._chromosome_table.row['length'] = l
+        self._chromosome_table.row.append()
+
+        # self._names = self._names + [n]
+        # self._lengths = self._lengths + [l]
         self._sequences.append(s)
         self._sequences.flush()
+        self._chromosome_table.flush()
 
-    def get_regions(self, split, file_name=None):
+    def get_regions(self, split, file_name=None, chromosomes=None):
         """
         Extract genomic regions from genome.
 
@@ -1566,22 +935,25 @@ class Genome(FileGroup):
                       integer
         :param file_name: Name of a file if the result of this
                           method should be saved to file
+        :param chromosomes: List of chromosome names to include. Default: all
         :return: :class:`~GenomicRegions`
         """
 
         regions = RegionsTable(file_name=file_name)
         for chromosome in self:
+            if chromosomes is not None and chromosome.name not in chromosomes:
+                continue
             split_locations = []
-            if isinstance(split, str):
+            if isinstance(split, string_types):
                 split_locations = chromosome.get_restriction_sites(split)
             elif isinstance(split, int):
-                for i in xrange(split, len(chromosome) - 1, split):
+                for i in range(split, len(chromosome) - 1, split):
                     split_locations.append(i)
             else:
                 for i in split:
                     split_locations.append(i)
 
-            for i in xrange(0, len(split_locations)):
+            for i in range(0, len(split_locations)):
                 if i == 0:
                     region = GenomicRegion(start=1, end=split_locations[i], chromosome=chromosome.name)
                 else:
@@ -1653,6 +1025,17 @@ class Node(GenomicRegion, TableObject):
         else:
             return "%d: %s, %d-%d" % (self.ix, self.chromosome, self.start, self.end)
 
+    @classmethod
+    def from_row(cls, row):
+        """
+        Create a :class:`~Node` from a PyTables row.
+        """
+        strand = row['strand']
+        if strand == 0:
+            strand = None
+        return cls(start=row["start"], end=row["end"],
+                   strand=strand, chromosome=row["chromosome"])
+
 
 class LazyNode(LazyGenomicRegion, Node):
     def __init__(self, row, ix=None):
@@ -1690,8 +1073,8 @@ class Edge(TableObject):
         self._sink = sink
         self.field_names = []
 
-        for key, value in kwargs.iteritems():
-            setattr(self, key, value)
+        for key, value in kwargs.items():
+            setattr(self, key.decode() if isinstance(key, bytes) else key, value)
             self.field_names.append(key)
 
     @property
@@ -1722,7 +1105,7 @@ class Edge(TableObject):
         base_info = "%d--%d" % (self.source, self.sink)
         for field in self.field_names:
             base_info += "\n\t%s: %s" % (field, str(getattr(self, field)))
-        return base_info
+        return base_info + "\n"
 
 
 class LazyEdge(Edge):
@@ -1743,7 +1126,9 @@ class LazyEdge(Edge):
         if item == 'reserved' or item in self.reserved:
             return object.__getattribute__(self, item)
         try:
-            return self._row[item]
+            value = self._row[item]
+            value = value.decode() if isinstance(value, bytes) else value
+            return value
         except KeyError:
             raise AttributeError("Attribute not supported (%s)" % str(item))
 
@@ -1846,20 +1231,25 @@ class RegionPairs(Maskable, RegionsTable):
                 del kwargs['only_intrachromosomal']
             self.row_conversion_args = args
             self.row_conversion_kwargs = kwargs
+            key = kwargs.get('key', None)
+
+            if key is not None:
+                self.iter = self.this._edge_subset_rows(key=key,
+                                                        only_intrachromosomal=self.only_intrachromosomal)
             return iter(self)
 
-        def next(self):
-            row = self.iter.next()
+        def __next__(self):
+            row = next(self.iter)
             if self.only_intrachromosomal:
                 while self.regions_dict[row['source']].chromosome != self.regions_dict[row['sink']].chromosome:
-                    row = self.iter.next()
+                    row = next(self.iter)
             return self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
 
         def __len__(self):
             return len(self.this._edges)
 
     def __init__(self, file_name=None, mode='a', additional_fields=None, tmpdir=None,
-                 _table_name_nodes='nodes', _table_name_edges='edges'):
+                 _table_name_nodes='nodes', _table_name_edges='edges', _edge_buffer_size=1000000):
 
         """
         Initialize a :class:`~RegionPairs` object.
@@ -1899,6 +1289,8 @@ class RegionPairs(Maskable, RegionsTable):
         self._source_field_ix = 0
         self._sink_field_ix = 0
         self.field_names = []
+        self._field_names_dict = dict()
+        self._edge_field_defaults = dict()
         self._field_dict = self._edges.coldescrs
         for i, name in enumerate(self._edges.colnames):
             if not name.startswith("_"):
@@ -1907,6 +1299,28 @@ class RegionPairs(Maskable, RegionsTable):
                 self._source_field_ix = i
             if name == 'sink':
                 self._sink_field_ix = i
+            self._field_names_dict[name] = i
+            self._edge_field_defaults[name] = self._edges.coldescrs[name].dflt
+
+        self._edge_buffer = []
+        self._edge_buffer_size = _edge_buffer_size
+
+    def disable_indexes(self):
+        try:
+            self._edges.cols.source.remove_index()
+        except:
+            pass
+
+        try:
+            self._edges.cols.sink.remove_index()
+        except:
+            pass
+        self._edges.disable_mask_index()
+
+    def enable_indexes(self):
+        create_col_index(self._edges.cols.source)
+        create_col_index(self._edges.cols.sink)
+        self._edges.enable_mask_index()
 
     def _get_field_dict(self, additional_fields=None):
         basic_fields = RegionMatrixTable.EntryDescription().columns.copy()
@@ -1916,7 +1330,7 @@ class RegionPairs(Maskable, RegionsTable):
                 additional_fields = additional_fields.columns
 
             current = len(basic_fields)
-            for key, value in sorted(additional_fields.iteritems(), key=lambda x: x[1]._v_pos):
+            for key, value in sorted(additional_fields.items(), key=lambda x: x[1]._v_pos):
                 if key not in basic_fields:
                     if value._v_pos is not None:
                         value._v_pos = current
@@ -1949,53 +1363,56 @@ class RegionPairs(Maskable, RegionsTable):
         :param row: PyTables row object representing an edge. If provided, edge will be used to
                     modify existing row.
         """
-        source = None
-        sink = None
+        if not isinstance(edge, Edge):
+            source = None
+            sink = None
 
-        # object
-        is_object = True
-        try:
-            source = edge.source
-            sink = edge.sink
-        except AttributeError:
-            is_object = False
-
-        # dictionary
-        is_dict = False
-        if not is_object:
-            is_dict = True
+            # object
+            is_object = True
             try:
-                source = edge['source']
-                sink = edge['sink']
-            except TypeError:
-                is_dict = False
+                source = edge.source
+                sink = edge.sink
+            except AttributeError:
+                is_object = False
 
-        # list
-        is_list = False
-        if not is_object and not is_dict:
-            is_list = True
-            try:
-                source = edge[self._source_field_ix]
-                sink = edge[self._sink_field_ix]
-            except TypeError:
-                is_list = False
+            # dictionary
+            is_dict = False
+            if not is_object:
+                is_dict = True
+                try:
+                    source = edge['source']
+                    sink = edge['sink']
+                except TypeError:
+                    is_dict = False
 
-        if source is None and sink is None:
-            raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+            # list
+            is_list = False
+            if not is_object and not is_dict:
+                is_list = True
+                try:
+                    source = edge[self._source_field_ix]
+                    sink = edge[self._sink_field_ix]
+                except TypeError:
+                    is_list = False
+
+            if source is None and sink is None:
+                raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+
+            if is_object:
+                new_edge = self._edge_from_object(edge)
+            elif is_dict:
+                new_edge = self._edge_from_dict(edge)
+            elif is_list:
+                new_edge = self._edge_from_list(edge)
+            else:
+                raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
+        else:
+            new_edge = edge
 
         if check_nodes_exist:
             n_regions = len(self._regions)
-            if source >= n_regions or sink >= n_regions:
+            if new_edge.source >= n_regions or new_edge.sink >= n_regions:
                 raise ValueError("Node index exceeds number of nodes in object")
-
-        if is_object:
-            new_edge = self._edge_from_object(edge)
-        elif is_dict:
-            new_edge = self._edge_from_dict(edge)
-        elif is_list:
-            new_edge = self._edge_from_list(edge)
-        else:
-            raise ValueError("Edge type not recognised (%s)" % str(type(edge)))
 
         self._add_edge(new_edge, row=row, replace=replace)
 
@@ -2007,26 +1424,41 @@ class RegionPairs(Maskable, RegionsTable):
         if source > sink:
             source, sink = sink, source
 
-        update = True
         if row is None:
-            update = False
-            row = self._edges.row
-        row['source'] = source
-        row['sink'] = sink
-        for name in self.field_names:
-            if not name == 'source' and not name == 'sink':
+            record = [None] * len(self._field_names_dict)
+            for name, ix in self._field_names_dict.items():
                 try:
-                    value = getattr(edge, name)
-                    if replace or not update:
-                        row[name] = value
-                    else:
-                        row[name] += value
+                    record[ix] = getattr(edge, name)
                 except AttributeError:
-                    pass
-        if update:
-            row.update()
+                    record[ix] = self._edge_field_defaults[name]
+            record[self._field_names_dict['source']] = source
+            record[self._field_names_dict['sink']] = sink
+
+            self._edge_buffer.append(tuple(record))
+            if len(self._edge_buffer) > self._edge_buffer_size:
+                self._edges.append(self._edge_buffer)
+                self._edge_buffer = []
         else:
-            row.append()
+            update = True
+            if row is None:
+                update = False
+                row = self._edges.row
+            row['source'] = source
+            row['sink'] = sink
+            for name in self.field_names:
+                if not name == 'source' and not name == 'sink':
+                    try:
+                        value = getattr(edge, name)
+                        if replace or not update:
+                            row[name] = value
+                        else:
+                            row[name] += value
+                    except AttributeError:
+                        pass
+            if update:
+                row.update()
+            else:
+                row.append()
 
     def _edge_from_object(self, edge):
         return edge
@@ -2035,9 +1467,9 @@ class RegionPairs(Maskable, RegionsTable):
         source, sink = edge['source'], edge['sink']
 
         attributes = dict()
-        for name, value in edge.iteritems():
+        for name, value in edge.items():
             if not name == 'source' and not name == 'sink':
-                 attributes[name] = value
+                attributes[name] = value
 
         return Edge(source, sink, **attributes)
 
@@ -2053,6 +1485,12 @@ class RegionPairs(Maskable, RegionsTable):
                     break
 
         return Edge(source, sink, **attributes)
+
+    def _default_edge_list(self):
+        record = [None] * len(self._field_names_dict)
+        for name, ix in self._field_names_dict.items():
+            record[ix] = self._edge_field_defaults[name]
+        return record
 
     def add_nodes(self, nodes):
         """
@@ -2076,22 +1514,59 @@ class RegionPairs(Maskable, RegionsTable):
             self.add_edge(edge, flush=False)
         self.flush(flush_nodes=False)
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+    def flush(self, flush_nodes=True, flush_edges=True,
+              update_index=True, update_mappability=True):
         """
         Write data to file and flush buffers.
 
         :param flush_nodes: Flush nodes tables
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
+        :param update_mappability: Save mappability info for fast access
         """
         if flush_nodes:
             self._regions.flush()
 
         if flush_edges:
+            if len(self._edge_buffer) > 0:
+                self._edges.append(self._edge_buffer)
+                self._edge_buffer = []
             self._edges.flush(update_index=update_index)
 
+        if update_mappability:
+            self.meta['has_mappability_info'] = False
+            self.mappable()
+
+    def _edge_subset_rows(self, key, only_intrachromosomal=False):
+        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
+
+        nodes_ix_row = None
+        if nodes_row is not None:
+            if isinstance(nodes_row, list):
+                nodes_ix_row = [node.ix for node in nodes_row]
+            else:
+                nodes_ix_row = nodes_row.ix
+
+        nodes_ix_col = None
+        if nodes_col is not None:
+            if isinstance(nodes_col, list):
+                nodes_ix_col = [node.ix for node in nodes_col]
+            else:
+                nodes_ix_col = nodes_col.ix
+
+        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
+        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
+
+        # fill matrix with weights
+        for row_range in row_ranges:
+            for col_range in col_ranges:
+                for edge_row in self._edge_row_range(row_range[0], row_range[1],
+                                                     col_range[0], col_range[1],
+                                                     only_intrachromosomal=only_intrachromosomal):
+                    yield edge_row
+
     def edge_subset(self, key=slice(0, None, None), lazy=False, auto_update=True,
-                    only_intrachromosomal=False):
+                    only_intrachromosomal=False, **kwargs):
         """
         Get a subset of edges.
 
@@ -2124,35 +1599,12 @@ class RegionPairs(Maskable, RegionsTable):
                     map of the relevant regions between chromosomes 1 and 4.
         :param lazy: Enable lazy loading of edge attributes
         :param auto_update: Automatically update edge attributes on change
+        :param only_intrachromosomal: Only return intra-chromosomal contacts
         :return: generator (:class:`~Edge`)
         """
 
-        nodes_row, nodes_col = self._get_nodes_from_key(key, as_index=False)
-
-        nodes_ix_row = None
-        if nodes_row is not None:
-            if isinstance(nodes_row, list):
-                nodes_ix_row = [node.ix for node in nodes_row]
-            else:
-                nodes_ix_row = nodes_row.ix
-
-        nodes_ix_col = None
-        if nodes_col is not None:
-            if isinstance(nodes_col, list):
-                nodes_ix_col = [node.ix for node in nodes_col]
-            else:
-                nodes_ix_col = nodes_col.ix
-
-        row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
-        col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
-
-        # fill matrix with weights
-        for row_range in row_ranges:
-            for col_range in col_ranges:
-                for edge_row in self._edge_row_range(row_range[0], row_range[1],
-                                                     col_range[0], col_range[1],
-                                                     only_intrachromosomal=only_intrachromosomal):
-                    yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update)
+        for edge_row in self._edge_subset_rows(key, only_intrachromosomal=only_intrachromosomal):
+            yield self._row_to_edge(edge_row, lazy=lazy, auto_update=auto_update, **kwargs)
 
     def _get_nodes_from_key(self, key, as_index=False):
         if isinstance(key, tuple):
@@ -2207,8 +1659,12 @@ class RegionPairs(Maskable, RegionsTable):
         return ranges(nodes_ix)
 
     def _getitem_nodes(self, key, as_index=False):
+        # None
+        if key is None:
+            key = slice(0, None, None)
+
         # 'chr1:1234:56789'
-        if isinstance(key, str):
+        if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
 
         # Node('chr1', 1234, 56789, ix=0)
@@ -2230,9 +1686,9 @@ class RegionPairs(Maskable, RegionsTable):
             if start is None:
                 start = 0
             if end is None:
-                end = max(row['end'] for row in self._regions.where("(chromosome == '%s')" % chromosome))
+                end = max(row['end'] for row in self._regions.where("(chromosome == b'%s')" % chromosome))
 
-            condition = "(chromosome == '%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
+            condition = "(chromosome == b'%s') & (end >= %d) & (start <= %d)" % (chromosome, start, end)
             if as_index:
                 region_nodes = [row['ix'] for row in self._regions.where(condition)]
             else:
@@ -2295,14 +1751,16 @@ class RegionPairs(Maskable, RegionsTable):
         """
         return self._getitem_nodes(key)
 
-    def _row_to_edge(self, row, lazy=False, auto_update=True):
+    def _row_to_edge(self, row, lazy=False, auto_update=True, **kwargs):
         if not lazy:
             source = row["source"]
             sink = row["sink"]
             d = dict()
             for field in self.field_names:
                 if field != 'source' and field != 'sink':
-                    d[field] = row[field]
+                    value = row[field]
+                    value = value.decode() if isinstance(value, bytes) else value
+                    d[field] = value
 
             source_node_row = self._regions[source]
             source_node = self._row_to_node(source_node_row)
@@ -2333,7 +1791,7 @@ class RegionPairs(Maskable, RegionsTable):
         return self._nodes_iter()
 
     def _nodes_iter(self):
-        return self.regions()
+        return self.regions
 
     @property
     def edges(self):
@@ -2354,6 +1812,20 @@ class RegionPairs(Maskable, RegionsTable):
             return False
         return True
 
+    def create_cs_index(self, field):
+        column = getattr(self._edges.cols, field)
+
+        if not self._is_sorted(field):
+            try:
+                logger.info("Sorting {}...".format(field))
+                if not column.is_indexed:
+                    column.create_csindex()
+                elif not column.index.is_csi:
+                    column.reindex()
+            except t.exceptions.FileModeError:
+                raise RuntimeError("This object is not sorted by requested column! "
+                                   "Cannot sort manually, because file is in read-only mode.")
+
     def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
         """
         Iterate over edges sorted by a specific column.
@@ -2363,18 +1835,8 @@ class RegionPairs(Maskable, RegionsTable):
         :return: EdgeIter iterator
         """
         # ensure sorting on qname_ix column
-        column = getattr(self._edges.cols, sortby)
+        self.create_cs_index(sortby)
 
-        if not self._is_sorted(sortby):
-            try:
-                logger.info("Sorting %s..." % sortby)
-                if not column.is_indexed:
-                    column.create_csindex()
-                elif not column.index.is_csi:
-                    column.reindex()
-            except t.exceptions.FileModeError:
-                raise RuntimeError("This object is not sorted by requested column! "
-                                   "Cannot sort manually, because file is in read-only mode.")
         if reverse:
             step = -1
         else:
@@ -2387,6 +1849,43 @@ class RegionPairs(Maskable, RegionsTable):
 
     def __len__(self):
         return len(self._edges)
+
+    def mappable(self, sub_region=None):
+        """
+        Get the mappability vector of this matrix.
+        """
+        mappable = np.zeros(len(self.regions), dtype=bool)
+        # check if mappability info already exists
+        if 'has_mappability_info' in self.meta and self.meta['has_mappability_info']:
+            logger.debug("Retrieving precalculated mappability...")
+            for i, region in enumerate(self.regions(lazy=True)):
+                mappable[i] = region._mask_ix == 0
+        else:
+            # prepare marginals dict
+            logger.debug("Calculating mappability...")
+
+            with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
+                for i, edge in enumerate(self.edges(lazy=True)):
+                    mappable[edge.source] = True
+                    mappable[edge.sink] = True
+                    pb.update(i)
+
+            try:
+                for i, row in enumerate(self._regions):
+                    if not mappable[i]:
+                        row['_mask_ix'] = 1
+                    else:
+                        row['_mask_ix'] = 0
+                    row.update()
+                self._regions.flush()
+                self.meta['has_mappability_info'] = True
+            except (IOError, OSError, t.FileModeError, KeyError):
+                logger.debug("Cannot write mappability info to read-only file")
+
+        if sub_region is None:
+            return mappable
+        else:
+            return mappable[self.region_bins(sub_region)]
 
 
 class AccessOptimisedRegionPairs(RegionPairs):
@@ -2418,33 +1917,35 @@ class AccessOptimisedRegionPairs(RegionPairs):
                                           interchromosomal=self.interchromosomal)
             elif isinstance(item, slice):
                 edges = []
-                start = 0 if item.start is None else item.start
-                stop = len(self.this.edges) if item.stop is None else item.stop
-                step = 1 if item.step is None else item.step
-                if step != 1:
-                    raise ValueError("Step sizes != 1 not currently supported in slices. %s" % str(step))
-
-                l = 0
-                for edge_table in self.this._edge_table_iter(intrachromosomal=self.intrachromosomal,
-                                                             interchromosomal=self.interchromosomal):
-                    # not yet in range
-                    if start >= l + len(edge_table):
-                        l += len(edge_table)
-                        continue
-                    # over range - can stop here
-                    if stop < l:
-                        break
-
-                    # in range, get edges
-                    r = (max(0, start - l), min(len(edge_table), stop - l))
-                    print(r)
-                    res = edge_table[r[0]:r[1]]
-                    for edge in res:
-                        edges.append(self.this._row_to_edge(edge,
-                                                            *self.row_conversion_args,
-                                                            **self.row_conversion_kwargs))
-                    l += len(edge_table)
+                for row in self.get_row_range(item):
+                    edge = self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
+                    edges.append(edge)
                 return edges
+
+        def get_row_range(self, item):
+            start = 0 if item.start is None else item.start
+            stop = len(self.this.edges) if item.stop is None else item.stop
+            step = 1 if item.step is None else item.step
+            if step != 1:
+                raise ValueError("Step sizes != 1 not currently supported in slices. %s" % str(step))
+
+            l = 0
+            for edge_table in self.this._edge_table_iter(intrachromosomal=self.intrachromosomal,
+                                                         interchromosomal=self.interchromosomal):
+                # not yet in range
+                if start >= l + len(edge_table):
+                    l += len(edge_table)
+                    continue
+                # over range - can stop here
+                if stop < l:
+                    break
+
+                # in range, get edges
+                r = (max(0, start - l), min(len(edge_table), stop - l))
+                res = edge_table[r[0]:r[1]]
+                for row in res:
+                    yield row
+                l += len(edge_table)
 
         def __iter__(self):
             return self
@@ -2462,20 +1963,25 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 del kwargs['interchromosomal']
             self.row_conversion_args = args
             self.row_conversion_kwargs = kwargs
+
+            key = kwargs.get('key', None)
+            if key is not None:
+                self.iter = self.this._edge_subset_rows(key=key,
+                                                        only_intrachromosomal=self.only_intrachromosomal)
             return iter(self)
 
-        def next(self):
+        def __next__(self):
             if self.iter is None:
                 self.iter = self.this._edge_row_iter(intrachromosomal=self.intrachromosomal,
                                                      interchromosomal=self.interchromosomal)
-            row = self.iter.next()
+            row = next(self.iter)
             return self.this._row_to_edge(row, *self.row_conversion_args, **self.row_conversion_kwargs)
 
         def __len__(self):
             return len(self.this)
 
     def __init__(self, file_name=None, mode='a', tmpdir=None, additional_fields=None,
-                 _table_name_nodes='nodes', _table_name_edges='edges'):
+                 _table_name_nodes='nodes', _table_name_edges='edges', _edge_buffer_size=1000000):
         # private variables
         self._max_node_ix = -1
 
@@ -2491,13 +1997,14 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._field_dict = None
         self.field_names = None
         self._edge_table_dict = dict()
+        self._edge_field_defaults = dict()
         self._source_field_ix = 0
         self._sink_field_ix = 1
 
         # existing one
         if _table_name_edges in self.file.root:
             self._edges = self.file.get_node('/', _table_name_edges)
-            for edge_table in self._edges._f_iter_nodes():
+            for edge_table in self._edges:
                 if self._field_dict is None:
                     self._field_dict = edge_table.coldescrs
                     self._update_field_names(edge_table=edge_table)
@@ -2516,12 +2023,23 @@ class AccessOptimisedRegionPairs(RegionPairs):
         # update partitions
         self._update_partitions()
 
+        self._edge_buffer = defaultdict(list)
+        self._edge_buffer_size = _edge_buffer_size
+
+    def _flush_table_edge_buffer(self):
+        for (source_partition, sink_partition), records in self._edge_buffer.items():
+            if not (source_partition, sink_partition) in self._edge_table_dict:
+                self._create_edge_table(source_partition, sink_partition)
+            table = self._edge_table_dict[(source_partition, sink_partition)]
+            table.append(records)
+        self._edge_buffer = defaultdict(list)
+
     def _update_field_names(self, edge_table=None):
         """
         Set internal object variables related to edge table field names.
         """
         if edge_table is None:
-            for et in self._edges._f_iter_nodes():
+            for et in self._edges:
                 edge_table = et
                 break
 
@@ -2532,6 +2050,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._source_field_ix = 0
         self._sink_field_ix = 0
         self.field_names = []
+        self._field_names_dict = dict()
         for i, name in enumerate(edge_table.colnames):
             if not name.startswith("_"):
                 self.field_names.append(name)
@@ -2539,6 +2058,8 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 self._source_field_ix = i
             if name == 'sink':
                 self._sink_field_ix = i
+            self._field_names_dict[name] = i
+            self._edge_field_defaults[name] = edge_table.coldescrs[name].dflt
 
     def _update_partitions(self):
         """
@@ -2551,13 +2072,17 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 self.partitions.append(i)
             previous_chromosome = region.chromosome
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+    def flush(self, flush_nodes=True, flush_edges=True,
+              update_index=True, update_mappability=True,
+              silent=config.hide_progressbars):
         """
         Write data to file and flush buffers.
 
         :param flush_nodes: Flush nodes tables
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
+        :param update_mappability: Save mappability info for fast access
+        :param silent: do not print flush progress
         """
         if flush_nodes:
             self._regions.flush()
@@ -2565,8 +2090,24 @@ class AccessOptimisedRegionPairs(RegionPairs):
             self._update_partitions()
 
         if flush_edges:
-            for edge_table in self._edges._f_iter_nodes():
-                edge_table.flush(update_index=update_index)
+            if len(self._edge_buffer) > 0:
+                self._flush_table_edge_buffer()
+
+            if update_index:
+                logger.info("Updating mask indices...")
+
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges), silent=silent) as pb:
+                for i, edge_table in enumerate(self._edges):
+                    edge_table.flush(update_index=update_index, log_progress=False)
+                    pb.update(i)
+
+        if update_mappability:
+            self.meta['has_mappability_info'] = False
+            self.mappable()
+
+    def add_regions(self, regions):
+        super(AccessOptimisedRegionPairs, self).add_regions(regions)
+        self._update_partitions()
 
     def _get_field_dict(self, additional_fields=None):
         """
@@ -2588,6 +2129,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
         """
         Create and register an edge table for a partition combination.
         """
+        if (source_partition, sink_partition) in self._edge_table_dict:
+            return self._edge_table_dict[(source_partition, sink_partition)]
+
         edge_table = MaskedTable(self._edges,
                                  'chrpair_' + str(source_partition) + '_' + str(sink_partition),
                                  self._field_dict)
@@ -2601,22 +2145,36 @@ class AccessOptimisedRegionPairs(RegionPairs):
         self._edge_table_dict[(source_partition, sink_partition)] = edge_table
         return edge_table
 
-    def _get_edge_table(self, source, sink):
-        """
-        Return an edge table for this particular region index combination.
-        """
+    def disable_indexes(self):
+        for edge_table in self._edge_table_iter():
+            edge_table.cols.source.remove_index()
+            edge_table.cols.sink.remove_index()
+            edge_table.disable_mask_index()
+
+    def enable_indexes(self):
+        for edge_table in self._edge_table_iter():
+            create_col_index(edge_table.cols.source)
+            create_col_index(edge_table.cols.sink)
+            edge_table.enable_mask_index()
+
+    def _get_edge_table_tuple(self, source, sink):
         if source > sink:
             source, sink = sink, source
 
         source_partition = self._get_partition_ix(source)
         sink_partition = self._get_partition_ix(sink)
 
-        if (source_partition, sink_partition) in self._edge_table_dict:
-            return self._edge_table_dict[(source_partition, sink_partition)]
+        return source_partition, sink_partition
 
-        edge_table = self._create_edge_table(source_partition, sink_partition)
+    def _get_edge_table(self, source, sink):
+        """
+        Return an edge table for this particular region index combination.
+        """
+        source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
 
-        return edge_table
+        if not (source_partition, sink_partition) in self._edge_table_dict:
+            self._create_edge_table(source_partition, sink_partition)
+        return self._edge_table_dict[(source_partition, sink_partition)]
 
     def _edge_table_iter(self, intrachromosomal=True, interchromosomal=True):
         """
@@ -2628,14 +2186,14 @@ class AccessOptimisedRegionPairs(RegionPairs):
         """
         # intra-chromosomal
         if intrachromosomal:
-            for i in xrange(len(self.partitions) + 1):
+            for i in range(len(self.partitions) + 1):
                 if (i, i) in self._edge_table_dict:
                     yield self._edge_table_dict[(i, i)]
 
         # inter-chromosomal
         if interchromosomal:
-            for i in xrange(len(self.partitions) + 1):
-                for j in xrange(i + 1, len(self.partitions) + 1):
+            for i in range(len(self.partitions) + 1):
+                for j in range(i + 1, len(self.partitions) + 1):
                     if (i, j) in self._edge_table_dict:
                         yield self._edge_table_dict[(i, j)]
 
@@ -2653,27 +2211,55 @@ class AccessOptimisedRegionPairs(RegionPairs):
         if source > sink:
             source, sink = sink, source
 
-        update = True
         if row is None:
-            update = False
-            table = self._get_edge_table(source, sink)
-            row = table.row
-        row['source'] = source
-        row['sink'] = sink
-        for name in self.field_names:
-            if not name == 'source' and not name == 'sink':
+            record = [None] * len(self._field_names_dict)
+            for name, ix in self._field_names_dict.items():
                 try:
-                    value = getattr(edge, name)
-                    if replace or not update:
-                        row[name] = value
-                    else:
-                        row[name] += value
+                    record[ix] = getattr(edge, name)
                 except AttributeError:
-                    pass
-        if update:
-            row.update()
+                    record[ix] = self._edge_field_defaults[name]
+            record[self._field_names_dict['source']] = source
+            record[self._field_names_dict['sink']] = sink
+
+            source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
+
+            self._edge_buffer[(source_partition, sink_partition)].append(tuple(record))
+            if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
+                self._flush_table_edge_buffer()
         else:
-            row.append()
+            update = True
+            if row is None:
+                update = False
+                table = self._get_edge_table(source, sink)
+                row = table.row
+            row['source'] = source
+            row['sink'] = sink
+            for name in self.field_names:
+                if not name == 'source' and not name == 'sink':
+                    try:
+                        value = getattr(edge, name)
+                        if replace or not update:
+                            row[name] = value
+                        else:
+                            row[name] += value
+                    except AttributeError:
+                        pass
+            if update:
+                row.update()
+            else:
+                row.append()
+
+    def _add_edge_from_tuple(self, edge):
+        source = edge[self._source_field_ix]
+        sink = edge[self._sink_field_ix]
+        if source > sink:
+            source, sink = sink, source
+
+        source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
+
+        self._edge_buffer[(source_partition, sink_partition)].append(tuple(edge))
+        if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
+            self._flush_table_edge_buffer()
 
     def get_edge(self, item, intrachromosomal=True, interchromosomal=True,
                  *row_conversion_args, **row_conversion_kwargs):
@@ -2686,6 +2272,9 @@ class AccessOptimisedRegionPairs(RegionPairs):
         :param row_conversion_args: Keyword arguments passed to :func:`RegionPairs._row_to_edge`
         :return: :class:`~Edge`
         """
+        if item < 0:
+            item += len(self)
+
         l = 0
         for edge_table in self._edge_table_iter(intrachromosomal=intrachromosomal,
                                                 interchromosomal=interchromosomal):
@@ -2700,9 +2289,6 @@ class AccessOptimisedRegionPairs(RegionPairs):
         """
         Iterate over :class:`~Edge` objects.
 
-        :param lazy: Enable lazy loading of edge attributes,
-                     only works in the loop iteration this
-                     edge is accessed.
         :return: Iterator over :class:`~Edge`
         """
         return self._edges_iter()
@@ -2710,12 +2296,13 @@ class AccessOptimisedRegionPairs(RegionPairs):
     def _edges_iter(self):
         return AccessOptimisedRegionPairs.EdgeIter(self)
 
-    def _edge_row_iter(self, intrachromosomal=True, interchromosomal=True):
+    def _edge_row_iter(self, intrachromosomal=True, interchromosomal=True, excluded_filters=()):
         """
         Yield rows in edge tables, ordered by partition.
         """
         for edge_table in self._edge_table_iter(intrachromosomal=intrachromosomal, interchromosomal=interchromosomal):
-            for row in edge_table:
+            excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
+            for row in edge_table.iterrows(excluded_masks=excluded_masks):
                 yield row
 
     def _partition_ix_range(self, start, stop):
@@ -2756,7 +2343,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         start_range = (start, self.partitions[start_partition] - 1, start_partition, start_range_complete)
         partition_ranges.append(start_range)
 
-        for i in xrange(start_partition + 1, stop_partition):
+        for i in range(start_partition + 1, stop_partition):
             partition_ranges.append((self.partitions[i-1], self.partitions[i]-1, i, True))
 
         stop_range_complete = _is_end_of_partition(stop, stop_partition)
@@ -2842,7 +2429,7 @@ class AccessOptimisedRegionPairs(RegionPairs):
         rows = []
         for i, table_iterator in enumerate(table_iterators):
             try:
-                row = table_iterator.next()
+                row = next(table_iterator)
                 rows.append(row)
             except StopIteration:
                 del table_iterators[i]
@@ -2865,22 +2452,19 @@ class AccessOptimisedRegionPairs(RegionPairs):
             yield rows[current_ix]
 
             try:
-                rows[current_ix] = table_iterators[current_ix].next()
+                rows[current_ix] = next(table_iterators[current_ix])
             except StopIteration:
                 del table_iterators[current_ix]
                 del rows[current_ix]
 
-    def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
-        """
-        Iterate over edges sorted by *sortby*.
-        """
+    def create_cs_index(self, field):
         for edge_table in self._edge_table_iter():
             # ensure sorting on sortby column
-            column = getattr(edge_table.cols, sortby)
+            column = getattr(edge_table.cols, field)
 
-            if not self._is_sorted(sortby):
+            if not self._is_sorted(field):
                 try:
-                    logger.info("Sorting %s..." % sortby)
+                    logger.info("Sorting %s..." % field)
                     if not column.is_indexed:
                         column.create_csindex()
                     elif not column.index.is_csi:
@@ -2888,6 +2472,12 @@ class AccessOptimisedRegionPairs(RegionPairs):
                 except t.exceptions.FileModeError:
                     raise RuntimeError("This object is not sorted by requested column! "
                                        "Cannot sort manually, because file is in read-only mode.")
+
+    def edges_sorted(self, sortby, reverse=False, *args, **kwargs):
+        """
+        Iterate over edges sorted by *sortby*.
+        """
+        self.create_cs_index(sortby)
         if reverse:
             step = -1
         else:
@@ -2969,6 +2559,7 @@ class RegionMatrixTable(RegionPairs):
         # private variables
         self.default_field = default_field
         self.default_value = default_value
+        self._expected_values = None
         RegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields, tmpdir=tmpdir,
                              _table_name_nodes=_table_name_nodes, _table_name_edges=_table_name_edges)
 
@@ -2978,7 +2569,8 @@ class RegionMatrixTable(RegionPairs):
                     self.default_field = field_name
                     break
 
-    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
+    def _flush_edge_buffer(self, e_buffer, replace=False,
+                           update_index=True, update_mappability=True,
                            clean_zero=True, default_column=None):
         if default_column is None:
             default_column = self.default_field
@@ -2998,7 +2590,7 @@ class RegionMatrixTable(RegionPairs):
                 except TypeError:
                     self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
                 del e_buffer[key]
-        self.flush(update_index=False)
+        self.flush(update_index=False, update_mappability=False)
 
         # flush remaining buffer
         for source, sink in e_buffer:
@@ -3013,15 +2605,16 @@ class RegionMatrixTable(RegionPairs):
             except TypeError:
                 self.add_edge(value, check_nodes_exist=False, flush=False)
 
-        self.flush(update_index=True)
+        self.flush(update_index=update_index, update_mappability=update_mappability)
         if clean_zero:
-            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
+            self._remove_zero_edges(update_index=update_index, update_mappability=update_mappability,
+                                    weight_column=default_column)
 
     def __getitem__(self, key):
         return self.as_matrix(key)
 
     def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False,
-                  impute_missing=False, default_value=None):
+                  default_value=None, impute_missing=False, _mappable=None):
         """
         Get a chunk of the matrix.
 
@@ -3080,7 +2673,8 @@ class RegionMatrixTable(RegionPairs):
         row_ranges = list(self._get_node_ix_ranges(nodes_ix_row))
         col_ranges = list(self._get_node_ix_ranges(nodes_ix_col))
 
-        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from, default_value=default_value)
+        m = self._get_matrix(row_ranges, col_ranges, weight_column=values_from,
+                             default_value=default_value)
 
         # select the correct output format
         # empty result: matrix
@@ -3099,18 +2693,21 @@ class RegionMatrixTable(RegionPairs):
 
         if rm is not None:
             if mask_missing or impute_missing:
-                mappable = self.mappable()
+                if _mappable is None:
+                    mappable = self.mappable()
+                else:
+                    mappable = _mappable
                 mask = np.zeros(m.shape, dtype=bool)
                 current_row = 0
                 for row_range in row_ranges:
-                    for i in xrange(row_range[0], row_range[1]+1):
+                    for i in range(row_range[0], row_range[1]+1):
                         if not mappable[i]:
                             mask[current_row] = True
                         current_row += 1
 
                 current_col = 0
                 for col_range in col_ranges:
-                    for i in xrange(col_range[0], col_range[1]+1):
+                    for i in range(col_range[0], col_range[1]+1):
                         if not mappable[i]:
                             mask[:, current_col] = True
                         current_col += 1
@@ -3149,9 +2746,9 @@ class RegionMatrixTable(RegionPairs):
         intra_expected = ex.intra_expected()
         inter_expected = ex.inter_expected()
 
-        for i in xrange(hic_matrix.shape[0]):
+        for i in range(hic_matrix.shape[0]):
             row_region = hic_matrix.row_regions[i]
-            for j in xrange(hic_matrix.shape[1]):
+            for j in range(hic_matrix.shape[1]):
                 col_region = hic_matrix.col_regions[j]
 
                 if hic_matrix.mask[i, j]:
@@ -3169,6 +2766,7 @@ class RegionMatrixTable(RegionPairs):
     def _get_matrix(self, row_ranges, col_ranges, weight_column=None, default_value=None):
         if default_value is None:
             default_value = self.default_value
+
         if weight_column is None:
             weight_column = self.default_field
 
@@ -3308,8 +2906,8 @@ class RegionMatrixTable(RegionPairs):
             if not isinstance(item, np.ndarray) or not np.array_equal(item.shape, [n_rows, n_cols]):
                 raise ValueError("Item is not a numpy array with shape (%d,%d)!" % (n_rows, n_cols))
 
-            for i in xrange(0, n_rows):
-                for j in xrange(0, n_cols):
+            for i in range(0, n_rows):
+                for j in range(0, n_cols):
                     source = nodes_ix_row[i]
                     sink = nodes_ix_col[j]
                     source, sink = swap(source, sink)
@@ -3354,7 +2952,8 @@ class RegionMatrixTable(RegionPairs):
             if key not in replacement_edges:
                 replacement_edges[key] = weight
 
-        self._flush_edge_buffer(replacement_edges, replace=True, clean_zero=clean_zero, default_column=weight_column)
+        self._flush_edge_buffer(replacement_edges, replace=True,
+                                clean_zero=clean_zero, default_column=weight_column)
 
     def _update_edge_weight(self, source, sink, weight, add=False, flush=True, weight_column=None):
         if weight_column is None:
@@ -3376,7 +2975,8 @@ class RegionMatrixTable(RegionPairs):
         if not value_set:
             self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=flush)
 
-    def _remove_zero_edges(self, flush=True, update_index=True, weight_column=None):
+    def _remove_zero_edges(self, flush=True, update_index=True,
+                           update_mappability=True, weight_column=None):
         if weight_column is None:
             weight_column = self.default_field
 
@@ -3391,7 +2991,7 @@ class RegionMatrixTable(RegionPairs):
             self._edges.remove_row(ix)
 
         if flush:
-            self.flush(update_index=update_index)
+            self.flush(update_index=update_index, update_mappability=update_mappability)
 
     def marginals(self, weight_column=None):
         """
@@ -3401,10 +3001,10 @@ class RegionMatrixTable(RegionPairs):
             weight_column = self.default_field
 
         # prepare marginals dict
-        marginals = np.zeros(len(self.regions()), float)
+        marginals = np.zeros(len(self.regions), float)
 
         logger.debug("Calculating marginals...")
-        with RareUpdateProgressBar(max_value=len(self.edges)) as pb:
+        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
             for i, edge in enumerate(self.edges(lazy=True)):
                 marginals[edge.source] += getattr(edge, weight_column)
                 if edge.source != edge.sink:
@@ -3413,23 +3013,143 @@ class RegionMatrixTable(RegionPairs):
 
         return marginals
 
-    def mappable(self):
-        """
-        Get the mappability vector of this matrix.
-        """
-        # prepare marginals dict
-        mappable = np.zeros(len(self.regions()), dtype=bool)
+    def possible_contacts(self):
+        logger.info("Calculating possible counts")
+        regions = list(self.regions)
+        chromosomes = self.chromosomes()
 
-        logger.debug("Calculating mappability...")
+        cb = self.chromosome_bins
+        chromosome_max_distance = defaultdict(int)
+        max_distance = 0
+        chromosome_subtractions = dict()
+        for chromosome in chromosomes:
+            start, stop = cb[chromosome]
+            max_distance = max(max_distance, stop - start)
+            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+            chromosome_subtractions[chromosome] = np.zeros(stop - start,
+                                                           dtype='int32')
 
-        with RareUpdateProgressBar(max_value=len(self.edges)) as pb:
-            for i, edge in enumerate(self.edges(lazy=True)):
-                mappable[edge.source] = True
-                if edge.source != edge.sink:
-                    mappable[edge.sink] = True
-                pb.update(i)
+        chromosome_mappable = defaultdict(int)
+        chromosome_unmappable = defaultdict(set)
+        for i, mappable in enumerate(self.mappable()):
+            chromosome = regions[i].chromosome
+            if not mappable:  # unmappable
+                s = chromosome_subtractions[chromosome]
+                o = cb[chromosome][0]
+                ix = i - o
+                # horizontal
+                s[0: len(s) - ix] += 1
+                # vertical
+                for j in range(1, ix + 1):
+                    if ix - j not in chromosome_unmappable[chromosome]:
+                        s[j] += 1
+                chromosome_unmappable[chromosome].add(ix)
+            else:
+                chromosome_mappable[chromosome] += 1
 
-        return mappable
+        inter_total = 0
+        intra_total = [0] * max_distance
+        chromosome_intra_total = dict()
+        for chromosome, d in chromosome_max_distance.items():
+            chromosome_intra_total[chromosome] = [0] * d
+
+        for i, chromosome in enumerate(chromosomes):
+            start, stop = cb[chromosome]
+            count = stop - start
+
+            # intra-chromosomal
+            s = chromosome_subtractions[chromosomes[i]]
+            for distance in range(0, count):
+                intra_total[distance] += count - distance - s[distance]
+                chromosome_intra_total[chromosome][distance] += count - distance - s[distance]
+
+            # inter-chromosomal
+            for j in range(i + 1, len(chromosomes)):
+                count_mappable = chromosome_mappable[chromosomes[i]]
+                count2_mappable = chromosome_mappable[chromosomes[j]]
+                inter_total += count_mappable * count2_mappable
+
+        return intra_total, chromosome_intra_total, inter_total
+
+    def expected_values(self, selected_chromosome=None):
+        if self._expected_values is not None:
+            intra_expected, chromosome_intra_expected, inter_expected = self._expected_values
+        else:
+            # get all the bins of the different chromosomes
+            chromosome_bins = self.chromosome_bins
+            chromosome_dict = defaultdict(list)
+
+            chromosome_max_distance = defaultdict(int)
+            max_distance = 0
+            for chromosome, (start, stop) in chromosome_bins.items():
+                max_distance = max(max_distance, stop - start)
+                chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+
+                for i in range(start, stop):
+                    chromosome_dict[i] = chromosome
+
+            chromosome_intra_sums = dict()
+            chromosome_intra_expected = dict()
+            for chromosome, d in chromosome_max_distance.items():
+                chromosome_intra_sums[chromosome] = [0.0] * d
+                chromosome_intra_expected[chromosome] = [0.0] * d
+
+            # get the sums of edges at any given distance
+            marginals = [0.0] * len(self.regions)
+            inter_sums = 0.0
+            intra_sums = [0.0] * max_distance
+            with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
+                for i, edge in enumerate(self.edges(lazy=True)):
+                    source, sink = edge.source, edge.sink
+                    weight = getattr(edge, self.default_field)
+
+                    source_chromosome = chromosome_dict[source]
+                    sink_chromosome = chromosome_dict[sink]
+
+                    marginals[source] += weight
+                    marginals[sink] += weight
+
+                    if sink_chromosome != source_chromosome:
+                        inter_sums += weight
+                    else:
+                        distance = sink - source
+                        intra_sums[distance] += weight
+                        chromosome_intra_sums[source_chromosome][distance] += weight
+                    pb.update(i)
+
+            intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
+
+            # expected values
+            inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
+
+            intra_expected = [0.0] * max_distance
+            bin_size = self.bin_size
+            distances = []
+            for d in range(max_distance):
+                distances.append(bin_size * d)
+
+                # whole genome
+                count = intra_total[d]
+                if count > 0:
+                    intra_expected[d] = intra_sums[d] / count
+
+            # chromosomes
+            for chromosome in chromosome_intra_expected:
+                for d in range(chromosome_max_distance[chromosome]):
+                    chromosome_count = chromosome_intra_total[chromosome][d]
+                    if chromosome_count > 0:
+                        chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+
+            self._expected_values = intra_expected, chromosome_intra_expected, inter_expected
+
+        if selected_chromosome is not None:
+            return chromosome_intra_expected[selected_chromosome]
+
+        return intra_expected, chromosome_intra_expected, inter_expected
+
+    def iter_edge_attribute(self, attribute):
+        for value in getattr(self._edges.cols, attribute):
+            yield value
 
     def scaling_factor(self, matrix, weight_column=None):
         """
@@ -3447,16 +3167,18 @@ class RegionMatrixTable(RegionPairs):
             weight_column = self.default_field
 
         logger.info("Calculating scaling factor...")
-        m1_sum = 0.0
-        for edge in self.edges(lazy=True):
-            m1_sum += getattr(edge, weight_column)
+        m1_sum = 0
+        for v1 in self.iter_edge_attribute(weight_column):
+            if np.isfinite(v1):
+                m1_sum += v1
 
-        m2_sum = 0.0
-        for edge in matrix.edges(lazy=True):
-            m2_sum += getattr(edge, weight_column)
+        m2_sum = 0
+        for v2 in matrix.iter_edge_attribute(weight_column):
+            if np.isfinite(v2):
+                m2_sum += v2
 
         scaling_factor = m1_sum / m2_sum
-        logger.debug("Scaling factor: %f" % scaling_factor)
+        logger.debug("Scaling factor: {}".format(scaling_factor))
         return scaling_factor
 
     def get_combined_matrix(self, matrix, key=None, scaling_factor=None, weight_column=None):
@@ -3507,6 +3229,35 @@ class RegionMatrixTable(RegionPairs):
         m_bottom[top_indices] = m_top[top_indices]
         return m_bottom
 
+    def filter(self, edge_filter, queue=False, log_progress=False):
+        """
+        Filter edges in this object by using a
+        :class:`~HicEdgeFilter`.
+
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        edge_filter.set_hic_object(self)
+        if not queue:
+            self._edges.filter(edge_filter, _logging=log_progress)
+        else:
+            self._edges.queue_filter(edge_filter)
+
+    def run_queued_filters(self, log_progress=False):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        self._edges.run_queued_filters(_logging=log_progress)
+
 
 class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionPairs):
     """
@@ -3530,6 +3281,7 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
         # private variables
         self.default_field = default_field
         self.default_value = default_value
+        self._expected_values = None
         AccessOptimisedRegionPairs.__init__(self, file_name=file_name, mode=mode, additional_fields=additional_fields,
                                             tmpdir=tmpdir, _table_name_nodes=_table_name_nodes,
                                             _table_name_edges=_table_name_edges)
@@ -3537,20 +3289,33 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
         if default_field is None:
             self.default_field = self.field_names[2]
 
-    def _flush_edge_buffer(self, e_buffer, replace=False, update_index=True,
+    def _flush_edge_buffer(self, e_buffer, replace=False,
+                           update_index=True, update_mappability=True,
                            clean_zero=True, default_column=None):
         if default_column is None:
             default_column = self.default_field
 
+        try:
+            # noinspection PyCompatibility
+            e_buffer_items = e_buffer.iteritems()
+        except AttributeError:
+            e_buffer_items = e_buffer.items()
+
         # re-arrange edge buffer
         partition_e_buffer = defaultdict(dict)
-        for key, edge in e_buffer.iteritems():
+        for key, edge in e_buffer_items:
             source_partition = self._get_partition_ix(key[0])
             sink_partition = self._get_partition_ix(key[1])
             partition_e_buffer[(source_partition, sink_partition)][key] = e_buffer[key]
 
+        try:
+            # noinspection PyCompatibility
+            partition_e_buffer_items = partition_e_buffer.iteritems()
+        except AttributeError:
+            partition_e_buffer_items = partition_e_buffer.items()
+
         # update current rows
-        for partition_key, e_buffer in partition_e_buffer.iteritems():
+        for partition_key, e_buffer in partition_e_buffer_items:
             if partition_key in self._edge_table_dict:
                 edge_table = self._edge_table_dict[partition_key]
 
@@ -3569,10 +3334,16 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
                         except TypeError:
                             self.add_edge(value, check_nodes_exist=False, flush=False, replace=replace, row=row)
                         del e_buffer[key]
-                self.flush(update_index=False)
+                self.flush(update_index=False, update_mappability=False)
+
+            try:
+                # noinspection PyCompatibility
+                e_buffer_keys = e_buffer.iterkeys()
+            except AttributeError:
+                e_buffer_keys = e_buffer.keys()
 
             # flush remaining buffer
-            for source, sink in e_buffer.iterkeys():
+            for source, sink in e_buffer_keys:
                 key = (source, sink)
                 value = e_buffer[key]
                 try:
@@ -3584,11 +3355,13 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
                 except TypeError:
                     self.add_edge(value, check_nodes_exist=False, flush=False)
 
-        self.flush(update_index=True)
+        self.flush(update_index=update_index, update_mappability=update_mappability)
         if clean_zero:
-            self._remove_zero_edges(update_index=update_index, weight_column=default_column)
+            self._remove_zero_edges(update_index=update_index, update_mappability=update_mappability,
+                                    weight_column=default_column)
 
-    def _remove_zero_edges(self, flush=True, update_index=True, weight_column=None):
+    def _remove_zero_edges(self, flush=True, update_index=True,
+                           update_mappability=True, weight_column=None):
         if weight_column is None:
             weight_column = self.default_field
 
@@ -3604,7 +3377,65 @@ class AccessOptimisedRegionMatrixTable(RegionMatrixTable, AccessOptimisedRegionP
                 edge_table.remove_row(ix)
 
         if flush:
-            self.flush(update_index=update_index)
+            self.flush(update_index=update_index, update_mappability=update_mappability)
+
+    def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
+        """
+        Filter edges in this object by using a
+        :class:`~HicEdgeFilter`.
+
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        if not queue:
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                       silent=not log_progress) as pb:
+                for i, edge_table in enumerate(self._edge_table_iter()):
+                    stats = edge_table.filter(edge_filter, _logging=False)
+                    for key, value in stats.items():
+                        if key != 0:
+                            filtered += stats[key]
+                        total += stats[key]
+                    pb.update(i)
+            if log_progress:
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        else:
+            for edge_table in self._edge_table_iter():
+                edge_table.queue_filter(edge_filter)
+
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                   silent=not log_progress) as pb:
+            for i, edge_table in enumerate(self._edge_table_iter()):
+                stats = edge_table.run_queued_filters(_logging=False)
+                for key, value in stats.items():
+                    if key != 0:
+                        filtered += stats[key]
+                    total += stats[key]
+                pb.update(i)
+        if log_progress:
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
+
+    def iter_edge_attribute(self, attribute):
+        for edge_table in self._edge_table_iter():
+            for value in getattr(edge_table.cols, attribute):
+                yield value
 
 
 class Hic(RegionMatrixTable):
@@ -3655,7 +3486,7 @@ class Hic(RegionMatrixTable):
         # parse potential unnamed argument
         if data is not None:
             # data is file name
-            if isinstance(data, str) and file_name is None:
+            if isinstance(data, string_types) and file_name is None:
                 file_name = data
                 data = None
 
@@ -3692,7 +3523,7 @@ class Hic(RegionMatrixTable):
                 except AttributeError:
                     raise ValueError("Input data type not recognized")
 
-    def load_read_fragment_pairs(self, pairs, excluded_filters=(), _max_buffer_size=5000000):
+    def load_read_fragment_pairs(self, pairs):
         """
         Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
 
@@ -3701,9 +3532,6 @@ class Hic(RegionMatrixTable):
 
         :param pairs: A :class:`~kaic.construct.seq.FragmentMappedReadPairs`
                       object.
-        :param excluded_filters: Filters to ignore when loading the data
-        :param _max_buffer_size: Number of edges kept in buffer before
-                                 writing to Table.
         """
         # add regions
         if len(self._regions) != 0:
@@ -3711,39 +3539,44 @@ class Hic(RegionMatrixTable):
 
         self.add_regions(pairs.regions())
 
+        self.disable_indexes()
+
         l = len(pairs)
 
-        with RareUpdateProgressBar(max_value=l) as pb:
-            edge_buffer = {}
-            for i, pair in enumerate(pairs.pairs(lazy=True, excluded_filters=excluded_filters)):
-                source = pair.left.fragment.ix
-                sink = pair.right.fragment.ix
-                if source > sink:
-                    source, sink = sink, source
-                key = (source, sink)
-                if key not in edge_buffer:
-                    edge_buffer[key] = 0
-                edge_buffer[key] += 1
+        pair_counter = 0
+        with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
+            chromosomes = self.chromosomes()
+            for ix1 in range(len(chromosomes)):
+                chromosome1 = chromosomes[ix1]
+                for ix2 in range(ix1, len(chromosomes)):
+                    chromosome2 = chromosomes[ix2]
+                    logger.info("Processing pair {}-{}".format(chromosome1, chromosome2))
+                    edge_buffer = defaultdict(int)
+                    for pair in pairs.pairs_by_chromosomes(chromosome1, chromosome2):
+                        source, sink = pair.left.fragment.ix, pair.right.fragment.ix
+                        edge_buffer[(source, sink)] += 1
+                        pair_counter += 1
+                        pb.update(pair_counter)
 
-                if len(edge_buffer) > _max_buffer_size:
-                    logger.info("Flushing buffer")
-                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                    edge_buffer = {}
-                try:
-                    pb.update(i)
-                except ValueError:
-                    pass
-        logger.info("Final flush")
-        self._flush_edge_buffer(edge_buffer, replace=False)
+                    try:
+                        # noinspection PyCompatibility
+                        e_buffer_items = edge_buffer.iteritems()
+                    except AttributeError:
+                        e_buffer_items = edge_buffer.items()
 
-    def load_from_hic(self, hic, _edge_buffer_size=5000000,
-                      _edges_by_overlap_method=_edge_overlap_split_rao):
+                    for (source, sink), weight in e_buffer_items:
+                        self.add_edge(Edge(source=source, sink=sink, weight=weight), replace=True, flush=False,
+                                      check_nodes_exist=False)
+                    self.flush(update_index=False)
+
+        self.flush(update_index=True)
+        self.enable_indexes()
+
+    def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
         """
         Load data from another :class:`~Hic` object.
 
         :param hic: Another :class:`~Hic` object
-        :param _edge_buffer_size: Number of edges in memory before writing
-                                  to file
         :param _edges_by_overlap_method: A function that maps reads from
                                          one genomic region to others using
                                          a supplied overlap map. By default
@@ -3751,16 +3584,16 @@ class Hic(RegionMatrixTable):
                                          See :func:`~_edge_overlap_split_rao`
         """
         # if we do not have any nodes in this Hi-C object...
-        if len(self.regions()) == 0:
+        if len(self.regions) == 0:
             logger.info("Copying Hi-C")
             # ...simply import everything
-            with RareUpdateProgressBar(max_value=len(hic.regions)) as pb:
+            with RareUpdateProgressBar(max_value=len(hic.regions), silent=config.hide_progressbars) as pb:
                 for i, region in enumerate(hic.regions()):
                     self.add_region(region, flush=False)
                     pb.update(i)
             self.flush()
 
-            with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
+            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars) as pb:
                 for i, edge in enumerate(hic.edges()):
                     self.add_edge(edge, check_nodes_exist=False, flush=False)
                     pb.update(i)
@@ -3772,23 +3605,30 @@ class Hic(RegionMatrixTable):
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
 
-            edge_buffer = defaultdict(int)
-            with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
-                for i, old_edge in enumerate(hic.edges()):
-                    old_source = old_edge.source
-                    old_sink = old_edge.sink
-                    old_weight = old_edge.weight
-                    new_edges = _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map)
+            self.disable_indexes()
+            edge_counter = 0
+            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars) as pb:
+                chromosomes = hic.chromosomes()
+                for i in range(len(chromosomes)):
+                    for j in range(i, len(chromosomes)):
+                        logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                        edges = defaultdict(int)
+                        for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j])):
+                            old_source, old_sink = edge.source, edge.sink
+                            old_weight = getattr(edge, hic.default_field)
 
-                    for new_edge in new_edges:
-                        key_pair = (new_edge[0], new_edge[1])
-                        edge_buffer[key_pair] += new_edge[2]
+                            for new_edge in _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map):
+                                if new_edge[2] != 0:
+                                    edges[(new_edge[0], new_edge[1])] += new_edge[2]
 
-                    if len(edge_buffer) > _edge_buffer_size:
-                        self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
-                        edge_buffer = defaultdict(int)
-                    pb.update(i)
-            self._flush_edge_buffer(edge_buffer)
+                            edge_counter += 1
+                            pb.update(edge_counter)
+
+                        for (source, sink), weight in viewitems(edges):
+                            self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=False)
+
+            self.flush(update_index=True)
+            self.enable_indexes()
 
     def copy(self, file_name, tmpdir=None):
         return Hic(data=self, file_name=file_name, tmpdir=tmpdir, mode='w')
@@ -3802,6 +3642,7 @@ class Hic(RegionMatrixTable):
         :return: :class:`~Hic` object
         """
         # find chromosome lengths
+        logger.info("Constructing binned genome...")
         chromosomes = self.chromosomes()
         chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
         for region in self.regions():
@@ -3810,12 +3651,14 @@ class Hic(RegionMatrixTable):
 
         chromosome_list = []
         for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lens[chromosome]))
+            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lengths[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
-        hic = self.__class__(file_name=file_name, mode='w')
         regions = genome.get_regions(bin_size)
         genome.close()
+
+        logger.info("Binning edges...")
+        hic = self.__class__(file_name=file_name, mode='w')
         hic.add_regions(regions)
         regions.close()
         hic.load_from_hic(self)
@@ -3829,7 +3672,7 @@ class Hic(RegionMatrixTable):
 
         logger.info("Checking if regions are identical")
         identical = True
-        for i in xrange(1, len(hics)):
+        for i in range(1, len(hics)):
             if len(hics[i].regions) != len(hics[0].regions):
                 identical = False
                 break
@@ -3845,32 +3688,31 @@ class Hic(RegionMatrixTable):
                     identical = False
                     break
 
-        if not identical:
-            raise ValueError("Regions must be identical in both Hic objects to merge!")
-
         merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
-        for region in hics[0].regions:
-            merged_hic.add_region(region, flush=False)
-        merged_hic.flush()
+        merged_hic.disable_indexes()
+        if not identical:
+            logger.warning("Regions in your Hi-C objects are not identical. Attempting a merge, "
+                           "but it will probably be painfully slow. Ensure identical regions before a"
+                           "merge by using the same FASTA/genome object for building both Hi-C objects.")
+            merged_hic.merge(hics)
+        else:
+            merged_hic.add_regions(hics[0].regions)
 
-        chromosomes = hics[0].chromosomes()
-        for i in xrange(len(chromosomes)):
-            r2 = xrange(i, i + 1) if only_intrachromosomal else xrange(i, len(chromosomes))
-            for j in r2:
-                logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
-                edges = dict()
-                for hic in hics:
-                    for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j])):
-                        key = (edge.source, edge.sink)
-                        if key not in edges:
-                            edges[key] = edge
-                        else:
-                            edges[key].weight += edge.weight
+            chromosomes = hics[0].chromosomes()
+            for i in range(len(chromosomes)):
+                r2 = range(i, i + 1) if only_intrachromosomal else range(i, len(chromosomes))
+                for j in r2:
+                    logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                    edges = defaultdict(int)
+                    for hic in hics:
+                        for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j])):
+                            key = (edge.source, edge.sink)
+                            edges[key] += edge.weight
 
-                for edge in edges.itervalues():
-                    merged_hic.add_edge(edge, flush=False)
-        merged_hic.flush()
-
+                    for (source, sink), weight in viewitems(edges):
+                        merged_hic.add_edge(Edge(source=source, sink=sink, weight=weight), flush=False)
+            merged_hic.flush()
+        merged_hic.enable_indexes()
         return merged_hic
 
     def _merge(self, hic, _edge_buffer_size=5000000):
@@ -3904,7 +3746,7 @@ class Hic(RegionMatrixTable):
             ix_conversion[region_counter] = region_counter
             region_counter += 1
 
-        if region_counter < len(hic.regions()):
+        if region_counter < len(hic.regions):
             identical = False
 
         if not identical:
@@ -3914,7 +3756,7 @@ class Hic(RegionMatrixTable):
 
             l = len(hic.regions)
 
-            with RareUpdateProgressBar(max_value=l) as pb:
+            with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
                 for i, region in enumerate(hic.regions):
                     ix = self._get_region_ix(region)
                     if ix is None:
@@ -3927,7 +3769,7 @@ class Hic(RegionMatrixTable):
         logger.info("Merging contacts...")
         edge_buffer = {}
         l = len(hic.edges)
-        with RareUpdateProgressBar(max_value=l) as pb:
+        with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
             for i, merge_edge in enumerate(hic.edges):
                 merge_source = ix_conversion[merge_edge.source]
                 merge_sink = ix_conversion[merge_edge.sink]
@@ -3942,10 +3784,12 @@ class Hic(RegionMatrixTable):
 
                 if len(edge_buffer) > _edge_buffer_size:
                     logger.info("Flushing buffer...")
-                    self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+                    self._flush_edge_buffer(edge_buffer, replace=False,
+                                            update_index=False, update_mappability=False)
                     edge_buffer = {}
         logger.info("Final flush...")
-        self._flush_edge_buffer(edge_buffer, replace=False, update_index=False)
+        self._flush_edge_buffer(edge_buffer, replace=False,
+                                update_index=False, update_mappability=False)
 
     def merge(self, hic_or_hics, _edge_buffer_size=5000000):
         """
@@ -3969,12 +3813,75 @@ class Hic(RegionMatrixTable):
                 logger.info("Merging {}".format(hic.file_name))
                 self._merge(hic, _edge_buffer_size=_edge_buffer_size)
         except TypeError:
-            logger.info('{} is not a Hic object or an iterable'.format(hic_or_hics))
+            logger.error('{} is not a Hic object or an iterable'.format(hic_or_hics))
+            raise
 
         logger.info("Removing zero edges")
-        self._remove_zero_edges(update_index=True)
+        self._remove_zero_edges(update_index=True, update_mappability=True)
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+    def to_cooler(self, path):
+        """
+        Export Hi-C data as cooler file. Only contacts that have not been
+        filtered are exported.
+        https://github.com/mirnylab/cooler/
+        If input Hi-C matrix is uncorrected, the uncorrected matrix is stored.
+        If it is corrected, the uncorrected matrix is stored and the bias vector.
+        Cooler always calculates corrected matrix on-the-fly from the uncorrected
+        matrix and the bias vector.
+        :param path: Output path for cooler file
+        """
+        try:
+            import cooler
+        except ImportError:
+            logger.error("Cannot import cooler. Install cooler 'pip install cooler'.")
+            raise
+        from cooler.io import parse_cooler_uri
+        import h5py
+        n_contacts = len(self)
+        contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
+        bias = self.bias_vector()
+        is_corrected = ~np.all(np.isclose(bias, 1.))
+        def contact_generator():
+            '''
+            Generator yielding all unfiltered contacts in Hi-C object as tuples
+            (source node id, sink node id, edge weight).
+            '''
+            for node in self.edges(lazy=True):
+                yield (node.source, node.sink, node.weight)
+        logging.info("Loading contacts")
+        contact_array = np.fromiter(contact_generator(), dtype=contact_dtype, count=n_contacts)
+        logging.info("Sorting contacts")
+        order = np.argsort(contact_array, order=("source", "sink"))
+        # Cooler stores uncorrected counts and bias vector, so if matrix is corrected
+        # we have to "uncorrect" it here
+        if is_corrected:
+            bias_flat = np.take(bias, contact_array["source"])
+            bias_flat *= np.take(bias, contact_array["sink"])
+            counts = np.rint(contact_array["weight"]/bias_flat).astype(np.int_)
+        else:
+            counts = np.rint(contact_array["weight"]).astype(np.int_)
+        contact_dict = {
+            "bin1_id": contact_array["source"][order],
+            "bin2_id": contact_array["sink"][order],
+            "count": counts[order],
+        }
+        region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in self.regions()]
+        region_df = p.DataFrame(region_dicts)
+        logging.info("Writing cooler")
+        cooler.io.create(cool_uri=path, bins=region_df, pixels=contact_dict)
+        if is_corrected:
+            cool_path, group_path = parse_cooler_uri(path)
+            logging.info("Writing bias vector")
+            # Copied this section from
+            # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
+            with h5py.File(cool_path, 'r+') as h5:
+                grp = h5[group_path]
+                # add the bias column to the file
+                h5opts = dict(compression='gzip', compression_opts=6)
+                grp['bins'].create_dataset("weight", data=bias, **h5opts)
+
+    def flush(self, flush_nodes=True, flush_edges=True,
+              update_index=True, update_mappability=True):
         """
         Write data to file and flush buffers.
 
@@ -3982,37 +3889,9 @@ class Hic(RegionMatrixTable):
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
         """
-        RegionMatrixTable.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges, update_index=update_index)
+        RegionMatrixTable.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges,
+                                update_index=update_index, update_mappability=update_mappability)
         self._node_annotations.flush()
-
-    def filter(self, edge_filter, queue=False, log_progress=False):
-        """
-        Filter edges in this object by using a
-        :class:`~HicEdgeFilter`.
-
-        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
-                            Must override valid_edge method, ideally sets mask parameter
-                            during initialization.
-        :param queue: If True, filter will be queued and can be executed
-                      along with other queued filters using
-                      run_queued_filters
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        edge_filter.set_hic_object(self)
-        if not queue:
-            self._edges.filter(edge_filter, _logging=log_progress)
-        else:
-            self._edges.queue_filter(edge_filter)
-
-    def run_queued_filters(self, log_progress=False):
-        """
-        Run queued filters.
-
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        self._edges.run_queued_filters(_logging=log_progress)
 
     def filter_diagonal(self, distance=0, queue=False):
         """
@@ -4055,8 +3934,9 @@ class Hic(RegionMatrixTable):
             rel_cutoff = 0.1
 
         mask = self.add_mask_description('low_coverage',
-            'Mask low coverage regions in the Hic matrix '
-            '(absolute cutoff {:.4}, relative cutoff {:.1%}'.format(float(cutoff) if cutoff else 0., float(rel_cutoff) if rel_cutoff else 0.))
+                                         'Mask low coverage regions in the Hic matrix '
+                                         '(absolute cutoff {:.4}, relative '
+                                         'cutoff {:.1%}'.format(float(cutoff) if cutoff else 0., float(rel_cutoff) if rel_cutoff else 0.))
 
         low_coverage_filter = LowCoverageFilter(self, rel_cutoff=rel_cutoff, cutoff=cutoff, mask=mask)
         self.filter(low_coverage_filter, queue)
@@ -4070,8 +3950,9 @@ class Hic(RegionMatrixTable):
         """
 
         if vector is not None:
-            if len(vector) != len(self.regions()):
-                raise ValueError("Bias vector must be the same length as number of regions (%d)" % len(self.regions()))
+            if len(vector) != len(self.regions):
+                raise ValueError("Bias vector must be the same length as number of regions "
+                                 "(is: {}, should: {})".format(len(vector), len(self.regions)))
 
             # overwrite biases
             if len(self._node_annotations) == len(vector):
@@ -4087,7 +3968,7 @@ class Hic(RegionMatrixTable):
             self._node_annotations.flush()
             return vector
 
-        vector = np.ones(len(self.regions()))
+        vector = np.ones(len(self.regions))
         if len(self._node_annotations) > 0:
             for i, row in enumerate(self._node_annotations):
                 vector[i] = row['bias']
@@ -4095,36 +3976,154 @@ class Hic(RegionMatrixTable):
         return vector
 
     def mappable_regions(self):
-        marginals = self.marginals()
+        mappability = self.mappable()
         mappable = defaultdict(int)
         for i, region in enumerate(self.regions()):
-            if marginals[i] > 0:
+            if mappability[i]:
                 mappable[region.chromosome] += 1
         return mappable
-
-    def possible_contacts(self, _mappable=None):
-        if _mappable is None:
-            _mappable = self.mappable_regions()
-
-        # calculate possible combinations
-        intra_possible = 0
-        inter_possible = 0
-        chromosomes = _mappable.keys()
-        for i in xrange(len(chromosomes)):
-            chromosome1 = chromosomes[i]
-            n1 = _mappable[chromosome1]
-            intra_possible += n1**2/2 + n1/2
-            for j in xrange(i+1, len(chromosomes)):
-                chromosome2 = chromosomes[j]
-                n2 = _mappable[chromosome2]
-                inter_possible += n1*n2
-
-        return intra_possible, inter_possible
 
     @property
     def architecture(self):
         import kaic.architecture.hic_architecture as ha
         return ha.HicArchitecture(self)
+
+    @classmethod
+    def from_juicer(cls, juicer_file, juicer_tools_jar_path, genome_file, resolution,
+                    norm='NONE', output_file=None, inter_chromosomal=True,
+                    chromosomes=None):
+        hic = cls(file_name=output_file, mode='w')
+
+        # regions
+        logger.info("Building genome {}".format(genome_file))
+        genome = Genome.from_string(genome_file)
+        regions = genome.get_regions(resolution, chromosomes=chromosomes)
+        hic.add_regions(regions)
+        genome.close()
+        regions.close()
+
+        if chromosomes is None:
+            chromosomes = hic.chromosomes()
+        chromosome_bins = hic.chromosome_bins
+
+        logger.info("Extracting edges from hic file")
+        nan_counter = 0
+        for i in range(len(chromosomes)):
+            chromosome1 = chromosomes[i]
+            offset1 = chromosome_bins[chromosome1][0]
+
+            for j in range(i, len(chromosomes)):
+                if i != j and not inter_chromosomal:
+                    continue
+                chromosome2 = chromosomes[j]
+                offset2 = chromosome_bins[chromosome2][0]
+
+                logger.info("{} -- {}".format(chromosome1, chromosome2))
+
+                juicer_command = ['java', '-jar', juicer_tools_jar_path,
+                                  'dump', 'observed', norm, juicer_file,
+                                  chromosome1, chromosome2, 'BP', str(resolution)]
+
+                juicer_process = subprocess.Popen(juicer_command, stdout=subprocess.PIPE)
+
+                for line in juicer_process.stdout:
+                    fields = line.rstrip().split()
+
+                    try:
+                        start, end, weight = int(fields[0]), int(fields[1]), float(fields[2])
+                    except ValueError:
+                        continue
+
+                    start_ix = int(start / resolution) + offset1
+                    end_ix = int(end / resolution) + offset2
+                    if start_ix > end_ix:
+                        start_ix, end_ix = end_ix, start_ix
+
+                    if not np.isfinite(weight):
+                        nan_counter += 1
+                        continue
+
+                    hic.add_edge([start_ix, end_ix, weight], check_nodes_exist=False, flush=False,
+                                 replace=True)
+
+        hic.flush()
+
+        if nan_counter > 0:
+            logger.warning("{} contacts could not be imported, "
+                           "because they had non-finite values.".format(nan_counter))
+
+        return hic
+
+    def sample(self, n, exact=False, file_name=None):
+        if isinstance(n, Hic):
+            n = len(n.edges)
+
+        region_pairs = []
+        if not exact:
+            weights = []
+            logger.info("Using sampling with replacement")
+            for edge in self.edges(lazy=True):
+                region_pairs.append((edge.source, edge.sink))
+                weights.append(edge.weight)
+            s = sum(weights)
+            p = [w / s for w in weights]
+        else:
+            p = None
+            logger.info("Using sampling without replacement")
+            for edge in self.edges(lazy=True):
+                for i in range(int(edge.weight)):
+                    region_pairs.append((edge.source, edge.sink))
+
+        new_hic = self.__class__(file_name=file_name, mode='w')
+        new_hic.add_regions(self.regions)
+        new_edges = defaultdict(int)
+        for new_pair_ix in np.random.choice(len(region_pairs), size=n, replace=not exact, p=p):
+            new_edges[region_pairs[new_pair_ix]] += 1
+        new_edges = [[source, sink, weight] for (source, sink), weight in new_edges.items()]
+        new_hic.add_edges(new_edges)
+
+        return new_hic
+
+    def subset_hic(self, *regions, **kwargs):
+        """
+        Subset a Hic object by specifying one or more subset regions.
+
+        :param regions: string or GenomicRegion object(s)
+        :param kwargs: Supports
+                       file_name: destination file name of subset Hic object;
+                       tmpdir: if True works in tmp until object is closed
+        :return: Hic
+        """
+        file_name = kwargs.get("file_name", None)
+        tmpdir = kwargs.get('tmpdir', None)
+
+        new_hic = AccessOptimisedHic(file_name=file_name, mode='w', tmpdir=tmpdir)
+
+        bias_vector = self.bias_vector()
+
+        new_bias_vector = []
+        ix_converter = {}
+        ix = 0
+        for region_string in regions:
+            for region in self.regions(region_string):
+                ix_converter[region.ix] = ix
+                ix += 1
+
+                new_hic.add_region(region, flush=False)
+                new_bias_vector.append(bias_vector[region.ix])
+        new_hic.flush()
+
+        for i, region_string1 in enumerate(regions):
+            for j in range(i, len(regions)):
+                region_string2 = regions[j]
+                for edge in self.edge_subset(key=(region_string1, region_string2), lazy=True):
+                    source = ix_converter[edge.source]
+                    sink = ix_converter[edge.sink]
+                    new_hic.add_edge([source, sink, edge.weight], flush=False)
+        new_hic.flush()
+
+        new_hic.bias_vector(new_bias_vector)
+        return new_hic
 
 
 class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
@@ -4153,7 +4152,7 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         # parse potential unnamed argument
         if data is not None:
             # data is file name
-            if isinstance(data, str) and file_name is None:
+            if isinstance(data, string_types) and file_name is None:
                 file_name = data
                 data = None
 
@@ -4179,7 +4178,9 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         # add data
         self._add_data(data)
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True):
+    def flush(self, flush_nodes=True, flush_edges=True,
+              update_index=True, update_mappability=True,
+              silent=False):
         """
         Write data to file and flush buffers.
 
@@ -4187,11 +4188,184 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
         :param flush_edges: Flush edges table
         :param update_index: Update mask indices in edges table
         """
-        AccessOptimisedRegionMatrixTable.flush(self, flush_nodes=flush_nodes,
-                                               flush_edges=flush_edges, update_index=update_index)
+        AccessOptimisedRegionMatrixTable.flush(self, flush_nodes=flush_nodes, flush_edges=flush_edges,
+                                               update_index=update_index, update_mappability=update_mappability,
+                                               silent=silent)
         self._node_annotations.flush()
 
-    def filter(self, edge_filter, queue=False, log_progress=False):
+    @classmethod
+    def from_hic(cls, hics, file_name=None, tmpdir=None, only_intrachromosomal=False):
+        if isinstance(hics, Hic):
+            hics = [hics]
+
+        logger.info("Checking if regions are identical")
+        identical = True
+        for i in range(1, len(hics)):
+            if len(hics[i].regions) != len(hics[0].regions):
+                identical = False
+                break
+
+            for self_region, hic_region in zip(hics[0].regions, hics[i].regions):
+                if self_region.chromosome != hic_region.chromosome:
+                    identical = False
+                    break
+                if self_region.start != hic_region.start:
+                    identical = False
+                    break
+                if self_region.end != hic_region.end:
+                    identical = False
+                    break
+
+        if not identical:
+            logger.warn("Regions in your Hi-C objects are not identical. Attempting a merge, "
+                        "but it will probably be painfully slow. Ensure identical regions before a"
+                        "merge by using the same FASTA/genome object for building both Hi-C objects.")
+            merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
+            merged_hic.merge(hics)
+            return merged_hic
+
+        merged_hic = cls(file_name=file_name, tmpdir=tmpdir, mode='w')
+        merged_hic.add_regions(hics[0].regions)
+
+        # check if edge table partitions are also identical
+        try:
+            merged_partitions = merged_hic.partitions
+            partitions_identical = True
+            for hic in hics:
+                if hic.partitions != merged_partitions:
+                    partitions_identical = False
+                    break
+        except AttributeError:
+            # this is an old-style Hi-C object
+            partitions_identical = False
+
+        partition_keys = set()
+        for hic in hics:
+            for partition_key in hic._edge_table_dict.keys():
+                partition_keys.add(partition_key)
+
+        merged_hic.disable_indexes()
+        if partitions_identical:
+            logger.info("Partitions identical, performing fast merge.")
+            for partition_key in partition_keys:
+
+                edge_buffer = defaultdict(int)
+                for hic in hics:
+                    if partition_key in hic._edge_table_dict:
+                        for row in hic._edge_table_dict[partition_key]:
+                            source, sink, weight = row['source'], row['sink'], row[hic.default_field]
+                            edge_buffer[(source, sink)] += weight
+
+                merged_edge_table = merged_hic._create_edge_table(partition_key[0], partition_key[1])
+                merged_row = merged_edge_table.row
+                for (source, sink), weight in viewitems(edge_buffer):
+                    merged_row['source'] = source
+                    merged_row['sink'] = sink
+                    merged_row[merged_hic.default_field] = weight
+                    merged_row.append()
+                merged_edge_table.flush(update_index=False)
+        else:
+            logger.info("Partition tables not identical, this will be a slower merge.")
+            chromosomes = merged_hic.chromosomes()
+            for i in range(len(chromosomes)):
+                r2 = [i] if only_intrachromosomal else range(i, len(chromosomes))
+                for j in r2:
+                    logger.info("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                    edge_buffer = defaultdict(int)
+                    for hic in hics:
+                        for edge in hic.edge_subset(key=(chromosomes[i], chromosomes[j]), lazy=True):
+                            edge_buffer[(edge.source, edge.sink)] += edge.weight
+
+                    # re-arrange edge buffer
+                    partition_edge_buffer = defaultdict(dict)
+                    for key, edge in viewitems(edge_buffer):
+                        source_partition = merged_hic._get_partition_ix(key[0])
+                        sink_partition = merged_hic._get_partition_ix(key[1])
+                        partition_edge_buffer[(source_partition, sink_partition)][key] = edge_buffer[key]
+
+                    # update current rows
+                    for partition_key, e_buffer in viewitems(partition_edge_buffer):
+                        merged_edge_table = merged_hic._create_edge_table(partition_key[0], partition_key[1])
+
+                        merged_row = merged_edge_table.row
+                        for (source, sink), weight in viewitems(e_buffer):
+                            merged_row['source'] = source
+                            merged_row['sink'] = sink
+                            merged_row[merged_hic.default_field] = weight
+                            merged_row.append()
+                        merged_edge_table.flush(update_index=False)
+        merged_hic.flush()
+        merged_hic.enable_indexes()
+
+        return merged_hic
+
+    def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
+        """
+        Load data from another :class:`~Hic` object.
+
+        :param hic: Another :class:`~Hic` object
+        :param _edges_by_overlap_method: A function that maps reads from
+                                         one genomic region to others using
+                                         a supplied overlap map. By default
+                                         it uses the Rao et al. (2014) method.
+                                         See :func:`~_edge_overlap_split_rao`
+        """
+
+        try:
+            hic.partitions
+        except AttributeError:
+            return Hic.load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao)
+
+        # if we do not have any nodes in this Hi-C object...
+        if len(self.regions) == 0:
+            logger.info("Copying Hi-C")
+            self.add_regions(hic.regions)
+            self.add_edges(hic.edges)
+            self.bias_vector(hic.bias_vector())
+        # if already have nodes in this HiC object...
+        else:
+            logger.info("Binning Hi-C contacts")
+            # create region "overlap map"
+            overlap_map = _get_overlap_map(hic.regions(), self.regions())
+
+            self.disable_indexes()
+            edge_counter = 0
+            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars) as pb:
+
+                for edge_table in hic._edge_table_dict.values():
+                    edge_buffer = defaultdict(int)
+                    for row in edge_table:
+                        for new_edge in _edges_by_overlap_method((row['source'], row['sink'],
+                                                                 row[hic.default_field]),
+                                                                 overlap_map):
+                            if new_edge[2] != 0:
+                                edge_buffer[(new_edge[0], new_edge[1])] += new_edge[2]
+                        edge_counter += 1
+                        pb.update(edge_counter)
+
+                    # re-arrange edge buffer
+                    partition_edge_buffer = defaultdict(dict)
+                    for key, edge in viewitems(edge_buffer):
+                        source_partition = self._get_partition_ix(key[0])
+                        sink_partition = self._get_partition_ix(key[1])
+                        partition_edge_buffer[(source_partition, sink_partition)][key] = edge_buffer[key]
+
+                    # update current rows
+                    for partition_key, e_buffer in viewitems(partition_edge_buffer):
+                        this_edge_table = self._create_edge_table(partition_key[0], partition_key[1])
+
+                        merged_row = this_edge_table.row
+                        for (source, sink), weight in viewitems(e_buffer):
+                            merged_row['source'] = source
+                            merged_row['sink'] = sink
+                            merged_row[self.default_field] = weight
+                            merged_row.append()
+                        this_edge_table.flush(update_index=False)
+
+            self.flush(update_index=True, update_mappability=True)
+            self.enable_indexes()
+
+    def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
         """
         Filter edges in this object by using a
         :class:`~HicEdgeFilter`.
@@ -4206,22 +4380,8 @@ class AccessOptimisedHic(Hic, AccessOptimisedRegionMatrixTable):
                              will be continuously reported.
         """
         edge_filter.set_hic_object(self)
-        if not queue:
-            for edge_table in self._edge_table_iter():
-                edge_table.filter(edge_filter, _logging=log_progress)
-        else:
-            for edge_table in self._edge_table_iter():
-                edge_table.queue_filter(edge_filter)
 
-    def run_queued_filters(self, log_progress=False):
-        """
-        Run queued filters.
-
-        :param log_progress: If true, process iterating through all edges
-                             will be continuously reported.
-        """
-        for edge_table in self._edge_table_iter():
-            edge_table.run_queued_filters(_logging=log_progress)
+        AccessOptimisedRegionMatrixTable.filter(self, edge_filter, queue=queue, log_progress=log_progress)
 
 
 def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):
@@ -4238,7 +4398,7 @@ def load_hic(file_name, mode='r', tmpdir=None, _edge_table_name='edges'):
     return hic_class(file_name=file_name, mode=mode, tmpdir=tmpdir)
 
 
-class HicEdgeFilter(MaskFilter):
+class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     edges/contacts in a :class:`~Hic` object.
@@ -4255,8 +4415,6 @@ class HicEdgeFilter(MaskFilter):
     Pass a custom filter to the :func:`~Hic.filter` method in :class:`~Hic`
     to apply it.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, mask=None):
         """
@@ -4405,27 +4563,79 @@ class LowCoverageFilter(HicEdgeFilter):
 class RegionMatrix(np.ndarray):
     def __new__(cls, input_matrix, col_regions=None, row_regions=None):
         obj = np.asarray(input_matrix).view(cls)
-        obj.col_regions = col_regions
-        obj.row_regions = row_regions
+        obj._row_region_trees = None
+        obj._col_region_trees = None
+        obj.set_col_regions(col_regions)
+        obj.set_row_regions(row_regions)
         return obj
+
+    def _interval_tree_regions(self, regions):
+        intervals = defaultdict(list)
+        for i, region in enumerate(regions):
+            interval = intervaltree.Interval(region.start - 1, region.end,
+                                             data=i)
+            intervals[region.chromosome].append(interval)
+
+        interval_trees = {chromosome: intervaltree.IntervalTree(intervals)
+                          for chromosome, intervals in intervals.items()}
+        return interval_trees
+
+    def set_row_regions(self, regions):
+        self.row_regions = regions
+        if regions is not None:
+            self._row_region_trees = self._interval_tree_regions(regions)
+        else:
+            self._row_region_trees = None
+
+    def set_col_regions(self, regions):
+        self.col_regions = regions
+        if regions is not None:
+            self._col_region_trees = self._interval_tree_regions(regions)
+        else:
+            self._col_region_trees = None
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
 
-        self.row_regions = getattr(obj, 'row_regions', None)
-        self.col_regions = getattr(obj, 'col_regions', None)
+        self.set_row_regions(getattr(obj, 'row_regions', None))
+        self.set_col_regions(getattr(obj, 'col_regions', None))
+
+    def __setitem__(self, key, item):
+        self._setitem = True
+        try:
+            if isinstance(self, np.ma.core.MaskedArray):
+                out = np.ma.MaskedArray.__setitem__(self, key, item)
+            else:
+                out = np.ndarray.__setitem__(self, key, item)
+        finally:
+            self._setitem = False
 
     def __getitem__(self, index):
         self._getitem = True
 
         # convert string types into region indexes
         if isinstance(index, tuple):
-            row_key = self._convert_key(index[0], self.row_regions)
-            col_key = self._convert_key(index[1], self.col_regions)
-            index = (row_key, col_key)
+            if len(index) == 2:
+                row_key = self._convert_key(
+                    index[0],
+                    self._row_region_trees if hasattr(self, '_row_region_trees') else None
+                )
+                col_key = self._convert_key(
+                    index[1],
+                    self._col_region_trees if hasattr(self, '_col_region_trees') else None
+                )
+                index = (row_key, col_key)
+            elif len(index) == 1:
+                row_key = self._convert_key(index[0], self._row_region_trees)
+                col_key = slice(0, len(self.col_regions), 1)
+                index = (row_key, )
+            else:
+                col_key = slice(0, len(self.col_regions), 1)
+                row_key = index
+                index = row_key
         else:
-            row_key = self._convert_key(index, self.row_regions)
+            row_key = self._convert_key(index, self._row_region_trees)
             try:
                 col_key = slice(0, len(self.col_regions), 1)
             except TypeError:
@@ -4433,7 +4643,10 @@ class RegionMatrix(np.ndarray):
             index = row_key
 
         try:
-            out = np.ndarray.__getitem__(self, index)
+            if isinstance(self, np.ma.core.MaskedArray):
+                out = np.ma.MaskedArray.__getitem__(self, index)
+            else:
+                out = np.ndarray.__getitem__(self, index)
         finally:
             self._getitem = False
 
@@ -4451,30 +4664,63 @@ class RegionMatrix(np.ndarray):
         except TypeError:
             col_regions = None
 
-        out.col_regions = col_regions
-        out.row_regions = row_regions
+        if isinstance(row_regions, GenomicRegion):
+            out.row_regions = [row_regions]
+        else:
+            out.row_regions = row_regions
+
+        if isinstance(col_regions, GenomicRegion):
+            out.col_regions = [col_regions]
+        else:
+            out.col_regions = col_regions
 
         return out
 
     def __getslice__(self, start, stop):
         return self.__getitem__(slice(start, stop))
 
-    def _convert_key(self, key, regions):
-        if isinstance(key, str):
+    def _convert_key(self, key, region_trees):
+        if isinstance(key, string_types):
             key = GenomicRegion.from_string(key)
+
         if isinstance(key, GenomicRegion):
-            key_start = max(0, key.start)
-            key_end = key.end
             start = None
             stop = None
-            for i, region in enumerate(regions):
-                if region.chromosome == key.chromosome:
-                    if (key_end is None or region.start <= key_end) and region.end >= key_start:
-                        if start is None:
-                            start = i
-                        stop = i
-            return slice(start, stop+1, 1)
+            try:
+                key_start = 0 if key.start is None else max(0, key.start - 1)
+                key_end = key.end
+                for interval in region_trees[key.chromosome][key_start:key_end]:
+                    i = interval.data
+                    start = min(i, start) if start is not None else i
+                    stop = max(i + 1, stop) if stop is not None else i + 1
+            except KeyError:
+                raise ValueError("Requested chromosome {} was not "
+                                 "found in this matrix.".format(key.chromosome))
+
+            if start is None or stop is None:
+                raise ValueError("Requested region {} was not found in this matrix.".format(key))
+
+            return slice(start, stop, 1)
         return key
+
+    # def _convert_key(self, key, regions):
+    #     if isinstance(key, string_types):
+    #         key = GenomicRegion.from_string(key)
+    #     if isinstance(key, GenomicRegion):
+    #         key_start = 0 if key.start is None else max(0, key.start)
+    #         key_end = key.end
+    #         start = None
+    #         stop = None
+    #         for i, region in enumerate(regions):
+    #             if region.chromosome == key.chromosome:
+    #                 if (key_end is None or region.start <= key_end) and region.end >= key_start:
+    #                     if start is None:
+    #                         start = i
+    #                     stop = i
+    #         if start is None or stop is None:
+    #             raise ValueError("Requested region {} was not found in this matrix.".format(key))
+    #         return slice(start, stop+1, 1)
+    #     return key
 
     def __reduce__(self):
         # Get the parent's __reduce__ tuple

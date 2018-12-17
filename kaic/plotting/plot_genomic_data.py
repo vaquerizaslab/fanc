@@ -1,20 +1,20 @@
 from __future__ import division
 from kaic.config import config
-import matplotlib as mp
 import seaborn as sns
 import pandas
 import numpy as np
-import kaic.data.general as general
+from future.utils import string_types
 import kaic.data.genomic as genomic
+import matplotlib.pyplot as plt
 
 
 def _prepare_backend(output):
     if output is not None:
-        old_backend = sns.plt.get_backend()
+        old_backend = plt.get_backend()
         # extension = os.path.splitext(output)[1]
         sns.set_style("ticks")
-        sns.plt.switch_backend('pdf')
-        sns.plt.ioff()
+        plt.switch_backend('pdf')
+        plt.ioff()
         return old_backend
     return None
 
@@ -23,11 +23,11 @@ def _plot_figure(figure, output, old_backend):
     sns.despine()
     if output is not None:
         figure.savefig(output)
-        sns.plt.close(figure)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
+        plt.close(figure)
+        plt.ion()
+        plt.switch_backend(old_backend)
     else:
-        sns.plt.show()
+        plt.show()
 
 
 def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
@@ -35,7 +35,7 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
     half_window = int(window_size/2)
     bin_size = hic.bin_size
     for i, feature_region in enumerate(regions):
-        if isinstance(feature_region, str):
+        if isinstance(feature_region, string_types):
             feature_region = genomic.GenomicRegion.from_string(feature_region)
         center = feature_region.start + int((feature_region.end-feature_region.start)/2)
         center_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,
@@ -52,14 +52,14 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
                                              end=center_node.end+half_window)
 
         hic_left = hic[center_region, left_region][0]
-        for j in xrange(0, len(hic_left)):
+        for j in range(0, len(hic_left)):
             j_r = len(hic_left)-j-1
             label = -1*bin_size*j
             val = hic_left[j_r]
             contact_list.append([label, val, str(i), 'data'])
 
         hic_right = hic[center_region, right_region][0]
-        for j in xrange(0, len(hic_right)):
+        for j in range(0, len(hic_right)):
             label = bin_size*(j+1)
             val = hic_right[j]
             contact_list.append([label, val, str(i), 'data'])
@@ -67,20 +67,20 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
     df = pandas.DataFrame(contact_list, columns=["distance", "contacts", "region", "type"])
 
     if output is not None:
-        old_backend = sns.plt.get_backend()
-        sns.plt.switch_backend('pdf')
-        sns.plt.ioff()
+        old_backend = plt.get_backend()
+        plt.switch_backend('pdf')
+        plt.ioff()
 
     tsplot = sns.tsplot(data=df, time="distance", unit="region", condition="type", value="contacts",
                         estimator=np.median, err_style="unit_traces", err_palette="Reds")
 
     if output is not None:
         tsplot.figure.savefig(output)
-        sns.plt.close(tsplot.figure)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
+        plt.close(tsplot.figure)
+        plt.ion()
+        plt.switch_backend(old_backend)
     else:
-        sns.plt.show()
+        plt.show()
 
     return df
 
@@ -90,9 +90,9 @@ def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
 
     corr_matrix = np.zeros(shape=(len(chromosomes), len(chromosomes)))
 
-    for chr_i in xrange(0, len(chromosomes)):
+    for chr_i in range(0, len(chromosomes)):
         chromosome1 = chromosomes[chr_i]
-        for chr_j in xrange(chr_i, len(chromosomes)):
+        for chr_j in range(chr_i, len(chromosomes)):
             chromosome2 = chromosomes[chr_j]
 
             m1 = hic1[chromosome1, chromosome2]
@@ -100,8 +100,8 @@ def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
 
             contacts1 = []
             contacts2 = []
-            for i in xrange(0, m1.shape[0]):
-                for j in xrange(i, m1.shape[1]):
+            for i in range(0, m1.shape[0]):
+                for j in range(i, m1.shape[1]):
                     if not include_zeros and m1[i, j] == 0 and m2[i, j] == 0:
                         continue
                     contacts1.append(m1[i, j])
@@ -109,7 +109,7 @@ def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
 
             corr = np.corrcoef(contacts1, contacts2)[0, 1]
             if in_percent:
-                corr = int(round(corr*100))
+                corr = int(corr*100 + 0.5)
             corr_matrix[chr_i, chr_j] = corr
             corr_matrix[chr_j, chr_i] = corr
 
@@ -120,20 +120,20 @@ def hic_correlation_plot(hic1, hic2, output=None, include_zeros=False, colormap=
     corr_df = _correlation_df(hic1, hic2, include_zeros=include_zeros, in_percent=True)
 
     if output is not None:
-        old_backend = sns.plt.get_backend()
-        sns.plt.switch_backend('pdf')
-        sns.plt.ioff()
+        old_backend = plt.get_backend()
+        plt.switch_backend('pdf')
+        plt.ioff()
 
-    sns.plt.figure(figsize=(size, size))
+    plt.figure(figsize=(size, size))
     heatmap = sns.heatmap(corr_df, vmin=5, vmax=95, cmap=colormap, square=True, annot=True, fmt=".0f")
 
     if output is not None:
         heatmap.figure.savefig(output)
-        sns.plt.close(heatmap.figure)
-        sns.plt.ion()
-        sns.plt.switch_backend(old_backend)
+        plt.close(heatmap.figure)
+        plt.ion()
+        plt.switch_backend(old_backend)
     else:
-        sns.plt.show()
+        plt.show()
 
 
 def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, None),
@@ -168,9 +168,9 @@ def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, Non
     highlighted_fold_changes = []
     highlighted_colors = []
     if len(hm1.shape) == 2:
-        for i in xrange(0, hm1.shape[0]):
+        for i in range(0, hm1.shape[0]):
             row_region = hm1.row_regions[i]
-            for j in xrange(i, hm1.shape[1]):
+            for j in range(i, hm1.shape[1]):
                 col_region = hm1.col_regions[j]
                 if hm1[i, j] == 0 or hm2[i, j] == 0:
                     continue
@@ -218,7 +218,7 @@ def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, Non
                     highlighted_colors.append(c)
 
     old_backend = _prepare_backend(output)
-    scatter = sns.plt.figure()
+    scatter = plt.figure()
 
     if not plot_3d:
         ax = scatter.add_subplot(111)
@@ -265,7 +265,7 @@ def hic_marginals_plot(hic, output=None, lower=None, upper=None, rel_cutoff=0.1)
             upper = upper_calc
 
     old_backend = _prepare_backend(output)
-    fig, ax = sns.plt.subplots()
+    fig, ax = plt.subplots()
     ax.plot(marginals)
     ax.axhline(upper, color='r', linestyle=':')
     ax.axhline(lower, color='r', linestyle=':')

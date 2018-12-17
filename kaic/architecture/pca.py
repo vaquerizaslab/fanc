@@ -8,6 +8,7 @@ import tables as t
 import numpy as np
 import tempfile
 import os.path
+from future.utils import with_metaclass, string_types
 import logging
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class HicCollectionWeightMeanVariance(HicEdgeCollection):
         weight_sums = np.zeros(len(self.hics))
         for edge in self.edges(lazy=True):
             weights = np.zeros(len(self.hics))
-            for i in xrange(len(self.hics)):
+            for i in range(len(self.hics)):
                 weight = getattr(edge, 'weight_' + str(i), 0.0)
                 if np.isnan(weight):
                     weight = 0.0
@@ -42,17 +43,15 @@ class HicCollectionWeightMeanVariance(HicEdgeCollection):
         if self.scale_libraries:
             weight_ratios = weight_sums/weight_sums[0]
             for edge in self.edges(lazy=True):
-                for i in xrange(len(self.hics)):
+                for i in range(len(self.hics)):
                     weight = getattr(edge, 'weight_' + str(i))
                     setattr(edge, 'weight_' + str(i), weight/weight_ratios[i])
         self.flush()
 
-        self._edges.cols.var.create_csindex()
+        self.create_cs_index('var')
 
 
-class PairSelection(object):
-    __metaclass__ = ABCMeta
-
+class PairSelection(with_metaclass(ABCMeta, object)):
     def __init__(self):
         self.collection = None
         pass
@@ -80,7 +79,7 @@ class LargestVariancePairSelection(PairSelection):
         if regions is None:
             regions = self.regions
 
-        if isinstance(regions, str):
+        if isinstance(regions, string_types):
             regions = GenomicRegion.from_string(regions)
 
         regions_dict = None
@@ -161,7 +160,7 @@ class LargestFoldChangePairSelection(PairSelection):
         if regions is None:
             regions = self.regions
 
-        if isinstance(regions, str):
+        if isinstance(regions, string_types):
             regions = GenomicRegion.from_string(regions)
 
         regions_dict = None
@@ -175,15 +174,15 @@ class LargestFoldChangePairSelection(PairSelection):
                 break
 
             weights = []
-            for i in xrange(n_hic):
+            for i in range(n_hic):
                 weights.append(getattr(edge, 'weight_' + str(i)))
 
             # require at least require_enriched weights to be fold_change
             # higher than each of the remaining require_nonenriched samples
             n_enriched = 0
-            for i in xrange(len(weights)):
+            for i in range(len(weights)):
                 local_enriched = 0
-                for j in xrange(len(weights)):
+                for j in range(len(weights)):
                     if i == j:
                         continue
                     if weights[i] >= fold_change*weights[j]:
@@ -246,7 +245,7 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
     values = []
     for edge in pair_selection.pair_selection(**kwargs):
         weights = []
-        for i in xrange(n_hics):
+        for i in range(n_hics):
             weights.append(getattr(edge, 'weight_' + str(i)))
         values.append(weights)
 

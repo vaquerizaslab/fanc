@@ -1,4 +1,5 @@
 import smtplib
+from future.utils import string_types
 from email.mime.text import MIMEText
 
 from kaic import config
@@ -28,7 +29,7 @@ def send_email(to_address, message, subject='', from_address=None, server=None, 
         server = config.email_smtp_server
         port = config.email_smtp_port
     else:
-        if isinstance(server, str):
+        if isinstance(server, string_types):
             server = server.split(":")
         server = server[0]
         if len(server) == 2:

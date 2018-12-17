@@ -1,12 +1,26 @@
+import sys
 import tables as t
 import os.path
 import string
 import random
 import pysam
-import binascii
+import gzip
+import pyBigWig
 from Bio import SeqIO
 import tempfile
 import shutil
+import multiprocessing
+import threading
+import subprocess
+from kaic.tools.general import mkdir, which
+from future.utils import string_types
+from collections import defaultdict
+import numpy as np
+import warnings
+import logging
+
+# configure logging
+logger = logging.getLogger(__name__)
 
 
 def create_temporary_copy(src_file_name, preserve_extension=False):
@@ -30,14 +44,13 @@ def get_number_of_lines(file_name):
 
 
 def tmp_file_name(tmpdir, prefix='tmp_kaic', extension='h5'):
-    name = os.path.join(tmpdir, "{}_{}.{}".format(prefix, binascii.b2a_hex(os.urandom(15)), extension))
-    while os.path.exists(name):
-        name = os.path.join(tmpdir, "{}_{}.{}".format(prefix, binascii.b2a_hex(os.urandom(15)), extension))
+    with tempfile.NamedTemporaryFile('w', prefix=prefix, dir=tmpdir, suffix=extension) as f:
+        name = f.name
     return name
 
 
 def random_name(length=6):
-    return ''.join(random.SystemRandom().choice(string.uppercase + string.digits) for _ in xrange(length))
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(length))
 
 
 def create_or_open_pytables_file(file_name=None, mode='a'):
@@ -82,15 +95,18 @@ def is_fasta_file(file_name):
     file_name = os.path.expanduser(file_name)
     if not os.path.isfile(file_name):
         return False
-        
-    is_fasta = True
-    with open(file_name, 'r') as f:
-        fastas = SeqIO.parse(f, 'fasta')
-        
-        try:
-            fastas.next()
-        except StopIteration:
-            is_fasta = False
+
+    try:
+        is_fasta = True
+        with open(file_name, 'r') as f:
+            fastas = SeqIO.parse(f, 'fasta')
+
+            try:
+                next(fastas)
+            except StopIteration:
+                is_fasta = False
+    except Exception:
+        return False
         
     return is_fasta 
         
@@ -106,3 +122,352 @@ def copy_or_expand(input_file, output_file=None):
         else:
             input_path = output_path
     return input_path
+
+
+def read_chromosome_sizes(file_name):
+    chrom_sizes = {}
+    with open(os.path.expanduser(file_name), 'r') as chrom_sizes_file:
+        for line in chrom_sizes_file:
+            line = line.rstrip()
+            if line != '':
+                chromosome, chromosome_length = line.split("\t")
+                chrom_sizes[chromosome] = int(chromosome_length)
+    return chrom_sizes
+
+
+def fastq_reader(file_name):
+    """
+    Return appropriate 'open' method by filename extension.
+
+    :param file_name: Filename of the FASTQ or gzipped FASTQ
+                      file.
+    :return: gzip.open for '.gz' and '.gzip' files, 'os.open'
+             otherwise.
+    """
+    input_extension = os.path.splitext(file_name)[1]
+    if input_extension == ".gz" or input_extension == ".gzip":
+        return gzip.open
+    return open
+
+
+def gzip_splitext(file_name):
+    basepath, extension = os.path.splitext(file_name)
+    if extension == '.gz' or extension == '.gzip':
+        basepath, extension2 = os.path.splitext(basepath)
+        extension = extension2 + extension
+    return basepath, extension
+
+
+def _split_fastq_worker(fastq_file, output_folder, chunk_size=10000000, unzip=False, q=None):
+    fastq_file = os.path.expanduser(fastq_file)
+    output_folder = mkdir(output_folder)
+
+    basepath, extension = gzip_splitext(fastq_file)
+    basename = os.path.basename(basepath)
+
+    fastq_open = fastq_reader(fastq_file)
+    fastq_write = fastq_open if not unzip else open
+
+    if unzip:
+        extension = '.fastq'
+
+    with fastq_open(fastq_file, 'r') as fastq:
+        current_chunk_number = 0
+        current_chunk_size = 0
+        current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                         basename, extension))
+        current_split_file = fastq_write(current_file_name, 'w')
+        for i, line in enumerate(fastq):
+            if i % 4 == 0:
+                if current_chunk_size >= chunk_size:
+                    current_split_file.close()
+                    q.put(current_file_name)
+                    current_chunk_size = 0
+                    current_chunk_number += 1
+                    current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                                     basename, extension))
+                    current_split_file = fastq_write(current_file_name, 'w')
+                current_chunk_size += 1
+            current_split_file.write(line)
+    current_split_file.close()
+    q.put(current_file_name)
+    q.put(None)
+
+
+def _split_fastq_pair_worker(fastq_pair, output_folder, chunk_size=10000000, unzip=False, q=None):
+    fastq_file_1 = os.path.expanduser(fastq_pair[0])
+    fastq_file_2 = os.path.expanduser(fastq_pair[1])
+    output_folder = mkdir(output_folder)
+
+    basepath_1, extension_1 = gzip_splitext(fastq_file_1)
+    basename_1 = os.path.basename(basepath_1)
+
+    basepath_2, extension_2 = gzip_splitext(fastq_file_2)
+    basename_2 = os.path.basename(basepath_2)
+
+    fastq_open_1 = fastq_reader(fastq_file_1)
+    fastq_open_2 = fastq_reader(fastq_file_2)
+
+    fastq_write_1 = fastq_open_1 if not unzip else open
+    fastq_write_2 = fastq_open_2 if not unzip else open
+
+    if unzip:
+        extension_1 = '.fastq'
+        extension_2 = '.fastq'
+
+    with fastq_open_1(fastq_file_1, 'r') as fastq_1:
+        with fastq_open_2(fastq_file_2, 'r') as fastq_2:
+            current_chunk_number = 0
+            current_chunk_size = 0
+            current_file_name_1 = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                               basename_1, extension_1))
+            current_file_name_2 = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                               basename_2, extension_2))
+            current_split_file_1 = fastq_write_1(current_file_name_1, 'w')
+            current_split_file_2 = fastq_write_2(current_file_name_2, 'w')
+            fastq2_iter = iter(fastq_2)
+            for i, line_1 in enumerate(fastq_1):
+                line_2 = next(fastq2_iter)
+                if i % 4 == 0:
+                    if current_chunk_size >= chunk_size:
+                        current_split_file_1.close()
+                        current_split_file_2.close()
+                        q.put((current_file_name_1, current_file_name_2))
+                        current_chunk_size = 0
+                        current_chunk_number += 1
+                        current_file_name_1 = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                                           basename_1, extension_1))
+                        current_file_name_2 = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                                           basename_2, extension_2))
+                        current_split_file_1 = fastq_write_1(current_file_name_1, 'w')
+                        current_split_file_2 = fastq_write_2(current_file_name_2, 'w')
+                    current_chunk_size += 1
+                current_split_file_1.write(line_1)
+                current_split_file_2.write(line_2)
+    current_split_file_1.close()
+    current_split_file_2.close()
+    q.put((current_file_name_1, current_file_name_2))
+    q.put(None)
+
+
+def split_fastq(fastq_file, output_folder, chunk_size=10000000, parallel=True, unzip=False):
+    if isinstance(fastq_file, string_types):
+        _worker = _split_fastq_worker
+    else:
+        _worker = _split_fastq_pair_worker
+
+    q = multiprocessing.Queue()
+    t = None
+    if parallel:
+        t = threading.Thread(target=_worker, args=(
+            fastq_file, output_folder
+        ), kwargs={
+            'chunk_size': chunk_size,
+            'q': q,
+            'unzip': unzip
+        })
+        t.daemon = True
+        t.start()
+    else:
+        _worker(fastq_file, output_folder, chunk_size=chunk_size, q=q, unzip=unzip)
+
+    while True:
+        file_name = q.get()
+        if file_name is None:
+            break
+        yield file_name
+
+    q.close()
+    q.join_thread()
+
+    if parallel:
+        t.join()
+
+
+def split_sam(sam_file, output_folder, chunk_size=5000000):
+    sam_file = os.path.expanduser(sam_file)
+    output_folder = mkdir(output_folder)
+
+    basepath, extension = gzip_splitext(sam_file)
+    basename = os.path.basename(basepath)
+
+    split_files = []
+    with pysam.AlignmentFile(sam_file) as sambam:
+        mode = 'wb' if os.path.splitext(sam_file)[1] == '.bam' else 'wh'
+
+        current_chunk_number = 0
+        current_chunk_size = 0
+        current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                         basename, extension))
+        split_files.append(current_file_name)
+        current_split_file = pysam.AlignmentFile(current_file_name, mode, template=sambam)
+        for i, alignment in enumerate(sambam):
+            if current_chunk_size >= chunk_size:
+                current_split_file.close()
+                current_chunk_size = 0
+                current_chunk_number += 1
+                current_file_name = os.path.join(output_folder, '{}_{}{}'.format(current_chunk_number,
+                                                                                 basename, extension))
+                split_files.append(current_file_name)
+                current_split_file = pysam.AlignmentFile(current_file_name, mode, template=sambam)
+            current_chunk_size += 1
+            current_split_file.write(alignment)
+    current_split_file.close()
+
+    return split_files
+
+
+def merge_sam(input_sams, output_sam, tmp=None):
+    output_sam = os.path.expanduser(output_sam)
+    first_sam = os.path.expanduser(input_sams[0])
+
+    if tmp is not None:
+        if isinstance(tmp, string_types):
+            tmp = os.path.expanduser(tmp)
+        elif tmp:
+            tmp = tempfile.mkdtemp()
+
+        if tmp:
+            logger.info("Working from tmp dir {}".format(tmp))
+
+    try:
+        with pysam.AlignmentFile(first_sam) as fs:
+            mode = 'wb' if os.path.splitext(output_sam)[1] == '.bam' else 'wh'
+            with pysam.AlignmentFile(output_sam, mode, template=fs) as o:
+                for input_sam in input_sams:
+                    input_sam = os.path.expanduser(input_sam)
+                    if tmp:
+                        shutil.copy(input_sam, tmp)
+                        input_sam = os.path.join(tmp, os.path.basename(input_sam))
+                        logger.info("Copied input SAM to {}".format(input_sam))
+                    with pysam.AlignmentFile(input_sam) as r:
+                        for alignment in r:
+                            o.write(alignment)
+                    if tmp:
+                        os.remove(input_sam)
+    finally:
+        if tmp:
+            shutil.rmtree(tmp)
+    return output_sam
+
+
+def write_bed(file_name, regions, mode='w', **kwargs):
+    if file_name == '-':
+        bed_file = sys.stdout
+        must_close = False
+    elif hasattr(file_name, 'write'):
+        must_close = False
+        bed_file = file_name
+    else:
+        bed_file = open(file_name, mode)
+        must_close = True
+
+    try:
+        for region in regions:
+            bed_file.write(region.as_bed_line(**kwargs) + '\n')
+    finally:
+        if must_close:
+            bed_file.close()
+        else:
+            bed_file.flush()
+
+    return file_name
+
+
+def write_gff(file_name, regions, mode='w', **kwargs):
+    if file_name == '-':
+        gff_file = sys.stdout
+        must_close = False
+    elif hasattr(file_name, 'write'):
+        must_close = False
+        gff_file = file_name
+    else:
+        gff_file = open(file_name, mode)
+        must_close = True
+
+    try:
+        for region in regions:
+            gff_file.write(region.as_gff_line(**kwargs) + '\n')
+    finally:
+        if must_close:
+            gff_file.close()
+        else:
+            gff_file.flush()
+
+    return file_name
+
+
+def write_bigwig(file_name, regions, mode='w', score_field='score'):
+    logger.debug("Writing output...")
+    bw = pyBigWig.open(file_name, mode)
+    # write header
+
+    chromosomes = []
+    chromosome_lengths = defaultdict(int)
+    interval_chromosomes = []
+    interval_starts = []
+    interval_ends = []
+    interval_values = []
+    for region in regions:
+        if not isinstance(region.chromosome, str):
+            chromosome = region.chromosome.decode() if isinstance(region.chromosome, bytes) \
+                else region.chromosome.encode('ascii', 'ignore')
+        else:
+            chromosome = region.chromosome
+
+        if chromosome not in chromosome_lengths:
+            chromosomes.append(chromosome)
+        chromosome_lengths[chromosome] = region.end
+
+        interval_chromosomes.append(chromosome)
+        interval_starts.append(region.start - 1)
+        interval_ends.append(region.end)
+        try:
+            score = float(getattr(region, score_field))
+        except AttributeError:
+            score = np.nan
+        interval_values.append(score)
+
+    header = []
+    for chromosome in chromosomes:
+        chromosome_length = chromosome_lengths[chromosome]
+        header.append((chromosome, chromosome_length))
+    print(header)
+    bw.addHeader(header)
+
+    bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
+
+    bw.close()
+    return file_name
+
+
+def sort_natural_sam(sam_file, output_file=None, sambamba=True, _sambamba_path='sambamba'):
+    if which(_sambamba_path) is None and sambamba:
+        logger.info('Cannot find {} on this machine, falling back to samtools sort. '
+                    'This is not a problem, but if you want to speed up your SAM/BAM '
+                    'file sorting, install sambamba and ensure it is in your PATH!'.format(_sambamba_path))
+        sambamba = False
+
+    basename, extension = os.path.splitext(sam_file)
+
+    replace_input = False
+    if output_file is None:
+        with tempfile.NamedTemporaryFile(delete=False, prefix='kaic_', suffix=extension) as f:
+            output_file = f.name
+        replace_input = True
+
+    if not sambamba:
+        pysam.sort('-n', '-o', output_file, sam_file)
+    else:
+        sambamba_command = [_sambamba_path, 'sort', '-N', '-o', output_file, sam_file]
+        ret = subprocess.call(sambamba_command)
+        if ret != 0:
+            raise RuntimeError("{} sorting had non-zero exit status!".format(_sambamba_path))
+
+    if replace_input:
+        logger.info("Replacing input SAM/BAM file {} with sorted version...".format(sam_file))
+        shutil.copy(output_file, sam_file)
+        os.remove(output_file)
+        output_file = sam_file
+
+    return output_file

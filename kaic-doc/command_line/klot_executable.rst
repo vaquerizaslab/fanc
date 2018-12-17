@@ -1,6 +1,6 @@
-====
-klot
-====
+============
+klot command
+============
 
 Kai-C provides a dedicated plotting executable (``klot``) for plotting Hi-C matrices and other kinds of genomic data.
 
@@ -12,45 +12,10 @@ and panning for plots that support it. By specifying an output file, the plot is
 
 Here is ``klot`` s help function:
 
-.. code:: bash
-
-    usage:
-                    klot [<klot global parameters>] <region> [<region> ...]
-                          --plot <plot data file(s)> [<plot parameters>] [...]
-
-                    Run klot --plot -t <plot type> -h for help on a specific subplot.
-
-
-    klot plotting tool for kaic
-
-    positional arguments:
-      regions               List of region selectors (<chr>:<start>-<end>) or
-                            files with region information (BED, GTF, ...).
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      -o OUTPUT, --output OUTPUT
-                            Suppresses interactive plotting window and redirects
-                            plot to file. Specify path to file when plotting a
-                            single region, and path to a folder for plotting
-                            multiple regions.
-      -s SCRIPT, --script SCRIPT
-                            Use a script file to define plot.
-      -p PLOT, --plot PLOT  New plot, type will be chosen automatically by file
-                            type, unless '-t' is provided.
-      -n NAME, --name NAME  Plot name to be used as prefix when plotting multiple
-                            regions. Is ignored for single region and interactive
-                            plot.
-      --height HEIGHT       Height of the figure in inches.
-      --width WIDTH         Width of the figure in inches.
-      -w WINDOW_SIZE, --window-size WINDOW_SIZE
-                            Plotting region size in base pairs. If provided, the
-                            actual size of the given region is ignored and instead
-                            a region <chromosome>:<region center - window
-                            size/2>-<region cener + window size/2> will be
-                            plotted.
-      -vs HSPACE, --vertical-space HSPACE
-                            Vertical distance between plots in fraction of figure.
+.. argparse::
+   :module: kaic.commands.klot_commands
+   :func: klot_parser
+   :prog: klot
 
 
 Setting up the figure and plotting regions
@@ -100,27 +65,11 @@ To list all possible plot types, type:
 
 which will print:
 
-.. code:: bash
+.. argparse::
+   :module: kaic.commands.klot_commands
+   :func: type_parser
+   :prog: klot
 
-    usage: klot [-t TYPE] [data [data ...]]
-
-    klot subplot identifier
-
-    positional arguments:
-      data                  Data to be plotted in subplot.
-
-    optional arguments:
-      -t TYPE, --type TYPE  Manually specify subplot type. Options:
-                            hic          Hi-C plot, cropped triangle style
-                            hic2d        Hi-C plot, matrix style
-                            hicsplit     Hi-C vs Hi-C plot, split matrix
-                            hicvhic      Hi-C vs Hi-C plot, matrices "mirrored"
-                            fc           Fold-change plot, cropped triangle style
-                            hicvfc       Hi-C vs fold-change plot, matrices "mirrored"
-                            array        Array "flame" plot (e.g. insulation index)
-                            region       Bar plot with region score (e.g. BED)
-                            line         Line plot with values per region
-                            bigwig       Plot BigWig files
 
 To get more information on a specific plot, simply type:
 
@@ -130,39 +79,10 @@ To get more information on a specific plot, simply type:
 
 For example, ``klot -p -t hic -h`` will print the help text for the Hi-C triangle plot:
 
-.. code:: bash
-
-    usage: klot [-h] [--aspect-ratio ASPECT_RATIO] [--title TITLE]
-                [--fix-chromosome] [-vmin VMIN] [-vmax VMAX] [-d MAX_DIST] [-l]
-                [-r] [-c COLORMAP] [-C]
-                hic
-
-    Hi-C plot.
-
-    positional arguments:
-      hic                   Hi-C object.
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      --aspect-ratio ASPECT_RATIO
-                            Aspect ratio of this panel. Default is determined by
-                            figure type (usually 1.0).
-      --title TITLE         Title of this plot.
-      --fix-chromosome      Fix chromosome identifier for this plot (add or remove
-                            'chr' as required)
-      -vmin VMIN, --minimum-value VMIN
-                            Minimum value assigned the first color in the
-                            colorbar.
-      -vmax VMAX, --maximum-value VMAX
-                            Maximum value assigned the last color in the colorbar.
-      -d MAX_DIST, --maximum-distance MAX_DIST
-                            Maximum distance between two points after which
-                            triangle will be truncated.
-      -l, --log             Log-transform heatmap values
-      -r, --range-slider    Add vmax/vmin slider to plot
-      -c COLORMAP, --colormap COLORMAP
-                            Matplotlib colormap (default: viridis)
-      -C, --no-colorbar     Do not show colorbar in plot
+.. argparse::
+   :module: kaic.commands.klot_commands
+   :func: hic_parser
+   :prog: klot
 
 
 Plot types

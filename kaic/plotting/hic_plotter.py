@@ -1,22 +1,26 @@
 import kaic
 from kaic.config import config
-from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot
+from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot, \
+                                       PlotMeta, BaseOverlayPlotter
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
 from kaic.data.genomic import GenomicRegion
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
+import matplotlib.patches as patches
 from abc import ABCMeta
 import numpy as np
+from scipy.ndimage.filters import gaussian_filter
 import itertools as it
 import types
 import seaborn as sns
+from future.utils import with_metaclass, string_types
 import logging
 logger = logging.getLogger(__name__)
 
-plt = sns.plt
 
-
-def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1):
+def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
+                       weight_field=None, default_value=None, smooth_sigma=None):
     """
     Prepare :class:`~BufferedMatrix` from hic data.
 
@@ -34,9 +38,11 @@ def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1)
     """
     if isinstance(hic_data, kaic.data.genomic.RegionMatrixTable):
         return BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
-                                         buffering_arg=buffering_arg)
+                              buffering_arg=buffering_arg, weight_field=weight_field,
+                              default_value=default_value, smooth_sigma=smooth_sigma)
     elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
-        return BufferedMatrix.from_hic_matrix(hic_data)
+        return BufferedMatrix.from_hic_matrix(hic_data, weight_field=weight_field,
+                                              default_value=default_value, smooth_sigma=smooth_sigma)
     else:
         raise ValueError("Unknown type for hic_data")
 
@@ -52,7 +58,8 @@ class BufferedMatrix(object):
     _STRATEGY_FIXED = "fixed"
     _STRATEGY_RELATIVE = "relative"
 
-    def __init__(self, data, buffering_strategy="relative", buffering_arg=1):
+    def __init__(self, data, buffering_strategy="relative", buffering_arg=1,
+                 weight_field=None, default_value=None, smooth_sigma=None):
         """
         Initialize a buffer for Matrix-like objects that support
         indexing using class:`~GenomicRegion` objects, such as class:`~kaic.Hic`
@@ -71,14 +78,17 @@ class BufferedMatrix(object):
         """
         self.data = data
         if buffering_strategy not in self._BUFFERING_STRATEGIES:
-            raise ValueError("Only support the buffering strategies {}".format(self._BUFFERING_STRATEGIES.keys()))
+            raise ValueError("Only support the buffering strategies {}".format(list(self._BUFFERING_STRATEGIES.keys())))
         self.buffering_strategy = buffering_strategy
         self.buffering_arg = buffering_arg
         self.buffered_region = None
         self.buffered_matrix = None
+        self.weight_field = weight_field
+        self.default_value = default_value
+        self.smooth_sigma = smooth_sigma
 
     @classmethod
-    def from_hic_matrix(cls, hic_matrix):
+    def from_hic_matrix(cls, hic_matrix, weight_field=None, default_value=None, smooth_sigma=None):
         """
         Wrap a :class:`~HicMatrix` in a :class:`~BufferedMatrix` container.
         Default buffering strategy is set to "all" by default.
@@ -86,7 +96,8 @@ class BufferedMatrix(object):
         :param hic_matrix: :class:`~HicMatrix`
         :return: :class:`~BufferedMatrix`
         """
-        bm = cls(data=None, buffering_strategy="all")
+        bm = cls(data=None, buffering_strategy="all", weight_field=weight_field,
+                 default_value=default_value, smooth_sigma=smooth_sigma)
         bm.buffered_region = bm._STRATEGY_ALL
         bm.buffered_matrix = hic_matrix
         return bm
@@ -100,7 +111,7 @@ class BufferedMatrix(object):
         """
         if (self.buffered_region is None or self.buffered_matrix is None or
                 (not self.buffered_region == self._STRATEGY_ALL and not
-                 all(rb.contains(rq) for rb, rq in it.izip(self.buffered_region, regions)))):
+                 all(rb.contains(rq) for rb, rq in zip(self.buffered_region, regions)))):
             return False
         return True
 
@@ -115,9 +126,13 @@ class BufferedMatrix(object):
         """
         regions = tuple(reversed([r for r in regions]))
         if not self.is_buffered_region(*regions):
-            logger.info("Buffering matrix")
+            logger.debug("Buffering matrix")
             self._BUFFERING_STRATEGIES[self.buffering_strategy](self, *regions)
-        return self.buffered_matrix[tuple(regions)]
+        m = self.buffered_matrix[tuple(regions)]
+        if self.smooth_sigma is not None:
+            mf = gaussian_filter(m, self.smooth_sigma)
+            m = kaic.data.genomic.RegionMatrix(mf, row_regions=m.row_regions, col_regions=m.col_regions)
+        return m
 
     def _buffer_all(self, *regions):
         """
@@ -129,7 +144,9 @@ class BufferedMatrix(object):
         :return: :class:`~HicMatrix`
         """
         self.buffered_region = self._STRATEGY_ALL
-        self.buffered_matrix = self.data[tuple([slice(0, None, None)]*len(regions))]
+        self.buffered_matrix = self.data.as_matrix(key=tuple([slice(0, None, None)]*len(regions)),
+                                                   values_from=self.weight_field,
+                                                   default_value=self.default_value)
 
     def _buffer_relative(self, *regions):
         """
@@ -148,7 +165,8 @@ class BufferedMatrix(object):
                 self.buffered_region.append(GenomicRegion(start=new_start, end=new_end, chromosome=rq.chromosome))
             else:
                 self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
-        self.buffered_matrix = self.data[tuple(self.buffered_region)]
+        self.buffered_matrix = self.data.as_matrix(tuple(self.buffered_region), values_from=self.weight_field,
+                                                   default_value=self.default_value)
 
     def _buffer_fixed(self, *regions):
         """
@@ -166,7 +184,8 @@ class BufferedMatrix(object):
                 self.buffered_region.append(GenomicRegion(start=new_start, end=new_end, chromosome=rq.chromosome))
             else:
                 self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
-        self.buffered_matrix = self.data[tuple(self.buffered_region)]
+        self.buffered_matrix = self.data.as_matrix(tuple(self.buffered_region), values_from=self.weight_field,
+                                                   default_value=self.default_value)
 
     @property
     def buffered_min(self):
@@ -219,80 +238,72 @@ class BasePlotterHic(BasePlotterMatrix):
     """
     Base class for plotting Hi-C data.
 
+    **warning: should always be inherited from first, before the other
+    base classed**
+
     Makes use of matrix buffering by :class:`~BufferedMatrix` internally.
     """
-    __metaclass__ = ABCMeta
 
-    def __init__(self, hic_data, colormap=config.colormap_hic, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=True,
-                 buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None):
-        BasePlotterMatrix.__init__(self, colormap=colormap, norm=norm,
-                                   vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
-                                   blend_zero=blend_zero, unmappable_color=unmappable_color,
-                                   illegal_color=illegal_color, colorbar_symmetry=colorbar_symmetry)
+    def __init__(self, hic_data, adjust_range=False, buffering_strategy="relative",
+                 buffering_arg=1, weight_field=None, default_value=None, smooth_sigma=None, **kwargs):
+        """
+        :param hic_data: Path to Hi-C data on disk or
+                        :class:`~kaic.data.genomic.Hic` or :class:`~kaic.data.genomic.RegionMatrix`
+        :param adjust_range: Draw a slider to adjust vmin/vmax interactively. Default: False
+        :param buffering_strategy: A valid buffering strategy for :class:`~BufferedMatrix`
+        :param buffering_arg: Adjust range of buffering for :class:`~BufferedMatrix`
+        """
+        super(BasePlotterHic, self).__init__(**kwargs)
+        if isinstance(hic_data, string_types):
+            hic_data = kaic.load(hic_data, mode="r")
         self.hic_data = hic_data
         self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
-                                             buffering_arg=buffering_arg)
+                                             buffering_arg=buffering_arg, weight_field=weight_field,
+                                             default_value=default_value, smooth_sigma=smooth_sigma)
         self.slider = None
         self.adjust_range = adjust_range
         self.vmax_slider = None
 
 
-class HicPlot2D(BasePlotter2D, BasePlotterHic):
-    def __init__(self, hic_data, title='', colormap=config.colormap_hic, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, colorbar_symmetry=None,
-                 adjust_range=True, buffering_strategy="relative", buffering_arg=1,
-                 blend_zero=True, unmappable_color=".9",
-                 aspect=1., axes_style="ticks"):
-        """
-        Initialize a 2D Hi-C heatmap plot.
+class HicPlot2D(BasePlotterHic, BasePlotter2D):
+    """
+    Plot Hi-C map as a square matrix.
+    """
+    sharey = True
 
-        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
-        :param title: Title drawn on top of the figure panel
-        :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
-        :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
-        :param vmin: Clip interactions below this value
-        :param vmax: Clip interactions above this value
-        :param show_colorbar: Draw a colorbar
-        :param adjust_range: Draw a slider to adjust vmin/vmax interactively
-        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
-        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
-        :param blend_zero: If True then zero count bins will be drawn using the minimum
-                           value in the colormap, otherwise transparent
-        :param unmappable_color: Draw unmappable bins using this color. Defaults to
-                                 light gray (".9")
-        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-                       the height_ratios in class:`~GenomicFigure`
+    def __init__(self, hic_data, flip=False, **kwargs):
         """
-        BasePlotter2D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-        BasePlotterHic.__init__(self, hic_data=hic_data, colormap=colormap,
-                                norm=norm, vmin=vmin, vmax=vmax, show_colorbar=show_colorbar,
-                                adjust_range=adjust_range, buffering_strategy=buffering_strategy,
-                                buffering_arg=buffering_arg, blend_zero=blend_zero,
-                                unmappable_color=unmappable_color, colorbar_symmetry=colorbar_symmetry)
+        :param flip: Transpose matrix before plotting
+        """
+        super(HicPlot2D, self).__init__(hic_data=hic_data, **kwargs)
         self.vmax_slider = None
         self.current_matrix = None
+        self.flip = flip
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
-        self.im = self.ax.imshow(self.get_color_matrix(self.current_matrix), interpolation='none',
+        color_matrix = self.get_color_matrix(self.current_matrix)
+        if self.flip:
+            extent = [self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
+                      self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end]
+        else:
+            extent = [self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
+                      self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start]
+        self.im = self.ax.imshow(color_matrix, interpolation='none', aspect='auto',
                                  cmap=self.colormap, norm=self.norm, origin="upper",
-                                 extent=[self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
-                                         self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start])
+                                 extent=extent)
         self.ax.spines['right'].set_visible(False)
         self.ax.spines['top'].set_visible(False)
         self.ax.xaxis.set_ticks_position('bottom')
         self.ax.yaxis.set_ticks_position('left')
 
-        if self.show_colorbar:
-            self.add_colorbar()
         if self.adjust_range:
             self.add_adj_slider()
 
     def add_adj_slider(self, ax=None):
         if ax is None:
-            ax = append_axes(self.ax, 'top', 0.2, 0.25)
+            pad = self._total_padding if self._total_padding is not None else 0.
+            ax = append_axes(self.ax, 'bottom', config.adjustment_slider_height, pad)
 
         vmin = self.hic_buffer.buffered_min
         vmax = self.hic_buffer.buffered_max
@@ -316,7 +327,7 @@ class HicPlot2D(BasePlotter2D, BasePlotterHic):
         if self.colorbar is not None:
             self.update_colorbar(vmax=new_vmax)
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
         self.im.set_data(self.get_color_matrix(self.current_matrix))
         self.im.set_extent([self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
@@ -343,14 +354,9 @@ class HicSideBySidePlot2D(object):
 
 
 class HicComparisonPlot2D(HicPlot2D):
-    def __init__(self, hic_top, hic_bottom, colormap=config.colormap_hic, norm='log',
-                 vmin=None, vmax=None, scale_matrices=True, show_colorbar=True,
-                 buffering_strategy="relative", buffering_arg=1, aspect=1.,
-                 axes_style="ticks"):
-        super(HicComparisonPlot2D, self).__init__(hic_top, colormap=colormap, norm=norm,
-                                                  vmin=vmin, vmax=vmax,
-                                                  show_colorbar=show_colorbar, aspect=aspect,
-                                                  axes_style=axes_style)
+    def __init__(self, hic_top, hic_bottom, buffering_strategy="relative", 
+                 buffering_arg=1., scale_matrices=True, **kwargs):
+        super(HicComparisonPlot2D, self).__init__(hic_top, **kwargs)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
         self.hic_buffer = BufferedCombinedMatrix(hic_bottom, hic_top, scale_matrices,
@@ -358,52 +364,45 @@ class HicComparisonPlot2D(HicPlot2D):
 
 
 class HicSlicePlot(ScalarDataPlot):
-    def __init__(self, hic_data, slice_region, names=None, style="step", title='',
-                 aspect=.3, axes_style=style_ticks_whitegrid, ylim=None, yscale="linear",
-                 buffering_strategy="relative", buffering_arg=1):
-        """
-        Initialize a plot which draws Hi-C data as virtual 4C-plot. All interactions that
-        involve the slice region are shown.
+    """
+    Draw a Hi-C data as virtual 4C-plot. All interactions that 
+    involve the slice region are shown.
+    """
 
-        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`. Can be list of
+    def __init__(self, hic_data, slice_region, names=None,
+                 buffering_strategy="relative", buffering_arg=1,
+                 weight_field=None, default_value=None, **kwargs):
+        """
+        :param hic_data: :class:`~kaic.Hic` or :class:`~kaic.RegionMatrix`. Can be list of
                          multiple Hi-C datasets.
         :param slice_region: String ("2L:1000000-1500000") or :class:`~GenomicRegion`.
                              All interactions involving this region are shown.
         :param names: If multiple Hi-C datasets are provided, can pass a list of names.
                       Are used as names in the legend of the plot.
-        :param style: 'step' Draw values in a step-wise manner for each bin
-                      'mid' Draw values connecting mid-points of bins
-        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-                       the height_ratios in class:`~GenomicFigure`
-        :param title: Title drawn on top of the figure panel
-        :param ylim: Tuple to set y-axis limits
-        :param y_scale: Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
-                        valid argument ("linear", "log", etc.) works
         :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
         :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
         """
-        ScalarDataPlot.__init__(self, style=style, title=title, aspect=aspect,
-                                axes_style=axes_style)
+        kwargs.setdefault("aspect", .3)
+        super(HicSlicePlot, self).__init__(**kwargs)
         if not isinstance(hic_data, (list, tuple)):
             hic_data = [hic_data]
         self.hic_buffers = []
         for h in hic_data:
             hb = prepare_hic_buffer(h,
                                     buffering_strategy=buffering_strategy,
-                                    buffering_arg=buffering_arg)
+                                    buffering_arg=buffering_arg,
+                                    weight_field=weight_field,
+                                    default_value=default_value)
             self.hic_buffers.append(hb)
         self.names = names
-        if isinstance(slice_region, basestring):
+        if isinstance(slice_region, string_types):
             slice_region = GenomicRegion.from_string(slice_region)
         self.slice_region = slice_region
-        self.yscale = yscale
-        self.ylim = ylim
         self.x = None
         self.y = None
 
-    def _plot(self, region=None, ax=None, *args, **kwargs):
+    def _plot(self, region):
         for i, b in enumerate(self.hic_buffers):
-            hm = b.get_matrix(self.slice_region, region).T
             hm = np.mean(b.get_matrix(self.slice_region, region).T, axis=0)
             bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]
             bin_coords = (bin_coords[1:] + bin_coords[:-1])/2
@@ -412,67 +411,54 @@ class HicSlicePlot(ScalarDataPlot):
             self.add_legend()
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
-        self.ax.set_yscale(self.yscale)
-        if self.ylim:
-            self.ax.set_ylim(self.ylim)
 
-    def _refresh(self, region=None, ax=None, *args, **kwargs):
+    def _refresh(self, region):
         pass
 
 
-class HicPlot(BasePlotter1D, BasePlotterHic):
-    def __init__(self, hic_data, title='', colormap=config.colormap_hic, max_dist=None, norm="log",
-                 vmin=None, vmax=None, show_colorbar=True, adjust_range=False, colorbar_symmetry=None,
-                 buffering_strategy="relative", buffering_arg=1, blend_zero=True,
-                 unmappable_color=".9", illegal_color=None, aspect=.5,
-                 axes_style="ticks"):
-        """
-        Initialize a triangle Hi-C heatmap plot.
+class HicPlot(BasePlotterHic, BasePlotter1D):
+    """
+    A triangle Hi-C heatmap plot.
+    """
 
-        :param hic_data: class:`~kaic.Hic` or class:`~kaic.RegionMatrix`
-        :param title: Title drawn on top of the figure panel
-        :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
-        :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
+    def __init__(self, hic_data, max_dist=None, proportional=True,
+                 rasterized=True, **kwargs):
+        """
         :param max_dist: Only draw interactions up to this distance
-        :param vmin: Clip interactions below this value
-        :param vmax: Clip interactions above this value
-        :param show_colorbar: Draw a colorbar
-        :param adjust_range: Draw a slider to adjust vmin/vmax interactively
-        :param buffering_strategy: A valid buffering strategy for class:`~BufferedMatrix`
-        :param buffering_arg: Adjust range of buffering for class:`~BufferedMatrix`
-        :param blend_zero: If True then zero count bins will be drawn using the minimum
-                           value in the colormap, otherwise transparent
-        :param unmappable_color: Draw unmappable bins using this color. Defaults to
-                                 light gray (".9")
-        :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
-                                 None (no special color).
-        :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-                       the height_ratios in class:`~GenomicFigure`
+        :param proportional: Automatically determine aspect ratio of plot
+                             so that x- and y-axis are proportional. Default: True
+        :param rasterized: Draw map as image (True) or vector graphic (False).
+                           Default: True
         """
-
-        BasePlotterHic.__init__(self, hic_data, colormap=colormap, vmin=vmin, vmax=vmax,
-                                show_colorbar=show_colorbar, adjust_range=adjust_range,
-                                buffering_strategy=buffering_strategy, buffering_arg=buffering_arg,
-                                norm=norm, blend_zero=blend_zero, unmappable_color=unmappable_color,
-                                illegal_color=illegal_color, colorbar_symmetry=colorbar_symmetry)
-        BasePlotter1D.__init__(self, title=title, aspect=aspect, axes_style=axes_style)
-
+        kwargs.setdefault("aspect", .5)
+        super(HicPlot, self).__init__(hic_data=hic_data, **kwargs)
+        self.proportional = proportional
         self.max_dist = max_dist
         self.hm = None
+        self.rasterized = rasterized
 
-    def _plot(self, region=None, *args, **kwargs):
+    def _plot(self, region):
         logger.debug("Generating matrix from hic object")
         if region is None:
             raise ValueError("Cannot plot triangle plot for whole genome.")
         if region.start is None:
             region.start = 1
         if region.end is None:
-            region.end = self.hic_data.chromosome_lens[region.chromosome]
+            region.end = self.hic_data.chromosome_lengths[region.chromosome]
+        if self.proportional:
+            if self.max_dist is None:
+                self.aspect = .5
+            else:
+                rl = region.end - region.start
+                self.aspect = .5*min(self.max_dist, rl)/rl
+            self._dimensions_stale = True
+
         # Have to copy unfortunately, otherwise modifying matrix in buffer
         x_, y_, hm = self._mesh_data(region)
         self.hm = hm
 
-        self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self.norm, rasterized=True)
+        self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self.norm,
+                                             rasterized=self.rasterized)
         self.collection._A = None
         self._update_mesh_colors()
 
@@ -484,8 +470,6 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self.ax.set_yticks([])
         # hide background patch
         self.ax.patch.set_visible(False)
-        if self.show_colorbar:
-            self.add_colorbar(ax=None)
         if self.adjust_range:
             self.add_adj_slider()
 
@@ -520,9 +504,9 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         color_matrix = self.get_color_matrix(self.hm)
         color_tuple = color_matrix.transpose((1, 0, 2)).reshape(
             (color_matrix.shape[0] * color_matrix.shape[1], color_matrix.shape[2]))
-        self.collection.set_color(color_tuple)
+        self.collection.set_facecolor(color_tuple)
 
-    def _refresh(self, region=None, *args, **kwargs):
+    def _refresh(self, region):
         x_, y_, hm = self._mesh_data(region)
         self.hm = hm
 
@@ -533,7 +517,8 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
 
     def add_adj_slider(self, ax=None):
         if ax is None:
-            ax = append_axes(self.ax, 'top', 1, 0.05)
+            pad = self._total_padding if self._total_padding is not None else 0.
+            ax = append_axes(self.ax, 'bottom', config.adjustment_slider_height, pad)
 
         self.vmax_slider = Slider(ax, 'vmax', self.hic_buffer.buffered_min,
                                   self.hic_buffer.buffered_max, valinit=self.vmax,
@@ -552,3 +537,60 @@ class HicPlot(BasePlotter1D, BasePlotterHic):
         self._update_mesh_colors()
         if self.colorbar is not None:
             self.update_colorbar(vmax=new_vmax)
+
+
+class HicPeakPlot(BaseOverlayPlotter):
+    """
+    Overlay peaks onto Hicplot or HicPlot2D. Accepts
+    :class:`~kaic.data.network.PeakInfo`.
+    Add to HicPlot or HicPlot2D using add_overlay method.
+    """
+    def __init__(self, peaks, radius=None, circle_props={}, **kwargs):
+        """
+        :param peaks: Kaic peaks instance
+        :param radius: Radius in bp for plotted circles.
+                       If not specified (default), use the radius of the
+                       peak itself. This is often too small to see,
+                       providing a value like 50000 helps. Default: None
+        :param circe_props: Dictionary with properties for the plotted circles
+                            for the matplotlib.patches.Circle constructor.
+                            Default: Black edges, no fill, linewidth 3 pt
+        """
+        super(HicPeakPlot, self).__init__(**kwargs)
+        self.peaks = peaks
+        self.radius = radius
+        self.circle_props = {
+            "edgecolor": "black",
+            "fill": False,
+            "linewidth": 3,
+        }
+        self.circle_props.update(circle_props)
+
+    @property
+    def compatibility(self):
+        return ["HicPlot", "HicPlot2D"]
+
+    def _plot(self, base_plot, region):
+        def plot_hicplot(start, end, radius):
+            x = .5*(start + end)
+            y = .5*(end - start)
+            circle = patches.Circle((x, y), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+
+        def plot_hicplot2d(start, end, radius):
+            circle = patches.Circle((start, end), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+            circle = patches.Circle((end, start), radius, **self.circle_props)
+            base_plot.ax.add_patch(circle)
+
+        plot_dispatch = {
+            "HicPlot": plot_hicplot,
+            "HicPlot2D": plot_hicplot2d
+        }
+        base_plot_class = base_plot.__class__.__name__
+        plot_func = plot_dispatch[base_plot_class]
+        peaks_gen = self.peaks.edge_subset((region, region), distances_in_bp=True)
+        for p in peaks_gen:
+            plot_func((p.source_node.start + p.source_node.end)/2,
+                      (p.sink_node.start + p.sink_node.end)/2,
+                      self.radius if self.radius is not None else getattr(p, "radius", self.peaks.bin_size*3)*self.peaks.bin_size)

@@ -1,17 +1,20 @@
 from __future__ import division
-from kaic.data.genomic import RegionMatrixTable, RegionsTable, GenomicRegion
+from kaic.config import config
+from kaic.data.genomic import AccessOptimisedRegionMatrixTable, RegionsTable, GenomicRegion
 from kaic.architecture.architecture import ArchitecturalFeature, calculateondemand, _get_pytables_data_type
-from kaic.data.general import Mask, MaskFilter
+from kaic.data.general import MaskFilter
+from kaic.tools.general import RareUpdateProgressBar
 import tables as t
 import numpy as np
-import itertools as it
 from collections import defaultdict
 from abc import abstractmethod, ABCMeta
+from future.utils import with_metaclass, string_types
+import pybedtools as pbt
 import logging
 logger = logging.getLogger(__name__)
 
 
-class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
+class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, ArchitecturalFeature):
     """
     Process and store matrix-based, genomic region-associated data.
 
@@ -24,14 +27,17 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
     def __init__(self, file_name=None, mode='a', data_fields=None, default_field=None,
                  regions=None, edges=None, _table_name_regions='region_data',
                  _table_name_edges='edges', tmpdir=None):
-        RegionMatrixTable.__init__(self, file_name=file_name, additional_fields=data_fields,
-                                   mode=mode, tmpdir=tmpdir, default_field=default_field,
-                                   _table_name_nodes=_table_name_regions,
-                                   _table_name_edges=_table_name_edges)
+        AccessOptimisedRegionMatrixTable.__init__(self, file_name=file_name,
+                                                  additional_fields=data_fields,
+                                                  mode=mode, tmpdir=tmpdir, default_field=default_field,
+                                                  _table_name_nodes=_table_name_regions,
+                                                  _table_name_edges=_table_name_edges)
         ArchitecturalFeature.__init__(self)
 
-        if len(self._edges) > 0:
-            self._calculated = True
+        for edge_table in self._edge_table_iter():
+            if len(edge_table) > 0:
+                self._calculated = True
+                break
 
         if regions is not None:
             self.add_regions(regions)
@@ -41,74 +47,78 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
             self.add_edges(edges)
 
     @calculateondemand
-    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False, impute_missing=False,
-                  default_value=0.0):
+    def close(self, **kwargs):
+        AccessOptimisedRegionMatrixTable.close(self, **kwargs)
+
+    @calculateondemand
+    def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False,
+                  impute_missing=False, default_value=0.0):
         """
         See :class:`~RegionMatrixTable`
         """
-        return RegionMatrixTable.as_matrix(self, key=key, values_from=values_from,
-                                           mask_missing=mask_missing, impute_missing=impute_missing)
+        return AccessOptimisedRegionMatrixTable.as_matrix(self, key=key, values_from=values_from,
+                                                          mask_missing=mask_missing, impute_missing=impute_missing)
 
     @calculateondemand
     def _get_nodes_from_key(self, key, as_index=False):
-        return RegionMatrixTable._get_nodes_from_key(self, key, as_index=as_index)
+        return AccessOptimisedRegionMatrixTable._get_nodes_from_key(self, key, as_index=as_index)
 
     @calculateondemand
     def _get_matrix(self, row_ranges=None, col_ranges=None, weight_column=None, default_value=0.0):
-        return RegionMatrixTable._get_matrix(self, row_ranges=row_ranges, col_ranges=col_ranges,
-                                             weight_column=weight_column)
+        return AccessOptimisedRegionMatrixTable._get_matrix(self, row_ranges=row_ranges, col_ranges=col_ranges,
+                                                            weight_column=weight_column)
 
     @calculateondemand
     def _getitem_nodes(self, key, as_index=False):
-        return RegionMatrixTable._getitem_nodes(self, key, as_index=as_index)
+        return AccessOptimisedRegionMatrixTable._getitem_nodes(self, key, as_index=as_index)
 
     @calculateondemand
     def as_data_frame(self, key, weight_column=None):
         """
         See :class:`~RegionMatrixTable`
         """
-        return RegionMatrixTable.as_data_frame(self, key, weight_column=weight_column)
+        return AccessOptimisedRegionMatrixTable.as_data_frame(self, key, weight_column=weight_column)
 
     @calculateondemand
     def get_node(self, key):
         """
         See :class:`~RegionMatrixTable`
         """
-        return RegionMatrixTable.get_node(self, key)
+        return AccessOptimisedRegionMatrixTable.get_node(self, key)
 
     @calculateondemand
-    def get_edge(self, ix, lazy=False):
+    def get_edge(self, ix, lazy=False, **kwargs):
         """
         See :class:`~RegionMatrixTable`
         """
-        return RegionMatrixTable.get_edge(self, ix, lazy=lazy)
+        return AccessOptimisedRegionMatrixTable.get_edge(self, ix, lazy=lazy)
 
     @calculateondemand
     def _nodes_iter(self):
-        return RegionMatrixTable._nodes_iter(self)
+        return AccessOptimisedRegionMatrixTable._nodes_iter(self)
 
     @calculateondemand
     def edges_sorted(self, sortby, *args, **kwargs):
         """
         See :class:`~RegionMatrixTable`
         """
-        return RegionMatrixTable.edges_sorted(self, sortby, *args, **kwargs)
+        return AccessOptimisedRegionMatrixTable.edges_sorted(self, sortby, *args, **kwargs)
 
     @calculateondemand
     def _edges_iter(self):
-        return RegionMatrixTable._edges_iter(self)
+        return AccessOptimisedRegionMatrixTable._edges_iter(self)
 
     @abstractmethod
     def _calculate(self, *args, **kwargs):
         raise NotImplementedError("This method must be overridden in subclass!")
 
     @calculateondemand
-    def filter(self, edge_filter, queue=False, log_progress=False):
+    def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
         """
         Filter edges in this object by using a
-        :class:`~MatrixArchitecturalRegionFeatureFilter`.
+        :class:`~HicEdgeFilter`.
 
-        :param edge_filter: Class implementing :class:`~MatrixArchitecturalRegionFeatureFilter`.
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
                             Must override valid_edge method, ideally sets mask parameter
                             during initialization.
         :param queue: If True, filter will be queued and can be executed
@@ -118,22 +128,49 @@ class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
                              will be continuously reported.
         """
         edge_filter.set_matrix_object(self)
-        if not queue:
-            self._edges.filter(edge_filter, _logging=log_progress)
-        else:
-            self._edges.queue_filter(edge_filter)
 
-    def run_queued_filters(self, log_progress=False):
+        total = 0
+        filtered = 0
+        if not queue:
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                       silent=not log_progress) as pb:
+                for i, edge_table in enumerate(self._edge_table_iter()):
+                    stats = edge_table.filter(edge_filter, _logging=False)
+                    for key, value in stats.items():
+                        if key != 0:
+                            filtered += stats[key]
+                        total += stats[key]
+                    pb.update(i)
+            if log_progress:
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        else:
+            for edge_table in self._edge_table_iter():
+                edge_table.queue_filter(edge_filter)
+
+    @calculateondemand
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
         """
         Run queued filters.
 
         :param log_progress: If true, process iterating through all edges
                              will be continuously reported.
         """
-        self._edges.run_queued_filters(_logging=log_progress)
+        total = 0
+        filtered = 0
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+                                   silent=not log_progress) as pb:
+            for i, edge_table in enumerate(self._edge_table_iter()):
+                stats = edge_table.run_queued_filters(_logging=False)
+                for key, value in stats.items():
+                    if key != 0:
+                        filtered += stats[key]
+                    total += stats[key]
+                pb.update(i)
+        if log_progress:
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
 
 
-class MatrixArchitecturalRegionFeatureFilter(MaskFilter):
+class MatrixArchitecturalRegionFeatureFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     edges/contacts in a :class:`~MatrixArchitecturalRegionFeature` object.
@@ -147,8 +184,6 @@ class MatrixArchitecturalRegionFeatureFilter(MaskFilter):
     if the object is supposed to be filtered/masked and True
     otherwise.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, mask=None):
         """
@@ -239,6 +274,10 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         if data is not None:
             self.add_data(data)
 
+    @calculateondemand
+    def close(self, **kwargs):
+        RegionsTable.close(self, **kwargs)
+
     def flush(self):
         self._regions.flush()
 
@@ -246,7 +285,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
     def data_field_names(self):
         names = []
         for name in self._regions.colnames:
-            if name not in ("ix", "chromosome", "start", "end", "strand"):
+            if name not in ("ix", "chromosome", "start", "end", "strand", "_mask_ix"):
                 names.append(name)
         return names
 
@@ -259,7 +298,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
             }
 
         data_fields = dict()
-        for data_name, vector in data.iteritems():
+        for data_name, vector in data.items():
             string_size = 0
             for value in vector:
                 table_type = _get_pytables_data_type(value)
@@ -293,7 +332,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
                 name: data
             }
 
-        for data_name, vector in data.iteritems():
+        for data_name, vector in data.items():
             self.data(data_name, vector)
 
     @calculateondemand
@@ -316,7 +355,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         for column_selector in column_selectors:
             if isinstance(column_selector, int) or isinstance(column_selector, slice):
                 colnames.append(self._regions.colnames[column_selector])
-            elif isinstance(column_selector, str):
+            elif isinstance(column_selector, string_types):
                 colnames.append(column_selector)
 
         if isinstance(value, list):
@@ -367,7 +406,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
             return (self._row_to_region(row, lazy=lazy, auto_update=auto_update)
                     for row in self._regions.iterrows(item.start, item.stop, item.step))
 
-        if isinstance(item, str):
+        if isinstance(item, string_types):
             item = GenomicRegion.from_string(item)
 
         if isinstance(item, GenomicRegion):
@@ -384,7 +423,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
             is_list = False
         elif isinstance(item, slice):
             colnames = self._regions.colnames[item]
-        elif isinstance(item, str):
+        elif isinstance(item, string_types):
             colnames = [item]
             is_list = False
         elif isinstance(item, list):
@@ -444,7 +483,7 @@ class BasicRegionTable(VectorArchitecturalRegionFeature):
         :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
         :param tmpdir: Path to temporary directory.
         """
-        if isinstance(regions, str):
+        if isinstance(regions, string_types):
             if file_name is None:
                 file_name = regions
                 regions = None
@@ -458,16 +497,17 @@ class BasicRegionTable(VectorArchitecturalRegionFeature):
             pt_fields = {}
             if fields is not None:
                 if isinstance(fields, dict):
-                    for field, field_type in fields.iteritems():
+                    for field, field_type in fields.items():
                         pt_fields[field] = _get_pytables_data_type(field_type)
                 else:
                     if types is None or not len(fields) == len(types):
-                        raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields), len(types)))
+                        raise ValueError("fields (%d) must be the same length as types (%d)" % (len(fields),
+                                                                                                len(types)))
                     for i, field in enumerate(fields):
                         pt_fields[field] = _get_pytables_data_type(types[i])
 
             data_fields = {}
-            for data_name, table_type in pt_fields.iteritems():
+            for data_name, table_type in pt_fields.items():
                 if table_type != t.StringCol:
                     data_fields[data_name] = table_type(pos=len(data_fields))
                 else:
@@ -494,7 +534,7 @@ def _get_typed_array(input_iterable, nan_strings, count=-1):
 
 
 def _is_simple_type(data_type):
-    if data_type in {int, float, bool, str, basestring, long}:
+    if data_type in {int, float, bool, str}:
         return True
     return False
 
@@ -521,21 +561,21 @@ class GenomicTrack(BasicRegionTable):
         matrix_data = {}
         fields = {}
         if data_dict is not None:
-            for field, values in data_dict.iteritems():
+            for field, values in data_dict.items():
                 data_type = type(values[0])
                 if _is_simple_type(data_type):
                     fields[field] = type(values[0])
                 else:
                     matrix_data[field] = values
 
-        for key in matrix_data.iterkeys():
+        for key in matrix_data.keys():
             del data_dict[key]
 
         self._matrix_tracks = set()
         BasicRegionTable.__init__(self, regions=regions, fields=fields, data=data_dict, file_name=file_name,
                                   _group_name=_table_name_tracks, mode=mode, tmpdir=tmpdir)
 
-        for key, values in matrix_data.iteritems():
+        for key, values in matrix_data.items():
             self.data(key, values)
 
         if title is not None:
@@ -574,7 +614,6 @@ class GenomicTrack(BasicRegionTable):
                             and left as is for string arrays.
         :param sort: If True, sort regions in GTF file by genomic location
         """
-        import pybedtools as pbt
         gtf = pbt.BedTool(gtf_file)
         n = len(gtf)
         regions = []
@@ -599,7 +638,7 @@ class GenomicTrack(BasicRegionTable):
                         values[k] = []
             for k in values.keys():
                 values[k].append(f.attrs.get(k, nan_strings[0]))
-        for k, v in values.iteritems():
+        for k, v in values.items():
             values[k] = _get_typed_array(v, nan_strings=nan_strings, count=n)
         return cls(file_name=file_name, data_dict=values, regions=regions)
 
@@ -618,13 +657,13 @@ class GenomicTrack(BasicRegionTable):
         for track in tracks:
             logger.info("Writing track {}".format(track))
             with open("{}{}.bedgraph".format(prefix, track), "w") as f:
-                for r, v in it.izip(self.regions, self[track]):
+                for r, v in zip(self.regions, self[track]):
                     if skip_nan and np.isnan(v):
                         continue
                     f.write("{}\t{}\t{}\t{}\n".format(r.chromosome, r.start - 1, r.end, v))
 
     def __getitem__(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, string_types):
             if item in self._tracks:
                 return self[:, item]
             if item in self._matrix_tracks:
@@ -645,7 +684,7 @@ class GenomicTrack(BasicRegionTable):
         Get a dictionary with all tracks/vectors in the data set.
         :return: dict
         """
-        return {t: self[:, t] for t in self._tracks}
+        return {t_name: self[:, t_name] for t_name in self._tracks}
 
     def data(self, key, value=None):
         """

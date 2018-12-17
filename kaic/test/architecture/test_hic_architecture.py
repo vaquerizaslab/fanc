@@ -4,6 +4,8 @@ from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContact
     InsulationIndex, ObservedExpectedRatio
 import pytest
 import numpy as np
+from kaic.tools import dummy
+import os.path
 
 
 class TestHicArchitecture:
@@ -21,17 +23,17 @@ class TestHicArchitecture:
         hic.add_nodes(nodes)
 
         edges = []
-        for i in xrange(0, 5):
-            for j in xrange(i, 5):
+        for i in range(0, 5):
+            for j in range(i, 5):
                 edges.append(Edge(source=i, sink=j, weight=50))
-        for i in xrange(6, 12):
-            for j in xrange(i, 12):
+        for i in range(6, 12):
+            for j in range(i, 12):
                 edges.append(Edge(source=i, sink=j, weight=75))
-        for i in xrange(13, 18):
-            for j in xrange(i, 18):
+        for i in range(13, 18):
+            for j in range(i, 18):
                 edges.append(Edge(source=i, sink=j, weight=30))
-        for i in xrange(18, 20):
-            for j in xrange(i, 20):
+        for i in range(18, 20):
+            for j in range(i, 20):
                 edges.append(Edge(source=i, sink=j, weight=50))
 
         hic.add_edges(edges)
@@ -74,7 +76,6 @@ class TestPossbibleContacts:
         self.hic.close()
 
     def test_no_region(self):
-        print self.hic[:]
         with PossibleContacts(self.hic) as pc:
 
             assert pc.intra_possible() == 15+6+10
@@ -134,9 +135,9 @@ class TestExpectedContacts:
             # find largest distance
             max_d = 0
             hic_matrix = self.hic.as_matrix(mask_missing=True)
-            for i in xrange(hic_matrix.shape[0]):
+            for i in range(hic_matrix.shape[0]):
                 row_region = hic_matrix.row_regions[i]
-                for j in xrange(hic_matrix.shape[1]):
+                for j in range(hic_matrix.shape[1]):
                     col_region = hic_matrix.col_regions[j]
 
                     if row_region.chromosome == col_region.chromosome:
@@ -208,19 +209,19 @@ class TestObservedExpectedRatio:
 
             ex = np.empty(obs.shape)
             rd = self.hic.regions_dict
-            for i in xrange(obs.shape[0]):
-                for j in xrange(obs.shape[1]):
+            for i in range(obs.shape[0]):
+                for j in range(obs.shape[1]):
                     if rd[i].chromosome == rd[j].chromosome:
                         ex[i, j] = intra_expected[abs(i - j)]
                     else:
                         ex[i, j] = inter_expected
 
-        with ObservedExpectedRatio(self.hic) as oer:
+        with ObservedExpectedRatio(self.hic, per_chromosome=False) as oer:
             oer_m = oer[:]
             assert oer_m.shape == obs.shape
 
-            for i in xrange(obs.shape[0]):
-                for j in xrange(obs.shape[1]):
+            for i in range(obs.shape[0]):
+                for j in range(obs.shape[1]):
                     assert oer_m[i, j] - (obs[i, j] / ex[i, j]) < 0.001
 
     def test_observed_expected_ratio_region(self):
@@ -231,8 +232,8 @@ class TestObservedExpectedRatio:
 
             ex = np.empty(obs.shape)
             rd = self.hic.regions_dict
-            for i in xrange(obs.shape[0]):
-                for j in xrange(obs.shape[1]):
+            for i in range(obs.shape[0]):
+                for j in range(obs.shape[1]):
                     if rd[i].chromosome == rd[j].chromosome:
                         ex[i, j] = intra_expected[abs(i - j)]
                     else:
@@ -242,8 +243,8 @@ class TestObservedExpectedRatio:
             oer_m = oer[:]
             assert oer_m.shape == obs.shape
 
-            for i in xrange(obs.shape[0]):
-                for j in xrange(obs.shape[1]):
+            for i in range(obs.shape[0]):
+                for j in range(obs.shape[1]):
                     assert oer_m[i, j] - (obs[i, j] / ex[i, j]) < 0.001
 
 
@@ -262,17 +263,17 @@ class TestDirectionalityIndex:
         hic.add_nodes(nodes)
 
         edges = []
-        for i in xrange(0, 5):
-            for j in xrange(i, 5):
+        for i in range(0, 5):
+            for j in range(i, 5):
                 edges.append(Edge(source=i, sink=j, weight=50))
-        for i in xrange(6, 12):
-            for j in xrange(i, 12):
+        for i in range(6, 12):
+            for j in range(i, 12):
                 edges.append(Edge(source=i, sink=j, weight=75))
-        for i in xrange(13, 18):
-            for j in xrange(i, 18):
+        for i in range(13, 18):
+            for j in range(i, 18):
                 edges.append(Edge(source=i, sink=j, weight=30))
-        for i in xrange(18, 20):
-            for j in xrange(i, 20):
+        for i in range(18, 20):
+            for j in range(i, 20):
                 edges.append(Edge(source=i, sink=j, weight=50))
 
         hic.add_edges(edges)
@@ -352,17 +353,17 @@ class TestInsulationIndex:
         hic.add_nodes(nodes)
 
         edges = []
-        for i in xrange(0, 5):
-            for j in xrange(i, 5):
+        for i in range(0, 5):
+            for j in range(i, 5):
                 edges.append(Edge(source=i, sink=j, weight=50))
-        for i in xrange(6, 12):
-            for j in xrange(i, 12):
+        for i in range(6, 12):
+            for j in range(i, 12):
                 edges.append(Edge(source=i, sink=j, weight=75))
-        for i in xrange(13, 18):
-            for j in xrange(i, 18):
+        for i in range(13, 18):
+            for j in range(i, 18):
                 edges.append(Edge(source=i, sink=j, weight=30))
-        for i in xrange(18, 20):
-            for j in xrange(i, 20):
+        for i in range(18, 20):
+            for j in range(i, 20):
                 edges.append(Edge(source=i, sink=j, weight=50))
 
         hic.add_edges(edges)
@@ -372,15 +373,12 @@ class TestInsulationIndex:
         self.hic.close()
 
     def test_insulation_index(self):
-        with InsulationIndex(self.hic, window_sizes=(2000, 3000)) as ins:
-            print len(ins.regions)
+        with InsulationIndex(self.hic, window_sizes=(2000, 3000), impute_missing=True) as ins:
             d = ins.insulation_index(window_size=2000)
 
             assert np.isnan(d[0])
-            assert np.isnan(d[1])
             assert d[2] == 50.0
-            assert d[3] - 38.77083206176758 < 0.00001
-
+            assert d[3] - 40.13888931274414 < 0.00001
             with pytest.raises(AttributeError):
                 ins.directionality_index(10000)
 
@@ -392,7 +390,7 @@ class TestInsulationIndex:
             d = ins.insulation_index(window_size=2000)
 
             assert len(d) == len(do[:12])
-            for i in xrange(len(d)):
+            for i in range(len(d)):
                 if np.isnan(d[i]):
                     assert np.isnan(do[i])
                 else:
@@ -402,7 +400,7 @@ class TestInsulationIndex:
             d = ins.insulation_index(window_size=2000)
 
             assert len(d) == len(do[12:])
-            for i in xrange(len(d)):
+            for i in range(len(d)):
                 if np.isnan(d[i]):
                     assert np.isnan(do[i+12])
                 else:
@@ -411,7 +409,64 @@ class TestInsulationIndex:
             with pytest.raises(AttributeError):
                 ins.directionality_index(10000)
 
-    def test_relative_insulation_index(self):
+    def test_sparse_insulation_index(self):
+        with dummy.sample_hic_matrix2() as hic:
+            with InsulationIndex(hic, window_sizes=(1000, 2000, 3000, 4000, 5000)) as ii:
+                ii_1000 = ii.insulation_index(1000)
+                assert np.isnan(ii_1000[0])
+                assert ii_1000[1] == 0
+                assert ii_1000[2] == 7
+                assert np.isnan(ii_1000[3])
+                assert ii_1000[4] == 8
+                assert np.isnan(ii_1000[5])
+                assert np.isnan(ii_1000[6])
+                assert ii_1000[7] == 0
+                assert np.isnan(ii_1000[8])
+                assert np.isnan(ii_1000[9])
 
-        with InsulationIndex(self.hic, window_sizes=(2000, 3000), relative=True) as ins:
-            pass
+                ii_2000 = ii.insulation_index(2000)
+                assert np.isnan(ii_2000[0])
+                assert np.isnan(ii_2000[1])
+                assert ii_2000[2] == (7 + 2) / 2
+                assert ii_2000[3] == (8 + 0) / 2
+                assert ii_2000[4] == (8 + 5 + 0 + 9) / 4
+                assert np.isnan(ii_2000[5])
+                assert np.isnan(ii_2000[6])
+                assert ii_2000[7] == (8 + 9 + 0 + 0) / 4
+                assert np.isnan(ii_2000[8])
+                assert np.isnan(ii_2000[9])
+
+                ii_3000 = ii.insulation_index(3000)
+                assert np.isnan(ii_3000[0])
+                assert np.isnan(ii_3000[1])
+                assert np.isnan(ii_3000[2])
+                assert ii_3000[3] < (3+8+5)/6 + 0.0001
+                assert ii_3000[4] < (8 + 8 + 5 + 9) / 6 + 0.0001
+                assert np.isnan(ii_3000[5])
+                assert np.isnan(ii_3000[6])
+                assert np.isnan(ii_3000[7])
+                assert np.isnan(ii_3000[8])
+                assert np.isnan(ii_3000[9])
+
+
+class TestBoundaryCalling:
+    expected_values = {
+        True: ("chr11:77633337-77643336", 6),
+        False: ("chr11:77640001-77650000", 6)
+    }
+
+    def setup_method(self, method):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+        self.hic = Hic(os.path.join(self.dir, "../data/test_network/rao2014.chr11_77400000_78600000.hic"), mode="r")
+        self.ins = InsulationIndex(self.hic, window_sizes=(50000,))
+        self.ii = self.ins.insulation_index(50000)
+
+    def teardown_method(self, method):
+        self.hic.close()
+        self.ins.close()
+
+    @pytest.mark.parametrize("sub_bin_precision", [True, False])
+    def test_boundaries(self, sub_bin_precision):
+        boundaries = self.ins.boundaries(50000, delta_window=3, sub_bin_precision=sub_bin_precision)
+        assert self.expected_values[sub_bin_precision][0] == str(boundaries[0])
+        assert self.expected_values[sub_bin_precision][1] == len(boundaries)

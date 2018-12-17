@@ -11,6 +11,12 @@ _default_config_content = """\
 # PLOTTING
 #
 colormap_hic: germany
+adjustment_slider_height: .2
+pad_empty_axis: .1
+pad_with_label: .2
+pad_with_ticks: .1
+pad_next_title: .2
+pad_with_tick_legend: .1
 
 #
 # EMAIL
@@ -20,6 +26,24 @@ email_smtp_server:
 email_smtp_port:
 email_smtp_username:
 email_smtp_password:
+
+#
+# ERROR HANDLING
+#
+trap_signals:
+    - SIGUSR1
+    - SIGUSR2
+raise_exception_on_trapped_signal: True
+
+#
+# Progressbars
+#
+hide_progressbars: False
+
+#
+# Cluster
+#
+gridmap_tmpdir:
 """
 default_config = yaml.load(_default_config_content)
 
@@ -56,14 +80,14 @@ def read_file_configs(config_file_locations):
 
         config_path = os.path.expanduser(location)
         if os.path.exists(config_path):
-            logging.debug("Loading config from {}".format(config_path))
+            logger.debug("Loading config from {}".format(config_path))
             try:
                 with open(config_path, 'r') as config_file:
                     config_file_content = config_file.read()
                     file_config = yaml.safe_load(config_file_content)
                     configs.append((config_path, file_config))
-            except IOError, e:
-                logging.error("Could not read config file {}".format(config_path), e)
+            except IOError as e:
+                logger.error("Could not read config file {}".format(config_path), e)
                 pass
     return configs
 
@@ -71,13 +95,14 @@ file_configs = read_file_configs(_config_file_locations)
 
 _config_dict = copy.deepcopy(default_config)
 for current_config_path, current_file_config in reversed(file_configs):
-    for key, value in current_file_config.iteritems():
+    for key, value in current_file_config.items():
         if key not in default_config:
             warnings.warn("Config option '{}' is not known".format(key))
         else:
             _config_dict[key] = value
 
 config = Map(_config_dict)
+
 
 def write_default_config(file_name, overwrite=False):
     file_name = os.path.expanduser(file_name)
