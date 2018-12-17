@@ -67,7 +67,7 @@ import numpy as np
 import pandas as p
 import tables as t
 from Bio import SeqIO, Restriction, Seq
-from genomic_regions import RegionBased, GenomicRegion, GenomicRegions
+from genomic_regions import RegionBased, GenomicRegion
 from kaic.config import config
 from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from kaic.tools.files import is_fasta_file
@@ -80,7 +80,6 @@ except ImportError:
     pass
 import pickle
 from collections import defaultdict
-import copy
 
 from bisect import bisect_right
 from future.utils import with_metaclass, string_types, viewitems
@@ -290,7 +289,75 @@ class LazyGenomicRegion(GenomicRegion):
         return self._row.tables.colnames
 
 
-class RegionsTable(GenomicRegions, FileGroup):
+class RegionBasedWithBins(RegionBased):
+    def __init__(self):
+        super(RegionBasedWithBins, self).__init__()
+
+    @property
+    def chromosome_bins(self):
+        """
+        Returns a dictionary of chromosomes and the start
+        and end index of the bins they cover.
+
+        Returned list is range-compatible, i.e. chromosome
+        bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.
+        """
+        return self._chromosome_bins()
+
+    def _chromosome_bins(self):
+        chr_bins = {}
+        for r in self.regions:
+            if chr_bins.get(r.chromosome) is None:
+                chr_bins[r.chromosome] = [r.ix, r.ix + 1]
+            else:
+                chr_bins[r.chromosome][1] = r.ix + 1
+        return chr_bins
+
+    @property
+    def bin_size(self):
+        """
+        Return the size of the first region in the dataset.
+
+        Assumes all regions have equal size.
+
+        :return: int
+        """
+        return len(self.regions[0]) + 1
+
+    def distance_to_bins(self, distance):
+        """
+        Convert base pairs to fraction of bins.
+
+        :param distance: distance in base pairs
+        :return: float, distance as fraction of bin size
+        """
+        bin_size = self.bin_size
+        bin_distance = int(distance / bin_size)
+        if distance % bin_size > 0:
+            bin_distance += 1
+        return bin_distance
+
+    def bins_to_distance(self, bins):
+        """
+        Convert fraction of bins to base pairs
+
+        :param bins: float, fraction of bins
+        :return: int, base pairs
+        """
+        return int(self.bin_size * bins)
+
+    def region_bins(self, region):
+        start_ix = None
+        end_ix = None
+        for i, r in enumerate(self.regions(region)):
+            ix = getattr(r, 'ix', i)
+            if start_ix is None:
+                start_ix = ix
+            end_ix = ix + 1
+        return slice(start_ix, end_ix, 1)
+
+
+class RegionsTable(RegionBasedWithBins, FileGroup):
     """
     PyTables Table wrapper for storing genomic regions.
 
@@ -404,15 +471,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         self._regions.flush()
         self._update_references()
 
-    def add_region(self, region, flush=True):
-        # super-method, calls below '_add_region'
-        ix = GenomicRegions.add_region(self, region)
-        if flush:
-            self.flush()
-            self._update_references()
-        return ix
-
-    def _add_region(self, region):
+    def _add_region(self, region, *args, **kwargs):
         ix = self._max_region_ix + 1
         
         # actually append
@@ -432,6 +491,10 @@ class RegionsTable(GenomicRegions, FileGroup):
         
         if ix > self._max_region_ix:
             self._max_region_ix = ix
+
+        if kwargs.get('flush', True):
+            self.flush()
+            self._update_references()
 
         return ix
 
@@ -591,15 +654,6 @@ class RegionsTable(GenomicRegions, FileGroup):
                 else:
                     for row in self._regions.where(query):
                         yield row
-
-    def region_bins(self, region):
-        start_ix = None
-        end_ix = None
-        for r in self.regions(region):
-            if start_ix is None:
-                start_ix = r.ix
-            end_ix = r.ix + 1
-        return slice(start_ix, end_ix, 1)
 
 
 class Genome(FileGroup):
