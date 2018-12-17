@@ -1,7 +1,7 @@
 from __future__ import division
 import numpy as np
 from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
-    GenomicRegion, GenomicRegions, _get_overlap_map, _edge_overlap_split_rao, \
+    GenomicRegion, _get_overlap_map, _edge_overlap_split_rao, \
     RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
     AccessOptimisedRegionMatrixTable, AccessOptimisedHic
 from kaic.tools.files import write_bed, write_gff, write_bigwig
@@ -155,42 +155,7 @@ class RegionBasedTestFactory:
         assert len(list(intersect)) == 6
 
 
-class TestGenomicRegions(RegionBasedTestFactory):
-    def setup_method(self, method):
-        chromosomes = [
-            {'name': 'chr1', 'end': 10000},
-            {'name': 'chr2', 'end': 15000},
-            {'name': 'chr3', 'end': 7000}
-        ]
-
-        regions = []
-        for chromosome in chromosomes:
-            for start in range(1, chromosome["end"] - 1000, 1000):
-                regions.append(GenomicRegion(start=start, end=start + 999, chromosome=chromosome["name"]))
-        self.regions = GenomicRegions(regions)
-        self.empty_regions = GenomicRegions()
-
-    def test_add_region(self):
-        # GenomicRegion
-        self.empty_regions.add_region(GenomicRegion(start=1, end=1000, chromosome='chr1'))
-        assert self.empty_regions[0].start == 1
-        assert self.empty_regions[0].end == 1000
-        assert self.empty_regions[0].chromosome == 'chr1'
-
-        # dict
-        self.empty_regions.add_region({'start': 1001, 'end': 2000, 'chromosome': 'chr1'})
-        assert self.empty_regions[1].start == 1001
-        assert self.empty_regions[1].end == 2000
-        assert self.empty_regions[1].chromosome == 'chr1'
-
-        # list
-        self.empty_regions.add_region(['chr1', 2001, 3000])
-        assert self.empty_regions[2].start == 2001
-        assert self.empty_regions[2].end == 3000
-        assert self.empty_regions[2].chromosome == 'chr1'
-
-
-class TestRegionsTable(TestGenomicRegions):
+class TestRegionsTable(RegionBasedTestFactory):
     def setup_method(self, method):
         chromosomes = [
             {'name': 'chr1', 'end': 10000},
@@ -233,6 +198,25 @@ class TestRegionsTable(TestGenomicRegions):
         assert self.empty_regions[2].chromosome == 'chr1'
         assert self.empty_regions[2].a == 0
         assert self.empty_regions[2].b == ''
+
+    def test_add_region(self):
+        # GenomicRegion
+        self.empty_regions.add_region(GenomicRegion(start=1, end=1000, chromosome='chr1'))
+        assert self.empty_regions[0].start == 1
+        assert self.empty_regions[0].end == 1000
+        assert self.empty_regions[0].chromosome == 'chr1'
+
+        # dict
+        self.empty_regions.add_region({'start': 1001, 'end': 2000, 'chromosome': 'chr1'})
+        assert self.empty_regions[1].start == 1001
+        assert self.empty_regions[1].end == 2000
+        assert self.empty_regions[1].chromosome == 'chr1'
+
+        # list
+        self.empty_regions.add_region(['chr1', 2001, 3000])
+        assert self.empty_regions[2].start == 2001
+        assert self.empty_regions[2].end == 3000
+        assert self.empty_regions[2].chromosome == 'chr1'
 
 
 class TestRegionPairs:
