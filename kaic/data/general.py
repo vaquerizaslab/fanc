@@ -553,7 +553,8 @@ class MaskedTable(t.Table):
     def __init__(self, parentnode, name, description=None,
                  title="", filters=None, expectedrows=None,
                  chunkshape=None, byteorder=None, _log=False,
-                 mask_field='_mask', mask_index_field='_mask_ix'):
+                 mask_field='_mask', mask_index_field='_mask_ix',
+                 ignore_reserved_fields=False):
         """
         Pytables Table extension to provide masking functionality.
         """
@@ -562,7 +563,7 @@ class MaskedTable(t.Table):
         self._queued_filters = []
         self._mask_field = mask_field
         self._mask_index_field = mask_index_field
-        
+
         if description is not None:
             # try converting description to dict
             try:
@@ -577,10 +578,11 @@ class MaskedTable(t.Table):
                 raise ValueError("Unrecognised description type (%s)" % str(type(description)))
             
             # check that reserved keys are not used
-            if mask_field in masked_description:
-                raise ValueError("%s field is reserved in MaskedTable!" % mask_field)
-            if mask_index_field in masked_description:
-                raise ValueError("%s field is reserved in MaskedTable!" % mask_index_field)
+            if not ignore_reserved_fields:
+                if mask_field in masked_description:
+                    raise ValueError("%s field is reserved in MaskedTable!" % mask_field)
+                if mask_index_field in masked_description:
+                    raise ValueError("%s field is reserved in MaskedTable!" % mask_index_field)
             
             # add mask fields to description
             masked_description[mask_field] = t.Int32Col()
