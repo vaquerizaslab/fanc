@@ -252,6 +252,13 @@ class RegionBasedWithBins(RegionBased):
         return slice(start_ix, end_ix, 1)
 
 
+def mark_regions_dirty(func):
+    def func_wrapper(self, *args, **kwargs):
+        func(self, *args, **kwargs)
+        self._regions_dirty = True
+    return func_wrapper
+
+
 class RegionsTable(RegionBasedWithBins, FileGroup):
     """
     PyTables Table wrapper for storing genomic regions.
@@ -275,49 +282,27 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         strand = t.Int8Col(pos=4)
         _mask_ix = t.Int32Col(pos=5)
 
-    def __init__(self, regions=None, file_name=None, mode='a',
-                 additional_fields=None, _table_name_regions='regions',
-                 tmpdir=None):
+    def __init__(self, file_name=None, mode='a', tmpdir=None,
+                 additional_fields=None, _table_name_regions='regions'):
         """
         Initialize region table.
 
-        :param data: List of regions to load in object. Can also
-                     be used to load saved regions from file by
-                     providing a path to an HDF5 file and setting
-                     the file_name parameter to None.
-        :param file_name: Path to a save file.
+        :param file_name: Path to file
         :param _table_name_regions: (Internal) name of the HDF5
                                     node that stores data for this
                                     object
         """
-        # parse potential unnamed argument
-        if regions is not None:
-            # data is file name
-            if type(regions) is str or isinstance(regions, t.file.File):
-                if file_name is None:
-                    file_name = regions
-                    regions = None
+        self._regions_dirty = False
 
-        try:
-            FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
-        except TypeError:
-            logger.warning("RegionsTable is now a FileGroup-based object and "
-                           "this object will no longer be compatible in the future")
+        file_exists = False
+        if file_name is not None and os.path.exists(os.path.expanduser(file_name)):
+            file_exists = True
 
-        # check if this is an existing regions file
-        try:
-            group = self.file.get_node('/', _table_name_regions)
+        FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
 
-            if isinstance(group, t.table.Table):
-                self._regions = group
-            else:
-                self._regions = self._group.regions
-
-            if len(self._regions) > 0:
-                self._max_region_ix = max(row['ix'] for row in self._regions.iterrows())
-            else:
-                self._max_region_ix = -1
-        except t.NoSuchNodeError:
+        if file_exists:
+            self._regions = self._group.regions
+        else:
             basic_fields = dict()
             hidden_fields = dict()
             for field, description in RegionsTable.RegionDescription().columns.copy().items():
@@ -347,27 +332,23 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                 basic_fields[key] = value
 
             self._regions = t.Table(self._group, 'regions', basic_fields)
-            self._max_region_ix = -1
 
-        # index regions table
-        create_col_index(self._regions.cols.ix)
-        create_col_index(self._regions.cols.start)
-        create_col_index(self._regions.cols.end)
+            # create indexes
+            create_col_index(self._regions.cols.ix)
+            create_col_index(self._regions.cols.start)
+            create_col_index(self._regions.cols.end)
 
-        self._ix_to_chromosome = dict()
-        self._chromosome_to_ix = dict()
-
-        if regions is not None:
-            self.add_regions(regions)
-        else:
-            self._update_references()
+    def _flush_regions(self):
+        if self._regions_dirty:
+            self._regions.flush()
+            self._regions_dirty = False
 
     def flush(self):
-        self._regions.flush()
-        self._update_references()
+        self._flush_regions()
 
+    @mark_regions_dirty
     def _add_region(self, region, *args, **kwargs):
-        ix = self._max_region_ix + 1
+        ix = getattr(self.meta, 'max_region_ix', -1) + 1
 
         # actually append
         row = self._regions.row
@@ -384,24 +365,10 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
         row.append()
 
-        if ix > self._max_region_ix:
-            self._max_region_ix = ix
-
-        if kwargs.get('flush', True):
-            self.flush()
-            self._update_references()
+        if ix > getattr(self.meta, 'max_region_ix', -1):
+            self.meta['max_region_ix'] = ix
 
         return ix
-
-    def _update_references(self):
-        chromosomes = []
-        for region in self.regions(lazy=True):
-            if len(chromosomes) == 0 or chromosomes[-1] != region.chromosome:
-                chromosomes.append(region.chromosome)
-
-        for i, chromosome in enumerate(chromosomes):
-            self._ix_to_chromosome[i] = chromosome
-            self._chromosome_to_ix[chromosome] = i
 
     def add_regions(self, regions):
         """
@@ -411,43 +378,28 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                         describe a genomic region. See
                         :class:`~RegionsTable.add_region` for options.
         """
-        try:
-            l = len(regions)
-            _log = True
-        except TypeError:
-            l = None
-            _log = False
-
-        pb = RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars)
-        if _log:
-            pb.start()
 
         for i, region in enumerate(regions):
             self.add_region(region, flush=False)
-            if _log:
-                pb.update(i)
-        if _log:
-            pb.finish()
 
-        self._regions.flush()
-        self._update_references()
+        self._flush_regions()
 
     def data(self, key, value=None):
         """
-        Retrieve or add vector-data to this object. If there is exsting data in this
+        Retrieve or add vector-data to this object. If there is existing data in this
         object with the same name, it will be replaced
 
         :param key: Name of the data column
         :param value: vector with region-based data (one entry per region)
         """
         if key not in self._regions.colnames:
-            raise KeyError("%s is unknown region attribute" % key)
+            raise KeyError("{} is unknown region attribute".format(key))
 
         if value is not None:
             for i, row in enumerate(self._regions):
                 row[key] = value[i]
                 row.update()
-            self._regions.flush()
+            self._flush_regions()
 
         return (row[key] for row in self._regions)
 
@@ -489,7 +441,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
             yield sub_region
 
-    def _get_regions(self, key):
+    def _get_regions(self, key, *args, **kwargs):
         res = self._regions[key]
 
         if isinstance(res, np.ndarray):
