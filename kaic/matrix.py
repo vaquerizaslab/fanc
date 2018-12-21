@@ -83,8 +83,8 @@ class Edge(object):
     def __repr__(self):
         base_info = "{}--{}".format(self.source, self.sink)
         for field in self.field_names:
-            base_info += "\n\t{}: {}".format(field, str(getattr(self, field)))
-        return base_info + "\n"
+            base_info += "; {}: {}".format(field, str(getattr(self, field)))
+        return base_info
 
 
 class LazyEdge(Edge):
@@ -400,13 +400,15 @@ class RegionMatrixContainer(RegionPairsContainer):
         m = np.full((len(row_regions), len(col_regions)), default_value)
 
         for source, sink, weight in self.matrix_entries(key, score_field):
-            i = source - row_offset
-            j = sink - col_offset
-            m[i, j] = weight
-            try:
-                m[j, i] = weight
-            except IndexError:
-                pass
+            ir = source - row_offset
+            jr = sink - col_offset
+            if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                m[ir, jr] = weight
+
+            ir = sink - row_offset
+            jr = source - col_offset
+            if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                m[ir, jr] = weight
 
         # remove matrix biases
         m / row_biases[:, None] / col_biases
@@ -481,7 +483,10 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         else:
             self._edges = self.file.create_group('/', _table_name_edges)
 
-            basic_fields = RegionPairs.EntryDescription().columns.copy()
+            basic_fields = {
+                'source': tables.Int32Col(pos=0),
+                'sink': tables.Int32Col(pos=1),
+            }
             if additional_edge_fields is not None:
                 if not isinstance(additional_edge_fields, dict) and issubclass(additional_edge_fields,
                                                                           tables.IsDescription):
@@ -688,6 +693,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._edge_index_dirty = True
 
     def add_edges(self, edges, *args, **kwargs):
+        if self._regions_dirty:
+            self._flush_regions()
         RegionPairsContainer.add_edges(self, edges, *args, **kwargs)
         self._flush_edges()
 
