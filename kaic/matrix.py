@@ -1,3 +1,12 @@
+"""
+TODO
+
+update mappable region handling
+update expected value handling
+update normalisation handling
+
+"""
+
 import logging
 import os
 
