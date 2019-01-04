@@ -578,15 +578,17 @@ class MaskedTable(t.Table):
                 raise ValueError("Unrecognised description type (%s)" % str(type(description)))
             
             # check that reserved keys are not used
-            if not ignore_reserved_fields:
-                if mask_field in masked_description:
-                    raise ValueError("%s field is reserved in MaskedTable!" % mask_field)
-                if mask_index_field in masked_description:
-                    raise ValueError("%s field is reserved in MaskedTable!" % mask_index_field)
-            
-            # add mask fields to description
-            masked_description[mask_field] = t.Int32Col()
-            masked_description[mask_index_field] = t.Int64Col()
+            if mask_field in masked_description:
+                if not ignore_reserved_fields:
+                    raise ValueError("{} field is reserved in MaskedTable!".format(mask_field))
+            else:
+                masked_description[mask_field] = t.Int32Col()
+
+            if mask_index_field in masked_description:
+                if not ignore_reserved_fields:
+                    raise ValueError("{} field is reserved in MaskedTable!".format(mask_index_field))
+            else:
+                masked_description[mask_index_field] = t.Int64Col()
         else:
             masked_description = None
                 
