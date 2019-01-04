@@ -9,6 +9,7 @@ update normalisation handling
 
 import logging
 import os
+import warnings
 
 import numpy as np
 import tables
@@ -16,7 +17,7 @@ from genomic_regions import RegionBased, GenomicRegion, as_region
 import intervaltree
 
 from .config import config
-from .regions import LazyGenomicRegion, RegionsTable
+from .regions import LazyGenomicRegion, RegionsTable, RegionBasedWithBins
 from .tools.general import RareUpdateProgressBar, ranges, create_col_index, range_overlap
 from .general import Maskable, MaskedTable
 
@@ -97,47 +98,20 @@ class Edge(object):
 
 
 class LazyEdge(Edge):
-    def __init__(self, row, nodes_table=None, auto_update=True):
-        self.reserved = {'_row', '_nodes_table', 'auto_update', '_source_node', '_sink_node'}
+    def __init__(self, row, nodes_table=None):
         self._row = row
         self._nodes_table = nodes_table
-        self.auto_update = auto_update
-        self._source_node = None
-        self._sink_node = None
-
-    def _set_item(self, item, value):
-        self._row[item] = value
-        if self.auto_update:
-            self.update()
 
     def __getattr__(self, item):
-        if item == 'reserved' or item in self.reserved:
-            return object.__getattribute__(self, item)
         try:
-            value = self._row[item]
-            value = value.decode() if isinstance(value, bytes) else value
-            return value
+            return self._row[item]
         except KeyError:
-            raise AttributeError("Attribute not supported (%s)" % str(item))
+            raise AttributeError("No such attribute {}".format(item))
 
-    def __setattr__(self, key, value):
-        if key == 'reserved' or key in self.reserved:
-            super(LazyEdge, self).__setattr__(key, value)
-        else:
-            self._row[key] = value
-            if self.auto_update:
-                self.update()
-
-    def update(self):
-        self._row.update()
-
-    @property
-    def source(self):
-        return self._row['source']
-
-    @property
-    def sink(self):
-        return self._row['sink']
+    def set_row_field(self, key, value, auto_update=True):
+        self._row[key] = value
+        if auto_update:
+            self._row.update()
 
     @property
     def source_node(self):
@@ -328,7 +302,7 @@ class RegionPairsContainer(RegionBased):
                 return self._regions_pairs._edges_iter()
 
             def __call__(self, key=None, *args, **kwargs):
-                correct = kwargs.pop("correct", True)
+                norm = kwargs.pop("norm", True)
 
                 row_regions, col_regions = self._regions_pairs._key_to_regions(key)
                 row_regions = list(row_regions)
@@ -340,7 +314,7 @@ class RegionPairsContainer(RegionBased):
                     edge_iter = self._regions_pairs._edges_subset(key, row_regions, col_regions,
                                                                   *args, **kwargs)
 
-                if correct:
+                if norm:
                     weight_field = kwargs.pop('weight_field', self._regions_pairs._default_score_field)
                     bias_field = kwargs.pop('bias_field', 'bias')
                     biases = dict()
@@ -409,24 +383,16 @@ class RegionPairsContainer(RegionBased):
         """
         Get the mappability vector of this matrix.
         """
-        logger.debug("Calculating mappability...")
-
-        mappable = np.zeros(len(self.regions), dtype=bool)
-        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
-            for i, edge in enumerate(self.edges(lazy=True)):
-                mappable[edge.source] = True
-                mappable[edge.sink] = True
-                pb.update(i)
-        return mappable
+        return np.array([True if r.valid else False for r in self.regions])
 
 
-class RegionMatrixContainer(RegionPairsContainer):
+class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
     def __init__(self):
         RegionPairsContainer.__init__(self)
         self._default_value = 0.0
         self._default_score_field = 'weight'
 
-    def regions_and_matrix_entries(self, key, correct=True,
+    def regions_and_matrix_entries(self, key, norm=True, oe=False,
                                    bias_field='bias', score_field=None,
                                    *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key)
@@ -434,11 +400,11 @@ class RegionMatrixContainer(RegionPairsContainer):
         row_offset = row_regions[0].ix
         col_offset = col_regions[0].ix
 
-        entry_iter = self._matrix_entries(key, row_regions, col_regions,
+        basic_iter = self._matrix_entries(key, row_regions, col_regions,
                                           score_field=score_field,
                                           *args, **kwargs)
 
-        if correct:
+        if norm:
             biases = dict()
             for regions in (row_regions, col_regions):
                 for region in regions:
@@ -446,7 +412,19 @@ class RegionMatrixContainer(RegionPairsContainer):
 
             entry_iter = ((source - row_offset, sink - col_offset,
                           weight / biases[source] / biases[sink])
-                          for source, sink, weight in entry_iter)
+                          for source, sink, weight in basic_iter)
+        else:
+            entry_iter = ((source - row_offset, sink - col_offset, weight)
+                          for source, sink, weight in basic_iter)
+
+        if oe:
+            intra_expected, chromosome_intra_expected, inter_expected = self.expected_values(norm=norm)
+
+            entry_iter = ((source, sink,
+                           weight / chromosome_intra_expected[row_regions[source].chromosome][abs(source - sink)]
+                           if row_regions[source].chromosome == col_regions[sink].chromosome
+                           else weight / inter_expected)
+                          for source, sink, weight in basic_iter)
 
         return row_regions, col_regions, entry_iter
 
@@ -459,9 +437,9 @@ class RegionMatrixContainer(RegionPairsContainer):
             yield (edge.source, edge.sink,
                    getattr(edge, score_field, self._default_value))
 
-    def matrix(self, key=None, correct=True,
+    def matrix(self, key=None, norm=True, oe=False,
                score_field=None, bias_field='bias',
-               default_value=None, mask_invalid=False, _mappable=None):
+               default_value=None, _mappable=None):
 
         if score_field is None:
             score_field = self._default_score_field
@@ -469,7 +447,7 @@ class RegionMatrixContainer(RegionPairsContainer):
         if default_value is None:
             default_value = self._default_value
 
-        row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key, correct=correct,
+        row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key, norm=norm, oe=oe,
                                                                                    score_field=score_field,
                                                                                    bias_field=bias_field)
 
@@ -486,25 +464,140 @@ class RegionMatrixContainer(RegionPairsContainer):
             if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
                 m[ir, jr] = weight
 
-        if mask_invalid:
-            mask = np.zeros(m.shape, dtype=bool)
-            for row_region in row_regions:
-                valid = getattr(row_region, 'valid', True)
-                if not valid:
-                    mask[row_region.ix - - row_regions[0].ix] = True
-
-            for col_region in col_regions:
-                valid = getattr(col_region, 'valid', True)
-                if not valid:
-                    mask[col_region.ix - - col_regions[0].ix] = True
-
-            m = np.ma.MaskedArray(m, mask=mask)
-
         if (isinstance(key, tuple) and len(key) == 2 and
                 isinstance(key[0], int) and isinstance(key[1], int)):
             return m[0, 0]
 
         return RegionMatrix(m, row_regions=row_regions, col_regions=col_regions)
+
+    def possible_contacts(self):
+        logger.debug("Calculating possible counts")
+        regions = list(self.regions)
+        chromosomes = self.chromosomes()
+
+        cb = self.chromosome_bins
+        chromosome_max_distance = defaultdict(int)
+        max_distance = 0
+        chromosome_subtractions = dict()
+        for chromosome in chromosomes:
+            start, stop = cb[chromosome]
+            max_distance = max(max_distance, stop - start)
+            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+            chromosome_subtractions[chromosome] = np.zeros(stop - start,
+                                                           dtype='int32')
+
+        chromosome_mappable = defaultdict(int)
+        chromosome_unmappable = defaultdict(set)
+        for i, mappable in enumerate(self.mappable()):
+            chromosome = regions[i].chromosome
+            if not mappable:  # unmappable
+                s = chromosome_subtractions[chromosome]
+                o = cb[chromosome][0]
+                ix = i - o
+                # horizontal
+                s[0: len(s) - ix] += 1
+                # vertical
+                for j in range(1, ix + 1):
+                    if ix - j not in chromosome_unmappable[chromosome]:
+                        s[j] += 1
+                chromosome_unmappable[chromosome].add(ix)
+            else:
+                chromosome_mappable[chromosome] += 1
+
+        inter_total = 0
+        intra_total = [0] * max_distance
+        chromosome_intra_total = dict()
+        for chromosome, d in chromosome_max_distance.items():
+            chromosome_intra_total[chromosome] = [0] * d
+
+        for i, chromosome in enumerate(chromosomes):
+            start, stop = cb[chromosome]
+            count = stop - start
+
+            # intra-chromosomal
+            s = chromosome_subtractions[chromosomes[i]]
+            for distance in range(0, count):
+                intra_total[distance] += count - distance - s[distance]
+                chromosome_intra_total[chromosome][distance] += count - distance - s[distance]
+
+            # inter-chromosomal
+            for j in range(i + 1, len(chromosomes)):
+                count_mappable = chromosome_mappable[chromosomes[i]]
+                count2_mappable = chromosome_mappable[chromosomes[j]]
+                inter_total += count_mappable * count2_mappable
+
+        return intra_total, chromosome_intra_total, inter_total
+
+    def expected_values(self, selected_chromosome=None, norm=True):
+        # get all the bins of the different chromosomes
+        chromosome_bins = self.chromosome_bins
+        chromosome_dict = defaultdict(list)
+
+        chromosome_max_distance = defaultdict(int)
+        max_distance = 0
+        for chromosome, (start, stop) in chromosome_bins.items():
+            max_distance = max(max_distance, stop - start)
+            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
+
+            for i in range(start, stop):
+                chromosome_dict[i] = chromosome
+
+        chromosome_intra_sums = dict()
+        chromosome_intra_expected = dict()
+        for chromosome, d in chromosome_max_distance.items():
+            chromosome_intra_sums[chromosome] = [0.0] * d
+            chromosome_intra_expected[chromosome] = [0.0] * d
+
+        # get the sums of edges at any given distance
+        marginals = [0.0] * len(self.regions)
+        inter_sums = 0.0
+        intra_sums = [0.0] * max_distance
+        with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
+            for i, edge in enumerate(self.edges(lazy=True, norm=norm)):
+                source, sink = edge.source, edge.sink
+                weight = getattr(edge, self._default_score_field)
+
+                source_chromosome = chromosome_dict[source]
+                sink_chromosome = chromosome_dict[sink]
+
+                marginals[source] += weight
+                marginals[sink] += weight
+
+                if sink_chromosome != source_chromosome:
+                    inter_sums += weight
+                else:
+                    distance = sink - source
+                    intra_sums[distance] += weight
+                    chromosome_intra_sums[source_chromosome][distance] += weight
+                pb.update(i)
+
+        intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
+
+        # expected values
+        inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
+
+        intra_expected = [0.0] * max_distance
+        bin_size = self.bin_size
+        distances = []
+        for d in range(max_distance):
+            distances.append(bin_size * d)
+
+            # whole genome
+            count = intra_total[d]
+            if count > 0:
+                intra_expected[d] = intra_sums[d] / count
+
+        # chromosomes
+        for chromosome in chromosome_intra_expected:
+            for d in range(chromosome_max_distance[chromosome]):
+                chromosome_count = chromosome_intra_total[chromosome][d]
+                if chromosome_count > 0:
+                    chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+
+        if selected_chromosome is not None:
+            return chromosome_intra_expected[selected_chromosome]
+
+        return intra_expected, chromosome_intra_expected, inter_expected
 
 
 class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
@@ -522,8 +615,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         :param file_name: Path to a save file
         :param mode: File mode to open underlying file
-        :param additional_fields: Additional fields (in PyTables notation) associated with
-                                  edge data, e.g. {'weight': tables.Float32Col()}
+        :param additional_region_fields: Additional fields (in PyTables notation) associated with
+                                         edge data, e.g. {'weight': tables.Float32Col()}
         :param _table_name_regions: (Internal) name of the HDF5 node for regions
         :param _table_name_edges: (Internal) name of the HDF5 node for edges
         :param _edge_buffer_size: (Internal) size of edge / contact buffer
@@ -531,7 +624,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         # private variables
         self._edges_dirty = False
-        self._edge_index_dirty = False
         self._mappability_dirty = False
         self._partitioning_strategy = partitioning_strategy
 
@@ -547,7 +639,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         Maskable.__init__(self, self.file)
 
         self._edge_table_dict = dict()
-        if file_exists:
+        if file_exists and mode != 'w':
             # retrieve edge tables and partitions
             self._edges = self.file.get_node('/', _table_name_edges)
             self._partition_breaks = getattr(self.meta, 'partition_breaks', None)
@@ -616,15 +708,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 logger.debug("Adding buffered edges...")
                 self._flush_table_edge_buffer()
 
-            if self._edge_index_dirty:
-                logger.debug("Updating mask indices...")
-
             with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges), silent=silent) as pb:
                 for i, edge_table in enumerate(self._edges):
-                    edge_table.flush(update_index=self._edge_index_dirty, log_progress=False)
+                    edge_table.flush(update_index=False, log_progress=False)
                     pb.update(i)
-                self._edge_index_dirty = False
-                self._edges_dirty = False
+
+            self._enable_edge_indexes()
+            self._edges_dirty = False
 
         if self._mappability_dirty:
             self.meta['has_mappability_info'] = False
@@ -639,6 +729,18 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         """
         self._flush_regions()
         self._flush_edges(silent=silent)
+
+    def _disable_edge_indexes(self):
+        for edge_table in self._edge_table_dict.values():
+            edge_table.cols.source.remove_index()
+            edge_table.cols.sink.remove_index()
+            edge_table.disable_mask_index()
+
+    def _enable_edge_indexes(self):
+        for edge_table in self._edge_table_dict.values():
+            create_col_index(edge_table.cols.source)
+            create_col_index(edge_table.cols.sink)
+            edge_table.enable_mask_index()
 
     def _update_partitions(self):
         partition_breaks = []
@@ -718,6 +820,10 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         """
         Add an edge to an internal edge table.
         """
+        if not self._edges_dirty:
+            self._edges_dirty = True
+            self._disable_edge_indexes()
+
         source, sink = edge.source, edge.sink
         if source > sink:
             source, sink = sink, source
@@ -748,10 +854,11 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                         pass
             row.update()
 
-        self._edges_dirty = True
-        self._edge_index_dirty = True
-
     def _add_edge_from_tuple(self, edge):
+        if not self._edges_dirty:
+            self._edges_dirty = True
+            self._disable_edge_indexes()
+
         source = edge[self._source_field_ix]
         sink = edge[self._sink_field_ix]
         if source > sink:
@@ -761,9 +868,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._edge_buffer[(source_partition, sink_partition)].append(tuple(edge))
         if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
             self._flush_table_edge_buffer()
-
-        self._edges_dirty = True
-        self._edge_index_dirty = True
 
     def add_edges(self, edges, *args, **kwargs):
         if self._regions_dirty:
@@ -849,7 +953,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
             yield (row['source'], row['sink'], row[score_field])
 
-    def _row_to_edge(self, row, lazy=False, auto_update=True, **kwargs):
+    def _row_to_edge(self, row, lazy=False, **kwargs):
         if not lazy:
             source = row["source"]
             sink = row["sink"]
@@ -864,7 +968,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             sink_node = self.regions[sink]
             return Edge(source_node, sink_node, **d)
         else:
-            return LazyEdge(row, self._regions, auto_update=auto_update)
+            return LazyEdge(row, self._regions)
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None,
                       *args, **kwargs):
@@ -898,6 +1002,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
     def __init__(self, file_name=None, mode='a', tmpdir=None,
                  partitioning_strategy='chromosome',
                  _table_name_regions='regions', _table_name_edges='edges',
+                 _table_name_expected_values='expected_values',
                  _edge_buffer_size=1000000):
         RegionPairsTable.__init__(self,
                                   file_name=file_name, mode=mode, tmpdir=tmpdir,
@@ -914,15 +1019,127 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                                   _edge_buffer_size=_edge_buffer_size)
         RegionMatrixContainer.__init__(self)
 
+        file_exists = False
+        if file_name is not None and os.path.exists(os.path.expanduser(file_name)):
+            file_exists = True
 
-class RegionMatrix(np.ndarray):
-    def __new__(cls, input_matrix, col_regions=None, row_regions=None):
-        obj = np.asarray(input_matrix).view(cls)
+        # create expected value group
+        if file_exists and mode != 'w':
+            try:
+                self._expected_value_group = self.file.get_node('/', _table_name_expected_values)
+            except tables.NoSuchNodeError:
+                if mode in ['a', 'r+']:
+                    self._expected_value_group = self.file.create_group('/', _table_name_expected_values)
+                else:
+                    self._expected_value_group = None
+        else:
+            self._expected_value_group = self.file.create_group('/', _table_name_expected_values)
+
+    def _remove_expected_values(self):
+        if self._expected_value_group is not None:
+            try:
+                self.file.remove_node(self._expected_value_group, 'corrected', recursive=True)
+            except tables.NoSuchNodeError:
+                pass
+
+            try:
+                self.file.remove_node(self._expected_value_group, 'uncorrected', recursive=True)
+            except tables.NoSuchNodeError:
+                pass
+
+    def _flush_edges(self, silent=config.hide_progressbars):
+        if self._edges_dirty:
+           self._remove_expected_values()
+
+        RegionPairsTable._flush_edges(self, silent=silent)
+
+    def set_biases(self, biases):
+        self.region_data('bias', biases)
+        self._remove_expected_values()
+
+    def expected_values(self, selected_chromosome=None, norm=True):
+        group_name = 'corrected' if norm else 'uncorrected'
+
+        if self._expected_value_group is not None:
+            try:
+                group = self.file.get_node(self._expected_value_group, group_name)
+                if selected_chromosome is not None:
+                    return self.file.get_node(group, '_' + selected_chromosome)[:]
+                else:
+                    intra_expected = None
+                    inter_expected = None
+                    chromosome_intra_expected = {}
+                    for node in self.file.walk_nodes(group):
+                        if isinstance(node, tables.Group):
+                            continue
+                        if node.name == '__intra__':
+                            intra_expected = node[:]
+                        elif node.name == '__inter__':
+                            inter_expected = node[0]
+                        else:
+                            if node.name.startswith('_'):
+                                chromosome = node.name[1:]
+                                chromosome_intra_expected[chromosome] = node[:]
+
+                    if intra_expected is not None and inter_expected is not None \
+                            and len(chromosome_intra_expected) > 0:
+                        return intra_expected, chromosome_intra_expected, inter_expected
+            except tables.NoSuchNodeError:
+                pass
+
+        intra_expected, chromosome_intra_expected, inter_expected = RegionMatrixContainer.expected_values(self, norm=norm)
+
+        # try saving to object
+        try:
+            try:
+                group = self.file.get_node(self._expected_value_group, group_name)
+            except tables.NoSuchNodeError:
+                group = self.file.create_group(self._expected_value_group, group_name)
+
+            self.file.create_array(group, '__intra__',
+                                   np.array(intra_expected), "Intra-chromosomal expected values")
+            self.file.create_array(group, '__inter__',
+                                   np.array([inter_expected]), "Inter-chromosomal expected value")
+            for chromosome, values in chromosome_intra_expected.items():
+                self.file.create_array(group, '_' + chromosome,
+                                       np.array(values), "Intra-chromosomal expected "
+                                                         "value {}".format(chromosome))
+        except tables.FileModeError:
+            warnings.warn("Matrix file opened in read-only mode, "
+                          "cannot save expected values to object. "
+                          "Use mode 'a' to add expected values to "
+                          "an existing object!")
+
+        if selected_chromosome is not None:
+            return chromosome_intra_expected[selected_chromosome]
+
+        return intra_expected, chromosome_intra_expected, inter_expected
+
+
+class RegionMatrix(np.ma.MaskedArray):
+    def __new__(cls, input_matrix, col_regions=None, row_regions=None, mask=None, *args, **kwargs):
+        obj = np.asarray(input_matrix).view(cls, *args, **kwargs)
         obj._row_region_trees = None
         obj._col_region_trees = None
         obj.set_col_regions(col_regions)
         obj.set_row_regions(row_regions)
+        obj._apply_mask()
         return obj
+
+    def _apply_mask(self):
+        if self.row_regions is not None and self.col_regions is not None:
+            mask = np.zeros(self.shape, dtype=bool)
+            for row_region in self.row_regions:
+                valid = getattr(row_region, 'valid', True)
+                if not valid:
+                    mask[row_region.ix - - self.row_regions[0].ix] = True
+
+            for col_region in self.col_regions:
+                valid = getattr(col_region, 'valid', True)
+                if not valid:
+                    mask[col_region.ix - - self.col_regions[0].ix] = True
+
+            self.mask = mask
 
     def _interval_tree_regions(self, regions):
         intervals = defaultdict(list)
@@ -950,19 +1167,23 @@ class RegionMatrix(np.ndarray):
             self._col_region_trees = None
 
     def __array_finalize__(self, obj):
+        if isinstance(self, np.ma.core.MaskedArray):
+            np.ma.MaskedArray.__array_finalize__(self, obj)
+
         if obj is None:
             return
 
         self.set_row_regions(getattr(obj, 'row_regions', None))
         self.set_col_regions(getattr(obj, 'col_regions', None))
+        self._apply_mask()
 
     def __setitem__(self, key, item):
         self._setitem = True
         try:
             if isinstance(self, np.ma.core.MaskedArray):
-                out = np.ma.MaskedArray.__setitem__(self, key, item)
+                np.ma.MaskedArray.__setitem__(self, key, item)
             else:
-                out = np.ndarray.__setitem__(self, key, item)
+                np.ndarray.__setitem__(self, key, item)
         finally:
             self._setitem = False
 
