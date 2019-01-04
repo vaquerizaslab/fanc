@@ -7,22 +7,26 @@ files. Other features include indexing and querying.
 """
 
 from __future__ import division
-from kaic.config import config
-import tables as t
-from tables.nodes import filenode
-from kaic.tools.files import create_or_open_pytables_file, tmp_file_name
-from kaic.tools.general import RareUpdateProgressBar, create_col_index
-import os
-from tables.exceptions import NoSuchNodeError
-from abc import ABCMeta, abstractmethod
-import shutil
-import warnings
-from collections import defaultdict
-from .registry import class_id_dict, class_name_dict
-import tempfile
-from future.utils import with_metaclass, string_types
-from builtins import object
+
 import logging
+import os
+import shutil
+import tempfile
+import warnings
+from abc import ABCMeta, abstractmethod
+from builtins import object
+from collections import defaultdict
+
+import tables as t
+from future.utils import with_metaclass, string_types
+from tables.exceptions import NoSuchNodeError
+from tables.nodes import filenode
+
+from .config import config
+from .registry import class_id_dict, class_name_dict
+from .tools.files import create_or_open_pytables_file, tmp_file_name
+from .tools.general import RareUpdateProgressBar, create_col_index
+
 logger = logging.getLogger(__name__)
 
 _filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
