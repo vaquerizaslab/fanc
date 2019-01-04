@@ -137,7 +137,8 @@ class JuicerHic(RegionMatrixContainer):
             for _ in range(0, n_chromosomes):
                 name = _read_cstr(req)
                 req.read(4)
-                chromosomes.append(name)
+                if name != 'All':
+                    chromosomes.append(name)
 
         return chromosomes
 
@@ -319,7 +320,7 @@ class JuicerHic(RegionMatrixContainer):
             unit = self._unit
 
         chromosomes = self.chromosomes()
-        chromosome_index = chromosomes.index(chromosome)
+        chromosome_index = chromosomes.index(chromosome) + 1
 
         with open(self._hic_file, 'rb') as req:
             JuicerHic._skip_to_normalisation_vectors(req)
@@ -345,13 +346,17 @@ class JuicerHic(RegionMatrixContainer):
                         vector.append(v)
 
                     return vector
-        raise ValueError("Cannot find normalisation vector that matches"
+        raise ValueError("Cannot find normalisation vector that matches "
                          "chromosome: {}, normalisation: {}, "
                          "resolution: {}, unit: {}".format(chromosome, normalisation, resolution, unit))
 
     def _chromosome_ix_offset(self, target_chromosome):
+        chromosome_lengths = self.chromosome_lengths
+        if target_chromosome not in chromosome_lengths:
+            raise ValueError("Chromosome {} not in matrix.".format(target_chromosome))
+
         offset_ix = 0
-        for chromosome, chromosome_length in self.chromosome_lengths.items():
+        for chromosome, chromosome_length in chromosome_lengths.items():
             if chromosome == 'All':
                 continue
 
@@ -364,7 +369,8 @@ class JuicerHic(RegionMatrixContainer):
     def _region_start(self, region):
         region = self._convert_region(region)
         offset_ix = self._chromosome_ix_offset(region.chromosome)
-        ix = int((region.start - 1) / self._resolution)
+        region_start = region.start if region.start is not None else 1
+        ix = int((region_start - 1) / self._resolution)
         start = self._resolution * ix + 1
         return offset_ix + ix, start
 
@@ -389,7 +395,7 @@ class JuicerHic(RegionMatrixContainer):
         norm = self.normalisation_vector(region.chromosome)
         for i, start in enumerate(range(subset_start, region.end, self._resolution)):
             end = min(start + self._resolution - 1, cl, region.end)
-            bias_ix = int(region.start / self._resolution)
+            bias_ix = int(start / self._resolution)
             r = GenomicRegion(chromosome=region.chromosome, start=start,
                               end=end, bias=norm[bias_ix],
                               ix=int(subset_ix + i))
@@ -554,10 +560,8 @@ class JuicerHic(RegionMatrixContainer):
                 except KeyError:
                     logger.debug("Could not find block {}".format(block_number))
 
-    def _edges_subset(self, key=None, *args, **kwargs):
-        row_regions, col_regions = self._key_to_regions(key)
-        row_regions = list(row_regions)
-        col_regions = list(col_regions)
+    def _edges_subset(self, key=None, row_regions=None, col_regions=None,
+                      *args, **kwargs):
 
         if row_regions[0].chromosome != row_regions[-1].chromosome:
             raise ValueError("Cannot subset rows across multiple chromosomes!")
@@ -581,4 +585,14 @@ class JuicerHic(RegionMatrixContainer):
             yield Edge(source=regions_by_ix[x],
                        sink=regions_by_ix[y],
                        weight=weight)
+
+    def _edges_iter(self, *args, **kwargs):
+        chromosomes = self.chromosomes()
+        for ix1 in range(len(chromosomes)):
+            chromosome1 = chromosomes[ix1]
+            for ix2 in range(ix1, len(chromosomes)):
+                chromosome2 = chromosomes[ix2]
+
+                for edge in self.edges((chromosome1, chromosome2), *args, **kwargs):
+                    yield edge
 
