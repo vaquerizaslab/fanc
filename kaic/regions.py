@@ -384,7 +384,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
         self._flush_regions()
 
-    def data(self, key, value=None):
+    def region_data(self, key, value=None):
         """
         Retrieve or add vector-data to this object. If there is existing data in this
         object with the same name, it will be replaced
