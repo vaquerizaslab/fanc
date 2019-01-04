@@ -18,7 +18,7 @@ import intervaltree
 from .config import config
 from .regions import LazyGenomicRegion, RegionsTable
 from .tools.general import RareUpdateProgressBar, ranges, create_col_index, range_overlap
-from .data.general import Maskable, MaskedTable
+from .general import Maskable, MaskedTable
 
 from collections import defaultdict
 from future.utils import string_types
@@ -218,14 +218,16 @@ class RegionPairsContainer(RegionBased):
         raise NotImplementedError("Subclass must implement _edges_iter "
                                   "to enable iterating over edges!")
 
-    def _edges_subset(self, key=None, *args, **kwargs):
+    def _edges_subset(self, key=None, row_regions=None, col_regions=None,
+                      *args, **kwargs):
         raise NotImplementedError("Subclass must implement _edges_subset "
                                   "to enable iterating over edge subsets!")
 
     def _edges_length(self):
         return sum(1 for _ in self.edges)
 
-    def _edges_getitem(self, item, *args, **kwargs):
+    def _edges_getitem(self, item, row_regions=None, col_regions=None,
+                       *args, **kwargs):
         raise NotImplementedError("Subclass must implement _edges_getitem "
                                   "to enable getting specific edges!")
 
@@ -237,9 +239,19 @@ class RegionPairsContainer(RegionBased):
                 raise ValueError("Cannot retrieve edge table rows using key {}".format(key))
         else:
             row_key = key
-            col_key = slice(0, len(self.regions), 1)
+            col_key = None
 
-        return self.regions(row_key, *args, **kwargs), self.regions(col_key, *args, **kwargs)
+        if isinstance(row_key, list) and isinstance(row_key[0], GenomicRegion):
+            row_regions = row_key
+        else:
+            row_regions = self.regions(row_key, *args, **kwargs)
+
+        if isinstance(col_key, list) and isinstance(col_key[0], GenomicRegion):
+            col_regions = col_key
+        else:
+            col_regions = self.regions(col_key, *args, **kwargs)
+
+        return row_regions, col_regions
 
     def _min_max_region_ix(self, regions):
         min_ix = len(self.regions)
@@ -277,7 +289,9 @@ class RegionPairsContainer(RegionBased):
         if check_nodes_exist:
             n_regions = len(self.regions)
             if edge.source >= n_regions or edge.sink >= n_regions:
-                raise ValueError("Node index exceeds number of nodes in object")
+                raise ValueError("Node index ({}/{}) exceeds number of nodes ({}) in object".format(
+                    edge.source, edge.sink, n_regions
+                ))
 
         self._add_edge(edge, *args, **kwargs)
 
@@ -314,10 +328,33 @@ class RegionPairsContainer(RegionBased):
                 return self._regions_pairs._edges_iter()
 
             def __call__(self, key=None, *args, **kwargs):
+                correct = kwargs.pop("correct", True)
+
+                row_regions, col_regions = self._regions_pairs._key_to_regions(key)
+                row_regions = list(row_regions)
+                col_regions = list(col_regions)
+
                 if key is None:
-                    return self._regions_pairs._edges_iter(*args, **kwargs)
+                    edge_iter = self._regions_pairs._edges_iter(*args, **kwargs)
                 else:
-                    return self._regions_pairs.edge_subset(key, *args, **kwargs)
+                    edge_iter = self._regions_pairs._edges_subset(key, row_regions, col_regions,
+                                                                  *args, **kwargs)
+
+                if correct:
+                    weight_field = kwargs.pop('weight_field', self._regions_pairs._default_score_field)
+                    bias_field = kwargs.pop('bias_field', 'bias')
+                    biases = dict()
+                    for regions in (row_regions, col_regions):
+                        for region in regions:
+                            biases[region.ix] = getattr(region, bias_field, 1.0)
+
+                    for edge in edge_iter:
+                        weight = getattr(edge, weight_field)
+                        setattr(edge, weight_field, weight/biases[edge.source]/biases[edge.sink])
+                        yield edge
+                else:
+                    for edge in edge_iter:
+                        yield edge
 
             def __len__(self):
                 return self._regions_pairs._edges_length()
@@ -357,7 +394,16 @@ class RegionPairsContainer(RegionBased):
                     map of the relevant regions between chromosomes 1 and 4.
         :return: generator (:class:`~Edge`)
         """
-        return self._edges_subset(key, *args, **kwargs)
+        return self.edges(key, *args, **kwargs)
+
+    def regions_and_edges(self, key, *args, **kwargs):
+        row_regions, col_regions = self._key_to_regions(key)
+        if key is None:
+            edges = self._edges_iter(*args, **kwargs)
+        else:
+            edges = self._edges_subset(key, row_regions, col_regions, *args, **kwargs)
+
+        return row_regions, col_regions, edges
 
     def mappable(self):
         """
@@ -380,17 +426,42 @@ class RegionMatrixContainer(RegionPairsContainer):
         self._default_value = 0.0
         self._default_score_field = 'weight'
 
-    def matrix_entries(self, key=None, score_field=None, bias_field='bias',
-                       *args, **kwargs):
+    def regions_and_matrix_entries(self, key, correct=True,
+                                   bias_field='bias', score_field=None,
+                                   *args, **kwargs):
+        row_regions, col_regions = self._key_to_regions(key)
+        row_regions, col_regions = list(row_regions), list(col_regions)
+        row_offset = row_regions[0].ix
+        col_offset = col_regions[0].ix
+
+        entry_iter = self._matrix_entries(key, row_regions, col_regions,
+                                          score_field=score_field,
+                                          *args, **kwargs)
+
+        if correct:
+            biases = dict()
+            for regions in (row_regions, col_regions):
+                for region in regions:
+                    biases[region.ix] = getattr(region, bias_field, 1.0)
+
+            entry_iter = ((source - row_offset, sink - col_offset,
+                          weight / biases[source] / biases[sink])
+                          for source, sink, weight in entry_iter)
+
+        return row_regions, col_regions, entry_iter
+
+    def _matrix_entries(self, key, row_regions, col_regions,
+                        score_field=None, *args, **kwargs):
         if score_field is None:
             score_field = self._default_score_field
 
-        for edge in self.edges(key, *args, **kwargs):
-            yield (edge.source, edge.sink, getattr(edge, score_field, self._default_value))
+        for edge in self._edges_subset(key, row_regions, col_regions, *args, **kwargs):
+            yield (edge.source, edge.sink,
+                   getattr(edge, score_field, self._default_value))
 
-    def matrix(self, key=None,
-               score_field=None, default_value=None,
-               mask_invalid=False, _mappable=None):
+    def matrix(self, key=None, correct=True,
+               score_field=None, bias_field='bias',
+               default_value=None, mask_invalid=False, _mappable=None):
 
         if score_field is None:
             score_field = self._default_score_field
@@ -398,41 +469,34 @@ class RegionMatrixContainer(RegionPairsContainer):
         if default_value is None:
             default_value = self._default_value
 
-        row_regions, col_regions = self._key_to_regions(key)
-        row_regions, col_regions = list(row_regions), list(col_regions)
-        row_offset = row_regions[0].ix
-        col_offset = col_regions[0].ix
-
-        row_biases = np.array([getattr(r, 'bias', 1.0) for r in row_regions])
-        col_biases = np.array([getattr(r, 'bias', 1.0) for r in col_regions])
+        row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key, correct=correct,
+                                                                                   score_field=score_field,
+                                                                                   bias_field=bias_field)
 
         m = np.full((len(row_regions), len(col_regions)), default_value)
 
-        for source, sink, weight in self.matrix_entries(key, score_field):
-            ir = source - row_offset
-            jr = sink - col_offset
+        for source, sink, weight in matrix_entries:
+            ir = source
+            jr = sink
             if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
                 m[ir, jr] = weight
 
-            ir = sink - row_offset
-            jr = source - col_offset
+            ir = sink
+            jr = source
             if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
                 m[ir, jr] = weight
-
-        # remove matrix biases
-        m / row_biases[:, None] / col_biases
 
         if mask_invalid:
             mask = np.zeros(m.shape, dtype=bool)
             for row_region in row_regions:
                 valid = getattr(row_region, 'valid', True)
                 if not valid:
-                    mask[row_region.ix - - row_offset] = True
+                    mask[row_region.ix - - row_regions[0].ix] = True
 
             for col_region in col_regions:
                 valid = getattr(col_region, 'valid', True)
                 if not valid:
-                    mask[col_region.ix - - col_offset] = True
+                    mask[col_region.ix - - col_regions[0].ix] = True
 
             m = np.ma.MaskedArray(m, mask=mask)
 
@@ -777,6 +841,14 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
                         yield edge_row
 
+    def _matrix_entries(self, key, row_regions, col_regions,
+                        score_field=None, *args, **kwargs):
+        if score_field is None:
+            score_field = self._default_score_field
+
+        for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
+            yield (row['source'], row['sink'], row[score_field])
+
     def _row_to_edge(self, row, lazy=False, auto_update=True, **kwargs):
         if not lazy:
             source = row["source"]
@@ -794,8 +866,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         else:
             return LazyEdge(row, self._regions, auto_update=auto_update)
 
-    def _edges_subset(self, key=None, *args, **kwargs):
-        for row in self._edge_subset_rows(key):
+    def _edges_subset(self, key=None, row_regions=None, col_regions=None,
+                      *args, **kwargs):
+        for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
             yield self._row_to_edge(row, *args, **kwargs)
 
     def _edges_iter(self, *args, **kwargs):
