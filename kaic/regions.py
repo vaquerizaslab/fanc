@@ -6,11 +6,9 @@ import numpy as np
 import tables as t
 from Bio import SeqIO, Restriction, Seq
 from genomic_regions import RegionBased, GenomicRegion
-from kaic.config import config
-from kaic.data.general import FileGroup
-from kaic.tools.files import is_fasta_file
-from kaic.tools.general import create_col_index, \
-    RareUpdateProgressBar
+from .general import FileGroup
+from .tools.files import is_fasta_file
+from .tools.general import create_col_index, RareUpdateProgressBar
 
 try:
     from itertools import izip as zip
@@ -300,7 +298,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
         FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
 
-        if file_exists:
+        if file_exists and mode != 'w':
             self._regions = self._group.regions
         else:
             basic_fields = dict()
