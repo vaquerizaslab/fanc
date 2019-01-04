@@ -250,13 +250,6 @@ class RegionBasedWithBins(RegionBased):
         return slice(start_ix, end_ix, 1)
 
 
-def mark_regions_dirty(func):
-    def func_wrapper(self, *args, **kwargs):
-        func(self, *args, **kwargs)
-        self._regions_dirty = True
-    return func_wrapper
-
-
 class RegionsTable(RegionBasedWithBins, FileGroup):
     """
     PyTables Table wrapper for storing genomic regions.
@@ -344,8 +337,8 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
     def flush(self):
         self._flush_regions()
 
-    @mark_regions_dirty
     def _add_region(self, region, *args, **kwargs):
+        self._regions_dirty = True
         ix = getattr(self.meta, 'max_region_ix', -1) + 1
 
         # actually append
