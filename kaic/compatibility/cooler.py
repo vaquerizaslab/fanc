@@ -33,7 +33,7 @@ class LazyCoolerEdge(Edge):
         return ['weight']
 
 
-class CoolerRegions(RegionMatrixContainer, Cooler):
+class CoolerMatrix(RegionMatrixContainer, Cooler):
     def __init__(self, *args, **kwargs):
         Cooler.__init__(self, *args, **kwargs)
         RegionMatrixContainer.__init__(self)
@@ -113,9 +113,7 @@ class CoolerRegions(RegionMatrixContainer, Cooler):
         for df in self.bins():
             yield self._series_to_edge(df.iloc[0])
 
-    def _edges_subset(self, key=None, *args, **kwargs):
-        row_regions, col_regions = self._key_to_regions(key)
-
+    def _edges_subset(self, key=None, row_regions=None, col_regions=None, *args, **kwargs):
         row_start, row_end = self._min_max_region_ix(row_regions)
         col_start, col_end = self._min_max_region_ix(col_regions)
 
@@ -128,7 +126,6 @@ class CoolerRegions(RegionMatrixContainer, Cooler):
         edges = []
         df = self.pixels()[item]
         for index, row in df.iterrows():
-            print(row)
             edges.append(self._series_to_edge(row))
 
         if isinstance(item, int):
