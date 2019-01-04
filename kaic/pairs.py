@@ -1,34 +1,31 @@
 from __future__ import division
-import tables as t
-import pysam
-from kaic.config import config
-from kaic.tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions, WorkerMonitor
-from kaic.tools.sambam import natural_cmp
-from kaic.tools.files import is_sambam_file, create_temporary_copy
-from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
-import os
-from tables.exceptions import NoSuchNodeError
-from abc import abstractmethod, ABCMeta
-from bisect import bisect_right
-from kaic.tools.general import bit_flags_from_int, CachedIterator
-from .regions import RegionsTable
-from kaic.data.genomic import GenomicRegion, AccessOptimisedRegionPairs, Edge, AccessOptimisedHic, Hic
-import msgpack as pickle
-import numpy as np
-import hashlib
+
 import copy
+import gzip
+import logging
 import multiprocessing as mp
 import threading
-import msgpack
 import uuid
-from functools import partial
-from collections import defaultdict
-from future.utils import with_metaclass, string_types, viewitems
-from timeit import default_timer as timer
+from abc import abstractmethod, ABCMeta
+from bisect import bisect_right
 from builtins import object
-import gzip
-import warnings
-import logging
+from collections import defaultdict
+from timeit import default_timer as timer
+
+import msgpack
+import numpy as np
+import pysam
+import tables as t
+from future.utils import with_metaclass, viewitems
+
+from genomic_regions import GenomicRegion
+from .matrix import Edge, RegionPairsTable
+from .hic import Hic
+from .config import config
+from .general import MaskFilter, MaskedTable, Mask
+from .tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions, WorkerMonitor
+from .tools.sambam import natural_cmp
+
 logger = logging.getLogger(__name__)
 
 
@@ -460,7 +457,7 @@ class LazyFragment(GenomicRegion):
         return self.static_ix
 
 
-class ReadPairs(AccessOptimisedRegionPairs):
+class ReadPairs(RegionPairsTable):
     _classid = 'READPAIRS'
 
     def __init__(self, file_name=None, mode='a',
@@ -480,30 +477,28 @@ class ReadPairs(AccessOptimisedRegionPairs):
                                      that will house the region/fragment
                                      data
         """
-        AccessOptimisedRegionPairs.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                            additional_fields={
-                                                'ix': t.Int32Col(pos=0),
-                                                'left_read_position': t.Int64Col(pos=1),
-                                                'left_read_strand': t.Int8Col(pos=2),
-                                                'left_fragment_start': t.Int64Col(pos=3),
-                                                'left_fragment_end': t.Int64Col(pos=4),
-                                                'left_fragment_chromosome': t.Int32Col(pos=5),
-                                                'right_read_position': t.Int64Col(pos=6),
-                                                'right_read_strand': t.Int8Col(pos=7),
-                                                'right_fragment_start': t.Int64Col(pos=8),
-                                                'right_fragment_end': t.Int64Col(pos=9),
-                                                'right_fragment_chromosome': t.Int32Col(pos=10)
-                                            },
-                                            _table_name_nodes=_table_name_fragments,
-                                            _table_name_edges=_table_name_pairs)
+        RegionPairsTable.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
+                                  additional_edge_fields={
+                                      'ix': t.Int32Col(pos=0),
+                                      'left_read_position': t.Int64Col(pos=1),
+                                      'left_read_strand': t.Int8Col(pos=2),
+                                      'left_fragment_start': t.Int64Col(pos=3),
+                                      'left_fragment_end': t.Int64Col(pos=4),
+                                      'left_fragment_chromosome': t.Int32Col(pos=5),
+                                      'right_read_position': t.Int64Col(pos=6),
+                                      'right_read_strand': t.Int8Col(pos=7),
+                                      'right_fragment_start': t.Int64Col(pos=8),
+                                      'right_fragment_end': t.Int64Col(pos=9),
+                                      'right_fragment_chromosome': t.Int32Col(pos=10)
+                                  },
+                                  _table_name_regions=_table_name_fragments,
+                                  _table_name_edges=_table_name_pairs)
 
         self._pairs = self._edges
         self._pair_count = sum(edge_table._original_len() for edge_table in self._edge_table_iter())
 
-    def flush(self, flush_nodes=True, flush_edges=True, update_index=True, update_mappability=True,
-              silent=config.hide_progressbars):
-        AccessOptimisedRegionPairs.flush(self, flush_nodes=flush_nodes, silent=silent,
-                                         flush_edges=flush_edges, update_index=update_index)
+    def flush(self, update_mappability=True, silent=config.hide_progressbars):
+        RegionPairsTable.flush(self, silent=silent)
 
     def _read_fragment_info(self, read):
         chromosome = read.reference_name
@@ -657,8 +652,8 @@ class ReadPairs(AccessOptimisedRegionPairs):
         Convert a PyTables row to a FragmentReadPair
         """
         if lazy:
-            left_read = LazyAccessOptimisedFragmentRead(row, self, side="left")
-            right_read = LazyAccessOptimisedFragmentRead(row, self, side="right")
+            left_read = LazyFragmentRead(row, self, side="left")
+            right_read = LazyFragmentRead(row, self, side="right")
         else:
             fragment1 = GenomicRegion(start=row['left_fragment_start'],
                                       end=row['left_fragment_end'],
@@ -860,7 +855,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
                       run_queued_filters
         """
         mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
-        pcr_duplicate_filter = AOPCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
+        pcr_duplicate_filter = PCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
         self.filter(pcr_duplicate_filter, queue)
 
     def filter_inward(self, minimum_distance=None, queue=False, *args, **kwargs):
@@ -998,7 +993,7 @@ class ReadPairs(AccessOptimisedRegionPairs):
             l += len(edge_table)
         return l
 
-    def to_hic(self, file_name=None, tmpdir=None, _hic_class=AccessOptimisedHic):
+    def to_hic(self, file_name=None, tmpdir=None, _hic_class=Hic):
         hic = _hic_class(file_name=file_name, mode='w', tmpdir=tmpdir)
         hic.add_regions(self.regions())
 
@@ -1056,7 +1051,6 @@ class ReadPairs(AccessOptimisedRegionPairs):
             read_stats['unmasked'] = pair_stats['unmasked']
         pair_stats.update(read_stats)
         return pair_stats
-
 
 
 class FragmentReadPair(object):
@@ -1415,5 +1409,248 @@ class UnmappedFilter(ReadFilter):
         Check if the the flag bit 4 is set.
         """
         if read.flag & 4:
+            return False
+        return True
+
+
+class FragmentMappedReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
+    """
+    Abstract class that provides filtering functionality for the
+    :class:`~FragmentReadPair` object.
+
+    Extends MaskFilter and overrides valid(self, read) to make
+    :class:`~FragmentReadPair` filtering more "natural".
+
+    To create custom filters for the :class:`~FragmentMappedReadPairs`
+    object, extend this
+    class and override the :func:`~FragmentMappedReadPairFilter.valid_pair` method.
+    valid_pair should return False for a specific :class:`~FragmentReadPair` object
+    if the object is supposed to be filtered/masked and True
+    otherwise. See :class:`~InwardPairsFilter` for an example.
+
+    Pass a custom filter to the filter method in :class:`~FragmentMappedReadPairs`
+    to apply it.
+    """
+
+    def __init__(self, mask=None):
+        super(FragmentMappedReadPairFilter, self).__init__(mask)
+        self.pairs = None
+
+    def set_pairs_object(self, pairs):
+        self.pairs = pairs
+
+    @abstractmethod
+    def valid_pair(self, fr_pair):
+        pass
+
+    def valid(self, row):
+        """
+        Map validity check of rows to pairs.
+        """
+        pair = self.pairs._pair_from_row(row, lazy=True)
+        return self.valid_pair(pair)
+
+
+class InwardPairsFilter(FragmentMappedReadPairFilter):
+    """
+    Filter inward-facing read pairs at a distance less
+    than a specified cutoff.
+    """
+
+    def __init__(self, minimum_distance=10000, mask=None):
+        """
+        Initialize filter with filter settings.
+
+        :param minimum_distance: Minimum distance below which
+                                 reads are invalidated
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        super(InwardPairsFilter, self).__init__(mask=mask)
+        self.minimum_distance = minimum_distance
+
+    def valid_pair(self, pair):
+        """
+        Check if a pair is inward-facing and <minimum_distance apart.
+        """
+        if not pair.is_inward_pair():
+            return True
+
+        if pair.get_gap_size() > self.minimum_distance:
+            return True
+        return False
+
+
+class PCRDuplicateFilter(FragmentMappedReadPairFilter):
+    """
+    Masks alignments that are suspected to be PCR duplicates.
+    In order to be considered duplicates, two pairs need to have identical
+    start positions of their respective left alignments AND of their right alignments.
+    """
+
+    def __init__(self, pairs, threshold=3, mask=None):
+        """
+        Initialize filter with filter settings.
+
+        :param pairs: The :class:`~FragmentMappedReadPairs` instance that the filter will be
+                      applied to
+        :param threshold: If distance between two alignments is smaller or equal the threshold,
+                          the alignments are considered to be starting at the same position
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        FragmentMappedReadPairFilter.__init__(self, mask=mask)
+        self.threshold = threshold
+        self.pairs = pairs
+        self.duplicates_set = set()
+        self.duplicate_stats = defaultdict(int)
+        self._mark_duplicates(self.pairs._pairs)
+
+        n_dups = len(self.duplicates_set)
+        percent_dups = 1. * n_dups / self.pairs._pairs._original_len()
+        logger.info("PCR duplicate stats: " +
+                    "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
+                    " (multiplicity:occurances) " +
+                    " ".join("{}:{}".format(k, v) for k, v in self.duplicate_stats.items()))
+
+    def _mark_duplicates(self, edge_table):
+        # In order for sorted iteration to work, column needs to be indexed
+        try:
+            edge_table.cols.left_read_position.create_csindex()
+            index_existed = False
+        except ValueError:  # Index already exists
+            index_existed = True
+
+        # Using itersorted from Table class, since MaskedTable.itersorted only yields unmasked entries
+        all_iter = super(MaskedTable, edge_table).itersorted(sortby="left_read_position")
+        cur_pos = {}
+        cur_duplicates = {}
+        for p in all_iter:
+            pair = self.pairs._pair_from_row(p, lazy=True)
+            chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
+            if cur_pos.get(chrm) is None:
+                cur_pos[chrm] = (pair.left.position, pair.right.position)
+                cur_duplicates[chrm] = 1
+                continue
+            if (abs(pair.left.position - cur_pos[chrm][0]) <= self.threshold and
+                    abs(pair.right.position - cur_pos[chrm][1]) <= self.threshold):
+                self.duplicates_set.add(pair.ix)
+                cur_duplicates[chrm] += 1
+                continue
+            if cur_duplicates[chrm] > 1:
+                self.duplicate_stats[cur_duplicates[chrm]] += 1
+            cur_pos[chrm] = (pair.left.position, pair.right.position)
+            cur_duplicates[chrm] = 1
+
+        if not index_existed:
+            edge_table.cols.left_read_position.remove_index()
+
+    def valid_pair(self, pair):
+        """
+        Check if a pair is duplicated.
+        """
+        if pair.ix in self.duplicates_set:
+            return False
+        return True
+
+
+class AOPCRDuplicateFilter(PCRDuplicateFilter):
+    """
+    Masks alignments that are suspected to be PCR duplicates.
+    In order to be considered duplicates, two pairs need to have identical
+    start positions of their respective left alignments AND of their right alignments.
+    """
+
+    def __init__(self, pairs, threshold=3, mask=None):
+        """
+        Initialize filter with filter settings.
+
+        :param pairs: The :class:`~FragmentMappedReadPairs` instance that the filter will be
+                      applied to
+        :param threshold: If distance between two alignments is smaller or equal the threshold,
+                          the alignments are considered to be starting at the same position
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        FragmentMappedReadPairFilter.__init__(self, mask=mask)
+        self.threshold = threshold
+        self.pairs = pairs
+        self.duplicates_set = set()
+        self.duplicate_stats = defaultdict(int)
+        original_len = 0
+        for edge_table in self.pairs._edge_table_iter():
+            original_len += edge_table._original_len()
+            self._mark_duplicates(edge_table)
+
+        n_dups = len(self.duplicates_set)
+        percent_dups = 1. * n_dups / original_len
+        logger.info("PCR duplicate stats: " +
+                    "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
+                    " (multiplicity:occurances) " +
+                    " ".join("{}:{}".format(k, v) for k, v in self.duplicate_stats.items()))
+
+
+class OutwardPairsFilter(FragmentMappedReadPairFilter):
+    """
+    Filter outward-facing read pairs at a distance less
+    than a specified cutoff.
+    """
+
+    def __init__(self, minimum_distance=10000, mask=None):
+        """
+        Initialize filter with filter settings.
+
+        :param minimum_distance: Minimum distance below which
+                                 outward-facing reads are invalidated
+        :param mask: Optional Mask object describing the mask
+                     that is applied to filtered reads.
+        """
+        super(OutwardPairsFilter, self).__init__(mask=mask)
+        self.minimum_distance = minimum_distance
+
+    def valid_pair(self, pair):
+        if not pair.is_outward_pair():
+            return True
+
+        if pair.get_gap_size() > self.minimum_distance:
+            return True
+        return False
+
+
+class ReDistanceFilter(FragmentMappedReadPairFilter):
+    """
+    Filters read pairs where one or both reads are more than
+    maximum_distance away from the nearest restriction site.
+    """
+
+    def __init__(self, maximum_distance=500, mask=None):
+        super(ReDistanceFilter, self).__init__(mask=mask)
+        self.maximum_distance = maximum_distance
+
+    def valid_pair(self, pair):
+        """
+        Check if any read is >maximum_distance away from RE site.
+        """
+        for read in [pair.left, pair.right]:
+            if (read.position - read.fragment.start > self.maximum_distance
+                    and read.fragment.end - read.position > self.maximum_distance):
+                return False
+        return True
+
+
+class SelfLigationFilter(FragmentMappedReadPairFilter):
+    """
+    Filters read pairs where one or both reads are more than
+    maximum_distance away from the nearest restriction site.
+    """
+
+    def __init__(self, mask=None):
+        super(SelfLigationFilter, self).__init__(mask=mask)
+
+    def valid_pair(self, pair):
+        """
+        Check if any read is >maximum_distance away from RE site.
+        """
+        if pair.is_same_fragment():
             return False
         return True
