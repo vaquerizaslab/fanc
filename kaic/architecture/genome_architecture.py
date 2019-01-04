@@ -541,7 +541,7 @@ def _is_simple_type(data_type):
 
 class GenomicTrack(BasicRegionTable):
     """
-    Update of legacy GenomicTrack class backed by PyTables table.
+    Update of legacy_old GenomicTrack class backed by PyTables table.
     """
     _classid = 'GENOMICTRACK'
 
