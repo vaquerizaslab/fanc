@@ -705,7 +705,7 @@ class EnrichmentPeakFilter(PeakFilter):
         self.d_ratio = enrichment_d_cutoff
 
     def valid_peak(self, peak):
-        # covering my ass for legacy bug
+        # covering my ass for legacy_old bug
         if peak.e_d == 0 or peak.e_ll == 0 or peak.e_h == 0 or peak.e_v == 0:
             return False
 
@@ -735,7 +735,7 @@ class RaoPeakFilter(PeakFilter):
         PeakFilter.__init__(self, mask=mask)
 
     def valid_peak(self, peak):
-        # covering my ass for legacy bug
+        # covering my ass for legacy_old bug
         if peak.e_d == 0 or peak.e_ll == 0 or peak.e_h == 0 or peak.e_v == 0:
             return False
 
