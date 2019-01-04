@@ -262,7 +262,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
     PyTables Table wrapper for storing genomic regions.
 
     This class is inherited by objects working with lists of genomic
-    regions, such as equi-distant bins along chromosomes in a genome
+    regions, such as equidistant bins along chromosomes in a genome
     (:class:`~Hic`) or restriction fragments of genomic DNA
     (:class:`~kaic.construct.seq.FragmentMappedReadPairs`)
     """
