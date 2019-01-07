@@ -4,6 +4,7 @@ import copy
 import gzip
 import logging
 import multiprocessing as mp
+from queue import Empty
 import threading
 import uuid
 from abc import abstractmethod, ABCMeta
@@ -53,6 +54,7 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
     while True:
         # wait for input
         monitor.set_worker_idle(worker_uuid)
+        logger.debug("Worker {} waiting for input".format(worker_uuid))
         read_pairs = input_queue.get(True)
         monitor.set_worker_busy(worker_uuid)
         logger.debug('Worker {} reveived input!'.format(worker_uuid))
@@ -95,14 +97,17 @@ def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=100000):
                 (read2.reference_name, read2.pos, read2.flag)
             ))
             if len(read_pairs_batch) >= batch_size:
+                logger.debug("Submitting read pair batch ({}) to input queue".format(batch_size))
                 input_queue.put(msgpack.dumps(read_pairs_batch))
                 read_pairs_batch = []
                 monitor.increment()
         if len(read_pairs_batch) > 0:
+            logger.debug("Submitting read pair batch ({}) to input queue".format(batch_size))
             input_queue.put(msgpack.dumps(read_pairs_batch))
             monitor.increment()
     finally:
         monitor.set_generating_pairs(False)
+    logger.debug("Terminating read pairs worker")
 
 
 class MinimalRead(object):
@@ -495,7 +500,7 @@ class ReadPairs(RegionPairsTable):
                                   _table_name_edges=_table_name_pairs)
 
         self._pairs = self._edges
-        self._pair_count = sum(edge_table._original_len() for edge_table in self._edge_table_iter())
+        self._pair_count = sum(edge_table._original_len() for edge_table in self._edge_table_dict.values())
 
     def flush(self, update_mappability=True, silent=config.hide_progressbars):
         RegionPairsTable.flush(self, silent=silent)
@@ -521,7 +526,7 @@ class ReadPairs(RegionPairsTable):
         return ((read1.pos, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
                 (read2.pos, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
 
-    def _read_pairs_fragment_info(self, read_pairs, threads=4, batch_size=1000000):
+    def _read_pairs_fragment_info(self, read_pairs, threads=4, batch_size=1000000, timeout=180):
         fragment_infos = defaultdict(list)
         fragment_ends = defaultdict(list)
         for region in self.regions(lazy=True):
@@ -548,12 +553,17 @@ class ReadPairs(RegionPairsTable):
 
             output_counter = 0
             while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
-                read_pair_infos = output_queue.get(block=True)
+                try:
+                    read_pair_infos = output_queue.get(block=True, timeout=timeout)
 
-                for read1_info, read2_info in msgpack.loads(read_pair_infos):
-                    yield read1_info, read2_info
-                output_counter += 1
-                del read_pair_infos
+                    for read1_info, read2_info in msgpack.loads(read_pair_infos):
+                        yield read1_info, read2_info
+                    output_counter += 1
+                    del read_pair_infos
+                except Empty:
+                    logger.debug("Reached SAM pair generator timeout. This could mean that no "
+                                 "valid read pairs were found after filtering. "
+                                 "Check filter settings!")
         finally:
             if worker_pool is not None:
                 worker_pool.terminate()
@@ -602,6 +612,12 @@ class ReadPairs(RegionPairsTable):
 
         self._pair_count += 1
 
+    def _default_edge_list(self):
+        record = [None] * len(self._field_names_dict)
+        for name, ix in self._field_names_dict.items():
+            record[ix] = self._edge_field_defaults[name]
+        return record
+
     def add_read_pair(self, read_pair, flush=True):
         fi1, fi2 = self._read_pair_fragment_info(read_pair)
         self._add_infos(fi1, fi2)
@@ -609,7 +625,6 @@ class ReadPairs(RegionPairsTable):
             self.flush()
 
     def add_read_pairs(self, read_pairs, flush=True, batch_size=1000000, threads=1):
-        self.disable_indexes()
         start_time = timer()
         chunk_start_time = timer()
         pairs_counter = 0
@@ -637,8 +652,6 @@ class ReadPairs(RegionPairsTable):
             else:
                 self.meta.read_filter_stats = add_dict(self.meta.read_filter_stats, stats)
 
-        logger.info("Re-enabling pairs index...")
-        self.enable_indexes()
         if flush:
             self.flush()
         logger.info("Done adding pairs.")
