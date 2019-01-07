@@ -303,6 +303,8 @@ class RegionPairsContainer(RegionBased):
 
             def __call__(self, key=None, *args, **kwargs):
                 norm = kwargs.pop("norm", True)
+                intra_chromosomal = kwargs.pop("intra_chromosomal", True)
+                inter_chromosomal = kwargs.pop("inter_chromosomal", True)
 
                 row_regions, col_regions = self._regions_pairs._key_to_regions(key)
                 row_regions = list(row_regions)
@@ -322,10 +324,40 @@ class RegionPairsContainer(RegionBased):
                         for region in regions:
                             biases[region.ix] = getattr(region, bias_field, 1.0)
 
-                    for edge in edge_iter:
-                        weight = getattr(edge, weight_field)
-                        setattr(edge, weight_field, weight/biases[edge.source]/biases[edge.sink])
-                        yield edge
+                    if not inter_chromosomal or not intra_chromosomal:
+                        for edge in edge_iter:
+                            row_region = row_regions[edge.source]
+                            col_region = row_regions[edge.sink]
+                            if row_region.chromosome == col_region.chromosome:
+                                if not intra_chromosomal:
+                                    continue
+                            else:
+                                if not inter_chromosomal:
+                                    continue
+
+                            weight = getattr(edge, weight_field)
+                            setattr(edge, weight_field, weight / biases[edge.source] / biases[edge.sink])
+                            yield edge
+                    else:
+                        if not inter_chromosomal or not intra_chromosomal:
+                            for edge in edge_iter:
+                                row_region = row_regions[edge.source]
+                                col_region = row_regions[edge.sink]
+                                if row_region.chromosome == col_region.chromosome:
+                                    if not intra_chromosomal:
+                                        continue
+                                else:
+                                    if not inter_chromosomal:
+                                        continue
+
+                                weight = getattr(edge, weight_field)
+                                setattr(edge, weight_field, weight / biases[edge.source] / biases[edge.sink])
+                                yield edge
+                        else:
+                            for edge in edge_iter:
+                                weight = getattr(edge, weight_field)
+                                setattr(edge, weight_field, weight/biases[edge.source]/biases[edge.sink])
+                                yield edge
                 else:
                     for edge in edge_iter:
                         yield edge
@@ -369,6 +401,27 @@ class RegionPairsContainer(RegionBased):
         :return: generator (:class:`~Edge`)
         """
         return self.edges(key, *args, **kwargs)
+
+    @classmethod
+    def merge(cls, pairs, *args, **kwargs):
+        merged_pairs = cls(*args, **kwargs)
+
+        pairs = [pair_object for pair_object in pairs]
+
+        regions = list(pairs[0].regions)
+        for pair_object in pairs[1:]:
+            try:
+                for r1, r2 in zip(regions, pair_object.regions):
+                    assert r1.chromosome == r2.chromosome
+                    assert r1.start == r2.start
+                    assert r1.end == r2.end
+            except AssertionError:
+                raise ValueError("Regions in pair objects are not identical, cannot perform merge!")
+
+        for pair_object in pairs:
+            merged_pairs.add_edges(pair_object.edges(lazy=True))
+
+        return merged_pairs
 
     def regions_and_edges(self, key, *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key)
@@ -598,6 +651,26 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
             return chromosome_intra_expected[selected_chromosome]
 
         return intra_expected, chromosome_intra_expected, inter_expected
+
+    def marginals(self, weight_column=None, norm=True):
+        """
+        Get the marginals vector of this Hic matrix.
+        """
+        if weight_column is None:
+            weight_column = self._default_score_field
+
+        # prepare marginals dict
+        marginals = np.zeros(len(self.regions), float)
+
+        logger.debug("Calculating marginals...")
+        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
+            for i, edge in enumerate(self.edges(lazy=True, norm=norm)):
+                marginals[edge.source] += getattr(edge, weight_column)
+                if edge.source != edge.sink:
+                    marginals[edge.sink] += getattr(edge, weight_column)
+                pb.update(i)
+
+        return marginals
 
 
 class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
