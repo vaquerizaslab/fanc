@@ -206,8 +206,8 @@ def to_slice(l):
     return slice(l[0], l[-1]+1, d)
 
 
-def mkdir(dir_name):
-    dir_name = os.path.expanduser(dir_name)
+def mkdir(*dir_name):
+    dir_name = os.path.expanduser(os.path.join(*dir_name))
 
     try:
         os.makedirs(dir_name)
@@ -503,6 +503,6 @@ def get_sam_mapper(sam_file):
             return sam_file.header['PG'][0]['ID']
         else:
             with pysam.AlignmentFile(sam_file) as sam:
-                return sam_file.header['PG'][0]['ID']
+                return sam.header['PG'][0]['ID']
     except Exception:
         return False
