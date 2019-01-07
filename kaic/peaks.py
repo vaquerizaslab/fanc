@@ -255,7 +255,6 @@ class RaoPeakInfo(RegionMatrixTable):
                           existing peak info file, will load its information. If path
                           to a non-existant file will create the file.
         :param mode: File mode, use 'a' for append, 'r' for read, and 'w' for write
-        :param regions: Iterable with :class:`~GenomicRegion` objects to be loaded
         :param _table_name_regions: Internal, controls name of the region PyTables table
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
         """
