@@ -59,13 +59,13 @@ from kaic.config import config
 from kaic.tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions, WorkerMonitor
 from kaic.tools.sambam import natural_cmp
 from kaic.tools.files import is_sambam_file, create_temporary_copy
-from kaic.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
+from kaic.legacy.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from kaic.tools.general import bit_flags_from_int, CachedIterator
-from kaic.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegionPairs, Edge, AccessOptimisedHic, Hic
+from kaic.legacy.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegionPairs, Edge, AccessOptimisedHic, Hic
 import msgpack as pickle
 import numpy as np
 import hashlib

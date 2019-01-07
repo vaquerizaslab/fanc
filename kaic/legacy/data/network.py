@@ -6,8 +6,8 @@ import numpy as np
 from scipy.stats import poisson
 from collections import defaultdict, OrderedDict
 import tables as t
-from kaic.data.genomic import AccessOptimisedRegionMatrixTable, Edge, LazyEdge
-from kaic.data.general import MaskFilter
+from kaic.legacy.data.genomic import AccessOptimisedRegionMatrixTable, Edge, LazyEdge
+from kaic.legacy.data.general import MaskFilter
 import msgpack
 import msgpack_numpy
 import math

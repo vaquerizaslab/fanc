@@ -59,32 +59,37 @@ Example:
 """
 
 from __future__ import division, print_function
-
-import os.path
-from abc import abstractmethod, ABCMeta
-
-import numpy as np
-import pandas as p
-import tables as t
-from Bio import SeqIO, Restriction, Seq
-from genomic_regions import RegionBased, GenomicRegion
 from kaic.config import config
-from kaic.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
-from kaic.tools.files import is_fasta_file
+import tables as t
+import pandas as p
+import numpy as np
+import pysam
+import pybedtools
+from kaic.tools.files import is_fasta_file, write_bigwig, write_bed, write_gff
+from kaic.tools.matrix import apply_sliding_func
+from kaic.tools.general import natural_sort, natural_cmp
+from Bio import SeqIO, Restriction, Seq
+from kaic.legacy.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
+from abc import abstractmethod, ABCMeta
+import os.path
 from kaic.tools.general import ranges, distribute_integer, create_col_index, \
-    RareUpdateProgressBar, range_overlap
-
+    RareUpdateProgressBar, range_overlap, str_to_int
 try:
     from itertools import izip as zip
 except ImportError:
     pass
 import pickle
 from collections import defaultdict
-
-from bisect import bisect_right
+import copy
+import re
+import shlex
+import warnings
+from bisect import bisect_right, bisect_left
 from future.utils import with_metaclass, string_types, viewitems
 from builtins import object
+from pandas import DataFrame, read_table
 import subprocess
+import pyBigWig
 import intervaltree
 import logging
 logger = logging.getLogger(__name__)
@@ -132,6 +137,2367 @@ def _edge_overlap_split_rao(original_edge, overlap_map):
     return edges_list
 
 
+def _weighted_mean(intervals):
+    intervals = np.array(intervals)
+    if len(intervals) == 0:
+        return np.nan
+    mask = np.isfinite(intervals[:, 2])
+    valid = intervals[mask]
+    if len(valid) == 0:
+        return np.nan
+    weights = (valid[:, 1] - valid[:, 0])
+    weights += 1
+    # safety
+    weights = [weight if weight > 0 else 1 for weight in weights]
+    return np.average(valid[:, 2], weights=weights)
+
+
+def as_region(region):
+    if isinstance(region, string_types):
+        return GenomicRegion.from_string(region)
+    elif isinstance(region, GenomicRegion):
+        return region
+    raise ValueError("region parameter cannot be converted to GenomicRegion!")
+
+
+class RegionBased(object):
+    """
+    Base class for working with genomic regions.
+    
+    Guide for inheriting classes which functions to override:
+    
+    MUST (basic functionality):
+        _region_iter
+        _get_regions
+    
+    SHOULD (works if above are implemented, but is highly inefficient):
+        _region_subset
+        _region_intervals
+    
+    CAN (override for potential speed benefits or added functionality):
+        _region_len
+        chromosomes
+        chromosome_lens
+        region_bins
+    """
+    def __init__(self):
+        pass
+
+    @property
+    def _estimate_region_bounds(self):
+        return True
+
+    @property
+    def file_type(self):
+        return 'region'
+
+    def _region_iter(self, *args, **kwargs):
+        raise NotImplementedError("Function not implemented")
+
+    def _get_regions(self, item, *args, **kwargs):
+        raise NotImplementedError("Function not implemented")
+
+    def _region_subset(self, region, *args, **kwargs):
+        return self.regions[self.region_bins(region)]
+
+    def _region_intervals(self, region, *args, **kwargs):
+        intervals = []
+        for region in self.regions(region, *args, **kwargs):
+            intervals.append((region.start, region.end, region.score))
+        return intervals
+
+    def _region_len(self):
+        return sum(1 for _ in self.regions)
+
+    def __len__(self):
+        return self._region_len()
+
+    def __getitem__(self, item):
+        return self._get_regions(item)
+
+    def __iter__(self):
+        return self.regions()
+
+    @property
+    def regions(self):
+        """
+        Iterate over genomic regions in this object.
+
+        Will return a :class:`~GenomicRegion` object in every iteration.
+        Can also be used to get the number of regions by calling
+        len() on the object returned by this method.
+
+        :return: RegionIter
+        """
+        class RegionIter(object):
+            def __init__(self, region_based):
+                self._region_based = region_based
+
+            def __len__(self):
+                return self._region_based._region_len()
+
+            def __iter__(self):
+                return self()
+
+            def _fix_chromosome(self, regions):
+                for r in regions:
+                    if r.chromosome.startswith('chr'):
+                        r.chromosome = r.chromosome[3:]
+                    else:
+                        try:
+                            r.chromosome = 'chr' + r.chromosome
+                        except AttributeError:
+                            r = r.copy()
+                            r.chromosome = 'chr' + r.chromosome
+                    yield r
+
+            def __call__(self, key=None, *args, **kwargs):
+                fix_chromosome = kwargs.pop('fix_chromosome', False)
+
+                if key is None:
+                    iterator = self._region_based._region_iter(*args, **kwargs)
+                else:
+                    iterator = self._region_based.subset(key, *args, **kwargs)
+
+                if fix_chromosome:
+                    return self._fix_chromosome(iterator)
+                else:
+                    return iterator
+
+            def __getitem__(self, item):
+                return self._region_based._get_regions(item)
+
+        return RegionIter(self)
+
+    def _convert_region(self, region):
+        """
+        Take any object that can be interpreted as a region and return a :class:`GenomicRegion`.
+        
+        :param region: Any object interpretable as genomic region (string, :class:`GenomicRegion`)
+        :return: :class:`GenomicRegion`
+        """
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+
+        if isinstance(region, GenomicRegion):
+            if region.start is None and self._estimate_region_bounds:
+                region.start = 0
+
+            if region.end is None and self._estimate_region_bounds:
+                chromosome_lengths = self.chromosome_lengths
+                if region.chromosome in chromosome_lengths:
+                    region.end = chromosome_lengths[region.chromosome]
+        return region
+
+    def chromosomes(self):
+        """
+        Get a list of chromosome names.
+        """
+        chromosomes_set = set()
+        chromosomes = []
+        for region in self.regions:
+            if region.chromosome not in chromosomes_set:
+                chromosomes_set.add(region.chromosome)
+                chromosomes.append(region.chromosome)
+        return chromosomes
+
+    @property
+    def chromosome_lens(self):
+        return self.chromosome_lengths
+
+    @property
+    def chromosome_lengths(self):
+        """
+        Returns a dictionary of chromosomes and their length
+        in bp.
+        """
+        chr_lens = {}
+        for r in self.regions:
+            if chr_lens.get(r.chromosome) is None:
+                chr_lens[r.chromosome] = r.end
+                continue
+            if r.end > chr_lens[r.chromosome]:
+                chr_lens[r.chromosome] = r.end
+        return chr_lens
+
+    def region_bins(self, region):
+        """
+        Takes a genomic region and returns a slice of the bin
+        indices that are covered by the region.
+
+        :param region: String or class:`~GenomicRegion`
+                       object for which covered bins will
+                       be returned.
+        :return: slice
+        """
+        region = self._convert_region(region)
+
+        start_ix = None
+        end_ix = None
+        for i, r in enumerate(self.regions):
+            ix = r.ix if hasattr(r, 'ix') and r.ix is not None else i
+            if not (r.chromosome == region.chromosome and r.start <= region.end and r.end >= region.start):
+                continue
+            if start_ix is None:
+                start_ix = ix
+                end_ix = ix + 1
+                continue
+            end_ix = ix + 1
+        return slice(start_ix, end_ix)
+
+    def find_region(self, query_regions, _regions_dict=None, _region_ends=None, _chromosomes=None):
+        """
+        Find the region that is at the center of a region.
+
+        :param query_regions: Region selector string, :class:~GenomicRegion, or
+                              list of the former
+        :return: index (or list of indexes) of the region at the center of the
+                 query region
+        """
+        is_single = False
+        if isinstance(query_regions, string_types):
+            is_single = True
+            query_regions = [GenomicRegion.from_string(query_regions)]
+
+        if isinstance(query_regions, GenomicRegion):
+            is_single = True
+            query_regions = [query_regions]
+
+        if _regions_dict is None or _region_ends is None or _chromosomes is None:
+            regions_dict = defaultdict(list)
+            region_ends = defaultdict(list)
+            chromosomes = set()
+
+            for region in self.regions:
+                regions_dict[region.chromosome].append(region)
+                region_ends[region.chromosome].append(region.end)
+                chromosomes.add(region.chromosome)
+        else:
+            regions_dict = _regions_dict
+            region_ends = _region_ends
+            chromosomes = _chromosomes
+
+        hit_regions = []
+        for query_region in query_regions:
+            if isinstance(query_region, string_types):
+                query_region = GenomicRegion.from_string(query_region)
+
+            if query_region.chromosome not in chromosomes:
+                hit_regions.append(None)
+                continue
+
+            center = query_region.start + (query_region.end-query_region.start)/2
+            ix = bisect_left(region_ends[query_region.chromosome], center)
+            try:
+                hit_regions.append(regions_dict[query_region.chromosome][ix])
+            except IndexError:
+                hit_regions.append(None)
+        if is_single:
+            return hit_regions[0]
+        return hit_regions
+
+    def subset(self, region, *args, **kwargs):
+        """
+        Takes a class:`~GenomicRegion` and returns all regions that
+        overlap with the supplied region.
+
+        :param region: String or class:`~GenomicRegion`
+                       object for which covered bins will
+                       be returned.
+        """
+        region = self._convert_region(region)
+        return self._region_subset(region, *args, **kwargs)
+
+    def region_intervals(self, region, bins=None, bin_size=None, smoothing_window=None,
+                         nan_replacement=None, zero_to_nan=False, *args, **kwargs):
+        region = self._convert_region(region)
+        if not isinstance(region, GenomicRegion):
+            raise ValueError("Region must be a GenomicRegion object or equivalent string!")
+
+        raw_intervals = self._region_intervals(region, *args, **kwargs)
+
+        if raw_intervals is None:
+            raw_intervals = []
+
+        if bins is None and bin_size is None:
+            return raw_intervals
+
+        if bins is not None:
+            return RegionBased.bin_intervals(raw_intervals, bins,
+                                             interval_range=[region.start, region.end],
+                                             smoothing_window=smoothing_window,
+                                             nan_replacement=nan_replacement,
+                                             zero_to_nan=zero_to_nan)
+
+        if bin_size is not None:
+            return RegionBased.bin_intervals_equidistant(raw_intervals, bin_size,
+                                                         interval_range=[region.start, region.end],
+                                                         smoothing_window=smoothing_window,
+                                                         nan_replacement=nan_replacement,
+                                                         zero_to_nan=zero_to_nan)
+
+    def intervals(self, *args, **kwargs):
+        return self.region_intervals(*args, **kwargs)
+
+    def binned_regions(self, region=None, bins=None, bin_size=None, smoothing_window=None,
+                       nan_replacement=None, zero_to_nan=False, *args, **kwargs):
+        region = self._convert_region(region)
+        br = []
+        if region is None:
+            for chromosome in self.chromosomes():
+                interval_bins = self.region_intervals(chromosome, bins=bins, bin_size=bin_size,
+                                                      smoothing_window=smoothing_window,
+                                                      nan_replacement=nan_replacement,
+                                                      zero_to_nan=zero_to_nan, *args, **kwargs)
+                br += [GenomicRegion(chromosome=chromosome, start=interval_bin[0],
+                                     end=interval_bin[1], score=interval_bin[2])
+                       for interval_bin in interval_bins]
+        else:
+            interval_bins = self.region_intervals(region, bins=bins, bin_size=bin_size,
+                                                  smoothing_window=smoothing_window,
+                                                  nan_replacement=nan_replacement,
+                                                  zero_to_nan=zero_to_nan, *args, **kwargs)
+            br += [GenomicRegion(chromosome=region.chromosome, start=interval_bin[0],
+                                 end=interval_bin[1], score=interval_bin[2])
+                   for interval_bin in interval_bins]
+        return br
+
+    @staticmethod
+    def bin_intervals(intervals, bins, interval_range=None, smoothing_window=None,
+                      nan_replacement=None, zero_to_nan=False):
+        if intervals is None:
+            return []
+
+        intervals = np.array(list(intervals))
+
+        if interval_range is None:
+            try:
+                interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
+            except (IndexError, TypeError):
+                raise ValueError("intervals cannot be None or length 0 if not providing interval_range!")
+
+        bin_size = (interval_range[1] - interval_range[0] + 1) / bins
+        logger.debug("Bin size: {}".format(bin_size))
+
+        return RegionBased._bin_intervals_equidist(intervals, bin_size, interval_range, bins=bins,
+                                                   smoothing_window=smoothing_window,
+                                                   nan_replacement=nan_replacement,
+                                                   zero_to_nan=zero_to_nan)
+
+    @staticmethod
+    def bin_intervals_equidistant(intervals, bin_size, interval_range=None, smoothing_window=None,
+                                  nan_replacement=None, zero_to_nan=False):
+        if intervals is None:
+            return []
+
+        intervals = np.array(list(intervals))
+
+        if interval_range is None:
+            try:
+                interval_range = (min(intervals[:, 0]), max(intervals[:, 1]))
+            except (IndexError, TypeError):
+                raise ValueError("intervals cannot be None or length 0 if not providing interval_range!")
+
+        if isinstance(interval_range, GenomicRegion):
+            interval_range = (interval_range.start, interval_range.end)
+
+        return RegionBased._bin_intervals_equidist(intervals, bin_size, interval_range,
+                                                   smoothing_window=smoothing_window,
+                                                   nan_replacement=nan_replacement,
+                                                   zero_to_nan=zero_to_nan)
+
+    @staticmethod
+    def _bin_intervals_equidist(intervals, bin_size, interval_range, bins=None, smoothing_window=None,
+                                nan_replacement=None, zero_to_nan=False):
+        if bins is None:
+            bins = int((interval_range[1] - interval_range[0] + 1) / bin_size + .5)
+
+        current_interval = 0
+        bin_coordinates = []
+        bin_weighted_sum = [0.0] * bins
+        bin_weighted_count = [0.0] * bins
+        bin_start = interval_range[0]
+        for bin_counter in range(bins):
+            bin_end = int(interval_range[0] + bin_size + (bin_size * bin_counter) + 0.5) - 1
+            bin_coordinates.append((bin_start, bin_end))
+
+            if current_interval < len(intervals):
+                interval = intervals[current_interval]
+            else:
+                interval = None
+
+            # add all successive, fully-contained intervals to bin
+            while interval is not None and (interval[0] <= interval[1] <= bin_end and interval[1] >= bin_start):
+                value = interval[2]
+                if zero_to_nan and value < 10e-8:
+                    value = np.nan
+
+                if not np.isfinite(value):
+                    if nan_replacement is not None:
+                        value = nan_replacement
+                    else:
+                        value = None
+
+                if value is not None:
+                    f = (interval[1] + 1 - interval[0]) / bin_size
+                    bin_weighted_sum[bin_counter] += f * value
+                    bin_weighted_count[bin_counter] += f
+
+                current_interval += 1
+                if current_interval < len(intervals):
+                    interval = intervals[current_interval]
+                else:
+                    interval = None
+
+            # add partially-contained interval to bin
+            if interval is not None and (interval[0] <= bin_end and interval[1] >= bin_start):
+                value = interval[2]
+                if zero_to_nan and value < 10e-8:
+                    value = np.nan
+
+                if not np.isfinite(value):
+                    if nan_replacement is not None:
+                        value = nan_replacement
+                    else:
+                        value = None
+
+                if value is not None:
+                    f = (min(bin_end, interval[1] + 1) - max(bin_start, interval[0])) / bin_size
+                    bin_weighted_sum[bin_counter] += f * value
+                    bin_weighted_count[bin_counter] += f
+
+            bin_start = bin_end + 1
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            result = np.true_divide(bin_weighted_sum, bin_weighted_count)
+
+            if nan_replacement is not None:
+                result[~ np.isfinite(result)] = nan_replacement  # -inf inf NaN
+            else:
+                result[~ np.isfinite(result)] = np.nan  # -inf inf NaN
+
+        if smoothing_window is not None:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                result = apply_sliding_func(result, smoothing_window)
+
+        return tuple((bin_coordinates[i][0], bin_coordinates[i][1], result[i]) for i in range(len(result)))
+
+    def binned_values(self, region, bins, smoothing_window=None, zero_to_nan=False):
+        region = self._convert_region(region)
+        return RegionBased.bin_intervals(self.region_intervals(region), bins,
+                                         interval_range=(region.start, region.end),
+                                         smoothing_window=smoothing_window,
+                                         zero_to_nan=zero_to_nan)
+
+    def binned_values_equidistant(self, region, bin_size, smoothing_window=None, zero_to_nan=False):
+        region = self._convert_region(region)
+        return RegionBased.bin_intervals_equidistant(self.region_intervals(region), bin_size,
+                                                     interval_range=(region.start, region.end),
+                                                     smoothing_window=smoothing_window,
+                                                     zero_to_nan=zero_to_nan)
+
+    def to_bed(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as BED file
+        """
+        write_bed(file_name, self.regions(subset), **kwargs)
+
+    def to_gff(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as GFF file
+        """
+        write_gff(file_name, self.regions(subset), **kwargs)
+
+    def to_bigwig(self, file_name, subset=None, **kwargs):
+        """
+        Export regions as BigWig file.
+        """
+        write_bigwig(file_name, self.regions(subset), mode='w', **kwargs)
+
+
+class RegionWrapper(RegionBased):
+    def __init__(self, regions):
+        super(RegionWrapper, self).__init__()
+        region_intervals = defaultdict(list)
+
+        self._regions = []
+        for region in regions:
+            self._regions.append(region)
+            interval = intervaltree.Interval(region.start - 1, region.end, data=region)
+            region_intervals[region.chromosome].append(interval)
+
+        self.region_trees = {}
+        for chromosome, intervals in region_intervals.items():
+            self.region_trees[chromosome] = intervaltree.IntervalTree(intervals)
+
+    def _get_regions(self, item, *args, **kwargs):
+        return self._regions[item]
+
+    def _region_iter(self, *args, **kwargs):
+        for region in self._regions:
+            yield region
+
+    def _region_subset(self, region, *args, **kwargs):
+        tree = self.region_trees[region.chromosome]
+        for interval in tree[region.start:region.end]:
+            yield interval.data
+
+    def _region_len(self):
+        return len(self._regions)
+
+    def chromosomes(self):
+        return list(self.region_trees.keys())
+
+
+class Bed(pybedtools.BedTool, RegionBased):
+    """
+    Data type representing a BED file.
+
+    Only exists to support 'with' statements
+    """
+
+    def __init__(self, *args, **kwargs):
+        pybedtools.BedTool.__init__(self, *args, **kwargs)
+    
+    def __exit__(self, exec_type, exec_val, exec_tb):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def _region_iter(self, *args, **kwargs):
+        for interval in self.intervals:
+            yield self._interval_to_region(interval)
+
+    def _get_regions(self, item, *args, **kwargs):
+        if isinstance(item, string_types):
+            item = GenomicRegion.from_string(item)
+
+        if not isinstance(item, GenomicRegion):
+            intervals = pybedtools.BedTool.__getitem__(self, item)
+            if isinstance(intervals, pybedtools.Interval):
+                return self._interval_to_region(intervals)
+            elif isinstance(intervals, GenomicRegion):
+                return intervals
+            else:
+                regions = []
+                for interval in intervals:
+                    regions.append(self._interval_to_region(interval))
+                return regions
+
+        start = item.start if item.start is not None else 1
+
+        query_interval = pybedtools.cbedtools.Interval(chrom=item.chromosome,
+                                                       start=start,
+                                                       end=item.end)
+
+        regions = []
+        for interval in self.all_hits(query_interval):
+            region = self._interval_to_region(interval)
+            regions.append(region)
+        return regions
+
+    def _region_subset(self, region, *args, **kwargs):
+        for interval in self.filter(lambda i: i.chrom == region.chromosome
+                                    and i.start <= region.end
+                                    and i.end >= region.start):
+            yield self._interval_to_region(interval)
+
+    def _region_len(self):
+        return sum(1 for _ in self.intervals)
+
+    def _interval_to_region(self, interval):
+        try:
+            score = float(interval.score)
+        except (TypeError, ValueError):
+            score = None
+
+        if score is None:
+            if len(interval.fields) == 4:  # likely bedGraph!
+                try:
+                    score = float(interval.fields[3])
+                except ValueError:
+                    score = np.nan
+            else:
+                score = np.nan
+
+        try:
+            name = interval.name
+        except (TypeError, ValueError):
+            warnings.warn("Pybedtools could not retrieve interval name. Continuing anyways.")
+            name = None
+
+        if self.intervals.file_type == 'gff':
+            try:
+                attributes = {key: value for key, value in interval.attrs.items()}
+            except ValueError:
+                attributes = {}
+
+            attributes['chromosome'] = interval.chrom
+            attributes['start'] = interval.start
+            attributes['end'] = interval.end
+            attributes['strand'] = interval.strand
+            attributes['score'] = score
+            attributes['fields'] = interval.fields
+            attributes['source'] = interval.fields[1]
+            attributes['feature'] = interval.fields[2]
+            attributes['frame'] = interval.fields[7] if len(interval.fields) > 7 else '.'
+
+            region = GenomicRegion(**attributes)
+        else:
+            region = GenomicRegion(chromosome=interval.chrom, start=interval.start, end=interval.end,
+                                   strand=interval.strand, score=score, fields=interval.fields,
+                                   name=name)
+        return region
+
+    def merge_overlapping(self, stat=_weighted_mean, sort=True):
+        if sort:
+            bed = self
+        else:
+            bed = self.sort()
+
+        current_intervals = []
+        for interval in bed:
+            if len(current_intervals) == 0 or (current_intervals[-1].start < interval.end and
+                                               current_intervals[-1].end > interval.start and
+                                               current_intervals[-1].chrom == interval.chrom):
+                current_intervals.append(interval)
+            else:
+                # merge
+                intervals = np.array([(current.start, current.end,
+                                       float(current.score) if current.score != '.' else np.nan)
+                                      for current in current_intervals])
+                merged_score = "{:0.6f}".format(stat(intervals))
+                merged_strand = current_intervals[0].strand
+                merged_start = min(intervals[:, 0])
+                merged_end = max(intervals[:, 1])
+                merged_chrom = current_intervals[0].chrom
+                merged_name = current_intervals[0].name
+                merged_interval = pybedtools.Interval(merged_chrom, merged_start, merged_end, name=merged_name,
+                                                      score=merged_score, strand=merged_strand)
+                current_intervals = [interval]
+                yield merged_interval
+
+
+class Bedpe(Bed):
+    def __init__(self, *args, **kwargs):
+        Bed.__init__(self, *args, **kwargs)
+
+    @property
+    def file_type(self):
+        return 'bedpe'
+
+    def _interval_to_region(self, interval):
+        fields = interval.fields
+
+        if len(fields) < 6:
+            raise ValueError("File does not appear to be BEDPE (columns: {})".format(len(fields)))
+
+        try:
+            score = float(fields[7])
+        except (IndexError, TypeError, ValueError):
+            score = np.nan
+
+        try:
+            name = fields[6]
+        except IndexError:
+            name = '.'
+
+        try:
+            strand1 = fields[8]
+        except IndexError:
+            strand1 = '.'
+
+        try:
+            strand2 = fields[9]
+        except IndexError:
+            strand2 = '.'
+
+        region = GenomicRegion(chromosome=fields[0], start=int(fields[1]), end=int(fields[2]),
+                               chromosome1=fields[0], start1=int(fields[1]), end1=int(fields[2]),
+                               chromosome2=fields[3], start2=int(fields[4]), end2=int(fields[5]),
+                               strand=strand1, strand1=strand1, strand2=strand2,
+                               score=score, fields=fields,
+                               name=name)
+        return region
+
+
+class BigWig(RegionBased):
+    def __init__(self, bw):
+        RegionBased.__init__(self)
+        if isinstance(bw, string_types):
+            bw = pyBigWig.open(bw)
+        self.bw = bw
+        self._intervals = None
+
+    @property
+    def file_type(self):
+        return 'bw'
+
+    def __exit__(self, exec_type, exec_val, exec_tb):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def _region_iter(self, *args, **kwargs):
+        chromosome_lengths = self.chromosome_lengths
+        chromosomes = self.chromosomes()
+        for chromosome in chromosomes:
+            for start, end, score in self.bw.intervals(chromosome, 1, chromosome_lengths[chromosome]):
+                yield GenomicRegion(chromosome=chromosome, start=start+1, end=end, score=score)
+
+    def _get_regions(self, item, *args, **kwargs):
+        if isinstance(item, string_types):
+            item = GenomicRegion.from_string(item)
+
+        if not isinstance(item, GenomicRegion):
+            return self.bw[item]
+
+        return self.subset(item)
+
+    def _region_subset(self, region, *args, **kwargs):
+        if isinstance(region, GenomicRegion):
+            regions = [region]
+        else:
+            regions = region
+
+        for r in regions:
+            for start, end, score in self.region_intervals(r):
+                yield GenomicRegion(chromosome=r.chromosome, start=start, end=end, score=score)
+
+    def _region_intervals(self, region, *args, **kwargs):
+        if self._intervals is None:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                try:
+                    intervals = self.bw.intervals(region.chromosome, region.start, region.end)
+                except RuntimeError:
+                    logger.debug("Invalid interval bounds? {}".format(region))
+                    raise
+        else:
+            intervals = self._memory_intervals(region)
+
+        interval_list = []
+        if intervals is not None:
+            for interval in intervals:
+                interval_list.append((interval[0]+1, interval[1], interval[2]))
+        return interval_list
+
+    def _region_len(self):
+        return sum(1 for _ in self.regions)
+
+    def chromosomes(self):
+        return natural_sort(list(self.chromosome_lengths.keys()))
+
+    @property
+    def chromosome_lengths(self):
+        return self.bw.chroms()
+
+    def __getattr__(self, name):
+        try:
+            func = getattr(self.__dict__['bw'], name)
+            return func
+        except AttributeError:
+            if name == '__enter__':
+                return BigWig.__enter__
+            elif name == '__exit__':
+                return BigWig.__exit__
+            raise
+
+    def __getitem__(self, item):
+        return self._get_regions(item)
+
+    def load_intervals_into_memory(self):
+        self._intervals = dict()
+        for chromosome in self.bw.chroms().keys():
+            interval_starts = []
+            interval_ends = []
+            interval_values = []
+            for start, end, score in self.bw.intervals(chromosome):
+                interval_starts.append(start)
+                interval_ends.append(end)
+                interval_values.append(score)
+            self._intervals[chromosome] = (interval_starts,
+                                           interval_ends,
+                                           interval_values)
+
+    def _memory_intervals(self, region):
+        all_intervals = self._intervals[region.chromosome]
+        start_ix = bisect_right(all_intervals[0], region.start) - 1
+        end_ix = bisect_left(all_intervals[1], region.end)
+        return [(all_intervals[0][ix], all_intervals[1][ix], all_intervals[2][ix])
+                for ix in range(max(0, start_ix), min(len(all_intervals[0]), end_ix+1))]
+
+    def region_stats(self, region, bins=1, stat='mean'):
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+
+        chroms = self.bw.chroms()
+        r_start = region.start - 1 if region.start is not None else 0
+        r_end = region.end if region.end is not None else chroms[region.chromosome]
+
+        return self.stats(region.chromosome, r_start, r_end, type=stat, nBins=bins)
+
+    def intervals(self, region, bins=None, bin_size=None, smoothing_window=None,
+                  nan_replacement=None, zero_to_nan=False, *args, **kwargs):
+        return self.region_intervals(region, bins=bins, bin_size=bin_size, smoothing_window=smoothing_window,
+                                     nan_replacement=nan_replacement, zero_to_nan=zero_to_nan,
+                                     *args, **kwargs)
+
+
+class Tabix(RegionBased):
+    def __init__(self, file_name, preset=None):
+        self._file_name = file_name
+        self._file = pysam.TabixFile(file_name, parser=pysam.asTuple())
+        RegionBased.__init__(self)
+
+        self._file_type = self._get_file_extension()
+        if preset is None:
+            preset = self.file_type
+
+        if isinstance(preset, string_types):
+            if preset == 'gff' or preset == 'gtf':
+                self._region_object = GffRegion
+            elif preset == 'bed' or preset == 'bdg':
+                self._region_object = BedRegion
+            elif preset == 'vcf':
+                self._region_object = BedRegion
+            else:
+                raise ValueError("Preset {} not valid".format(preset))
+        else:
+            self._region_object = preset
+
+    @property
+    def _estimate_region_bounds(self):
+        return False
+
+    @property
+    def file_type(self):
+        return self._file_type
+
+    def _get_file_extension(self):
+        fn = self._file_name
+        if fn.endswith('.gz') or fn.endswith('.gzip'):
+            fn = os.path.splitext(fn)[0]
+        extension = os.path.splitext(fn)[1]
+        return extension[1:]
+
+    def _region_iter(self, *args, **kwargs):
+        for chromosome in self.chromosomes():
+            for region in self.subset(chromosome):
+                yield region
+
+    def _region_subset(self, region):
+        try:
+            for fields in self._file.fetch(region.chromosome, region.start, region.end):
+                yield self._region_object(fields)
+        except ValueError:
+            if region.chromosome not in self.chromosomes():
+                warnings.warn('{} not in list of contigs'.format(region.chromosome))
+            else:
+                raise
+
+    def chromosomes(self):
+        return self._file.contigs
+
+    @staticmethod
+    def to_tabix(file_name, preset=None, _tabix_path='tabix'):
+        tabix_command = [_tabix_path]
+        if preset is not None:
+            tabix_command += ['-p', preset]
+        tabix_command += file_name
+
+
+class GenomicDataFrame(DataFrame):
+    @property
+    def regions(self):
+        class RegionIter(object):
+            def __init__(self, df):
+                self.df = df
+
+            def __iter__(self):
+                for ix, row in self.df.iterrows():
+                    yield self.df._row_to_region(row, ix=ix)
+
+            def __call__(self):
+                return iter(self)
+
+        return RegionIter(self)
+
+    def subset(self, region):
+        for ix, row in self._sub_rows(region):
+            yield self._row_to_region(row, ix=ix)
+
+    def _sub_rows(self, region):
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+
+        if isinstance(region, GenomicRegion):
+            regions = [region]
+        else:
+            regions = region
+
+        for r in regions:
+            if isinstance(r, string_types):
+                r = GenomicRegion.from_string(r)
+
+            query = ''
+            if r.chromosome is not None:
+                query += 'chromosome == "{}" and '.format(r.chromosome)
+            if r.start is not None:
+                query += 'start >= {} and '.format(r.start)
+            if r.end is not None:
+                query += 'end <= {} and '.format(r.end)
+            query = query[:-5]
+
+            sub_df = self.query(query)
+            for ix, row in sub_df.iterrows():
+                yield ix, row
+
+    def _row_to_region(self, row, ix=None):
+        attributes = {'ix': ix}
+        for key, value in row.items():
+            attributes[key] = value
+        return GenomicRegion(**attributes)
+
+    @classmethod
+    def read_table(cls, file_name, **kwargs):
+        return cls(read_table(file_name, **kwargs))
+
+
+class Chromosome(object):
+    """
+    Chromosome data type.
+
+    .. attribute:: name
+
+        Name of the chromosome
+
+    .. attribute:: length
+
+        Length of the chromosome in base-pairs
+
+    .. attribute:: sequence
+
+        Base-pair sequence of DNA in the chromosome
+    """
+    def __init__(self, name=None, length=None, sequence=None):
+        """
+        Initialize chromosome
+
+        :param name: Name of the chromosome
+        :param length: Length of the chromosome in base-pairs
+        :param sequence: Base-pair sequence of DNA in the chromosome
+        """
+        self.name = name.decode() if isinstance(name, bytes) else name
+        self.length = length
+        self.sequence = sequence.decode() if isinstance(sequence, bytes) else sequence
+        if length is None and sequence is not None:
+            self.length = len(sequence)
+        if sequence is None and length is not None:
+            self.length = length
+            
+    def __repr__(self):
+        return "Name: %s\nLength: %d\nSequence: %s" % (self.name if self.name else '',
+                                                       self.length if self.length else -1,
+                                                       self.sequence[:20] + "..." if self.sequence else '')
+
+    def __len__(self):
+        """
+        Get length of the chromosome.
+        """
+        return self.length
+    
+    def __getitem__(self, key):
+        """
+        Get object attributes by name
+        """
+        if key == 'name':
+            return self.name
+        if key == 'length':
+            return self.length
+        if key == 'sequence':
+            return self.sequence
+    
+    @classmethod
+    def from_fasta(cls, file_name, name=None, include_sequence=True):
+        """
+        Create a :class:`~Chromosome` from a FASTA file.
+
+        This class method will load a FASTA file and convert it into
+        a :class:`~Chromosome` object. If the FASTA file contains multiple
+        sequences, only the first one will be read.
+
+        :param file_name: Path to the FASTA file
+        :param name: Chromosome name. If None (default), will be read
+                     from the FASTA file header
+        :param include_sequence: If True (default), stores the chromosome
+                                 sequence in memory. Else, the sequence
+                                 attribute will be set to None.
+        :return: :class:`~Chromosome` if there is only a single FASTA
+                 sequence in the file, list(:class:`~Chromosome`) if
+                 there are multiple sequences.
+        """
+        with open(file_name, 'r') as fasta_file:
+            fastas = SeqIO.parse(fasta_file, 'fasta')
+
+            chromosomes = []
+            for fasta in fastas:
+                if include_sequence:
+                    chromosome = cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
+                else:
+                    chromosome = cls(name if name else fasta.id, length=len(fasta))
+                chromosomes.append(chromosome)
+
+        if len(chromosomes) == 0:
+            raise ValueError("File %s does not appear to be a FASTA file" % file_name)
+        if len(chromosomes) == 1:
+            return chromosomes[0]
+        return chromosomes
+
+    def get_restriction_sites(self, restriction_enzyme):
+        """
+        Find the restriction sites of a provided enzyme in this chromosome.
+
+        Internally uses biopython to find RE sites.
+
+        :param restriction_enzyme: The name of the restriction enzyme
+                                   (e.g. HindIII)
+        :return: List of RE sites in base-pairs (1-based)
+        """
+        logger.info("Calculating RE sites")
+        try:
+            re = getattr(Restriction, restriction_enzyme)
+        except SyntaxError:
+            raise ValueError("restriction_enzyme must be a string")
+        except AttributeError:
+            raise ValueError("restriction_enzyme string is not recognized: %s" % restriction_enzyme)
+
+        return re.search(Seq.Seq(self.sequence))
+
+
+class GenomicRegion(TableObject):
+    """
+    Class representing a genomic region.
+
+    .. attribute:: chromosome
+
+        Name of the chromosome this region is located on
+
+    .. attribute:: start
+
+        Start position of the region in base pairs
+
+    .. attribute:: end
+
+        End position of the region in base pairs
+
+    .. attribute:: strand
+
+        Strand this region is on (+1, -1)
+
+    .. attribute:: ix
+
+        Index of the region in the context of all genomic
+        regions.
+
+    """
+
+    def __init__(self, start=None, end=None, chromosome=None, strand=None, ix=None, **kwargs):
+        """
+        Initialize this object.
+
+        :param start: Start position of the region in base pairs
+        :param end: End position of the region in base pairs
+        :param chromosome: Name of the chromosome this region is located on
+        :param strand: Strand this region is on (+1, -1)
+        :param ix: Index of the region in the context of all genomic
+                   regions.
+        """
+        self.start = start
+        if end is None:
+            end = start
+        self.end = end
+        if strand == "+":
+            strand = 1
+        elif strand == "-":
+            strand = -1
+        elif strand == "0" or strand == ".":
+            strand = None
+        self.strand = strand
+        self.chromosome = chromosome.decode() if isinstance(chromosome, bytes) else chromosome
+        self.ix = ix
+        self.attributes = ['chromosome', 'start', 'end', 'strand', 'ix']
+
+        for name, value in kwargs.items():
+            setattr(self, name.decode() if isinstance(name, bytes) else name,
+                    value.decode() if isinstance(value, bytes) else value)
+            self.attributes.append(name)
+
+    def set_attribute(self, attribute, value):
+        setattr(self, attribute, value)
+        if attribute not in self.attributes:
+            self.attributes.append(attribute)
+
+    @classmethod
+    def from_row(cls, row):
+        """
+        Create a :class:`~GenomicRegion` from a PyTables row.
+        """
+        strand = row['strand']
+        if strand == 0:
+            strand = None
+        return cls(start=row["start"], end=row["end"],
+                   strand=strand, chromosome=row["chromosome"])
+
+    @classmethod
+    def from_string(cls, region_string):
+        """
+        Convert a string into a :class:`~GenomicRegion`.
+
+        This is a very useful convenience function to quickly
+        define a :class:`~GenomicRegion` object from a descriptor
+        string.
+
+        :param region_string: A string of the form
+                              <chromosome>[:<start>-<end>[:<strand>]]
+                              (with square brackets indicating optional
+                              parts of the string). If any optional
+                              part of the string is omitted, intuitive
+                              defaults will be chosen.
+        :return: :class:`~GenomicRegion`
+        """
+        chromosome = None
+        start = None
+        end = None
+        strand = None
+        
+        # strip whitespace
+        no_space_region_string = "".join(region_string.split())
+        fields = no_space_region_string.split(':')
+        
+        if len(fields) > 3:
+            raise ValueError("Genomic range string must be of the form <chromosome>[:<start>-<end>:[<strand>]]")
+        
+        # there is chromosome information
+        if len(fields) > 0:
+            chromosome = fields[0]
+        
+        # there is range information
+        if len(fields) > 1 and fields[1] != '':
+            start_end_bp = fields[1].split('-')
+            if len(start_end_bp) > 0:
+                start = str_to_int(start_end_bp[0])
+            
+            if len(start_end_bp) > 1:
+                end = str_to_int(start_end_bp[1])
+
+                if not end >= start:
+                    raise ValueError("The end coordinate must be bigger than the start.")
+
+        # there is strand information
+        if len(fields) > 2:
+            if fields[2] == '+' or fields[2] == '+1' or fields[2] == '1':
+                strand = 1
+            elif fields[2] == '-' or fields[2] == '-1':
+                strand = -1
+            else:
+                raise ValueError("Strand only can be one of '+', '-', '+1', '-1', and '1'")
+        return cls(start=start, end=end, chromosome=chromosome, strand=strand)
+    
+    def to_string(self):
+        """
+        Convert this :class:`~GenomicRegion` to its string representation.
+
+        :return: str
+        """
+        region_string = ''
+        if self.chromosome is not None:
+            region_string += '%s' % self.chromosome
+            
+            if self.start is not None:
+                region_string += ':%d' % self.start
+                
+                if self.end is not None:
+                    region_string += '-%d' % self.end
+                
+                if self.strand is not None:
+                    if self.strand == 1:
+                        region_string += ':+'
+                    else:
+                        region_string += ':-'
+        return region_string
+    
+    def __repr__(self):
+        return self.to_string()
+
+    def overlaps(self, region):
+        """
+        Check if this region overlaps with the specified region.
+
+        :param region: :class:`~GenomicRegion` object or string
+        """
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+
+        if region.chromosome != self.chromosome:
+            return False
+
+        if self.end is None or region.start is None or region.start <= self.end:
+            if self.start is None or region.end is None or region.end >= self.start:
+                return True
+        return False
+
+    def overlap(self, region):
+        if region.chromosome != self.chromosome:
+            return 0
+
+        return max(0, min(self.end, region.end) - max(self.start, region.start))
+
+    def contains(self, region):
+        """
+        Check if the specified region is completely contained in this region.
+
+        :param region: :class:`~GenomicRegion` object or string
+        """
+        if isinstance(region, string_types):
+            region = GenomicRegion.from_string(region)
+
+        if region.chromosome != self.chromosome:
+            return False
+
+        if region.start >= self.start and region.end <= self.end:
+            return True
+        return False
+
+    def _equals(self, region):
+        if region.chromosome != self.chromosome:
+            return False
+        if region.start != self.start:
+            return False
+        if region.end != self.end:
+            return False
+        return True
+
+    def is_reverse(self):
+        if self.strand == -1 or self.strand == '-':
+            return True
+        return False
+
+    def is_forward(self):
+        if self.strand == 1 or self.strand == '+' or self.strand == 0:
+            return True
+        return False
+
+    @property
+    def strand_string(self):
+        if self.is_forward():
+            return '+'
+        if self.is_reverse():
+            return '-'
+        return '.'
+
+    @property
+    def center(self):
+        return self.start + (self.end - self.start)/2
+
+    @property
+    def five_prime(self):
+        return self.end if self.is_reverse() else self.start
+
+    @property
+    def three_prime(self):
+        return self.end if self.is_forward() else self.start
+
+    def copy(self):
+        d = {attribute: getattr(self, attribute) for attribute in self.attributes}
+        return GenomicRegion(**d)
+
+    def __eq__(self, other):
+        return self._equals(other)
+
+    def __ne__(self, other):
+        return not self._equals(other)
+
+    def __len__(self):
+        return self.end - self.start
+
+    def as_bed_line(self, score_field='score', name_field='name'):
+        try:
+            score = getattr(self, score_field)
+        except AttributeError:
+            warnings.warn("Score field {} does not exist, using '.'".format(score_field))
+            score = '.'
+
+        try:
+            name = getattr(self, name_field)
+        except AttributeError:
+            warnings.warn("Name field {} does not exist, using '.'".format(name_field))
+            name = '.'
+
+        return "{}\t{}\t{}\t{}\t{}\t{}".format(self.chromosome, self.start, self.end,
+                                               name, score, self.strand_string)
+
+    def as_gff_line(self, source_field='source', feature_field='feature', score_field='score',
+                    frame_field='frame', float_format='.2e'):
+        try:
+            source = getattr(self, source_field)
+        except AttributeError:
+            warnings.warn("Source field {} does not exist, using '.'".format(source_field))
+            source = '.'
+
+        try:
+            feature = getattr(self, feature_field)
+        except AttributeError:
+            warnings.warn("Feature field {} does not exist, using '.'".format(feature_field))
+            feature = '.'
+
+        try:
+            score = "{:{float_format}}".format(getattr(self, score_field), float_format=float_format)
+        except AttributeError:
+            warnings.warn("Score field {} does not exist, using '.'".format(score_field))
+            score = '.'
+
+        try:
+            frame = getattr(self, frame_field)
+        except AttributeError:
+            warnings.warn("Frame field {} does not exist, using '.'".format(frame_field))
+            frame = '.'
+
+        no_group_items = {'start', 'end', 'chromosome', 'source', 'feature', 'score',
+                          'frame', 'ix', 'strand', 'fields'}
+        group = ''
+        for attribute in self.attributes:
+            if attribute not in no_group_items:
+                a = getattr(self, attribute)
+                if isinstance(a, float):
+                    a = "{:{float_format}}".format(a, float_format=float_format)
+                elif isinstance(a, string_types):
+                    a = '"{}"'.format(a)
+                group += '{} {}; '.format(attribute, a)
+
+        return "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.chromosome, source,
+                                                           feature, self.start + 1,
+                                                           self.end, score,
+                                                           self.strand_string, frame,
+                                                           group)
+
+    def expand(self,
+               absolute=None, relative=None,
+               absolute_left=0, absolute_right=0,
+               relative_left=0.0, relative_right=0.0,
+               copy=True, from_center=False):
+        if absolute is not None:
+            absolute_left, absolute_right = absolute, absolute
+        if relative is not None:
+            relative_left, relative_right = relative, relative
+
+        extend_left_bp = absolute_left + int(relative_left * len(self))
+        extend_right_bp = absolute_right + int(relative_right * len(self))
+
+        new_region = self.copy() if copy else self
+        if from_center:
+            center = self.center
+            new_region.start = int(center) - extend_left_bp
+            new_region.end = int(center) + extend_right_bp
+        else:
+            new_region.start = int(self.start) - extend_left_bp
+            new_region.end = int(self.end) + extend_right_bp
+        return new_region
+
+    def __add__(self, distance):
+        new_region = self.copy()
+        new_region.start += distance
+        new_region.end += distance
+        return new_region
+
+    def __sub__(self, distance):
+        return self.__add__(-distance)
+
+    def fix_chromosome(self):
+        if self.chromosome.startswith('chr'):
+            self.chromosome = self.chromosome[3:]
+        else:
+            self.chromosome = 'chr' + self.chromosome
+
+
+class LazyGenomicRegion(GenomicRegion):
+    def __init__(self, row, ix=None, auto_update=True):
+        self.reserved = {'_row', 'static_ix', 'strand', 'auto_update', 'attributes'}
+        self._row = row
+        self.static_ix = ix
+        self.auto_update = auto_update
+
+    def __getattr__(self, item):
+        if item == 'reserved' or item in self.reserved:
+            return object.__getattribute__(self, item)
+        try:
+            value = self._row[item]
+            value = value.decode() if isinstance(value, bytes) else value
+            return value
+        except KeyError:
+            raise AttributeError
+
+    def __setattr__(self, key, value):
+        if key == 'reserved' or key in self.reserved:
+            super(LazyGenomicRegion, self).__setattr__(key, value)
+        else:
+            self._row[key] = value
+            if self.auto_update:
+                self.update()
+
+    def update(self):
+        self._row.update()
+
+    @property
+    def strand(self):
+        try:
+            return self._row["strand"]
+        except KeyError:
+            return None
+
+    @property
+    def ix(self):
+        if self.static_ix is None:
+            return self._row["ix"]
+        return self.static_ix
+
+    @property
+    def attributes(self):
+        return self._row.tables.colnames
+
+
+class BedRegion(GenomicRegion):
+    def __init__(self, bed_line, ix=None):
+        try:
+            self.fields = bed_line.split("\t")
+        except AttributeError:
+            self.fields = bed_line
+
+        self.attributes = ('chromosome', 'start', 'end', 'name', 'score', 'strand',
+                           'thick_start', 'thick_end', 'item_rgb', 'block_count',
+                           'block_sizes', 'block_starts')[:len(self.fields)]
+        self.ix = ix
+
+    @property
+    def chromosome(self):
+        return self.fields[0]
+
+    @property
+    def start(self):
+        return int(self.fields[1])
+
+    @property
+    def end(self):
+        return int(self.fields[2])
+
+    @property
+    def name(self):
+        try:
+            return self.fields[3]
+        except IndexError:
+            return None
+
+    @property
+    def strand(self):
+        try:
+            s = self.fields[5]
+            return -1 if s == '-' else 1
+        except IndexError:
+            return 1
+
+    @property
+    def score(self):
+        try:
+            return float(self.fields[4])
+        except (IndexError, ValueError):
+            return np.nan
+
+    @property
+    def thick_start(self):
+        try:
+            return int(self.fields[6])
+        except IndexError:
+            return None
+
+    @property
+    def thick_end(self):
+        try:
+            return int(self.fields[7])
+        except IndexError:
+            return None
+
+    @property
+    def item_rgb(self):
+        try:
+            return self.fields[8].split(',')
+        except IndexError:
+            return None
+
+    @property
+    def block_count(self):
+        try:
+            return int(self.fields[9])
+        except IndexError:
+            return None
+
+    @property
+    def block_sizes(self):
+        try:
+            return [int(s) for s in self.fields[10].split(',')]
+        except IndexError:
+            return None
+
+    @property
+    def block_sizes(self):
+        try:
+            return [int(s) for s in self.fields[11].split(',')]
+        except IndexError:
+            return None
+
+
+class GffRegion(GenomicRegion):
+    def __init__(self, gff_line, ix=None):
+        try:
+            self.fields = gff_line.split("\t")
+        except AttributeError:
+            self.fields = gff_line
+
+        self.ix = ix
+        self._attribute_dict = None
+
+    @property
+    def attributes(self):
+        a = ['ix', 'chromosome', 'source', 'feature', 'start', 'end',
+             'score', 'strand', 'frame']
+
+        return a + list(self.attribute_dict.keys())
+
+    @property
+    def attribute_dict(self):
+        if self._attribute_dict is None:
+            self._attribute_dict = dict()
+
+            attribute_fields = re.split(";\s*", self.fields[8])
+            for field in attribute_fields:
+                try:
+                    key, value = shlex.split(field)
+                except ValueError:
+                    try:
+                        key, value = re.split('=', field)
+                    except ValueError:
+                        continue
+                self._attribute_dict[key] = value
+        return self._attribute_dict
+
+    def __getattr__(self, item):
+        try:
+            return self.attribute_dict[item]
+        except (IndexError, KeyError):
+            raise AttributeError("Attribute {} cannot be found".format(item))
+
+    @property
+    def seqname(self):
+        return self.fields[0]
+
+    @property
+    def source(self):
+        return self.fields[1]
+
+    @property
+    def feature(self):
+        return self.fields[2]
+
+    @property
+    def chromosome(self):
+        return self.seqname
+
+    @property
+    def start(self):
+        return int(self.fields[3])
+
+    @property
+    def end(self):
+        return int(self.fields[4])
+
+    @property
+    def name(self):
+        return None
+
+    @property
+    def strand(self):
+        try:
+            s = self.fields[6]
+            return -1 if s == '-' else 1
+        except IndexError:
+            return 1
+
+    @property
+    def score(self):
+        try:
+            return float(self.fields[4])
+        except (IndexError, ValueError):
+            return np.nan
+
+    @property
+    def frame(self):
+        return self.fields[7]
+
+
+class GenomicRegions(RegionBased):
+
+    def __init__(self, regions=None):
+        RegionBased.__init__(self)
+        self._regions = []
+        self._max_region_ix = -1
+
+        if regions is not None:
+            for region in regions:
+                self.add_region(region)
+
+    def add_region(self, region):
+        """
+        Add a genomic region to this object.
+
+        This method offers some flexibility in the types of objects
+        that can be loaded. See below for details.
+
+        :param region: Can be a :class:`~GenomicRegion`, a str in the form
+                       '<chromosome>:<start>-<end>[:<strand>], a dict with
+                       at least the fields 'chromosome', 'start', and
+                       'end', optionally 'ix', or a list of length 3
+                       (chromosome, start, end) or 4 (ix, chromosome,
+                       start, end).
+        """
+        ix = -1
+
+        if isinstance(region, GenomicRegion):
+            return self._add_region(copy.copy(region))
+        elif isinstance(region, string_types):
+            return self._add_region(GenomicRegion.from_string(region))
+        elif type(region) is dict:
+            return self._add_region(GenomicRegion(**copy.copy(region)))
+        else:
+            try:
+                offset = 0
+                if len(region) == 4:
+                    ix = region[0]
+                    offset += 1
+                chromosome = region[offset]
+                start = region[offset + 1]
+                end = region[offset + 2]
+                strand = 1
+            except TypeError:
+                raise ValueError("Node parameter has to be GenomicRegion, dict, or list")
+
+        new_region = GenomicRegion(chromosome=chromosome, start=start, end=end, strand=strand, ix=ix)
+        return self._add_region(new_region)
+
+    def _add_region(self, region):
+        region.ix = self._max_region_ix + 1
+
+        self._regions.append(region)
+
+        if region.ix > self._max_region_ix:
+            self._max_region_ix = region.ix
+
+        return self._region_len()
+
+    def _region_len(self):
+        return len(self._regions)
+
+    def _region_iter(self, *args, **kwargs):
+        for region in self._regions:
+            yield region
+
+    def _get_regions(self, key):
+        return self._regions[key]
+
+    @property
+    def chromosome_bins(self):
+        """
+        Returns a dictionary of chromosomes and the start
+        and end index of the bins they cover.
+
+        Returned list is range-compatible, i.e. chromosome
+        bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.
+        """
+        return self._chromosome_bins()
+
+    def _chromosome_bins(self):
+        chr_bins = {}
+        for r in self.regions:
+            if chr_bins.get(r.chromosome) is None:
+                chr_bins[r.chromosome] = [r.ix, r.ix + 1]
+            else:
+                chr_bins[r.chromosome][1] = r.ix + 1
+        return chr_bins
+
+    @property
+    def regions_dict(self):
+        regions_dict = dict()
+        for r in self.regions:
+            regions_dict[r.ix] = r
+        return regions_dict
+
+    @property
+    def bin_size(self):
+        node = self.regions[0]
+        return node.end - node.start + 1
+
+    def distance_to_bins(self, distance):
+        bin_size = self.bin_size
+        bin_distance = int(distance/bin_size)
+        if distance % bin_size > 0:
+            bin_distance += 1
+        return bin_distance
+
+    def bins_to_distance(self, bins):
+        return self.bin_size*bins
+
+
+class RegionsTable(GenomicRegions, FileGroup):
+    """
+    PyTables Table wrapper for storing genomic regions.
+
+    This class is inherited by objects working with lists of genomic
+    regions, such as equi-distant bins along chromosomes in a genome
+    (:class:`~Hic`) or restriction fragments of genomic DNA
+    (:class:`~kaic.construct.seq.FragmentMappedReadPairs`)
+    """
+
+    _classid = 'REGIONSTABLE'
+
+    class RegionDescription(t.IsDescription):
+        """
+        Description of a genomic region for PyTables Table
+        """
+        ix = t.Int32Col(pos=0)
+        chromosome = t.StringCol(100, pos=1)
+        start = t.Int64Col(pos=2)
+        end = t.Int64Col(pos=3)
+        strand = t.Int8Col(pos=4)
+        _mask_ix = t.Int32Col(pos=5)
+
+    def __init__(self, regions=None, file_name=None, mode='a',
+                 additional_fields=None, _table_name_regions='regions',
+                 tmpdir=None):
+        """
+        Initialize region table.
+
+        :param data: List of regions to load in object. Can also
+                     be used to load saved regions from file by
+                     providing a path to an HDF5 file and setting
+                     the file_name parameter to None.
+        :param file_name: Path to a save file.
+        :param _table_name_regions: (Internal) name of the HDF5
+                                    node that stores data for this
+                                    object
+        """
+        # parse potential unnamed argument
+        if regions is not None:
+            # data is file name
+            if type(regions) is str or isinstance(regions, t.file.File):
+                if file_name is None:
+                    file_name = regions
+                    regions = None
+
+        try:
+            FileGroup.__init__(self, _table_name_regions, file_name, mode=mode, tmpdir=tmpdir)
+        except TypeError:
+            logger.warning("RegionsTable is now a FileGroup-based object and "
+                           "this object will no longer be compatible in the future")
+
+        # check if this is an existing regions file
+        try:
+            group = self.file.get_node('/', _table_name_regions)
+
+            if isinstance(group, t.table.Table):
+                self._regions = group
+            else:
+                self._regions = self._group.regions
+
+            if len(self._regions) > 0:
+                self._max_region_ix = max(row['ix'] for row in self._regions.iterrows())
+            else:
+                self._max_region_ix = -1
+        except t.NoSuchNodeError:
+            basic_fields = dict()
+            hidden_fields = dict()
+            for field, description in RegionsTable.RegionDescription().columns.copy().items():
+                if field.startswith('_'):
+                    hidden_fields[field] = description
+                else:
+                    basic_fields[field] = description
+
+            current = len(basic_fields)
+            if additional_fields is not None:
+                if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
+                    # IsDescription subclass case
+                    additional_fields = additional_fields.columns
+
+                # add additional user-defined fields
+                for key, value in sorted(additional_fields.items(),
+                                         key=lambda x: x[1]._v_pos if x[1]._v_pos is not None else 1):
+                    if key not in basic_fields:
+                        value._v_pos = current
+                        current += 1
+                        basic_fields[key] = value
+            # add hidden fields
+            for key, value in sorted(hidden_fields.items(),
+                                     key=lambda x: x[1]._v_pos if x[1]._v_pos is not None else 1):
+                value._v_pos = current
+                current += 1
+                basic_fields[key] = value
+
+            self._regions = t.Table(self._group, 'regions', basic_fields)
+            self._max_region_ix = -1
+
+        # index regions table
+        create_col_index(self._regions.cols.ix)
+        create_col_index(self._regions.cols.start)
+        create_col_index(self._regions.cols.end)
+
+        self._ix_to_chromosome = dict()
+        self._chromosome_to_ix = dict()
+
+        if regions is not None:
+            self.add_regions(regions)
+        else:
+            self._update_references()
+
+    def flush(self):
+        self._regions.flush()
+        self._update_references()
+
+    def add_region(self, region, flush=True):
+        # super-method, calls below '_add_region'
+        ix = GenomicRegions.add_region(self, region)
+        if flush:
+            self.flush()
+            self._update_references()
+        return ix
+
+    def _add_region(self, region):
+        ix = self._max_region_ix + 1
+        
+        # actually append
+        row = self._regions.row
+        row['ix'] = ix
+        row['chromosome'] = region.chromosome
+        row['start'] = region.start
+        row['end'] = region.end
+        if hasattr(region, 'strand') and region.strand is not None:
+            row['strand'] = region.strand
+
+        for name in self._regions.colnames[5:]:
+            if hasattr(region, name):
+                row[name] = getattr(region, name)
+
+        row.append()
+        
+        if ix > self._max_region_ix:
+            self._max_region_ix = ix
+
+        return ix
+
+    def _update_references(self):
+        chromosomes = []
+        for region in self.regions(lazy=True):
+            if len(chromosomes) == 0 or chromosomes[-1] != region.chromosome:
+                chromosomes.append(region.chromosome)
+
+        for i, chromosome in enumerate(chromosomes):
+            self._ix_to_chromosome[i] = chromosome
+            self._chromosome_to_ix[chromosome] = i
+
+    def add_regions(self, regions):
+        """
+        Bulk insert multiple genomic regions.
+
+        :param regions: List (or any iterator) with objects that
+                        describe a genomic region. See
+                        :class:`~RegionsTable.add_region` for options.
+        """
+        try:
+            l = len(regions)
+            _log = True
+        except TypeError:
+            l = None
+            _log = False
+
+        pb = RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars)
+        if _log:
+            pb.start()
+
+        for i, region in enumerate(regions):
+            self.add_region(region, flush=False)
+            if _log:
+                pb.update(i)
+        if _log:
+            pb.finish()
+
+        self._regions.flush()
+        self._update_references()
+
+    def data(self, key, value=None):
+        """
+        Retrieve or add vector-data to this object. If there is exsting data in this
+        object with the same name, it will be replaced
+
+        :param key: Name of the data column
+        :param value: vector with region-based data (one entry per region)
+        """
+        if key not in self._regions.colnames:
+            raise KeyError("%s is unknown region attribute" % key)
+
+        if value is not None:
+            for i, row in enumerate(self._regions):
+                row[key] = value[i]
+                row.update()
+            self._regions.flush()
+
+        return (row[key] for row in self._regions)
+
+    def _get_region_ix(self, region):
+        """
+        Get index from other region properties (chromosome, start, end)
+        """
+        condition = "(start == %d) & (end == %d) & (chromosome == b'%s')"
+        condition %= region.start, region.end, region.chromosome
+        for res in self._regions.where(condition):
+            return res["ix"]
+        return None
+
+    def _row_to_region(self, row, lazy=False, auto_update=True):
+        if lazy:
+            return LazyGenomicRegion(row, auto_update=auto_update)
+
+        kwargs = {}
+        for name in self._regions.colnames:
+            if name not in RegionsTable.RegionDescription().columns.keys():
+                value = row[name]
+                value = value.decode() if isinstance(value, bytes) else value
+                kwargs[name] = value
+
+        try:
+            mask_ix = row['_mask_ix']
+        except (KeyError, ValueError):
+            mask_ix = 0
+
+        return GenomicRegion(chromosome=row["chromosome"].decode(), start=row["start"],
+                             end=row["end"], ix=row["ix"], _mask_ix=mask_ix, **kwargs)
+
+    def _region_iter(self, lazy=False, auto_update=True, *args, **kwargs):
+        for row in self._regions:
+            yield self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+
+    def _region_subset(self, region, lazy=False, auto_update=True, *args, **kwargs):
+        for row in self._subset_rows(region):
+            sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+            yield sub_region
+
+    def _get_regions(self, key):
+        res = self._regions[key]
+
+        if isinstance(res, np.ndarray):
+            regions = []
+            for region in res:
+                regions.append(self._row_to_region(region))
+            return regions
+        else:
+            return self._row_to_region(res)
+
+    def _region_len(self):
+        return len(self._regions)
+
+    def _subset_rows(self, key):
+        """
+        Iterate over a subset of regions given the specified key.
+
+        :param key: A :class:`~kaic.data.genomic.GenomicRegion` object,
+                    or a list of the former. Also accepts slices and integers
+        :return: Iterator over the specified subset of regions
+        """
+        if isinstance(key, slice):
+            for row in self._regions.where("(ix >= {}) & (ix < {})".format(key.start, key.stop)):
+                yield row
+        elif isinstance(key, int):
+            yield self._regions[key]
+        elif isinstance(key, list) and len(key) > 0 and isinstance(key[0], int):
+            for ix in key:
+                yield self._regions[ix]
+        else:
+            if isinstance(key, string_types):
+                key = GenomicRegion.from_string(key)
+
+            if isinstance(key, GenomicRegion):
+                keys = [key]
+            else:
+                keys = key
+
+            for k in keys:
+                if isinstance(k, string_types):
+                    k = GenomicRegion.from_string(k)
+
+                query = '('
+                if k.chromosome is not None:
+                    query += "(chromosome == b'%s') & " % k.chromosome
+                if k.end is not None:
+                    query += "(start <= %d) & " % k.end
+                if k.start is not None:
+                    query += "(end >= %d) & " % k.start
+                if query.endswith(' & '):
+                    query = query[:-3]
+                query += ')'
+
+                if len(query) == 2:
+                    for row in self._regions:
+                        yield row
+                else:
+                    for row in self._regions.where(query):
+                        yield row
+
+    def region_bins(self, region):
+        start_ix = None
+        end_ix = None
+        for r in self.regions(region):
+            if start_ix is None:
+                start_ix = r.ix
+            end_ix = r.ix + 1
+        return slice(start_ix, end_ix, 1)
+
+
+class Genome(FileGroup):
+    """
+    Class representing a collection of chromosomes.
+
+    Extends the :class:`~RegionsTable` class and provides
+    all the expected functionality. Provides some convenience batch
+    methods that call :class:`~Chromosome` methods for every
+    chromosome in this object.
+
+    This object can be saved to file.
+    """
+
+    class ChromosomeDefinition(t.IsDescription):
+        name = t.StringCol(255, pos=0)
+        length = t.Int64Col(pos=1)
+
+    def __init__(self, file_name=None, chromosomes=None, mode='a', tmpdir=None,
+                 _table_name_chromosomes='chromosomes'):
+        """
+        Build :class:`~Genome` from a list of chromosomes or load
+        previously saved object.
+
+        :param file_name: Path of the file to load or to save to.
+        :param chromosomes: List of chromosomes to load into this
+                            object.
+        """
+        FileGroup.__init__(self, _table_name_chromosomes, file_name, mode=mode, tmpdir=tmpdir)
+
+        # check if this is an existing regions file
+        try:
+            self._sequences = self._group.sequences
+        except t.NoSuchNodeError:
+            self._sequences = self.file.create_vlarray(self._group, 'sequences', t.VLStringAtom())
+
+        try:
+            self._chromosome_table = self._group.chromosomes
+        except t.NoSuchNodeError:
+            try:
+                self._chromosome_table = self.file.create_table(self._group, 'chromosomes',
+                                                                Genome.ChromosomeDefinition)
+            except t.FileModeError:
+                self._chromosome_table = None
+                pass
+
+        if chromosomes is not None:
+            if isinstance(chromosomes, Chromosome):
+                chromosomes = [chromosomes]
+
+            for chromosome in chromosomes:
+                self.add_chromosome(chromosome)
+
+    def chromosomes(self):
+        return self._names
+
+    @property
+    def _names(self):
+        if self._chromosome_table is None:
+            try:
+                return self.meta['chromosome_names']
+            except KeyError:
+                return []
+        else:
+            return [row['name'].decode() if isinstance(row['name'], bytes) else row['name']
+                    for row in self._chromosome_table]
+
+    @_names.setter
+    def _names(self, names):
+        if self._chromosome_table is None:
+            self.meta['chromosome_names'] = names
+        else:
+            counter = 0
+            for i, row in enumerate(self._chromosome_table):
+                row['name'] = names[i]
+                row.update()
+                counter += 1
+            for i in range(counter, len(names)):
+                self._chromosome_table.row['name'] = names[i]
+                self._chromosome_table.row.append()
+        self._chromosome_table.flush()
+
+    @property
+    def _lengths(self):
+        if self._chromosome_table is None:
+            try:
+                return self.meta['chromosome_lengths']
+            except KeyError:
+                return []
+        else:
+            return [row['length'] for row in self._chromosome_table]
+
+    @_lengths.setter
+    def _lengths(self, lengths):
+        if self._chromosome_table is None:
+            self.meta['chromosome_lengths'] = lengths
+        else:
+            counter = 0
+            for i, row in enumerate(self._chromosome_table):
+                row['length'] = lengths[i]
+                row.update()
+                counter += 1
+            for i in range(counter, len(lengths)):
+                self._chromosome_table.row['length'] = lengths[i]
+                self._chromosome_table.row.append()
+        self._chromosome_table.flush()
+        self.meta['chromosome_lengths'] = lengths
+
+    @classmethod
+    def from_folder(cls, folder_name, file_name=None, exclude=None,
+                    include_sequence=True, tmpdir=None):
+        """
+        Load every FASTA file from a folder as a chromosome.
+
+        :param folder_name: Path to the folder to load
+        :param file_name: File to save Genome object to
+        :param exclude: List or set of chromosome names that
+                        should NOT be loaded
+        :param include_sequence: If True, will save the
+                                 chromosome sequences in the
+                                 Genome object
+        """
+        chromosomes = []
+        folder_name = os.path.expanduser(folder_name)
+        for f in os.listdir(folder_name):
+            try:
+                chromosome = Chromosome.from_fasta(folder_name + "/" + f,
+                                                   include_sequence=include_sequence)
+                logger.info("Adding chromosome %s" % chromosome.name)
+                if exclude is None:
+                    chromosomes.append(chromosome)
+                elif chromosome.name not in exclude:
+                    chromosomes.append(chromosome)
+            except (ValueError, IOError):
+                pass
+
+        return cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
+
+    @classmethod
+    def from_string(cls, genome_string, file_name=None, tmpdir=None, mode='a'):
+        """
+        Convenience function to load a :class:`~Genome` from a string.
+
+        :param genome_string: Path to FASTA file, path to folder with
+                              FASTA files, comma-separated list of
+                              paths to FASTA files, path to HDF5 file
+        :param file_name: Path to save file
+        :return: A :class:`~Genome` object
+        """
+        # case 1: FASTA file = Chromosome
+        if is_fasta_file(genome_string):
+            chromosomes = Chromosome.from_fasta(genome_string)
+            genome = cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
+        # case 2: Folder with FASTA files
+        elif os.path.isdir(genome_string):
+            genome = cls.from_folder(genome_string, file_name=file_name, tmpdir=tmpdir)
+        # case 3: path to HDF5 file
+        elif os.path.isfile(genome_string):
+            genome = cls(genome_string, tmpdir=tmpdir, mode=mode)
+        # case 4: List of FASTA files
+        else:
+            chromosome_files = genome_string.split(',')
+            chromosomes = []
+            for chromosome_file in chromosome_files:
+                chromosome = Chromosome.from_fasta(os.path.expanduser(chromosome_file))
+                chromosomes.append(chromosome)
+            genome = cls(chromosomes=chromosomes, file_name=file_name, tmpdir=tmpdir)
+
+        return genome
+
+    def __getitem__(self, key):
+        """
+        Get Genome table subsets.
+
+        If the result is one or more rows, they will be converted to
+        :class:`~Chromosome` objects, if the result is a column, it
+        will be returned without conversion.
+        """
+        names = self._names
+        lengths = self._lengths
+
+        if isinstance(key, string_types):
+            key = names.index(key)
+
+        if isinstance(key, int):
+            return Chromosome(name=names[key], length=lengths[key], sequence=self._sequences[key])
+        elif isinstance(key, slice):
+            l = []
+            start = key.start if key.start is not None else 0
+            stop = key.stop if key.stop is not None else len(names)
+            step = key.step if key.step is None else 1
+
+            for i in range(start, stop, step):
+                c = Chromosome(name=names[i], length=lengths[i], sequence=self._sequences[i])
+                l.append(c)
+            return l
+        else:
+            l = []
+            for i in key:
+                if isinstance(i, string_types):
+                    i = names.index(i)
+                c = Chromosome(name=names[i], length=lengths[i], sequence=self._sequences[i])
+                l.append(c)
+            return l
+
+    def __len__(self):
+        return len(self._names)
+
+    def __iter__(self):
+        """
+        Get iterator over :class:`~Chromosome` objects.
+        """
+        this = self
+
+        class Iter(object):
+            def __init__(self):
+                self.current = 0
+
+            def __iter__(self):
+                self.current = 0
+                return self
+
+            def __next__(self):
+                if self.current >= len(this):
+                    raise StopIteration
+                self.current += 1
+                return this[self.current - 1]
+
+        return Iter()
+
+    def add_chromosome(self, chromosome):
+        """
+        Add a :class:`~Chromosome` to this object.
+
+        Will choose suitable defaults for missing attributes.
+
+        :param chromosome: :class:`~Chromosome` object or similar
+                           object (e.g. dict) with the same fields
+        """
+        i = len(self._names)
+
+        n = str(i)
+        if chromosome.name is not None:
+            n = chromosome.name
+
+        l = 0
+        if chromosome.length is not None:
+            l = chromosome.length
+
+        s = ''
+        if chromosome.sequence is not None:
+            s = chromosome.sequence
+            if l == 0:
+                l = len(s)
+
+        self._chromosome_table.row['name'] = n
+        self._chromosome_table.row['length'] = l
+        self._chromosome_table.row.append()
+
+        # self._names = self._names + [n]
+        # self._lengths = self._lengths + [l]
+        self._sequences.append(s)
+        self._sequences.flush()
+        self._chromosome_table.flush()
+
+    def get_regions(self, split, file_name=None, chromosomes=None):
+        """
+        Extract genomic regions from genome.
+
+        Provides two options:
+
+        - Splits chromosomes at restriction sites if the split
+          parameter is the name of a restriction enzyme.
+
+        - Splits chromosomes at equi-distant points if split
+          is an integer
+
+        :param split: Name of a restriction enzyme or positive
+                      integer
+        :param file_name: Name of a file if the result of this
+                          method should be saved to file
+        :param chromosomes: List of chromosome names to include. Default: all
+        :return: :class:`~GenomicRegions`
+        """
+
+        regions = RegionsTable(file_name=file_name)
+        for chromosome in self:
+            if chromosomes is not None and chromosome.name not in chromosomes:
+                continue
+            split_locations = []
+            if isinstance(split, string_types):
+                split_locations = chromosome.get_restriction_sites(split)
+            elif isinstance(split, int):
+                for i in range(split, len(chromosome) - 1, split):
+                    split_locations.append(i)
+            else:
+                for i in split:
+                    split_locations.append(i)
+
+            for i in range(0, len(split_locations)):
+                if i == 0:
+                    region = GenomicRegion(start=1, end=split_locations[i], chromosome=chromosome.name)
+                else:
+                    region = GenomicRegion(start=split_locations[i - 1] + 1,
+                                           end=split_locations[i], chromosome=chromosome.name)
+
+                regions.add_region(region, flush=False)
+
+            # add last node
+            if len(split_locations) > 0:
+                region = GenomicRegion(start=split_locations[len(split_locations) - 1] + 1,
+                                       end=chromosome.length, chromosome=chromosome.name)
+            else:
+                region = GenomicRegion(start=1, end=chromosome.length, chromosome=chromosome.name)
+            regions.add_region(region, flush=True)
+
+        return regions
+
+    def sub_sequence(self, chromosome, start=None, end=None):
+        if start is not None:
+            selection_region = GenomicRegion(chromosome=chromosome, start=start, end=end)
+        elif isinstance(chromosome, GenomicRegion):
+            selection_region = chromosome
+        else:
+            selection_region = GenomicRegion.from_string(chromosome)
+
+        res_chromosome = self[selection_region.chromosome]
+        if selection_region.start is None:
+            return res_chromosome.sequence
+        return res_chromosome.sequence[selection_region.start - 1:selection_region.end]
 
 
 class Node(GenomicRegion, TableObject):
@@ -172,17 +2538,6 @@ class Node(GenomicRegion, TableObject):
             return "%s, %d-%d" % (self.chromosome, self.start, self.end)
         else:
             return "%d: %s, %d-%d" % (self.ix, self.chromosome, self.start, self.end)
-
-    @classmethod
-    def from_row(cls, row):
-        """
-        Create a :class:`~Node` from a PyTables row.
-        """
-        strand = row['strand']
-        if strand == 0:
-            strand = None
-        return cls(start=row["start"], end=row["end"],
-                   strand=strand, chromosome=row["chromosome"])
 
 
 class LazyNode(LazyGenomicRegion, Node):
@@ -2799,7 +5154,7 @@ class Hic(RegionMatrixTable):
 
         chromosome_list = []
         for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lengths[chromosome]))
+            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lens[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
         regions = genome.get_regions(bin_size)
@@ -2985,6 +5340,7 @@ class Hic(RegionMatrixTable):
             raise
         from cooler.io import parse_cooler_uri
         import h5py
+        import itertools as it
         n_contacts = len(self)
         contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
         bias = self.bias_vector()
@@ -3925,3 +6281,32 @@ def _get_overlap_map(old_regions, new_regions):
         current_ix -= 1
     
     return old_to_new
+
+
+def merge_regions(regions):
+    sorted_regions = sorted(regions, key=lambda r: (r.chromosome, r.start))
+
+    merged_regions = []
+    current_regions = []
+    last_end = None
+    for region in sorted_regions:
+        if len(current_regions) == 0:
+            current_regions.append(region)
+            last_end = region.end
+        elif region.chromosome == current_regions[0].chromosome and region.start < last_end:
+            current_regions.append(region)
+            last_end = max(last_end, region.end)
+        else:
+            merged_region = GenomicRegion(chromosome=current_regions[0].chromosome,
+                                          start=current_regions[0].start, end=last_end,
+                                          strand=current_regions[0].strand)
+            merged_regions.append(merged_region)
+            current_regions = [region]
+            last_end = region.end
+
+    merged_region = GenomicRegion(chromosome=current_regions[0].chromosome,
+                                  start=current_regions[0].start, end=last_end,
+                                          strand=current_regions[0].strand)
+    merged_regions.append(merged_region)
+
+    return merged_regions
