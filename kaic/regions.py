@@ -5,7 +5,7 @@ import os.path
 import numpy as np
 import tables as t
 from Bio import SeqIO, Restriction, Seq
-from genomic_regions import RegionBased, GenomicRegion
+from genomic_regions import RegionBased, GenomicRegion, load as gr_load
 from .general import FileGroup
 from .tools.files import is_fasta_file
 from .tools.general import create_col_index, RareUpdateProgressBar
@@ -21,7 +21,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-__all__ = ['Chromosome', 'Genome', 'RegionsTable', 'LazyGenomicRegion']
+__all__ = ['Chromosome', 'Genome', 'RegionsTable', 'LazyGenomicRegion', 'genome_regions']
+
+
+def genome_regions(re_or_file, restriction_enzyme=None):
+    logger.info("Getting regions")
+    try:
+        regions_object = gr_load(re_or_file)
+        if isinstance(regions_object, RegionBased):
+            regions = list(regions_object.regions())
+        else:
+            raise ValueError("Not a region-based file, trying FASTA next...")
+    except (ValueError, TypeError):
+        if restriction_enzyme is None:
+            raise ValueError("Cannot calculate Hi-C regions. You must supply "
+                             "either a restriction enzyme name or bin size")
+        genome = Genome.from_string(re_or_file)
+        regions = genome.get_regions(restriction_enzyme)
+        genome.close()
+
+    return regions
 
 
 class Chromosome(object):
@@ -329,9 +348,24 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             create_col_index(self._regions.cols.start)
             create_col_index(self._regions.cols.end)
 
+        self._ix_to_chromosome = dict()
+        self._chromosome_to_ix = dict()
+        self._update_references()
+
+    def _update_references(self):
+        chromosomes = []
+        for region in self.regions(lazy=True):
+            if len(chromosomes) == 0 or chromosomes[-1] != region.chromosome:
+                chromosomes.append(region.chromosome)
+
+        for i, chromosome in enumerate(chromosomes):
+            self._ix_to_chromosome[i] = chromosome
+            self._chromosome_to_ix[chromosome] = i
+
     def _flush_regions(self):
         if self._regions_dirty:
             self._regions.flush()
+            self._update_references()
             self._regions_dirty = False
 
     def flush(self):
