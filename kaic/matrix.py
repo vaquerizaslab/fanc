@@ -1000,19 +1000,21 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
     _classid = 'REGIONMATRIXTABLE'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
-                 partitioning_strategy='chromosome',
+                 partitioning_strategy='chromosome', additional_edge_fields=None,
                  _table_name_regions='regions', _table_name_edges='edges',
                  _table_name_expected_values='expected_values',
                  _edge_buffer_size=1000000):
+
+        if additional_edge_fields is None:
+            additional_edge_fields = {'weight': tables.Float64Col()}
+
         RegionPairsTable.__init__(self,
                                   file_name=file_name, mode=mode, tmpdir=tmpdir,
                                   additional_region_fields={
                                       'valid': tables.BoolCol(dflt=True),
                                       'bias': tables.Float64Col(dflt=1.0),
                                   },
-                                  additional_edge_fields={
-                                      'weight': tables.Float64Col()
-                                  },
+                                  additional_edge_fields=additional_edge_fields,
                                   partitioning_strategy=partitioning_strategy,
                                   _table_name_regions=_table_name_regions,
                                   _table_name_edges=_table_name_edges,
