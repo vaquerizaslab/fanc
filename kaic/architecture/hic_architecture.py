@@ -30,11 +30,13 @@ from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeatu
     MatrixArchitecturalRegionFeatureFilter
 from kaic.architecture.maxima_callers import MaximaCallerDelta
 from genomic_regions import Bedpe
-from kaic.data.genomic import GenomicRegion, HicEdgeFilter, Edge, Hic, Genome
+from ..regions import GenomicRegion, Genome
+from ..matrix import Edge
+from ..hic import Hic, HicEdgeFilter
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
 from kaic.tools.matrix import apply_sliding_func, kth_diag_indices, trim_stats
-from kaic.data.general import FileGroup
+from ..general import FileGroup
 from Bio.SeqUtils import GC as calculate_gc_content
 import numpy as np
 import tables as t

@@ -1,4 +1,4 @@
-from kaic.data.general import FileGroup
+from ..general import FileGroup
 from abc import abstractmethod
 import tables as t
 from collections import defaultdict

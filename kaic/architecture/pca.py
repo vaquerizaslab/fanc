@@ -1,7 +1,7 @@
 from __future__ import division
 from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter, \
     BackgroundLigationCollectionFilter, HicEdgeCollection
-from kaic.data.genomic import GenomicRegion
+from genomic_regions import GenomicRegion
 from sklearn.decomposition import PCA
 from abc import ABCMeta, abstractmethod
 import tables as t

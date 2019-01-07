@@ -1,8 +1,9 @@
 from __future__ import division
 from kaic.config import config
-from kaic.data.genomic import AccessOptimisedRegionMatrixTable, RegionsTable, GenomicRegion
+from ..regions import RegionsTable, GenomicRegion
+from ..matrix import RegionMatrixTable
 from kaic.architecture.architecture import ArchitecturalFeature, calculateondemand, _get_pytables_data_type
-from kaic.data.general import MaskFilter
+from ..general import MaskFilter
 from kaic.tools.general import RareUpdateProgressBar
 import tables as t
 import numpy as np
@@ -14,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, ArchitecturalFeature):
+class MatrixArchitecturalRegionFeature(RegionMatrixTable, ArchitecturalFeature):
     """
     Process and store matrix-based, genomic region-associated data.
 
@@ -24,14 +25,17 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
 
     _classid = 'MATRIXARCHITECTURALREGIONFEATURE'
 
-    def __init__(self, file_name=None, mode='a', data_fields=None, default_field=None,
+    def __init__(self, file_name=None, mode='a', data_fields=None,
+                 default_field=None, default_value=0.0,
                  regions=None, edges=None, _table_name_regions='region_data',
                  _table_name_edges='edges', tmpdir=None):
-        AccessOptimisedRegionMatrixTable.__init__(self, file_name=file_name,
-                                                  additional_fields=data_fields,
-                                                  mode=mode, tmpdir=tmpdir, default_field=default_field,
-                                                  _table_name_nodes=_table_name_regions,
-                                                  _table_name_edges=_table_name_edges)
+        RegionMatrixTable.__init__(self, file_name=file_name,
+                                   additional_edge_fields=data_fields,
+                                   mode=mode, tmpdir=tmpdir,
+                                   default_score_field=default_field,
+                                   default_value=default_value,
+                                   _table_name_regions=_table_name_regions,
+                                   _table_name_edges=_table_name_edges)
         ArchitecturalFeature.__init__(self)
 
         for edge_table in self._edge_table_iter():
@@ -48,7 +52,7 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
 
     @calculateondemand
     def close(self, **kwargs):
-        AccessOptimisedRegionMatrixTable.close(self, **kwargs)
+        RegionMatrixTable.close(self, **kwargs)
 
     @calculateondemand
     def as_matrix(self, key=slice(0, None, None), values_from=None, mask_missing=False,
@@ -56,57 +60,57 @@ class MatrixArchitecturalRegionFeature(AccessOptimisedRegionMatrixTable, Archite
         """
         See :class:`~RegionMatrixTable`
         """
-        return AccessOptimisedRegionMatrixTable.as_matrix(self, key=key, values_from=values_from,
+        return RegionMatrixTable.as_matrix(self, key=key, values_from=values_from,
                                                           mask_missing=mask_missing, impute_missing=impute_missing)
 
     @calculateondemand
     def _get_nodes_from_key(self, key, as_index=False):
-        return AccessOptimisedRegionMatrixTable._get_nodes_from_key(self, key, as_index=as_index)
+        return RegionMatrixTable._get_nodes_from_key(self, key, as_index=as_index)
 
     @calculateondemand
     def _get_matrix(self, row_ranges=None, col_ranges=None, weight_column=None, default_value=0.0):
-        return AccessOptimisedRegionMatrixTable._get_matrix(self, row_ranges=row_ranges, col_ranges=col_ranges,
-                                                            weight_column=weight_column)
+        return RegionMatrixTable._get_matrix(self, row_ranges=row_ranges, col_ranges=col_ranges,
+                                             weight_column=weight_column)
 
     @calculateondemand
     def _getitem_nodes(self, key, as_index=False):
-        return AccessOptimisedRegionMatrixTable._getitem_nodes(self, key, as_index=as_index)
+        return RegionMatrixTable._getitem_nodes(self, key, as_index=as_index)
 
     @calculateondemand
     def as_data_frame(self, key, weight_column=None):
         """
         See :class:`~RegionMatrixTable`
         """
-        return AccessOptimisedRegionMatrixTable.as_data_frame(self, key, weight_column=weight_column)
+        return RegionMatrixTable.as_data_frame(self, key, weight_column=weight_column)
 
     @calculateondemand
     def get_node(self, key):
         """
         See :class:`~RegionMatrixTable`
         """
-        return AccessOptimisedRegionMatrixTable.get_node(self, key)
+        return RegionMatrixTable.get_node(self, key)
 
     @calculateondemand
     def get_edge(self, ix, lazy=False, **kwargs):
         """
         See :class:`~RegionMatrixTable`
         """
-        return AccessOptimisedRegionMatrixTable.get_edge(self, ix, lazy=lazy)
+        return RegionMatrixTable.get_edge(self, ix, lazy=lazy)
 
     @calculateondemand
     def _nodes_iter(self):
-        return AccessOptimisedRegionMatrixTable._nodes_iter(self)
+        return RegionMatrixTable._nodes_iter(self)
 
     @calculateondemand
     def edges_sorted(self, sortby, *args, **kwargs):
         """
         See :class:`~RegionMatrixTable`
         """
-        return AccessOptimisedRegionMatrixTable.edges_sorted(self, sortby, *args, **kwargs)
+        return RegionMatrixTable.edges_sorted(self, sortby, *args, **kwargs)
 
     @calculateondemand
     def _edges_iter(self):
-        return AccessOptimisedRegionMatrixTable._edges_iter(self)
+        return RegionMatrixTable._edges_iter(self)
 
     @abstractmethod
     def _calculate(self, *args, **kwargs):
