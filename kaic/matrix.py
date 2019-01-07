@@ -1001,9 +1001,13 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
                  partitioning_strategy='chromosome', additional_edge_fields=None,
+                 default_score_field='weight', default_value=0.0,
                  _table_name_regions='regions', _table_name_edges='edges',
                  _table_name_expected_values='expected_values',
                  _edge_buffer_size=1000000):
+
+        self._default_score_field = default_score_field
+        self._default_value = default_value
 
         if additional_edge_fields is None:
             additional_edge_fields = {'weight': tables.Float64Col()}
