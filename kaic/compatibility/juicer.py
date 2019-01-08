@@ -1,10 +1,11 @@
 import logging
 import struct
-from ..matrix import RegionMatrixContainer, Edge
-from genomic_regions import GenomicRegion
-import numpy as np
-import warnings
 import zlib
+
+import numpy as np
+from genomic_regions import GenomicRegion
+
+from ..matrix import RegionMatrixContainer, Edge
 
 logger = logging.getLogger(__name__)
 

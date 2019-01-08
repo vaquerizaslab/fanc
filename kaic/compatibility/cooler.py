@@ -1,11 +1,13 @@
+import logging
+
+import h5py
+import numpy as np
+import pandas
 from cooler import Cooler
 from cooler.io import parse_cooler_uri, create
-import h5py
-from ..matrix import RegionMatrixContainer, Edge
 from genomic_regions import GenomicRegion
-import pandas
-import numpy as np
-import logging
+
+from ..matrix import RegionMatrixContainer, Edge
 
 logger = logging.getLogger(__name__)
 
