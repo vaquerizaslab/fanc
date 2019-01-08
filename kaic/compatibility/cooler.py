@@ -37,7 +37,7 @@ def to_cooler(hic, path):
     bias = hic.region_data('bias')
 
     logger.info("Loading contacts")
-    contact_array = np.fromiter((edge.source, edge.sink, edge.weight
+    contact_array = np.fromiter(((edge.source, edge.sink, edge.weight)
                                  for edge in hic.edges(lazy=True, norm=False)),
                                 dtype=contact_dtype, count=len(hic.edges))
     logger.info("Sorting contacts")

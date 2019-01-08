@@ -48,7 +48,7 @@ class JuicerHic(RegionMatrixContainer):
         self._normalisation = normalisation
         self._unit = 'BP'
 
-        if not is_juicer_hic(hic_file):
+        if not is_juicer(hic_file):
             raise ValueError("File {} does not seem to be a .hic "
                              "file produced with juicer!".format(hic_file))
 

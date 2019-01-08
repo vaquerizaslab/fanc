@@ -9,6 +9,7 @@ Provides
 
 """
 import logging
+import warnings
 import os
 
 from genomic_regions import GenomicRegion, load as gr_load
@@ -34,8 +35,22 @@ logger.addHandler(logging.NullHandler())
 
 
 def load(file_name, *args, **kwargs):
-    import os
+
     file_name = os.path.expanduser(file_name)
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from kaic.compatibility.cooler import is_cooler, CoolerMatrix
+        if is_cooler(file_name):
+            return CoolerMatrix(file_name, *args, **kwargs)
+    except (ImportError, OSError):
+        pass
+
+    from kaic.compatibility.juicer import JuicerHic, is_juicer
+    if is_juicer(file_name):
+        return JuicerHic(file_name, *args, **kwargs)
+
     try:
         f = FileBased(file_name, mode='r')
         mode = kwargs.pop('mode', 'r')
