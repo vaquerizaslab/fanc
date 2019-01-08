@@ -1,6 +1,58 @@
 from cooler import Cooler
+from cooler.io import parse_cooler_uri, create
+import h5py
 from ..matrix import RegionMatrixContainer, Edge
 from genomic_regions import GenomicRegion
+import pandas
+import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def to_cooler(hic, path):
+    """
+    Export Hi-C data as cooler file. Only contacts that have not been
+    filtered are exported.
+    https://github.com/mirnylab/cooler/
+    If input Hi-C matrix is uncorrected, the uncorrected matrix is stored.
+    If it is corrected, the uncorrected matrix is stored and the bias vector.
+    Cooler always calculates corrected matrix on-the-fly from the uncorrected
+    matrix and the bias vector.
+    :param hic: Hi-C file in any compatible (RegionMatrixContainer) format
+    :param path: Output path for cooler file
+    """
+
+    contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
+    bias = hic.region_data('bias')
+
+    logger.info("Loading contacts")
+    contact_array = np.fromiter((edge.source, edge.sink, edge.weight
+                                 for edge in hic.edges(lazy=True, norm=False)),
+                                dtype=contact_dtype, count=len(hic.edges))
+    logger.info("Sorting contacts")
+    order = np.argsort(contact_array, order=("source", "sink"))
+    counts = np.rint(contact_array["weight"]).astype(np.int_)
+    contact_dict = {
+        "bin1_id": contact_array["source"][order],
+        "bin2_id": contact_array["sink"][order],
+        "count": counts[order],
+    }
+    region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in hic.regions()]
+    region_df = pandas.DataFrame(region_dicts)
+    logger.info("Writing cooler")
+
+    create(cool_uri=path, bins=region_df, pixels=contact_dict)
+
+    cool_path, group_path = parse_cooler_uri(path)
+    logger.info("Writing bias vector")
+    # Copied this section from
+    # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
+    with h5py.File(cool_path, 'r+') as h5:
+        grp = h5[group_path]
+        # add the bias column to the file
+        h5opts = dict(compression='gzip', compression_opts=6)
+        grp['bins'].create_dataset("weight", data=bias, **h5opts)
 
 
 class LazyCoolerEdge(Edge):

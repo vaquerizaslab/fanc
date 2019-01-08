@@ -56,6 +56,9 @@ setup(
         'intervaltree',
         'genomic_regions',
     ],
+    extras_require={
+        'cooler': ['cooler', 'h5py'],
+    },
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={
         'clean': CleanCommand
