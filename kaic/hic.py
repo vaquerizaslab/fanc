@@ -192,6 +192,54 @@ class Hic(RegionMatrixTable):
 
         return hic
 
+    def filter_diagonal(self, distance=0, queue=False):
+        """
+        Convenience function that applies a :class:`~DiagonalFilter`.
+
+        :param distance: Distance from the diagonal up to which matrix entries
+                         will be filtered. The default, 0, filters only the
+                         diagonal itself.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        mask = self.add_mask_description('diagonal',
+                                         'Mask the diagonal of the Hic matrix (up to distance %d)' % distance)
+        diagonal_filter = DiagonalFilter(distance=distance, mask=mask)
+        self.filter(diagonal_filter, queue)
+
+    def filter_low_coverage_regions(self, rel_cutoff=None, cutoff=None, queue=False):
+        """
+        Convenience function that applies a :class:`~LowCoverageFilter`.
+
+        The cutoff can be provided in two ways:
+        1. As an absolute threshold. Regions with contact count below this
+        absolute threshold are filtered
+        2. As a fraction relative to the median contact count of all regions.
+
+        If both is supplied, whichever threshold is lower will be selected.
+
+        If no parameter is supplied, rel_cutoff will be chosen as 0.1.
+
+        :param rel_cutoff: A cutoff as a fraction (0-1) of the median contact count of all
+                           regions.
+        :param cutoff: A cutoff in absolute contact counts (can be float) below
+                       which regions are considered "low coverage"
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        """
+        if cutoff is None and rel_cutoff is None:
+            rel_cutoff = 0.1
+
+        mask = self.add_mask_description('low_coverage',
+                                         'Mask low coverage regions in the Hic matrix '
+                                         '(absolute cutoff {:.4}, relative '
+                                         'cutoff {:.1%}'.format(float(cutoff) if cutoff else 0., float(rel_cutoff) if rel_cutoff else 0.))
+
+        low_coverage_filter = LowCoverageFilter(self, rel_cutoff=rel_cutoff, cutoff=cutoff, mask=mask)
+        self.filter(low_coverage_filter, queue)
+
 
 class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
@@ -372,7 +420,7 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
             marginal_error = tolerance + 1
             current_iteration = 0
 
-            edges = [[e.source, e.sink, e.weight] for e in hic.edges(norm=False)]
+            edges = [[e.source, e.sink, e.weight] for e in hic.edges((chromosome, chromosome), norm=False)]
 
             while (marginal_error > tolerance and
                    current_iteration <= max_iterations):
@@ -404,21 +452,30 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
         marginal_error = tolerance + 1
         current_iteration = 0
         logger.info("Starting iterations")
+        edges = [[e.source, e.sink, e.weight] for e in hic.edges(norm=False,
+                                                                 intra_chromosomal=intra_chromosomal,
+                                                                 inter_chromosomal=inter_chromosomal)]
         while (marginal_error > tolerance and
                current_iteration <= max_iterations):
-            m = hic.marginals()
+
+            m = np.zeros(len(bias_vector), dtype='float64')
+            for i in range(len(edges)):
+                source = edges[i][0]
+                sink = edges[i][1]
+                m[source] += edges[i][2]
+                if source != sink:
+                    m[sink] += edges[i][2]
+
             bias_vector *= m
             marginal_error = _marginal_error(m)
-            edges = [[e.source, e.sink, e.weight] for e in hic.edges(norm=False,
-                                                                     intra_chromosomal=intra_chromosomal,
-                                                                     inter_chromosomal=inter_chromosomal)]
+
             for i in range(len(edges)):
                 source = edges[i][0]
                 sink = edges[i][1]
                 edges[i][2] = 0 if m[sink] == 0 else edges[i][2]/np.sqrt(m[source])/np.sqrt(m[sink])
 
             current_iteration += 1
-            logger.info("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
+            logger.debug("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
 
     hic.region_data('bias', bias_vector)
     return bias_vector
@@ -436,13 +493,13 @@ def kr_balancing(hic, whole_matrix=True, intra_chromosomal=True, inter_chromosom
     if not whole_matrix:
         bias_vectors = []
         for chromosome in hic.chromosomes():
-            m = hic[chromosome, chromosome]
+            m = hic.matrix((chromosome, chromosome), norm=False)
             m_corrected, bias_vector_chromosome = correct_matrix(m, restore_coverage=restore_coverage)
             bias_vectors.append(bias_vector_chromosome)
         bias_vector = np.concatenate(bias_vectors)
     else:
         logger.debug("Fetching whole genome matrix")
-        m = hic[:, :]
+        m = hic.matrix(norm=False)
         cb = hic.chromosome_bins
         if not intra_chromosomal:
             for chromosome, bins in cb.items():
