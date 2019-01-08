@@ -99,6 +99,9 @@ def _get_overlap_map(old_regions, new_regions):
 
 
 class Hic(RegionMatrixTable):
+
+    _classid = 'HIC'
+
     def __init__(self, file_name=None, mode='a', tmpdir=None,
                  partitioning_strategy='chromosome',
                  _table_name_regions='regions', _table_name_edges='edges',
@@ -132,7 +135,7 @@ class Hic(RegionMatrixTable):
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
 
-            self.disable_indexes()
+            self._disable_edge_indexes()
             edge_counter = 0
             with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars) as pb:
                 chromosomes = hic.chromosomes()
@@ -142,7 +145,7 @@ class Hic(RegionMatrixTable):
                         edges = defaultdict(int)
                         for edge in hic.edges((chromosomes[i], chromosomes[j])):
                             old_source, old_sink = edge.source, edge.sink
-                            old_weight = getattr(edge, hic.default_field)
+                            old_weight = getattr(edge, hic._default_score_field)
 
                             for new_edge in _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map):
                                 if new_edge[2] != 0:
@@ -152,10 +155,10 @@ class Hic(RegionMatrixTable):
                             pb.update(edge_counter)
 
                         for (source, sink), weight in viewitems(edges):
-                            self.add_edge(Edge(source=source, sink=sink, weight=weight), flush=False)
+                            self.add_edge(Edge(source=source, sink=sink, weight=weight))
 
             self.flush()
-            self.enable_indexes()
+            self._enable_edge_indexes()
 
     def bin(self, bin_size, *args, **kwargs):
         """
@@ -174,7 +177,7 @@ class Hic(RegionMatrixTable):
 
         chromosome_list = []
         for chromosome in chromosomes:
-            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lens[chromosome]))
+            chromosome_list.append(Chromosome(name=chromosome, length=self.chromosome_lengths[chromosome]))
 
         genome = Genome(chromosomes=chromosome_list)
         regions = genome.get_regions(bin_size)
@@ -183,7 +186,7 @@ class Hic(RegionMatrixTable):
         logger.info("Binning edges...")
         kwargs['mode'] = 'w'
         hic = self.__class__(*args, **kwargs)
-        hic.add_regions(regions)
+        hic.add_regions(regions.regions)
         regions.close()
         hic.load_from_hic(self)
 
