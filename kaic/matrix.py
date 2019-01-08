@@ -523,6 +523,9 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return RegionMatrix(m, row_regions=row_regions, col_regions=col_regions)
 
+    def __getitem__(self, item):
+        return self.matrix(item)
+
     def possible_contacts(self):
         logger.debug("Calculating possible counts")
         regions = list(self.regions)
@@ -1067,6 +1070,75 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             return result[0]
         return result
 
+    def _update_mappability(self):
+        logger.info("Updating region mappability")
+        mappable = [False] * len(self.regions)
+        with RareUpdateProgressBar(max_value=len(self.edges), prefix='Mappability',
+                                   silent=config.hide_progressbars) as pb:
+            for i, edge in enumerate(self.edges(lazy=True)):
+                if edge.weight > 0:
+                    mappable[edge.source] = True
+                    mappable[edge.sink] = True
+                pb.update(i)
+        self.region_data('valid', mappable)
+
+    def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
+        """
+        Filter edges in this object by using a
+        :class:`~HicEdgeFilter`.
+
+        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
+                            Must override valid_edge method, ideally sets mask parameter
+                            during initialization.
+        :param queue: If True, filter will be queued and can be executed
+                      along with other queued filters using
+                      run_queued_filters
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        if not queue:
+            with RareUpdateProgressBar(max_value=len(self._edge_table_dict),
+                                       silent=not log_progress) as pb:
+                for i, edge_table in enumerate(self._edge_table_dict.values()):
+                    stats = edge_table.filter(edge_filter, _logging=False)
+                    for key, value in stats.items():
+                        if key != 0:
+                            filtered += stats[key]
+                        total += stats[key]
+                    pb.update(i)
+            if log_progress:
+                logger.info("Total: {}. Filtered: {}".format(total, filtered))
+        else:
+            for edge_table in self._edge_table_dict.values():
+                edge_table.queue_filter(edge_filter)
+
+        self._update_mappability()
+
+    def run_queued_filters(self, log_progress=not config.hide_progressbars):
+        """
+        Run queued filters.
+
+        :param log_progress: If true, process iterating through all edges
+                             will be continuously reported.
+        """
+        total = 0
+        filtered = 0
+        with RareUpdateProgressBar(max_value=len(self._edge_table_dict),
+                                   silent=not log_progress) as pb:
+            for i, edge_table in enumerate(self._edge_table_dict.values()):
+                stats = edge_table.run_queued_filters(_logging=False)
+                for key, value in stats.items():
+                    if key != 0:
+                        filtered += stats[key]
+                    total += stats[key]
+                pb.update(i)
+        if log_progress:
+            logger.info("Total: {}. Filtered: {}".format(total, filtered))
+
+        self._update_mappability()
+
 
 class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
@@ -1200,6 +1272,8 @@ class RegionMatrix(np.ma.MaskedArray):
         obj = np.asarray(input_matrix).view(cls, *args, **kwargs)
         obj._row_region_trees = None
         obj._col_region_trees = None
+        obj.col_regions = None
+        obj.row_regions = None
         obj.set_col_regions(col_regions)
         obj.set_row_regions(row_regions)
         obj._apply_mask()
@@ -1208,15 +1282,21 @@ class RegionMatrix(np.ma.MaskedArray):
     def _apply_mask(self):
         if self.row_regions is not None and self.col_regions is not None:
             mask = np.zeros(self.shape, dtype=bool)
-            for row_region in self.row_regions:
-                valid = getattr(row_region, 'valid', True)
-                if not valid:
-                    mask[row_region.ix - - self.row_regions[0].ix] = True
 
-            for col_region in self.col_regions:
-                valid = getattr(col_region, 'valid', True)
-                if not valid:
-                    mask[col_region.ix - - self.col_regions[0].ix] = True
+            row_offset = self.row_regions[0].ix
+            col_offset = self.col_regions[0].ix
+
+            for regions in (self.row_regions, self.col_regions):
+                for region in regions:
+                    valid = getattr(region, 'valid', True)
+                    if not valid:
+                        row_ix = region.ix - row_offset
+                        if 0 <= row_ix < self.shape[0]:
+                            mask[row_ix] = True
+
+                        col_ix = region.ix - col_offset
+                        if 0 <= col_ix <= self.shape[1]:
+                            mask[:, col_ix] = True
 
             self.mask = mask
 
@@ -1269,6 +1349,14 @@ class RegionMatrix(np.ma.MaskedArray):
     def __getitem__(self, index):
         self._getitem = True
 
+        try:
+            all_cols = slice(0, len(self.col_regions), 1)
+        except (AttributeError, TypeError):
+            try:
+                all_cols = slice(0, self.shape[1], 1)
+            except IndexError:
+                all_cols = None
+
         # convert string types into region indexes
         if isinstance(index, tuple):
             if len(index) == 2:
@@ -1282,19 +1370,22 @@ class RegionMatrix(np.ma.MaskedArray):
                 )
                 index = (row_key, col_key)
             elif len(index) == 1:
-                row_key = self._convert_key(index[0], self._row_region_trees)
-                col_key = slice(0, len(self.col_regions), 1)
+                row_key = self._convert_key(index[0],
+                                            self._row_region_trees
+                                            if hasattr(self, '_row_region_trees') else None)
+
+                col_key = all_cols
                 index = (row_key, )
             else:
-                col_key = slice(0, len(self.col_regions), 1)
+                col_key = all_cols
                 row_key = index
                 index = row_key
         else:
-            row_key = self._convert_key(index, self._row_region_trees)
-            try:
-                col_key = slice(0, len(self.col_regions), 1)
-            except TypeError:
-                col_key = None
+            row_key = self._convert_key(index,
+                                        self._row_region_trees
+                                        if hasattr(self, '_row_region_trees') else None)
+
+            col_key = all_cols
             index = row_key
 
         try:
