@@ -3,7 +3,8 @@ from kaic.config import config
 from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot, \
                                        PlotMeta, BaseOverlayPlotter
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
-from kaic.data.genomic import GenomicRegion
+from genomic_regions import GenomicRegion
+from ..matrix import RegionMatrixTable, RegionMatrixContainer
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
@@ -36,11 +37,11 @@ def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
                                           are buffered
     :param buffering_arg: Number specifying how much around the query area is buffered
     """
-    if isinstance(hic_data, kaic.data.genomic.RegionMatrixTable):
+    if isinstance(hic_data, RegionMatrixTable):
         return BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
                               buffering_arg=buffering_arg, weight_field=weight_field,
                               default_value=default_value, smooth_sigma=smooth_sigma)
-    elif isinstance(hic_data, kaic.data.genomic.RegionMatrix):
+    elif isinstance(hic_data, RegionMatrixContainer):
         return BufferedMatrix.from_hic_matrix(hic_data, weight_field=weight_field,
                                               default_value=default_value, smooth_sigma=smooth_sigma)
     else:

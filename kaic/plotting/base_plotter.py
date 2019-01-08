@@ -2,7 +2,7 @@ from __future__ import division, print_function
 from kaic.config import config
 from kaic.plotting.helpers import style_ticks_whitegrid, LimitGroup
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
-from kaic.data.genomic import GenomicRegion
+from genomic_regions import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
 import numpy as np
 import matplotlib as mpl

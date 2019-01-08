@@ -4,7 +4,8 @@ import seaborn as sns
 import pandas
 import numpy as np
 from future.utils import string_types
-import kaic.data.genomic as genomic
+from genomic_regions import GenomicRegion
+from ..hic import LowCoverageFilter
 import matplotlib.pyplot as plt
 
 
@@ -36,20 +37,20 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
     bin_size = hic.bin_size
     for i, feature_region in enumerate(regions):
         if isinstance(feature_region, string_types):
-            feature_region = genomic.GenomicRegion.from_string(feature_region)
+            feature_region = GenomicRegion.from_string(feature_region)
         center = feature_region.start + int((feature_region.end-feature_region.start)/2)
-        center_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,
-                                              start=center, end=center)
+        center_region = GenomicRegion(chromosome=feature_region.chromosome,
+                                      start=center, end=center)
 
         center_node = hic.get_node(center_region)
 
-        left_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,
-                                            start=max(1, center_node.start-half_window),
-                                            end=center_node.start)
+        left_region = GenomicRegion(chromosome=feature_region.chromosome,
+                                    start=max(1, center_node.start-half_window),
+                                    end=center_node.start)
 
-        right_region = genomic.GenomicRegion(chromosome=feature_region.chromosome,
-                                             start=center_node.end+1,
-                                             end=center_node.end+half_window)
+        right_region = GenomicRegion(chromosome=feature_region.chromosome,
+                                     start=center_node.end+1,
+                                     end=center_node.end+half_window)
 
         hic_left = hic[center_region, left_region][0]
         for j in range(0, len(hic_left)):
@@ -257,7 +258,7 @@ def hic_marginals_plot(hic, output=None, lower=None, upper=None, rel_cutoff=0.1)
     marginals = hic.marginals()
 
     if lower is None or upper is None:
-        f = genomic.LowCoverageFilter(hic)
+        f = LowCoverageFilter(hic)
         lower_calc, upper_calc = f.calculate_cutoffs(rel_cutoff)
         if lower is None:
             lower = lower_calc
