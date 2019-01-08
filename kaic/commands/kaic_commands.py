@@ -13,35 +13,12 @@ import kaic.commands.auto
 logger = logging.getLogger(__name__)
 
 
-def genome_regions(re_or_file, restriction_enzyme=None):
-    import kaic
-    from kaic.data.genomic import RegionBased
-
-    logger.info("Getting regions")
-    try:
-        regions_object = kaic.load(re_or_file)
-        if isinstance(regions_object, RegionBased):
-            regions = list(regions_object.regions())
-        else:
-            raise ValueError("Not a region-based file, trying FASTA next...")
-    except (ValueError, TypeError):
-        if restriction_enzyme is None:
-            raise ValueError("Cannot calculate Hi-C regions. You must supply "
-                             "either a restriction enzyme name or bin size")
-        genome = kaic.Genome.from_string(re_or_file)
-        regions = genome.get_regions(restriction_enzyme)
-        genome.close()
-
-    return regions
-
-
 def kaic_parser():
     usage = '''\
         kaic <command> [options]
 
         Commands:
             auto                Automatically process an entire Hi-C data set
-            dirs                Create default folder structure for kaic
             stats               Get statistics for kaic pipeline files
 
             --- Mapping
@@ -176,89 +153,6 @@ def kaic_parser():
     return parser
 
 
-def dirs_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic dirs",
-        description='Automatically process an entire Hi-C data set'
-    )
-
-    parser.add_argument(
-        'root_directory',
-        help='''Root directory in which to create kaic folders'''
-    )
-    return parser
-
-
-def dirs(argv):
-    parser = dirs_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    root_dir = os.path.expanduser(args.root_directory)
-
-    import errno
-
-    try:
-        os.makedirs(root_dir)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/fastq')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/sam')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/reads/filtered')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/pairs/filtered')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/hic/filtered')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/hic/binned')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/hic/corrected')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/plots/stats')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    try:
-        os.makedirs(root_dir + '/plots/matrix')
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-
 def auto_parser():
     return kaic.commands.auto.auto_parser()
 
@@ -281,7 +175,7 @@ def map_parser():
 
     parser.add_argument(
         'index',
-        help='''Bowtie 2 genome index'''
+        help='''Bowtie 2 or BWA genome index base'''
     )
 
     parser.add_argument(
@@ -428,7 +322,7 @@ def map(argv):
     else:
         threads, mapper_threads = args.threads, 1
 
-    import kaic.mapping.map as map
+    import kaic.map as map
     from kaic.tools.general import mkdir
     from kaic.tools.files import create_temporary_copy, random_name
     import subprocess
@@ -590,475 +484,6 @@ def map(argv):
             shutil.rmtree(index_dir, ignore_errors=True)
 
 
-def iterative_mapping_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic iterative_mapping",
-        description='Iteratively map a FASTQ file to a Bowtie 2 index'
-    )
-
-    parser.add_argument(
-        'input',
-        nargs='+',
-        help='''File name of the input FASTQ file (or gzipped FASTQ)'''
-    )
-
-    parser.add_argument(
-        'index',
-        help='''Bowtie 2 genome index'''
-    )
-
-    parser.add_argument(
-        'output',
-        help='''Output file name (or folder name if multiple input files provided)'''
-    )
-
-    parser.add_argument(
-        '-m', '--min-size', dest='min_size',
-        type=int,
-        default=25,
-        help='''Minimum length of read before extension. Default 25.'''
-    )
-
-    parser.add_argument(
-        '-s', '--step-size', dest='step_size',
-        type=int,
-        default=2,
-        help='''Number of base pairs to extend at each round of mapping. Default is 2.'''
-    )
-
-    parser.add_argument(
-        '-t', '--threads', dest='threads',
-        type=int,
-        default=1,
-        help='''Number of threads used for mapping'''
-    )
-
-    parser.add_argument(
-        '-q', '--quality', dest='quality',
-        type=int,
-        default=30,
-        help='''Mapping quality cutoff for reads to be sent to another iteration'''
-    )
-
-    parser.add_argument(
-        '-w', '--work-dir', dest='work_dir',
-        help='''Working directory, defaults to the system temporary folder'''
-    )
-
-    parser.add_argument(
-        '-r', '--restriction-enzyme', dest='restriction_enzyme',
-        help='''Name of restriction enzyme used in experiment.
-                                If provided, will trim reads at resulting ligation junction.'''
-    )
-
-    parser.add_argument(
-        '-b', '--batch-size', dest='batch_size',
-        type=int,
-        default=1000000,
-        help='''Number of reads processed (mapped and merged) in one go.'''
-    )
-
-    parser.add_argument(
-        '--bowtie-parallel', dest='bowtie_parallel',
-        action='store_true',
-        help='''Use bowtie parallelisation rather than spawning multiple Bowtie2 processes.
-                This is slower, but consumes a lot less memory.'''
-    )
-    parser.set_defaults(bowtie_parallel=False)
-
-    parser.add_argument(
-        '--split-fastq', dest='split_fastq',
-        action='store_true',
-        help='''Split FASTQ file into 10M chunks before mapping. Easier on tmp partitions.'''
-    )
-    parser.set_defaults(split_fastq=False)
-
-    parser.add_argument(
-        '--memory-map', dest='memory_map',
-        action='store_true',
-        help='''Map Bowtie2 index to memory (recommended if running on medium-memory systems and using many
-                parallel threads. Use instead of --bowtie-parallel).'''
-    )
-    parser.set_defaults(memory_map=False)
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='copy',
-        action='store_true',
-        help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
-    )
-    parser.set_defaults(copy=False)
-
-    return parser
-
-
-def iterative_mapping(argv):
-    parser = iterative_mapping_parser()
-    args = parser.parse_args(argv[2:])
-
-    # check arguments
-    index_path = os.path.expanduser(args.index)
-    output_folder = os.path.expanduser(args.output)
-
-    step_size = args.step_size
-    min_size = args.min_size
-    threads = args.threads
-    batch_size = args.batch_size
-    bowtie_parallel = args.bowtie_parallel
-    memory_map = args.memory_map
-
-    from kaic.mapping.iterative_mapping import split_iteratively_map_reads
-    from kaic.tools.general import mkdir
-    import subprocess
-
-    for input_file in args.input:
-        input_file = os.path.expanduser(input_file)
-        if len(args.input) == 1 and not os.path.isdir(output_folder):
-            output_file = output_folder
-        else:
-            output_folder = mkdir(output_folder)
-            basename, extension = os.path.splitext(os.path.basename(input_file))
-            output_file = output_folder + basename + '.bam'
-
-        if not args.split_fastq:
-            split_iteratively_map_reads(input_file, output_file, index_path, work_dir=args.work_dir,
-                                        quality_cutoff=args.quality, batch_size=batch_size, threads=threads,
-                                        min_size=min_size, step_size=step_size, copy=args.copy,
-                                        restriction_enzyme=args.restriction_enzyme,
-                                        adjust_batch_size=True,
-                                        bowtie_parallel=bowtie_parallel,
-                                        memory_map=memory_map)
-        else:
-            from kaic.tools.files import split_fastq, merge_sam, gzip_splitext
-
-            logger.info("Splitting FASTQ files for mapping")
-            if os.path.isdir(output_folder):
-                split_tmpdir = tempfile.mkdtemp(dir=output_folder)
-            else:
-                split_tmpdir = tempfile.mkdtemp(dir=os.path.dirname(output_folder))
-            try:
-                split_fastq_tmpdir = mkdir(os.path.join(split_tmpdir, 'fastq'))
-                split_sam_tmpdir = mkdir(os.path.join(split_tmpdir, 'sam'))
-                split_bam_files = []
-                split_fastq_results = []
-                for split_file in split_fastq(input_file, split_fastq_tmpdir):
-                    basename = os.path.basename(gzip_splitext(split_file)[0])
-                    split_bam_file = split_sam_tmpdir + '/{}.bam'.format(basename)
-                    split_bam_files.append(split_bam_file)
-
-                    split_command = ['kaic', 'iterative_mapping', split_file, index_path, split_bam_file,
-                                     '-m', str(min_size), '-s', str(step_size), '-t', str(threads),
-                                     '-q', str(args.quality), '-b', str(batch_size)]
-                    if args.restriction_enzyme is not None:
-                        split_command += ['-r', args.restriction_enzyme]
-                    if args.work_dir is not None:
-                        split_command += ['-w', args.work_dir]
-                    if args.copy:
-                        split_command += ['-tmp']
-                    if bowtie_parallel:
-                        split_command += ['--bowtie-parallel']
-                    if memory_map:
-                        split_command += ['--memory-map']
-
-                    rt = subprocess.call(split_command)
-                    split_fastq_results.append(rt)
-
-                for rt in split_fastq_results:
-                    if rt != 0:
-                        raise RuntimeError("Bowtie mapping had non-zero exit status")
-
-                logger.info("Merging BAM files into {}".format(output_file))
-                merge_sam(split_bam_files, output_file, tmp=args.copy)
-            finally:
-                shutil.rmtree(split_tmpdir)
-
-
-def load_reads_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic load_reads",
-        description='Load a SAM/BAM file into a Reads object'
-    )
-
-    parser.add_argument(
-        'input',
-        nargs='+',
-        help='''Input SAM file'''
-    )
-
-    parser.add_argument(
-        'output',
-        help='''Output file'''
-    )
-
-    parser.add_argument(
-        '-N', '--ignore-qname', dest='qname',
-        action='store_false',
-        help='''Do not store a read's qname, only a hashed version will be stored internally.'''
-    )
-    parser.set_defaults(qname=True)
-
-    parser.add_argument(
-        '-Q', '--ignore-qual', dest='qual',
-        action='store_false',
-        help='''Do not store a read's quality string.'''
-    )
-    parser.set_defaults(qual=True)
-
-    parser.add_argument(
-        '-S', '--ignore-seq', dest='seq',
-        action='store_false',
-        help='''Do not store a read's sequence string.'''
-    )
-    parser.set_defaults(seq=True)
-
-    parser.add_argument(
-        '-C', '--ignore-cigar', dest='cigar',
-        action='store_false',
-        help='''Do not store a read's cigar string. Warning: Some filters rely on this attribute.'''
-    )
-    parser.set_defaults(cigar=True)
-
-    parser.add_argument(
-        '-T', '--ignore-tags', dest='tags',
-        action='store_false',
-        help='''Do not store a read's tags. Warning: Some filters rely on this attribute.'''
-    )
-    parser.set_defaults(tags=True)
-
-    parser.add_argument(
-        '-D', '--ignore-default', dest='ignore_default',
-        action='store_true',
-        help='''Ignore qname, seq, and qual information to speed up read loading.'''
-    )
-    parser.set_defaults(ignore_default=False)
-
-    parser.add_argument(
-        '--split-sam', dest='split_sam',
-        action='store_true',
-        help='''Split SAM/BAM files into chunks of 10M alignments before loading. Useful in combination with tmp flag
-                    to reduce tmp disk space usage.'''
-    )
-    parser.set_defaults(split_sam=False)
-
-    parser.add_argument(
-        '--append', dest='append',
-        action='store_true',
-        help='''Do not overwrite existing Reads object, but append to it instead.'''
-    )
-    parser.set_defaults(split_sam=False)
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-
-    return parser
-
-
-def load_reads(argv):
-    parser = load_reads_parser()
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    import glob
-
-    input_paths = []
-    for input_path in args.input:
-        input_path = os.path.expanduser(input_path)
-        if os.path.isdir(input_path):
-            input_paths += glob.glob(os.path.join(input_path, '*.[sb]am'))
-        else:
-            input_paths.append(input_path)
-
-    output_path = os.path.expanduser(args.output)
-    original_output_path = output_path
-    if args.tmp:
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        tmp_file.close()
-        output_path = tmp_file.name
-        logger.info("Output temporarily redirected to %s" % output_path)
-
-    if args.ignore_default is True:
-        store_qname = False
-        store_seq = False
-        store_qual = False
-        store_cigar = True
-        store_tags = True
-    else:
-        store_qname = args.qname
-        store_seq = args.seq
-        store_qual = args.qual
-        store_cigar = args.cigar
-        store_tags = args.tags
-
-    mode = 'w' if not args.append else 'a'
-    reads = kaic.Reads(file_name=output_path, mode=mode)
-
-    from kaic.tools.files import split_sam
-
-    if not args.split_sam:
-        reads.load(sambam=input_paths, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
-                   store_qual=store_qual, store_tags=store_tags, sample_size=100000, tmp=args.tmp)
-    else:
-        output_folder = os.path.dirname(original_output_path)
-        split_bams = []
-        split_tmpdir = tempfile.mkdtemp(dir=output_folder)
-        logger.info("Splitting SAM/BAM files before loading reads. Split directory: {}".format(split_tmpdir))
-        try:
-            for file_name in input_paths:
-                split_bams += split_sam(file_name, split_tmpdir)
-            reads.load(sambam=split_bams, store_cigar=store_cigar, store_seq=store_seq, store_qname=store_qname,
-                       store_qual=store_qual, store_tags=store_tags, sample_size=100000, tmp=args.tmp)
-        finally:
-            shutil.rmtree(split_tmpdir)
-    reads.close()
-
-    if args.tmp:
-        logger.info("Moving output file to destination...")
-        shutil.move(output_path, original_output_path)
-    logger.info("All done.")
-
-
-def filter_reads_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic filter_reads",
-        description='Filter a Reads object'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input Reads file'''
-    )
-
-    parser.add_argument(
-        'output',
-        nargs="?",
-        help='''Output Reads file. If not provided will filter existing file directly.'''
-    )
-
-    parser.add_argument(
-        '-m', '--mapped', dest='mapped',
-        action='store_true',
-        help='''Filter unmapped reads'''
-    )
-    parser.set_defaults(mapped=False)
-
-    parser.add_argument(
-        '-u', '--unique', dest='unique',
-        action='store_true',
-        help='''Filter reads that map multiple times (with a lower score)'''
-    )
-    parser.set_defaults(unique=False)
-
-    parser.add_argument(
-        '-us', '--unique-strict', dest='unique_strict',
-        action='store_true',
-        help='''Strictly filter reads that map multiple times (XS tag)'''
-    )
-    parser.set_defaults(unique_strict=False)
-
-    parser.add_argument(
-        '--bwa', dest='bwa',
-        action='store_true',
-        help='''Use filters appropriate for BWA and not Bowtie2'''
-    )
-    parser.set_defaults(bwa=False)
-
-    parser.add_argument(
-        '-q', '--quality', dest='quality',
-        type=int,
-        help='''Cutoff for the minimum mapping quality of a read'''
-    )
-
-    parser.add_argument(
-        '-c', '--contaminant', dest='contaminant',
-        help='''A Reads file with contaminating reads. Will filter out reads with the same name.'''
-    )
-
-    parser.add_argument(
-        '-s', '--stats', dest='stats',
-        help='''Path for saving stats pdf'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-
-    return parser
-
-
-def filter_reads(argv):
-    parser = filter_reads_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.tools.files import copy_or_expand, create_temporary_copy
-    from kaic.construct.seq import ContaminantFilter
-
-    bwa = args.bwa
-
-    # copy file if required
-    original_input_path = os.path.expanduser(args.input)
-    if args.tmp:
-        logger.info("Copying Reads object to temporary file...")
-        input_path = create_temporary_copy(original_input_path)
-        logger.info("Temporarily working in %s" % input_path)
-    else:
-        input_path = copy_or_expand(args.input, args.output)
-
-    reads = kaic.Reads(file_name=input_path, mode='a')
-
-    if args.mapped:
-        logger.info("Unmapped filter enabled")
-        reads.filter_unmapped(queue=True)
-
-    if args.unique_strict:
-        logger.info("Strict multi-map filter enabled")
-        reads.filter_non_unique(strict=True, queue=True, bwa=bwa)
-    elif args.unique:
-        logger.info("Soft multi-map filter enabled")
-        reads.filter_non_unique(strict=False, queue=True, bwa=bwa)
-
-    if args.quality:
-        logger.info("Quality filter enabled (%d)" % args.quality)
-        reads.filter_quality(args.quality, queue=True)
-
-    if args.contaminant:
-        contaminant_file = os.path.expanduser(args.contaminant)
-        logger.info("Contaminant filter enabled %s" % contaminant_file)
-        contaminant = kaic.Reads(contaminant_file)
-        contaminant_filter = ContaminantFilter(contaminant,
-                                               reads.add_mask_description("contaminant",
-                                                                          "Filter contaminating reads"))
-        reads.filter(contaminant_filter, queue=True)
-
-    logger.info("Running filters...")
-    reads.run_queued_filters(log_progress=True)
-    logger.info("Done.")
-
-    if args.stats:
-        logger.info("Plotting filter statistics")
-        from kaic.plotting.plot_statistics import plot_mask_statistics
-        plot_mask_statistics(reads, reads._reads, output=args.stats)
-        logger.info("Done.")
-
-    reads.close()
-
-    if args.tmp:
-        output_path = os.path.expanduser(args.output)
-        if os.path.isdir(output_path):
-            output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-        logger.info("Moving temporary output file to destination %s..." % output_path)
-        shutil.move(input_path, output_path)
-
-    logger.info("All done.")
-
-
 def build_genome_parser():
     parser = argparse.ArgumentParser(
         prog="kaic build_genome",
@@ -1134,6 +559,7 @@ def fragments(argv):
     re_or_bin_size = args.re_or_bin_size
     output_file = os.path.expanduser(args.output)
 
+    from kaic.regions import genome_regions
     regions = genome_regions(genome_file, re_or_bin_size)
 
     from kaic.tools.files import write_bed
@@ -1143,108 +569,6 @@ def fragments(argv):
         warnings.simplefilter("ignore")
 
         write_bed(output_file, regions)
-
-
-def reads_to_pairs_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic reads_to_pairs",
-        description='Convert a Reads object into a Pairs object'
-    )
-
-    parser.add_argument(
-        'reads1',
-        help='''First half of input reads'''
-    )
-
-    parser.add_argument(
-        'reads2',
-        help='''Second half of input reads'''
-    )
-
-    parser.add_argument(
-        'genome',
-        help=textwrap.dedent('''\
-                                     Can be an HDF5 Genome object, a FASTA file,
-                                     a folder with FASTA files, or a comma-separated
-                                     list of FASTA files.
-                                     ''')
-    )
-
-    parser.add_argument(
-        'restriction_enzyme',
-        help='''Restriction enzyme used in the experiment, e.g. HindIII'''
-    )
-
-    parser.add_argument(
-        'output',
-        help='''Output file for mapped pairs'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-
-    return parser
-
-
-def reads_to_pairs(argv):
-    parser = reads_to_pairs_parser()
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.tools.files import create_temporary_copy
-
-    reads1_path = os.path.expanduser(args.reads1)
-    # copy file if required
-    if args.tmp:
-        logger.info("Creating temporary copy of first half of reads...")
-        reads1_path = create_temporary_copy(reads1_path)
-        logger.info("Working with temporary copy %s" % reads1_path)
-
-    reads2_path = os.path.expanduser(args.reads2)
-    # copy file if required
-    if args.tmp:
-        logger.info("Creating temporary copy of second half of reads...")
-        reads2_path = create_temporary_copy(reads2_path)
-        logger.info("Working with temporary copy %s" % reads2_path)
-
-    genome_path = os.path.expanduser(args.genome)
-
-    output_path = os.path.expanduser(args.output)
-    original_output_path = output_path
-    if args.tmp:
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        tmp_file.close()
-        output_path = tmp_file.name
-        logger.info("Working in temporary output file %s" % output_path)
-
-    logger.info("Loading left side of reads...")
-    reads1 = kaic.Reads(reads1_path, mode='r')
-    logger.info("Loading right side of reads...")
-    reads2 = kaic.Reads(reads2_path, mode='r')
-    logger.info("Building genome...")
-    nodes = genome_regions(genome_path, restriction_enzyme=args.restriction_enzyme)
-
-    logger.info("Building pairs...")
-    pairs = kaic.Pairs(file_name=output_path, mode='w')
-    logger.info("Mapping reads...")
-    pairs.load(reads1, reads2, nodes)
-
-    reads1.close()
-    reads2.close()
-    pairs.close()
-
-    if args.tmp:
-        logger.info("Removing temporary input files...")
-        os.unlink(reads1_path)
-        os.unlink(reads2_path)
-        logger.info("Moving output file to destination %s" % original_output_path)
-        shutil.move(output_path, original_output_path)
-
-    logger.info("All done.")
 
 
 def sort_sam_parser():
@@ -1430,12 +754,11 @@ def sam_to_pairs(argv):
     parser = sam_to_pairs_parser()
     args = parser.parse_args(argv[2:])
 
-    import kaic
     from kaic.tools.files import create_temporary_copy
     from kaic.tools.general import get_sam_mapper
-    from kaic.data.genomic import RegionBased
-    from kaic.data.general import Mask
-    from kaic.construct.seq import SamBamReadPairGenerator, ReadPairs, \
+    from kaic.regions import genome_regions
+    from kaic.general import Mask
+    from kaic.pairs import SamBamReadPairGenerator, ReadPairs, \
         UnmappedFilter, UniquenessFilter, QualityFilter, ContaminantFilter, BwaMemUniquenessFilter
     import tempfile
     import shutil
@@ -1531,7 +854,7 @@ def sam_to_pairs(argv):
 def filter_pairs_parser():
     parser = argparse.ArgumentParser(
         prog="kaic filter_pairs",
-        description='Filter a Pairs object'
+        description='Filter a ReadPairs object'
     )
 
     parser.add_argument(
@@ -1741,7 +1064,8 @@ def pairs_from_hicpro(argv):
     batch_size = args.batch_size
     tmp = args.tmp
 
-    from kaic.construct.seq import TxtReadPairGenerator, ReadPairs
+    from kaic.pairs import TxtReadPairGenerator, ReadPairs
+    from kaic.regions import genome_regions
     from kaic.tools.files import create_temporary_copy
 
     original_input_file = input_file
@@ -1943,13 +1267,6 @@ def merge_hic_parser():
     )
 
     parser.add_argument(
-        '-O', '--no-optimise', dest='optimise',
-        action='store_false',
-        help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
-    )
-    parser.set_defaults(optimise=True)
-
-    parser.add_argument(
         '--intra', dest='intra',
         action='store_true',
         help='''Only merge intra-chromosomal contacts and set inter-chromosomal to 0.'''
@@ -1976,31 +1293,11 @@ def merge_hic(argv):
 
     output_path = os.path.expanduser(args.output)
     paths = [os.path.expanduser(path) for path in args.hic]
-    hics = [kaic.load_hic(path, mode='r', tmpdir=tmpdir) for path in paths]
+    hics = [kaic.load(path, mode='r', tmpdir=tmpdir) for path in paths]
 
-    # try fast, basic loading first:
-    try:
-        if args.optimise:
-            merged = kaic.AccessOptimisedHic.from_hic(hics, file_name=output_path, tmpdir=tmpdir,
-                                                      only_intrachromosomal=args.intra)
-        else:
-            merged = kaic.Hic.from_hic(hics, file_name=output_path, tmpdir=tmpdir,
-                                       only_intrachromosomal=args.intra)
-
-        merged.close()
-    except ValueError:
-        logging.warning("The regions in your Hi-C objects do not appear to be identical. This will slow down"
-                        "merging significantly.")
-        first_hic = hics.pop(0)
-
-        if args.optimise:
-            merged = kaic.AccessOptimisedHic(data=first_hic, file_name=output_path, mode='w', tmpdir=tmpdir)
-        else:
-            merged = kaic.Hic(data=first_hic, file_name=output_path, mode='w', tmpdir=tmpdir)
-
-        merged.merge(hics)
-
-        merged.close()
+    cls = hics[0].__class__
+    merged = cls.merge(hics, file_name=output_path, tmpdir=tmpdir)
+    merged.close()
 
     for hic in hics:
         hic.close()
@@ -2080,7 +1377,7 @@ def filter_hic(argv):
     else:
         input_path = copy_or_expand(args.input, args.output)
 
-    with kaic.load_hic(file_name=input_path, mode='a') as hic:
+    with kaic.load(file_name=input_path, mode='a') as hic:
         if args.low_default:
             if args.low or args.rel_low:
                 logger.info("Already specified an cutoff with -l or -rl, skipping -ld...")
@@ -2169,9 +1466,9 @@ def bin_hic(argv):
         input_path = os.path.expanduser(args.hic)
         output_path = original_output_path
 
-    hic = kaic.load_hic(file_name=input_path, mode='r')
+    hic = kaic.load(file_name=input_path, mode='r')
 
-    logger.info("Binning at %dbp" % args.bin_size)
+    logger.info("Binning at {}bp".format(args.bin_size))
     binned = hic.bin(args.bin_size, file_name=output_path)
 
     hic.close()
