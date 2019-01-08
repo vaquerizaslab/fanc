@@ -1136,6 +1136,72 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         self._update_mappability()
 
+    def sample(self, n, exact=False, file_name=None):
+        if isinstance(n, RegionPairsContainer):
+            n = len(n.edges)
+
+        region_pairs = []
+        if not exact:
+            weights = []
+            logger.info("Using sampling with replacement")
+            for edge in self.edges(lazy=True):
+                region_pairs.append((edge.source, edge.sink))
+                weights.append(edge.weight)
+            s = sum(weights)
+            p = [w / s for w in weights]
+        else:
+            p = None
+            logger.info("Using sampling without replacement")
+            for edge in self.edges(lazy=True):
+                for i in range(int(edge.weight)):
+                    region_pairs.append((edge.source, edge.sink))
+
+        new_pairs = self.__class__(file_name=file_name, mode='w')
+        new_pairs.add_regions(self.regions)
+        new_edges = defaultdict(int)
+        for new_pair_ix in np.random.choice(len(region_pairs), size=n, replace=not exact, p=p):
+            new_edges[region_pairs[new_pair_ix]] += 1
+        new_edges = [[source, sink, weight] for (source, sink), weight in new_edges.items()]
+        new_pairs.add_edges(new_edges)
+
+        return new_pairs
+
+    def subset(self, *regions, **kwargs):
+        """
+        Subset a Hic object by specifying one or more subset regions.
+
+        :param regions: string or GenomicRegion object(s)
+        :param kwargs: Supports
+                       file_name: destination file name of subset Hic object;
+                       tmpdir: if True works in tmp until object is closed
+        :return: Hic
+        """
+        file_name = kwargs.get("file_name", None)
+        tmpdir = kwargs.get('tmpdir', None)
+
+        new_pairs = self.__class__(file_name=file_name, mode='w', tmpdir=tmpdir)
+
+        ix_converter = {}
+        ix = 0
+        new_regions = []
+        for region_string in regions:
+            for region in self.regions(region_string):
+                ix_converter[region.ix] = ix
+                ix += 1
+                new_regions.append(region)
+        new_pairs.add_regions(new_regions)
+
+        for i, region_string1 in enumerate(regions):
+            for j in range(i, len(regions)):
+                region_string2 = regions[j]
+                for edge in self.edges((region_string1, region_string2), lazy=True):
+                    source = ix_converter[edge.source]
+                    sink = ix_converter[edge.sink]
+                    new_pairs.add_edge([source, sink, edge.weight])
+        new_pairs.flush()
+
+        return new_pairs
+
 
 class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
