@@ -792,10 +792,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             self._enable_edge_indexes()
             self._edges_dirty = False
 
-        if self._mappability_dirty:
-            self.meta['has_mappability_info'] = False
-            self.mappable()
-            self._mappability_dirty = False
+            self._update_mappability()
 
     def flush(self, silent=config.hide_progressbars):
         """
