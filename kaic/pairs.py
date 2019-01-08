@@ -823,7 +823,7 @@ class ReadPairs(RegionPairsTable):
         if not queue:
             with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
                                        silent=not log_progress) as pb:
-                for i, edge_table in enumerate(self._edge_table_iter()):
+                for i, edge_table in enumerate(self._edge_table_dict.values()):
                     stats = edge_table.filter(pair_filter, _logging=False)
                     for key, value in stats.items():
                         if key != 0:
@@ -833,7 +833,7 @@ class ReadPairs(RegionPairsTable):
             if log_progress:
                 logger.info("Total: {}. Filtered: {}".format(total, filtered))
         else:
-            for edge_table in self._edge_table_iter():
+            for edge_table in self._edge_table_dict.values():
                 edge_table.queue_filter(pair_filter)
 
     def run_queued_filters(self, log_progress=not config.hide_progressbars):
@@ -845,9 +845,9 @@ class ReadPairs(RegionPairsTable):
         """
         total = 0
         filtered = 0
-        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_dict.keys()),
                                    silent=not log_progress) as pb:
-            for i, edge_table in enumerate(self._edge_table_iter()):
+            for i, edge_table in enumerate(self._edge_table_dict.values()):
                 stats = edge_table.run_queued_filters(_logging=False)
                 for key, value in stats.items():
                     if key != 0:
@@ -868,7 +868,7 @@ class ReadPairs(RegionPairsTable):
                       run_queued_filters
         """
         mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
-        pcr_duplicate_filter = PCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
+        pcr_duplicate_filter = AOPCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
         self.filter(pcr_duplicate_filter, queue)
 
     def filter_inward(self, minimum_distance=None, queue=False, *args, **kwargs):
@@ -1002,7 +1002,7 @@ class ReadPairs(RegionPairsTable):
 
     def __len__(self):
         l = 0
-        for edge_table in self._edge_table_iter():
+        for edge_table in self._edge_table_dict.values():
             l += len(edge_table)
         return l
 
@@ -1010,7 +1010,7 @@ class ReadPairs(RegionPairsTable):
         hic = _hic_class(file_name=file_name, mode='w', tmpdir=tmpdir)
         hic.add_regions(self.regions())
 
-        hic.disable_indexes()
+        hic._disable_edge_indexes()
 
         l = len(self)
         pairs_counter = 0
@@ -1035,11 +1035,13 @@ class ReadPairs(RegionPairsTable):
                     for (source, sink), weight in viewitems(edge_buffer):
                         row['source'] = source
                         row['sink'] = sink
-                        row[hic.default_field] = float(weight)
+                        row[hic._default_score_field] = float(weight)
                         row.append()
                     hic_edge_table.flush(update_index=False)
         hic.flush()
-        hic.enable_indexes()
+
+        hic._enable_edge_indexes()
+
         return hic
 
     def pairs_by_chromosomes(self, chromosome1, chromosome2, lazy=False):
@@ -1591,7 +1593,7 @@ class AOPCRDuplicateFilter(PCRDuplicateFilter):
         self.duplicates_set = set()
         self.duplicate_stats = defaultdict(int)
         original_len = 0
-        for edge_table in self.pairs._edge_table_iter():
+        for edge_table in self.pairs._edge_table_dict.values():
             original_len += edge_table._original_len()
             self._mark_duplicates(edge_table)
 
