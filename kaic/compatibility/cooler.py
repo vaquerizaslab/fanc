@@ -12,6 +12,14 @@ from ..matrix import RegionMatrixContainer, Edge
 logger = logging.getLogger(__name__)
 
 
+def is_cooler(file_name):
+    try:
+        Cooler(file_name)
+        return True
+    except KeyError:
+        return False
+
+
 def to_cooler(hic, path):
     """
     Export Hi-C data as cooler file. Only contacts that have not been

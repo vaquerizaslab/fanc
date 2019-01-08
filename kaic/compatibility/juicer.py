@@ -10,6 +10,15 @@ from ..matrix import RegionMatrixContainer, Edge
 logger = logging.getLogger(__name__)
 
 
+def is_juicer(file_name):
+    with open(file_name, 'rb') as req:
+        magic_string = struct.unpack('<3s', req.read(3))[0]
+        if magic_string != b"HIC":
+            return False
+        else:
+            return True
+
+
 def _read_cstr(f):
     """
     Copyright (c) 2016 Aiden Lab
@@ -39,11 +48,9 @@ class JuicerHic(RegionMatrixContainer):
         self._normalisation = normalisation
         self._unit = 'BP'
 
-        with open(self._hic_file, 'rb') as req:
-            magic_string = struct.unpack('<3s', req.read(3))[0]
-            if magic_string != b"HIC":
-                raise ValueError("File {} does not seem to be a .hic "
-                                 "file produced with juicer!".format(hic_file))
+        if not is_juicer_hic(hic_file):
+            raise ValueError("File {} does not seem to be a .hic "
+                             "file produced with juicer!".format(hic_file))
 
     @property
     def version(self):
