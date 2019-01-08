@@ -812,6 +812,8 @@ class Genome(FileGroup):
         """
 
         regions = RegionsTable(file_name=file_name)
+
+        region_list = []
         for chromosome in self:
             if chromosomes is not None and chromosome.name not in chromosomes:
                 continue
@@ -832,7 +834,7 @@ class Genome(FileGroup):
                     region = GenomicRegion(start=split_locations[i - 1] + 1,
                                            end=split_locations[i], chromosome=chromosome.name)
 
-                regions.add_region(region, flush=False)
+                region_list.append(region)
 
             # add last node
             if len(split_locations) > 0:
@@ -840,7 +842,9 @@ class Genome(FileGroup):
                                        end=chromosome.length, chromosome=chromosome.name)
             else:
                 region = GenomicRegion(start=1, end=chromosome.length, chromosome=chromosome.name)
-            regions.add_region(region, flush=True)
+            region_list.append(region)
+
+        regions.add_regions(region_list)
 
         return regions
 
