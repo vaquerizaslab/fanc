@@ -178,6 +178,7 @@ class FileBased(with_metaclass(MetaFileBased, object)):
             warnings.warn("File {} is already closed!".format(self.file.filename))
             return
         file_mode = self.file.mode
+        repr(self.file)  # for some reason this fixes an AttributeError bug in pytables
         self.file.close()
         if self.tmp_file_name is not None:
             if copy_tmp and self.file_name is not None and file_mode not in ('r', 'r+'):
