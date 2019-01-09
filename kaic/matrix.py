@@ -351,12 +351,12 @@ class RegionPairsContainer(RegionBased):
                                         continue
 
                                 weight = getattr(edge, weight_field)
-                                setattr(edge, weight_field, weight / biases[edge.source] / biases[edge.sink])
+                                setattr(edge, weight_field, weight * biases[edge.source] * biases[edge.sink])
                                 yield edge
                         else:
                             for edge in edge_iter:
                                 weight = getattr(edge, weight_field)
-                                setattr(edge, weight_field, weight/biases[edge.source]/biases[edge.sink])
+                                setattr(edge, weight_field, weight * biases[edge.source] * biases[edge.sink])
                                 yield edge
                 else:
                     for edge in edge_iter:
@@ -464,7 +464,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                     biases[region.ix] = getattr(region, bias_field, 1.0)
 
             entry_iter = ((source - row_offset, sink - col_offset,
-                          weight / biases[source] / biases[sink])
+                          weight * biases[source] * biases[sink])
                           for source, sink, weight in basic_iter)
         else:
             entry_iter = ((source - row_offset, sink - col_offset, weight)
