@@ -1,79 +1,108 @@
 import os
-import gzip
 import numpy as np
 from genomic_regions import GenomicRegion
-from kaic.matrix import Edge, RegionMatrixTable
+from kaic.matrix import Edge
+from kaic.hic import Hic
 
 
 test_dir = os.path.dirname(os.path.realpath(__file__))
 
 
 def _get_test_regions(folder=test_dir, with_bias=False):
-    chromosome_lengths = [('chr1', 228252215), ('chr2', 189746636)]
+    biases_file = os.path.join(folder, 'test_matrix', 'test_biases.txt')
 
-    region_ix = 0
+    biases = []
+    with open(biases_file, 'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if line == '':
+                continue
+
+            b = 1/float(line)
+
+            biases.append(b)
+
+    if not with_bias:
+        biases = [1.0] * len(biases)
+
+    regions_file = os.path.join(test_dir, 'test_matrix', 'test_regions.bed')
+
     regions = []
-    for chromosome, length in chromosome_lengths:
-        if with_bias:
-            bias_file = os.path.join(folder, 'test_matrix', 'rhesus_{}_biases.txt'.format(chromosome))
-            bias = np.loadtxt(bias_file)
-        else:
-            bins = int(length / 2500000) + 1
-            bias = np.repeat(1.0, bins)
+    with open(regions_file, 'r') as f:
+        for i, line in enumerate(f):
+            line = line.rstrip()
+            if line == '':
+                continue
 
-        for i, start in enumerate(range(1, length, 2500000)):
-            end = min(length, start + 2500000 - 1)
-            region = GenomicRegion(chromosome=chromosome, start=start, end=end,
-                                   ix=region_ix, bias=bias[i])
+            fields = line.split("\t")
+
+            chromosome = fields[0]
+            start = int(fields[1])
+            end = int(fields[2])
+            region = GenomicRegion(chromosome=chromosome,
+                                   start=start,
+                                   end=end,
+                                   bias=biases[i],
+                                   ix=i)
             regions.append(region)
-            region_ix += 1
-
     return regions
 
 
-def _get_test_edges(folder=test_dir):
+def _get_test_edges(folder=test_dir, norm=False):
+    if norm:
+        edges_file = os.path.join(folder, 'test_matrix', 'test_edges_kr.txt')
+    else:
+        edges_file = os.path.join(folder, 'test_matrix', 'test_edges_uncorrected.txt')
+
     edges = []
-    chromosomes = ['chr1', 'chr2']
-    for i in range(len(chromosomes)):
-        chromosome1 = chromosomes[i]
-        for j in range(i, len(chromosomes)):
-            chromosome2 = chromosomes[j]
-            edges_file = os.path.join(folder, 'test_matrix',
-                                      'rhesus_{}_{}_edges_uncorrected.txt.gz'.format(chromosome1,
-                                                                                     chromosome2))
+    with open(edges_file, 'r') as f:
+        for i, line in enumerate(f):
+            line = line.rstrip()
+            if line == '':
+                continue
 
-            with gzip.open(edges_file, 'r') as f:
-                for line in f:
-                    line = line.decode('utf-8')
-                    line = line.rstrip()
-                    if line == '':
-                        continue
+            fields = line.split("\t")
+            source = int(fields[0])
+            sink = int(fields[1])
+            weight = float(fields[2])
 
-                    fields = line.split("\t")
-                    source, sink, weight = int(fields[0]), int(fields[1]), float(fields[2])
-
-                    edge = Edge(source, sink, weight=weight)
-                    edges.append(edge)
+            if not np.isnan(weight):
+                edge = Edge(source=source, sink=sink, weight=weight)
+                edges.append(edge)
     return edges
 
 
 class RegionMatrixContainerTestFactory:
+    def setup_method(self, method):
+        self.matrix = None
 
     def test_edges_iter(self):
         pass
 
+    def test_get_edges_uncorrected(self):
+        edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges(norm=False)}
+
+        for edge in self.matrix.edges(norm=False):
+            assert np.isclose(edge.weight,
+                              edges_dict[(edge.source, edge.sink)],
+                              rtol=1e-03)
+
     def test_get_edges(self):
-        edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges()}
+        edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges(norm=True)}
 
-        for edge in self.matrix.edges(correct=False):
-            assert np.isclose(edge.weight, edges_dict[(edge.source, edge.sink)])
+        for edge in self.matrix.edges(norm=True):
+            if np.isnan(edges_dict[(edge.source, edge.sink)]):
+                continue
+
+            assert np.isclose(edge.weight,
+                              edges_dict[(edge.source, edge.sink)],
+                              rtol=1e-03)
 
 
-class TestRegionMatrixTable(RegionMatrixContainerTestFactory):
+class TestHic(RegionMatrixContainerTestFactory):
     def setup_method(self, method):
-        self.matrix = RegionMatrixTable()
-        self.matrix.add_regions(_get_test_regions(with_bias=True))
-        self.matrix.add_edges(_get_test_edges())
+        hic_file = os.path.join(test_dir, 'test_matrix', 'test_kaic.hic')
+        self.matrix = Hic(hic_file, mode='r')
 
     def teardown_method(self, method):
         self.matrix.close()
