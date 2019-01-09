@@ -37,7 +37,7 @@ def _read_cstr(f):
 
 
 class JuicerHic(RegionMatrixContainer):
-    def __init__(self, hic_file, resolution, normalisation='NONE'):
+    def __init__(self, hic_file, resolution, norm='NONE'):
         RegionMatrixContainer.__init__(self)
         self._hic_file = hic_file
 
@@ -45,7 +45,7 @@ class JuicerHic(RegionMatrixContainer):
         if resolution not in bp_resolutions:
             raise ValueError("Resolution {} not supported ({})".format(resolution, bp_resolutions))
         self._resolution = resolution
-        self._normalisation = normalisation
+        self._normalisation = norm
         self._unit = 'BP'
 
         if not is_juicer(hic_file):
@@ -145,7 +145,7 @@ class JuicerHic(RegionMatrixContainer):
             for _ in range(0, n_chromosomes):
                 name = _read_cstr(req)
                 req.read(4)
-                if name != 'All':
+                if name.lower() != 'all':
                     chromosomes.append(name)
 
         return chromosomes
@@ -321,7 +321,7 @@ class JuicerHic(RegionMatrixContainer):
             normalisation = self._normalisation
 
         if normalisation == 'NONE':
-            bins = np.ceil(self.chromosome_lengths[chromosome]/resolution)
+            bins = int(np.ceil(self.chromosome_lengths[chromosome]/resolution))
             return [1.0] * bins
 
         if unit is None:
@@ -364,8 +364,10 @@ class JuicerHic(RegionMatrixContainer):
             raise ValueError("Chromosome {} not in matrix.".format(target_chromosome))
 
         offset_ix = 0
-        for chromosome, chromosome_length in chromosome_lengths.items():
-            if chromosome == 'All':
+        chromosomes = self.chromosomes()
+        for chromosome in chromosomes:
+            chromosome_length = chromosome_lengths[chromosome]
+            if chromosome.lower() == 'all':
                 continue
 
             if target_chromosome == chromosome:
@@ -385,10 +387,16 @@ class JuicerHic(RegionMatrixContainer):
     def _region_iter(self, *args, **kwargs):
         current_region_index = 0
         for chromosome, chromosome_length in self.chromosome_lengths.items():
-            if chromosome == 'All':
+            if chromosome.lower() == 'all':
                 continue
+
             norm = self.normalisation_vector(chromosome)
             for i, start in enumerate(range(1, chromosome_length, self._resolution)):
+                try:
+                    bias = 1/norm[i]
+                except IndexError:
+                    bias = 1.0
+
                 end = min(start + self._resolution - 1, chromosome_length)
                 region = GenomicRegion(chromosome=chromosome, start=start,
                                        end=end, bias=norm[i],
@@ -404,15 +412,21 @@ class JuicerHic(RegionMatrixContainer):
         for i, start in enumerate(range(subset_start, region.end, self._resolution)):
             end = min(start + self._resolution - 1, cl, region.end)
             bias_ix = int(start / self._resolution)
+
+            try:
+                bias = 1/norm[bias_ix]
+            except IndexError:
+                bias = 1.0
+
             r = GenomicRegion(chromosome=region.chromosome, start=start,
-                              end=end, bias=norm[bias_ix],
+                              end=end, bias=bias,
                               ix=int(subset_ix + i))
             yield r
 
     def _region_len(self):
         length = 0
         for chromosome, chromosome_length in self.chromosome_lengths.items():
-            if chromosome == 'All':
+            if chromosome.lower() == 'all':
                 continue
 
             ixs = int(np.ceil(chromosome_length / self._resolution))
@@ -556,14 +570,15 @@ class JuicerHic(RegionMatrixContainer):
                     file_position, block_size_in_bytes = block_map[block_number]
 
                     for x, y, weight in self._read_block(req, file_position, block_size_in_bytes):
-                        if x > y:
-                            raise ValueError("X/Y not in correct order")
-
-                        if region1_bins[0] <= x < region1_bins[1] - 1 and region2_bins[0] <= y < region2_bins[1] - 1:
-                            yield x + region1_chromosome_offset, y + region2_chromosome_offset, weight
-                        elif region1.chromosome == region2.chromosome:
-                            if region1_bins[0] <= y < region1_bins[1] - 1 and region2_bins[0] <= x < region2_bins[1] - 1:
+                        if x < y:
+                            if region1_bins[0] <= x < region1_bins[1] - 1 and region2_bins[0] <= y < region2_bins[1] - 1:
                                 yield x + region1_chromosome_offset, y + region2_chromosome_offset, weight
+                            elif region1.chromosome == region2.chromosome:
+                                if region1_bins[0] <= y < region1_bins[1] - 1 and region2_bins[0] <= x < region2_bins[1] - 1:
+                                    yield x + region1_chromosome_offset, y + region2_chromosome_offset, weight
+                        else:
+                            if region1_bins[0] <= x < region1_bins[1] - 1 and region2_bins[0] <= y < region2_bins[1] - 1:
+                                yield y + region2_chromosome_offset, x + region1_chromosome_offset, weight
 
                 except KeyError:
                     logger.debug("Could not find block {}".format(block_number))
