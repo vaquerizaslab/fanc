@@ -397,9 +397,12 @@ class JuicerHic(RegionMatrixContainer):
                 except IndexError:
                     bias = 1.0
 
+                if np.isnan(bias):
+                    bias = 1.0
+
                 end = min(start + self._resolution - 1, chromosome_length)
                 region = GenomicRegion(chromosome=chromosome, start=start,
-                                       end=end, bias=norm[i],
+                                       end=end, bias=bias,
                                        ix=current_region_index)
                 current_region_index += 1
                 yield region
@@ -416,6 +419,9 @@ class JuicerHic(RegionMatrixContainer):
             try:
                 bias = 1/norm[bias_ix]
             except IndexError:
+                bias = 1.0
+
+            if np.isnan(bias):
                 bias = 1.0
 
             r = GenomicRegion(chromosome=region.chromosome, start=start,
