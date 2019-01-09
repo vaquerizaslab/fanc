@@ -44,6 +44,11 @@ hide_progressbars: False
 # Cluster
 #
 gridmap_tmpdir:
+
+#
+# Juicer
+#
+juicer_tools_jar_path: 
 """
 default_config = yaml.load(_default_config_content)
 
@@ -90,6 +95,7 @@ def read_file_configs(config_file_locations):
                 logger.error("Could not read config file {}".format(config_path), e)
                 pass
     return configs
+
 
 file_configs = read_file_configs(_config_file_locations)
 
