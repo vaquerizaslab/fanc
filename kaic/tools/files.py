@@ -1,29 +1,30 @@
-import sys
-import tables as t
-import os.path
-import string
-import random
-import pysam
 import gzip
-import pyBigWig
-from Bio import SeqIO
-import tempfile
-import shutil
-import multiprocessing
-import threading
-import subprocess
-from kaic.tools.general import mkdir, which
-from future.utils import string_types
-from collections import defaultdict
-import numpy as np
-import warnings
 import logging
+import multiprocessing
+import os.path
+import pyBigWig
+import random
+import shutil
+import string
+import subprocess
+import sys
+import tempfile
+import threading
+from collections import defaultdict
+
+import numpy as np
+import pysam
+import tables as t
+from Bio import SeqIO
+from future.utils import string_types
+
+from kaic.tools.general import mkdir, which
 
 # configure logging
 logger = logging.getLogger(__name__)
 
 
-def create_temporary_copy(src_file_name, preserve_extension=False):
+def create_temporary_copy(src_file_name, preserve_extension=True):
     """
     Copies the source file into a temporary file.
     Returns a _TemporaryFileWrapper, whose destructor deletes the temp file
@@ -35,7 +36,22 @@ def create_temporary_copy(src_file_name, preserve_extension=False):
         _, tf_suffix = os.path.splitext(src_file_name)
     tf = tempfile.NamedTemporaryFile(suffix=tf_suffix, delete=False)
     shutil.copy2(src_file_name, tf.name)
+
+    logger.debug("Working from temporary output file: {}. "
+                 "Original file: {}".format(tf.name, src_file_name))
+
     return tf.name
+
+
+def create_temporary_output(original_file_name, preserve_extension=True):
+    tf_suffix = ''
+    if preserve_extension:
+        _, tf_suffix = os.path.splitext(original_file_name)
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=tf_suffix)
+    tmp_file.close()
+    logger.debug("Working from temporary output file: {}. "
+                 "Original file: {}".format(tmp_file.name, original_file_name))
+    return tmp_file.name
 
 
 def get_number_of_lines(file_name):
