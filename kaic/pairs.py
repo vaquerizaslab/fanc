@@ -20,6 +20,7 @@ import tables as t
 from future.utils import with_metaclass, viewitems
 
 from genomic_regions import GenomicRegion
+from .regions import genome_regions
 from .matrix import Edge, RegionPairsTable
 from .hic import Hic
 from .config import config
@@ -28,6 +29,24 @@ from .tools.general import RareUpdateProgressBar, add_dict, find_alignment_match
 from .tools.sambam import natural_cmp
 
 logger = logging.getLogger(__name__)
+
+
+def generate_pairs(sam1_file, sam2_file, regions,
+                   restriction_enzyme=None, read_filters=(),
+                   output_file=None, check_sorted=True,
+                   threads=1, batch_size=10000000):
+    regions = genome_regions(regions, restriction_enzyme=restriction_enzyme)
+
+    sb = SamBamReadPairGenerator(sam1_file, sam2_file, check_sorted=check_sorted)
+    for f in read_filters:
+        sb.add_filter(f)
+
+    pairs = ReadPairs(file_name=output_file, mode='w')
+
+    pairs.add_regions(regions)
+    pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
+
+    return pairs
 
 
 class Monitor(WorkerMonitor):
@@ -171,7 +190,7 @@ class ReadPairGenerator(object):
 
 
 class TxtReadPairGenerator(ReadPairGenerator):
-    def __init__(self, valid_pairs_file, sep="\t",
+    def __init__(self, valid_pairs_file, sep=None,
                  chr1_field=1, pos1_field=2, strand1_field=3,
                  chr2_field=4, pos2_field=5, strand2_field=6):
         ReadPairGenerator.__init__(self)
@@ -184,26 +203,70 @@ class TxtReadPairGenerator(ReadPairGenerator):
         self.pos2_field = pos2_field
         self.strand2_field = strand2_field
 
+        if self._file_name.endswith('.gz') or self._file_name.endswith('gzip'):
+            self._open_file = gzip.open
+        else:
+            self._open_file = open
+
     def _iter_read_pairs(self, *args, **kwargs):
+        with self._open_file(self._file_name, 'r') as f:
+            for line in f:
+                line = line.rstrip()
+                if line == '' or line.startswith('#'):
+                    continue
+                fields = line.split(self.sep)
+
+                strand1 = fields[self.strand1_field] if self.strand1_field is not None else '+'
+                strand2 = fields[self.strand2_field] if self.strand2_field is not None else '+'
+
+                read1 = MinimalRead(chromosome=fields[self.chr1_field],
+                                    position=int(fields[self.pos1_field]),
+                                    strand=strand1)
+                read2 = MinimalRead(chromosome=fields[self.chr2_field],
+                                    position=int(fields[self.pos2_field]),
+                                    strand=strand2)
+                yield (read1, read2)
+
+
+class HicProPairGenerator(TxtReadPairGenerator):
+    def __init__(self, file_name):
+        TxtReadPairGenerator.__init__(self, file_name, sep="\t",
+                                      chr1_field=1, pos1_field=2, strand1_field=3,
+                                      chr2_field=4, pos2_field=5, strand2_field=6)
+
+
+class FourDNucleomePairGenerator(TxtReadPairGenerator):
+    def __init__(self, pairs_file):
         if self._file_name.endswith('.gz') or self._file_name.endswith('gzip'):
             open_file = gzip.open
         else:
             open_file = open
 
-        with open_file(self._file_name, 'r') as f:
-            for line in f:
-                line = line.rstrip()
-                if line == '':
-                    continue
-                fields = line.split(self.sep)
-                read1 = MinimalRead(chromosome=fields[self.chr1_field],
-                                    position=int(fields[self.pos1_field]),
-                                    strand=fields[self.strand1_field])
-                read2 = MinimalRead(chromosome=fields[self.chr2_field],
-                                    position=int(fields[self.pos2_field]),
-                                    strand=fields[self.strand2_field])
-                yield (read1, read2)
+        columns = dict()
+        with open_file(pairs_file, 'r') as f:
+            for line_ix, line in enumerate(f):
+                if line_ix == 0 and not line.startswith("## pairs format"):
+                    raise ValueError("Not a 4D nucleome pairs format file."
+                                     "Missing '## pairs format X.X' header line.")
 
+                line = line.rstrip()
+                if not line.startswith('#'):
+                    raise ValueError("Pairs file does not contain a "
+                                     "'#columns' entry in the header")
+
+                if line.startswith('#columns:'):
+                    _, columns_field = line.split(':')
+                    for i, name in columns_field.split():
+                        columns[name] = i
+
+        TxtReadPairGenerator.__init__(self, pairs_file, sep=None,
+                                      chr1_field=columns['chr1'],
+                                      pos1_field=columns['pos1'],
+                                      strand1_field=columns['strand1'] if 'strand1' in columns else None,
+                                      chr2_field=columns['chr2'],
+                                      pos2_field=columns['pos2'],
+                                      strand2_field=columns['strand2'] if 'strand2' in columns else None,
+                                      )
 
 class SamBamReadPairGenerator(ReadPairGenerator):
     def __init__(self, sam_file1, sam_file2, check_sorted=True):
@@ -972,6 +1035,21 @@ class ReadPairs(RegionPairsTable):
         """
         return self.pairs(lazy=False)
 
+    def _edge_row_iter(self, intra_chromosomal=True, inter_chromosomal=True, excluded_filters=()):
+        """
+        Yield rows in edge tables, ordered by partition.
+        """
+        excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
+
+        for (ix1, ix2), edge_table in self._edge_table_dict.items():
+            if not intra_chromosomal and ix1 == ix2:
+                continue
+            if not inter_chromosomal and ix1 != ix2:
+                continue
+
+            for row in edge_table.iterrows(excluded_masks=excluded_masks):
+                yield row
+
     def pairs(self, lazy=False, excluded_filters=()):
         for row in self._edge_row_iter(excluded_filters=excluded_filters):
             yield self._pair_from_row(row, lazy=lazy)
@@ -1638,7 +1716,7 @@ class ReDistanceFilter(FragmentMappedReadPairFilter):
     maximum_distance away from the nearest restriction site.
     """
 
-    def __init__(self, maximum_distance=500, mask=None):
+    def __init__(self, maximum_distance=10000, mask=None):
         super(ReDistanceFilter, self).__init__(mask=mask)
         self.maximum_distance = maximum_distance
 
@@ -1646,10 +1724,14 @@ class ReDistanceFilter(FragmentMappedReadPairFilter):
         """
         Check if any read is >maximum_distance away from RE site.
         """
-        for read in [pair.left, pair.right]:
-            if (read.position - read.fragment.start > self.maximum_distance
-                    and read.fragment.end - read.position > self.maximum_distance):
-                return False
+        d1 = min(abs(pair.left.position - pair.left.fragment.start),
+                 abs(pair.left.position - pair.left.fragment.end))
+        d2 = min(abs(pair.right.position - pair.right.fragment.start),
+                 abs(pair.right.position - pair.right.fragment.end))
+
+        if d1 + d2 > self.maximum_distance:
+            return False
+
         return True
 
 
