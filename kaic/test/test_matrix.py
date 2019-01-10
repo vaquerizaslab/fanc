@@ -91,7 +91,7 @@ class RegionMatrixContainerTestFactory:
         edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges(norm=True)}
 
         for edge in self.matrix.edges(norm=True):
-            if np.isnan(edges_dict[(edge.source, edge.sink)]):
+            if (edge.source, edge.sink) not in edges_dict:
                 continue
 
             assert np.isclose(edge.weight,
