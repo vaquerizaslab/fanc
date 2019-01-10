@@ -863,12 +863,14 @@ def pairs(argv):
             pairs_file = os.path.expanduser(input_files[2])
 
             if tmp:
+                tmp = False
                 from kaic.tools.files import create_temporary_copy, create_temporary_output
                 sam1_file = create_temporary_copy(sam1_file)
                 sam2_file = create_temporary_copy(sam2_file)
                 tmp_input_files = [sam1_file, sam2_file]
                 original_pairs_file = pairs_file
                 pairs_file = create_temporary_output(pairs_file)
+                tmp = True
 
             from kaic.tools.general import get_sam_mapper
             bwa = get_sam_mapper(sam1_file) == 'bwa' or args.bwa
@@ -915,11 +917,13 @@ def pairs(argv):
             input_file = os.path.expanduser(input_files[0])
             pairs_file = os.path.expanduser(input_files[1])
             if tmp:
+                tmp = False
                 from kaic.tools.files import create_temporary_copy, create_temporary_output
                 input_file = create_temporary_copy(input_file)
                 tmp_input_files = [input_file]
                 original_pairs_file = pairs_file
                 pairs_file = create_temporary_output(pairs_file)
+                tmp = True
 
             try:
                 logger.debug("Trying 4D nucleome format...")
@@ -936,9 +940,11 @@ def pairs(argv):
             logger.info("One argument received, assuming existing Pairs object.")
             pairs_file = os.path.expanduser(input_files[0])
             if tmp:
+                tmp = False
                 from kaic.tools.files import create_temporary_copy
                 original_pairs_file = pairs_file
                 pairs_file = create_temporary_copy(pairs_file)
+                tmp = True
             pairs = kaic.load(input_files[0], mode='a')
         else:
             parser.error("Number of input arguments ({}) cannot be parsed. "
