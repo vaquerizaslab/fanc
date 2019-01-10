@@ -184,6 +184,8 @@ class RegionPairsContainer(RegionBased):
 
     def __init__(self):
         RegionBased.__init__(self)
+        self._default_value = 1.0
+        self._default_score_field = None
 
     def _add_edge(self, edge, *args, **kwargs):
         raise NotImplementedError("Subclass must override this function")
@@ -299,7 +301,7 @@ class RegionPairsContainer(RegionBased):
                 return self._regions_pairs._edges_getitem(item)
 
             def __iter__(self):
-                return self._regions_pairs._edges_iter()
+                return self()
 
             def __call__(self, key=None, *args, **kwargs):
                 norm = kwargs.pop("norm", True)
@@ -307,8 +309,12 @@ class RegionPairsContainer(RegionBased):
                 inter_chromosomal = kwargs.pop("inter_chromosomal", True)
 
                 row_regions, col_regions = self._regions_pairs._key_to_regions(key)
-                row_regions = list(row_regions)
-                col_regions = list(col_regions)
+                row_regions, col_regions = list(row_regions), list(col_regions)
+
+                regions = dict()
+                for rr in (row_regions, col_regions):
+                    for region in rr:
+                        regions[region.ix] = region
 
                 if key is None:
                     edge_iter = self._regions_pairs._edges_iter(*args, **kwargs)
@@ -316,51 +322,40 @@ class RegionPairsContainer(RegionBased):
                     edge_iter = self._regions_pairs._edges_subset(key, row_regions, col_regions,
                                                                   *args, **kwargs)
 
-                if norm:
-                    weight_field = kwargs.pop('weight_field', self._regions_pairs._default_score_field)
-                    bias_field = kwargs.pop('bias_field', 'bias')
-                    biases = dict()
-                    for regions in (row_regions, col_regions):
-                        for region in regions:
-                            biases[region.ix] = getattr(region, bias_field, 1.0)
+                weight_field = kwargs.pop('weight_field', self._regions_pairs._default_score_field)
+                bias_field = kwargs.pop('bias_field', 'bias')
 
-                    if not inter_chromosomal or not intra_chromosomal:
-                        for edge in edge_iter:
-                            row_region = row_regions[edge.source]
-                            col_region = row_regions[edge.sink]
-                            if row_region.chromosome == col_region.chromosome:
-                                if not intra_chromosomal:
-                                    continue
-                            else:
-                                if not inter_chromosomal:
-                                    continue
+                for edge in edge_iter:
+                    row_region = regions[edge.source]
+                    col_region = regions[edge.sink]
+                    if not intra_chromosomal and row_region.chromosome == col_region.chromosome:
+                        continue
+                    if not inter_chromosomal and row_region.chromosome != col_region.chromosome:
+                        continue
 
-                            weight = getattr(edge, weight_field)
-                            setattr(edge, weight_field, weight / biases[edge.source] / biases[edge.sink])
-                            yield edge
-                    else:
-                        if not inter_chromosomal or not intra_chromosomal:
-                            for edge in edge_iter:
-                                row_region = row_regions[edge.source]
-                                col_region = row_regions[edge.sink]
-                                if row_region.chromosome == col_region.chromosome:
-                                    if not intra_chromosomal:
-                                        continue
-                                else:
-                                    if not inter_chromosomal:
-                                        continue
+                    try:
+                        if not row_region.valid or not col_region.valid:
+                            continue
+                    except AttributeError:
+                        pass
 
-                                weight = getattr(edge, weight_field)
-                                setattr(edge, weight_field, weight * biases[edge.source] * biases[edge.sink])
-                                yield edge
+                    try:
+                        weight = getattr(edge, weight_field)
+                        if norm:
+                            try:
+                                row_bias = getattr(regions[edge.source], bias_field, 1.0)
+                                col_bias = getattr(regions[edge.sink], bias_field, 1.0)
+                                bias = row_bias * col_bias
+                            except AttributeError:
+                                bias = 1.0
                         else:
-                            for edge in edge_iter:
-                                weight = getattr(edge, weight_field)
-                                setattr(edge, weight_field, weight * biases[edge.source] * biases[edge.sink])
-                                yield edge
-                else:
-                    for edge in edge_iter:
-                        yield edge
+                            bias = 1.0
+
+                        setattr(edge, weight_field, weight * bias)
+                    except (TypeError, AttributeError):
+                        pass
+
+                    yield edge
 
             def __len__(self):
                 return self._regions_pairs._edges_length()
@@ -710,6 +705,12 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 file_exists = True
 
         # initialise inherited objects
+        RegionPairsContainer.__init__(self)
+
+        if additional_region_fields is None:
+            additional_region_fields = {}
+        additional_region_fields['valid'] = tables.BoolCol(dflt=True)
+
         RegionsTable.__init__(self, file_name=file_name, _table_name_regions=_table_name_regions,
                               mode=mode, tmpdir=tmpdir, additional_fields=additional_region_fields)
         Maskable.__init__(self, self.file)
@@ -1072,8 +1073,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         mappable = [False] * len(self.regions)
         with RareUpdateProgressBar(max_value=len(self.edges), prefix='Mappability',
                                    silent=config.hide_progressbars) as pb:
-            for i, edge in enumerate(self.edges(lazy=True)):
-                if edge.weight > 0:
+            for i, edge in enumerate(self.edges(lazy=True, norm=False)):
+                try:
+                    weight = getattr(edge, self._default_score_field, self._default_value)
+                except TypeError:
+                    weight = self._default_value
+
+                if weight > 0:
                     mappable[edge.source] = True
                     mappable[edge.sink] = True
                 pb.update(i)
@@ -1208,7 +1214,8 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
     _classid = 'REGIONMATRIXTABLE'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
-                 partitioning_strategy='chromosome', additional_edge_fields=None,
+                 partitioning_strategy='chromosome',
+                 additional_region_fields=None, additional_edge_fields=None,
                  default_score_field='weight', default_value=0.0,
                  _table_name_regions='regions', _table_name_edges='edges',
                  _table_name_expected_values='expected_values',
@@ -1218,14 +1225,17 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         self._default_value = default_value
 
         if additional_edge_fields is None:
-            additional_edge_fields = {'weight': tables.Float64Col()}
+            additional_edge_fields = {}
+        additional_edge_fields['weight'] = tables.Float64Col()
+
+        if additional_region_fields is None:
+            additional_region_fields = {}
+        additional_region_fields['valid'] = tables.BoolCol(dflt=True)
+        additional_region_fields['bias'] = tables.Float64Col(dflt=1.0)
 
         RegionPairsTable.__init__(self,
                                   file_name=file_name, mode=mode, tmpdir=tmpdir,
-                                  additional_region_fields={
-                                      'valid': tables.BoolCol(dflt=True),
-                                      'bias': tables.Float64Col(dflt=1.0),
-                                  },
+                                  additional_region_fields=additional_region_fields,
                                   additional_edge_fields=additional_edge_fields,
                                   partitioning_strategy=partitioning_strategy,
                                   _table_name_regions=_table_name_regions,
