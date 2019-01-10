@@ -25,11 +25,14 @@ __all__ = ['Chromosome', 'Genome', 'RegionsTable', 'LazyGenomicRegion', 'genome_
 
 
 def genome_regions(re_or_file, restriction_enzyme=None):
+    if isinstance(re_or_file, RegionBased):
+        return re_or_file
+
     logger.info("Getting regions")
     try:
-        regions_object = gr_load(re_or_file)
-        if isinstance(regions_object, RegionBased):
-            regions = list(regions_object.regions())
+        regions = gr_load(re_or_file)
+        if isinstance(regions, RegionBased):
+            return regions
         else:
             raise ValueError("Not a region-based file, trying FASTA next...")
     except (ValueError, TypeError):
