@@ -4,10 +4,8 @@ import numpy as np
 from math import log10, floor
 import pybedtools as pbt
 import kaic
-import pyBigWig
-from genomic_regions import RegionBased, Bed, BigWig
-import tempfile
-import os
+from genomic_regions import RegionBased
+
 
 style_ticks_whitegrid = {
     'axes.axisbelow': True,
@@ -19,19 +17,6 @@ style_ticks_whitegrid = {
     'grid.linestyle': '-',
     'lines.solid_capstyle': 'round',
 }
-
-# Stupid workaround for bug in pyBigWig https://github.com/dpryan79/pyBigWig/issues/48
-_tmp_path = None
-try:
-    _tmp_path = tempfile.mkstemp()[1]
-    _bw_file = pyBigWig.open(_tmp_path, "w")
-    _bw_file.addHeader([('chr1', 10)])
-    _bw_file.addEntries(['chr1'], [1], ends=[2], values=[1.])
-    _pyBigWig_type = type(_bw_file)
-    _bw_file.close()
-finally:
-    if _tmp_path:
-        os.remove(_tmp_path)
 
 
 def region_to_pbt_interval(region):
@@ -306,23 +291,7 @@ def load_score_data(data):
     # If it's already an instance of kaic data, just return it
     if isinstance(data, RegionBased):
         return data
-    # If it's a pyBigWig instance, turn it into a RegionBased instance
-    if isinstance(data, _pyBigWig_type):
-        return BigWig(data)
-    try:
-        # First attempt to load into pybedtools
-        # Used for [("chr", start, end), ...] queries
-        try:
-            bt = pbt.BedTool(data)
-            # check if the bedtools object actually can sucessfully
-            # parse the file. Happily opens e.g. bigwig, but can't
-            # parse it
-            bt[0]
-            # Turn into kaic Bed object
-            return Bed(bt.fn)
-        except (pbt.MalformedBedLineError, IndexError):
-            pass
-        # If it's anything else let's hope kaic.load can deal with it
-        return kaic.load(data)
-    except:
-        raise ValueError("Can't load data")
+
+    # If it's anything else let's hope kaic.load can deal with it
+    return kaic.load(data)
+
