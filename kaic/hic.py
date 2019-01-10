@@ -205,7 +205,7 @@ class Hic(RegionMatrixTable):
         """
         mask = self.add_mask_description('diagonal',
                                          'Mask the diagonal of the Hic matrix (up to distance %d)' % distance)
-        diagonal_filter = DiagonalFilter(distance=distance, mask=mask)
+        diagonal_filter = DiagonalFilter(self, distance=distance, mask=mask)
         self.filter(diagonal_filter, queue)
 
     def filter_low_coverage_regions(self, rel_cutoff=None, cutoff=None, queue=False):
@@ -315,7 +315,7 @@ class DiagonalFilter(HicEdgeFilter):
     """
     Filter contacts in the diagonal of a :class:`~Hic` matrix.
     """
-    def __init__(self, distance=0, mask=None):
+    def __init__(self, hic, distance=0, mask=None):
         """
         Initialize filter with chosen parameters.
 
@@ -325,6 +325,7 @@ class DiagonalFilter(HicEdgeFilter):
                      that is applied to filtered edges.
         """
         HicEdgeFilter.__init__(self, mask=mask)
+        self.set_hic_object(hic)
         self.distance = distance
 
     def valid_edge(self, edge):
@@ -367,6 +368,7 @@ class LowCoverageFilter(HicEdgeFilter):
                      that is applied to filtered edges.
         """
         HicEdgeFilter.__init__(self, mask=mask)
+        self.set_hic_object(hic_object)
 
         self._marginals = hic_object.marginals()
         if cutoff is None and rel_cutoff is None:
