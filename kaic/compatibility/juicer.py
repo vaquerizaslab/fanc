@@ -12,7 +12,11 @@ logger = logging.getLogger(__name__)
 
 def is_juicer(file_name):
     with open(file_name, 'rb') as req:
-        magic_string = struct.unpack('<3s', req.read(3))[0]
+        try:
+            magic_string = struct.unpack('<3s', req.read(3))[0]
+        except struct.error:
+            return False
+
         if magic_string != b"HIC":
             return False
         else:
