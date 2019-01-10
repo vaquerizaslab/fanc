@@ -250,13 +250,6 @@ def map_parser():
     )
 
     parser.add_argument(
-        '--bowtie-parallel', dest='bowtie_parallel',
-        action='store_true',
-        help='''Deprecated. Use --mapper-parallel instead.'''
-    )
-    parser.set_defaults(bowtie_parallel=False)
-
-    parser.add_argument(
         '--mapper-parallel', dest='mapper_parallel',
         action='store_true',
         help='''Use mapper-internal parallelisation rather than spawning multiple mapping processes.
@@ -309,7 +302,7 @@ def map(argv):
     trim_front = args.trim_front
     batch_size = args.batch_size
     min_quality = args.quality
-    mapper_parallel = args.bowtie_parallel or args.mapper_parallel
+    mapper_parallel = args.mapper_parallel
     memory_map = args.memory_map
     iterative = args.iterative
     restriction_enzyme = args.restriction_enzyme
@@ -640,24 +633,33 @@ def sort_sam(argv):
                 os.remove(output_file)
 
 
-def sam_to_pairs_parser():
+def pairs_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic sam_to_pairs",
-        description='Convert a Reads object into a Pairs object'
+        prog="kaic pairs",
+        description='Process and filter read pairs'
     )
 
     parser.add_argument(
-        'sam1',
-        help='''First half of input reads'''
+        'input',
+        nargs='+',
+        help='''Possible inputs are: two SAM/BAM files (paired-end reads, 
+                sorted by read name) and an output file; 
+                a HiC-Pro pairs file (format: 
+                name\\tchr1\\tpos1\\tstrand1\\tchr2\\tpos2\\tstrand2) 
+                and an output file; a pairs file in 4D Nucleome format
+                (https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md) 
+                and an output file, 
+                or an existing kaic Pairs object (in which case only  
+                filtering will be performed - no output file required). 
+                In case of SAM/BAM or HiC-Pro, you must also provide the 
+                --genome argument, and if --genome is not a file with 
+                restriction fragments, you must also provide the 
+                --restriction-enzyme argument.
+                '''
     )
 
     parser.add_argument(
-        'sam2',
-        help='''Second half of input reads'''
-    )
-
-    parser.add_argument(
-        'genome',
+        '-g', '--genome', dest='genome',
         help='''Path to region-based file (BED, GFF, ...) containing the non-overlapping
                 regions to be used for Hi-C binning. Typically restriction-enzyme fragments.
                 Alternatively: Path to genome file (FASTA, folder with FASTA, hdf5 file),
@@ -666,50 +668,105 @@ def sam_to_pairs_parser():
     )
 
     parser.add_argument(
-        'restriction_enzyme',
-        help='''Restriction enzyme used in the experiment, e.g. HindIII'''
+        '-r', '--restriction_enzyme',
+        help='''Name of the restriction enzyme used in the 
+                experiment, e.g. HindIII, or MboI. Case-sensitive!'''
     )
 
     parser.add_argument(
-        'output',
-        help='''Output file for mapped pairs'''
-    )
-
-    parser.add_argument(
-        '-m', '--mapped', dest='mapped',
+        '-m', '--filter-unmappable', dest='unmappable',
         action='store_true',
-        help='''Filter unmapped reads'''
+        default=False,
+        help='''Filter read pairs where one or both halves are unmappable. 
+                Only applies to SAM/BAM input!'''
     )
-    parser.set_defaults(mapped=False)
 
     parser.add_argument(
-        '-u', '--unique', dest='unique',
+        '-u', '--filter-multimapping', dest='unique',
         action='store_true',
-        help='''Filter reads that map multiple times (with a lower score)'''
+        default=False,
+        help='''Filter reads that map multiple times. If the other 
+                mapping locations have a lower score than the best one, 
+                the best read is kept. 
+                Only applies to SAM/BAM input!'''
     )
-    parser.set_defaults(unique=False)
 
     parser.add_argument(
-        '-us', '--unique-strict', dest='unique_strict',
+        '-us', '--filter-multimapping-strict', dest='unique_strict',
         action='store_true',
-        help='''Strictly filter reads that map multiple times (XS tag)'''
+        default=False,
+        help='''Strictly filter reads that map multiple times. 
+                Only applies to SAM/BAM input!'''
     )
-    parser.set_defaults(unique_strict=False)
 
     parser.add_argument(
-        '-q', '--quality', dest='quality',
+        '-q', '--filter-quality', dest='quality',
+        type=float,
+        help='''Cutoff for the minimum mapping quality of a read.
+                If a number between 0 and 1 is provided, will filter
+                on the AS tag instead of mapping quality. The quality 
+                cutoff is then interpreted as the fraction of bases that
+                have to be matched for any given read. 
+                Only applies to SAM/BAM input!'''
+    )
+
+    parser.add_argument(
+        '-c', '--filter-contaminant', dest='contaminant',
+        help='''Filter contaminating reads from other organism.
+                Path to mapped SAM/BAM file. 
+                Will filter out reads with the same name. 
+                Only applies to SAM/BAM input!'''
+    )
+
+    parser.add_argument(
+        '-i', '--filter-inward', dest='inward',
         type=int,
-        help='''Cutoff for the minimum mapping quality of a read'''
+        help='''Minimum distance for inward-facing read pairs'''
     )
 
     parser.add_argument(
-        '-c', '--contaminant', dest='contaminant',
-        help='''A Reads file with contaminating reads. Will filter out reads with the same name.'''
+        '-o', '--filter-outward', dest='outward',
+        type=int,
+        help='''Minimum distance for outward-facing read pairs'''
     )
 
     parser.add_argument(
-        '-s', '--stats', dest='stats',
-        help='''Path for saving stats pdf'''
+        '--filter-ligation-auto', dest='filter_le_auto',
+        action='store_true',
+        default=False,
+        help='''Auto-guess settings for inward/outward read pair filters.
+                Overrides --filter-outward and --filter-inward if set.'''
+    )
+
+    parser.add_argument(
+        '-d', '--filter-re-distance', dest='redist',
+        type=int,
+        help='''Maximum distance for a read to the nearest restriction site'''
+    )
+
+    parser.add_argument(
+        '-l', '--filter-self-ligations', dest='self_ligated',
+        action='store_true',
+        default=False,
+        help='''Remove read pairs representing self-ligated fragments'''
+    )
+
+    parser.add_argument(
+        '-p', '--filter-pcr-duplicates', dest='dup_thresh',
+        type=int,
+        help='''If specified, filter read pairs for PCR duplicates. Parameter determines
+                distance between alignment starts below which they are considered starting
+                at same position. Sensible values are between 1 and 5.'''
+    )
+
+    parser.add_argument(
+        '-s', '--statistics', dest='stats',
+        help='''Path for saving filter statistics'''
+    )
+
+    parser.add_argument(
+        '--statistics-plot', dest='stats_plot',
+        help='''Path for saving filter statistics plot (PDF)'''
     )
 
     parser.add_argument(
@@ -729,376 +786,232 @@ def sam_to_pairs_parser():
     parser.add_argument(
         '-S', '--no-check-sorted', dest='check_sorted',
         action='store_false',
+        default=True,
         help='''Assume SAM files are sorted and do not check if that is actually the case'''
     )
-    parser.set_defaults(check_sorted=True)
 
     parser.add_argument(
         '--bwa', dest='bwa',
         action='store_true',
-        help='''Use filters appropriate for BWA and not Bowtie2'''
+        default=False,
+        help='''Use filters appropriate for BWA and not Bowtie2.
+                This will typically be identified automatically 
+                from the SAM/BAM header. Set this flag if you are 
+                having problems during filtering (typically 0 reads 
+                pass the filtering threshold).'''
     )
-    parser.set_defaults(bwa=False)
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
+        default=False,
         help='''Work in temporary directory'''
     )
-    parser.set_defaults(tmp=False)
 
     return parser
 
 
-def sam_to_pairs(argv):
-    parser = sam_to_pairs_parser()
+def pairs(argv):
+    parser = pairs_parser()
     args = parser.parse_args(argv[2:])
 
-    from kaic.tools.files import create_temporary_copy
-    from kaic.tools.general import get_sam_mapper
-    from kaic.regions import genome_regions
-    from kaic.general import Mask
-    from kaic.pairs import SamBamReadPairGenerator, ReadPairs, \
-        UnmappedFilter, UniquenessFilter, QualityFilter, ContaminantFilter, BwaMemUniquenessFilter
-    import tempfile
-    import shutil
+    import os
 
-    sam1_file = os.path.expanduser(args.sam1)
-    sam2_file = os.path.expanduser(args.sam2)
+    input_files = [os.path.expanduser(file_name) for file_name in args.input]
     genome_file = os.path.expanduser(args.genome)
     restriction_enzyme = args.restriction_enzyme
-    output_file = args.output
-    filter_mapped = args.mapped
+    filter_unmappable = args.unmappable
     filter_unique = args.unique
     filter_unique_strict = args.unique_strict
     filter_quality = args.quality
     filter_contaminant = args.contaminant
-    stats_file = args.stats
+    filter_inward = args.inward
+    filter_outward = args.outward
+    filter_le_auto = args.filter_le_auto
+    filter_re_distance = args.redist
+    filter_self_ligations = args.self_ligated
+    filter_pcr_duplicates = args.dup_thresh
+    statistics_file = os.path.expanduser(args.stats) if args.stats is not None else None
+    statistics_plot_file = os.path.expanduser(args.stats_plot) if args.stats_plot is not None else None
     threads = args.threads
     batch_size = args.batch_size
-    check_sorted = args.check_sorted
-    bwa = get_sam_mapper(sam1_file) == 'bwa' or args.bwa
+    check_sam_sorted = args.check_sorted
     tmp = args.tmp
 
-    logger.info("Preparing filters...")
-    filters = []
-    if filter_mapped:
-        f = UnmappedFilter(mask=Mask(ix=0, name='unmapped'))
-        filters.append(f)
+    regions = None
+    if 2 <= len(input_files) <= 3:
+        logger.info("Getting genome regions (fragments or bins)")
+        from kaic.regions import genome_regions
+        try:
+            regions = genome_regions(genome_file, restriction_enzyme=restriction_enzyme)
+        except ValueError:
+            if restriction_enzyme is None:
+                parser.error("Must provide --restriction-enzyme when --genome is "
+                             "not a list of fragments or genomic bins!")
+            else:
+                raise
 
-    if filter_unique or filter_unique_strict:
-        if bwa:
-            f = BwaMemUniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
+    tmp_input_files = []
+    original_pairs_file = None
+    pairs_file = None
+    pairs = None
+    try:
+        if len(input_files) == 3:
+            logger.info("Three arguments detected, assuming SAM/BAM input.")
+            sam1_file = os.path.expanduser(input_files[0])
+            sam2_file = os.path.expanduser(input_files[1])
+            pairs_file = os.path.expanduser(input_files[2])
+
+            if tmp:
+                from kaic.tools.files import create_temporary_copy, create_temporary_output
+                sam1_file = create_temporary_copy(sam1_file)
+                sam2_file = create_temporary_copy(sam2_file)
+                tmp_input_files = [sam1_file, sam2_file]
+                original_pairs_file = pairs_file
+                pairs_file = create_temporary_output(pairs_file)
+
+            from kaic.tools.general import get_sam_mapper
+            bwa = get_sam_mapper(sam1_file) == 'bwa' or args.bwa
+            logger.info("Using filters appropriate for {}.".format('BWA' if bwa else 'Bowtie2'))
+
+            from kaic.pairs import BwaMemQualityFilter, BwaMemUniquenessFilter, \
+                UniquenessFilter, ContaminantFilter, QualityFilter, UnmappedFilter
+            from kaic.general import Mask
+
+            read_filters = []
+            if filter_unmappable:
+                f = UnmappedFilter(mask=Mask(ix=0, name='unmapped'))
+                read_filters.append(f)
+
+            if filter_unique or filter_unique_strict:
+                if bwa:
+                    f = BwaMemUniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
+                else:
+                    f = UniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
+                read_filters.append(f)
+
+            if filter_quality is not None:
+                if 0 < filter_quality < 1:
+                    f = BwaMemQualityFilter(filter_quality, mask=Mask(ix=2, name='quality_as'))
+                else:
+                    f = QualityFilter(int(filter_quality), mask=Mask(ix=2, name='quality'))
+                read_filters.append(f)
+
+            if filter_contaminant is not None:
+                f = ContaminantFilter(filter_contaminant, mask=Mask(ix=3, name='contaminant'))
+                read_filters.append(f)
+
+            from kaic.pairs import generate_pairs
+            pairs = generate_pairs(sam1_file, sam2_file, regions,
+                                   restriction_enzyme=restriction_enzyme,
+                                   read_filters=read_filters, output_file=pairs_file,
+                                   check_sorted=check_sam_sorted, threads=threads,
+                                   batch_size=batch_size)
+        elif len(input_files) == 2:
+            logger.info("Two arguments detected, assuming HiC-Pro or 4D Nucleome input.")
+            from kaic.pairs import HicProPairGenerator, FourDNucleomePairGenerator, ReadPairs
+            from kaic.regions import genome_regions
+
+            input_file = os.path.expanduser(input_files[0])
+            pairs_file = os.path.expanduser(input_files[1])
+            if tmp:
+                from kaic.tools.files import create_temporary_copy, create_temporary_output
+                input_file = create_temporary_copy(input_file)
+                tmp_input_files = [input_file]
+                original_pairs_file = pairs_file
+                pairs_file = create_temporary_output(pairs_file)
+
+            try:
+                logger.debug("Trying 4D nucleome format...")
+                sb = FourDNucleomePairGenerator(input_file)
+            except ValueError:
+                logger.debug("Trying HiC-Pro format...")
+                sb = HicProPairGenerator(input_file)
+
+            pairs = ReadPairs(file_name=pairs_file, mode='w')
+
+            pairs.add_regions(regions)
+            pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
+        elif len(input_files) == 1:
+            logger.info("One argument received, assuming existing Pairs object.")
+            pairs_file = os.path.expanduser(input_files[0])
+            if tmp:
+                from kaic.tools.files import create_temporary_copy
+                original_pairs_file = pairs_file
+                pairs_file = create_temporary_copy(pairs_file)
+            pairs = kaic.load(input_files[0], mode='a')
         else:
-            f = UniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
-        filters.append(f)
+            parser.error("Number of input arguments ({}) cannot be parsed. "
+                         "See help for details.".format(len(input_files)))
 
-    if filter_quality is not None:
-        f = QualityFilter(filter_quality, mask=Mask(ix=2, name='quality'))
-        filters.append(f)
+        do_filter_pairs = False
+        logger.info("Preparing read pair filters")
+        if filter_le_auto:
+            logger.info("Filtering inward- and outward-facing reads using automatically"
+                        "determined thresholds.")
+            pairs.filter_ligation_products(queue=True)
+            do_filter_pairs = True
+        else:
+            if filter_inward:
+                logger.info("Filtering inward-facing reads at %dbp" % filter_inward)
+                pairs.filter_inward(minimum_distance=filter_inward, queue=True)
+                do_filter_pairs = True
 
-    if filter_contaminant is not None:
-        f = ContaminantFilter(filter_contaminant, mask=Mask(ix=3, name='contaminant'))
-        filters.append(f)
+            if filter_outward:
+                logger.info("Filtering outward-facing reads at %dbp" % filter_outward)
+                pairs.filter_outward(minimum_distance=filter_outward, queue=True)
+                do_filter_pairs = True
 
-    original_output_file = output_file
-    try:
-        if tmp:
-            tmp = False
-            sam1_file = create_temporary_copy(sam1_file)
-            sam2_file = create_temporary_copy(sam2_file)
-            genome_file = create_temporary_copy(genome_file)
-            with tempfile.NamedTemporaryFile(prefix='kaic_pairs_', suffix='.pairs') as f:
-                output_file = f.name
-            tmp = True
+        if filter_re_distance:
+            logger.info("Filtering reads with RE distance > %dbp" % filter_re_distance)
+            pairs.filter_re_dist(filter_re_distance, queue=True)
+            do_filter_pairs = True
 
-        logger.info("Getting regions")
-        regions = genome_regions(genome_file, restriction_enzyme=restriction_enzyme)
+        if filter_self_ligations:
+            logger.info("Filtering self-ligated read pairs")
+            pairs.filter_self_ligated(queue=True)
+            do_filter_pairs = True
 
-        sb = SamBamReadPairGenerator(sam1_file, sam2_file, check_sorted=check_sorted)
-        for f in filters:
-            sb.add_filter(f)
+        if filter_pcr_duplicates:
+            logger.info("Filtering PCR duplicates, threshold <= %dbp" % filter_pcr_duplicates)
+            pairs.filter_pcr_duplicates(threshold=filter_pcr_duplicates, queue=True)
+            do_filter_pairs = True
 
-        pairs = ReadPairs(file_name=output_file, mode='w')
+        if do_filter_pairs:
+            logger.info("Running filters...")
+            pairs.run_queued_filters(log_progress=True)
+            logger.info("Done.")
 
-        pairs.add_regions(regions)
-        pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
-
-        statistics = pairs.filter_statistics()
-        pairs.close()
         logger.info("Done creating pairs.")
 
-        if stats_file is not None:
-            logger.info("Saving statistics...")
-            import matplotlib
-            matplotlib.use('agg')
-            import matplotlib.pyplot as plt
-            from kaic.plotting.plot_statistics import statistics_plot
-            stats_file = os.path.expanduser(stats_file)
-            fig, ax = plt.subplots()
-            statistics_plot(statistics)
-            fig.savefig(stats_file)
-            plt.close(fig)
-    finally:
-        if tmp:
-            shutil.copy(output_file, original_output_file)
-            os.remove(output_file)
+        if statistics_file is not None or statistics_plot_file is not None:
+            statistics = pairs.filter_statistics()
 
-            os.remove(sam1_file)
-            os.remove(sam2_file)
-            os.remove(genome_file)
+            if statistics_file is not None:
+                with open(statistics_file, 'w') as o:
+                    for name, value in statistics.items():
+                        o.write("{}\t{}\n".format(name, value))
 
-    logger.info("All done.")
-
-
-def filter_pairs_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic filter_pairs",
-        description='Filter a ReadPairs object'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input FragmentMappedPairs file'''
-    )
-
-    parser.add_argument(
-        'output',
-        nargs="?",
-        help='''Output FragmentMappedPairs file. If not provided will filter input file in place.'''
-    )
-
-    parser.add_argument(
-        '-i', '--inward', dest='inward',
-        type=int,
-        help='''Minimum distance for inward-facing read pairs'''
-    )
-
-    parser.add_argument(
-        '-o', '--outward', dest='outward',
-        type=int,
-        help='''Minimum distance for outward-facing read pairs'''
-    )
-
-    parser.add_argument(
-        '--auto',
-        action='store_true',
-        help='''Auto-guess settings for inward/outward read pair filters.
-                        Overrides --outward and --inward if set.'''
-    )
-    parser.set_defaults(auto=False)
-
-    parser.add_argument(
-        '-r', '--re-distance', dest='redist',
-        type=int,
-        help='''Maximum distance for a read to the nearest restriction site'''
-    )
-
-    parser.add_argument(
-        '-l', '--self-ligated', dest='self_ligated',
-        action='store_true',
-        help='''Remove read pairs representing self-ligated fragments'''
-    )
-    parser.set_defaults(self_ligated=True)
-
-    parser.add_argument(
-        '-d', '--duplicate', dest='dup_thresh',
-        type=int,
-        help='''If specified, filter read pairs for PCR duplicates. Parameter determines
-                        distance between alignment starts below which they are considered Starting
-                        at same position. Sensible values are between 1 and 5.'''
-    )
-
-    parser.add_argument(
-        '-s', '--stats', dest='stats',
-        help='''Path for saving stats pdf'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-
-    return parser
-
-
-def filter_pairs(argv):
-    parser = filter_pairs_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.tools.files import copy_or_expand, create_temporary_copy
-
-    # copy file if required
-    original_input_path = os.path.expanduser(args.input)
-    if args.tmp:
-        logger.info("Creating temporary copy of input file...")
-        input_path = create_temporary_copy(original_input_path)
-        logger.info("Working from copy in %s" % input_path)
-    else:
-        input_path = copy_or_expand(args.input, args.output)
-
-    pairs = kaic.load(file_name=input_path, mode='a')
-
-    if args.auto:
-        logger.info("Filtering inward- and outward-facing reads using automatically"
-                    "determined thresholds.")
-        pairs.filter_ligation_products(queue=True)
-    else:
-        if args.inward:
-            logger.info("Filtering inward-facing reads at %dbp" % args.inward)
-            pairs.filter_inward(minimum_distance=args.inward, queue=True)
-
-        if args.outward:
-            logger.info("Filtering outward-facing reads at %dbp" % args.outward)
-            pairs.filter_outward(minimum_distance=args.outward, queue=True)
-
-    if args.redist:
-        logger.info("Filtering reads with RE distance >%dbp" % args.redist)
-        pairs.filter_re_dist(args.redist, queue=True)
-
-    if args.self_ligated:
-        logger.info("Filtering self-ligated read pairs")
-        pairs.filter_self_ligated(queue=True)
-
-    if args.dup_thresh:
-        logger.info("Filtering PCR duplicates, threshold <=%dbp" % args.dup_thresh)
-        pairs.filter_pcr_duplicates(threshold=args.dup_thresh, queue=True)
-
-    logger.info("Running filters...")
-    pairs.run_queued_filters(log_progress=True)
-    logger.info("Done.")
-
-    statistics = pairs.filter_statistics()
-    pairs.close()
-    logger.info("Done creating pairs.")
-
-    if args.stats is not None:
-        logger.info("Saving statistics...")
-        import matplotlib
-        matplotlib.use('agg')
-        import matplotlib.pyplot as plt
-        from kaic.plotting.plot_statistics import statistics_plot
-        stats_file = os.path.expanduser(args.stats)
-        fig, ax = plt.subplots()
-        statistics_plot(statistics)
-        fig.savefig(stats_file)
-        plt.close(fig)
-
-    if args.tmp:
-        output_path = os.path.expanduser(args.output)
-        if os.path.isdir(output_path):
-            output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-        logger.info("Moving temporary output file to destination %s..." % output_path)
-        shutil.move(input_path, output_path)
-
-    logger.info("All done.")
-
-
-def pairs_from_hicpro_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic pairs_from_hicpro",
-        description='Import a Pairs object from HiC-Pro'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Valid pairs file from HiC-Pro. Format:
-                name\\tchr1\\tpos1\\tstrand1\\tchr2\\tpos2\\tstrand2'''
-    )
-
-    parser.add_argument(
-        'genome',
-        help='''Path to region-based file (BED, GFF, ...) containing the non-overlapping
-                regions to be used for Hi-C binning. Typically restriction-enzyme fragments.
-                Alternatively: Path to genome file (FASTA, folder with FASTA, hdf5 file),
-                which will be used in conjunction with the type of restriction enzyme to 
-                calculate fragments directly.'''
-    )
-
-    parser.add_argument(
-        'restriction_enzyme',
-        help='''Name of restriction enzyme (case sensitive)'''
-    )
-
-    parser.add_argument(
-        'output',
-        help='''Output Pairs file.'''
-    )
-
-    parser.add_argument(
-        '-t', '--threads', dest='threads',
-        type=int,
-        default=1,
-        help='''Number of threads to use for extracting fragment information'''
-    )
-
-    parser.add_argument(
-        '-b', '--batch-size', dest='batch_size',
-        type=int,
-        default=1000000,
-        help='''Batch size for read pairs to be submitted to individual processes.'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
-
-
-def pairs_from_hicpro(argv):
-    parser = pairs_from_hicpro_parser()
-
-    args = parser.parse_args(argv[2:])
-    input_file = os.path.expanduser(args.input)
-    output_file = os.path.expanduser(args.output)
-    genome_path = os.path.expanduser(args.genome)
-    restriction_enzyme = args.restriction_enzyme
-    threads = args.threads
-    batch_size = args.batch_size
-    tmp = args.tmp
-
-    from kaic.pairs import TxtReadPairGenerator, ReadPairs
-    from kaic.regions import genome_regions
-    from kaic.tools.files import create_temporary_copy
-
-    original_input_file = input_file
-    original_output_file = output_file
-    try:
-        if tmp:  # copy file if required
-            tmp = False  # to prevent deleting input file should this be interrupted at this point
-            logger.info("Copying input file...")
-            input_file = create_temporary_copy(original_input_file)
-            logger.info("New input file: {}".format(input_file))
-            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pairs')
-            tmp_file.close()
-            output_file = tmp_file.name
-            logger.info("Temporary output file: %s" % output_file)
-            tmp = True
-
-        regions = genome_regions(genome_path, restriction_enzyme=restriction_enzyme)
-
-        sb = TxtReadPairGenerator(valid_pairs_file=input_file)
-        pairs = ReadPairs(file_name=output_file, mode='w')
-
-        pairs.add_regions(regions)
-        pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
+            if statistics_plot_file is not None:
+                logger.info("Saving statistics...")
+                import matplotlib
+                matplotlib.use('agg')
+                import matplotlib.pyplot as plt
+                from kaic.plotting.plot_statistics import statistics_plot
+                statistics_plot_file = os.path.expanduser(statistics_plot_file)
+                fig, ax = plt.subplots()
+                statistics_plot(statistics)
+                fig.savefig(statistics_plot_file)
+                plt.close(fig)
 
         pairs.close()
-        logger.info("Done creating pairs.")
-
     finally:
         if tmp:
-            logger.info("Removing tmp files...")
-            os.remove(input_file)
-            shutil.copy(output_file, original_output_file)
-            os.remove(output_file)
+            for tmp_input_file in tmp_input_files:
+                os.remove(tmp_input_file)
+
+            shutil.copy(pairs_file, original_pairs_file)
+            os.remove(pairs_file)
 
     logger.info("All done.")
 
@@ -1494,11 +1407,6 @@ def correct_hic_parser():
     )
 
     parser.add_argument(
-        'output',
-        help='''Output Hic file.'''
-    )
-
-    parser.add_argument(
         '-i', '--ice', dest='ice',
         action='store_true',
         help='''Use ICE iterative correction instead of Knight matrix balancing'''
@@ -1513,18 +1421,11 @@ def correct_hic_parser():
     parser.set_defaults(chromosome=False)
 
     parser.add_argument(
-        '-O', '--no-optimise', dest='optimise',
-        action='store_false',
-        help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
-    )
-    parser.set_defaults(optimise=True)
-
-    parser.add_argument(
         '-r', '--restore-coverage', dest='restore_coverage',
         action='store_true',
         help='''Restore coverage to the original total number of reads. 
-                    Otherwise matrix entries will be contact probabilities.
-                    Only available for KR matrix balancing.'''
+                Otherwise matrix entries will be contact probabilities.
+                Only available for KR matrix balancing.'''
     )
     parser.set_defaults(restore_coverage=False)
 
@@ -1558,47 +1459,39 @@ def correct_hic(argv):
 
     # copy file if required
     original_input_path = os.path.expanduser(args.input)
-    original_output_path = os.path.expanduser(args.output)
     if args.tmp:
         logger.info("Copying data to temporary file...")
         input_path = create_temporary_copy(original_input_path)
-        logger.info("Working from temporary file %s" % input_path)
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        tmp_file.close()
-        output_path = tmp_file.name
-        logger.info("Temporary output file: %s" % output_path)
     else:
         input_path = os.path.expanduser(args.input)
-        output_path = os.path.expanduser(args.output)
 
     if args.ice:
-        import kaic.correcting.ice_matrix_balancing as ice
+        from kaic.hic import ice_balancing
 
         if args.restore_coverage:
             raise ValueError("Restoring coverage (-r) only available for KR balancing!")
 
-        hic = kaic.load_hic(file_name=input_path, mode='r')
-        ice.correct(hic, whole_matrix=not args.chromosome, copy=True, optimise=args.optimise,
-                    file_name=output_path, intra_chromosomal=not args.only_inter)
+        hic = kaic.load(file_name=input_path, mode='a')
+        ice_balancing(hic, whole_matrix=not args.chromosome, intra_chromosomal=not args.only_inter)
         hic.close()
-        if args.tmp:
-            logger.info("Moving temporary output file to destination %s" % original_output_path)
-            os.unlink(input_path)
-            shutil.move(output_path, original_output_path)
-    else:
-        import kaic.correcting.knight_matrix_balancing as knight
 
-        hic = kaic.load_hic(file_name=input_path, mode='r')
-        hic_new = knight.correct(hic, whole_matrix=not args.chromosome,
-                                 copy=True, file_name=output_path, optimise=args.optimise,
-                                 restore_coverage=args.restore_coverage,
-                                 intra_chromosomal=not args.only_inter)
-        hic.close()
-        hic_new.close()
         if args.tmp:
-            logger.info("Moving temporary output file to destination %s" % original_output_path)
-            os.unlink(input_path)
-            shutil.move(output_path, original_output_path)
+            logger.info("Moving temporary output file to destination %s" % original_input_path)
+            os.unlink(original_input_path)
+            shutil.move(input_path, original_input_path)
+    else:
+        from kaic.hic import kr_balancing
+
+        hic = kaic.load(file_name=input_path, mode='a')
+        kr_balancing(hic, whole_matrix=not args.chromosome,
+                     restore_coverage=args.restore_coverage,
+                     intra_chromosomal=not args.only_inter)
+        hic.close()
+
+        if args.tmp:
+            logger.info("Moving temporary output file to destination %s" % original_input_path)
+            os.unlink(original_input_path)
+            shutil.move(input_path, original_input_path)
 
     logger.info("All done.")
 
@@ -1748,7 +1641,7 @@ def hic_to_cooler(argv):
         logger.error("Cannot import cooler. Install cooler 'pip install cooler'.")
         raise
 
-    hic = kaic.load_hic(input_file, mode='r')
+    hic = kaic.load(input_file, mode='r')
     hic.to_cooler(output_file)
     logger.info("All done.")
 
@@ -2218,7 +2111,7 @@ def call_peaks(argv):
     sge = args.sge
 
     import kaic
-    import kaic.data.network as kn
+    import kaic.peaks as kn
     from kaic.tools.files import create_temporary_copy
 
     # copy file if required
@@ -2241,7 +2134,7 @@ def call_peaks(argv):
                           process_inter=args.inter, cluster=sge,
                           min_mappable_fraction=args.minimum_mappability)
 
-    hic = kaic.load_hic(input_path, mode='r')
+    hic = kaic.load(input_path, mode='r')
 
     if args.chromosomes is None:
         chromosome_pairs = None
@@ -2425,7 +2318,7 @@ def filter_peaks(argv):
     observed_cutoff = args.observed
     tmp = args.tmp
 
-    import kaic.data.network as kn
+    import kaic.peaks as kn
     from kaic.tools.files import create_temporary_copy, copy_or_expand
 
     # copy file if required
@@ -2537,7 +2430,7 @@ def merge_peaks(argv):
 
     args = parser.parse_args(argv[2:])
 
-    import kaic.data.network as kn
+    import kaic.peaks as kn
     from kaic.tools.files import create_temporary_copy
 
     # copy file if required
@@ -2604,7 +2497,7 @@ def filter_merged_peaks(argv):
 
     args = parser.parse_args(argv[2:])
 
-    import kaic.data.network as kn
+    import kaic.peaks as kn
     from kaic.tools.files import create_temporary_copy, copy_or_expand
 
     # copy file if required
@@ -2676,7 +2569,7 @@ def overlap_peaks(argv):
 
     args = parser.parse_args(argv[2:])
 
-    import kaic.data.network as kn
+    import kaic.peaks as kn
     from kaic.tools.files import create_temporary_copy
 
     original_input_paths = [os.path.expanduser(i) for i in args.input]
@@ -2706,7 +2599,7 @@ def overlap_peaks(argv):
     else:
         distance = args.distance
 
-    stats, merged = kn.overlap_peaks({n:p for n, p in zip(names, peaks)}, max_distance=distance)
+    stats, merged = kn.overlap_peaks({n: p for n, p in zip(names, peaks)}, max_distance=distance)
 
     if args.tmp:
         for i in input_paths:
@@ -2927,8 +2820,8 @@ def plot_hic_corr(argv):
     hic1_path = os.path.expanduser(args.hic1)
     hic2_path = os.path.expanduser(args.hic2)
 
-    hic1 = kaic.load_hic(hic1_path, mode='r')
-    hic2 = kaic.load_hic(hic2_path, mode='r')
+    hic1 = kaic.load(hic1_path, mode='r')
+    hic2 = kaic.load(hic2_path, mode='r')
 
     output_path = None
     if args.output:
@@ -2981,7 +2874,7 @@ def plot_hic_marginals(argv):
 
     input_path = os.path.expanduser(args.input)
 
-    hic = kaic.load_hic(input_path, mode='r')
+    hic = kaic.load(input_path, mode='r')
 
     output_path = None
     if args.output:
@@ -2989,182 +2882,6 @@ def plot_hic_marginals(argv):
 
     hic_marginals_plot(hic, output=output_path, lower=args.lower, upper=args.upper)
     hic.close()
-    logger.info("All done.")
-
-
-def structure_tracks_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic structure_tracks",
-        description='Calculate genomic tracks about structural features of the Hi-C map'
-    )
-    parser.add_argument(
-        'hic',
-        help='Input Hic file'
-    )
-
-    parser.add_argument(
-        'output',
-        help='Output path for genomic track'
-    )
-
-    parser.add_argument(
-        'window_size',
-        type=int,
-        nargs='+',
-        help='Window sizes (in base pairs) used for directionality index,'
-             'insulation index and relative insulation index.'
-    )
-
-    parser.add_argument(
-        '-oe', '--observed_expected',
-        action='store_true',
-        help='Use observed over expected heatmap for calculations.'
-    )
-
-    parser.add_argument(
-        '--no_imputation',
-        action="store_true",
-        help='Do not use imputation to guess value of unmappable bins. '
-             'Turning off imputation may lead to artifacts '
-             'near unmappable bins. The mask threshold should '
-             'be set to a very low value (.1 or so) in this case.'
-    )
-
-    parser.add_argument(
-        '-n', '--normalise', dest='normalise',
-        action='store_true',
-        help='''Normalise index values'''
-    )
-    parser.set_defaults(normalise=False)
-
-    parser.add_argument(
-        '-nw', '--normalisation_window',
-        type=int, default=300,
-        help='Window size for calculating long-range mean for normalization of insulation_index,'
-             ' relative_insulation_index, contact_band.'
-             'Default 300 bins.'
-    )
-
-    parser.add_argument(
-        '-o', '--offset',
-        type=int, default=0,
-        help='Offset of insulation index window from the diagonal in base pairs.'
-    )
-
-    parser.add_argument(
-        '-w', '--smoothing_window',
-        type=int, default=15,
-        help='Window size for smoothing derivatives in Savitzky Golay filter (in bins).'
-             'Default 15. Must be an odd number.'
-    )
-
-    parser.add_argument(
-        '-p', '--poly_order',
-        type=int, default=2,
-        help='Order of polynomial used for smoothing derivatives. Default 2.'
-    )
-
-    parser.add_argument(
-        '-d', '--derivative',
-        type=int,
-        nargs='+',
-        help='Optionally save derivatives of the specified order (>1).'
-    )
-
-    parser.add_argument(
-        '--delta',
-        type=int,
-        nargs='+',
-        help='Save delta transformation of metrics according to Crane et al. 2015. '
-             'Specify window size in bins. Sensible values for 5kb Drosophila 5-10.'
-    )
-
-    parser.add_argument(
-        '-ii', '--insulation_index',
-        action='store_true',
-        help='Calculate insulation index for the given distances (in bins).'
-    )
-
-    parser.add_argument(
-        '-di', '--directionality_index',
-        action='store_true',
-        help='Calculate the directionality index for the given distances (in bp)'
-    )
-
-    parser.add_argument(
-        '-r', '--relative',
-        action='store_true',
-        help='Calculate the relative insulation indices for the given distances (in bins)'
-    )
-    return parser
-
-
-def structure_tracks(argv):
-    parser = structure_tracks_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    import numpy as np
-    from kaic.architecture.hic_architecture import InsulationIndex, DirectionalityIndex, ObservedExpectedRatio
-    from kaic.architecture.genome_architecture import GenomicTrack
-    from kaic.tools.matrix import delta_window
-    from scipy.signal import savgol_filter
-
-    input_path = os.path.expanduser(args.hic)
-    output_path = os.path.expanduser(args.output)
-
-    logger.info("Fetching Hi-C matrix")
-    hic_matrix = kaic.load(input_path)
-
-    if args.observed_expected:
-        logger.info("Calculating observed/expected ratio")
-        hic_matrix = ObservedExpectedRatio(hic_matrix)
-
-    try:
-        os.remove(output_path)
-    except OSError:
-        pass
-
-    # prepare genomic track object
-    gt = GenomicTrack(output_path, regions=hic_matrix.regions)
-
-    # calculate insulation index
-    if args.insulation_index:
-        with InsulationIndex(hic_matrix, relative=args.relative, offset=args.offset,
-                             normalise=args.normalise, window_sizes=args.window_size,
-                             _normalisation_window=args.normalisation_window) as ii:
-            for window_size in args.window_size:
-                insulation_index = ii.insulation_index(window_size)
-                gt.add_data("insulation_index_{}".format(window_size), insulation_index)
-
-    # calculate directioality index
-    if args.directionality_index:
-        with DirectionalityIndex(hic_matrix, window_sizes=args.window_size) as di:
-            for window_size in args.window_size:
-                directionality_index = di.directionality_index(window_size)
-                gt.add_data("directionality_index_{}".format(window_size), directionality_index)
-
-    # calculate derivatives, if requested
-    if args.derivative or args.delta:
-        for k, v in gt.tracks.items():
-            if args.derivative:
-                for i in args.derivative:
-                    if "matrix" in k:
-                        deriv_matrix = np.vstack([savgol_filter(x, window_length=args.smoothing_window,
-                                                                polyorder=args.poly_order, deriv=i) for x in v.T]).T
-                        gt.add_data("{}_d{}".format(k, i), deriv_matrix)
-                    else:
-                        d = savgol_filter(v, window_length=args.smoothing_window,
-                                          polyorder=args.poly_order, deriv=i)
-                        gt.add_data("{}_d{}".format(k, i), d)
-            if args.delta:
-                for i in args.delta:
-                    if "matrix" in k:
-                        delta_matrix = np.vstack([delta_window(x, i) for x in v.T]).T
-                        gt.add_data("{}_delta{}".format(k, i), delta_matrix)
-                    else:
-                        gt.add_data("{}_delta{}".format(k, i), delta_window(v, i))
     logger.info("All done.")
 
 
@@ -3336,8 +3053,8 @@ def fold_change(argv):
         import tempfile
         tmpdir = tempfile.gettempdir()
 
-    hic1 = kaic.load_hic(os.path.expanduser(args.input[0]), mode='r')
-    hic2 = kaic.load_hic(os.path.expanduser(args.input[1]), mode='r')
+    hic1 = kaic.load(os.path.expanduser(args.input[0]), mode='r')
+    hic2 = kaic.load(os.path.expanduser(args.input[1]), mode='r')
 
     output_file = os.path.expanduser(args.output)
     with FoldChangeMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
@@ -3404,8 +3121,8 @@ def difference(argv):
         import tempfile
         tmpdir = tempfile.gettempdir()
 
-    hic1 = kaic.load_hic(os.path.expanduser(args.input[0]), mode='r')
-    hic2 = kaic.load_hic(os.path.expanduser(args.input[1]), mode='r')
+    hic1 = kaic.load(os.path.expanduser(args.input[0]), mode='r')
+    hic2 = kaic.load(os.path.expanduser(args.input[1]), mode='r')
 
     output_file = os.path.expanduser(args.output)
     with DifferenceMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
@@ -3904,34 +3621,6 @@ def distance_decay(argv):
         ex.calculate()
 
 
-def optimise_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic optimise",
-        description='Optimise a Hic object for faster access'
-    )
-    parser.add_argument(
-        'input',
-        help='Input Hic file'
-    )
-    parser.add_argument(
-        'output',
-        help='Output AccessOptimisedHic file.'
-    )
-    return parser
-
-
-def optimise(argv):
-    parser = optimise_parser()
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    import os.path
-    old_hic = kaic.load_hic(os.path.expanduser(args.input), mode='r')
-    new_hic = kaic.AccessOptimisedHic(old_hic, file_name=os.path.expanduser(args.output))
-    new_hic.close()
-    old_hic.close()
-
-
 def subset_hic_parser():
     parser = argparse.ArgumentParser(
         prog="kaic subset",
@@ -3965,7 +3654,7 @@ def subset_hic(argv):
     regions = args.regions
 
     old_hic = kaic.load(input_file, mode='r')
-    new_hic = old_hic.subset_hic(*regions, file_name=output_file)
+    new_hic = old_hic.subset(*regions, file_name=output_file)
     new_hic.close()
 
 
@@ -4307,7 +3996,7 @@ def aggregate_loops(argv):
     vmax = args.vmax
     tmp = args.tmp
 
-    import kaic
+    from genomic_regions import Bedpe
     from kaic.config import config
     from kaic.architecture.hic_architecture import aggregate_loops
     import matplotlib
@@ -4321,7 +4010,7 @@ def aggregate_loops(argv):
 
     with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
         b = hic.bin_size
-        loops = kaic.Bedpe(loops_file)
+        loops = Bedpe(loops_file)
         m = aggregate_loops(hic, loops, pixels=pixels, cache=cache, norm=norm, log=log)
 
     if matrix_file is not None:
@@ -4488,7 +4177,6 @@ def ab_profile(argv):
     heatmap_ax.set_yticks([0, m.shape[1] - 1])
     heatmap_ax.set_yticklabels(['active', 'inactive'])
 
-    print(cutoffs)
     pos = np.arange(m.shape[1])
     barplot_ax = plt.subplot(gs[1, 0])
     barplot_ax.bar(pos, cutoffs, color='grey')
@@ -4615,7 +4303,6 @@ def stats(argv):
         logger.info("Processing Reads files.")
 
         import kaic
-        from kaic.construct.seq import Reads
         reads_files = get_files(args.reads, ('.reads',))
 
         reads_summary = defaultdict(int)
@@ -4675,7 +4362,7 @@ def stats(argv):
     # 3. Hic statistics
     if args.hic is not None:
         logger.info("Processing Hic files.")
-        from kaic.data.genomic import load_hic
+        import kaic
         hic_files = get_files(args.hic, ('.hic',))
 
         hic_summary = defaultdict(int)
