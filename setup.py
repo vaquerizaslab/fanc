@@ -52,7 +52,7 @@ setup(
         'tables>=3.2.3',
         'seaborn',
         'future',
-        'gridmap',
+        'gridmap>=0.14.0',
         'intervaltree',
         'genomic_regions',
     ],
