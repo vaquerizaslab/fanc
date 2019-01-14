@@ -32,24 +32,30 @@ def auto_parser():
 
     parser.add_argument(
         '-r', '--restriction-enzyme', dest='restriction_enzyme',
-        help='''Restriction enzyme used for digestion (e.g. HindIII, case-sensitive)'''
+        help='''Restriction enzyme used for digestion 
+                (e.g. HindIII, case-sensitive)'''
     )
 
     parser.add_argument(
         '-i', '--genome-index', dest='genome_index',
-        help='''Bowtie 2 genome index. Only required when passing FASTQ files as input'''
+        help='''Bowtie 2 or BWA genome index. 
+                Only required when passing FASTQ 
+                files as input'''
     )
 
     parser.add_argument(
         '-n', '--basename', dest='basename',
-        help='''Basename for output files. If not provided, will be guessed based on input file names'''
+        help='''Basename for output files. If not 
+                provided, will be guessed based 
+                on input file names'''
     )
 
     parser.add_argument(
         '-s', '--step-size', dest='step_size',
         type=int,
         default=3,
-        help='''Step size for iterative mapping. Default: 3'''
+        help='''Step size for iterative mapping. 
+                Default: 3'''
     )
 
     parser.add_argument(
@@ -58,164 +64,143 @@ def auto_parser():
         nargs='+',
         default=[5000000, 2000000, 1000000, 500000, 250000, 100000, 50000,
                  25000, 10000, 5000],
-        help='''Bin sizes for Hi-C matrix generation. Default: 5000000, 2000000, 1000000,
-                500000, 250000, 100000, 50000, 25000, 10000, 5000'''
+        help='''Bin sizes for Hi-C matrix generation. 
+                Default: 5000000, 2000000, 1000000,
+                500000, 250000, 100000, 50000, 25000, 
+                10000, 5000'''
     )
 
     parser.add_argument(
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
-        help='''Maximum number of threads to use for the analysis.'''
+        help='''Maximum number of threads to use for 
+                the analysis.'''
     )
 
     parser.add_argument(
-        '-O', '--no-optimise', dest='optimise',
-        action='store_false',
-        help='''Produce a Hi-C object optimised for fast access times. May impact compatibility.'''
-    )
-    parser.set_defaults(optimise=True)
-
-    parser.add_argument(
-        '--bowtie_parallel', dest='bowtie_parallel',
+        '--mapper_parallel', dest='mapper_parallel',
         action='store_true',
-        help='''Use Bowtie2 parallelisation instead of spawning multiple Bowtie 2 processes.
-                Slower, but less of a memory overhead.'''
+        default=False,
+        help='''Use Bowtie2/BWA parallelisation instead 
+                of spawning multiple mapping processes.
+                Typically slower, but less memory and 
+                disk I/O overhead.'''
     )
-    parser.set_defaults(bowtie_parallel=False)
 
     parser.add_argument(
         '--split-fastq', dest='split_fastq',
         action='store_true',
+        default=False,
         help='''Split fastq files into chunks of 10M reads. These will be merged again on the Reads level.
                 Splitting and merging bypasses the -tmp flag. This option reduces disk usage in tmp, in case
                 the system has a small tmp partition.'''
     )
-    parser.set_defaults(split_fastq=False)
 
     parser.add_argument(
         '--memory-map', dest='memory_map',
         action='store_true',
-        help='''Map Bowtie2 index to memory (recommended if running on medium-memory systems and using many
-                        parallel threads. Use instead of --bowtie-parallel).'''
+        default=False,
+        help='''Map Bowtie2 index to memory (recommended 
+                if running on medium-memory systems and using many
+                parallel threads).'''
     )
-    parser.set_defaults(memory_map=False)
 
     parser.add_argument(
         '--ice', dest='ice',
         action='store_true',
-        help='''Use ICE iterative matrix balancing rather than Knight-Ruiz.'''
+        default=False,
+        help='''Use ICE iterative matrix balancing rather 
+                than Knight-Ruiz.'''
     )
-    parser.set_defaults(ice=False)
+
+    parser.add_argument(
+        '-q', '--quality-cutoff', dest='quality_cutoff',
+        type=int,
+        help='''Quality cutoff for mapped reads. Default: no cutoff.'''
+    )
 
     parser.add_argument(
         '--le-inward-cutoff', dest='inward_cutoff',
         type=int,
-        help='''Ligation error inward cutoff (if not set, will be determined automatically).'''
+        help='''Ligation error inward cutoff.
+                Default: no ligation error filtering.'''
     )
 
     parser.add_argument(
         '--le-outward-cutoff', dest='outward_cutoff',
         type=int,
-        help='''Ligation error outward cutoff (if not set, will be determined automatically).'''
+        help='''Ligation error outward cutoff.
+                Default: no ligation error filtering.'''
+    )
+
+    parser.add_argument(
+        '--auto-le-cutoff', dest='auto_le_cutoff',
+        action='store_true',
+        default=False,
+        help='''Automatically choose cutoffs for inward 
+                and outward ligation error cutoffs.'''
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Copy original files to temporary directory. Reduces network I/O.'''
+        default=False,
+        help='''Copy original files to temporary directory. 
+                Reduces network I/O if using remote file systems.'''
     )
-    parser.set_defaults(copy=False)
-
-    parser.add_argument(
-        '--reads-intermediate', dest='reads_intermediate',
-        action='store_true',
-        help='''Use '.reads' file intermediates. Will use more time and disk space,
-                    but could provide more control over filtering and downstream processing.'''
-    )
-    parser.set_defaults(reads_intermediate=False)
 
     parser.add_argument(
         '--no-iterative', dest='iterative',
         action='store_false',
+        default=True,
         help='''Do not map reads iteratively, use simple mapping.'''
     )
-    parser.set_defaults(iterative=True)
 
     parser.add_argument(
         '--no-sam-sort', dest='sam_sort',
         action='store_false',
+        default=True,
         help='''Do not sort SAM/BAM files.'''
     )
-    parser.set_defaults(sam_sort=True)
 
     parser.add_argument(
         '--restore-coverage', dest='restore_coverage',
         action='store_true',
+        default=False,
         help='''Restore coverage to the original total number of reads. 
-                    Otherwise matrix entries will be contact probabilities.
-                    Only available for KR matrix balancing.'''
+                Otherwise matrix entries will be contact probabilities.
+                Only available for KR matrix balancing.'''
     )
-    parser.set_defaults(restore_coverage=False)
 
     parser.add_argument(
         '--split-ligation-junction', dest='split_ligation_junction',
         action='store_true',
+        default=False,
         help='''Split reads at predicted ligation junction before mapping.'''
     )
-    parser.set_defaults(split_ligation_junction=False)
 
     parser.add_argument(
         '--no-hic', dest='process_hic',
         action='store_false',
         default=True,
-        help='''Do not process pairs into Hi-C maps (stop after read pairing step).'''
+        help='''Do not process pairs into Hi-C maps 
+               (stop after read pairing step).'''
     )
 
     return parser
 
 
-def reads_worker(file_names, reads_file, args):
-    load_reads_command = ['kaic', 'load_reads', '-D']
-    if args.tmp:
-        load_reads_command.append('-tmp')
-
-    if args.split_fastq:
-        load_reads_command.append('--split-sam')
-
-    for file_name in file_names:
-        load_reads_command.append(file_name)
-    load_reads_command.append(reads_file)
-
-    return subprocess.call(load_reads_command)
-
-
-def filtered_reads_worker(reads_file, filtered_reads_file, filtered_reads_stats_file, is_bwa, args):
-    filter_reads_command = ['kaic', 'filter_reads', '-m', '-us', '-q', '30']
-    if not is_bwa:
-        filter_reads_command.append('--bwa')
-    if args.tmp:
-        filter_reads_command.append('-tmp')
-    filter_reads_command.append('-s')
-
-    return subprocess.call(filter_reads_command + [filtered_reads_stats_file, reads_file, filtered_reads_file])
-
-
-def pairs_worker(pairs_file, filtered_reads_file1, filtered_reads_file2, genome, restriction_enzyme, args):
-    logger.info("Creating Pairs object...")
-    pairs_command = ['kaic', 'reads_to_pairs', filtered_reads_file1, filtered_reads_file2,
-                     genome, restriction_enzyme, pairs_file]
-    if args.tmp:
-        pairs_command.append('-tmp')
-    return subprocess.call(pairs_command)
-
-
-def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme, pairs_file, is_bwa, load_threads,
-                        args):
+def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme,
+                        pairs_file, is_bwa, load_threads, args):
     logger.info("Creating Pairs object...")
     pairs_command = ['kaic', 'sam_to_pairs', sam1_file, sam2_file, genome_file,
                      restriction_enzyme, pairs_file,
-                     '-m', '-us', '-q', '30', '-t', str(load_threads)]
+                     '-m', '-us', '-t', str(load_threads)]
+
+    if args.quality_cutoff is not None:
+        pairs_command += ['-q', str(args.quality_cutoff)]
+
     if is_bwa:
         pairs_command.append('--bwa')
 
@@ -248,7 +233,7 @@ def pairs_re_dist_worker(pairs_file, re_dist_file):
 
 
 def filtered_pairs_worker(pairs_file, filtered_pairs_file, filtered_pairs_stats_file, args):
-    filter_pairs_command = ['kaic', 'filter_pairs', '-r', '5000', '-l', '-d', '2']
+    filter_pairs_command = ['kaic', 'filter_pairs', '-r', '10000', '-l', '-d', '2']
 
     if args.inward_cutoff is not None:
         filter_pairs_command += ['-i', str(args.inward_cutoff)]
@@ -260,7 +245,7 @@ def filtered_pairs_worker(pairs_file, filtered_pairs_file, filtered_pairs_stats_
         if args.inward_cutoff is None:
             filter_pairs_command += ['-i', '0']
 
-    if args.inward_cutoff is None and args.outward_cutoff is None:
+    if args.inward_cutoff is None and args.outward_cutoff is None and args.auto_le_cutoff:
         filter_pairs_command += ['--auto']
 
     if args.tmp:
@@ -269,8 +254,9 @@ def filtered_pairs_worker(pairs_file, filtered_pairs_file, filtered_pairs_stats_
 
     p1 = subprocess.call(filter_pairs_command + [filtered_pairs_stats_file, pairs_file,
                                                  filtered_pairs_file])
-    if p1 != 0:
-        logger.error("Filtering failed for some reason, trying again with fixed thresholds...")
+    if p1 != 0 and args.auto_le_cutoff:
+        logger.error("Filtering with automatically determined thresholds failed for some reason, "
+                     "trying again with fixed (10kb) thresholds...")
         filter_pairs_command = ['kaic', 'filter_pairs', '-i', '10000',
                                 '-o', '10000', '-r', '5000', '-l', '-d', '2']
         if args.tmp:
@@ -290,14 +276,13 @@ def hic_worker(pairs_file, hic_file, args):
 
 
 def batch_hic_worker(hic_file, bin_size, binned_hic_file, filtered_hic_file, filtered_hic_stats_file,
-                     corrected_hic_file, chromosome_corrected_hic_file, args):
+                     args):
     """
     batch worker to:
     * bin
     * filter
     * correct
     """
-    import kaic
     logger.info("Binning Hic {} at {}...".format(hic_file, bin_size))
     bin_hic_command = ['kaic', 'bin_hic']
     if args.tmp:
@@ -323,28 +308,14 @@ def batch_hic_worker(hic_file, bin_size, binned_hic_file, filtered_hic_file, fil
     correct_hic_command = ['kaic', 'correct_hic']
     if args.tmp:
         correct_hic_command.append('-tmp')
-    if not args.optimise:
-        correct_hic_command.append('-O')
     if args.ice:
         correct_hic_command.append('-i')
     if args.restore_coverage:
         correct_hic_command.append('-r')
 
-    ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file, chromosome_corrected_hic_file])
+    ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file])
     if ret3 != 0:
         return ret3
-
-    hic = kaic.load(filtered_hic_file, mode='r')
-    n_regions = len(hic.regions)
-    hic.close()
-
-    if n_regions <= 50000:
-        ret4 = subprocess.call(correct_hic_command + [filtered_hic_file, corrected_hic_file])
-    else:
-        ret4 = 0
-
-    if ret4 != 0:
-        return ret4
 
     return 0
 
@@ -413,12 +384,10 @@ def auto(argv):
             import kaic
             try:
                 ds = kaic.load(file_names[i], mode='r')
-                if isinstance(ds, kaic.Hic) or isinstance(ds, kaic.AccessOptimisedHic):
+                if isinstance(ds, kaic.Hic):
                     file_types[i] = 'hic'
-                elif isinstance(ds, kaic.Pairs) or isinstance(ds, kaic.FragmentMappedReadPairs):
+                elif isinstance(ds, kaic.Pairs):
                     file_types[i] = 'pairs'
-                elif isinstance(ds, kaic.Reads):
-                    file_types[i] = 'reads'
                 else:
                     raise ValueError("Could not detect file type using kaic load.")
             except ValueError:
@@ -514,10 +483,14 @@ def auto(argv):
 
     # 1. create default folders in root directory
     logger.info("Creating output folders...")
-    rc = subprocess.call(['kaic', 'dirs', output_folder])
-    if rc != 0:
-        print("Creating folders failed for some reason, aborting...")
-        quit(rc)
+    from ..tools.general import mkdir
+    mkdir(output_folder, 'fastq')
+    mkdir(output_folder, 'sam')
+    mkdir(output_folder, 'pairs/filtered')
+    mkdir(output_folder, 'hic/filtered')
+    mkdir(output_folder, 'hic/corrected')
+    mkdir(output_folder, 'hic/binned')
+    mkdir(output_folder, 'plots/stats')
 
     # 2. If input files are (gzipped) FASTQ, map them iteratively first
     def mapping_worker(file_name, index, bam_file, mapping_threads=1):
@@ -525,16 +498,14 @@ def auto(argv):
                                      '-m', '25', '-s', str(args.step_size),
                                      '-t', str(mapping_threads)]
 
-        if is_bwa:
-            iterative_mapping_command += ['-q', '3']
-        else:
-            iterative_mapping_command += ['-q', '30']
+        if args.quality_cutoff is not None:
+            iterative_mapping_command += ['-q', str(args.quality_cutoff)]
 
         if args.tmp:
             iterative_mapping_command.append('-tmp')
 
-        if args.bowtie_parallel:
-            iterative_mapping_command.append('--bowtie-parallel')
+        if args.mapper_parallel:
+            iterative_mapping_command.append('--mapper-parallel')
         if args.split_fastq:
             iterative_mapping_command.append('--split-fastq')
         if not args.memory_map:
@@ -577,8 +548,8 @@ def auto(argv):
             file_names[i] = bam_files[ix]
             file_types[i] = 'sam'
 
-    if args.reads_intermediate:
-        # 3. SAM/BAM to Reads object conversion
+    if args.sam_sort:
+        # sort SAM files
         sam_files = []
         for i in range(len(file_names)):
             if file_types[i] != 'sam':
@@ -586,175 +557,72 @@ def auto(argv):
             sam_files.append(i)
 
         if len(sam_files) > 0:
-            tp = Pool(threads if not args.split_fastq else 1)
+            tp = Pool(threads)
 
-            reads_files = []
-            reads_results = []
+            sorted_sam_files = []
+            sort_results = []
             for ix in sam_files:
-                reads_file = output_folder + 'reads/' + file_basenames[ix] + '.reads'
-                reads_files.append(reads_file)
-                rt = tp.apply_async(reads_worker, ([file_names[ix]], reads_file, args))
-                reads_results.append(rt)
+                sam_path, sam_extension = os.path.splitext(file_names[ix])
+                sam_basename = os.path.basename(sam_path)
+                sorted_sam_file = os.path.join(output_folder, 'sam', sam_basename + '_sort' + sam_extension)
+                sorted_sam_files.append(sorted_sam_file)
+                rt = tp.apply_async(sam_sort_worker, (file_names[ix], sorted_sam_file, args))
+                sort_results.append(rt)
             tp.close()
             tp.join()
 
-            for rt in reads_results:
+            for rt in sort_results:
                 if rt.get() != 0:
                     raise RuntimeError("Read loading from SAM/BAM had non-zero exit status")
 
             for ix, i in enumerate(sam_files):
-                file_names[i] = reads_files[ix]
-                file_types[i] = 'reads'
+                file_names[i] = sorted_sam_files[ix]
 
-        # 4. Filter reads
-        reads_files = []
-        for i in range(len(file_names)):
-            if file_types[i] != 'reads':
-                continue
-            reads_files.append(i)
-
-        if len(reads_files) > 0:
-            tp = Pool(threads)
-
-            filtered_reads_files = []
-            filter_reads_results = []
-            for ix in reads_files:
-                filtered_reads_file = output_folder + 'reads/filtered/' + file_basenames[ix] + '_filtered.reads'
-                filtered_reads_stats_file = output_folder + 'plots/stats/' + file_basenames[ix] + '.reads.stats.pdf'
-                filtered_reads_files.append(filtered_reads_file)
-
-                rt = tp.apply_async(filtered_reads_worker,
-                                    (file_names[ix], filtered_reads_file,
-                                     filtered_reads_stats_file, is_bwa, args))
-                filter_reads_results.append(rt)
-            tp.close()
-            tp.join()
-
-            for rt in filter_reads_results:
-                if rt.get() != 0:
-                    raise RuntimeError("Read filtering had non-zero exit status")
-
-            for ix, i in enumerate(reads_files):
-                file_names[i] = filtered_reads_files[ix]
-
-        # 5. Reads to Pairs
-        reads_file_pairs = []
-        i = 0
-        while i < len(file_names):
-            if file_types[i] == 'reads':
-                if not file_types[i + 1] == 'reads':
-                    raise RuntimeError("Cannot create read pairs, because %s is missing a partner file" % file_names[i])
-                reads_file_pairs.append((i, i + 1))
-                i += 1
+    # load pairs directly from SAM
+    sam_file_pairs = []
+    i = 0
+    while i < len(file_names):
+        if file_types[i] == 'sam':
+            if not file_types[i + 1] == 'sam':
+                raise RuntimeError("Cannot create SAM pairs, because %s is missing a partner file" % file_names[i])
+            sam_file_pairs.append((i, i + 1))
             i += 1
+        i += 1
 
-        # get reads file pair basenames
-        pair_basenames = [basename + '_' + str(i) for i in range(len(reads_file_pairs))]
+    if len(sam_file_pairs) > 0:
+        pair_basenames = [basename + '_' + str(i) for i in range(len(sam_file_pairs))]
 
-        if len(reads_file_pairs) > 0:
-            tp = Pool(threads)
-            genome = args.genome
-            restriction_enzyme = args.restriction_enzyme
+        pool_threads = min(threads, len(sam_file_pairs))
+        load_threads = max(int((threads - pool_threads)/len(sam_file_pairs)), 1)
 
-            pairs_files = []
-            pairs_results = []
-            for i, j in reads_file_pairs:
-                if len(reads_file_pairs) > 1:
-                    pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
-                else:
-                    pairs_file = output_folder + 'pairs/' + basename + '.pairs'
-                rt = tp.apply_async(pairs_worker,
-                                    (pairs_file, file_names[i], file_names[j], genome, restriction_enzyme, args))
-                pairs_results.append(rt)
-                pairs_files.append(pairs_file)
-            tp.close()
-            tp.join()
+        tp = Pool(pool_threads)
+        genome = args.genome
+        restriction_enzyme = args.restriction_enzyme
 
-            for rt in pairs_results:
-                if rt.get() != 0:
-                    raise RuntimeError("Pairs loading from reads had non-zero exit status")
+        pairs_files = []
+        pairs_results = []
+        for i, j in sam_file_pairs:
+            if len(sam_file_pairs) > 1:
+                pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
+            else:
+                pairs_file = output_folder + 'pairs/' + basename + '.pairs'
+            rt = tp.apply_async(sam_to_pairs_worker,
+                                (file_names[i], file_names[j], genome,
+                                 restriction_enzyme, pairs_file, is_bwa, load_threads, args))
+            pairs_results.append(rt)
+            pairs_files.append(pairs_file)
+        tp.close()
+        tp.join()
 
-            for ix, read_pair in enumerate(reversed(reads_file_pairs)):
-                file_names[read_pair[0]] = pairs_files[ix]
-                del file_names[read_pair[1]]
-                file_types[read_pair[0]] = 'pairs'
-                del file_types[read_pair[1]]
-    else:
-        if args.sam_sort:
-            # sort SAM files
-            sam_files = []
-            for i in range(len(file_names)):
-                if file_types[i] != 'sam':
-                    continue
-                sam_files.append(i)
+        for rt in pairs_results:
+            if rt.get() != 0:
+                raise RuntimeError("Pairs loading from reads had non-zero exit status")
 
-            if len(sam_files) > 0:
-                tp = Pool(threads)
-
-                sorted_sam_files = []
-                sort_results = []
-                for ix in sam_files:
-                    sam_path, sam_extension = os.path.splitext(file_names[ix])
-                    sam_basename = os.path.basename(sam_path)
-                    sorted_sam_file = os.path.join(output_folder, 'sam', sam_basename + '_sort' + sam_extension)
-                    sorted_sam_files.append(sorted_sam_file)
-                    rt = tp.apply_async(sam_sort_worker, (file_names[ix], sorted_sam_file, args))
-                    sort_results.append(rt)
-                tp.close()
-                tp.join()
-
-                for rt in sort_results:
-                    if rt.get() != 0:
-                        raise RuntimeError("Read loading from SAM/BAM had non-zero exit status")
-
-                for ix, i in enumerate(sam_files):
-                    file_names[i] = sorted_sam_files[ix]
-
-        # load pairs directly from SAM
-        sam_file_pairs = []
-        i = 0
-        while i < len(file_names):
-            if file_types[i] == 'sam':
-                if not file_types[i + 1] == 'sam':
-                    raise RuntimeError("Cannot create SAM pairs, because %s is missing a partner file" % file_names[i])
-                sam_file_pairs.append((i, i + 1))
-                i += 1
-            i += 1
-
-        if len(sam_file_pairs) > 0:
-            pair_basenames = [basename + '_' + str(i) for i in range(len(sam_file_pairs))]
-
-            pool_threads = min(threads, len(sam_file_pairs))
-            load_threads = max(int((threads - pool_threads)/len(sam_file_pairs)), 1)
-
-            tp = Pool(pool_threads)
-            genome = args.genome
-            restriction_enzyme = args.restriction_enzyme
-
-            pairs_files = []
-            pairs_results = []
-            for i, j in sam_file_pairs:
-                if len(sam_file_pairs) > 1:
-                    pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
-                else:
-                    pairs_file = output_folder + 'pairs/' + basename + '.pairs'
-                rt = tp.apply_async(sam_to_pairs_worker,
-                                    (file_names[i], file_names[j], genome,
-                                     restriction_enzyme, pairs_file, is_bwa, load_threads, args))
-                pairs_results.append(rt)
-                pairs_files.append(pairs_file)
-            tp.close()
-            tp.join()
-
-            for rt in pairs_results:
-                if rt.get() != 0:
-                    raise RuntimeError("Pairs loading from reads had non-zero exit status")
-
-            for ix, sam_pair in enumerate(reversed(sam_file_pairs)):
-                file_names[sam_pair[0]] = pairs_files[ix]
-                del file_names[sam_pair[1]]
-                file_types[sam_pair[0]] = 'pairs'
-                del file_types[sam_pair[1]]
+        for ix, sam_pair in enumerate(reversed(sam_file_pairs)):
+            file_names[sam_pair[0]] = pairs_files[ix]
+            del file_names[sam_pair[1]]
+            file_types[sam_pair[0]] = 'pairs'
+            del file_types[sam_pair[1]]
 
     # 7. Pairs stats and filtering
     pairs_files = []
@@ -875,16 +743,12 @@ def auto(argv):
                 hic_basename = os.path.basename(os.path.splitext(binned_hic_file)[0])
                 filtered_hic_file = output_folder + 'hic/filtered/' + hic_basename + '_filtered.hic'
                 filtered_hic_stats_file = output_folder + 'plots/stats/' + hic_basename + '_filtered.stats.pdf'
-                chromosome_corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected_pc.hic'
-                corrected_hic_file = output_folder + 'hic/corrected/' + hic_basename + '_corrected.hic'
 
                 rt = tp.apply_async(batch_hic_worker, (file_names[ix],  # hic_file
                                                        bin_size,
                                                        binned_hic_file,
                                                        filtered_hic_file,
                                                        filtered_hic_stats_file,
-                                                       corrected_hic_file,
-                                                       chromosome_corrected_hic_file,
                                                        args))
                 hic_results.append(rt)
         tp.close()
