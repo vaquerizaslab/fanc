@@ -6,7 +6,7 @@ Getting started
    :depth: 2
 
 Kai-C offers access to its Hi-C processing pipeline on multiple levels, including
-a high-level executable and a low-level Python 2.7.x / 3.5.x API. Often the ``kaic``
+a high-level executable and a low-level Python 2.7.x / 3.6.x API. Often the ``kaic``
 executable will cover the analysis needs of basic users. For more advanced use cases, the API
 is available, which gives maximum flexibility with regards to
 integration of other data sets and custom analysis methods. The output of the command line tool
@@ -18,7 +18,7 @@ Installation
 ************
 
 Before installing Kai-C, make sure you have all the prerequisites installed in your system.
-Specifically, Kai-C uses the HDF5 (via PyTables), a file format that simplifies the storage and access to huge
+Specifically, Kai-C uses the HDF5 (via PyTables) file format that simplifies the storage and access to huge
 amounts of data. The minimum required version is 1.8.4, but we recommend installing the latest version.
 
 Prerequisite: HDF5
@@ -89,8 +89,8 @@ The installation is then done via setup.py:
    cd kaic
    pip install .
 
-Kai-C can now be accessed via command line (``kaic`` for analysis, ``klot`` for plotting) or as a Python 2.7.x / 3.5.x
-module (``import kaic``).
+Kai-C can now be accessed via command line (``kaic`` for analysis, ``klot`` for plotting)
+or as a Python 2.7.x / 3.6.x module (``import kaic``).
 
 
 .. _example-kaic-auto:
@@ -111,7 +111,7 @@ From the examples folder, run:
 
    kaic auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip auto_output/ -g hg19_chr18_19.fa -i hg19_chr18_19/hg19_chr18_19 -n example -s 20 -t 4 -r HindIII
 
-On a modern desktop computer with at least for computing cores the command should take less than an hour to finish.
+On a modern desktop computer with at least four computing cores the command should take less than an hour to finish.
 It will generate several binned, bias-corrected Hi-C matrices from the FASTQ input.
 
 Input
@@ -165,18 +165,11 @@ restriction sites in the genome.
 Output
 ======
 
-The output is structured into several subfolders, containing the output files of each individual kaic subcommand.
+The output is structured into several subfolders, containing the output files of each individual ``kaic`` subcommand.
 
 **sam**
 
 This folder will contain the results of the iterative mapping in compressed BAM format.
-
-**reads** and **reads/filtered**
-
-Aligned reads will be loaded into the ``kaic``-internal Reads format. It is a SAM-equivalent format that enables
-filtering of Reads based on several criteria, such as mapping quality and uniqueness. Filtered Reads are kept in the
-reads/filtered folder. In the example, only uniquely
-mapping reads were left after the iterative mapping, and hence reads were only filtered for mapping quality > 30.
 
 **pairs** and **pairs/filtered**
 
@@ -189,7 +182,7 @@ duplicates, self-ligations, and other types of ligation errors (see
 
 After the pair assembly and filtering steps, read pairs mapping to specific fragments are counted and assembled
 into a fragment-level Hi-C map (``hic`` folder). This map is then binned with bin sizes ranging from 5Mb to 5kb.
-Binned Hi-C maps are finally bias-corrected using the Knight-Ruiz matrix balancing algorithm.
+Binned Hi-C maps are finally bias-corrected using the Knight-Ruiz (KR) matrix balancing algorithm.
 
 **plots/stats**
 
