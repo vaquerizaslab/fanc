@@ -184,7 +184,8 @@ class Hic(RegionMatrixTable):
         genome.close()
 
         logger.info("Binning edges...")
-        kwargs['mode'] = 'w'
+        if 'mode' not in kwargs:
+            kwargs['mode'] = 'w'
         hic = self.__class__(*args, **kwargs)
         hic.add_regions(regions.regions)
         regions.close()
@@ -239,6 +240,11 @@ class Hic(RegionMatrixTable):
 
         low_coverage_filter = LowCoverageFilter(self, rel_cutoff=rel_cutoff, cutoff=cutoff, mask=mask)
         self.filter(low_coverage_filter, queue)
+
+    def filter_statistics(self):
+        stats = self.mask_statistics(self._edges)
+
+        return stats
 
 
 class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
