@@ -642,18 +642,21 @@ def pairs_parser():
     parser.add_argument(
         'input',
         nargs='+',
-        help='''Possible inputs are: two SAM/BAM files (paired-end reads, 
+        help='''IMPORTANT: The last positional argument will be 
+                the output file, unless only a single Pairs object
+                is provided. In that case, filtering and correcting 
+                will be done in place.
+                Possible inputs are: two SAM/BAM files (paired-end reads, 
                 sorted by read name) and an output file; 
                 a HiC-Pro pairs file (format: 
                 name\\tchr1\\tpos1\\tstrand1\\tchr2\\tpos2\\tstrand2) 
                 and an output file; a pairs file in 4D Nucleome format
                 (https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md) 
                 and an output file, 
-                or an existing kaic Pairs object (in which case only  
-                filtering will be performed - no output file required). 
+                or an existing kaic Pairs object. 
                 In case of SAM/BAM or HiC-Pro, you must also provide the 
                 --genome argument, and if --genome is not a file with 
-                restriction fragments, you must also provide the 
+                restriction fragments (or Hi-C bins), you must also provide the 
                 --restriction-enzyme argument.
                 '''
     )
@@ -791,6 +794,14 @@ def pairs_parser():
     )
 
     parser.add_argument(
+        '-f', '--force-overwrite', dest='force_overwrite',
+        action='store_true',
+        default=False,
+        help='''If the specified output file exists, it will be 
+                overwritten without warning.'''
+    )
+
+    parser.add_argument(
         '--bwa', dest='bwa',
         action='store_true',
         default=False,
@@ -836,10 +847,15 @@ def pairs(argv):
     threads = args.threads
     batch_size = args.batch_size
     check_sam_sorted = args.check_sorted
+    force_overwrite = args.force_overwrite
     tmp = args.tmp
 
     regions = None
     if 2 <= len(input_files) <= 3:
+        if not force_overwrite and os.path.exists(input_files[-1]):
+            parser.error("Output file {} exists! Use -f to force "
+                         "overwriting it!".format(input_files[-1]))
+
         logger.info("Getting genome regions (fragments or bins)")
         from kaic.regions import genome_regions
         try:
@@ -916,6 +932,7 @@ def pairs(argv):
 
             input_file = os.path.expanduser(input_files[0])
             pairs_file = os.path.expanduser(input_files[1])
+
             if tmp:
                 tmp = False
                 from kaic.tools.files import create_temporary_copy, create_temporary_output
@@ -1103,403 +1120,309 @@ def pairs_to_homer(argv):
     logger.info("All done.")
 
 
-def pairs_to_hic_parser():
+def hic_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic pairs_to_hic",
-        description='Convert a pairs object into a Hic object'
+        prog="kaic hic",
+        description='Process, filter, and correct Hic files'
     )
 
     parser.add_argument(
-        'pairs',
-        help='''Input Pairs file'''
-    )
-
-    parser.add_argument(
-        'hic',
-        help='''Output path for Hic file'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
-
-
-def pairs_to_hic(argv):
-    parser = pairs_to_hic_parser()
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.tools.files import create_temporary_copy
-
-    original_pairs_path = os.path.expanduser(args.pairs)
-    original_hic_path = os.path.expanduser(args.hic)
-    if args.tmp:
-        logger.info("Creating temporary copy of input file...")
-        pairs_path = create_temporary_copy(original_pairs_path)
-        logger.info("Working from temporary input file %s" % pairs_path)
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        tmp_file.close()
-        hic_path = tmp_file.name
-        logger.info("Working in temporary output file %s" % hic_path)
-    else:
-        pairs_path = original_pairs_path
-        hic_path = original_hic_path
-
-    logger.info("Loading pairs...")
-    pairs = kaic.load(pairs_path, mode='r')
-    logger.info("Done.")
-
-    hic = pairs.to_hic(file_name=hic_path)
-    logger.info("Done.")
-
-    pairs.close()
-    hic.close()
-
-    if args.tmp:
-        logger.info("Removing temporary input file...")
-        os.unlink(pairs_path)
-        logger.info("Moving output file to destination %s" % original_hic_path)
-        shutil.move(hic_path, original_hic_path)
-
-    logger.info("All done.")
-
-
-def merge_hic_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic merge_hic",
-        description='Merge multiple Hic objects'
-    )
-
-    parser.add_argument(
-        'hic',
+        'input',
         nargs='+',
-        help='''Input Hic files'''
+        help='''IMPORTANT: The last positional argument will be 
+                the output file, unless only a single Hic object
+                is provided. In that case, binning, filtering and 
+                correcting will be done in place.
+                Input files. If these are Kai-C Pairs objects 
+                (see "kaic pairs"), they will be turned into 
+                Hic objects. Hic objects (also the ones converted 
+                from Pairs) will first be merged and the merged 
+                object will be binned, filtered and corrected as 
+                specified in the remaining parameters.
+                '''
     )
 
     parser.add_argument(
-        'output',
-        help='''Output binned Hic object'''
+        '-b', 'bin_size', dest='bin_size',
+        help='''Bin size in base pairs. You can use human-readable formats,
+                such as 10k, or 1mb. If omitted, the command will 
+                end after the merging step.'''
     )
 
     parser.add_argument(
-        '--intra', dest='intra',
-        action='store_true',
-        help='''Only merge intra-chromosomal contacts and set inter-chromosomal to 0.'''
-    )
-    parser.set_defaults(intra=False)
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-
-    return parser
-
-
-def merge_hic(argv):
-    parser = merge_hic_parser()
-    args = parser.parse_args(argv[2:])
-    import tempfile
-    tmpdir = tempfile.gettempdir() if args.tmp else None
-
-    import kaic
-
-    output_path = os.path.expanduser(args.output)
-    paths = [os.path.expanduser(path) for path in args.hic]
-    hics = [kaic.load(path, mode='r', tmpdir=tmpdir) for path in paths]
-
-    cls = hics[0].__class__
-    merged = cls.merge(hics, file_name=output_path, tmpdir=tmpdir)
-    merged.close()
-
-    for hic in hics:
-        hic.close()
-
-    logger.info("All done")
-
-
-def filter_hic_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic filter_hic",
-        description='Filter a Hic object'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input Hic file'''
-    )
-
-    parser.add_argument(
-        'output',
-        nargs="?",
-        help='''Output Hic file. If not provided will filter input file in place.'''
-    )
-
-    parser.add_argument(
-        '-l', '--low-coverage', dest='low',
+        '-l', '--filter-low-coverage', dest='filter_low_coverage',
         type=float,
-        help='''Filter bins with "low coverage" (lower than specified absolute contact threshold)'''
+        help='''Filter bins with low coverage (lower than 
+                specified absolute number of contacts)'''
     )
 
     parser.add_argument(
-        '-rl', '--relative-low-coverage', dest='rel_low',
+        '-r', '--filter-low-coverage-relative', dest='filter_low_coverage_relative',
         type=float,
-        help='''Filter bins using a relative "low coverage" threshold
-                    (lower than the specified fraction of the median contact count)'''
+        help='''Filter bins using a relative low coverage threshold
+                (lower than the specified fraction of the median contact count)'''
     )
 
     parser.add_argument(
-        '-ld', '--low-coverage-default', dest='low_default',
+        '-a', '--low-coverage-auto', dest='filter_low_coverage_auto',
         action='store_true',
-        help='''Filter bins with "low coverage" (under 10%% of median coverage for all non-zero bins)'''
+        default=False,
+        help='''Filter bins with "low coverage" (under 
+                10%% of median coverage for all non-zero bins)'''
     )
-    parser.set_defaults(low_default=False)
 
     parser.add_argument(
-        '-d', '--diagonal', dest='diagonal',
+        '-d', '--diagonal', dest='filter_diagonal',
         type=int,
-        help='''Filter bins along the diagonal up to this specified distance'''
+        help='''Filter bins along the diagonal up to this specified distance.
+                Use 0 for only filtering the diagonal.'''
     )
 
     parser.add_argument(
-        '-s', '--stats', dest='stats',
-        help='''Path for saving stats pdf'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
+        '-i', '--ice-correct', dest='ice',
         action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-
-    return parser
-
-
-def filter_hic(argv):
-    parser = filter_hic_parser()
-    args = parser.parse_args(argv[2:])
-    import kaic
-    from kaic.tools.files import copy_or_expand, create_temporary_copy
-
-    original_input_path = os.path.expanduser(args.input)
-    if args.tmp:
-        logger.info("Creating temporary copy of input file...")
-        input_path = create_temporary_copy(original_input_path)
-        logger.info("Working from copy in %s" % input_path)
-    else:
-        input_path = copy_or_expand(args.input, args.output)
-
-    with kaic.load(file_name=input_path, mode='a') as hic:
-        if args.low_default:
-            if args.low or args.rel_low:
-                logger.info("Already specified an cutoff with -l or -rl, skipping -ld...")
-            else:
-                logger.info("Filtering low-coverage bins at 10%%")
-                hic.filter_low_coverage_regions(rel_cutoff=0.1, cutoff=None, queue=True)
-
-        if (args.low is not None or args.rel_low is not None) and args.low_default is False:
-            logger.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
-                        "relative cutoff {:.1%}".format(float(args.low) if args.low else 0.,
-                                                        float(args.rel_low) if args.rel_low else 0.))
-            hic.filter_low_coverage_regions(cutoff=args.low, rel_cutoff=args.rel_low, queue=True)
-
-            if args.diagonal is not None:
-                logger.info("Filtering diagonal at distance %d" % args.diagonal)
-                hic.filter_diagonal(distance=args.diagonal, queue=True)
-
-            logger.info("Running filters...")
-            hic.run_queued_filters(log_progress=True)
-            logger.info("Done.")
-
-            if args.stats:
-                logger.info("Plotting filter statistics")
-                from kaic.plotting.plot_statistics import plot_mask_statistics
-                plot_mask_statistics(hic, hic._edges, output=args.stats)
-                logger.info("Done.")
-
-    if args.tmp:
-        output_path = os.path.expanduser(args.output)
-        if os.path.isdir(output_path):
-            output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-        logger.info("Moving temporary output file to destination %s..." % output_path)
-        shutil.move(input_path, output_path)
-
-    logger.info("All done.")
-
-
-def bin_hic_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic bin_hic",
-        description='Bin a Hic object into same-size regions'
-    )
-
-    parser.add_argument(
-        'hic',
-        help='''Input Hic file'''
-    )
-
-    parser.add_argument(
-        'output',
-        help='''Output binned Hic object'''
-    )
-
-    parser.add_argument(
-        'bin_size',
-        type=int,
-        help='''Bin size in base pairs'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
-
-
-def bin_hic(argv):
-    parser = bin_hic_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.tools.files import create_temporary_copy
-
-    original_output_path = os.path.expanduser(args.output)
-    if args.tmp:
-        input_path = create_temporary_copy(args.hic)
-        logger.info("Working in temporary directory...")
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        tmp_file.close()
-        output_path = tmp_file.name
-        logger.info("Temporary output file: %s" % output_path)
-    else:
-        input_path = os.path.expanduser(args.hic)
-        output_path = original_output_path
-
-    hic = kaic.load(file_name=input_path, mode='r')
-
-    logger.info("Binning at {}bp".format(args.bin_size))
-    binned = hic.bin(args.bin_size, file_name=output_path)
-
-    hic.close()
-    binned.close()
-
-    if args.tmp:
-        logger.info("Moving temporary output file to destination %s" % original_output_path)
-        os.unlink(input_path)
-        shutil.move(output_path, original_output_path)
-
-    logger.info("All done.")
-
-
-def correct_hic_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic correct_hic",
-        description='Correct a Hic object for biases'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input Hic file'''
-    )
-
-    parser.add_argument(
-        '-i', '--ice', dest='ice',
-        action='store_true',
+        default=False,
         help='''Use ICE iterative correction instead of Knight matrix balancing'''
     )
-    parser.set_defaults(ice=False)
 
     parser.add_argument(
-        '-c', '--chromosome', dest='chromosome',
+        '-k', '--kr-correct', dest='kr',
         action='store_true',
-        help='''Correct intra-chromosomal data individually, ignore inter-chromosomal data'''
+        default=False,
+        help='''Use Knight-Ruiz matrix balancing to correct the binned Hic matrix'''
     )
-    parser.set_defaults(chromosome=False)
 
     parser.add_argument(
-        '-r', '--restore-coverage', dest='restore_coverage',
+        '-w', '--whole-matrix', dest='whole_matrix',
         action='store_true',
+        default=False,
+        help='''Correct the whole matrix at once, rather than individual chromosomes.'''
+    )
+
+    parser.add_argument(
+        '-c', '--restore-coverage', dest='restore_coverage',
+        action='store_true',
+        default=False,
         help='''Restore coverage to the original total number of reads. 
                 Otherwise matrix entries will be contact probabilities.
                 Only available for KR matrix balancing.'''
     )
-    parser.set_defaults(restore_coverage=False)
 
     parser.add_argument(
         '--only-inter', dest='only_inter',
         action='store_true',
         help='''Only correct inter-chromosomal contacts. Sets intra-chromosomal contacts to 0.
-                Always uses whole-matrix balancing, therefore incompatible with -c.'''
+                    Always uses whole-matrix balancing, therefore incompatible with -c.'''
     )
     parser.set_defaults(only_inter=False)
 
     parser.add_argument(
+        '-s', '--statistics', dest='stats',
+        help='''Path for saving filter statistics'''
+    )
+
+    parser.add_argument(
+        '--statistics-plot', dest='stats_plot',
+        help='''Path for saving filter statistics plot (PDF)'''
+    )
+
+    parser.add_argument(
+        '-f', '--force-overwrite', dest='force_overwrite',
+        action='store_true',
+        default=False,
+        help='''If the specified output file exists, it will be 
+                    overwritten without warning.'''
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
+        default=False,
         help='''Work in temporary directory'''
     )
-    parser.set_defaults(tmp=False)
+
     return parser
 
 
-def correct_hic(argv):
-    parser = correct_hic_parser()
-
+def hic(argv):
+    parser = hic_parser()
     args = parser.parse_args(argv[2:])
 
-    if args.only_inter and args.chromosome:
-        raise RuntimeError("--only-inter incompatible with -c! Aborting...")
+    import os
+    from kaic.tools.general import str_to_int
 
+    input_files = [os.path.expanduser(file_name) for file_name in args.input]
+    bin_size = str_to_int(args.bin_size) if args.bin_size is not None else None
+    filter_low_coverage = args.filter_low_coverage
+    filter_low_coverage_relative = args.filter_low_coverage_relative
+    filter_low_coverage_auto = args.filter_low_coverage_auto
+    filter_diagonal = args.filter_diagonal
+    ice = args.ice
+    kr = args.kr
+    whole_matrix = args.whole_matrix
+    restore_coverage = args.restore_coverage
+    only_interchromosomal = args.only_inter
+    statistics_file = os.path.expanduser(args.stats) if args.stats is not None else None
+    statistics_plot_file = os.path.expanduser(args.stats_plot) if args.stats_plot is not None else None
+    force_overwrite = args.force_overwrite
+    tmp = args.tmp
+
+    if kr and ice:
+        parser.error("The arguments --ice and --kr are mutually exclusive")
+
+    coverage_args = 0
+    if filter_low_coverage_auto:
+        coverage_args += 1
+    if filter_low_coverage_relative is not None:
+        coverage_args += 1
+    if filter_low_coverage is not None:
+        coverage_args += 1
+
+    if coverage_args > 1:
+        parser.error("The arguments -l, -r, and -a are mutually exclusive")
+
+    if ice and restore_coverage:
+        parser.error("--restore-coverage not supported for ICE matrix balancing!")
+
+    import tempfile
     import kaic
-    from kaic.tools.files import create_temporary_copy
+    from kaic.tools.files import create_temporary_copy, create_temporary_output
 
-    # copy file if required
-    original_input_path = os.path.expanduser(args.input)
-    if args.tmp:
-        logger.info("Copying data to temporary file...")
-        input_path = create_temporary_copy(original_input_path)
-    else:
-        input_path = os.path.expanduser(args.input)
+    original_output_file = None
+    output_file = None
+    if len(input_files) > 1:
+        output_file = input_files.pop()
+        original_output_file = output_file
 
-    if args.ice:
-        from kaic.hic import ice_balancing
+        if not force_overwrite and os.path.exists(output_file):
+            parser.error("Output file {} exists! Use -f to force "
+                         "overwriting it!".format(output_file))
 
-        if args.restore_coverage:
-            raise ValueError("Restoring coverage (-r) only available for KR balancing!")
+        if tmp:
+            tmp = False
+            output_file = create_temporary_output(output_file)
+            tmp = True
 
-        hic = kaic.load(file_name=input_path, mode='a')
-        ice_balancing(hic, whole_matrix=not args.chromosome, intra_chromosomal=not args.only_inter)
-        hic.close()
+    hic_files = []
+    pairs_files = []
+    tmp_input_files = []
+    try:
+        for input_file in input_files:
+            original_input_file = input_file
+            if tmp:
+                input_file = create_temporary_copy(input_file)
+                tmp_input_files.append(input_file)
 
-        if args.tmp:
-            logger.info("Moving temporary output file to destination %s" % original_input_path)
-            os.unlink(original_input_path)
-            shutil.move(input_path, original_input_path)
-    else:
-        from kaic.hic import kr_balancing
+            o = None
+            try:
+                o = kaic.load(input_file)
+                if isinstance(o, kaic.Hic):
+                    hic_files.append(input_file)
+                elif isinstance(o, kaic.Pairs):
+                    pairs_files.append(input_file)
+                else:
+                    parser.error("File ({}) type {} not supported."
+                                 "Provide Pairs or Hic files!".format(original_input_file, type(o)))
+            finally:
+                if o is not None:
+                    o.close()
 
-        hic = kaic.load(file_name=input_path, mode='a')
-        kr_balancing(hic, whole_matrix=not args.chromosome,
-                     restore_coverage=args.restore_coverage,
-                     intra_chromosomal=not args.only_inter)
-        hic.close()
+        logger.info("Converting Pairs files")
+        for pairs_file in pairs_files:
+            with kaic.load(pairs_file) as pairs:
+                tmp_output_file = tempfile.NamedTemporaryFile(suffix='.hic', delete=False)
+                tmp_input_files.append(tmp_output_file.name)
+                logger.info("Converting {} to Hic".format(pairs_file))
+                hic = pairs.to_hic(file_name=tmp_output_file.name)
+                hic.close()
+                hic_files.append(tmp_output_file.name)
 
-        if args.tmp:
-            logger.info("Moving temporary output file to destination %s" % original_input_path)
-            os.unlink(original_input_path)
-            shutil.move(input_path, original_input_path)
+        if len(hic_files) > 1:
+            logger.info("Merging {} Hic files into {}".format(len(hic_files), original_output_file))
+            hics = []
+            try:
+                for hic_file in hic_files:
+                    hics.append(kaic.load(hic_file))
 
-    logger.info("All done.")
+                tmp_output_file = tempfile.NamedTemporaryFile(suffix='.hic', delete=False)
+                merged_hic_file = tmp_output_file.name
+                tmp_input_files.append(merged_hic_file)
+                merged_hic = kaic.Hic.merge(hics, file_name=merged_hic_file, mode='w')
+                merged_hic.close()
+            finally:
+                for hic in hics:
+                    hic.close()
+        else:
+            merged_hic_file = hic_files[0]
+
+        if bin_size is None:
+            shutil.copy(merged_hic_file, output_file)
+        else:
+            merged_hic = kaic.load(merged_hic_file)
+
+            logger.info("Binning Hic file ({})".format(bin_size))
+            binned_hic = merged_hic.bin(bin_size, file_name=output_file)
+
+            logger.info("Preparing filters")
+            if filter_low_coverage_auto:
+                logger.info("Filtering low-coverage bins at 10%%")
+                binned_hic.filter_low_coverage_regions(rel_cutoff=0.1, cutoff=None, queue=True)
+
+            if filter_low_coverage is not None or filter_low_coverage_relative is not None:
+                logger.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
+                            "relative cutoff {:.1%}".format(float(args.low) if args.low else 0.,
+                                                            float(args.rel_low) if args.rel_low else 0.))
+                binned_hic.filter_low_coverage_regions(cutoff=filter_low_coverage,
+                                                       rel_cutoff=filter_low_coverage_relative,
+                                                       queue=True)
+
+            if filter_diagonal is not None:
+                logger.info("Filtering diagonal at distance %d" % args.diagonal)
+                binned_hic.filter_diagonal(distance=filter_diagonal, queue=True)
+
+            logger.info("Running filters...")
+            binned_hic.run_queued_filters(log_progress=True)
+            logger.info("Done.")
+
+            if statistics_file is not None or statistics_plot_file is not None:
+                statistics = binned_hic.filter_statistics()
+
+                if statistics_file is not None:
+                    with open(statistics_file, 'w') as o:
+                        for name, value in statistics.items():
+                            o.write("{}\t{}\n".format(name, value))
+
+                if statistics_plot_file is not None:
+                    logger.info("Saving statistics...")
+                    import matplotlib
+                    matplotlib.use('agg')
+                    import matplotlib.pyplot as plt
+                    from kaic.plotting.plot_statistics import statistics_plot
+                    statistics_plot_file = os.path.expanduser(statistics_plot_file)
+                    fig, ax = plt.subplots()
+                    statistics_plot(statistics)
+                    fig.savefig(statistics_plot_file)
+                    plt.close(fig)
+
+            logger.info("Correcting binned Hic file")
+            from kaic.hic import ice_balancing, kr_balancing
+
+            if ice:
+                ice_balancing(binned_hic, whole_matrix=whole_matrix,
+                              intra_chromosomal=not only_interchromosomal)
+            elif kr:
+                kr_balancing(binned_hic, whole_matrix=whole_matrix,
+                             restore_coverage=restore_coverage,
+                             intra_chromosomal=not only_interchromosomal)
+
+            binned_hic.close()
+    finally:
+        for tmp_input_file in tmp_input_files:
+            os.remove(tmp_input_file)
+
+        if tmp and output_file is not None and original_output_file is not None:
+            shutil.copy(output_file, original_output_file)
+            os.remove(output_file)
 
 
 def hic_from_juicer_parser():
