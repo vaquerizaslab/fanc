@@ -399,6 +399,8 @@ class RegionPairsContainer(RegionBased):
 
     @classmethod
     def merge(cls, pairs, *args, **kwargs):
+        if 'mode' not in kwargs:
+            kwargs['mode'] = 'w'
         merged_pairs = cls(*args, **kwargs)
 
         pairs = [pair_object for pair_object in pairs]
