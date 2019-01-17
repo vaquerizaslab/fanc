@@ -2021,23 +2021,9 @@ class RegionsTable(GenomicRegions, FileGroup):
                         describe a genomic region. See
                         :class:`~RegionsTable.add_region` for options.
         """
-        try:
-            l = len(regions)
-            _log = True
-        except TypeError:
-            l = None
-            _log = False
-
-        pb = RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars)
-        if _log:
-            pb.start()
 
         for i, region in enumerate(regions):
             self.add_region(region, flush=False)
-            if _log:
-                pb.update(i)
-        if _log:
-            pb.finish()
 
         self._regions.flush()
         self._update_references()
