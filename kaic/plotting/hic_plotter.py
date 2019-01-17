@@ -282,23 +282,32 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
 
     def _plot(self, region):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
-        color_matrix = self.get_color_matrix(self.current_matrix)
+        m = np.transpose(self.current_matrix)
+
         if self.flip:
-            extent = [self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
-                      self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end]
+            m = np.flipud(m)
+            extent = [self.current_matrix.row_regions[0].end, self.current_matrix.row_regions[-1].end,
+                      self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end]
         else:
-            extent = [self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
-                      self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start]
+            extent = [self.current_matrix.row_regions[0].end, self.current_matrix.row_regions[-1].end,
+                      self.current_matrix.col_regions[-1].end, self.current_matrix.col_regions[0].start]
+
+        color_matrix = self.get_color_matrix(m)
         self.im = self.ax.imshow(color_matrix, interpolation='none', aspect='auto',
-                                 cmap=self.colormap, norm=self.norm, origin="upper",
-                                 extent=extent)
+                                 cmap=self.colormap, norm=self.norm, extent=extent)
+
         self.ax.spines['right'].set_visible(False)
         self.ax.spines['top'].set_visible(False)
         self.ax.xaxis.set_ticks_position('bottom')
         self.ax.yaxis.set_ticks_position('left')
 
+        self.ax.set_xlim(extent[0], extent[1])
+        self.ax.set_ylim(extent[2], extent[3])
+
         if self.adjust_range:
             self.add_adj_slider()
+
+        return self.ax
 
     def add_adj_slider(self, ax=None):
         if ax is None:
@@ -312,6 +321,10 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
                                   facecolor='#dddddd', edgecolor='none')
 
         self.vmax_slider.on_changed(self._slider_refresh)
+
+        self.ax.patch.set_visible(False)
+        if self.adjust_range:
+            self.add_adj_slider()
 
     def _slider_refresh(self, val):
         # new_vmin = self.vmin_slider.val
@@ -329,9 +342,19 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
 
     def _refresh(self, region):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
-        self.im.set_data(self.get_color_matrix(self.current_matrix))
-        self.im.set_extent([self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end,
-                            self.current_matrix.row_regions[-1].end, self.current_matrix.row_regions[0].start])
+        m = np.transpose(self.current_matrix)
+
+        if self.flip:
+            m = np.flipud(m)
+            extent = [self.current_matrix.row_regions[0].end, self.current_matrix.row_regions[-1].end,
+                      self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end]
+        else:
+            extent = [self.current_matrix.row_regions[0].end, self.current_matrix.row_regions[-1].end,
+                      self.current_matrix.col_regions[-1].end, self.current_matrix.col_regions[0].start]
+
+        color_matrix = self.get_color_matrix(m)
+        self.im.set_data(color_matrix)
+        self.im.set_extent(extent)
 
 
 class HicSideBySidePlot2D(object):
