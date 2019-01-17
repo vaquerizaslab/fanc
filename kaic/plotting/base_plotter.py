@@ -688,8 +688,7 @@ class BasePlotter2D(BasePlotter):
                                                                display_chromosome=self._draw_chromosome_label))
         self.ax.yaxis.set_major_locator(GenomeCoordLocator(nbins=self.n_tick_bins))
         self.ax.yaxis.set_minor_locator(MinorGenomeCoordLocator(n=self.n_minor_ticks))
-        self.ax.set_xlim(x_region.start, x_region.end)
-        self.ax.set_ylim(y_region.start, y_region.end)
+
         self._current_chromosome_x = x_region.chromosome
         self._current_chromosome_y = y_region.chromosome
 
