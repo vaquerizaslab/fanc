@@ -50,16 +50,6 @@ except ImportError:
     has_gridmap = False
 
 
-class PeakCaller(with_metaclass(ABCMeta, object)):
-
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def call_peaks(self, hic):
-        pass
-
-
 class PeakInfo(RegionMatrixTable):
     """
     General-purpose class for recording peaks in Hic (and similar) data.
@@ -76,20 +66,7 @@ class PeakInfo(RegionMatrixTable):
 
     _classid = 'PEAKINFO'
 
-    class MergedPeakInformation(t.IsDescription):
-        source = t.Int32Col(pos=0)
-        sink = t.Int32Col(pos=1)
-        weight = t.Float32Col(pos=2)
-        uncorrected = t.Int32Col(pos=3)
-        expected = t.Float32Col(pos=4)
-        oe = t.Float32Col(pos=5)
-        p_value = t.Float32Col(pos=6)
-        q_value_sum = t.Float32Col(pos=7)
-        x = t.Float32Col(pos=8)
-        y = t.Float32Col(pos=9)
-        radius = t.Float32Col(pos=10)
-
-    def __init__(self, file_name=None, mode='a', tmpdir=None, regions=None,
+    def __init__(self, file_name=None, mode='a', tmpdir=None,
                  _table_name_regions='regions', _table_name_peaks='edges'):
         """
         Initialize a PeakInfo object.
@@ -98,20 +75,28 @@ class PeakInfo(RegionMatrixTable):
                           existing peak info file, will load its information. If path
                           to a non-existent file will create the file.
         :param mode: File mode, use 'a' for append, 'r' for read, and 'w' for write
-        :param regions: Iterable with :class:`~GenomicRegion` objects to be loaded
         :param _table_name_regions: Internal, controls name of the region PyTables table
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
         """
+        additional_fields = {
+            'weight': t.Float32Col(pos=2),
+            'uncorrected': t.Int32Col(pos=3),
+            'expected': t.Float32Col(pos=4),
+            'oe': t.Float32Col(pos=5),
+            'p_value': t.Float32Col(pos=6),
+            'q_value_sum': t.Float32Col(pos=7),
+            'x': t.Float32Col(pos=8),
+            'y': t.Float32Col(pos=9),
+            'radius': t.Float32Col(pos=10),
+            'merged_pixels': t.Int32Col(pos=11),
+        }
 
         RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
-                                   additional_edge_fields=PeakInfo.MergedPeakInformation,
+                                   additional_edge_fields=additional_fields,
                                    _table_name_regions=_table_name_regions,
                                    _table_name_edges=_table_name_peaks)
 
         self.peak_table = self._edges
-
-        if regions is not None:
-            self.add_regions(regions)
 
     def _row_to_edge(self, row, lazy=False, distances_in_bp=False, auto_update=True):
         if distances_in_bp:
@@ -217,35 +202,6 @@ class RaoPeakInfo(RegionMatrixTable):
 
     _classid = 'RAOPEAKINFO'
 
-    class PeakInformation(t.IsDescription):
-        source = t.Int32Col(pos=0)
-        sink = t.Int32Col(pos=1)
-        weight = t.Float32Col(pos=2)
-        uncorrected = t.Int32Col(pos=3)
-        w = t.Int32Col(pos=4)
-        p = t.Int32Col(pos=5)
-        e_ll = t.Float32Col(pos=6, dflt=1.0)
-        e_h = t.Float32Col(pos=7, dflt=1.0)
-        e_v = t.Float32Col(pos=8, dflt=1.0)
-        e_d = t.Float32Col(pos=9, dflt=1.0)
-        oe_ll = t.Float32Col(pos=10, dflt=1.0)
-        oe_h = t.Float32Col(pos=11, dflt=1.0)
-        oe_v = t.Float32Col(pos=12, dflt=1.0)
-        oe_d = t.Float32Col(pos=13, dflt=1.0)
-        mappability_ll = t.Float32Col(pos=14, dflt=1.0)
-        mappability_h = t.Float32Col(pos=15, dflt=1.0)
-        mappability_v = t.Float32Col(pos=16, dflt=1.0)
-        mappability_d = t.Float32Col(pos=17, dflt=1.0)
-        fdr_ll = t.Float32Col(pos=18, dflt=1.0)
-        fdr_h = t.Float32Col(pos=19, dflt=1.0)
-        fdr_v = t.Float32Col(pos=20, dflt=1.0)
-        fdr_d = t.Float32Col(pos=21, dflt=1.0)
-        e_ll_chunk = t.Int32Col(pos=22, dflt=1.0)
-        e_h_chunk = t.Int32Col(pos=23, dflt=1.0)
-        e_v_chunk = t.Int32Col(pos=24, dflt=1.0)
-        e_d_chunk = t.Int32Col(pos=25, dflt=1.0)
-        ll_sum = t.Int32Col(pos=26, dflt=0)
-
     def __init__(self, file_name=None, mode='a', tmpdir=None,
                  _table_name_regions='regions', _table_name_peaks='edges'):
         """
@@ -259,8 +215,38 @@ class RaoPeakInfo(RegionMatrixTable):
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
         """
 
+        additional_fields = {
+            'source': t.Int32Col(pos=0),
+            'sink': t.Int32Col(pos=1),
+            'weight': t.Float32Col(pos=2),
+            'uncorrected': t.Int32Col(pos=3),
+            'w': t.Int32Col(pos=4),
+            'p': t.Int32Col(pos=5),
+            'e_ll': t.Float32Col(pos=6, dflt=1.0),
+            'e_h': t.Float32Col(pos=7, dflt=1.0),
+            'e_v': t.Float32Col(pos=8, dflt=1.0),
+            'e_d': t.Float32Col(pos=9, dflt=1.0),
+            'oe_ll': t.Float32Col(pos=10, dflt=1.0),
+            'oe_h': t.Float32Col(pos=11, dflt=1.0),
+            'oe_v': t.Float32Col(pos=12, dflt=1.0),
+            'oe_d': t.Float32Col(pos=13, dflt=1.0),
+            'mappability_ll': t.Float32Col(pos=14, dflt=1.0),
+            'mappability_h': t.Float32Col(pos=15, dflt=1.0),
+            'mappability_v': t.Float32Col(pos=16, dflt=1.0),
+            'mappability_d': t.Float32Col(pos=17, dflt=1.0),
+            'fdr_ll': t.Float32Col(pos=18, dflt=1.0),
+            'fdr_h': t.Float32Col(pos=19, dflt=1.0),
+            'fdr_v': t.Float32Col(pos=20, dflt=1.0),
+            'fdr_d': t.Float32Col(pos=21, dflt=1.0),
+            'e_ll_chunk': t.Int32Col(pos=22, dflt=1.0),
+            'e_h_chunk': t.Int32Col(pos=23, dflt=1.0),
+            'e_v_chunk': t.Int32Col(pos=24, dflt=1.0),
+            'e_d_chunk': t.Int32Col(pos=25, dflt=1.0),
+            'll_sum': t.Int32Col(pos=26, dflt=0),
+        }
+
         RegionMatrixTable.__init__(self, file_name, mode=mode, tmpdir=tmpdir,
-                                   additional_edge_fields=RaoPeakInfo.PeakInformation,
+                                   additional_edge_fields=additional_fields,
                                    _table_name_regions=_table_name_regions,
                                    _table_name_edges=_table_name_peaks)
 
@@ -317,7 +303,8 @@ class RaoPeakInfo(RegionMatrixTable):
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('mappability', 'Mask peaks with a mappability lower than %e' % cutoff)
+        mask = self.add_mask_description('mappability',
+                                         'Mask peaks with a mappability lower than %e' % cutoff)
         mappability_filter = MappabilityPeakFilter(mappability_cutoff=cutoff, mask=mask)
         self.filter(mappability_filter, queue)
 
@@ -390,7 +377,8 @@ class RaoPeakInfo(RegionMatrixTable):
                                    consider two peaks to be the same
         :return: :class:`~PeakInfo`
         """
-        merged_peaks = PeakInfo(file_name=file_name, mode='w', regions=self.regions(lazy=True))
+        merged_peaks = PeakInfo(file_name=file_name, mode='w')
+        merged_peaks.add_regions(self.regions(lazy=True))
 
         bin_size = self.bin_size
 
@@ -492,8 +480,8 @@ class LazyPeak(LazyEdge, Peak):
     This class implements :class:`~LazyPeak`, which provides lazy
     loading of attributes from a PyTables table row.
     """
-    def __init__(self, row, nodes_table, auto_update=True, bin_size=1):
-        LazyEdge.__init__(self, row, nodes_table, auto_update=auto_update)
+    def __init__(self, row, nodes_table, bin_size=1):
+        LazyEdge.__init__(self, row, nodes_table)
         self.reserved.add('bin_size')
         self.bin_size = bin_size
 
@@ -780,7 +768,7 @@ class RaoMergedPeakFilter(PeakFilter):
         return True
 
 
-class RaoPeakCaller(PeakCaller):
+class RaoPeakCaller(object):
     """
     Class that calls peaks the same way Rao et al. (2014) propose.
 
@@ -1179,7 +1167,7 @@ class RaoPeakCaller(PeakCaller):
             ix_offset = start1
             start2, end2 = chromosome_bins[chromosome2]
             if chromosome1 == chromosome2:
-                m = hic.as_matrix((chromosome1, chromosome2), mask_missing=True)
+                m = hic.matrix((chromosome1, chromosome2))
                 self._find_peaks_intra_matrix(m, intra_expected[chromosome1], c[start1:end1],
                                               peaks, mappable[start1:end1], ix_offset,
                                               observed_chunk_distribution, w_init, p)
@@ -1367,7 +1355,9 @@ def overlap_peaks(peaks, max_distance=6000):
              of dataset names.
     :rtype: (pandas.DataFrame, kaic.data.network.PeakInfo)
     """
-    # Algorithm from https://github.com/theaidenlab/juicebox/blob/cb5999cb1e8e430dd29d4114fb208aca4b8d35ac/src/juicebox/tools/utils/juicer/hiccups/HiCCUPSUtils.java#L235
+    # Algorithm from https://github.com/theaidenlab/juicebox/
+    # blob/cb5999cb1e8e430dd29d4114fb208aca4b8d35ac/src/juicebox/
+    # tools/utils/juicer/hiccups/HiCCUPSUtils.java#L235
 
     def key_func(p):
         return p[1].weight
