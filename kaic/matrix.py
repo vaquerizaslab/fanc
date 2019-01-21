@@ -415,6 +415,8 @@ class RegionPairsContainer(RegionBased):
             except AssertionError:
                 raise ValueError("Regions in pair objects are not identical, cannot perform merge!")
 
+        merged_pairs.add_regions(regions)
+
         for pair_object in pairs:
             merged_pairs.add_edges(pair_object.edges(lazy=True))
 
@@ -1352,6 +1354,50 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
             return chromosome_intra_expected[selected_chromosome]
 
         return intra_expected, chromosome_intra_expected, inter_expected
+
+    @classmethod
+    def merge(cls, matrices, *args, **kwargs):
+        if isinstance(matrices, RegionMatrixContainer):
+            matrices = [matrices]
+
+        if 'mode' not in kwargs:
+            kwargs['mode'] = 'w'
+        merged_matrix = cls(*args, **kwargs)
+
+        matrices = [matrix_object for matrix_object in matrices]  # ensure list
+
+        regions = list(matrices[0].regions)
+        for matrix_object in matrices[1:]:
+            try:
+                for r1, r2 in zip(regions, matrix_object.regions):
+                    assert r1.chromosome == r2.chromosome
+                    assert r1.start == r2.start
+                    assert r1.end == r2.end
+            except AssertionError:
+                raise ValueError("Regions in matrix objects are not identical, cannot perform merge!")
+
+        merged_matrix.add_regions(regions)
+
+        default_field = merged_matrix._default_score_field
+
+        chromosomes = merged_matrix.chromosomes()
+        for i in range(len(chromosomes)):
+            chromosome1 = chromosomes[i]
+            for j in range(i, len(chromosomes)):
+                chromosome2 = chromosomes[j]
+
+                edges = defaultdict(int)
+                for matrix_object in matrices:
+                    for edge in matrix_object.edges((chromosome1, chromosome2), lazy=True):
+                        edges[edge.source, edge.sink] += getattr(edge, default_field)
+
+                for (source, sink), weight in edges.items():
+                    e = Edge(source=source, sink=sink)
+                    setattr(e, default_field, weight)
+                    merged_matrix.add_edge(e)
+
+        merged_matrix.flush()
+        return merged_matrix
 
 
 class RegionMatrix(np.ma.MaskedArray):
