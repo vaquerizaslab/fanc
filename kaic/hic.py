@@ -168,7 +168,7 @@ class Hic(RegionMatrixTable):
         :return: :class:`~Hic` object
         """
         # find chromosome lengths
-        logger.info("Constructing binned genome...")
+        logger.debug("Constructing binned genome...")
         chromosomes = self.chromosomes()
         chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
         for region in self.regions():
