@@ -961,13 +961,14 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         try:
             partition_end = self._partition_breaks[partition_ix]
         except IndexError:
-            partition_end = len(self.regions)
+            partition_end = len(self.regions) - 1
+
         if partition_ix > 0:
             partition_start = self._partition_breaks[partition_ix - 1]
         else:
             partition_start = 0
 
-        if region_ix_start <= partition_start and region_ix_end >= partition_end - 1:
+        if region_ix_start <= partition_start and region_ix_end >= partition_end:
             return True
         return False
 
@@ -987,15 +988,26 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         col_partition_start = self._get_partition_ix(col_start)
         col_partition_end = self._get_partition_ix(col_end)
 
-        for i in range(row_partition_start, row_partition_end + 1):
-            for j in range(col_partition_start, col_partition_end + 1):
-                if j < i:
-                    i, j = j, i
+        partition_extracted = set()
+        for a in range(row_partition_start, row_partition_end + 1):
+            for b in range(col_partition_start, col_partition_end + 1):
+                if b < a:
+                    i, j = b, a
+                else:
+                    i, j = a, b
+
+                if (i, j) in partition_extracted:
+                    continue
+                else:
+                    partition_extracted.add((i, j))
+
+                row_covered = self._is_partition_covered(a, row_start, row_end)
+                col_covered = self._is_partition_covered(b, col_start, col_end)
+
                 edge_table = self._edge_table_dict[(i, j)]
 
                 # if we need to get all regions in a table, return the whole thing
-                if (self._is_partition_covered(i, row_start, row_end) and
-                        self._is_partition_covered(j, col_start, col_end)):
+                if row_covered and col_covered:
                     for row in edge_table:
                         yield row
 
