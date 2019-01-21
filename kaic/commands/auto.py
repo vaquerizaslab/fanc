@@ -1,9 +1,199 @@
+import os
 import argparse
 import logging
 import subprocess
+import shlex
+import uuid
+import threading
+import multiprocessing as mp
+from future.utils import string_types
+import time
+from kaic.config import config
+
 
 # configure logging
 logger = logging.getLogger(__name__)
+
+
+class CommandTask(object):
+    def __init__(self, command):
+        if isinstance(command, string_types):
+            self.command = shlex.split(command, posix=False)
+        else:
+            self.command = command
+        self.id = uuid.uuid4()
+
+
+class QueuedTask(object):
+    def __init__(self, task, wait_for=None, threads=1):
+        self.task = task
+        self.id = task.id
+        self.command = task.command
+
+        if isinstance(wait_for, CommandTask):
+            wait_for = [wait_for]
+        elif wait_for is None:
+            wait_for = []
+
+        self.wait_for = wait_for
+        self.threads = threads
+
+
+class TaskRunner(object):
+    def __init__(self):
+        self._tasks = []
+        self._task_ixs = dict()
+
+    def add_task(self, task, wait_for=None, threads=1, *args, **kwargs):
+        self._tasks.append(QueuedTask(task, wait_for=wait_for, threads=threads))
+        self._task_ixs[task.id] = len(self._task_ixs)
+
+    def run(self, *args, **kwargs):
+        raise NotImplementedError("Subclasses of TaskWorker must implement 'run'")
+
+
+def _run_task(task, process_id, completed_queue):
+    res = subprocess.call(task.command)
+    completed_queue.put((task, process_id, res))
+
+
+class ParallelTaskRunner(TaskRunner):
+    def __init__(self, threads=1, test=False):
+        TaskRunner.__init__(self)
+        self._threads = threads
+        self._active_threads_lock = threading.Lock()
+        self._active_threads = 0
+        self._test = test
+
+    def _change_active_threads(self, threads):
+        with self._active_threads_lock:
+            self._active_threads += threads
+
+    def run(self, *args, **kwargs):
+        completed = set()
+        running = set()
+        completed_queue = mp.Queue()
+        processes = dict()
+
+        remaining_tasks = len(self._tasks)
+        while remaining_tasks > 0:
+
+            # find tasks that can be executed
+            for task in self._tasks:
+                if task.id in completed:
+                    continue
+
+                if task.id in running:
+                    continue
+
+                if task.threads > self._threads:
+                    raise RuntimeError("Task requests more threads ({}) than "
+                                       "available in parallel task runner ({})!".format(task.threads,
+                                                                                        self._threads))
+
+                available_threads = self._threads - self._active_threads
+                if task.threads > available_threads:
+                    continue
+
+                is_executable = True
+                for wait_task in task.wait_for:
+                    if not wait_task.id in completed:
+                        is_executable = False
+                        break
+
+                if not is_executable:
+                    continue
+
+                p_id = uuid.uuid4()
+                if not self._test:
+                    logger.debug("Running task {}".format(task.id))
+                    p = mp.Process(target=_run_task, args=(task, p_id, completed_queue))
+                    p.start()
+                    processes[p_id] = p
+                else:
+                    print("{} (threads: {}, depends on: {}): {}".format(
+                        self._task_ixs[task.id],
+                        task.threads,
+                        ", ".join([str(self._task_ixs[t.id])
+                                   for t in task.wait_for]),
+                        " ".join(task.command))
+                    )
+
+                    completed_queue.put((task, p_id, 0))
+                running.add(task.id)
+                self._change_active_threads(task.threads)
+
+            # wait for any task to finish
+            task, p_id, res = completed_queue.get(block=True)
+            completed.add(task.id)
+            running.remove(task.id)
+            self._change_active_threads(-task.threads)
+            if not self._test:
+                processes[p_id].join()
+                del processes[p_id]
+
+            if res != 0:
+                for p in processes.values():
+                    p.terminate()
+                    p.join()
+                raise RuntimeError("Task {} had non-zero exit status. "
+                                   "Cancelling execution of all tasks.".format(task.id))
+            else:
+                remaining_tasks -= 1
+
+
+class SgeTaskRunner(TaskRunner):
+    def __init__(self, task_prefix=None,
+                 log_dir=None, trap_sigusr=True):
+        TaskRunner.__init__(self)
+        if task_prefix is None:
+            from kaic.tools.files import random_name
+            self._task_prefix = 'kaic_' + random_name(6) + '_'
+        else:
+            self._task_prefix = task_prefix
+
+        self._log_dir = log_dir
+        if log_dir is None:
+            self._log_dir = config.sge_log_dir
+        else:
+            self._log_dir = os.path.expanduser(log_dir)
+        self._trap_sigusr = trap_sigusr
+
+    def _submit_task(self, task):
+        import tempfile
+
+        task_ix = self._task_ixs[task.id]
+        job_id = self._task_prefix + '{}'.format(task_ix)
+        with tempfile.NamedTemporaryFile('w', prefix='kaic_auto_', suffix='.sh') as tmp_file:
+            if self._trap_sigusr:
+                tmp_file.write('function notify_handler() {\n  '
+                               '(>&2 echo "Received termination notice")\n}\n')
+                tmp_file.write("trap notify_handler SIGUSR1\n")
+                tmp_file.write("trap notify_handler SIGUSR2\n\n")
+            tmp_file.write(" ".join(task.command) + "\n")
+
+        command = [config.sge_qsub_path, config.sge_qsub_options,
+                   '-N', job_id, '-cwd',
+                   '-pe', config.sge_parallel_environment, str(task.threads)]
+
+        if task.wait_for is not None and len(task.wait_for) > 0:
+            hold_ids = ",".join([self._task_prefix + '{}'.format(self._task_ixs[t.id])
+                                 for t in task.wait_for])
+            command += ['-hold_jid', hold_ids]
+
+        if self._log_dir is not None:
+            command += ['-o', os.path.join(self._log_dir, job_id + '_o')]
+            command += ['-e', os.path.join(self._log_dir, job_id + '_e')]
+        else:
+            command += ['-o', '/dev/null']
+            command += ['-e', '/dev/null']
+
+        logger.info("Submitting {}".format(" ".join(command)))
+        subprocess.call(command)
+
+    def run(self, *args, **kwargs):
+        for task in self._tasks:
+            self._submit_task(task)
 
 
 def auto_parser():
@@ -60,14 +250,13 @@ def auto_parser():
 
     parser.add_argument(
         '-b', '--bin-sizes', dest='bin_sizes',
-        type=int,
         nargs='+',
-        default=[5000000, 2000000, 1000000, 500000, 250000, 100000, 50000,
-                 25000, 10000, 5000],
+        default=['5mb', '2mb', '1mb', '500kb', '250kb', '100kb', '50kb',
+                 '25kb', '10kb', '5kb'],
         help='''Bin sizes for Hi-C matrix generation. 
-                Default: 5000000, 2000000, 1000000,
-                500000, 250000, 100000, 50000, 25000, 
-                10000, 5000'''
+                Default: 5mb, 2mb, 1mb,
+                500kb, 250kb, 100kb, 50kb, 25kb, 
+                10kb, 5kb'''
     )
 
     parser.add_argument(
@@ -185,143 +374,59 @@ def auto_parser():
         action='store_false',
         default=True,
         help='''Do not process pairs into Hi-C maps 
-               (stop after read pairing step).'''
+                   (stop after read pairing step).'''
+    )
+
+    parser.add_argument(
+        '--run-with', dest='run_with',
+        default='parallel',
+        help='''Choose how to run the commands in kaic auto. Options:
+                "parallel" (default): Run kaic commands on local machine,
+                use multiprocessing parellelisation.
+                "sge": Submit kaic commands to a Sun/Oracle Grid Engine cluster.
+                "test": Do not run kaic commands but print all commands 
+                and their dependencies to stdout for review.'''
+    )
+
+    parser.add_argument(
+        '--sge-prefix', dest='sge_prefix',
+        help='''Use this prefix for jobs submitted to SGE (works with 
+                "--run-with sge". Default: "kaic_<6 random letters>_"'''
+    )
+
+    parser.add_argument(
+        '-f', '--force-overwrite', dest='force_overwrite',
+        action='store_true',
+        default=False,
+        help='''Force overwriting of existing files.'''
     )
 
     return parser
 
 
-def sam_to_pairs_worker(sam1_file, sam2_file, genome_file, restriction_enzyme,
-                        pairs_file, is_bwa, load_threads, args):
-    logger.info("Creating Pairs object...")
-    pairs_command = ['kaic', 'sam_to_pairs', sam1_file, sam2_file, genome_file,
-                     restriction_enzyme, pairs_file,
-                     '-m', '-us', '-t', str(load_threads)]
-
-    if args.quality_cutoff is not None:
-        pairs_command += ['-q', str(args.quality_cutoff)]
-
-    if is_bwa:
-        pairs_command.append('--bwa')
-
-    if args.tmp:
-        pairs_command.append('-tmp')
-
-    if args.sam_sort:
-        pairs_command.append('-S')
-
-    return subprocess.call(pairs_command)
+def file_type(file_name):
+    base, extension = os.path.splitext(file_name)
+    if extension in ['.sam', '.bam']:
+        return 'sam'
+    if extension in ['.pairs']:
+        return 'pairs'
+    if extension in ['.hic']:
+        return 'hic'
+    if extension in ['.gz', '.gzip']:
+        base, extension = os.path.splitext(base)
+        if extension in ['.fq', '.fastq']:
+            return 'fastq'
+    return None
 
 
-def sam_sort_worker(sam_file, output_file, args):
-    logger.info("Sorting SAM file...")
-    sort_command = ['kaic', 'sort_sam', sam_file, output_file]
-    if args.tmp:
-        sort_command.append('-tmp')
-
-    return subprocess.call(sort_command)
-
-
-def pairs_ligation_error_worker(pairs_file, ligation_error_file):
-    ligation_error_command = ['kaic', 'plot_ligation_err']
-    return subprocess.call(ligation_error_command + [pairs_file, ligation_error_file])
-
-
-def pairs_re_dist_worker(pairs_file, re_dist_file):
-    re_dist_command = ['kaic', 'plot_re_dist']
-    return subprocess.call(re_dist_command + [pairs_file, re_dist_file])
-
-
-def filtered_pairs_worker(pairs_file, filtered_pairs_file, filtered_pairs_stats_file, args):
-    filter_pairs_command = ['kaic', 'filter_pairs', '-r', '10000', '-l', '-d', '2']
-
-    if args.inward_cutoff is not None:
-        filter_pairs_command += ['-i', str(args.inward_cutoff)]
-        if args.outward_cutoff is None:
-            filter_pairs_command += ['-o', '0']
-
-    if args.outward_cutoff is not None:
-        filter_pairs_command += ['-o', str(args.outward_cutoff)]
-        if args.inward_cutoff is None:
-            filter_pairs_command += ['-i', '0']
-
-    if args.inward_cutoff is None and args.outward_cutoff is None and args.auto_le_cutoff:
-        filter_pairs_command += ['--auto']
-
-    if args.tmp:
-        filter_pairs_command.append('-tmp')
-    filter_pairs_command.append('-s')
-
-    p1 = subprocess.call(filter_pairs_command + [filtered_pairs_stats_file, pairs_file,
-                                                 filtered_pairs_file])
-    if p1 != 0 and args.auto_le_cutoff:
-        logger.error("Filtering with automatically determined thresholds failed for some reason, "
-                     "trying again with fixed (10kb) thresholds...")
-        filter_pairs_command = ['kaic', 'filter_pairs', '-i', '10000',
-                                '-o', '10000', '-r', '5000', '-l', '-d', '2']
-        if args.tmp:
-            filter_pairs_command.append('-tmp')
-        filter_pairs_command.append('-s')
-        p1 = subprocess.call(filter_pairs_command + [filtered_pairs_stats_file, pairs_file,
-                                                     filtered_pairs_file])
-    return p1
-
-
-def hic_worker(pairs_file, hic_file, args):
-    hic_command = ['kaic', 'pairs_to_hic']
-    if args.tmp:
-        hic_command.append('-tmp')
-
-    return subprocess.call(hic_command + [pairs_file, hic_file])
-
-
-def batch_hic_worker(hic_file, bin_size, binned_hic_file, filtered_hic_file, filtered_hic_stats_file,
-                     args):
-    """
-    batch worker to:
-    * bin
-    * filter
-    * correct
-    """
-    logger.info("Binning Hic {} at {}...".format(hic_file, bin_size))
-    bin_hic_command = ['kaic', 'bin_hic']
-    if args.tmp:
-        bin_hic_command.append('-tmp')
-
-    ret1 = subprocess.call(bin_hic_command + [hic_file, binned_hic_file, str(bin_size)])
-    if ret1 != 0:
-        return ret1
-
-    logger.info("Filtering Hic {}...".format(binned_hic_file))
-    filter_hic_command = ['kaic', 'filter_hic']
-    if args.tmp:
-        filter_hic_command.append('-tmp')
-    filter_hic_command.append('-rl')
-    filter_hic_command.append('0.1')
-    filter_hic_command.append('-s')
-
-    ret2 = subprocess.call(filter_hic_command + [filtered_hic_stats_file, binned_hic_file, filtered_hic_file])
-    if ret2 != 0:
-        return ret2
-
-    logger.info("Correcting Hic {}...".format(filtered_hic_file))
-    correct_hic_command = ['kaic', 'correct_hic']
-    if args.tmp:
-        correct_hic_command.append('-tmp')
-    if args.ice:
-        correct_hic_command.append('-i')
-    if args.restore_coverage:
-        correct_hic_command.append('-r')
-
-    ret3 = subprocess.call(correct_hic_command + ['-c', filtered_hic_file])
-    if ret3 != 0:
-        return ret3
-
-    return 0
+def file_basename(file_name):
+    basename = os.path.basename(os.path.splitext(file_name)[0])
+    if file_name.endswith('.gz') or file_name.endswith('.gzip'):
+        basename = os.path.splitext(basename)[0]
+    return basename
 
 
 def auto(argv):
-    import os
     from kaic.tools.general import which
 
     parser = auto_parser()
@@ -330,57 +435,54 @@ def auto(argv):
     bin_sizes = args.bin_sizes
     split_ligation_junction = args.split_ligation_junction
     restriction_enzyme = args.restriction_enzyme
-
-    def is_fastq_file(file_name):
-        base, extension = os.path.splitext(file_name)
-        if extension in ['.gz', '.gzip']:
-            base, extension = os.path.splitext(base)
-
-        if extension in ['.fq', '.fastq']:
-            return True
-        return False
-
-    def is_sam_or_bam_file(file_name):
-        _, extension = os.path.splitext(file_name)
-        return extension in ['.sam', '.bam']
-
-    def is_reads_file(file_name):
-        _, extension = os.path.splitext(file_name)
-        return extension in ['.reads']
-
-    def is_pairs_file(file_name):
-        _, extension = os.path.splitext(file_name)
-        return extension in ['.pairs']
-
-    def is_hic_file(file_name):
-        _, extension = os.path.splitext(file_name)
-        return extension in ['.hic']
-
-    def file_type(file_name):
-        if is_fastq_file(file_name):
-            return 'fastq'
-        if is_sam_or_bam_file(file_name):
-            return 'sam'
-        if is_reads_file(file_name):
-            return 'reads'
-        if is_pairs_file(file_name):
-            return 'pairs'
-        if is_hic_file(file_name):
-            return 'hic'
-        return None
-
-    def file_basename(file_name):
-        basename = os.path.basename(os.path.splitext(file_name)[0])
-        if file_name.endswith('.gz') or file_name.endswith('.gzip'):
-            basename = os.path.splitext(basename)[0]
-        return basename
+    threads = args.threads
+    genome = args.genome
+    genome_index = args.genome_index
+    basename = args.basename
+    quality_cutoff = args.quality_cutoff
+    tmp = args.tmp
+    mapper_parallel = args.mapper_parallel
+    split_fastq = args.split_fastq
+    memory_map = args.memory_map
+    iterative = args.iterative
+    step_size = args.step_size
+    sam_sort = args.sam_sort
+    inward_cutoff = args.inward_cutoff
+    outward_cutoff = args.outward_cutoff
+    auto_le_cutoff = args.auto_le_cutoff
+    process_hic = args.process_hic
+    ice = args.ice
+    restore_coverage = args.restore_coverage
+    run_with = args.run_with
+    sge_prefix = args.sge_prefix
+    force_overwrite = args.force_overwrite
+    output_folder = os.path.expanduser(args.output_folder)
 
     file_names = [os.path.expanduser(file_name) for file_name in args.input]
     file_types = [file_type(file_name) for file_name in file_names]
     file_basenames = [file_basename(file_name) for file_name in file_names]
 
+    runner = None
+    if run_with == 'parallel':
+        runner = ParallelTaskRunner(threads)
+    elif run_with == 'sge':
+        from kaic.config import config
+        if which(config.sge_qsub_path) is None:
+            parser.error("Using SGE not possible: "
+                         "Cannot find 'qsub' at path '{}'. You can change "
+                         "this path using kaic config files and the "
+                         "'sge_qsub_path' parameter".format(config.sge_qsub_path))
+        from kaic.tools.files import mkdir
+        sge_log_dir = mkdir(output_folder, 'sge_logs')
+        runner = SgeTaskRunner(log_dir=sge_log_dir, task_prefix=sge_prefix)
+    elif run_with == 'test':
+        runner = ParallelTaskRunner(threads, test=True)
+    else:
+        parser.error("Runner {} is not valid. See --run-with "
+                     "parameter for options".format(run_with))
+
     for i in range(len(file_types)):
-        if file_types[i] not in ('fastq', 'sam', 'reads', 'pairs', 'hic'):
+        if file_types[i] not in ('fastq', 'sam', 'pairs', 'hic'):
             import kaic
             try:
                 ds = kaic.load(file_names[i], mode='r')
@@ -393,7 +495,7 @@ def auto(argv):
             except ValueError:
                 raise ValueError("Not a valid input file type: {}".format(file_type))
 
-    if args.basename is None:
+    if basename is None:
         if len(file_basenames) == 1:
             basename = file_basenames[0]
         else:
@@ -410,14 +512,9 @@ def auto(argv):
                     basename = "".join(basename[:-1])
                 else:
                     basename = "".join(basename)
-    else:
-        basename = args.basename
 
-    output_folder = os.path.expanduser(args.output_folder)
     if not output_folder[-1] == '/':
         output_folder += '/'
-
-    threads = args.threads
 
     # 0. Do some sanity checks on required flags
     is_bwa = False
@@ -427,7 +524,7 @@ def auto(argv):
             print("Error: Must provide genome index (-i) when mapping FASTQ files!")
             quit(1)
         else:
-            check_path = os.path.expanduser(args.genome_index)
+            check_path = os.path.expanduser(genome_index)
             if check_path.endswith('.'):
                 check_path = check_path[:-1]
 
@@ -453,102 +550,87 @@ def auto(argv):
             if is_bwa and not which('bwa'):
                 raise ValueError("bwa must be in PATH for mapping!")
 
-    if 'fastq' in file_types or 'sam' in file_types or 'reads' in file_types:
-        if args.genome is None:
+    if 'fastq' in file_types or 'sam' in file_types:
+        if genome is None:
             print("Error: Must provide genome (-g) to process read pair files!")
             quit(1)
 
-        if args.restriction_enzyme is None:
+        if restriction_enzyme is None:
             print("Error: Must provide restriction enzyme (-r) to process read pair files!")
             quit(1)
         else:
             from Bio import Restriction
             try:
-                getattr(Restriction, args.restriction_enzyme)
+                getattr(Restriction, restriction_enzyme)
             except AttributeError:
-                raise ValueError("restriction_enzyme string is not recognized: %s" % args.restriction_enzyme)
+                raise ValueError("restriction_enzyme string is not recognized: %s" % restriction_enzyme)
 
-    logger.info("Output folder: %s" % output_folder)
-    logger.info("Input files: %s" % str(file_names))
-    logger.info("Input file types: %s" % str(file_types))
+    logger.info("Output folder: {}".format(output_folder))
+    logger.info("Input files: {}".format(", ".join(file_names)))
+    logger.info("Input file types: {}".format(" ,".join(file_types)))
 
-    if args.basename:
-        logger.info("Final basename: %s" % basename)
-    else:
-        logger.info("Final basename: %s (you can change this with the -n option!)" % basename)
-
-    import subprocess
-    # from multiprocessing.pool import ThreadPool as Pool
-    from multiprocessing import Pool
+    logger.info("Final basename: %s (you can change this with the -n option!)" % basename)
 
     # 1. create default folders in root directory
-    logger.info("Creating output folders...")
-    from ..tools.general import mkdir
-    mkdir(output_folder, 'fastq')
-    mkdir(output_folder, 'sam')
-    mkdir(output_folder, 'pairs/filtered')
-    mkdir(output_folder, 'hic/filtered')
-    mkdir(output_folder, 'hic/corrected')
-    mkdir(output_folder, 'hic/binned')
-    mkdir(output_folder, 'plots/stats')
+    if run_with != 'test':
+        logger.info("Creating output folders...")
+        from ..tools.general import mkdir
+        mkdir(output_folder, 'fastq')
+        mkdir(output_folder, 'sam')
+        mkdir(output_folder, 'pairs/')
+        mkdir(output_folder, 'hic/binned')
+        mkdir(output_folder, 'plots/stats')
 
     # 2. If input files are (gzipped) FASTQ, map them iteratively first
-    def mapping_worker(file_name, index, bam_file, mapping_threads=1):
-        iterative_mapping_command = ['kaic', 'map',
-                                     '-m', '25', '-s', str(args.step_size),
-                                     '-t', str(mapping_threads)]
-
-        if args.quality_cutoff is not None:
-            iterative_mapping_command += ['-q', str(args.quality_cutoff)]
-
-        if args.tmp:
-            iterative_mapping_command.append('-tmp')
-
-        if args.mapper_parallel:
-            iterative_mapping_command.append('--mapper-parallel')
-        if args.split_fastq:
-            iterative_mapping_command.append('--split-fastq')
-        if not args.memory_map:
-            iterative_mapping_command.append('--no-memory-map')
-        if not args.iterative:
-            iterative_mapping_command.append('--simple')
-        if split_ligation_junction:
-            iterative_mapping_command.append('--restriction-enzyme')
-            iterative_mapping_command.append(restriction_enzyme)
-
-        return subprocess.call(iterative_mapping_command + [file_name, index, bam_file])
-
     fastq_files = []
     for i in range(len(file_names)):
         if file_types[i] != 'fastq':
             continue
         fastq_files.append(i)
 
+    mapping_tasks = []
     if len(fastq_files) > 0:
-        mapping_processes = threads
-
-        index = os.path.expanduser(args.genome_index)
-        if index.endswith('.'):
-            index = index[:-1]
-        logger.info("Iteratively mapping FASTQ files...")
+        if genome_index.endswith('.'):
+            genome_index = genome_index[:-1]
 
         bam_files = []
-
-        fastq_results = []
         for i, ix in enumerate(fastq_files):
             bam_file = output_folder + 'sam/' + file_basenames[ix] + '.bam'
+            if not force_overwrite and os.path.exists(bam_file):
+                parser.error("File exists ({}), use -f to force overwriting it.".format(bam_file))
             bam_files.append(bam_file)
-            fastq_results.append(mapping_worker(file_names[ix], index, bam_file, mapping_processes))
+            mapping_command = ['kaic', 'map', '-m', '25',
+                               '-s', str(step_size),
+                               '-t', str(threads)]
 
-        for rt in fastq_results:
-            if rt != 0:
-                raise RuntimeError("Bowtie mapping had non-zero exit status")
+            if quality_cutoff is not None:
+                mapping_command += ['-q', str(quality_cutoff)]
+            if tmp:
+                mapping_command.append('-tmp')
+            if mapper_parallel:
+                mapping_command.append('--mapper-parallel')
+            if split_fastq:
+                mapping_command.append('--split-fastq')
+            if not memory_map:
+                mapping_command.append('--no-memory-map')
+            if not iterative:
+                mapping_command.append('--simple')
+            if split_ligation_junction:
+                mapping_command.append('--restriction-enzyme')
+                mapping_command.append(restriction_enzyme)
+
+            mapping_command += [file_names[ix], genome_index, bam_file]
+
+            mapping_task = CommandTask(mapping_command)
+            runner.add_task(mapping_task, threads=threads)
+            mapping_tasks.append(mapping_task)
 
         for ix, i in enumerate(fastq_files):
             file_names[i] = bam_files[ix]
             file_types[i] = 'sam'
 
-    if args.sam_sort:
+    if sam_sort:
+        sam_sort_tasks = []
         # sort SAM files
         sam_files = []
         for i in range(len(file_names)):
@@ -557,26 +639,28 @@ def auto(argv):
             sam_files.append(i)
 
         if len(sam_files) > 0:
-            tp = Pool(threads)
-
             sorted_sam_files = []
-            sort_results = []
             for ix in sam_files:
                 sam_path, sam_extension = os.path.splitext(file_names[ix])
                 sam_basename = os.path.basename(sam_path)
                 sorted_sam_file = os.path.join(output_folder, 'sam', sam_basename + '_sort' + sam_extension)
-                sorted_sam_files.append(sorted_sam_file)
-                rt = tp.apply_async(sam_sort_worker, (file_names[ix], sorted_sam_file, args))
-                sort_results.append(rt)
-            tp.close()
-            tp.join()
+                if not force_overwrite and os.path.exists(sorted_sam_file):
+                    parser.error("File exists ({}), use -f to force overwriting it.".format(sorted_sam_file))
 
-            for rt in sort_results:
-                if rt.get() != 0:
-                    raise RuntimeError("Read loading from SAM/BAM had non-zero exit status")
+                sorted_sam_files.append(sorted_sam_file)
+
+                sort_command = ['kaic', 'sort_sam', file_names[ix], sorted_sam_file]
+                if tmp:
+                    sort_command.append('-tmp')
+
+                sam_sort_task = CommandTask(sort_command)
+                runner.add_task(sam_sort_task, wait_for=mapping_tasks, threads=1)
+                sam_sort_tasks.append(sam_sort_task)
 
             for ix, i in enumerate(sam_files):
                 file_names[i] = sorted_sam_files[ix]
+    else:
+        sam_sort_tasks = mapping_tasks
 
     # load pairs directly from SAM
     sam_file_pairs = []
@@ -590,39 +674,54 @@ def auto(argv):
         i += 1
 
     if len(sam_file_pairs) > 0:
+        sam_to_pairs_tasks = []
         pair_basenames = [basename + '_' + str(i) for i in range(len(sam_file_pairs))]
 
-        pool_threads = min(threads, len(sam_file_pairs))
-        load_threads = max(int((threads - pool_threads)/len(sam_file_pairs)), 1)
-
-        tp = Pool(pool_threads)
-        genome = args.genome
-        restriction_enzyme = args.restriction_enzyme
+        load_threads = max(int(threads/len(sam_file_pairs)), 1)
 
         pairs_files = []
-        pairs_results = []
         for i, j in sam_file_pairs:
+            pair_basename = pair_basenames[len(pairs_files)]
             if len(sam_file_pairs) > 1:
-                pairs_file = output_folder + 'pairs/' + pair_basenames[len(pairs_files)] + '.pairs'
+                pairs_file = output_folder + 'pairs/' + pair_basename + '.pairs'
             else:
                 pairs_file = output_folder + 'pairs/' + basename + '.pairs'
-            rt = tp.apply_async(sam_to_pairs_worker,
-                                (file_names[i], file_names[j], genome,
-                                 restriction_enzyme, pairs_file, is_bwa, load_threads, args))
-            pairs_results.append(rt)
-            pairs_files.append(pairs_file)
-        tp.close()
-        tp.join()
 
-        for rt in pairs_results:
-            if rt.get() != 0:
-                raise RuntimeError("Pairs loading from reads had non-zero exit status")
+            if not force_overwrite and os.path.exists(pairs_file):
+                parser.error("File exists ({}), use -f to force overwriting it.".format(pairs_file))
+
+            pairs_command = ['kaic', 'pairs', '-f',
+                             # loading
+                             '-g', genome,
+                             '-r', restriction_enzyme,
+                             '-t', str(load_threads),
+                             # filtering
+                             '-m', '-us']
+
+            if quality_cutoff is not None:
+                pairs_command += ['-q', str(quality_cutoff)]
+            if is_bwa:
+                pairs_command.append('--bwa')
+            if tmp:
+                pairs_command.append('-tmp')
+            if sam_sort:
+                pairs_command.append('-S')
+
+            pairs_command += [file_names[i], file_names[j], pairs_file]
+
+            pairs_task = CommandTask(pairs_command)
+            runner.add_task(pairs_task, wait_for=sam_sort_tasks, threads=load_threads)
+            sam_to_pairs_tasks.append(pairs_task)
+
+            pairs_files.append(pairs_file)
 
         for ix, sam_pair in enumerate(reversed(sam_file_pairs)):
             file_names[sam_pair[0]] = pairs_files[ix]
             del file_names[sam_pair[1]]
             file_types[sam_pair[0]] = 'pairs'
             del file_types[sam_pair[1]]
+    else:
+        sam_to_pairs_tasks = sam_sort_tasks
 
     # 7. Pairs stats and filtering
     pairs_files = []
@@ -632,33 +731,43 @@ def auto(argv):
         pairs_files.append(i)
 
     if len(pairs_files) > 0:
-        tp = Pool(threads)
-
-        filtered_pairs_files = []
-        filter_pairs_results = []
+        pairs_tasks = []
         for ix in pairs_files:
             pair_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
-            filtered_pairs_file = output_folder + 'pairs/filtered/' + pair_basename + '_filtered.pairs'
-            filtered_pairs_stats_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.stats.pdf'
+
+            pairs_stats_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.stats.pdf'
             ligation_error_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.ligation_error.pdf'
             re_dist_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.re_dist.pdf'
 
-            tp.apply_async(pairs_ligation_error_worker, (file_names[ix], ligation_error_file))
-            tp.apply_async(pairs_re_dist_worker, (file_names[ix], re_dist_file))
-            rt = tp.apply_async(filtered_pairs_worker,
-                                (file_names[ix], filtered_pairs_file, filtered_pairs_stats_file, args))
-            filter_pairs_results.append(rt)
+            pairs_command = ['kaic', 'pairs',
+                             # filtering
+                             '-d', '10000', '-l', '-p', '2']
 
-            filtered_pairs_files.append(filtered_pairs_file)
-        tp.close()
-        tp.join()
+            if inward_cutoff is not None:
+                pairs_command += ['-i', str(inward_cutoff)]
+                if outward_cutoff is None:
+                    pairs_command += ['-o', '0']
+            if outward_cutoff is not None:
+                pairs_command += ['-o', str(outward_cutoff)]
+                if inward_cutoff is None:
+                    pairs_command += ['-i', '0']
+            if inward_cutoff is None and outward_cutoff is None and auto_le_cutoff:
+                pairs_command += ['--filter-ligation-auto']
 
-        for rt in filter_pairs_results:
-            if rt.get() != 0:
-                raise RuntimeError("Pair filtering had non-zero exit status")
+            pairs_command += ['--statistics-plot', pairs_stats_file, file_names[ix]]
+            pairs_task = CommandTask(pairs_command)
+            runner.add_task(pairs_task, wait_for=sam_to_pairs_tasks, threads=1)
+            pairs_tasks.append(pairs_task)
 
-        for ix, i in enumerate(pairs_files):
-            file_names[i] = filtered_pairs_files[ix]
+            ligation_error_command = ['kaic', 'plot_ligation_err', file_names[ix], ligation_error_file]
+            ligation_error_task = CommandTask(ligation_error_command)
+            runner.add_task(ligation_error_task, wait_for=pairs_task, threads=1)
+
+            re_dist_command = ['kaic', 'plot_re_dist', file_names[ix], re_dist_file]
+            re_dist_task = CommandTask(re_dist_command)
+            runner.add_task(re_dist_task, wait_for=pairs_task, threads=1)
+    else:
+        pairs_tasks = sam_to_pairs_tasks
 
     # 8. Pairs to Hic
     pairs_files = []
@@ -667,31 +776,29 @@ def auto(argv):
             continue
         pairs_files.append(i)
 
-    if len(pairs_files) > 0 and args.process_hic:
-        tp = Pool(threads)
-
+    if len(pairs_files) > 0 and process_hic:
+        hic_tasks = []
         hic_files = []
-        hic_results = []
         for ix in pairs_files:
             hic_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
             if hic_basename.endswith('_filtered'):
                 hic_basename = hic_basename[:-9]
             hic_file = output_folder + 'hic/' + hic_basename + '.hic'
 
-            rt = tp.apply_async(hic_worker, (file_names[ix], hic_file, args))
-            hic_results.append(rt)
+            if not force_overwrite and os.path.exists(hic_file):
+                parser.error("File exists ({}), use -f to force overwriting it.".format(hic_file))
 
+            hic_command = ['kaic', 'hic', '-f', file_names[ix], hic_file]
+            hic_task = CommandTask(hic_command)
+            runner.add_task(hic_task, wait_for=pairs_tasks, threads=1)
+            hic_tasks.append(hic_task)
             hic_files.append(hic_file)
-        tp.close()
-        tp.join()
-
-        for rt in hic_results:
-            if rt.get() != 0:
-                raise RuntimeError("Hi-C conversion had non-zero exit status")
 
         for ix, i in enumerate(pairs_files):
             file_names[i] = hic_files[ix]
             file_types[i] = 'hic'
+    else:
+        hic_tasks = pairs_tasks
 
     # 9. Merge Hic
     hic_files = []
@@ -701,28 +808,31 @@ def auto(argv):
         hic_files.append(i)
 
     if len(hic_files) > 1:
+        merge_hic_tasks = []
         output_hic = output_folder + 'hic/' + basename + '.hic'
-        logger.info("Merging Hi-C files...")
-        merge_hic_command = ['kaic', 'merge_hic']
-        if args.tmp:
+
+        if not force_overwrite and os.path.exists(output_hic):
+            parser.error("File exists ({}), use -f to force overwriting it.".format(output_hic))
+
+        merge_hic_command = ['kaic', 'hic', '-f']
+        if tmp:
             merge_hic_command.append('-tmp')
 
-        if not args.optimise:
-            merge_hic_command.append('-O')
-
         hics = [file_names[i] for i in hic_files]
-        rt = subprocess.call(merge_hic_command + hics + [output_hic])
-
-        if rt != 0:
-            raise RuntimeError("Hi-C merge had non-zero exit status")
+        merge_hic_command += hics + [output_hic]
+        merge_hic_task = CommandTask(merge_hic_command)
+        runner.add_task(merge_hic_task, wait_for=hic_tasks, threads=1)
+        merge_hic_tasks.append(merge_hic_task)
 
         file_names[hic_files[0]] = output_hic
         hic_files.pop(0)
         for ix, i in enumerate(reversed(hic_files)):
             del file_names[i]
             del file_types[i]
+    else:
+        merge_hic_tasks = hic_tasks
 
-    from kaic.tools.general import human_format
+    from kaic.tools.general import human_format, str_to_int
 
     hic_files = []
     for i in range(len(file_names)):
@@ -731,31 +841,38 @@ def auto(argv):
         hic_files.append(i)
 
     if len(hic_files) > 0:
-        tp = Pool(threads)
-
-        hic_results = []
         for ix in hic_files:
+            hic_file = file_names[ix]
             binned_hic_file_base = output_folder + 'hic/binned/' + basename + '_'
 
             for bin_size in bin_sizes:
+                bin_size = str_to_int(str(bin_size))
                 bin_size_str = human_format(bin_size, 0).lower() + 'b'
+
                 binned_hic_file = binned_hic_file_base + bin_size_str + '.hic'
+
+                if not force_overwrite and os.path.exists(binned_hic_file):
+                    parser.error("File exists ({}), use -f to force overwriting it.".format(binned_hic_file))
+
                 hic_basename = os.path.basename(os.path.splitext(binned_hic_file)[0])
-                filtered_hic_file = output_folder + 'hic/filtered/' + hic_basename + '_filtered.hic'
-                filtered_hic_stats_file = output_folder + 'plots/stats/' + hic_basename + '_filtered.stats.pdf'
+                hic_stats_file = output_folder + 'plots/stats/' + \
+                                 hic_basename + '.stats.pdf'
 
-                rt = tp.apply_async(batch_hic_worker, (file_names[ix],  # hic_file
-                                                       bin_size,
-                                                       binned_hic_file,
-                                                       filtered_hic_file,
-                                                       filtered_hic_stats_file,
-                                                       args))
-                hic_results.append(rt)
-        tp.close()
-        tp.join()
+                hic_command = ['kaic', 'hic', '-f', '-b', str(bin_size), '-r', '0.1',
+                               '-s', hic_stats_file]
+                if tmp:
+                    hic_command.append('-tmp')
+                if ice:
+                    hic_command.append('-i')
+                else:
+                    hic_command.append('-k')
+                if restore_coverage:
+                    hic_command.append('-c')
 
-        for rt in hic_results:
-            if rt.get() != 0:
-                raise RuntimeError("Hi-C binning/filtering/correcting had non-zero exit status")
+                hic_command += [hic_file, binned_hic_file]
 
+                hic_task = CommandTask(hic_command)
+                runner.add_task(hic_task, wait_for=merge_hic_tasks, threads=1)
+
+    runner.run()
     return 0
