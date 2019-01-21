@@ -41,9 +41,16 @@ raise_exception_on_trapped_signal: True
 hide_progressbars: False
 
 #
-# Cluster
+# Grid engine
 #
 gridmap_tmpdir:
+
+sge_qsub_path: qsub
+sge_log_dir:
+sge_parallel_environment: smp
+sge_nodes:
+sge_qsub_options: "-S bash -V -notify"
+sge_shell: bash
 
 #
 # Juicer
