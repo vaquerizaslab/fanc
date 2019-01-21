@@ -829,7 +829,7 @@ def pairs(argv):
     import os
 
     input_files = [os.path.expanduser(file_name) for file_name in args.input]
-    genome_file = os.path.expanduser(args.genome)
+    genome_file = os.path.expanduser(args.genome) if args.genome is not None else None
     restriction_enzyme = args.restriction_enzyme
     filter_unmappable = args.unmappable
     filter_unique = args.unique
@@ -1143,7 +1143,7 @@ def hic_parser():
     )
 
     parser.add_argument(
-        '-b', 'bin_size', dest='bin_size',
+        '-b', '--bin-size', dest='bin_size',
         help='''Bin size in base pairs. You can use human-readable formats,
                 such as 10k, or 1mb. If omitted, the command will 
                 end after the merging step.'''
@@ -1327,15 +1327,17 @@ def hic(argv):
                 if o is not None:
                     o.close()
 
-        logger.info("Converting Pairs files")
-        for pairs_file in pairs_files:
-            with kaic.load(pairs_file) as pairs:
-                tmp_output_file = tempfile.NamedTemporaryFile(suffix='.hic', delete=False)
-                tmp_input_files.append(tmp_output_file.name)
-                logger.info("Converting {} to Hic".format(pairs_file))
-                hic = pairs.to_hic(file_name=tmp_output_file.name)
-                hic.close()
-                hic_files.append(tmp_output_file.name)
+        if len(pairs_files) > 0:
+            logger.info("Converting Pairs files")
+
+            for pairs_file in pairs_files:
+                with kaic.load(pairs_file) as pairs:
+                    tmp_output_file = tempfile.NamedTemporaryFile(suffix='.hic', delete=False)
+                    tmp_input_files.append(tmp_output_file.name)
+                    logger.info("Converting {} to Hic".format(pairs_file))
+                    hic = pairs.to_hic(file_name=tmp_output_file.name)
+                    hic.close()
+                    hic_files.append(tmp_output_file.name)
 
         if len(hic_files) > 1:
             logger.info("Merging {} Hic files into {}".format(len(hic_files), original_output_file))
@@ -1370,8 +1372,10 @@ def hic(argv):
 
             if filter_low_coverage is not None or filter_low_coverage_relative is not None:
                 logger.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
-                            "relative cutoff {:.1%}".format(float(args.low) if args.low else 0.,
-                                                            float(args.rel_low) if args.rel_low else 0.))
+                            "relative cutoff {:.1%}".format(float(filter_low_coverage)
+                                                            if filter_low_coverage else 0.,
+                                                            float(filter_low_coverage_relative)
+                                                            if filter_low_coverage_relative else 0.))
                 binned_hic.filter_low_coverage_regions(cutoff=filter_low_coverage,
                                                        rel_cutoff=filter_low_coverage_relative,
                                                        queue=True)
