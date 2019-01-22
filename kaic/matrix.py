@@ -309,7 +309,15 @@ class RegionPairsContainer(RegionBased):
                 inter_chromosomal = kwargs.pop("inter_chromosomal", True)
 
                 row_regions, col_regions = self._regions_pairs._key_to_regions(key)
-                row_regions, col_regions = list(row_regions), list(col_regions)
+                if isinstance(row_regions, GenomicRegion):
+                    row_regions = [row_regions]
+                else:
+                    row_regions = list(row_regions)
+
+                if isinstance(col_regions, GenomicRegion):
+                    col_regions = [col_regions]
+                else:
+                    col_regions = list(col_regions)
 
                 regions = dict()
                 for rr in (row_regions, col_regions):
@@ -456,27 +464,38 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                                           score_field=score_field,
                                           *args, **kwargs)
 
+        def offset_iter(edge_iter):
+            for source, sink, weight in edge_iter:
+                i = source - row_offset
+                j = sink - col_offset
+                if i >= 0 and j >= 0:
+                    yield source, sink, i, j, weight
+
+                l = source - col_offset
+                k = sink - row_offset
+                if (i, j) != (k, l) and k >= 0 and l >= 0:
+                    yield source, sink, k, l, weight
+
         if norm:
             biases = dict()
             for regions in (row_regions, col_regions):
                 for region in regions:
                     biases[region.ix] = getattr(region, bias_field, 1.0)
 
-            entry_iter = ((source - row_offset, sink - col_offset,
-                          weight * biases[source] * biases[sink])
-                          for source, sink, weight in basic_iter)
+            entry_iter = ((i, j, weight * biases[source] * biases[sink])
+                          for source, sink, i, j, weight in offset_iter(basic_iter))
         else:
-            entry_iter = ((source - row_offset, sink - col_offset, weight)
-                          for source, sink, weight in basic_iter)
+            entry_iter = ((i, j, weight)
+                          for source, sink, i, j, weight in offset_iter(basic_iter))
 
         if oe:
             intra_expected, chromosome_intra_expected, inter_expected = self.expected_values(norm=norm)
 
-            entry_iter = ((source, sink,
-                           weight / chromosome_intra_expected[row_regions[source].chromosome][abs(source - sink)]
-                           if row_regions[source].chromosome == col_regions[sink].chromosome
+            entry_iter = ((i, j,
+                           weight / chromosome_intra_expected[row_regions[i].chromosome][abs(source - sink)]
+                           if row_regions[i].chromosome == col_regions[j].chromosome
                            else weight / inter_expected)
-                          for source, sink, weight in basic_iter)
+                          for source, sink, i, j, weight in offset_iter(basic_iter))
 
         return row_regions, col_regions, entry_iter
 
@@ -491,7 +510,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
     def matrix(self, key=None, norm=True, oe=False,
                score_field=None, bias_field='bias',
-               default_value=None, _mappable=None):
+               default_value=None, mask=True,
+               _mappable=None):
 
         if score_field is None:
             score_field = self._default_score_field
@@ -511,16 +531,11 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
             if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
                 m[ir, jr] = weight
 
-            ir = sink
-            jr = source
-            if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
-                m[ir, jr] = weight
-
         if (isinstance(key, tuple) and len(key) == 2 and
                 isinstance(key[0], int) and isinstance(key[1], int)):
             return m[0, 0]
 
-        return RegionMatrix(m, row_regions=row_regions, col_regions=col_regions)
+        return RegionMatrix(m, row_regions=row_regions, col_regions=col_regions, mask=mask)
 
     def __getitem__(self, item):
         return self.matrix(item)
@@ -735,9 +750,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             }
             if additional_edge_fields is not None:
                 if not isinstance(additional_edge_fields, dict) and issubclass(additional_edge_fields,
-                                                                          tables.IsDescription):
+                                                                               tables.IsDescription):
                     # IsDescription subclass case
                     additional_edge_fields = additional_edge_fields.columns
+
+                for field in additional_edge_fields.values():
+                    if field._v_pos is None:
+                        field._v_pos = len(additional_edge_fields)
 
                 current = len(basic_fields)
                 for key, value in sorted(additional_edge_fields.items(), key=lambda x: x[1]._v_pos):
@@ -1082,6 +1101,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         result = list(self.edges(item))
         if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], int) and isinstance(item[1], int):
             return result[0]
+        if isinstance(item, int):
+            return result[0]
         return result
 
     def _update_mappability(self):
@@ -1242,7 +1263,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
         if additional_edge_fields is None:
             additional_edge_fields = {}
-        additional_edge_fields['weight'] = tables.Float64Col()
+        additional_edge_fields['weight'] = tables.Float64Col(pos=0)
 
         if additional_region_fields is None:
             additional_region_fields = {}
@@ -1401,7 +1422,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
 
 class RegionMatrix(np.ma.MaskedArray):
-    def __new__(cls, input_matrix, col_regions=None, row_regions=None, mask=None, *args, **kwargs):
+    def __new__(cls, input_matrix, col_regions=None, row_regions=None, mask=True, *args, **kwargs):
         obj = np.asarray(input_matrix).view(cls, *args, **kwargs)
         obj._row_region_trees = None
         obj._col_region_trees = None
@@ -1409,7 +1430,9 @@ class RegionMatrix(np.ma.MaskedArray):
         obj.row_regions = None
         obj.set_col_regions(col_regions)
         obj.set_row_regions(row_regions)
-        obj._apply_mask()
+        obj._do_mask = mask
+        if mask:
+            obj._apply_mask()
         return obj
 
     def _apply_mask(self):
@@ -1467,7 +1490,10 @@ class RegionMatrix(np.ma.MaskedArray):
 
         self.set_row_regions(getattr(obj, 'row_regions', None))
         self.set_col_regions(getattr(obj, 'col_regions', None))
-        self._apply_mask()
+        mask = getattr(obj, '_do_mask', True)
+        self._do_mask = mask
+        if mask:
+            self._apply_mask()
 
     def __setitem__(self, key, item):
         self._setitem = True
