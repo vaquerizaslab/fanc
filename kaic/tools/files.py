@@ -472,13 +472,14 @@ def sort_natural_sam(sam_file, output_file=None, sambamba=True, _sambamba_path='
             output_file = f.name
         replace_input = True
 
-    if not sambamba:
-        pysam.sort('-n', '-o', output_file, sam_file)
-    else:
+    if sambamba:
         sambamba_command = [_sambamba_path, 'sort', '-N', '-o', output_file, sam_file]
         ret = subprocess.call(sambamba_command)
         if ret != 0:
-            raise RuntimeError("{} sorting had non-zero exit status!".format(_sambamba_path))
+            sambamba = False
+            logger.warning("{} failed, falling back to pysam/samtools".format(_sambamba_path))
+    if not sambamba:
+        pysam.sort('-n', '-o', output_file, sam_file)
 
     if replace_input:
         logger.info("Replacing input SAM/BAM file {} with sorted version...".format(sam_file))
