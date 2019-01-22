@@ -4463,3 +4463,68 @@ def hic_sample(argv):
     with kaic.load(hic_file) as hic:
         output_hic = hic.sample(n, exact=exact, file_name=output_file)
         output_hic.close()
+
+
+def upgrade_hic_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic upgrade-hic",
+        description='Sample contacts from a Hic object.'
+    )
+
+    parser.add_argument(
+        'hic',
+        help="Hic object to be upgraded."
+    )
+
+    parser.add_argument(
+        'output',
+        help="Hic output."
+    )
+
+    return parser
+
+
+def upgrade_hic(argv):
+    parser = upgrade_hic_parser()
+
+    args = parser.parse_args(argv[2:])
+
+    input_file = os.path.expanduser(args.hic)
+    output_file = os.path.expanduser(args.output)
+
+    import kaic
+    import tables
+
+    f = tables.open_file(input_file, mode='r')
+
+    regions = []
+    nodes_table = f.get_node('/', 'nodes')
+    region_fields = nodes_table.coldescrs
+    for row in nodes_table.iterrows():
+        kwargs = {name: row[name] for name in region_fields.keys()}
+        r = kaic.GenomicRegion(**kwargs)
+        regions.append(r)
+
+    edges_table = f.get_node('/', 'edges')
+    if isinstance(edges_table, tables.Table):
+        edge_fields = edges_table.coldescrs
+    else:
+        edge_fields = edges_table.chrpair_0_0.coldescrs
+
+    upgraded_hic = kaic.Hic(output_file, mode='w',
+                            additional_region_fields=region_fields,
+                            additional_edge_fields=edge_fields)
+    upgraded_hic.add_regions(regions)
+
+    if isinstance(edges_table, tables.Table):
+        for row in edges_table.iterrows():
+            kwargs = {name: row[name] for name in edge_fields.keys()}
+            edge = kaic.Edge(**kwargs)
+            upgraded_hic.add_edge(edge)
+    else:
+        for table in edges_table:
+            for row in table.iterrows():
+                kwargs = {name: row[name] for name in edge_fields.keys()}
+                edge = kaic.Edge(**kwargs)
+                upgraded_hic.add_edge(edge)
+    upgraded_hic.flush()
