@@ -3233,7 +3233,7 @@ class BackgroundLigationFilter(HicEdgeFilter):
         return True
 
 
-class ExpectedObservedEnrichmentFilter(HicEdgeFilter):
+class ObservedExpectedEnrichmentFilter(HicEdgeFilter):
     """
     Filter a :class:`~HicEdge` if it does not have a weight
     larger than fold_change times its expected value.
