@@ -456,9 +456,21 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                                    bias_field='bias', score_field=None,
                                    *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key)
-        row_regions, col_regions = list(row_regions), list(col_regions)
-        row_offset = row_regions[0].ix
-        col_offset = col_regions[0].ix
+        if isinstance(row_regions, GenomicRegion):
+            row_regions = [row_regions]
+        else:
+            row_regions = list(row_regions)
+
+        if isinstance(col_regions, GenomicRegion):
+            col_regions = [col_regions]
+        else:
+            col_regions = list(col_regions)
+
+        try:
+            row_offset = row_regions[0].ix
+            col_offset = col_regions[0].ix
+        except IndexError:
+            return row_regions, col_regions, []
 
         basic_iter = self._matrix_entries(key, row_regions, col_regions,
                                           score_field=score_field,
@@ -531,9 +543,13 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
             if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
                 m[ir, jr] = weight
 
-        if (isinstance(key, tuple) and len(key) == 2 and
-                isinstance(key[0], int) and isinstance(key[1], int)):
-            return m[0, 0]
+        if isinstance(key, tuple) and len(key) == 2:
+            if isinstance(key[0], int) and isinstance(key[1], int):
+                return m[0, 0]
+            elif isinstance(key[0], int):
+                m = m[0, :]
+            elif isinstance(key[1], int):
+                m = m[:, 0]
 
         return RegionMatrix(m, row_regions=row_regions, col_regions=col_regions, mask=mask)
 
@@ -1439,8 +1455,11 @@ class RegionMatrix(np.ma.MaskedArray):
         if self.row_regions is not None and self.col_regions is not None:
             mask = np.zeros(self.shape, dtype=bool)
 
-            row_offset = self.row_regions[0].ix
-            col_offset = self.col_regions[0].ix
+            try:
+                row_offset = self.row_regions[0].ix
+                col_offset = self.col_regions[0].ix
+            except IndexError:
+                return
 
             for regions in (self.row_regions, self.col_regions):
                 for region in regions:
