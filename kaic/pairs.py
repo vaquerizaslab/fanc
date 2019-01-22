@@ -687,7 +687,7 @@ class ReadPairs(RegionPairsTable):
         if flush:
             self.flush()
 
-    def add_read_pairs(self, read_pairs, flush=True, batch_size=1000000, threads=1):
+    def add_read_pairs(self, read_pairs, batch_size=1000000, threads=1):
         start_time = timer()
         chunk_start_time = timer()
         pairs_counter = 0
@@ -715,8 +715,7 @@ class ReadPairs(RegionPairsTable):
             else:
                 self.meta.read_filter_stats = add_dict(self.meta.read_filter_stats, stats)
 
-        if flush:
-            self.flush()
+        self.flush()
         logger.info("Done adding pairs.")
 
     def _add_pair(self, pair):
