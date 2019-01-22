@@ -34,7 +34,7 @@ def to_cooler(hic, path):
     """
 
     contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
-    bias = hic.region_data('bias')
+    bias = np.array(list(hic.region_data('bias')))
 
     logger.info("Loading contacts")
     contact_array = np.fromiter(((edge.source, edge.sink, edge.weight)
@@ -63,6 +63,8 @@ def to_cooler(hic, path):
         # add the bias column to the file
         h5opts = dict(compression='gzip', compression_opts=6)
         grp['bins'].create_dataset("weight", data=bias, **h5opts)
+
+    return CoolerMatrix(path)
 
 
 class LazyCoolerEdge(Edge):
