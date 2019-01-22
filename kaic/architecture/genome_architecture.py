@@ -198,7 +198,7 @@ class MatrixArchitecturalRegionFeatureFilter(with_metaclass(ABCMeta, MaskFilter)
                      Mask will be used.
         """
         super(MatrixArchitecturalRegionFeatureFilter, self).__init__(mask)
-        self._hic = None
+        self._matrix = None
 
     @abstractmethod
     def valid_edge(self, edge):
