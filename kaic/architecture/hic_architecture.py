@@ -262,7 +262,7 @@ class ExpectedContacts(TableArchitecturalFeature):
         self.min_reads = min_reads
         self.regions = regions
         if weight_column is None and hic is not None:
-            self.weight_column = self.hic.default_field
+            self.weight_column = self.hic._default_score_field
         else:
             self.weight_column = weight_column
 
@@ -1418,7 +1418,7 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
                 directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
 
         if self.region_selection is not None:
-            nodes_ix = self.hic._getitem_nodes(key=self.region_selection, as_index=True)
+            nodes_ix = [r.ix for r in self.hic.regions(self.region_selection)]
 
             if not isinstance(nodes_ix, list):
                 nodes_ix = [nodes_ix]
@@ -3250,7 +3250,7 @@ class ObservedExpectedEnrichmentFilter(HicEdgeFilter):
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered edges.
         """
-        HicEdgeFilter.__init__(self, mask=mask)
+        HicEdgeFilter.__init__(self, hic=hic, mask=mask)
 
         with ExpectedContacts(hic) as ex:
             self.intra_expected = ex.intra_expected()
