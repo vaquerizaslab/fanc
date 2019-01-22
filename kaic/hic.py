@@ -104,10 +104,13 @@ class Hic(RegionMatrixTable):
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
                  partitioning_strategy='chromosome',
+                 additional_region_fields=None, additional_edge_fields=None,
                  _table_name_regions='regions', _table_name_edges='edges',
                  _edge_buffer_size=1000000):
         RegionMatrixTable.__init__(self, file_name=file_name,
                                    mode=mode, tmpdir=tmpdir,
+                                   additional_region_fields=additional_region_fields,
+                                   additional_edge_fields=additional_edge_fields,
                                    partitioning_strategy=partitioning_strategy,
                                    _table_name_regions=_table_name_regions,
                                    _table_name_edges=_table_name_edges,
@@ -265,7 +268,7 @@ class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
     to apply it.
     """
 
-    def __init__(self, mask=None):
+    def __init__(self, hic=None, mask=None):
         """
         Initialize HicEdgeFilter.
 
@@ -274,7 +277,7 @@ class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
                      Mask will be used.
         """
         super(HicEdgeFilter, self).__init__(mask)
-        self._hic = None
+        self._hic = hic
 
     @abstractmethod
     def valid_edge(self, edge):
