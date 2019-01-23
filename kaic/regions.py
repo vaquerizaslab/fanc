@@ -374,7 +374,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
     def flush(self):
         self._flush_regions()
 
-    def _add_region(self, region, *args, **kwargs):
+    def _add_region(self, region, preserve_attributes=True, *args, **kwargs):
         self._regions_dirty = True
         ix = getattr(self.meta, 'max_region_ix', -1) + 1
 
@@ -387,9 +387,10 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         if hasattr(region, 'strand') and region.strand is not None:
             row['strand'] = region.strand
 
-        for name in self._regions.colnames[5:]:
-            if hasattr(region, name):
-                row[name] = getattr(region, name)
+        if preserve_attributes:
+            for name in self._regions.colnames[5:]:
+                if hasattr(region, name):
+                    row[name] = getattr(region, name)
 
         row.append()
 
@@ -398,7 +399,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
         return ix
 
-    def add_regions(self, regions):
+    def add_regions(self, regions, *args, **kwargs):
         """
         Bulk insert multiple genomic regions.
 
@@ -408,7 +409,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         """
 
         for i, region in enumerate(regions):
-            self.add_region(region, flush=False)
+            self.add_region(region, *args, **kwargs)
 
         self._flush_regions()
 
