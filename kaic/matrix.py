@@ -1438,7 +1438,8 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
 
 class RegionMatrix(np.ma.MaskedArray):
-    def __new__(cls, input_matrix, col_regions=None, row_regions=None, mask=True, *args, **kwargs):
+    def __new__(cls, input_matrix, col_regions=None, row_regions=None,
+                mask=True, *args, **kwargs):
         obj = np.asarray(input_matrix).view(cls, *args, **kwargs)
         obj._row_region_trees = None
         obj._col_region_trees = None
