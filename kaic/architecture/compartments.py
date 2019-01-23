@@ -1,5 +1,6 @@
 import tables
 
+from .helpers import vector_enrichment_profile
 from ..matrix import RegionMatrixTable, Edge
 import numpy as np
 from ..tools.general import RareUpdateProgressBar
@@ -77,6 +78,9 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     pb.update(i)
 
         ab_matrix.flush()
+
+        ab_matrix.region_data('valid', list(hic.region_data('valid')))
+
         return ab_matrix
 
     def eigenvector(self, chromosome=None, genome=None, eigenvector=0,
@@ -96,8 +100,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
         else:
             ev = np.zeros(len(self.regions))
             if per_chromosome:
-                for chromosome in self.chromosomes():
-                    m = self.matrix((chromosome, chromosome))
+                for chromosome_sub in self.chromosomes():
+                    m = self.matrix((chromosome_sub, chromosome_sub))
                     m[np.isnan(m)] = 0
                     w, v = np.linalg.eig(m)
                     ab_vector = v[:, eigenvector]
@@ -119,17 +123,17 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     genome = genome
 
                 gc_content = [np.nan] * len(self.regions)
-                for chromosome in self.chromosomes():
-                    logger.info("{}".format(chromosome))
-                    chromosome_sequence = genome[chromosome].sequence
-                    for region in self.regions(chromosome):
+                for chromosome_sub in self.chromosomes():
+                    logger.info("{}".format(chromosome_sub))
+                    chromosome_sequence = genome[chromosome_sub].sequence
+                    for region in self.regions(chromosome_sub):
                         s = chromosome_sequence[region.start - 1:region.end]
                         gc_content[region.ix] = calculate_gc_content(s)
                 gc_content = np.array(gc_content)
 
                 # use gc content to orient AB domain vector per chromosome
                 cb = self.chromosome_bins
-                for chromosome, (start, end) in cb.items():
+                for chromosome_sub, (start, end) in cb.items():
                     ev_sub = ev[start:end]
                     gc_sub = gc_content[start:end]
                     a_ixs = np.where(ev_sub >= 0.)
@@ -156,3 +160,34 @@ class ABCompartmentMatrix(RegionMatrixTable):
         bins = self.chromosome_bins[chromosome]
         return ev[bins[0]:bins[1]]
 
+    def enrichment_profile(self, genome=None, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
+                           per_chromosome=True, only_gc=False, symmetric_at=None,
+                           exclude_chromosomes=()):
+
+        logger.info("Generating profile...")
+        if only_gc:
+            if genome is None:
+                raise ValueError("genome cannot be 'None' when using GC content "
+                                 "for compartment analysis.")
+            # calculate GC content
+            if isinstance(genome, string_types):
+                logger.info("Loading genome...")
+                genome = Genome.from_string(genome)
+
+            logger.info("Calculating GC content...")
+            gc_content = [np.nan] * len(self.regions)
+            for chromosome in self.chromosomes():
+                logger.info("{}".format(chromosome))
+                chromosome_sequence = genome[chromosome].sequence
+                for region in self.regions(chromosome):
+                    s = chromosome_sequence[region.start - 1:region.end]
+                    gc_content[region.ix] = calculate_gc_content(s)
+            gc_content = np.array(gc_content)
+            ev = gc_content
+        else:
+            ev = self.eigenvector(genome=genome, per_chromosome=per_chromosome)
+
+        mappable = self.mappable()
+        return vector_enrichment_profile(self, ev, mappable=mappable, per_chromosome=per_chromosome,
+                                         percentiles=percentiles, symmetric_at=symmetric_at,
+                                         exclude_chromosomes=exclude_chromosomes)
