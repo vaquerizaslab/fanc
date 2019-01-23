@@ -21,7 +21,7 @@ from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIn
 from kaic.config import config
 from .general import FileBased
 from .hic import Hic
-from .matrix import Edge
+from .matrix import Edge, RegionMatrix
 from .pairs import ReadPairs as Pairs
 from .peaks import RaoPeakInfo
 from .regions import Genome, Chromosome
