@@ -1044,6 +1044,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 row_covered = self._is_partition_covered(a, row_start, row_end)
                 col_covered = self._is_partition_covered(b, col_start, col_end)
 
+                if (i, j) not in self._edge_table_dict:
+                    continue
+
                 edge_table = self._edge_table_dict[(i, j)]
 
                 # if we need to get all regions in a table, return the whole thing
