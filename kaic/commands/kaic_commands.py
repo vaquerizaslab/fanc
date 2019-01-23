@@ -4465,7 +4465,7 @@ def hic_sample(argv):
         output_hic.close()
 
 
-def upgrade_hic_parser():
+def upgrade_parser():
     parser = argparse.ArgumentParser(
         prog="kaic upgrade-hic",
         description='Sample contacts from a Hic object.'
@@ -4481,50 +4481,100 @@ def upgrade_hic_parser():
         help="Hic output."
     )
 
+    parser.add_argument(
+        '-f', '--force', dest='force',
+        action='store_true',
+        default=False,
+        help='''Force upgrade even if object can be loaded.'''
+    )
+
     return parser
 
 
-def upgrade_hic(argv):
-    parser = upgrade_hic_parser()
+def upgrade(argv):
+    parser = upgrade_parser()
 
     args = parser.parse_args(argv[2:])
 
     input_file = os.path.expanduser(args.hic)
     output_file = os.path.expanduser(args.output)
+    force = args.force
 
     import kaic
     import tables
 
-    f = tables.open_file(input_file, mode='r')
+    if not force:
+        try:
+            f = kaic.load(input_file)
+            f.close()
+
+            parser.error("Can already load input file. "
+                         "There does not seem to be a need for an upgrade? "
+                         "You can force an upgrade with -f")
+        except (ValueError, TypeError):
+            pass
+
+    file_based = kaic.FileBased(input_file, mode='r')
+    class_id = file_based.meta._classid
+    logger.info("Detected class ID '{}'".format(class_id))
+
+    target_class = None
+    if class_id == 'ACCESSOPTIMISEDHIC' or class_id == 'HIC':
+        target_class = kaic.Hic
+    elif class_id == 'RAOPEAKINFO':
+        target_class = kaic.RaoPeakInfo
+    else:
+        parser.error("No suitable upgrade method for {} - "
+                     "please consult the developer!".format(class_id))
+
+    bias = [row['bias'] for row in file_based.file.get_node('/', 'node_annot').iterrows()]
 
     regions = []
-    nodes_table = f.get_node('/', 'nodes')
-    region_fields = nodes_table.coldescrs
-    for row in nodes_table.iterrows():
+    nodes_table = file_based.file.get_node('/', 'nodes')
+    try:
+        region_fields = nodes_table.coldescrs
+    except tables.NoSuchNodeError:
+        nodes_table = nodes_table.regions
+        region_fields = nodes_table.coldescrs
+
+    for i, row in enumerate(nodes_table.iterrows()):
         kwargs = {name: row[name] for name in region_fields.keys()}
+        kwargs['bias'] = bias[i]
         r = kaic.GenomicRegion(**kwargs)
         regions.append(r)
 
-    edges_table = f.get_node('/', 'edges')
+    edges_table = file_based.file.get_node('/', 'edges')
     if isinstance(edges_table, tables.Table):
         edge_fields = edges_table.coldescrs
     else:
         edge_fields = edges_table.chrpair_0_0.coldescrs
 
-    upgraded_hic = kaic.Hic(output_file, mode='w',
-                            additional_region_fields=region_fields,
-                            additional_edge_fields=edge_fields)
+    upgraded_hic = target_class(output_file, mode='w',
+                                additional_region_fields=region_fields,
+                                additional_edge_fields=edge_fields)
     upgraded_hic.add_regions(regions)
 
     if isinstance(edges_table, tables.Table):
         for row in edges_table.iterrows():
             kwargs = {name: row[name] for name in edge_fields.keys()}
+            source = kwargs['source']
+            sink = kwargs['sink']
+            weight = kwargs['weight']
+            # uncorrect matrix
+            uncorrected = weight / bias[source] / bias[sink]
+            kwargs['weight'] = uncorrected
             edge = kaic.Edge(**kwargs)
             upgraded_hic.add_edge(edge)
     else:
         for table in edges_table:
             for row in table.iterrows():
                 kwargs = {name: row[name] for name in edge_fields.keys()}
+                source = kwargs['source']
+                sink = kwargs['sink']
+                weight = kwargs['weight']
+                # uncorrect matrix
+                uncorrected = weight / bias[source] / bias[sink]
+                kwargs['weight'] = uncorrected
                 edge = kaic.Edge(**kwargs)
                 upgraded_hic.add_edge(edge)
     upgraded_hic.flush()
