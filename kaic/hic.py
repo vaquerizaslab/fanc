@@ -196,6 +196,13 @@ class Hic(RegionMatrixTable):
 
         return hic
 
+    def bias_vector(self, vector=None):
+        if vector is not None:
+            self.region_data('bias', vector)
+
+        biases = np.array(list(self.region_data('bias')))
+        return biases
+
     def filter_diagonal(self, distance=0, queue=False):
         """
         Convenience function that applies a :class:`~DiagonalFilter`.
