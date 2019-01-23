@@ -378,7 +378,7 @@ class RaoPeakInfo(RegionMatrixTable):
         :return: :class:`~PeakInfo`
         """
         merged_peaks = PeakInfo(file_name=file_name, mode='w')
-        merged_peaks.add_regions(self.regions(lazy=True))
+        merged_peaks.add_regions(self.regions(lazy=True), preserve_attributes=False)
 
         bin_size = self.bin_size
 
@@ -1103,7 +1103,7 @@ class RaoPeakCaller(object):
             raise RuntimeError("Inter-chromosomal peak calling not currently supported!")
 
         peaks = RaoPeakInfo(file_name, mode='w')
-        peaks.add_regions(hic.regions)
+        peaks.add_regions(hic.regions, preserve_attributes=False)
 
         # expected values
         if intra_expected is None:
@@ -1439,7 +1439,7 @@ def overlap_peaks(peaks, max_distance=6000):
     out_stats = []
     for sample_set, p_list in viewitems(out_peaks):
         pi = PeakInfo()
-        pi.add_regions(peaks1.regions())
+        pi.add_regions(peaks1.regions(), preserve_attributes=False)
         pi.add_edges(p_list)
         out_dict[sample_set] = pi
         stat = OrderedDict((s, s in sample_set) for s in peaks.keys())

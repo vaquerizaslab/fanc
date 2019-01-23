@@ -951,7 +951,7 @@ def pairs(argv):
 
             pairs = ReadPairs(file_name=pairs_file, mode='w')
 
-            pairs.add_regions(regions)
+            pairs.add_regions(regions, preserve_attributes=False)
             pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
         elif len(input_files) == 1:
             logger.info("One argument received, assuming existing Pairs object.")
@@ -4552,7 +4552,7 @@ def upgrade(argv):
     upgraded_hic = target_class(output_file, mode='w',
                                 additional_region_fields=region_fields,
                                 additional_edge_fields=edge_fields)
-    upgraded_hic.add_regions(regions)
+    upgraded_hic.add_regions(regions, preserve_attributes=False)
 
     if isinstance(edges_table, tables.Table):
         for row in edges_table.iterrows():

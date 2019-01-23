@@ -44,7 +44,7 @@ def generate_pairs(sam1_file, sam2_file, regions,
 
     pairs = ReadPairs(file_name=output_file, mode='w')
 
-    pairs.add_regions(regions)
+    pairs.add_regions(regions, preserve_attributes=False)
     pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
 
     return pairs
@@ -1110,7 +1110,7 @@ class ReadPairs(RegionPairsTable):
 
     def to_hic(self, file_name=None, tmpdir=None, _hic_class=Hic):
         hic = _hic_class(file_name=file_name, mode='w', tmpdir=tmpdir)
-        hic.add_regions(self.regions())
+        hic.add_regions(self.regions(), preserve_attributes=False)
 
         hic._disable_edge_indexes()
 

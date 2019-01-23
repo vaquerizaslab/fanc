@@ -452,7 +452,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         self._default_value = 0.0
         self._default_score_field = 'weight'
 
-    def regions_and_matrix_entries(self, key, norm=True, oe=False,
+    def regions_and_matrix_entries(self, key, norm=True, oe=False, oe_per_chromosome=True,
                                    bias_field='bias', score_field=None,
                                    *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key)
@@ -1219,7 +1219,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     region_pairs.append((edge.source, edge.sink))
 
         new_pairs = self.__class__(file_name=file_name, mode='w')
-        new_pairs.add_regions(self.regions)
+        new_pairs.add_regions(self.regions, preserve_attributes=False)
         new_edges = defaultdict(int)
         for new_pair_ix in np.random.choice(len(region_pairs), size=n, replace=not exact, p=p):
             new_edges[region_pairs[new_pair_ix]] += 1
@@ -1251,7 +1251,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 ix_converter[region.ix] = ix
                 ix += 1
                 new_regions.append(region)
-        new_pairs.add_regions(new_regions)
+        new_pairs.add_regions(new_regions, preserve_attributes=False)
 
         for i, region_string1 in enumerate(regions):
             for j in range(i, len(regions)):
@@ -1416,7 +1416,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
             except AssertionError:
                 raise ValueError("Regions in matrix objects are not identical, cannot perform merge!")
 
-        merged_matrix.add_regions(regions)
+        merged_matrix.add_regions(regions, preserve_attributes=False)
 
         default_field = merged_matrix._default_score_field
 
