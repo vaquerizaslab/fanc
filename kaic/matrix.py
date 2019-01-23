@@ -830,6 +830,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     pb.update(i)
 
             self._enable_edge_indexes()
+            for i, edge_table in enumerate(self._edges):
+                edge_table.flush(update_index=True, log_progress=False)
+                pb.update(i)
             self._edges_dirty = False
 
             self._update_mappability()

@@ -614,7 +614,6 @@ class MaskedTable(t.Table):
     def enable_mask_index(self):
         mask_ix_col = getattr(self.cols, self._mask_index_field)
         create_col_index(mask_ix_col)
-        self._flush(update_index=True)
 
     def flush(self, update_index=False, log_progress=True):
         """
