@@ -476,31 +476,31 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                                           score_field=score_field,
                                           *args, **kwargs)
 
-        def offset_iter(edge_iter):
-            for source, sink, weight in edge_iter:
-                i = source - row_offset
-                j = sink - col_offset
-                if i >= 0 and j >= 0:
-                    yield source, sink, i, j, weight
-
-                l = source - col_offset
-                k = sink - row_offset
-                if (i, j) != (k, l) and k >= 0 and l >= 0:
-                    yield source, sink, k, l, weight
-
         if norm:
             biases = dict()
             for regions in (row_regions, col_regions):
                 for region in regions:
                     biases[region.ix] = getattr(region, bias_field, 1.0)
-
-            entry_iter = ((i, j, weight * biases[source] * biases[sink])
-                          for source, sink, i, j, weight in offset_iter(basic_iter))
         else:
+            biases = defaultdict(lambda: 1)
+
+        def offset_iter(edge_iter):
+            for source, sink, weight in edge_iter:
+                i = source - row_offset
+                j = sink - col_offset
+                if i >= 0 and j >= 0:
+                    yield source, sink, i, j, weight * biases[source] * biases[sink]
+
+                l = source - col_offset
+                k = sink - row_offset
+                if (i, j) != (k, l) and k >= 0 and l >= 0:
+                    yield source, sink, k, l, weight * biases[source] * biases[sink]
+
+        if not oe:
             entry_iter = ((i, j, weight)
                           for source, sink, i, j, weight in offset_iter(basic_iter))
 
-        if oe:
+        else:
             intra_expected, chromosome_intra_expected, inter_expected = self.expected_values(norm=norm)
 
             entry_iter = ((i, j,
