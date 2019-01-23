@@ -52,6 +52,7 @@ def load(file_name, *args, **kwargs):
         return JuicerHic(file_name, *args, **kwargs)
 
     try:
+        logger.debug("Trying FileBased classes")
         f = FileBased(file_name, mode='r')
         mode = kwargs.pop('mode', 'r')
         classid = None
