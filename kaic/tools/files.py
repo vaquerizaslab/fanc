@@ -448,7 +448,6 @@ def write_bigwig(file_name, regions, mode='w', score_field='score'):
     for chromosome in chromosomes:
         chromosome_length = chromosome_lengths[chromosome]
         header.append((chromosome, chromosome_length))
-    print(header)
     bw.addHeader(header)
 
     bw.addEntries(interval_chromosomes, interval_starts, ends=interval_ends, values=interval_values)
