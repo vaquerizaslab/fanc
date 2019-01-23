@@ -1,5 +1,6 @@
 from __future__ import division
 
+import os
 import copy
 import gzip
 import logging
@@ -268,12 +269,17 @@ class FourDNucleomePairGenerator(TxtReadPairGenerator):
                                       strand2_field=columns['strand2'] if 'strand2' in columns else None,
                                       )
 
+
 class SamBamReadPairGenerator(ReadPairGenerator):
     def __init__(self, sam_file1, sam_file2, check_sorted=True):
         ReadPairGenerator.__init__(self)
         self.sam_file1 = sam_file1
         self.sam_file2 = sam_file2
         self._check_sorted = check_sorted
+        if not os.path.exists(self.sam_file1):
+            raise ValueError("File {} does not exist!".format(self.sam_file1))
+        if not os.path.exists(self.sam_file2):
+            raise ValueError("File {} does not exist!".format(self.sam_file2))
 
     def _iter_read_pairs(self, *args, **kwargs):
         max_dist_same_locus = kwargs.get('max_dist_same_locus', 100)
@@ -719,7 +725,7 @@ class ReadPairs(RegionPairsTable):
         logger.info("Done adding pairs.")
 
     def _add_pair(self, pair):
-        self.add_edge(pair, check_nodes_exist=False, flush=False, replace=True)
+        self.add_edge(pair, check_nodes_exist=False, replace=True)
         self._pair_count += 1
 
     def _pair_from_row(self, row, lazy=False):
@@ -883,7 +889,7 @@ class ReadPairs(RegionPairsTable):
         total = 0
         filtered = 0
         if not queue:
-            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_iter()),
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_dict.keys()),
                                        silent=not log_progress) as pb:
                 for i, edge_table in enumerate(self._edge_table_dict.values()):
                     stats = edge_table.filter(pair_filter, _logging=False)
@@ -1052,6 +1058,25 @@ class ReadPairs(RegionPairsTable):
     def pairs(self, lazy=False, excluded_filters=()):
         for row in self._edge_row_iter(excluded_filters=excluded_filters):
             yield self._pair_from_row(row, lazy=lazy)
+
+    def get_edge(self, item, *row_conversion_args, **row_conversion_kwargs):
+        """
+        Get an edge by index.
+
+        :param row_conversion_args: Arguments passed to :func:`RegionPairs._row_to_edge`
+        :param row_conversion_args: Keyword arguments passed to :func:`RegionPairs._row_to_edge`
+        :return: :class:`~Edge`
+        """
+        if item < 0:
+            item += len(self)
+
+        l = 0
+        for edge_table in self._edge_table_dict.values():
+            if l <= item < l + len(edge_table):
+                res = edge_table[item - l]
+                return self._row_to_edge(res, *row_conversion_args, **row_conversion_kwargs)
+            l += len(edge_table)
+        raise IndexError("index out of range (%d)" % item)
 
     def __getitem__(self, item):
         if isinstance(item, int):
