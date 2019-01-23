@@ -129,7 +129,7 @@ class Hic(RegionMatrixTable):
         """
         # if we do not have any nodes in this Hi-C object...
         if len(self.regions) == 0:
-            self.add_regions(hic.regions)
+            self.add_regions(hic.regions, preserve_attributes=True)
             self.add_edges(hic.edges(lazy=True))
 
         # if already have nodes in this HiC object...
@@ -190,7 +190,7 @@ class Hic(RegionMatrixTable):
         if 'mode' not in kwargs:
             kwargs['mode'] = 'w'
         hic = self.__class__(*args, **kwargs)
-        hic.add_regions(regions.regions)
+        hic.add_regions(regions.regions, preserve_attributes=False)
         regions.close()
         hic.load_from_hic(self)
 
