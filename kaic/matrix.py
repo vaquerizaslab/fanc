@@ -503,12 +503,18 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         else:
             intra_expected, chromosome_intra_expected, inter_expected = self.expected_values(norm=norm)
 
-            entry_iter = ((i, j,
-                           weight / chromosome_intra_expected[row_regions[i].chromosome][abs(source - sink)]
-                           if row_regions[i].chromosome == col_regions[j].chromosome
-                           else weight / inter_expected)
-                          for source, sink, i, j, weight in offset_iter(basic_iter))
-
+            if oe_per_chromosome:
+                entry_iter = ((i, j,
+                               weight / chromosome_intra_expected[row_regions[i].chromosome][abs(source - sink)]
+                               if row_regions[i].chromosome == col_regions[j].chromosome
+                               else weight / inter_expected)
+                              for source, sink, i, j, weight in offset_iter(basic_iter))
+            else:
+                entry_iter = ((i, j,
+                               weight / intra_expected[abs(source - sink)]
+                               if row_regions[i].chromosome == col_regions[j].chromosome
+                               else weight / inter_expected)
+                              for source, sink, i, j, weight in offset_iter(basic_iter))
         return row_regions, col_regions, entry_iter
 
     def _matrix_entries(self, key, row_regions, col_regions,
@@ -521,6 +527,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                    getattr(edge, score_field, self._default_value))
 
     def matrix(self, key=None, norm=True, oe=False,
+               oe_per_chromosome=True,
                score_field=None, bias_field='bias',
                default_value=None, mask=True,
                _mappable=None):
@@ -533,7 +540,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key, norm=norm, oe=oe,
                                                                                    score_field=score_field,
-                                                                                   bias_field=bias_field)
+                                                                                   bias_field=bias_field,
+                                                                                   oe_per_chromosome=oe_per_chromosome)
 
         m = np.full((len(row_regions), len(col_regions)), default_value)
 
