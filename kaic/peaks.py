@@ -98,7 +98,7 @@ class PeakInfo(RegionMatrixTable):
 
         self.peak_table = self._edges
 
-    def _row_to_edge(self, row, lazy=False, distances_in_bp=False, auto_update=True):
+    def _row_to_edge(self, row, lazy=False, distances_in_bp=False):
         if distances_in_bp:
             bin_size = self.bin_size
         else:
@@ -116,15 +116,15 @@ class PeakInfo(RegionMatrixTable):
                         d[field] = row[field]
 
             source_node_row = self._regions[source]
-            source_node = self._row_to_node(source_node_row)
+            source_node = self._row_to_region(source_node_row)
             sink_node_row = self._regions[sink]
-            sink_node = self._row_to_node(sink_node_row)
+            sink_node = self._row_to_region(sink_node_row)
             return Peak(source_node, sink_node, **d)
         else:
-            return LazyPeak(row, self._regions, bin_size=bin_size, auto_update=auto_update)
+            return LazyPeak(row, self._regions, bin_size=bin_size)
 
-    def peaks(self, distances_in_bp=False, lazy=False, auto_update=True):
-        return self.edges(lazy=lazy, distances_in_bp=distances_in_bp, auto_update=auto_update)
+    def peaks(self, distances_in_bp=False, lazy=False):
+        return self.edges(lazy=lazy, distances_in_bp=distances_in_bp)
 
     def __iter__(self):
         return self.peaks()
@@ -391,7 +391,7 @@ class RaoPeakInfo(RegionMatrixTable):
                                uncorrected=hp.uncorrected, expected=hp.e_d,
                                p_value=hp.fdr_d, q_value_sum=q_value_sum, x=x, y=y,
                                radius=radius, oe=oe)
-            merged_peaks.add_edge(merged_peak, flush=False)
+            merged_peaks.add_edge(merged_peak)
 
         merged_peak_counter = 0
         chromosome_names = self.chromosomes()
@@ -482,7 +482,6 @@ class LazyPeak(LazyEdge, Peak):
     """
     def __init__(self, row, nodes_table, bin_size=1):
         LazyEdge.__init__(self, row, nodes_table)
-        self.reserved.add('bin_size')
         self.bin_size = bin_size
 
     def __getattr__(self, item):
@@ -993,7 +992,7 @@ class RaoPeakCaller(object):
                             e_h_chunk=e_h_chunk, e_d_chunk=e_d_chunk,
                             mappability_ll=e_ll_mappable, mappability_v=e_v_mappable,
                             mappability_h=e_h_mappable, mappability_d=e_d_mappable)
-                peaks.add_edge(peak, flush=False)
+                peaks.add_edge(peak)
 
     @staticmethod
     def _get_fdr_cutoffs(observed_chunk_distribution, e_func=lambda x: 2**(x/3)):
@@ -1184,21 +1183,20 @@ class RaoPeakCaller(object):
 
         # regions_dict = peaks.regions_dict
         with RareUpdateProgressBar(max_value=len(peaks.edges), prefix='FDR') as pb:
-            for i, peak in enumerate(peaks.peaks(lazy=True, auto_update=False)):
+            for i, peak in enumerate(peaks.peaks(lazy=True)):
                 # region1 = regions_dict[peak.source]
                 # region2 = regions_dict[peak.sink]
                 # if region1.chromosome == region2.chromosome:
                 try:
-                    peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.uncorrected]
-                    peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.uncorrected]
-                    peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.uncorrected]
-                    peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.uncorrected]
+                    peak.set_row_field('fdr_ll', fdr_cutoffs['ll'][peak.e_ll_chunk][peak.uncorrected])
+                    peak.set_row_field('fdr_h', fdr_cutoffs['h'][peak.e_h_chunk][peak.uncorrected])
+                    peak.set_row_field('fdr_v', fdr_cutoffs['v'][peak.e_v_chunk][peak.uncorrected])
+                    peak.set_row_field('fdr_d', fdr_cutoffs['d'][peak.e_d_chunk][peak.uncorrected])
                 except KeyError:
-                    peak.fdr_ll = 1
-                    peak.fdr_h = 1
-                    peak.fdr_v = 1
-                    peak.fdr_d = 1
-                peak.update()
+                    peak.set_row_field('fdr_ll', 1)
+                    peak.set_row_field('fdr_h', 1)
+                    peak.set_row_field('fdr_v', 1)
+                    peak.set_row_field('fdr_d', 1)
                 pb.update(i)
                 # else:
                 #     # Bonferroni correction
@@ -1254,6 +1252,7 @@ def process_matrix_segment_intra(data):
         w, p, min_locus_dist, min_ll_reads, min_mappable, \
         max_w = msgpack.loads(data)
 
+    m_original = np.array(m_original)
     # construct convenient matrices
     row_ixs = np.arange(i_range[0], i_range[1])
     col_ixs = np.arange(j_range[0], j_range[1])
@@ -1360,7 +1359,10 @@ def overlap_peaks(peaks, max_distance=6000):
     # tools/utils/juicer/hiccups/HiCCUPSUtils.java#L235
 
     def key_func(p):
-        return p[1].weight
+        try:
+            return p[1].weight
+        except AttributeError:
+            return 1
 
     def hypotenuse(x, y):
         return math.sqrt(x*x + y*y)
@@ -1373,7 +1375,7 @@ def overlap_peaks(peaks, max_distance=6000):
             n += 1
             mean += (x - mean)/n
         if n < 1:
-            return float("nan");
+            return float("nan")
         else:
             return mean
 
@@ -1393,11 +1395,17 @@ def overlap_peaks(peaks, max_distance=6000):
     bin_size = peaks1.bin_size
     max_distance = max_distance/bin_size
     logger.info("Fetching and sorting peaks...")
-    all_peaks = list(sorted(((s, p) for s, pgen in viewitems(peaks) for p in pgen), key=key_func, reverse=True))
+
+    print(peaks[0].file)
+
+    all_peaks = list(sorted(((s, p) for s, pgen in viewitems(peaks) for p in pgen),
+                            key=key_func, reverse=True))
+    print(all_peaks)
     logger.info("Done.")
     logger.info("Finding overlaps...")
     out_peaks = defaultdict(list)
     total_n = len(all_peaks)
+
     with RareUpdateProgressBar(max_value=total_n, silent=config.hide_progressbars) as pb:
         while len(all_peaks) > 0:
             cur_p = all_peaks.pop(0)
