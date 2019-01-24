@@ -1,252 +1,224 @@
 from __future__ import division
-from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter, \
-    BackgroundLigationCollectionFilter, HicEdgeCollection
-from genomic_regions import GenomicRegion
-from sklearn.decomposition import PCA
-from abc import ABCMeta, abstractmethod
-import tables as t
-import numpy as np
-import tempfile
-import os.path
-from future.utils import with_metaclass, string_types
+
 import logging
+import operator
+from collections import defaultdict
+
+import numpy as np
+from sklearn.decomposition import PCA
+
 logger = logging.getLogger(__name__)
 
 
-class HicCollectionWeightMeanVariance(HicEdgeCollection):
-    _classid = 'HICCOLLECTIONWEIGHTMEANVARIANCE'
+def _edge_collection(*hics, region=None, scale=True,
+                     filters=None, **kwargs):
+    """
+    Get all weights from the same edge across different Hi-C matrices.
 
-    def __init__(self, hics=None, file_name=None, mode='a', tmpdir=None,
-                 only_intra_chromosomal=False, scale_libraries=False):
-        additional_fields = {'var': t.Float32Col(pos=0), 'mean': t.Float32Col(pos=1)}
-        HicEdgeCollection.__init__(self, hics, additional_fields=additional_fields, file_name=file_name,
-                                   mode=mode, tmpdir=tmpdir, only_intra_chromosomal=only_intra_chromosomal)
-        self.scale_libraries = scale_libraries
+    :param hics: Hic/matrix objects or list of Hic/Matrix objects
+    :param region: Optional region subset (e.g. a single chromosome)
+    :param scale: True if Hic matrices should be scaled to the
+                  number of valid pairs
+    :return: dict of lists
+    """
+    if len(hics) == 1:
+        hics = hics[0]
 
-    def _calculate(self, *args, **kwargs):
-        HicEdgeCollection._calculate(self, *args, **kwargs)
+    if filters is None:
+        filters = []
 
-        weight_sums = np.zeros(len(self.hics))
-        for edge in self.edges(lazy=True):
-            weights = np.zeros(len(self.hics))
-            for i in range(len(self.hics)):
-                weight = getattr(edge, 'weight_' + str(i), 0.0)
-                if np.isnan(weight):
-                    weight = 0.0
-                    setattr(edge, 'weight_' + str(i), 0.0)
-                weights[i] = weight
-                weight_sums[i] += weight
-            edge.var = np.var(weights)
-            edge.mean = np.mean(weights)
-        self.flush()
-
-        if self.scale_libraries:
-            weight_ratios = weight_sums/weight_sums[0]
-            for edge in self.edges(lazy=True):
-                for i in range(len(self.hics)):
-                    weight = getattr(edge, 'weight_' + str(i))
-                    setattr(edge, 'weight_' + str(i), weight/weight_ratios[i])
-        self.flush()
-
-        self.create_cs_index('var')
-
-
-class PairSelection(with_metaclass(ABCMeta, object)):
-    def __init__(self):
-        self.collection = None
-        pass
-
-    def set_collection(self, collection):
-        self.collection = collection
-
-    @abstractmethod
-    def pair_selection(self, **kwargs):
-        pass
-
-
-class LargestVariancePairSelection(PairSelection):
-    def __init__(self, sample_size=100000, regions=None, lazy=False):
-        PairSelection.__init__(self)
-        self.sample_size = sample_size
-        self.regions = regions
-        self.lazy = lazy
-
-    def pair_selection(self, sample_size=None, lazy=None, regions=None):
-        if lazy is None:
-            lazy = self.lazy
-        if sample_size is None:
-            sample_size = self.sample_size
-        if regions is None:
-            regions = self.regions
-
-        if isinstance(regions, string_types):
-            regions = GenomicRegion.from_string(regions)
-
-        regions_dict = None
-        if regions is not None:
-            regions_dict = self.collection.regions_dict
-
-        for j, edge in enumerate(self.collection.edges_sorted('var', reverse=True, lazy=lazy)):
-            if regions is None:
-                yield edge
+    scaling_factors = defaultdict(lambda: 1.0)
+    if scale:
+        reference_hic = None
+        for i, hic in enumerate(hics):
+            if i == 0:
+                reference_hic = hic
             else:
-                source_region = regions_dict[edge.source]
-                sink_region = regions_dict[edge.sink]
-                if source_region.overlaps(regions) and sink_region.overlaps(regions):
-                    yield edge
+                s = hic.scaling_factor(reference_hic)
+                scaling_factors[i] = s
 
-            if j >= sample_size:
-                # raise StopIteration
-                break
+    edges = defaultdict(list)
+    for i, hic in enumerate(hics):
+        for edge in hic.edges(region, lazy=True, **kwargs):
+            weight = edge.weight * scaling_factors[i]
+            edges[(edge.source, edge.sink)].append(weight)
 
+        for k, v in edges.items():
+            if len(v) < i + 1:
+                v.append(0)
 
-class PassthroughPairSelection(PairSelection):
-    def __init__(self, sample_size=None, regions=None, lazy=False):
-        PairSelection.__init__(self)
-        self.sample_size = sample_size
-        self.regions = regions
-        self.lazy = lazy
+    for key in list(edges.keys()):
+        for f in filters:
+            if not f.valid(key[0], key[1], edges[key]):
+                del edges[key]
 
-    def pair_selection(self, sample_size=None, lazy=None, regions=None):
-        if lazy is None:
-            lazy = self.lazy
-        if sample_size is None:
-            sample_size = self.sample_size
-        if regions is None:
-            regions = self.regions
-
-        if regions is None:
-            edge_iterator = self.collection.edges(lazy=lazy)
-        else:
-            edge_iterator = self.collection.edge_subset(key=regions, lazy=lazy)
-
-        for j, edge in enumerate(edge_iterator):
-            yield edge
-
-            if sample_size is not None and j >= sample_size:
-                # raise StopIteration
-                break
+    return edges
 
 
-class LargestFoldChangePairSelection(PairSelection):
-    def __init__(self, require_enriched=2, require_nonenriched=2, fold_change=1.5, sample_size=100000, regions=None,
-                 lazy=False):
-        PairSelection.__init__(self)
-        self.sample_size = sample_size
-        self.lazy = lazy
-        self.fold_change = fold_change
-        self.require_enriched = require_enriched
-        self.require_nonenriched = require_nonenriched
-        self.regions = regions
+class EdgeCollectionFilter(object):
+    def __init__(self):
+        pass
 
-    def pair_selection(self, require_enriched=2, require_nonenriched=None,
-                       fold_change=None, sample_size=None, lazy=None, regions=None):
-        # count weights
-        n_hic = 0
-        while 'weight_' + str(n_hic) in self.collection.field_names:
-            n_hic += 1
+    def valid(self, source, sink, weights):
+        raise NotImplementedError("Subclasses of EdgeCollectionFilter must implement "
+                                  "'valid'!")
 
-        # update parameters
-        if fold_change is None:
-            fold_change = self.fold_change
-        if require_enriched is None:
-            require_enriched = self.require_enriched
-        if require_nonenriched is None:
-            require_nonenriched = min(n_hic-require_enriched, self.require_nonenriched)
-        if lazy is None:
-            lazy = self.lazy
-        if sample_size is None:
-            sample_size = self.sample_size
-        if regions is None:
-            regions = self.regions
 
-        if isinstance(regions, string_types):
-            regions = GenomicRegion.from_string(regions)
+class BackgroundLigationFilter(EdgeCollectionFilter):
+    def __init__(self, hics, fold_change_cutoff=1.0, min_valid_edges=1,
+                 oe_per_chromosome=True):
+        EdgeCollectionFilter.__init__(self)
 
-        regions_dict = None
-        if regions is not None:
-            regions_dict = self.collection.regions_dict
+        self._cutoff = fold_change_cutoff
+        self._min_valid = min_valid_edges
+        self._oe_per_chromosome = oe_per_chromosome
 
-        # select edges
-        for edge_counter, edge in enumerate(self.collection.edges_sorted('var', reverse=True, lazy=lazy)):
-            if edge_counter >= sample_size:
-                # raise StopIteration
-                break
+        self._intra_expected = {}
+        self._inter_expected = {}
+        self._intra_expected_chromosome = {}
+        for i, hic in enumerate(hics):
+            intra_expected, intra_expected_chromosome, inter_expected = hic.expected_values()
+            self._intra_expected[i] = intra_expected
+            self._inter_expected[i] = inter_expected
+            self._intra_expected_chromosome[i] = intra_expected_chromosome
 
-            weights = []
-            for i in range(n_hic):
-                weights.append(getattr(edge, 'weight_' + str(i)))
+        self._chromosome_dict = {}
+        for region in hics[0].regions:
+            self._chromosome_dict[region.ix] = region.chromosome
 
-            # require at least require_enriched weights to be fold_change
-            # higher than each of the remaining require_nonenriched samples
-            n_enriched = 0
-            for i in range(len(weights)):
-                local_enriched = 0
-                for j in range(len(weights)):
-                    if i == j:
-                        continue
-                    if weights[i] >= fold_change*weights[j]:
-                        local_enriched += 1
-                if local_enriched >= require_nonenriched:
-                    n_enriched += 1
+    def valid(self, source, sink, weights):
+        source_chromosome = self._chromosome_dict[source]
+        sink_chromosome = self._chromosome_dict[sink]
 
-            if n_enriched >= require_enriched:
-                if regions is None:
-                    yield edge
+        count_valid = 0
+        for i, weight in enumerate(weights):
+            if source_chromosome == sink_chromosome:
+                d = abs(sink - source)
+                if self._oe_per_chromosome:
+                    e = self._intra_expected_chromosome[i][source_chromosome][d]
                 else:
-                    source_region = regions_dict[edge.source]
-                    sink_region = regions_dict[edge.sink]
-                    if source_region.overlaps(regions) and sink_region.overlaps(regions):
-                        yield edge
+                    e = self._intra_expected[i][d]
+            else:
+                e = self._inter_expected[i]
+
+            fc = weight / e
+            if np.isfinite(fc) and fc > self._cutoff:
+                count_valid += 1
+
+        if count_valid > self._min_valid:
+            return True
+        return False
 
 
-def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
-           log=True, only_intra_chromosomal=False, scale_libraries=True,
-           regions=None, **kwargs):
-    if pair_selection is None:
-        pair_selection = LargestVariancePairSelection()
+class NonzeroFilter(EdgeCollectionFilter):
+    def __init__(self):
+        EdgeCollectionFilter.__init__(self)
 
-    pair_selection.regions = regions
+    def valid(self, source, sink, weights):
+        if 0 in weights:
+            return False
+        return True
 
-    if tmpdir is not None:
-        tmpdir = tempfile.mkdtemp(dir=os.path.expanduser(tmpdir))
-    else:
-        tmpdir = tempfile.mkdtemp()
-    if not tmpdir.endswith('/'):
-        tmpdir += '/'
 
-    logger.info("Joining objects")
-    existing_coll = False
-    if isinstance(hics, HicCollectionWeightMeanVariance):
-        logger.info("Found collection.")
-        coll = hics
-        n_hics = 0
-        while 'weight_' + str(n_hics) in coll.field_names:
-            n_hics += 1
-        existing_coll = True
-    else:
-        n_hics = len(hics)
-        coll = HicCollectionWeightMeanVariance(hics, file_name=tmpdir + 'coll.m',
-                                               only_intra_chromosomal=only_intra_chromosomal,
-                                               scale_libraries=scale_libraries)
-        coll.calculate()
+class EdgeCollectionSelector(object):
+    def __init__(self):
+        pass
 
-        if eo_cutoff != 0.0:
-            eof = ExpectedObservedCollectionFilter(coll)
-            coll.filter(eof, queue=True)
+    def filter_edge_collection(self, edge_collection, sample_size, *args, **kwargs):
+        raise NotImplementedError("Subclasses of EdgeCollectionSelector must implement "
+                                  "filter_edge_collection!")
 
-        if bg_cutoff != 1.0:
-            bgf = BackgroundLigationCollectionFilter(coll)
-            coll.filter(bgf, queue=True)
-        coll.run_queued_filters()
 
-    pair_selection.set_collection(coll)
+class LargestVarianceSelector(EdgeCollectionFilter):
+    def __init__(self):
+        EdgeCollectionFilter.__init__(self)
+
+    def filter_edge_collection(self, edge_collection, sample_size, *args, **kwargs):
+        if sample_size is None:
+            sample_size = len(edge_collection)
+
+        variances = dict()
+        for key, weights in edge_collection.items():
+            v = np.nanvar(weights)
+            if np.isfinite(v):
+                variances[key] = v
+
+        variances_sorted = sorted(variances.items(), key=operator.itemgetter(1), reverse=True)
+
+        for i in range(min(len(variances_sorted), sample_size)):
+            source, sink = variances_sorted[i][0]
+            weights = edge_collection[(source, sink)]
+            yield source, sink, weights
+
+
+class PassthroughSelector(EdgeCollectionFilter):
+    def __init__(self):
+        EdgeCollectionFilter.__init__(self)
+
+    def filter_edge_collection(self, edge_collection, sample_size, *args, **kwargs):
+        if sample_size is None:
+            sample_size = len(edge_collection)
+
+        for i, (key, weights) in enumerate(edge_collection.items()):
+            if i > sample_size:
+                break
+            yield key[0], key[1], weights
+
+
+class LargestFoldChangeSelector(EdgeCollectionFilter):
+    def __init__(self):
+        EdgeCollectionFilter.__init__(self)
+
+    def filter_edge_collection(self, edge_collection, sample_size=None, *args, **kwargs):
+        if sample_size is None:
+            sample_size = len(edge_collection)
+
+        max_fold_changes = dict()
+        for key, weights in edge_collection.items():
+            min_weight = np.nanmin(weights)
+            max_weight = np.nanmax(weights)
+
+            fc = max_weight / min_weight
+            if np.isfinite(fc):
+                max_fold_changes[key] = fc
+
+        fc_sorted = sorted(max_fold_changes.items(), key=operator.itemgetter(1), reverse=True)
+
+        for i in range(min(len(fc_sorted), sample_size)):
+            source, sink = fc_sorted[i][0]
+            weights = edge_collection[(source, sink)]
+            yield source, sink, weights
+
+
+def hic_pca(*hics, sample_size=None, region=None, strategy='variance', scale=True, log=False,
+            ignore_zeros=False, background_enrichment=None,
+            min_libraries_above_background=1,
+            **kwargs):
+
+    strategies = {
+        'variance': LargestVarianceSelector(),
+        'fold-change': LargestFoldChangeSelector(),
+        'passthrough': PassthroughSelector(),
+        None: PassthroughSelector(),
+    }
+
+    selector = strategies[strategy]
+
+    filters = []
+    if ignore_zeros:
+        filters.append(NonzeroFilter())
+    if background_enrichment is not None:
+        filters.append(BackgroundLigationFilter(hics,
+                                                fold_change_cutoff=background_enrichment,
+                                                min_valid_edges=min_libraries_above_background))
+
+    edge_collection = _edge_collection(*hics, region=region, scale=scale,
+                                       filters=filters, **kwargs)
+
+    pca_edges = selector.filter_edge_collection(edge_collection, sample_size)
 
     values = []
-    for edge in pair_selection.pair_selection(**kwargs):
-        weights = []
-        for i in range(n_hics):
-            weights.append(getattr(edge, 'weight_' + str(i)))
+    for source, sink, weights in pca_edges:
         values.append(weights)
 
     if log:
@@ -258,6 +230,4 @@ def do_pca(hics, pair_selection=None, tmpdir=None, eo_cutoff=0.0, bg_cutoff=1.0,
     pca_res = pca.fit_transform(y.T)
     logger.info("Variance explained: %s" % str(pca.explained_variance_ratio_))
 
-    if not existing_coll:
-        coll.close()
     return pca, pca_res
