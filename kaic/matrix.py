@@ -430,6 +430,10 @@ class RegionPairsContainer(RegionBased):
 
         return merged_pairs
 
+    def edge_data(self, attribute, *args, **kwargs):
+        for edge in self.edges(*args, **kwargs):
+            yield getattr(edge, attribute)
+
     def regions_and_edges(self, key, *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key)
         if key is None:
@@ -712,6 +716,36 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                 pb.update(i)
 
         return marginals
+
+    def scaling_factor(self, matrix, weight_column=None):
+        """
+        Compute the scaling factor to another matrix.
+
+        Calculates the ratio between the number of contacts in
+        this Hic object to the number of contacts in another
+        Hic object.
+
+        :param matrix: A :class:`~Hic` object
+        :param weight_column: Name of the column to calculate the scaling factor on
+        :return: float
+        """
+        if weight_column is None:
+            weight_column = self._default_score_field
+
+        logger.info("Calculating scaling factor...")
+        m1_sum = 0
+        for v1 in self.edge_data(weight_column):
+            if np.isfinite(v1):
+                m1_sum += v1
+
+        m2_sum = 0
+        for v2 in matrix.edge_data(weight_column):
+            if np.isfinite(v2):
+                m2_sum += v2
+
+        scaling_factor = m1_sum / m2_sum
+        logger.debug("Scaling factor: {}".format(scaling_factor))
+        return scaling_factor
 
 
 class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
