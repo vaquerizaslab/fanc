@@ -4,6 +4,8 @@ import logging
 import operator
 from collections import defaultdict
 
+from ..matrix import RegionMatrixTable, Edge
+
 import numpy as np
 from sklearn.decomposition import PCA
 
@@ -118,6 +120,70 @@ class NonzeroFilter(EdgeCollectionFilter):
         if 0 in weights:
             return False
         return True
+
+
+class ComparisonMatrix(RegionMatrixTable):
+
+    _classid = 'COMPARISONMATRIX'
+
+    def __init__(self, *args, **kwargs):
+        RegionMatrixTable.__init__(self, *args, **kwargs)
+
+    def compare(self, weight1, weight2):
+        """
+        Compare two edge weights.
+
+        :param weight1: float
+        :param weight2: float
+        :return: float
+        """
+        raise NotImplementedError("Subclasses of ComparisonMatrix must implement "
+                                  "'compare'")
+
+    @classmethod
+    def from_matrices(cls, matrix1, matrix2, scale=True,
+                      file_name=None, tmpdir=None, ignore_infinite=True,
+                      *args, **kwargs):
+        comparison_matrix = cls(file_name=file_name, tmpdir=tmpdir)
+        comparison_matrix.add_regions(matrix1.regions, preserve_attributes=False)
+
+        chromosomes = matrix1.chromosomes()
+        for chr_i in range(len(chromosomes)):
+            chromosome1 = chromosomes[chr_i]
+            for chr_j in range(chr_i, len(chromosomes)):
+                chromosome2 = chromosomes[chr_j]
+
+                edges = _edge_collection(matrix1, matrix2, region=(chromosome1, chromosome2),
+                                         scale=scale, *args, **kwargs)
+                for (source, sink), weights in edges.items():
+                    weight = comparison_matrix.compare(*weights)
+                    if ignore_infinite and not np.isfinite(weight):
+                        continue
+                    comparison_matrix.add_edge(Edge(source=source, sink=sink, weight=weight))
+        comparison_matrix.flush()
+        return comparison_matrix
+
+
+class FoldChangeMatrix(ComparisonMatrix):
+
+    _classid = 'FOLDCHANGEMATRIX'
+
+    def __init__(self, *args, **kwargs):
+        ComparisonMatrix.__init__(self, *args, **kwargs)
+
+    def compare(self, weight1, weight2):
+        return weight1 / weight2
+
+
+class DifferenceMatrix(ComparisonMatrix):
+
+    _classid = 'DIFFERENCEMATRIX'
+
+    def __init__(self, *args, **kwargs):
+        ComparisonMatrix.__init__(self, *args, **kwargs)
+
+    def compare(self, weight1, weight2):
+        return weight1 - weight2
 
 
 class EdgeCollectionSelector(object):
