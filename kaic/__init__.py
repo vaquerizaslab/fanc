@@ -13,11 +13,10 @@ import warnings
 import os
 
 from genomic_regions import GenomicRegion, load as gr_load
-from kaic.architecture.genome_architecture import GenomicTrack
-from kaic.architecture.hic_architecture import DirectionalityIndex, InsulationIndex, PossibleContacts, \
-    ExpectedContacts, RegionContactAverage, FoldChangeMatrix, ObservedExpectedRatio, ABDomains, \
-    ABDomainMatrix, MetaArray, MetaHeatmap, VectorDifference, VectorArchitecturalRegionFeature, \
-    MultiVectorArchitecturalRegionFeature, cumulative_matrix
+from kaic.architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex
+from kaic.architecture.compartments import ABCompartmentMatrix
+from kaic.architecture.comparisons import FoldChangeMatrix, DifferenceMatrix
+from kaic.architecture.aggregate import AggregateMatrix, aggregate_boundaries, aggregate_loops
 from kaic.config import config
 from .general import FileBased
 from .hic import Hic
