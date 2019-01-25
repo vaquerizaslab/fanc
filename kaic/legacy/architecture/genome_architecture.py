@@ -1,9 +1,10 @@
 from __future__ import division
 from kaic.config import config
-from ..regions import RegionsTable, GenomicRegion
-from ..matrix import RegionMatrixTable
-from kaic.architecture.architecture import ArchitecturalFeature, calculateondemand, _get_pytables_data_type
-from ..general import MaskFilter
+from kaic.regions import RegionsTable, GenomicRegion
+from kaic.matrix import RegionMatrixTable
+from kaic.legacy.architecture.architecture import ArchitecturalFeature, calculateondemand, \
+    _get_pytables_data_type
+from kaic.general import MaskFilter
 from kaic.tools.general import RareUpdateProgressBar
 import tables as t
 import numpy as np

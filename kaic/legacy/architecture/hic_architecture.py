@@ -25,18 +25,19 @@ A recalculation is also avoided when restoring data from file.
 
 from __future__ import division
 from kaic.config import config
-from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand, ArchitecturalFeature
-from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature, \
-    MatrixArchitecturalRegionFeatureFilter
+from kaic.legacy.architecture.architecture import TableArchitecturalFeature, calculateondemand, \
+    ArchitecturalFeature
+from kaic.legacy.architecture.genome_architecture import MatrixArchitecturalRegionFeature, \
+    VectorArchitecturalRegionFeature,  MatrixArchitecturalRegionFeatureFilter
 from kaic.architecture.maxima_callers import MaximaCallerDelta
 from genomic_regions import Bedpe
-from ..regions import GenomicRegion, Genome
-from ..matrix import Edge
-from ..hic import Hic, HicEdgeFilter
+from kaic.regions import GenomicRegion, Genome
+from kaic.matrix import Edge
+from kaic.hic import Hic, HicEdgeFilter
 from collections import defaultdict
 from kaic.tools.general import ranges, to_slice
 from kaic.tools.matrix import apply_sliding_func, kth_diag_indices, trim_stats
-from ..general import FileGroup
+from kaic.general import FileGroup
 from Bio.SeqUtils import GC as calculate_gc_content
 import numpy as np
 import tables as t
