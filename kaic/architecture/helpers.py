@@ -1,5 +1,9 @@
 import numpy as np
 from bisect import bisect_left
+from collections import defaultdict
+import intervaltree
+from genomic_regions import GenomicRegion
+from future.utils import string_types
 
 
 def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True,
@@ -84,3 +88,152 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
 
     return np.log2(m), rev_cutoffs
 
+
+class RegionScoreMatrix(np.ma.MaskedArray):
+    def __new__(cls, input_matrix, row_regions=None, columns=None,
+                mask=None, *args, **kwargs):
+        obj = np.asarray(input_matrix).view(cls, *args, **kwargs)
+        obj._row_region_trees = None
+        obj.row_regions = None
+        obj.columns = columns
+        obj.set_row_regions(row_regions)
+        obj.mask = mask
+        return obj
+
+    def _interval_tree_regions(self, regions):
+        intervals = defaultdict(list)
+        for i, region in enumerate(regions):
+            interval = intervaltree.Interval(region.start - 1, region.end,
+                                             data=i)
+            intervals[region.chromosome].append(interval)
+
+        interval_trees = {chromosome: intervaltree.IntervalTree(intervals)
+                          for chromosome, intervals in intervals.items()}
+        return interval_trees
+
+    def set_row_regions(self, regions):
+        self.row_regions = regions
+        if regions is not None:
+            self._row_region_trees = self._interval_tree_regions(regions)
+        else:
+            self._row_region_trees = None
+
+    def __array_finalize__(self, obj):
+        if isinstance(self, np.ma.core.MaskedArray):
+            np.ma.MaskedArray.__array_finalize__(self, obj)
+
+        if obj is None:
+            return
+
+        self.set_row_regions(getattr(obj, 'row_regions', None))
+        self.columns = getattr(obj, 'columns', None)
+
+    def __setitem__(self, key, item):
+        self._setitem = True
+        try:
+            if isinstance(self, np.ma.core.MaskedArray):
+                np.ma.MaskedArray.__setitem__(self, key, item)
+            else:
+                np.ndarray.__setitem__(self, key, item)
+        finally:
+            self._setitem = False
+
+    def __getitem__(self, index):
+        self._getitem = True
+
+        try:
+            all_cols = slice(0, len(self.columns), 1)
+        except (AttributeError, TypeError):
+            try:
+                all_cols = slice(0, self.shape[1], 1)
+            except IndexError:
+                all_cols = None
+
+        # convert string types into region indexes
+        if isinstance(index, tuple):
+            if len(index) == 2:
+                row_key = self._convert_key(
+                    index[0],
+                    self._row_region_trees if hasattr(self, '_row_region_trees') else None
+                )
+                col_key = index[1]
+                index = (row_key, col_key)
+            elif len(index) == 1:
+                row_key = self._convert_key(index[0],
+                                            self._row_region_trees
+                                            if hasattr(self, '_row_region_trees') else None)
+
+                col_key = all_cols
+                index = (row_key, )
+            else:
+                col_key = all_cols
+                row_key = index
+                index = row_key
+        else:
+            row_key = self._convert_key(index,
+                                        self._row_region_trees
+                                        if hasattr(self, '_row_region_trees') else None)
+
+            col_key = all_cols
+            index = row_key
+
+        try:
+            if isinstance(self, np.ma.core.MaskedArray):
+                out = np.ma.MaskedArray.__getitem__(self, index)
+            else:
+                out = np.ndarray.__getitem__(self, index)
+        finally:
+            self._getitem = False
+
+        if not isinstance(out, np.ndarray):
+            return out
+
+        # get regions
+        try:
+            row_regions = self.row_regions[row_key]
+        except TypeError:
+            row_regions = None
+
+        try:
+            columns = self.columns[col_key]
+        except TypeError:
+            columns = None
+
+        if isinstance(row_regions, GenomicRegion):
+            out.row_regions = [row_regions]
+        else:
+            out.row_regions = row_regions
+
+        if not isinstance(columns, list):
+            out.columns = [columns]
+        else:
+            out.columns = columns
+
+        return out
+
+    def __getslice__(self, start, stop):
+        return self.__getitem__(slice(start, stop))
+
+    def _convert_key(self, key, region_trees):
+        if isinstance(key, string_types):
+            key = GenomicRegion.from_string(key)
+
+        if isinstance(key, GenomicRegion):
+            start = None
+            stop = None
+            try:
+                key_start = 0 if key.start is None else max(0, key.start - 1)
+                key_end = key.end
+                for interval in region_trees[key.chromosome][key_start:key_end]:
+                    i = interval.data
+                    start = min(i, start) if start is not None else i
+                    stop = max(i + 1, stop) if stop is not None else i + 1
+            except KeyError:
+                raise ValueError("Requested chromosome {} was not "
+                                 "found in this matrix.".format(key.chromosome))
+
+            if start is None or stop is None:
+                raise ValueError("Requested region {} was not found in this matrix.".format(key))
+
+            return slice(start, stop, 1)
+        return key
