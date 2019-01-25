@@ -1,5 +1,6 @@
-from genomic_regions import GenomicRegion
+from genomic_regions import GenomicRegion, GenomicDataFrame
 from .maxima_callers import MaximaCallerDelta
+from .helpers import RegionScoreMatrix
 from ..regions import RegionsTable
 from ..tools.matrix import apply_sliding_func, trim_stats
 from scipy.stats.mstats import gmean
@@ -22,6 +23,47 @@ class RegionScoreTable(RegionsTable):
         kwargs['additional_fields'] = additional_fields
 
         RegionsTable.__init__(*args, **kwargs)
+
+    def scores(self):
+        return self.region_data('score')
+
+
+class RegionMultiScoreTable(RegionsTable):
+    def __init__(self, score_fields=('score', ), *args, **kwargs):
+        additional_fields = kwargs.get('additional_fields', None)
+        if additional_fields is None:
+            additional_fields = {}
+        for i, score_field in enumerate(score_fields):
+            additional_fields[score_field] = tables.Float32Col(pos=i)
+        kwargs['additional_fields'] = additional_fields
+
+        RegionsTable.__init__(self, *args, **kwargs)
+
+
+class RegionScoreParameterTable(RegionMultiScoreTable):
+    def __init__(self, parameter_values, parameter_prefix='score_', *args, **kwargs):
+        self._parameter_prefix = parameter_prefix
+        self._parameters = parameter_values
+        self._score_fields = self._score_field_generator()
+        RegionMultiScoreTable.__init__(self, self._score_fields, *args, **kwargs)
+
+    def _score_field_generator(self, parameters=None):
+        if parameters is None:
+            parameters = self._parameters
+        return [self._parameter_prefix + str(v) for v in parameters]
+
+    def scores(self, parameter, scores=None):
+        score_field = self._score_field_generator([parameter])[0]
+        return self.region_data(score_field, scores)
+
+    def score_matrix(self, region=None, parameters=None):
+        scores = []
+        regions = list(self.regions(region))
+        columns = self._score_field_generator(parameters)
+        for r in regions:
+            row = [getattr(r, name) for name in columns]
+            scores.append(row)
+        return RegionScoreMatrix(np.array(scores), row_regions=regions, columns=columns)
 
 
 class InsulationScore(RegionScoreTable):
@@ -174,8 +216,102 @@ class InsulationScore(RegionScoreTable):
         insulation_score_regions.region_data('score', ins_matrix)
         return insulation_score_regions
 
-    def boundaries(self, min_score=None, delta_window=3, log=False,
-                   sub_bin_precision=False, call_maxima=False):
+    def boundaries(self, *args, **kwargs):
+        return Boundaries.from_insulation_score(self, *args, **kwargs)
+
+
+class InsulationScores(RegionScoreParameterTable):
+    def __init__(*args, **kwargs):
+        RegionScoreParameterTable.__init__(*args, **kwargs)
+
+    @classmethod
+    def from_hic(cls, hic, window_sizes, file_name=None, tmpdir=None,
+                 **kwargs):
+        insulation_scores = cls(parameter_prefix='insulation_',
+                                parameter_values=list(window_sizes),
+                                file_name=file_name, tmpdir=tmpdir)
+
+        for i, window_size in enumerate(window_sizes):
+            logger.debug("Window size {}".format(window_size))
+            ii = InsulationScore.from_hic(hic, window_size, **kwargs)
+            if i == 0:
+                insulation_scores.add_regions(ii.regions, preserve_attributes=False)
+
+            scores = list(ii.scores())
+            insulation_scores.scores(window_size, scores)
+
+        return insulation_scores
+
+
+class DirectionalityIndex(RegionScoreTable):
+    def __init__(*args, **kwargs):
+        RegionScoreTable.__init__(*args, **kwargs)
+
+    @classmethod
+    def from_hic(cls, hic, window_size=2000000, weight_field=None,
+                 file_name=None, tmpdir=None, **kwargs):
+        bin_window_size = hic.distance_to_bins(window_size)
+        directionality_index_regions = cls(file_name=file_name, tmpdir=tmpdir)
+        directionality_index_regions.add_regions(hic.regions, preserve_attributes=False)
+
+        weight_field = hic._default_score_field if weight_field is None else weight_field
+
+        n_bins = len(hic.regions)
+
+        # find the distances of each region to the chromosome ends in bins
+        boundary_dist = np.zeros(n_bins, dtype=int)
+        last_chromosome = None
+        last_chromosome_index = 0
+        for i, region in enumerate(hic.regions(lazy=True)):
+            chromosome = region.chromosome
+            if last_chromosome is not None and chromosome != last_chromosome:
+                chromosome_length = i - last_chromosome_index
+                for j in range(chromosome_length):
+                    boundary_dist[last_chromosome_index + j] = min(j, i - last_chromosome_index - 1 - j)
+                last_chromosome_index = i
+            last_chromosome = chromosome
+        chromosome_length = n_bins - last_chromosome_index
+        for j in range(chromosome_length):
+            boundary_dist[last_chromosome_index + j] = min(j, n_bins - last_chromosome_index - 1 - j)
+
+        left_sums = np.zeros(n_bins)
+        right_sums = np.zeros(n_bins)
+        directionality_index = np.zeros(n_bins)
+        kwargs['inter_chromosomal'] = False
+        kwargs['lazy'] = True
+        for edge in hic.edges(**kwargs):
+            source = edge.source
+            sink = edge.sink
+            weight = getattr(edge, weight_field)
+            if source == sink:
+                continue
+            if sink - source <= bin_window_size:
+                if boundary_dist[sink] >= sink-source:
+                    left_sums[sink] += weight
+                if boundary_dist[source] >= sink-source:
+                    right_sums[source] += weight
+
+        for i in range(n_bins):
+            A = left_sums[i]
+            B = right_sums[i]
+            E = (A+B)/2
+            if E != 0 and B-A != 0:
+                directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
+
+        directionality_index_regions.region_data('score', directionality_index)
+
+        return directionality_index_regions
+
+
+class Boundaries(RegionScoreTable):
+    def __init__(*args, **kwargs):
+        RegionScoreTable.__init__(*args, **kwargs)
+
+    @classmethod
+    def from_insulation_score(cls, insulation_score, min_score=None,
+                              delta_window=3, log=False,
+                              sub_bin_precision=False, call_maxima=False,
+                              **kwargs):
         """
         Call insulation boundaries based on minima in an insulation vector of this object.
 
@@ -192,7 +328,7 @@ class InsulationScore(RegionScoreTable):
         :param call_maxima: Call maxima instead of minima as boundaries
         :return: list of :class:`~kaic.data.genomic.GenomicRegion`
         """
-        index = self.region_data('score')
+        index = insulation_score.region_data('score')
         if log:
             index = np.log2(index)
         peaks = MaximaCallerDelta(index, window_size=delta_window, sub_bin_precision=sub_bin_precision)
@@ -200,7 +336,7 @@ class InsulationScore(RegionScoreTable):
             minima, scores = peaks.get_maxima()
         else:
             minima, scores = peaks.get_minima()
-        regions = list(self.regions)
+        regions = list(insulation_score.regions)
 
         boundaries = []
         for i, ix in enumerate(minima):
@@ -209,7 +345,7 @@ class InsulationScore(RegionScoreTable):
             if sub_bin_precision:
                 region = regions[int(ix)]
                 fraction = ix % 1
-                shift = int((fraction - .5)*(region.end - region.start))
+                shift = int((fraction - .5) * (region.end - region.start))
                 b = GenomicRegion(chromosome=region.chromosome,
                                   start=region.start + shift,
                                   end=region.end + shift,
@@ -222,5 +358,7 @@ class InsulationScore(RegionScoreTable):
                                   score=scores[i])
             boundaries.append(b)
 
+        boundary_regions = cls(**kwargs)
+        boundary_regions.add_regions(boundaries)
         logger.info("Found {} boundaries".format(len(boundaries)))
-        return boundaries
+        return boundary_regions
