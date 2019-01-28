@@ -199,31 +199,39 @@ class SgeTaskRunner(TaskRunner):
 def auto_parser():
     parser = argparse.ArgumentParser(
         prog="kaic auto",
-        description='Automatically process an entire Hi-C data set'
+        description='Automatically process an entire Hi-C data set.'
     )
 
     parser.add_argument(
         'input',
         nargs='+',
-        help='''Input files. kaic will try to guess the file by its extension.'''
+        help='''Input files. kaic will try to guess the file type
+                by its extension.'''
     )
 
     parser.add_argument(
         'output_folder',
-        help='''Folder where output files and sub-folders will be generated'''
+        help='''Output folder. All output files and folders 
+                will be generated under this directory.'''
     )
 
     parser.add_argument(
         '-g', '--genome', dest='genome',
-        help='''Can be an HDF5 Genome object, a FASTA file,
-                a folder with FASTA files, or a comma-separated
-                list of FASTA files.'''
+        help='''Genome for the Hi-C object. 
+                Path to region-based file (BED, GFF, ...) containing
+                the non-overlapping regions to be used for Hi-C
+                object construction. Typically restriction-enzyme fragments.
+                Alternatively: Path to genome file (FASTA, folder with
+                FASTA, hdf5 file), which will be used in conjunction
+                with the type of restriction enzyme (-r) to calculate
+                fragments directly.'''
     )
 
     parser.add_argument(
         '-r', '--restriction-enzyme', dest='restriction_enzyme',
-        help='''Restriction enzyme used for digestion 
-                (e.g. HindIII, case-sensitive)'''
+        help='''Restriction enzyme name. Used for in silico digestion
+                of genomic sequences and splitting of reads at Hi-C
+                ligation junctions. (e.g. HindIII, case-sensitive)'''
     )
 
     parser.add_argument(
@@ -263,26 +271,29 @@ def auto_parser():
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
-        help='''Maximum number of threads to use for 
-                the analysis.'''
+        help='''Maximum number of threads. The number provided here
+                will not be exceeded by analysis steps running alone 
+                or in parallel.'''
     )
 
     parser.add_argument(
-        '--mapper_parallel', dest='mapper_parallel',
+        '--mapper-parallel', dest='mapper_parallel',
         action='store_true',
         default=False,
-        help='''Use Bowtie2/BWA parallelisation instead 
-                of spawning multiple mapping processes.
-                Typically slower, but less memory and 
-                disk I/O overhead.'''
+        help='''Use Bowtie2/BWA parallelisation. By default, kaic
+                spawns multiple mapping processes. Using the mapper
+                parallelisation is typically slower, but consumes less 
+                memory and has a lower disk I/O overhead.'''
     )
 
     parser.add_argument(
         '--split-fastq', dest='split_fastq',
         action='store_true',
         default=False,
-        help='''Split fastq files into chunks of 10M reads. These will be merged again on the Reads level.
-                Splitting and merging bypasses the -tmp flag. This option reduces disk usage in tmp, in case
+        help='''Split fastq files into chunks of 10M reads. 
+                Reads will be merged again on the SAM level.
+                Splitting and merging bypasses the -tmp flag. 
+                This option reduces disk usage in tmp, in case
                 the system has a small tmp partition.'''
     )
 
@@ -290,7 +301,7 @@ def auto_parser():
         '--memory-map', dest='memory_map',
         action='store_true',
         default=False,
-        help='''Map Bowtie2 index to memory (recommended 
+        help='''Map Bowtie2 index to memory. Recommended 
                 if running on medium-memory systems and using many
                 parallel threads).'''
     )
@@ -299,8 +310,7 @@ def auto_parser():
         '--ice', dest='ice',
         action='store_true',
         default=False,
-        help='''Use ICE iterative matrix balancing rather 
-                than Knight-Ruiz.'''
+        help='''Correct Hi-C matrices using ICE.'''
     )
 
     parser.add_argument(
@@ -327,15 +337,20 @@ def auto_parser():
         '--auto-le-cutoff', dest='auto_le_cutoff',
         action='store_true',
         default=False,
-        help='''Automatically choose cutoffs for inward 
-                and outward ligation error cutoffs.'''
+        help='''Automatically determine ligation error cutoffs.
+                Use with caution, this setting has a tendency to
+                choose large cutoffs, removing many pairs close to 
+                the diagonal.'''
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
-        help='''Copy original files to temporary directory. 
+        help='''Work in temporary directory. Copies input files and 
+                generates output files in a temporary directory.
+                Files will be moved to their intended destination once 
+                an analysis step finishes.
                 Reduces network I/O if using remote file systems.'''
     )
 
@@ -343,14 +358,23 @@ def auto_parser():
         '--no-iterative', dest='iterative',
         action='store_false',
         default=True,
-        help='''Do not map reads iteratively, use simple mapping.'''
+        help='''Do not map reads iteratively. By default, kaic uses
+                an iterative mapping strategy: reads are initially 
+                trimmed to 25bp and mapped to the reference genome.
+                If no unique mapping location is found, the read is 
+                extended by 3bp and the process is repeated until the 
+                full length of the read is reached or a unique mapping 
+                location is found. Use this setting to only use regular 
+                mapping.'''
     )
 
     parser.add_argument(
         '--no-sam-sort', dest='sam_sort',
         action='store_false',
         default=True,
-        help='''Do not sort SAM/BAM files.'''
+        help='''Do not sort SAM/BAM files. Sorted files are required 
+                for the pair generating step. Only omit this if you are 
+                supplying presorted (by read name) SAM/BAM files.'''
     )
 
     parser.add_argument(
@@ -366,7 +390,8 @@ def auto_parser():
         '--split-ligation-junction', dest='split_ligation_junction',
         action='store_true',
         default=False,
-        help='''Split reads at predicted ligation junction before mapping.'''
+        help='''Split reads at predicted ligation junction before mapping.
+                Requires the -r argument.'''
     )
 
     parser.add_argument(
@@ -382,7 +407,7 @@ def auto_parser():
         default='parallel',
         help='''Choose how to run the commands in kaic auto. Options:
                 "parallel" (default): Run kaic commands on local machine,
-                use multiprocessing parellelisation.
+                use multiprocessing parallelisation.
                 "sge": Submit kaic commands to a Sun/Oracle Grid Engine cluster.
                 "test": Do not run kaic commands but print all commands 
                 and their dependencies to stdout for review.'''
@@ -390,15 +415,16 @@ def auto_parser():
 
     parser.add_argument(
         '--sge-prefix', dest='sge_prefix',
-        help='''Use this prefix for jobs submitted to SGE (works with 
-                "--run-with sge". Default: "kaic_<6 random letters>_"'''
+        help='''Job Prefix for SGE. Works with "--run-with sge".
+                Default: "kaic_<6 random letters>_"'''
     )
 
     parser.add_argument(
         '-f', '--force-overwrite', dest='force_overwrite',
         action='store_true',
         default=False,
-        help='''Force overwriting of existing files.'''
+        help='''Force overwriting of existing files. Otherwise you will 
+                be prompted before files are overwritten.'''
     )
 
     return parser
