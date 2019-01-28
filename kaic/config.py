@@ -46,6 +46,7 @@ hide_progressbars: False
 gridmap_tmpdir:
 
 sge_qsub_path: qsub
+sge_default_queue: all.q
 sge_log_dir:
 sge_parallel_environment: smp
 sge_nodes:
