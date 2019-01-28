@@ -181,10 +181,7 @@ class LazyGenomicRegion(GenomicRegion):
         else:
             self._row[key] = value
             if self.auto_update:
-                self.update()
-
-    def update(self):
-        self._row.update()
+                self._row.update()
 
     @property
     def strand(self):
@@ -442,9 +439,10 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             return res["ix"]
         return None
 
-    def _row_to_region(self, row, lazy=False, auto_update=True):
-        if lazy:
-            return LazyGenomicRegion(row, auto_update=auto_update)
+    def _row_to_region(self, row, lazy_region=None):
+        if lazy_region is not None:
+            lazy_region._row = row
+            return lazy_region
 
         kwargs = {}
         for name in self._regions.colnames:
@@ -462,12 +460,22 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                              end=row["end"], ix=row["ix"], _mask_ix=mask_ix, **kwargs)
 
     def _region_iter(self, lazy=False, auto_update=True, *args, **kwargs):
+        if lazy:
+            lazy_region = LazyGenomicRegion(row=None, auto_update=auto_update)
+        else:
+            lazy_region = None
+
         for row in self._regions:
-            yield self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+            yield self._row_to_region(row, lazy_region=lazy_region)
 
     def _region_subset(self, region, lazy=False, auto_update=True, *args, **kwargs):
+        if lazy:
+            lazy_region = LazyGenomicRegion(row=None, auto_update=auto_update)
+        else:
+            lazy_region = None
+
         for row in self._subset_rows(region):
-            sub_region = self._row_to_region(row, lazy=lazy, auto_update=auto_update)
+            sub_region = self._row_to_region(row, lazy_region=lazy_region)
             yield sub_region
 
     def _get_regions(self, key, *args, **kwargs):

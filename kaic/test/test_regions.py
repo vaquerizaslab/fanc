@@ -2,6 +2,7 @@ from __future__ import division
 import numpy as np
 from kaic.regions import Chromosome, Genome, RegionsTable
 from genomic_regions import GenomicRegion
+import pytest
 
 import os.path
 
@@ -112,8 +113,9 @@ class RegionBasedTestFactory:
     def test_len(self):
         assert len(self.regions.regions) == 29
 
-    def test_iter(self):
-        region_iter = self.regions.regions
+    @pytest.mark.parametrize("lazy", [True, False])
+    def test_iter(self, lazy):
+        region_iter = self.regions.regions(lazy=lazy)
 
         for i, region in enumerate(region_iter):
             start = 1 + i * 1000
@@ -126,6 +128,16 @@ class RegionBasedTestFactory:
                 chromosome = 'chr2'
 
             assert region.chromosome == chromosome
+            assert region.start == start
+
+    @pytest.mark.parametrize("lazy", [True, False])
+    def test_region_subset(self, lazy):
+        region_iter = self.regions.regions('chr1', lazy=lazy)
+
+        for i, region in enumerate(region_iter):
+            start = 1 + i * 1000
+
+            assert region.chromosome == 'chr1'
             assert region.start == start
 
     def test_region_bins(self):
