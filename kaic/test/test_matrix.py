@@ -7,7 +7,6 @@ from kaic.hic import Hic, _get_overlap_map, _edge_overlap_split_rao, kr_balancin
 from kaic.regions import Chromosome, Genome
 from kaic.pairs import ReadPairs, SamBamReadPairGenerator
 from kaic.tools.matrix import is_symmetric
-from kaic.architecture.hic_architecture import BackgroundLigationFilter, ObservedExpectedEnrichmentFilter
 import tables
 import pytest
 
@@ -85,7 +84,8 @@ class RegionMatrixContainerTestFactory:
     def test_edges_iter(self):
         pass
 
-    def test_get_edges_uncorrected(self):
+    @pytest.mark.parametrize("lazy", [True, False])
+    def test_get_edges_uncorrected(self, lazy):
         edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges(norm=False)}
 
         for edge in self.matrix.edges(norm=False):
@@ -93,10 +93,11 @@ class RegionMatrixContainerTestFactory:
                               edges_dict[(edge.source, edge.sink)],
                               rtol=1e-03)
 
-    def test_get_edges(self):
+    @pytest.mark.parametrize("lazy", [True, False])
+    def test_get_edges(self, lazy):
         edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges(norm=True)}
 
-        for edge in self.matrix.edges(norm=True):
+        for edge in self.matrix.edges(norm=True, lazy=lazy):
             if (edge.source, edge.sink) not in edges_dict:
                 continue
 
@@ -354,16 +355,17 @@ class TestRegionMatrixTable:
         m = self.rmt.matrix(key=('chr2', 'chr2'), score_field='bar')
         for i, row_region in enumerate(m.row_regions):
             for j, col_region in enumerate(m.col_regions):
-                assert m[i, j] == m[j, i] == max(row_region.ix, col_region.ix)
+                assert (np.ma.is_masked(m[i, j]) and np.ma.is_masked(m[j, i])) or \
+                       (m[i, j] == m[j, i] == max(row_region.ix, col_region.ix))
 
-        m = self.rmt.matrix(key=('chr2', 'chr3'), score_field='bar')
+        m = self.rmt.matrix(key=('chr2', 'chr3'), score_field='bar', mask=False)
 
         for i, row_region in enumerate(m.row_regions):
             for j, col_region in enumerate(m.col_regions):
                 print(i, j, row_region.ix, col_region.ix, m[i, j])
                 assert m[i, j] == max(row_region.ix, col_region.ix)
 
-        m = self.rmt.matrix(key=('chr3', 'chr2'), score_field='bar')
+        m = self.rmt.matrix(key=('chr3', 'chr2'), score_field='bar', mask=False)
         for i, row_region in enumerate(m.row_regions):
             for j, col_region in enumerate(m.col_regions):
                 assert m[i, j] == max(row_region.ix, col_region.ix)
@@ -592,7 +594,7 @@ class TestHicBasic:
             nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i + 1000 - 1))
         for i in range(1, 2000, 500):
             nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i + 1000 - 1))
-        hic.add_regions(nodes)
+        hic.add_regions(nodes, preserve_attributes=False)
 
         # add some edges with increasing weight for testing
         edges = []
@@ -612,6 +614,7 @@ class TestHicBasic:
         m = self.hic[:, :]
         m_merged_2x = merged_hic_2x[:, :]
         m_merged_3x = merged_hic_3x[:, :]
+
         for i in range(m.shape[0]):
             for j in range(m.shape[1]):
                 assert m[i, j] == 0 or m[i, j] == m_merged_2x[i, j] / 2
@@ -956,21 +959,6 @@ class TestHicBasic:
                     assert m[i, j] == 0
                 else:
                     assert m[i, j] != 0
-
-    def test_filter_background_ligation(self):
-        blf = BackgroundLigationFilter(self.hic, fold_change=2)
-        assert blf.cutoff - 2 * (610 + 405 + 734) / 47 < 0.001
-        for edge in self.hic.edges(lazy=True):
-            if edge.weight < blf.cutoff:
-                assert not blf.valid_edge(edge)
-            else:
-                assert blf.valid_edge(edge)
-
-    def test_filter_expected_observed_enrichment(self):
-        oef = ObservedExpectedEnrichmentFilter(self.hic, fold_change=1)
-        previous = len(list(self.hic.edges))
-        self.hic.filter(oef)
-        assert len(list(self.hic.edges)) == previous - 14 - 23  # 15 intra, 23 inter filtered
 
     def test_to_cooler(self, tmpdir):
         cooler = pytest.importorskip("cooler")
