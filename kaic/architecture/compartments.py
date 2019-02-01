@@ -1,5 +1,6 @@
 import tables
 
+import genomic_regions as gr
 from .helpers import vector_enrichment_profile
 from ..matrix import RegionMatrixTable, Edge
 import numpy as np
@@ -20,7 +21,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
     def __init__(self, file_name=None, tmpdir=None):
         RegionMatrixTable.__init__(self, file_name=file_name, tmpdir=tmpdir,
                                    additional_region_fields={
-                                       'ev': tables.Float32Col(pos=0),
+                                       'name': tables.StringCol(1, pos=0),
+                                       'score': tables.Float32Col(pos=1),
                                    })
         self.meta['per_chromosome'] = True
         self.meta['oe_per_chromosome'] = True
@@ -83,7 +85,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
         return ab_matrix
 
-    def eigenvector(self, chromosome=None, genome=None, eigenvector=0,
+    def eigenvector(self, region=None, genome=None, eigenvector=0,
                     per_chromosome=None, oe_per_chromosome=None,
                     force=False):
         if per_chromosome is None:
@@ -96,7 +98,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 oe_per_chromosome == self.meta.oe_per_chromosome and
                 per_chromosome == self.meta.per_chromosome and
                 eigenvector == self.meta.eigenvector):
-            ev = np.array([region.ev for region in self.regions])
+            ev = np.array([region.score for region in self.regions])
         else:
             ev = np.zeros(len(self.regions))
             if per_chromosome:
@@ -145,27 +147,62 @@ class ABCompartmentMatrix(RegionMatrixTable):
                         ev[start:end] = -1 * ev_sub
 
             try:
-                self.region_data('ev', ev)
+                self.region_data('score', ev)
                 self.meta.per_chromosome = per_chromosome
                 self.meta.oe_per_chromosome = oe_per_chromosome
                 self.meta.has_ev = True
                 self.meta.eigenvector = eigenvector
+                compartments = ['A' if s >= 0 else 'B' for s in ev]
+                self.region_data('name', compartments)
             except OSError:
                 logger.warning("Cannot save eigenvector to ABCompartmentMatrix since the file "
                                "is opened in read-only mode.")
 
-        if chromosome is None:
+        if region is None:
             return ev
 
-        bins = self.chromosome_bins[chromosome]
-        return ev[bins[0]:bins[1]]
+        regions = list(self.regions(region))
+        return ev[regions[0].ix:regions[-1].ix + 1]
 
-    def enrichment_profile(self, genome=None, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
-                           per_chromosome=True, only_gc=False, symmetric_at=None,
-                           exclude_chromosomes=()):
+    def domains(self, *args, **kwargs):
+        ev = self.eigenvector(*args, **kwargs)
+
+        region_subset = kwargs.get('region', None)
+
+        current_ev_scores = []
+        domains = []
+        current_domain = None
+        for i, region in enumerate(self.regions(region_subset)):
+            if current_domain is None:
+                current_domain = gr.GenomicRegion(chromosome=region.chromosome,
+                                                  start=region.start, end=region.end,
+                                                  name='A' if ev[i] >= 0 else 'B')
+                current_ev_scores.append(ev[i])
+            else:
+                if current_domain.chromosome == region.chromosome and \
+                        ev[i] < 0 == current_ev_scores[0] < 0:
+                    current_domain.end = region.end
+                    current_ev_scores.append(ev[i])
+                else:
+                    current_domain.score = np.nanmean(current_ev_scores)
+                    domains.append(current_domain)
+                    current_domain = gr.GenomicRegion(chromosome=region.chromosome,
+                                                      start=region.start, end=region.end,
+                                                      name='A' if ev[i] >= 0 else 'B')
+                    current_ev_scores.append(ev[i])
+        if current_domain is not None:
+            current_domain.score = np.nanmean(current_ev_scores)
+            domains.append(current_domain)
+
+        return gr.RegionWrapper(domains)
+
+    def enrichment_profile(self, hic, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
+                           only_gc=False, symmetric_at=None,
+                           exclude_chromosomes=(), *args, **kwargs):
 
         logger.info("Generating profile...")
         if only_gc:
+            genome = kwargs.get('genome', None)
             if genome is None:
                 raise ValueError("genome cannot be 'None' when using GC content "
                                  "for compartment analysis.")
@@ -185,9 +222,10 @@ class ABCompartmentMatrix(RegionMatrixTable):
             gc_content = np.array(gc_content)
             ev = gc_content
         else:
-            ev = self.eigenvector(genome=genome, per_chromosome=per_chromosome)
+            ev = self.eigenvector(*args, **kwargs)
 
         mappable = self.mappable()
-        return vector_enrichment_profile(self, ev, mappable=mappable, per_chromosome=per_chromosome,
+        return vector_enrichment_profile(hic, ev, mappable=mappable,
+                                         per_chromosome=kwargs.get('per_chromosome', True),
                                          percentiles=percentiles, symmetric_at=symmetric_at,
                                          exclude_chromosomes=exclude_chromosomes)
