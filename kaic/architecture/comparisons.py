@@ -141,9 +141,8 @@ class ComparisonMatrix(RegionMatrixTable):
                                   "'compare'")
 
     @classmethod
-    def from_matrices(cls, matrix1, matrix2, scale=True,
-                      file_name=None, tmpdir=None, ignore_infinite=True,
-                      *args, **kwargs):
+    def from_matrices(cls, matrix1, matrix2, file_name=None, tmpdir=None,
+                      log=False, ignore_infinite=True, *args, **kwargs):
         comparison_matrix = cls(file_name=file_name, tmpdir=tmpdir)
         comparison_matrix.add_regions(matrix1.regions, preserve_attributes=False)
 
@@ -154,9 +153,11 @@ class ComparisonMatrix(RegionMatrixTable):
                 chromosome2 = chromosomes[chr_j]
 
                 edges = _edge_collection(matrix1, matrix2, region=(chromosome1, chromosome2),
-                                         scale=scale, *args, **kwargs)
+                                         *args, **kwargs)
                 for (source, sink), weights in edges.items():
                     weight = comparison_matrix.compare(*weights)
+                    if log:
+                        weight = np.log2(weight)
                     if ignore_infinite and not np.isfinite(weight):
                         continue
                     comparison_matrix.add_edge(Edge(source=source, sink=sink, weight=weight))
