@@ -132,7 +132,7 @@ class BufferedMatrix(object):
         m = self.buffered_matrix[tuple(regions)]
         if self.smooth_sigma is not None:
             mf = gaussian_filter(m, self.smooth_sigma)
-            m = kaic.data.genomic.RegionMatrix(mf, row_regions=m.row_regions, col_regions=m.col_regions)
+            m = kaic.matrix.RegionMatrix(mf, row_regions=m.row_regions, col_regions=m.col_regions)
         return m
 
     def _buffer_all(self, *regions):
@@ -145,9 +145,9 @@ class BufferedMatrix(object):
         :return: :class:`~HicMatrix`
         """
         self.buffered_region = self._STRATEGY_ALL
-        self.buffered_matrix = self.data.as_matrix(key=tuple([slice(0, None, None)]*len(regions)),
-                                                   values_from=self.weight_field,
-                                                   default_value=self.default_value)
+        self.buffered_matrix = self.data.matrix(key=tuple([slice(0, None, None)]*len(regions)),
+                                                score_field=self.weight_field,
+                                                default_value=self.default_value)
 
     def _buffer_relative(self, *regions):
         """
@@ -163,11 +163,13 @@ class BufferedMatrix(object):
                 rq_size = rq.end - rq.start
                 new_start = max(1, rq.start - rq_size*self.buffering_arg)
                 new_end = rq.end + rq_size*self.buffering_arg
-                self.buffered_region.append(GenomicRegion(start=new_start, end=new_end, chromosome=rq.chromosome))
+                self.buffered_region.append(GenomicRegion(start=new_start, end=new_end,
+                                                          chromosome=rq.chromosome))
             else:
                 self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
-        self.buffered_matrix = self.data.as_matrix(tuple(self.buffered_region), values_from=self.weight_field,
-                                                   default_value=self.default_value)
+        self.buffered_matrix = self.data.matrix(tuple(self.buffered_region),
+                                                score_field=self.weight_field,
+                                                default_value=self.default_value)
 
     def _buffer_fixed(self, *regions):
         """
@@ -182,11 +184,13 @@ class BufferedMatrix(object):
             if rq.start is not None and rq.end is not None:
                 new_start = max(1, rq.start - self.buffering_arg)
                 new_end = rq.end + self.buffering_arg
-                self.buffered_region.append(GenomicRegion(start=new_start, end=new_end, chromosome=rq.chromosome))
+                self.buffered_region.append(GenomicRegion(start=new_start, end=new_end,
+                                                          chromosome=rq.chromosome))
             else:
                 self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
-        self.buffered_matrix = self.data.as_matrix(tuple(self.buffered_region), values_from=self.weight_field,
-                                                   default_value=self.default_value)
+        self.buffered_matrix = self.data.matrix(tuple(self.buffered_region),
+                                                score_field=self.weight_field,
+                                                default_value=self.default_value)
 
     @property
     def buffered_min(self):
@@ -504,7 +508,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
 
     def _mesh_data(self, region):
         hm = self.hic_buffer.get_matrix(region, region)
-        hm_copy = kaic.data.genomic.RegionMatrix(np.copy(hm), col_regions=hm.col_regions,
+        hm_copy = kaic.matrix.RegionMatrix(np.copy(hm), col_regions=hm.col_regions,
                                                  row_regions=hm.row_regions)
         # update coordinates
         bin_coords = np.r_[[x.start for x in hm_copy.row_regions], hm_copy.row_regions[-1].end]
