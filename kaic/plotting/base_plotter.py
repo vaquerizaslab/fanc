@@ -7,7 +7,6 @@ from abc import abstractmethod, abstractproperty, ABCMeta
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import seaborn as sns
 import math
 from future.utils import with_metaclass, string_types
 import logging
