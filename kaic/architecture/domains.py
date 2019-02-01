@@ -224,6 +224,10 @@ class InsulationScores(RegionScoreParameterTable):
     def __init__(*args, **kwargs):
         RegionScoreParameterTable.__init__(*args, **kwargs)
 
+    @property
+    def window_sizes(self):
+        return self._parameters
+
     @classmethod
     def from_hic(cls, hic, window_sizes, file_name=None, tmpdir=None,
                  **kwargs):
@@ -301,6 +305,33 @@ class DirectionalityIndex(RegionScoreTable):
         directionality_index_regions.region_data('score', directionality_index)
 
         return directionality_index_regions
+
+
+class DirectionalityIndexes(RegionScoreParameterTable):
+    def __init__(*args, **kwargs):
+        RegionScoreParameterTable.__init__(*args, **kwargs)
+
+    @property
+    def window_sizes(self):
+        return self._parameters
+
+    @classmethod
+    def from_hic(cls, hic, window_sizes, file_name=None, tmpdir=None,
+                 **kwargs):
+        directionality_indexes = cls(parameter_prefix='directionality_',
+                                     parameter_values=list(window_sizes),
+                                     file_name=file_name, tmpdir=tmpdir)
+
+        for i, window_size in enumerate(window_sizes):
+            logger.debug("Window size {}".format(window_size))
+            di = DirectionalityIndex.from_hic(hic, window_size, **kwargs)
+            if i == 0:
+                directionality_indexes.add_regions(di.regions, preserve_attributes=False)
+
+            scores = list(di.scores())
+            directionality_indexes.scores(window_size, scores)
+
+        return directionality_indexes
 
 
 class Boundaries(RegionScoreTable):
