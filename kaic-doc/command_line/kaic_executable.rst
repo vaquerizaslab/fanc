@@ -35,8 +35,6 @@ this may not always work.
 You can easily change the temporary folder by setting the ``$TMPDIR`` environment variable.
 
 
-.. _kaic-auto:
-
 Automatic processing
 ~~~~~~~~~~~~~~~~~~~~
 
