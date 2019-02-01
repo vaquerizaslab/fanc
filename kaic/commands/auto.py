@@ -208,55 +208,58 @@ def auto_parser():
     parser.add_argument(
         'input',
         nargs='+',
-        help='''Input files. kaic will try to guess the file type
-                by its extension.'''
+        help="Input files. "
+             "kaic will try to guess the file "
+             "type by its extension."
     )
 
     parser.add_argument(
         'output_folder',
-        help='''Output folder. All output files and folders 
-                will be generated under this directory.'''
+        help="Output folder. "
+             "All output files and folders " 
+             "will be generated under this directory."
     )
 
     parser.add_argument(
         '-g', '--genome', dest='genome',
-        help='''Genome for the Hi-C object. 
-                Path to region-based file (BED, GFF, ...) containing
-                the non-overlapping regions to be used for Hi-C
-                object construction. Typically restriction-enzyme fragments.
-                Alternatively: Path to genome file (FASTA, folder with
-                FASTA, hdf5 file), which will be used in conjunction
-                with the type of restriction enzyme (-r) to calculate
-                fragments directly.'''
+        help="Genome for the Hi-C object." 
+             "Path to region-based file (BED, GFF, ...) containing "
+             "the non-overlapping regions to be used for Hi-C "
+             "object construction. Typically restriction-enzyme fragments. "
+             "Alternatively: Path to genome file (FASTA, folder with "
+             "FASTA, hdf5 file), which will be used in conjunction "
+             "with the type of restriction enzyme (-r) to calculate "
+             "fragments directly."
     )
 
     parser.add_argument(
         '-r', '--restriction-enzyme', dest='restriction_enzyme',
-        help='''Restriction enzyme name. Used for in silico digestion
-                of genomic sequences and splitting of reads at Hi-C
-                ligation junctions. (e.g. HindIII, case-sensitive)'''
+        help="Restriction enzyme name. "
+             "Used for in silico digestion "
+             "of genomic sequences and splitting of reads at Hi-C "
+             "ligation junctions. (e.g. HindIII, case-sensitive)"
     )
 
     parser.add_argument(
         '-i', '--genome-index', dest='genome_index',
-        help='''Bowtie 2 or BWA genome index. 
-                Only required when passing FASTQ 
-                files as input'''
+        help="Bowtie 2 or BWA genome index. "
+             "Only required when passing FASTQ "
+             "files as input."
     )
 
     parser.add_argument(
         '-n', '--basename', dest='basename',
-        help='''Basename for output files. If not 
-                provided, will be guessed based 
-                on input file names'''
+        help="Basename for output files. " 
+             "If not provided, will be guessed based " 
+             "on input file names."
     )
 
     parser.add_argument(
         '-s', '--step-size', dest='step_size',
         type=int,
         default=3,
-        help='''Step size for iterative mapping. 
-                Default: 3'''
+        help="Step size for iterative mapping. " 
+             "Default: 3"
     )
 
     parser.add_argument(
@@ -264,176 +267,200 @@ def auto_parser():
         nargs='+',
         default=['5mb', '2mb', '1mb', '500kb', '250kb', '100kb', '50kb',
                  '25kb', '10kb', '5kb'],
-        help='''Bin sizes for Hi-C matrix generation. 
-                Default: 5mb, 2mb, 1mb,
-                500kb, 250kb, 100kb, 50kb, 25kb, 
-                10kb, 5kb'''
+        help="Bin sizes for Hi-C matrix generation. " 
+             "Default: 5mb, 2mb, 1mb, "
+             "500kb, 250kb, 100kb, 50kb, 25kb, " 
+             "10kb, 5kb."
     )
 
     parser.add_argument(
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
-        help='''Maximum number of threads. The number provided here
-                will not be exceeded by analysis steps running alone 
-                or in parallel.'''
+        help="Maximum number of threads. "
+             "The number provided here will not be exceeded " 
+             "by analysis steps running alone or in parallel. "
     )
 
     parser.add_argument(
         '--mapper-parallel', dest='mapper_parallel',
         action='store_true',
         default=False,
-        help='''Use Bowtie2/BWA parallelisation. By default, kaic
-                spawns multiple mapping processes. Using the mapper
-                parallelisation is typically slower, but consumes less 
-                memory and has a lower disk I/O overhead.'''
+        help="Use Bowtie2/BWA parallelisation. "
+             "By default, kaic spawns multiple mapping " 
+             "processes. Using the mapper parallelisation " 
+             "is typically slower, but consumes less " 
+             "memory and has a lower disk I/O overhead. "
     )
 
     parser.add_argument(
         '--split-fastq', dest='split_fastq',
         action='store_true',
         default=False,
-        help='''Split fastq files into chunks of 10M reads. 
-                Reads will be merged again on the SAM level.
-                Splitting and merging bypasses the -tmp flag. 
-                This option reduces disk usage in tmp, in case
-                the system has a small tmp partition.'''
+        help="Split fastq files into chunks of 10M reads. " 
+             "Reads will be merged again on the SAM level. "
+             "Splitting and merging bypasses the -tmp flag. " 
+             "This option reduces disk usage in tmp, in case "
+             "the system has a small tmp partition. "
     )
 
     parser.add_argument(
         '--memory-map', dest='memory_map',
         action='store_true',
         default=False,
-        help='''Map Bowtie2 index to memory. Recommended 
-                if running on medium-memory systems and using many
-                parallel threads).'''
+        help="Map Bowtie2 index to memory. Recommended " 
+             "if running on medium-memory systems and using many "
+             "parallel threads)."
     )
 
     parser.add_argument(
         '--ice', dest='ice',
         action='store_true',
         default=False,
-        help='''Correct Hi-C matrices using ICE.'''
+        help="Correct Hi-C matrices using ICE."
     )
 
     parser.add_argument(
         '-q', '--quality-cutoff', dest='quality_cutoff',
         type=int,
-        help='''Quality cutoff for mapped reads. Default: no cutoff.'''
+        help="Quality cutoff for mapped reads. Default: no cutoff."
     )
 
     parser.add_argument(
         '--le-inward-cutoff', dest='inward_cutoff',
         type=int,
-        help='''Ligation error inward cutoff.
-                Default: no ligation error filtering.'''
+        help="Ligation error inward cutoff. "
+             "Default: no ligation error filtering."
     )
 
     parser.add_argument(
         '--le-outward-cutoff', dest='outward_cutoff',
         type=int,
-        help='''Ligation error outward cutoff.
-                Default: no ligation error filtering.'''
+        help="Ligation error outward cutoff. "
+             "Default: no ligation error filtering."
     )
 
     parser.add_argument(
         '--auto-le-cutoff', dest='auto_le_cutoff',
         action='store_true',
         default=False,
-        help='''Automatically determine ligation error cutoffs.
-                Use with caution, this setting has a tendency to
-                choose large cutoffs, removing many pairs close to 
-                the diagonal.'''
+        help="Automatically determine ligation error cutoffs. "
+             "Use with caution, this setting has a tendency to "
+             "choose large cutoffs, removing many pairs close to " 
+             "the diagonal."
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
-        help='''Work in temporary directory. Copies input files and 
-                generates output files in a temporary directory.
-                Files will be moved to their intended destination once 
-                an analysis step finishes.
-                Reduces network I/O if using remote file systems.'''
+        help="Work in temporary directory. Copies input files and " 
+             "generates output files in a temporary directory. "
+             "Files will be moved to their intended destination once " 
+             "an analysis step finishes. "
+             "Reduces network I/O if using remote file systems."
     )
 
     parser.add_argument(
         '--no-iterative', dest='iterative',
         action='store_false',
         default=True,
-        help='''Do not map reads iteratively. By default, kaic uses
-                an iterative mapping strategy: reads are initially 
-                trimmed to 25bp and mapped to the reference genome.
-                If no unique mapping location is found, the read is 
-                extended by 3bp and the process is repeated until the 
-                full length of the read is reached or a unique mapping 
-                location is found. Use this setting to only use regular 
-                mapping.'''
+        help="Do not map reads iteratively. By default, kaic uses "
+             "an iterative mapping strategy: reads are initially " 
+             "trimmed to 25bp and mapped to the reference genome. "
+             "If no unique mapping location is found, the read is " 
+             "extended by 3bp and the process is repeated until the " 
+             "full length of the read is reached or a unique mapping " 
+             "location is found. Use this setting to only use regular " 
+             "mapping."
     )
 
     parser.add_argument(
         '--no-sam-sort', dest='sam_sort',
         action='store_false',
         default=True,
-        help='''Do not sort SAM/BAM files. Sorted files are required 
-                for the pair generating step. Only omit this if you are 
-                supplying presorted (by read name) SAM/BAM files.'''
+        help="Do not sort SAM/BAM files. Sorted files are required " 
+             "for the pair generating step. Only omit this if you are " 
+             "supplying presorted (by read name) SAM/BAM files."
     )
 
     parser.add_argument(
         '--restore-coverage', dest='restore_coverage',
         action='store_true',
         default=False,
-        help='''Restore coverage to the original total number of reads. 
-                Otherwise matrix entries will be contact probabilities.
-                Only available for KR matrix balancing.'''
+        help="Restore coverage to the original total number of reads. " 
+             "Otherwise matrix entries will be contact probabilities. "
+             "Only available for KR matrix balancing."
     )
 
     parser.add_argument(
         '--split-ligation-junction', dest='split_ligation_junction',
         action='store_true',
         default=False,
-        help='''Split reads at predicted ligation junction before mapping.
-                Requires the -r argument.'''
+        help="Split reads at predicted ligation junction before mapping. "
+             "Requires the -r argument."
+    )
+
+    parser.add_argument(
+        '--no-filter-pairs', dest='filter_pairs',
+        action='store_false',
+        default=True,
+        help="Do not filter read pairs. By default, the following "
+             "filters are applied: self-ligations, PDR duplicates,"
+             "restriction distance (>10kb)"
     )
 
     parser.add_argument(
         '--no-hic', dest='process_hic',
         action='store_false',
         default=True,
-        help='''Do not process pairs into Hi-C maps 
-                   (stop after read pairing step).'''
+        help="Do not process pairs into Hi-C maps "
+             "(stop after read pairing step)."
     )
 
     parser.add_argument(
         '--run-with', dest='run_with',
         default='parallel',
-        help='''Choose how to run the commands in kaic auto. Options:
-                "parallel" (default): Run kaic commands on local machine,
-                use multiprocessing parallelisation.
-                "sge": Submit kaic commands to a Sun/Oracle Grid Engine cluster.
-                "test": Do not run kaic commands but print all commands 
-                and their dependencies to stdout for review.'''
+        help="Choose how to run the commands in kaic auto. Options: "
+             "'parallel' (default): Run kaic commands on local machine, "
+             "use multiprocessing parallelisation. "
+             "'sge': Submit kaic commands to a Sun/Oracle Grid Engine cluster. "
+             "'test': Do not run kaic commands but print all commands " 
+             "and their dependencies to stdout for review."
     )
 
     parser.add_argument(
         '--sge-prefix', dest='sge_prefix',
-        help='''Job Prefix for SGE. Works with "--run-with sge".
-                Default: "kaic_<6 random letters>_"'''
+        help="Job Prefix for SGE. Works with '--run-with sge'. "
+             "Default: 'kaic_<6 random letters>_'"
     )
 
     parser.add_argument(
         '-f', '--force-overwrite', dest='force_overwrite',
         action='store_true',
         default=False,
-        help='''Force overwriting of existing files. Otherwise you will 
-                be prompted before files are overwritten.'''
+        help="Force overwriting of existing files. Otherwise you will " 
+             "be prompted before files are overwritten."
     )
 
     return parser
 
 
 def file_type(file_name):
+    # try to see if this is a valid pairs file
+    from kaic.pairs import HicProPairGenerator, FourDNucleomePairGenerator
+    try:
+        _ = FourDNucleomePairGenerator(file_name)
+        return 'pairs_txt'
+    except ValueError:
+        pass
+
+    try:
+        _ = HicProPairGenerator(file_name)
+        return 'pairs_txt'
+    except ValueError:
+        pass
+
     base, extension = os.path.splitext(file_name)
     if extension in ['.sam', '.bam']:
         return 'sam'
@@ -491,6 +518,10 @@ def auto(argv):
     file_types = [file_type(file_name) for file_name in file_names]
     file_basenames = [file_basename(file_name) for file_name in file_names]
 
+    for file_name in file_names:
+        if not os.path.exists(file_name):
+            parser.error("File '{}' does not exist!".format(file_name))
+
     runner = None
     if run_with == 'parallel':
         runner = ParallelTaskRunner(threads)
@@ -511,7 +542,7 @@ def auto(argv):
                      "parameter for options".format(run_with))
 
     for i in range(len(file_types)):
-        if file_types[i] not in ('fastq', 'sam', 'pairs', 'hic'):
+        if file_types[i] not in ('fastq', 'sam', 'pairs_txt', 'pairs', 'hic'):
             import kaic
             try:
                 ds = kaic.load(file_names[i], mode='r')
@@ -522,7 +553,7 @@ def auto(argv):
                 else:
                     raise ValueError("Could not detect file type using kaic load.")
             except ValueError:
-                raise ValueError("Not a valid input file type: {}".format(file_type))
+                parser.error("Not a valid input file type: {}".format(file_type))
 
     if basename is None:
         if len(file_basenames) == 1:
@@ -550,8 +581,7 @@ def auto(argv):
     is_bowtie2 = False
     if 'fastq' in file_types:
         if args.genome_index is None:
-            print("Error: Must provide genome index (-i) when mapping FASTQ files!")
-            quit(1)
+            parser.error("Must provide genome index (-i) when mapping FASTQ files!")
         else:
             check_path = os.path.expanduser(genome_index)
             if check_path.endswith('.'):
@@ -571,28 +601,30 @@ def auto(argv):
                     is_bwa = False
 
             if not is_bowtie2 and not is_bwa:
-                raise RuntimeError("Cannot detect Bowtie2 or BWA index.")
+                parser.error("Cannot detect Bowtie2 or BWA index.")
 
             if is_bowtie2 and not which('bowtie2'):
-                raise ValueError("bowtie2 must be in PATH for mapping!")
+                parser.error("bowtie2 must be in PATH for mapping!")
 
             if is_bwa and not which('bwa'):
-                raise ValueError("bwa must be in PATH for mapping!")
+                parser.error("bwa must be in PATH for mapping!")
 
     if 'fastq' in file_types or 'sam' in file_types:
         if genome is None:
-            print("Error: Must provide genome (-g) to process read pair files!")
-            quit(1)
+            parser.error("Must provide genome (-g) to process read pair files!")
 
         if restriction_enzyme is None:
-            print("Error: Must provide restriction enzyme (-r) to process read pair files!")
-            quit(1)
+            from kaic.regions import genome_regions
+            try:
+                genome_regions(genome)
+            except ValueError:
+                parser.error("Must provide restriction enzyme (-r) to process read pair files!")
         else:
             from Bio import Restriction
             try:
                 getattr(Restriction, restriction_enzyme)
             except AttributeError:
-                raise ValueError("restriction_enzyme string is not recognized: %s" % restriction_enzyme)
+                parser.error("Restriction enzyme string '{}' is not recognized".format(restriction_enzyme))
 
     logger.info("Output folder: {}".format(output_folder))
     logger.info("Input files: {}".format(", ".join(file_names)))
@@ -640,10 +672,10 @@ def auto(argv):
                 mapping_command.append('--mapper-parallel')
             if split_fastq:
                 mapping_command.append('--split-fastq')
-            if not memory_map:
-                mapping_command.append('--no-memory-map')
+            if memory_map:
+                mapping_command.append('--memory-map')
             if not iterative:
-                mapping_command.append('--simple')
+                mapping_command.append('--no-iterative')
             if split_ligation_junction:
                 mapping_command.append('--restriction-enzyme')
                 mapping_command.append(restriction_enzyme)
@@ -691,28 +723,75 @@ def auto(argv):
     else:
         sam_sort_tasks = mapping_tasks
 
+    total_pairs = 0
+    pairs_txt_tasks = []
+    # sort SAM files
+    pairs_txt_files = []
+    for i in range(len(file_names)):
+        if file_types[i] != 'pairs_txt':
+            continue
+        pairs_txt_files.append(i)
+
+    if len(pairs_txt_files) > 0:
+        load_threads = max(int(threads / len(pairs_txt_files)), 1)
+
+        pairs_files = []
+        for ix in pairs_txt_files:
+            pairs_txt_file = file_names[ix]
+            pairs_file = os.path.join(output_folder, 'pairs', '{}_{}.pairs'.format(basename, total_pairs))
+            total_pairs += 1
+            if not force_overwrite and os.path.exists(pairs_file):
+                parser.error("File exists ({}), use -f to force overwriting it.".format(pairs_file))
+
+            pairs_files.append(pairs_file)
+
+            pairs_command = ['kaic', 'pairs', '-f',
+                             # loading
+                             '-g', genome,
+                             '-t', str(load_threads)]
+
+            if restriction_enzyme is not None:
+                pairs_command += ['-r', restriction_enzyme]
+            if is_bwa:
+                pairs_command.append('--bwa')
+            if tmp:
+                pairs_command.append('-tmp')
+            if sam_sort:
+                pairs_command.append('-S')
+
+            pairs_command += [pairs_txt_file, pairs_file]
+
+            pairs_task = CommandTask(pairs_command)
+            runner.add_task(pairs_task, wait_for=[], threads=load_threads)
+            pairs_txt_tasks.append(pairs_task)
+
+            pairs_files.append(pairs_file)
+
+        for ix, i in enumerate(pairs_txt_files):
+            file_names[i] = pairs_files[ix]
+            file_types[i] = 'pairs'
+
     # load pairs directly from SAM
     sam_file_pairs = []
     i = 0
     while i < len(file_names):
         if file_types[i] == 'sam':
             if not file_types[i + 1] == 'sam':
-                raise RuntimeError("Cannot create SAM pairs, because %s is missing a partner file" % file_names[i])
+                parser.error("Cannot create SAM pairs, because {} "
+                             "is missing a partner file".format(file_names[i]))
             sam_file_pairs.append((i, i + 1))
             i += 1
         i += 1
 
     if len(sam_file_pairs) > 0:
-        sam_to_pairs_tasks = []
-        pair_basenames = [basename + '_' + str(i) for i in range(len(sam_file_pairs))]
-
+        sam_to_pairs_tasks = pairs_txt_tasks
         load_threads = max(int(threads/len(sam_file_pairs)), 1)
 
         pairs_files = []
         for i, j in sam_file_pairs:
-            pair_basename = pair_basenames[len(pairs_files)]
-            if len(sam_file_pairs) > 1:
-                pairs_file = output_folder + 'pairs/' + pair_basename + '.pairs'
+            if len(sam_file_pairs) > 1 or total_pairs > 0:
+                pairs_file = os.path.join(output_folder, 'pairs', '{}_{}.pairs'.format(basename, total_pairs))
+                total_pairs += 1
             else:
                 pairs_file = output_folder + 'pairs/' + basename + '.pairs'
 
@@ -722,11 +801,11 @@ def auto(argv):
             pairs_command = ['kaic', 'pairs', '-f',
                              # loading
                              '-g', genome,
-                             '-r', restriction_enzyme,
                              '-t', str(load_threads),
                              # filtering
                              '-m', '-us']
-
+            if restriction_enzyme is not None:
+                pairs_command += ['-r', restriction_enzyme]
             if quality_cutoff is not None:
                 pairs_command += ['-q', str(quality_cutoff)]
             if is_bwa:
@@ -750,7 +829,7 @@ def auto(argv):
             file_types[sam_pair[0]] = 'pairs'
             del file_types[sam_pair[1]]
     else:
-        sam_to_pairs_tasks = sam_sort_tasks
+        sam_to_pairs_tasks = pairs_txt_tasks + sam_sort_tasks
 
     # 7. Pairs stats and filtering
     pairs_files = []
