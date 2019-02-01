@@ -64,6 +64,10 @@ class Edge(object):
             setattr(self, key.decode() if isinstance(key, bytes) else key, value)
             self.field_names.append(key)
 
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
     @property
     def source(self):
         try:
@@ -101,17 +105,39 @@ class LazyEdge(Edge):
     def __init__(self, row, nodes_table=None):
         self._row = row
         self._nodes_table = nodes_table
+        self._updates = {}
+        self.__initialised = True
 
     def __getattr__(self, item):
+        if item in self.__dict__:
+            return Edge.__getattribute__(self, item)
+
         try:
-            return self._row[item]
+            return self._updates[item]
         except KeyError:
-            raise AttributeError("No such attribute {}".format(item))
+            try:
+                return self._row[item]
+            except KeyError:
+                raise AttributeError("No such attribute {}".format(item))
+
+    def __setattr__(self, key, value):
+        if '_LazyEdge__initialised' not in self.__dict__:
+            return Edge.__setattr__(self, key, value)
+        elif key in self.__dict__:
+            Edge.__setattr__(self, key, value)
+            if key == '_row':
+                self._updates.clear()
+        else:
+            self._updates[key] = value
 
     def set_row_field(self, key, value, auto_update=True):
         self._row[key] = value
         if auto_update:
             self._row.update()
+
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            self._updates[key] = value
 
     @property
     def source_node(self):
@@ -1055,7 +1081,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         return False
 
     def _edge_subset_rows(self, key):
-        row_regions, col_regions = self._key_to_regions(key, lazy=True)
+        row_regions, col_regions = self._key_to_regions(key, lazy=False)
 
         return self._edge_subset_rows_from_regions(
             row_regions, col_regions
@@ -1126,8 +1152,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
             yield (row['source'], row['sink'], row[score_field])
 
-    def _row_to_edge(self, row, lazy=False, **kwargs):
-        if not lazy:
+    def _row_to_edge(self, row, lazy_edge=None, **kwargs):
+        if lazy_edge is None:
             source = row["source"]
             sink = row["sink"]
             d = dict()
@@ -1140,20 +1166,31 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             source_node = self.regions[source]
             sink_node = self.regions[sink]
             return Edge(source_node, sink_node, **d)
-        else:
-            return LazyEdge(row, self._regions)
+
+        lazy_edge._row = row
+        return lazy_edge
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None,
-                      *args, **kwargs):
-        for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
-            yield self._row_to_edge(row, *args, **kwargs)
+                      lazy=False, *args, **kwargs):
+        if lazy:
+            lazy_edge = LazyEdge(None, self._regions)
+        else:
+            lazy_edge = None
 
-    def _edges_iter(self, *args, **kwargs):
+        for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
+            yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
+
+    def _edges_iter(self, lazy=False, *args, **kwargs):
+        if lazy:
+            lazy_edge = LazyEdge(None, self._regions)
+        else:
+            lazy_edge = None
+
         for i in range(0, len(self._partition_breaks) + 1):
             for j in range(i, len(self._partition_breaks) + 1):
                 if (i, j) in self._edge_table_dict:
                     for row in self._edge_table_dict[(i, j)]:
-                        yield self._row_to_edge(row, *args, **kwargs)
+                        yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
 
     def _edges_length(self):
         s = 0
@@ -1243,15 +1280,15 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         self._update_mappability()
 
-    def sample(self, n, exact=False, file_name=None):
+    def sample(self, n, with_replacement=False, file_name=None):
         if isinstance(n, RegionPairsContainer):
             n = len(n.edges)
 
         region_pairs = []
-        if not exact:
+        if with_replacement:
             weights = []
             logger.info("Using sampling with replacement")
-            for edge in self.edges(lazy=True):
+            for edge in self.edges(lazy=True, norm=False):
                 region_pairs.append((edge.source, edge.sink))
                 weights.append(edge.weight)
             s = sum(weights)
@@ -1259,14 +1296,14 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         else:
             p = None
             logger.info("Using sampling without replacement")
-            for edge in self.edges(lazy=True):
+            for edge in self.edges(lazy=True, norm=False):
                 for i in range(int(edge.weight)):
                     region_pairs.append((edge.source, edge.sink))
 
         new_pairs = self.__class__(file_name=file_name, mode='w')
         new_pairs.add_regions(self.regions, preserve_attributes=False)
         new_edges = defaultdict(int)
-        for new_pair_ix in np.random.choice(len(region_pairs), size=n, replace=not exact, p=p):
+        for new_pair_ix in np.random.choice(len(region_pairs), size=n, replace=with_replacement, p=p):
             new_edges[region_pairs[new_pair_ix]] += 1
         new_edges = [[source, sink, weight] for (source, sink), weight in new_edges.items()]
         new_pairs.add_edges(new_edges)
