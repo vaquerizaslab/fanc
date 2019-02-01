@@ -5,7 +5,11 @@ import zlib
 import numpy as np
 from genomic_regions import GenomicRegion
 
+from ..regions import Genome
+from ..hic import Hic
 from ..matrix import RegionMatrixContainer, Edge
+
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,71 @@ def is_juicer(file_name):
             return False
         else:
             return True
+
+
+def convert_juicer_to_hic(juicer_file, juicer_tools_jar_path, genome_file, resolution,
+                          norm='NONE', output_file=None, inter_chromosomal=True,
+                          chromosomes=None):
+    hic = Hic(file_name=output_file, mode='w')
+
+    # regions
+    logger.info("Building genome {}".format(genome_file))
+    genome = Genome.from_string(genome_file)
+    regions = genome.get_regions(resolution, chromosomes=chromosomes)
+    hic.add_regions(regions)
+    genome.close()
+    regions.close()
+
+    if chromosomes is None:
+        chromosomes = hic.chromosomes()
+    chromosome_bins = hic.chromosome_bins
+
+    logger.info("Extracting edges from hic file")
+    nan_counter = 0
+    for i in range(len(chromosomes)):
+        chromosome1 = chromosomes[i]
+        offset1 = chromosome_bins[chromosome1][0]
+
+        for j in range(i, len(chromosomes)):
+            if i != j and not inter_chromosomal:
+                continue
+            chromosome2 = chromosomes[j]
+            offset2 = chromosome_bins[chromosome2][0]
+
+            logger.info("{} -- {}".format(chromosome1, chromosome2))
+
+            juicer_command = ['java', '-jar', juicer_tools_jar_path,
+                              'dump', 'observed', norm, juicer_file,
+                              chromosome1, chromosome2, 'BP', str(resolution)]
+
+            juicer_process = subprocess.Popen(juicer_command, stdout=subprocess.PIPE)
+
+            for line in juicer_process.stdout:
+                fields = line.rstrip().split()
+
+                try:
+                    start, end, weight = int(fields[0]), int(fields[1]), float(fields[2])
+                except ValueError:
+                    continue
+
+                start_ix = int(start / resolution) + offset1
+                end_ix = int(end / resolution) + offset2
+                if start_ix > end_ix:
+                    start_ix, end_ix = end_ix, start_ix
+
+                if not np.isfinite(weight):
+                    nan_counter += 1
+                    continue
+
+                hic.add_edge([start_ix, end_ix, weight], check_nodes_exist=False)
+
+    hic.flush()
+
+    if nan_counter > 0:
+        logger.warning("{} contacts could not be imported, "
+                       "because they had non-finite values.".format(nan_counter))
+
+    return hic
 
 
 def _read_cstr(f):
