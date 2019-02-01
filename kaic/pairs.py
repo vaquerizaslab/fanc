@@ -209,6 +209,41 @@ class TxtReadPairGenerator(ReadPairGenerator):
         else:
             self._open_file = open
 
+        if not os.path.exists(valid_pairs_file):
+            raise ValueError("File {} does not exist!".format(valid_pairs_file))
+
+        # check that this file is valid:
+        with self._open_file(valid_pairs_file, 'r') as f:
+            for line in f:
+                line = line.rstrip()
+                if line.startswith('#') or line == '':
+                    continue
+
+                fields = line.split(sep)
+
+                # find max field
+                max_field_ix = 0
+                for field_number in {chr1_field, chr2_field,
+                                     pos1_field, pos2_field,
+                                     strand1_field, strand2_field}:
+                    if field_number is not None:
+                        max_field_ix = max(max_field_ix, field_number)
+
+                if len(fields) < max_field_ix + 1:
+                    raise ValueError("Not enough fields ({}) in file {}".format(len(fields),
+                                                                                valid_pairs_file))
+
+                # ensure we can transform pos fields to int
+                int(fields[pos1_field])
+                int(fields[pos2_field])
+                # ensure strand fields are valid if specified
+                if strand1_field is not None and fields[strand1_field] not in {'+', '-', '.', '-1', '1', '+1'}:
+                    raise ValueError("Cannot read strand1 field!")
+                if strand2_field is not None and fields[strand2_field] not in {'+', '-', '.', '-1', '1', '+1'}:
+                    raise ValueError("Cannot read strand2 field!")
+
+                break
+
     def _iter_read_pairs(self, *args, **kwargs):
         with self._open_file(self._file_name, 'r') as f:
             for line in f:
@@ -238,7 +273,7 @@ class HicProPairGenerator(TxtReadPairGenerator):
 
 class FourDNucleomePairGenerator(TxtReadPairGenerator):
     def __init__(self, pairs_file):
-        if self._file_name.endswith('.gz') or self._file_name.endswith('gzip'):
+        if pairs_file.endswith('.gz') or pairs_file.endswith('gzip'):
             open_file = gzip.open
         else:
             open_file = open
