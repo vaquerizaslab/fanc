@@ -86,57 +86,6 @@ def hic_contact_plot_linear(hic, regions, output=None, window_size=1000000):
     return df
 
 
-def _correlation_df(hic1, hic2, include_zeros=False, in_percent=False):
-    chromosomes = hic1.chromosomes()
-
-    corr_matrix = np.zeros(shape=(len(chromosomes), len(chromosomes)))
-
-    for chr_i in range(0, len(chromosomes)):
-        chromosome1 = chromosomes[chr_i]
-        for chr_j in range(chr_i, len(chromosomes)):
-            chromosome2 = chromosomes[chr_j]
-
-            m1 = hic1[chromosome1, chromosome2]
-            m2 = hic2[chromosome1, chromosome2]
-
-            contacts1 = []
-            contacts2 = []
-            for i in range(0, m1.shape[0]):
-                for j in range(i, m1.shape[1]):
-                    if not include_zeros and m1[i, j] == 0 and m2[i, j] == 0:
-                        continue
-                    contacts1.append(m1[i, j])
-                    contacts2.append(m2[i, j])
-
-            corr = np.corrcoef(contacts1, contacts2)[0, 1]
-            if in_percent:
-                corr = int(corr*100 + 0.5)
-            corr_matrix[chr_i, chr_j] = corr
-            corr_matrix[chr_j, chr_i] = corr
-
-    return pandas.DataFrame(data=corr_matrix, index=chromosomes, columns=chromosomes)
-
-
-def hic_correlation_plot(hic1, hic2, output=None, include_zeros=False, colormap=config.colormap_hic, size=10):
-    corr_df = _correlation_df(hic1, hic2, include_zeros=include_zeros, in_percent=True)
-
-    if output is not None:
-        old_backend = plt.get_backend()
-        plt.switch_backend('pdf')
-        plt.ioff()
-
-    plt.figure(figsize=(size, size))
-    heatmap = sns.heatmap(corr_df, vmin=5, vmax=95, cmap=colormap, square=True, annot=True, fmt=".0f")
-
-    if output is not None:
-        heatmap.figure.savefig(output)
-        plt.close(heatmap.figure)
-        plt.ion()
-        plt.switch_backend(old_backend)
-    else:
-        plt.show()
-
-
 def hic_ma_plot(hic1, hic2, output=None, highlights=None, key=slice(0, None, None),
                 colormap='RdBu_r', log_x=True, log_y=True, inter_chromosomal=True,
                 size_factor_correct=True, plot_3d=False):
