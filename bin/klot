@@ -83,14 +83,14 @@ class Klot(object):
             for r in global_args.regions:
                 path = os.path.expanduser(r)
                 if os.path.isfile(path):
-                    import kaic
-                    path_regions = kaic.load(path)
+                    import genomic_regions as gr
+                    path_regions = gr.load(path)
                     if not hasattr(path_regions, 'regions'):
                         raise ValueError("Provided file does not contain any regions ({})".format(path))
                     regions += list(path_regions.regions)
                 else:
-                    import kaic
-                    region = kaic.GenomicRegion.from_string(r)
+                    import genomic_regions as gr
+                    region = gr.as_region(r)
                     regions.append(region)
 
         if len(regions) == 0:
