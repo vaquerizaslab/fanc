@@ -213,7 +213,7 @@ class TxtReadPairGenerator(ReadPairGenerator):
             raise ValueError("File {} does not exist!".format(valid_pairs_file))
 
         # check that this file is valid:
-        with self._open_file(valid_pairs_file, 'r') as f:
+        with self._open_file(valid_pairs_file, 'rt') as f:
             for line in f:
                 line = line.rstrip()
                 if line.startswith('#') or line == '':
