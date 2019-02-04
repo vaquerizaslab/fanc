@@ -3,6 +3,7 @@ from .maxima_callers import MaximaCallerDelta
 from .helpers import RegionScoreMatrix
 from ..regions import RegionsTable
 from ..tools.matrix import apply_sliding_func, trim_stats
+from ..tools.files import write_bed, write_bigwig, write_gff
 from scipy.stats.mstats import gmean
 import numpy as np
 import tables
@@ -64,6 +65,28 @@ class RegionScoreParameterTable(RegionMultiScoreTable):
             row = [getattr(r, name) for name in columns]
             scores.append(row)
         return RegionScoreMatrix(np.array(scores), row_regions=regions, columns=columns)
+
+    def _to_file(self, file_name, parameter, subset=None, _write_function=write_bed):
+        score_field = self._score_field_generator([parameter])[0]
+
+        regions = []
+        for region in self.regions(subset):
+            score = getattr(region, score_field)
+            r = GenomicRegion(chromsome=region.chromosome,
+                              start=region.start, end=region.end,
+                              score=score)
+            regions.append(r)
+        _write_function(file_name, regions)
+        return file_name
+
+    def to_bed(self, file_name, parameter, subset=None):
+        return self._to_file(file_name, parameter, subset=subset, _write_function=write_bed)
+
+    def to_gff(self, file_name, parameter, subset=None):
+        return self._to_file(file_name, parameter, subset=subset, _write_function=write_gff)
+
+    def to_bigwig(self, file_name, parameter, subset=None):
+        return self._to_file(file_name, parameter, subset=subset, _write_function=write_bigwig)
 
 
 class InsulationScore(RegionScoreTable):
