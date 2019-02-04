@@ -245,7 +245,7 @@ class TxtReadPairGenerator(ReadPairGenerator):
                 break
 
     def _iter_read_pairs(self, *args, **kwargs):
-        with self._open_file(self._file_name, 'r') as f:
+        with self._open_file(self._file_name, 'rt') as f:
             for line in f:
                 line = line.rstrip()
                 if line == '' or line.startswith('#'):
@@ -279,7 +279,7 @@ class FourDNucleomePairGenerator(TxtReadPairGenerator):
             open_file = open
 
         columns = dict()
-        with open_file(pairs_file, 'r') as f:
+        with open_file(pairs_file, 'rt') as f:
             for line_ix, line in enumerate(f):
                 if line_ix == 0 and not line.startswith("## pairs format"):
                     raise ValueError("Not a 4D nucleome pairs format file."
