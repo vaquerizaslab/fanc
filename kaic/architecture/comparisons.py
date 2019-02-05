@@ -4,7 +4,9 @@ import logging
 import operator
 from collections import defaultdict
 
+from ..regions import RegionsTable
 from ..matrix import RegionMatrixTable, Edge
+from .domains import RegionScoreParameterTable
 
 import numpy as np
 from sklearn.decomposition import PCA
@@ -43,7 +45,8 @@ def _edge_collection(*hics, region=None, scale=True,
     for i, hic in enumerate(hics):
         for edge in hic.edges(region, lazy=True, **kwargs):
             weight = edge.weight * scaling_factors[i]
-            edges[(edge.source, edge.sink)].append(weight)
+            source, sink = edge.source, edge.sink
+            edges[(source, sink)].append(weight)
 
         for k, v in edges.items():
             if len(v) < i + 1:
@@ -66,7 +69,7 @@ class EdgeCollectionFilter(object):
                                   "'valid'!")
 
 
-class BackgroundLigationFilter(EdgeCollectionFilter):
+class ObservedExpectedFilter(EdgeCollectionFilter):
     def __init__(self, hics, fold_change_cutoff=1.0, min_valid_edges=1,
                  oe_per_chromosome=True):
         EdgeCollectionFilter.__init__(self)
@@ -120,6 +123,46 @@ class NonzeroFilter(EdgeCollectionFilter):
         if 0 in weights:
             return False
         return True
+
+
+class AbsoluteWeightFilter(EdgeCollectionFilter):
+    def __init__(self, cutoff, min_above_cutoff=1):
+        EdgeCollectionFilter.__init__(self)
+
+        self.cutoff = cutoff
+        self._min_valid = min_above_cutoff
+
+    def valid(self, source, sink, weights):
+        counter = 0
+        for weight in weights:
+            if weight >= self.cutoff:
+                counter += 1
+
+        if counter < self._min_valid:
+            return False
+        return True
+
+
+class MinMaxDistanceFilter(EdgeCollectionFilter):
+    def __init__(self, hics, min_distance=None, max_distance=None):
+        self.bin_size = None
+        for hic in hics:
+            if self.bin_size is None:
+                self.bin_size = hic.bin_size
+            else:
+                if self.bin_size != hic.bin_size:
+                    raise ValueError("Hic objects must have same bin size! "
+                                     "({}/{})".format(self.bin_size, hic.bin_size))
+        EdgeCollectionFilter.__init__(self)
+        self.min_distance = np.round(min_distance/self.bin_size) if min_distance is not None else None
+        self.max_distance = np.round(max_distance/self.bin_size) if max_distance is not None else None
+
+    def valid(self, source, sink, weights):
+        d = abs(sink - source)
+        if self.min_distance is None and d < self.min_distance:
+            return False
+        if self.max_distance is None and d > self.max_distance:
+            return False
 
 
 class ComparisonMatrix(RegionMatrixTable):
@@ -187,6 +230,146 @@ class DifferenceMatrix(ComparisonMatrix):
         return weight1 - weight2
 
 
+class ComparisonScores(RegionScoreParameterTable):
+
+    _classid = 'COMPARISONSCORES'
+
+    def __init__(self, *args, **kwargs):
+        RegionScoreParameterTable.__init__(self, *args, **kwargs)
+
+    def compare(self, score1, score2):
+        """
+        Compare two edge weights.
+
+        :param score1: float
+        :param score2: float
+        :return: float
+        """
+        raise NotImplementedError("Subclasses of ComparisonScores must implement "
+                                  "'compare'")
+
+    @classmethod
+    def from_scores(cls, scores1, scores2, attributes=None, file_name=None, tmpdir=None,
+                    log=False, field_prefix='cmp_', *args, **kwargs):
+        # all matching parameters
+        if attributes is None:
+            attributes = []
+            attributes1 = scores1._score_fields
+            for a, p in zip(scores2._score_fields, scores2._parameters):
+                if a in attributes1:
+                    attributes.append(p)
+
+        comparison_scores = cls(parameter_values=attributes, parameter_prefix=field_prefix,
+                                file_name=file_name, tmpdir=tmpdir)
+        comparison_scores.add_regions(scores1.regions, preserve_attributes=False)
+
+        region_pairs = list()
+        region_ixs = dict()
+        for region in scores1.regions:
+            region_ixs[(region.chromosome, region.start, region.end)] = len(region_pairs)
+            region_pairs.append([region, None])
+
+        for region in scores2.regions:
+            ix = region_ixs[(region.chromosome, region.start, region.end)]
+            region_pairs[ix][1] = region
+
+        for attribute in attributes:
+            cmp_scores = []
+            for r1, r2 in region_pairs:
+                v1 = getattr(r1, attribute)
+                v2 = getattr(r2, attribute)
+                v_cmp = comparison_scores.compare(v1, v2)
+                if log:
+                    v_cmp = np.log2(v_cmp)
+                cmp_scores.append(v_cmp)
+            comparison_scores.scores(attribute, cmp_scores)
+
+
+class FoldChangeScores(ComparisonScores):
+
+    _classid = 'FOLDCHANGEMATRIX'
+
+    def __init__(self, *args, **kwargs):
+        ComparisonScores.__init__(self, *args, **kwargs)
+
+    def compare(self, score1, score2):
+        return score1 / score2
+
+
+class DifferenceScores(ComparisonScores):
+
+    _classid = 'DIFFERENCEMATRIX'
+
+    def __init__(self, *args, **kwargs):
+        ComparisonScores.__init__(self, *args, **kwargs)
+
+    def compare(self, score1, score2):
+        return score1 - score2
+
+
+class ComparisonRegions(RegionsTable):
+
+    _classid = 'COMPARISONREGIONS'
+
+    def __init__(self, *args, **kwargs):
+        RegionsTable.__init__(self, *args, **kwargs)
+
+    def compare(self, score1, score2):
+        """
+        Compare two edge weights.
+
+        :param score1: float
+        :param score2: float
+        :return: float
+        """
+        raise NotImplementedError("Subclasses of ComparisonRegions must implement "
+                                  "'compare'")
+
+    @classmethod
+    def from_regions(cls, region_based1, region_based2, attribute='score',
+                     file_name=None, tmpdir=None, log=False, score_field='score',
+                     *args, **kwargs):
+        comparison_regions = cls(file_name=file_name, tmpdir=tmpdir)
+        comparison_regions.add_regions(region_based1.regions, preserve_attributes=False)
+
+        regions = dict()
+        for region in region_based1.regions:
+            regions[(region.chromosome, region.start, region.end)] = region
+
+        scores = []
+        for region2 in region_based2.regions:
+            region1 = regions[(region2.chromosome, region2.start, region2.end)]
+            v1 = getattr(region1, attribute)
+            v2 = getattr(region2, attribute)
+            v = comparison_regions.compare(v1, v2)
+            if log:
+                v = np.log2(v)
+            scores.append(v)
+        comparison_regions.region_data(score_field, scores)
+
+
+class FoldChangeRegions(ComparisonRegions):
+
+    _classid = 'FOLDCHANGEREGIONS'
+
+    def __init__(self, *args, **kwargs):
+        ComparisonRegions.__init__(self, *args, **kwargs)
+
+    def compare(self, score1, score2):
+        return score1 / score2
+
+
+class DifferenceRegions(ComparisonRegions):
+
+    _classid = 'DIFFERENCEREGIONS'
+
+    def __init__(self, *args, **kwargs):
+        ComparisonRegions.__init__(self, *args, **kwargs)
+
+    def compare(self, score1, score2):
+        return score1 - score2
+
+
 class EdgeCollectionSelector(object):
     def __init__(self):
         pass
@@ -196,9 +379,9 @@ class EdgeCollectionSelector(object):
                                   "filter_edge_collection!")
 
 
-class LargestVarianceSelector(EdgeCollectionFilter):
+class LargestVarianceSelector(EdgeCollectionSelector):
     def __init__(self):
-        EdgeCollectionFilter.__init__(self)
+        EdgeCollectionSelector.__init__(self)
 
     def filter_edge_collection(self, edge_collection, sample_size, *args, **kwargs):
         if sample_size is None:
@@ -218,9 +401,9 @@ class LargestVarianceSelector(EdgeCollectionFilter):
             yield source, sink, weights
 
 
-class PassthroughSelector(EdgeCollectionFilter):
+class PassthroughSelector(EdgeCollectionSelector):
     def __init__(self):
-        EdgeCollectionFilter.__init__(self)
+        EdgeCollectionSelector.__init__(self)
 
     def filter_edge_collection(self, edge_collection, sample_size, *args, **kwargs):
         if sample_size is None:
@@ -232,9 +415,9 @@ class PassthroughSelector(EdgeCollectionFilter):
             yield key[0], key[1], weights
 
 
-class LargestFoldChangeSelector(EdgeCollectionFilter):
+class LargestFoldChangeSelector(EdgeCollectionSelector):
     def __init__(self):
-        EdgeCollectionFilter.__init__(self)
+        EdgeCollectionSelector.__init__(self)
 
     def filter_edge_collection(self, edge_collection, sample_size=None, *args, **kwargs):
         if sample_size is None:
@@ -258,8 +441,8 @@ class LargestFoldChangeSelector(EdgeCollectionFilter):
 
 
 def hic_pca(*hics, sample_size=None, region=None, strategy='variance', scale=True, log=False,
-            ignore_zeros=False, background_enrichment=None,
-            min_libraries_above_background=1,
+            ignore_zeros=False, oe_enrichment=None, min_distance=None, max_distance=None,
+            background_ligation=False, min_libraries_above_background=1,
             **kwargs):
 
     strategies = {
@@ -274,10 +457,17 @@ def hic_pca(*hics, sample_size=None, region=None, strategy='variance', scale=Tru
     filters = []
     if ignore_zeros:
         filters.append(NonzeroFilter())
-    if background_enrichment is not None:
-        filters.append(BackgroundLigationFilter(hics,
-                                                fold_change_cutoff=background_enrichment,
-                                                min_valid_edges=min_libraries_above_background))
+    if oe_enrichment is not None:
+        filters.append(ObservedExpectedFilter(hics,
+                                              fold_change_cutoff=oe_enrichment,
+                                              min_valid_edges=min_libraries_above_background))
+    if min_distance is not None or max_distance is not None:
+        filters.append(MinMaxDistanceFilter(hics, min_distance=min_distance, max_distance=max_distance))
+    if background_ligation:
+        hic = hics[0]
+        _, _, inter_expected = hic.expected_values()
+        filters.append(AbsoluteWeightFilter(cutoff=inter_expected,
+                                            min_above_cutoff=min_libraries_above_background))
 
     edge_collection = _edge_collection(*hics, region=region, scale=scale,
                                        filters=filters, **kwargs)
