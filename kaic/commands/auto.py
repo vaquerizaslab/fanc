@@ -628,7 +628,7 @@ def auto(argv):
 
     logger.info("Output folder: {}".format(output_folder))
     logger.info("Input files: {}".format(", ".join(file_names)))
-    logger.info("Input file types: {}".format(" ,".join(file_types)))
+    logger.info("Input file types: {}".format(", ".join(file_types)))
 
     logger.info("Final basename: %s (you can change this with the -n option!)" % basename)
 
