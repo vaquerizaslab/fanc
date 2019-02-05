@@ -5,91 +5,39 @@ import os.path
 import textwrap
 import shutil
 import tempfile
-import subprocess
-import kaic.commands.auto
-
 
 # configure logging
 logger = logging.getLogger(__name__)
 
 
 def kaic_parser():
-    usage = '''\
-        kaic <command> [options]
+    usage = "kaic <command> [options]\n\n"
 
-        Commands:
-            auto                Automatically process an entire Hi-C data set
-            stats               Get statistics for kaic pipeline files
+    command_descriptions = dict()
+    for name, function in globals().items():
+        if name.endswith("_parser") and name != 'kaic_parser':
+            parser = function()
+            short_name = name[:-7].replace('_', '-')
+            command_descriptions[short_name] = parser.description.split(".")[0]
 
-            --- Mapping
-            iterative_mapping   Iteratively map a FASTQ file to a Bowtie 2 index
+    max_len = max([len(name) for name in command_descriptions.keys()]) + 4
 
-            --- Reads
-            load_reads          Load a SAM/BAM file into a Reads object
-            filter_reads        Filter a Reads object
+    usage += "-- Matrix generation --\n"
+    for name in ['auto', 'map', 'pairs', 'hic']:
+        padding = ' ' * (max_len - len(name))
+        usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
 
-            -- Genome
-            build_genome        Convenience command to build a Genome object
-            fragments           Create a BED file with RE fragments
+    usage += "\n-- Matrix analysis --\n"
+    for name in ['cis-trans', 'expected', 'pca', 'insulation', 'directionality',
+                 'compare', 'loops', 'aggregate']:
+        padding = ' ' * (max_len - len(name))
+        usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
 
-            --- Pairs
-            reads_to_pairs      Convert a Reads object into a Pairs object
-            filter_pairs        Filter a Pairs object
-            pairs_from_hicpro   Load pairs from a HiC-Pro valid pairs file
-            pairs_to_homer      Write pairs in Homer compatible HiCSummary format
+    usage += "\n-- Other helpers --\n"
+    for name in command_descriptions.keys():
+        padding = ' ' * (max_len - len(name))
+        usage += "{}{}{}\n".format(name, padding, command_descriptions.get(name))
 
-            --- Hic
-            pairs_to_hic        Convert a pairs object into a Hic object
-            filter_hic          Filter a Hic object
-            merge_hic           Merge multiple Hic objects
-            bin_hic             Bin a Hic object into same-size regions
-            correct_hic         Correct a Hic object for biases
-            hic_pca             Do a PCA on multiple Hi-C objects
-            optimise            Optimise an existing Hic object for faster access
-            subset_hic          Create a new Hic object by subsetting
-            cis_trans           Calculate cis/trans ratio
-            dump                Dump Hic file to txt file(s)
-            hic_from_juicer     Convert juicer .hic file to Kai-C Hic
-            hic_to_cooler       Convert Hic file into cooler format
-            hic_sample          Sample contacts from a Hi-C matrix
-
-            --- Network
-            call_peaks          Call enriched peaks in a Hic object
-            filter_peaks        Filter peaks called with 'call_peaks'
-            merge_peaks         Merge peaks
-            filter_merged_peaks Filter merged peaks
-            overlap_peaks       Overlap peaks from multiple samples
-
-            --- Plotting
-            plot_ligation_err   Plot the ligation error of a Pairs object
-            plot_re_dist        Plot the distance of reads to the nearest RE site
-            plot_hic_corr       Plot the correlation of two Hic objects
-            plot_hic_marginals  Plot marginals in a Hic object
-            plot_diff           Plot the difference between two Hic matrices
-            plot_pair_stats     Plot the filtering statistics of a Pairs file
-
-            --- Architecture
-            structure_tracks   Calculate structural features of a Hic object
-            boundaries         Call boundaries in an Hic object
-            fold_change        Create pairwise fold-change Hi-C comparison maps
-            difference         Create pairwise differences of Hi-C maps
-            average_tracks     Calculate average Hi-C contact profiles per region
-            directionality     Calculate directionality index for Hic object
-            insulation         Calculate insulation index for Hic object
-            ii_to_bw           Convert insulation index object to BigWig 
-            ab                 Calculate AB domain matrix for a Hi-C object
-            ab_domains         Assign A or B compartment to each region in matrix
-            distance_decay     Calculate distance decay for a Hi-C object
-            diff               Calculate difference between two vectors
-            aggregate_tads     Make a TAD aggregate plot
-            aggregate_loops    Make a loop aggregate plot
-            ab_profile         Plot A-B compartment enrichment profiles
-
-            --- Other
-            write_config       Write default config file
-
-        Run kaic <command> -h for help on a specific command.
-        '''
     parser = argparse.ArgumentParser(
         description="kaic processing tool for Hi-C data",
         usage=textwrap.dedent(usage)
@@ -98,7 +46,7 @@ def kaic_parser():
     parser.add_argument(
         '--version', dest='print_version',
         action='store_true',
-        help='''Print version information'''
+        help='Print version information'
     )
     parser.set_defaults(print_version=False)
 
@@ -106,46 +54,48 @@ def kaic_parser():
         '--verbose', '-v', dest='verbosity',
         action='count',
         default=0,
-        help='''Set verbosity level: Can be chained like '-vvv' to increase verbosity. Default is to show
-                        errors, warnings, and info messages (same as '-vv'). '-v' shows only errors and warnings,
-                        '-vvv' shows errors, warnings, info, and debug messages in addition.'''
+        help='Set verbosity level: Can be chained like '
+             '"-vvv" to increase verbosity. Default is to show '
+             'errors, warnings, and info messages (same as "-vv"). '
+             '"-v" shows only errors and warnings,  "-vvv" shows '
+             'errors, warnings, info, and debug messages in addition.'
     )
 
     parser.add_argument(
         '-s', '--silent', dest='silent',
         action='store_true',
-        help='''if set, do not print log messages to to command line.'''
+        help='Do not print log messages to to command line.'
     )
     parser.set_defaults(silent=False)
 
     parser.add_argument(
         '-l', '--log-file', dest='log_file',
-        help='''Path to file in which to save log.'''
+        help='Path to file in which to save log.'
     )
 
     parser.add_argument(
         '-m', '--email', dest='email_to_address',
-        help='''Email address for kaic command summary.'''
+        help='Email address for kaic command summary.'
     )
 
     parser.add_argument(
         '--smtp-server', dest='smtp_server',
-        help='''SMTP server in the form smtp.server.com[:port].'''
+        help='SMTP server in the form smtp.server.com[:port].'
     )
 
     parser.add_argument(
         '--smtp-username', dest='smtp_username',
-        help='''SMTP username.'''
+        help='SMTP username.'
     )
 
     parser.add_argument(
         '--smtp-password', dest='smtp_password',
-        help='''SMTP password.'''
+        help='SMTP password.'
     )
 
     parser.add_argument(
         '--smtp-sender-address', dest='email_from_address',
-        help='''SMTP sender email address.'''
+        help='SMTP sender email address.'
     )
 
     parser.add_argument('command', nargs='?', help='Subcommand to run')
@@ -154,136 +104,154 @@ def kaic_parser():
 
 
 def auto_parser():
+    import kaic.commands.auto
     return kaic.commands.auto.auto_parser()
 
 
 def auto(argv):
+    import kaic.commands.auto
     return kaic.commands.auto.auto(argv)
 
 
 def map_parser():
     parser = argparse.ArgumentParser(
         prog="kaic map",
-        description='Map reads in a FASTQ file to a reference genome'
+        description='Map reads in a FASTQ file to a reference genome.'
     )
 
     parser.add_argument(
         'input',
         nargs='+',
-        help='''File name of the input FASTQ file (or gzipped FASTQ)'''
+        help='File name of the input FASTQ file (or gzipped FASTQ)'
     )
 
     parser.add_argument(
         'index',
-        help='''Bowtie 2 or BWA genome index base'''
+        help='Bowtie 2 or BWA genome index base. Index type will be '
+             'determined automatically.'
     )
 
     parser.add_argument(
         'output',
-        help='''Output file name (or folder name if multiple input files provided)'''
+        help='Output file or folder. '
+             'When providing multiple input files, this must be the '
+             'path to an output folder.'
     )
 
     parser.add_argument(
         '-m', '--min-size', dest='min_size',
         type=int,
-        default=30,
-        help='''Minimum length of read before extension. Default 30.'''
+        default=25,
+        help='Minimum length of read before extension. '
+             'Default 25.'
     )
 
     parser.add_argument(
         '-s', '--step-size', dest='step_size',
         type=int,
         default=10,
-        help='''Number of base pairs to extend at each round of mapping. Default is 10.'''
+        help='Number of base pairs to extend at each round of mapping. '
+             'Default is 10.'
     )
 
     parser.add_argument(
         '--trim-front', dest='trim_front',
         action='store_true',
-        help='''Trim reads from front instead of back.'''
+        default=False,
+        help='Trim reads from front instead of back.'
     )
-    parser.set_defaults(trim_front=False)
 
     parser.add_argument(
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
-        help='''Number of threads used for mapping'''
+        help='Number of threads used for mapping'
     )
 
     parser.add_argument(
         '-q', '--quality', dest='quality',
         type=int,
-        default=30,
-        help='''Mapping quality cutoff for reads to be sent to another iteration'''
+        help='Mapping quality cutoff. '
+             'Alignments with a quality score lower than this will be '
+             'sent to another mapping iteration. '
+             'Default: 3 (BWA), 30 (Bowtie2)'
     )
 
     parser.add_argument(
         '-r', '--restriction-enzyme', dest='restriction_enzyme',
-        help='''Name (case sensitive) of restriction enzyme used in Hi-C experiment.
-                Will be used to split reads by predicted ligation junction before mapping.'''
+        help='Name (case sensitive) of restriction enzyme used in Hi-C experiment. '
+             'Will be used to split reads by predicted ligation junction before mapping. '
+             'You can omit this if you do not want to split your reads by ligation junction.'
+
     )
 
     parser.add_argument(
         '-k', '--max-alignments', dest='max_alignments',
         type=int,
-        help='''Maximum number of alignments per read to be reported. Default: 1'''
+        help='Maximum number of alignments per read to be reported.'
+             'Default: 1'
     )
 
     parser.add_argument(
         '-a', '--all-alignments', dest='all_alignments',
         action='store_true',
-        help='''Report all valid alignments of a read (very slow!).'''
+        default=False,
+        help='Report all valid alignments of a read '
+             'Warning: very slow!.'
     )
-    parser.set_defaults(all_alignments=False)
 
     parser.add_argument(
         '-b', '--batch-size', dest='batch_size',
         type=int,
         default=100000,
-        help='''Number of reads processed (mapped and merged) in one go per worker.
-                The default (100000) works well for large indexes (e.g. human, mouse).
-                Smaller indexes (e.g. yeast) will finish individual bowtie2 processes
-                very quickly - set this number higher to spawn new processes 
-                less frequently.
-                '''
+        help='Number of reads processed (mapped and merged) in one go per worker. '
+             'The default (100000) works well for large indexes (e.g. human, mouse). '
+             'Smaller indexes (e.g. yeast) will finish individual bowtie2 processes '
+             'very quickly - set this number higher to spawn new processes '
+             'less frequently. '
     )
 
     parser.add_argument(
         '--mapper-parallel', dest='mapper_parallel',
         action='store_true',
-        help='''Use mapper-internal parallelisation rather than spawning multiple mapping processes.
-                This is slower, but consumes potentially less memory.'''
+        default=False,
+        help='Use mapper-internal parallelisation. '
+             'This is slower, but consumes potentially less memory. '
+             'and has lower disk I/O'
     )
-    parser.set_defaults(mapper_parallel=False)
 
     parser.add_argument(
         '--split-fastq', dest='split_fastq',
         action='store_true',
-        help='''Split FASTQ file into 10M chunks before mapping. Easier on tmp partitions.'''
+        default=False,
+        help='Split FASTQ file into 10M chunks before mapping. '
+             'Easier on tmp partitions.'
     )
-    parser.set_defaults(split_fastq=False)
 
     parser.add_argument(
-        '--no-memory-map', dest='memory_map',
-        action='store_false',
-        help='''Do not map Bowtie2 index to memory. Only enable if you know what you are doing.'''
+        '--memory-map', dest='memory_map',
+        action='store_true',
+        default=False,
+        help='Map Bowtie2 index to memory. ' 
+             'Enable if you you system has enough memory '
+             'to hold the entire Bowtie2 index.'
     )
-    parser.set_defaults(memory_map=True)
 
     parser.add_argument(
-        '--simple', dest='iterative',
+        '--no-iterative', dest='iterative',
         action='store_false',
-        help='''Do not use iterative strategy (much faster, less sensitive).'''
+        default=True,
+        help='Do not use iterative mapping strategy. '
+             '(much faster, less sensitive).'
     )
-    parser.set_defaults(iterative=True)
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Copy original file to working directory (see -w option). Reduces network I/O.'''
+        default=False,
+        help='Copy original file to temporary directory.'
+             'Reduces network I/O.'
     )
-    parser.set_defaults(tmp=False)
 
     return parser
 
@@ -354,6 +322,11 @@ def map(argv):
 
     if mapper_type is None:
         raise RuntimeError("Cannot detect mapper type from index (supported are Bowtie2 and BWA)")
+    elif min_quality is None:
+        if mapper_type == 'bwa':
+            min_quality = 3
+        elif mapper_type == 'bowtie2':
+            min_quality = 30
 
     index_dir = None
     try:
@@ -477,45 +450,6 @@ def map(argv):
             shutil.rmtree(index_dir, ignore_errors=True)
 
 
-def build_genome_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic build_genome",
-        description='Convenience command to build a Genome object'
-    )
-
-    parser.add_argument(
-        'input',
-        nargs='+',
-        help=textwrap.dedent('''\
-                             Can be a FASTA file,
-                             a folder with FASTA files, or a
-                             list of FASTA files.
-                             ''')
-    )
-
-    parser.add_argument(
-        'output',
-        help='''Output file for Genome object'''
-    )
-
-    return parser
-
-
-def build_genome(argv):
-    parser = build_genome_parser()
-    args = parser.parse_args(argv[2:])
-
-    genome_string = ','.join(args.input)
-    output_path = os.path.expanduser(args.output)
-
-    import kaic
-
-    logger.info("Building Genome...")
-    genome = kaic.Genome.from_string(genome_string=genome_string, file_name=output_path)
-    genome.close()
-    logger.info("All done.")
-
-
 def fragments_parser():
     parser = argparse.ArgumentParser(
         prog="kaic fragments",
@@ -536,7 +470,7 @@ def fragments_parser():
 
     parser.add_argument(
         'output',
-        help='''Output file with restriction fragments in BED format.'''
+        help='Output file with restriction fragments in BED format.'
     )
 
     return parser
@@ -567,26 +501,27 @@ def fragments(argv):
 def sort_sam_parser():
     parser = argparse.ArgumentParser(
         prog="kaic sort_sam",
-        description="Convenience function to sort a SAM file by name "
-                    "(exactly the same as 'samtools sort -n'!)"
+        description="Convenience function to sort a SAM file by name. "
+                    "Exactly the same as 'samtools sort -n', but potentially"
+                    "faster if sambamba is available."
     )
 
     parser.add_argument(
         'sam',
-        help='''Input SAM/BAM'''
+        help='Input SAM/BAM'
     )
 
     parser.add_argument(
         'output',
         nargs='?',
-        help='''Output SAM/BAM. If not provided, will replace input 
-                file with sorted version after sorting.'''
+        help='Output SAM/BAM. If not provided, will replace input ' 
+             'file with sorted version after sorting.'
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Work in temporary directory'''
+        help='Work in temporary directory'
     )
     parser.set_defaults(tmp=False)
 
@@ -642,181 +577,182 @@ def pairs_parser():
     parser.add_argument(
         'input',
         nargs='+',
-        help='''IMPORTANT: The last positional argument will be 
-                the output file, unless only a single Pairs object
-                is provided. In that case, filtering and correcting 
-                will be done in place.
-                Possible inputs are: two SAM/BAM files (paired-end reads, 
-                sorted by read name) and an output file; 
-                a HiC-Pro pairs file (format: 
-                name\\tchr1\\tpos1\\tstrand1\\tchr2\\tpos2\\tstrand2) 
-                and an output file; a pairs file in 4D Nucleome format
-                (https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md) 
-                and an output file, 
-                or an existing kaic Pairs object. 
-                In case of SAM/BAM or HiC-Pro, you must also provide the 
-                --genome argument, and if --genome is not a file with 
-                restriction fragments (or Hi-C bins), you must also provide the 
-                --restriction-enzyme argument.
-                '''
+        help='IMPORTANT: The last positional argument will be '
+             'the output file, unless only a single Pairs object '
+             'is provided. In that case, filtering and correcting ' 
+             'will be done in place. '
+             'Possible inputs are: two SAM/BAM files (paired-end reads, ' 
+             'sorted by read name) and an output file; ' 
+             'a HiC-Pro pairs file (format: ' 
+             'name\\tchr1\\tpos1\\tstrand1\\tchr2\\tpos2\\tstrand2) ' 
+             'and an output file; a pairs file in 4D Nucleome format '
+             '(https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md) '
+             'and an output file, ' 
+             'or an existing kaic Pairs object. ' 
+             'In case of SAM/BAM, HiC-Pro, or 4D Nucleome you must also provide the ' 
+             '--genome argument, and if --genome is not a file with '
+             'restriction fragments (or Hi-C bins), you must also provide the ' 
+             '--restriction-enzyme argument.'
     )
 
     parser.add_argument(
         '-g', '--genome', dest='genome',
-        help='''Path to region-based file (BED, GFF, ...) containing the non-overlapping
-                regions to be used for Hi-C binning. Typically restriction-enzyme fragments.
-                Alternatively: Path to genome file (FASTA, folder with FASTA, hdf5 file),
-                which will be used in conjunction with the type of restriction enzyme to 
-                calculate fragments directly.'''
+        help='Path to region-based file (BED, GFF, ...) containing the non-overlapping '
+             'regions to be used for Hi-C binning. Typically restriction-enzyme fragments. '
+             'Alternatively: Path to genome file (FASTA, folder with FASTA, HDF5 file), '
+             'which will be used in conjunction with the type of restriction enzyme to ' 
+             'calculate fragments directly.'
     )
 
     parser.add_argument(
         '-r', '--restriction_enzyme',
-        help='''Name of the restriction enzyme used in the 
-                experiment, e.g. HindIII, or MboI. Case-sensitive!'''
+        help='Name of the restriction enzyme used in the '
+             'experiment, e.g. HindIII, or MboI. Case-sensitive, '
+             'only necessary when --genome is provided as FASTA.'
     )
 
     parser.add_argument(
         '-m', '--filter-unmappable', dest='unmappable',
         action='store_true',
         default=False,
-        help='''Filter read pairs where one or both halves are unmappable. 
-                Only applies to SAM/BAM input!'''
+        help='Filter read pairs where one or both halves are unmappable. ' 
+             'Only applies to SAM/BAM input!'
     )
 
     parser.add_argument(
         '-u', '--filter-multimapping', dest='unique',
         action='store_true',
         default=False,
-        help='''Filter reads that map multiple times. If the other 
-                mapping locations have a lower score than the best one, 
-                the best read is kept. 
-                Only applies to SAM/BAM input!'''
+        help='Filter reads that map multiple times. If the other '
+              'mapping locations have a lower score than the best one, ' 
+              'the best read is kept. '
+              'Only applies to SAM/BAM input!'
     )
 
     parser.add_argument(
         '-us', '--filter-multimapping-strict', dest='unique_strict',
         action='store_true',
         default=False,
-        help='''Strictly filter reads that map multiple times. 
-                Only applies to SAM/BAM input!'''
+        help='Strictly filter reads that map multiple times. ' 
+             'Only applies to SAM/BAM input!'
     )
 
     parser.add_argument(
         '-q', '--filter-quality', dest='quality',
         type=float,
-        help='''Cutoff for the minimum mapping quality of a read.
-                If a number between 0 and 1 is provided, will filter
-                on the AS tag instead of mapping quality. The quality 
-                cutoff is then interpreted as the fraction of bases that
-                have to be matched for any given read. 
-                Only applies to SAM/BAM input!'''
+        help='Cutoff for the minimum mapping quality of a read. '
+             'If a number between 0 and 1 is provided, will filter '
+             'on the AS tag instead of mapping quality. The quality ' 
+             'cutoff is then interpreted as the fraction of bases that '
+             'have to be matched for any given read. ' 
+             'only applies to SAM/BAM input!'
     )
 
     parser.add_argument(
         '-c', '--filter-contaminant', dest='contaminant',
-        help='''Filter contaminating reads from other organism.
-                Path to mapped SAM/BAM file. 
-                Will filter out reads with the same name. 
-                Only applies to SAM/BAM input!'''
+        help='Filter contaminating reads from other organism. '
+             'Path to mapped SAM/BAM file. ' 
+             'Will filter out reads with the same name. ' 
+             'Only applies to SAM/BAM input!'
     )
 
     parser.add_argument(
         '-i', '--filter-inward', dest='inward',
         type=int,
-        help='''Minimum distance for inward-facing read pairs'''
+        help='Minimum distance for inward-facing read pairs'
     )
 
     parser.add_argument(
         '-o', '--filter-outward', dest='outward',
         type=int,
-        help='''Minimum distance for outward-facing read pairs'''
+        help='Minimum distance for outward-facing read pairs'
     )
 
     parser.add_argument(
         '--filter-ligation-auto', dest='filter_le_auto',
         action='store_true',
         default=False,
-        help='''Auto-guess settings for inward/outward read pair filters.
-                Overrides --filter-outward and --filter-inward if set.'''
+        help='Auto-guess settings for inward/outward read pair filters. '
+             'Overrides --filter-outward and --filter-inward if set.'
     )
 
     parser.add_argument(
         '-d', '--filter-re-distance', dest='redist',
         type=int,
-        help='''Maximum distance for a read to the nearest restriction site'''
+        help='Maximum distance for a read to the nearest restriction site'
     )
 
     parser.add_argument(
         '-l', '--filter-self-ligations', dest='self_ligated',
         action='store_true',
         default=False,
-        help='''Remove read pairs representing self-ligated fragments'''
+        help='Remove read pairs representing self-ligated fragments'
     )
 
     parser.add_argument(
         '-p', '--filter-pcr-duplicates', dest='dup_thresh',
         type=int,
-        help='''If specified, filter read pairs for PCR duplicates. Parameter determines
-                distance between alignment starts below which they are considered starting
-                at same position. Sensible values are between 1 and 5.'''
+        help='If specified, filter read pairs for PCR duplicates. Parameter determines '
+             'distance between alignment starts below which they are considered starting '
+             'at same position. Sensible values are between 1 and 5.'
     )
 
     parser.add_argument(
         '-s', '--statistics', dest='stats',
-        help='''Path for saving filter statistics'''
+        help='Path for saving filter statistics'
     )
 
     parser.add_argument(
         '--statistics-plot', dest='stats_plot',
-        help='''Path for saving filter statistics plot (PDF)'''
+        help='Path for saving filter statistics plot (PDF)'
     )
 
     parser.add_argument(
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
-        help='''Number of threads to use for extracting fragment information'''
+        help='Number of threads to use for extracting fragment information'
     )
 
     parser.add_argument(
         '-b', '--batch-size', dest='batch_size',
         type=int,
         default=1000000,
-        help='''Batch size for read pairs to be submitted to individual processes.'''
+        help='Batch size for read pairs to be submitted to individual processes.'
     )
 
     parser.add_argument(
         '-S', '--no-check-sorted', dest='check_sorted',
         action='store_false',
         default=True,
-        help='''Assume SAM files are sorted and do not check if that is actually the case'''
+        help='Assume SAM files are sorted and do not '
+             'check if that is actually the case'
     )
 
     parser.add_argument(
         '-f', '--force-overwrite', dest='force_overwrite',
         action='store_true',
         default=False,
-        help='''If the specified output file exists, it will be 
-                overwritten without warning.'''
+        help='If the specified output file exists, it will be ' 
+             'overwritten without warning.'
     )
 
     parser.add_argument(
         '--bwa', dest='bwa',
         action='store_true',
         default=False,
-        help='''Use filters appropriate for BWA and not Bowtie2.
-                This will typically be identified automatically 
-                from the SAM/BAM header. Set this flag if you are 
-                having problems during filtering (typically 0 reads 
-                pass the filtering threshold).'''
+        help='Use filters appropriate for BWA and not Bowtie2. '
+             'This will typically be identified automatically ' 
+             'from the SAM/BAM header. Set this flag if you are ' 
+             'having problems during filtering (typically 0 reads ' 
+             'pass the filtering threshold). '
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
-        help='''Work in temporary directory'''
+        help='Work in temporary directory'
     )
 
     return parser
@@ -866,6 +802,8 @@ def pairs(argv):
                              "not a list of fragments or genomic bins!")
             else:
                 raise
+
+    import kaic
 
     tmp_input_files = []
     original_pairs_file = None
@@ -1035,87 +973,6 @@ def pairs(argv):
 
             shutil.copy(pairs_file, original_pairs_file)
             os.remove(pairs_file)
-
-    logger.info("All done.")
-
-
-def pairs_to_homer_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic pairs_to_homer",
-        description='''Write pairs in Homer compatible "Hi-C Summary" format
-                       http://homer.ucsd.edu/homer/interactions/HiCtagDirectory.html
-
-                       Hi-C Summary Format (columns tab separated):
-                       1. Read Name (can be blank)
-                       2. chromosome for read 1
-                       3. positions for read 1 (5' end of read, one-indexed)
-                       4. strand of read 1 (+ or -)
-                       5. chromosome for read 2
-                       6. positions for read 2 (5' end of read, one-indexed)
-                       7. strand of read 2 (+ or -)'''
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Kaic pairs file'''
-    )
-
-    parser.add_argument(
-        'output',
-        help='''Path to output file. If extension is .gz will be gzipped.'''
-    )
-
-    parser.add_argument(
-        '-i', '--include-filtered', dest='include_filtered',
-        action='store_true',
-        help='''Include filtered read pairs in output.'''
-    )
-    parser.set_defaults(include_filtered=False)
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
-
-
-def pairs_to_homer(argv):
-    parser = pairs_to_homer_parser()
-
-    args = parser.parse_args(argv[2:])
-    input_file = os.path.expanduser(args.input)
-    output_file = os.path.expanduser(args.output)
-    tmp = args.tmp
-    gz = output_file.endswith(".gz")
-
-    import kaic
-    from kaic.tools.files import create_temporary_copy
-
-    original_input_file = input_file
-    original_output_file = output_file
-    try:
-        if tmp:  # copy file if required
-            tmp = False  # to prevent deleting input file should this be interrupted at this point
-            logger.info("Copying input file...")
-            input_file = create_temporary_copy(original_input_file)
-            logger.info("New input file: {}".format(input_file))
-            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.tsv.gz' if gz else '.tsv')
-            tmp_file.close()
-            output_file = tmp_file.name
-            logger.info("Temporary output file: %s" % output_file)
-            tmp = True
-
-        pairs = kaic.load(input_file, mode="r")
-        pairs.to_homer(output_file, include_filtered=args.include_filtered)
-        pairs.close()
-    finally:
-        if tmp:
-            logger.info("Removing tmp files...")
-            os.remove(input_file)
-            shutil.copy(output_file, original_output_file)
-            os.remove(output_file)
 
     logger.info("All done.")
 
@@ -1429,9 +1286,9 @@ def hic(argv):
             os.remove(output_file)
 
 
-def hic_from_juicer_parser():
+def from_juicer_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic hic_from_juicer",
+        prog="kaic from_juicer",
         description='Import a Hi-C object from juicer (Aiden lab)'
     )
 
@@ -1491,8 +1348,8 @@ def hic_from_juicer_parser():
     return parser
 
 
-def hic_from_juicer(argv):
-    parser = hic_from_juicer_parser()
+def from_juicer(argv):
+    parser = from_juicer_parser()
 
     args = parser.parse_args(argv[2:])
     input_file = os.path.expanduser(args.input)
@@ -1505,7 +1362,6 @@ def hic_from_juicer(argv):
     juicer_norm = args.juicer_norm
     tmp = args.tmp
 
-    import kaic
     from kaic.tools.files import create_temporary_copy
 
     original_input_file = input_file
@@ -1522,10 +1378,11 @@ def hic_from_juicer(argv):
             logger.info("Temporary output file: %s" % output_file)
             tmp = True
 
-        hic = kaic.AccessOptimisedHic.from_juicer(input_file, jar_path, genome_path, resolution,
-                                                  norm=juicer_norm, output_file=output_file,
-                                                  inter_chromosomal=inter_chromosomal,
-                                                  chromosomes=chromosomes)
+        from kaic.compatibility.juicer import convert_juicer_to_hic
+        hic = convert_juicer_to_hic(input_file, jar_path, genome_path, resolution,
+                                    norm=juicer_norm, output_file=output_file,
+                                    inter_chromosomal=inter_chromosomal,
+                                    chromosomes=chromosomes)
         hic.close()
     finally:
         if tmp:
@@ -1568,6 +1425,7 @@ def hic_to_cooler(argv):
     output_file = os.path.expanduser(args.output)
 
     import kaic
+    from kaic.compatibility.cooler import to_cooler
     try:
         import cooler
     except ImportError:
@@ -1575,7 +1433,7 @@ def hic_to_cooler(argv):
         raise
 
     hic = kaic.load(input_file, mode='r')
-    hic.to_cooler(output_file)
+    to_cooler(hic, output_file)
     logger.info("All done.")
 
 
@@ -1734,64 +1592,79 @@ def dump(argv):
     logger.info("All done.")
 
 
-def hic_pca_parser():
+def pca_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic hic_pca",
+        prog="kaic pca",
         description='Do a PCA on multiple Hi-C objects'
     )
 
     parser.add_argument(
         'input',
         nargs='+',
-        help='''Input Hic files'''
+        help='Input Hic files'
     )
 
     parser.add_argument(
-        'output_folder',
-        help='''Output folder for PCA results.'''
+        'output',
+        help='Output file with PCA results.'
     )
 
     parser.add_argument(
-        '-s', '--sample-sizes', dest='sample_sizes',
-        nargs='+',
+        '-p', '--plot', dest='plot',
+        help='Output plot. Path to PDF file where '
+             'the PCA plot will be saved.'
+    )
+
+    parser.add_argument(
+        '-s', '--sample-size', dest='sample_size',
         type=int,
-        default=[50000],
-        help='''Sample sizes for contacts to do the PCA on.'''
+        default=50000,
+        help='Sample size for contacts to do the PCA on.'
+             'Default: 50000'
     )
 
     parser.add_argument(
-        '-i', '--intra', dest='intra',
+        '--inter-chromosomal', dest='inter',
         action='store_true',
-        help='''Only do PCA on intra-chromosomal contacts'''
+        default=False,
+        help='Also include inter-chromosomal contacts in PCA. '
+             'By default, only intra-schromosomal contacts are '
+             'considered.'
     )
-    parser.set_defaults(intra=False)
 
     parser.add_argument(
-        '-d', '--divide', dest='divide',
-        action='store_true',
-        help='''Divide PCAs into individual chromosomes'''
+        '-r', '--region', dest='region',
+        help='Region to do PCA on. You could put a specific '
+             'chromosome here, for example. By default, the whole '
+             'genome is considered.'
     )
-    parser.set_defaults(divide=False)
 
     parser.add_argument(
         '-e', '--expected-filter', dest='expected_filter',
         type=float,
-        help='''Cutoff for expected/observed ratio of a contact to be considered for PCA. Default: no filter.'''
+        help='Minimum fold-enrichment over expected value. Contacts '
+             'with a strength lower than <b>*E(d), where d is the '
+             'distance between two loci and E is the corresponding expected '
+             'contact strength, are filtered out before PCA. Default: no filter.'
     )
 
     parser.add_argument(
         '-b', '--background-filter', dest='background_filter',
         type=float,
-        help='''Cutoff for ratio of average inter-chromosomal to
-                    observed contact to be considered for PCA. Default: no filter.'''
+        help='Minimum fold-enrichment over average inter-chromosomal '
+             'contacts. Default: no filter.'
     )
 
     parser.add_argument(
-        '-w', '--window-filter', dest='window_filter',
-        nargs=2,
+        '--min-distance', dest='min_distance',
         type=int,
-        help='''Min and max values in base pairs defining a window of
-                    contact distances that are retained for analysis.'''
+        help='Minimum distance of matrix bins in base pairs.'
+    )
+
+    parser.add_argument(
+        '--max-distance', dest='max_distance',
+        type=int,
+        help='Maximum distance of matrix bins in base pairs.'
     )
 
     parser.add_argument(
@@ -1801,665 +1674,597 @@ def hic_pca_parser():
     )
 
     parser.add_argument(
-        '-p', '--pair-selection', dest='pair_selection',
+        '--strategy', dest='strategy',
         default='variance',
-        help='''Mechanism to select pairs from Hi-C matrix. Default: variance.
-                    Possible values are:
-                    variance: Selects pairs with the largest variance across samples first.
-                    fc: Select pairs with the largest fold-change across samples first.
-                    passthrough: Selects pairs without preference.
-                 '''
+        help='Mechanism to select pairs from Hi-C matrix. '
+             'Default: variance. Possible values are: variance '
+             '(select contacts with the largest variance in '
+             'strength across samples first), fold-change '
+             '(select pairs with the largest fold-change '
+             'across samples first), and passthrough '
+             '(no preference on pairs). '
     )
 
     parser.add_argument(
         '-c', '--colors', dest='colors',
         nargs='+',
-        help='''Colors for plotting.'''
+        help='Colors for plotting.'
     )
 
     parser.add_argument(
         '-m', '--markers', dest='markers',
         nargs='+',
-        help='''Markers for plotting. Follows Matplotlib marker
-                    definitions: http://matplotlib.org/api/markers_api.html'''
+        help='Markers for plotting. Follows Matplotlib marker '
+             'definitions: http://matplotlib.org/api/markers_api.html'
+    )
+
+    parser.add_argument(
+        '-v', '--eigenvectors', dest='eigenvectors',
+        nargs=2,
+        default=[1, 1],
+        help='Which eigenvectors to plot. Default: 1 1'
+    )
+
+    parser.add_argument(
+        '-Z', '--no-zeros', dest='no_zeros',
+        action='store_true',
+        default=False,
+        help='''Ignore pixels with no contacts in any sample.'''
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
+        default=False,
         help='''Work in temporary directory'''
     )
-    parser.set_defaults(tmp=False)
     return parser
 
 
-def hic_pca(argv):
-    parser = hic_pca_parser()
+def pca(argv):
+    parser = pca_parser()
 
     args = parser.parse_args(argv[2:])
 
-    import errno
-    import matplotlib
-    matplotlib.use('pdf')
-    import kaic
-    from kaic.plotting.plot_statistics import pca_plot
-    from kaic.architecture.pca import do_pca, HicCollectionWeightMeanVariance, PassthroughPairSelection, \
-        LargestVariancePairSelection, LargestFoldChangePairSelection
-    from kaic.architecture.hic_architecture import ExpectedObservedCollectionFilter,\
-        BackgroundLigationCollectionFilter, MinMaxDistanceCollectionFilter
-    from kaic.tools.files import create_temporary_copy
-    import shutil
+    import os
 
-    hics = []
-    output_folder = os.path.expanduser(args.output_folder)
+    input_files = [os.path.expanduser(file_name) for file_name in args.input]
+    output_file = os.path.expanduser(args.output)
+    plot_file = os.path.expanduser(args.plot) if args.plot is not None else None
+    argument_sample_names = args.names
+    sample_size = args.sample_size
+    inter_chromosomal = args.inter
+    sub_region = args.region
+    expected_filter = args.expected_filter
+    background_filter = args.background_filter
+    min_distance = args.min_distance
+    max_distance = args.max_distance
+    ignore_zeros = args.no_zeros
+    strategy = args.strategy
+    colors = args.colors
+    markers = args.markers
+    eigenvectors = args.eigenvectors
+    tmp = args.tmp
 
-    try:
-        os.makedirs(output_folder)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-    if args.tmp:
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        tmp_file.close()
-        output_path = tmp_file.name
+    if argument_sample_names is None:
+        sample_names = ['matrix_{}'.format(i) for i in range(len(input_files))]
     else:
-        output_path = output_folder + '/hics.coll'
+        sample_names = argument_sample_names
 
-    sample_names = args.names if args.names is not None else []
+    if len(sample_names) != len(input_files):
+        parser.error("Number of samples ({}) does not equal number "
+                     "of sample names ({})".format(len(input_files), len(sample_names)))
+
+    if colors is not None and len(colors) != len(input_files):
+        parser.error("Number of samples ({}) does not equal number "
+                     "of colors ({})".format(len(input_files), len(colors)))
+
+    if markers is not None and len(markers) != len(input_files):
+        parser.error("Number of samples ({}) does not equal number "
+                     "of markers ({})".format(len(input_files), len(markers)))
+
+    eigenvectors = [eigenvectors[0] - 1, eigenvectors[1] - 1]
+
+    import kaic
+    matrices = []
     try:
-        if len(args.input) == 1:
-            shutil.copy(args.input[0], output_path)
-            coll = HicCollectionWeightMeanVariance(output_path)
+        if len(input_files) > 1:
+            matrices = [kaic.load(file_name, tmpdir=tmp) for file_name in input_files]
+
+            from kaic.architecture.comparisons import hic_pca
+
+            pca_info, pca_res = hic_pca(*matrices, sample_size=sample_size, region=sub_region,
+                                        strategy=strategy, ignore_zeros=ignore_zeros,
+                                        oe_enrichment=expected_filter,
+                                        background_ligation=background_filter,
+                                        min_distance=min_distance, max_distance=max_distance,
+                                        min_libraries_above_background=1,
+                                        inter_chromosomal=inter_chromosomal)
+            variance = pca_info.explained_variance_ratio_
+
+            with open(output_file, 'w') as o:
+                o.write("sample\n" + "\t".join(["ev_{}".format(i+1) for i in range(len(sample_names))]))
+                for i, v in enumerate(pca_res):
+                    o.write("{}\t".format(sample_names[i]) + "\t".join(v) + "\n")
+                o.write("variance\t" + "\t".join(variance) + "\n")
+
+            pca_res_file = output_file
         else:
+            pca_res_file = input_files[0]
 
-            for file_name in args.input:
-                if args.names is None:
-                    sample_names.append(os.path.splitext(os.path.basename(file_name))[0])
+        if plot_file is not None:
+            import pandas
+            pca_info = pandas.read_csv(pca_res_file, sep="\t")
+            pca_res = pca_info.iloc[:-1, 1:]
+            variance = pca_info.iloc[-1, 1:]
 
-                if args.tmp:
-                    input_path = create_temporary_copy(file_name)
-                else:
-                    input_path = os.path.expanduser(file_name)
-                hics.append(kaic.load(input_path, mode='r'))
+            if argument_sample_names is None:
+                sample_names = pca_info.iloc[:-1, 0]
 
-            coll = HicCollectionWeightMeanVariance(hics, file_name=output_path, only_intra_chromosomal=args.intra,
-                                                   scale_libraries=True, mode='w')
-            coll.calculate()
+            import matplotlib
+            matplotlib.use("pdf")
+            from kaic.plotting.plot_statistics import pca_plot
+            fig, ax = pca_plot(pca_res, variance=variance, names=sample_names,
+                               markers=args.markers, colors=args.colors,
+                               eigenvectors=eigenvectors)
+            ax.set_title("PCA sample size {}".format(sample_size))
+            fig.savefig(plot_file)
 
-        # filtering
-        if args.expected_filter is not None:
-            eof = ExpectedObservedCollectionFilter(coll, fold_change=args.expected_filter)
-            coll.filter(eof, queue=True)
-        if args.background_filter is not None:
-            bgf = BackgroundLigationCollectionFilter(coll, all_contacts=True, fold_change=args.background_filter)
-            coll.filter(bgf, queue=True)
-        if args.window_filter is not None:
-            mmdf = MinMaxDistanceCollectionFilter(coll, min_distance=args.window_filter[0],
-                                                  max_distance=args.window_filter[1])
-            coll.filter(mmdf, queue=True)
-        coll.run_queued_filters()
-
-        if args.pair_selection == 'variance':
-            pair_selector = LargestVariancePairSelection()
-        elif args.pair_selection == 'fc':
-            pair_selector = LargestFoldChangePairSelection()
-        elif args.pair_selection == 'passthrough':
-            pair_selector = PassthroughPairSelection()
-        else:
-            raise ValueError("Pair selection mechanism {} is not valid".format(args.pair_selection))
-
-        if args.divide:
-            regions = coll.chromosomes()
-        else:
-            regions = [None]
-
-        for sample_size in args.sample_sizes:
-            for region in regions:
-                logger.info("Sample size: %d" % sample_size)
-                pca_info, pca_res = do_pca(coll, pair_selection=pair_selector, sample_size=sample_size,
-                                           regions=region)
-
-                with open(output_folder + "/explained_variance_{}_{}.txt".format(region, sample_size), 'w') as var:
-                    for i, variance in enumerate(pca_info.explained_variance_ratio_):
-                        var.write(str(variance))
-                        if i == len(pca_info.explained_variance_ratio_)-1:
-                            var.write("\n")
-                        else:
-                            var.write("\t")
-
-                with open(output_folder + "/pca_results_{}_{}.txt".format(region, sample_size), 'w') as res:
-                    for i, row in enumerate(pca_res):
-                        for j, value in enumerate(row):
-                            res.write(str(value))
-                            if j == len(row)-1:
-                                res.write("\n")
-                            else:
-                                res.write("\t")
-
-                fig, ax = pca_plot(pca_res, pca_info=pca_info, colors=args.colors, names=sample_names,
-                                   markers=args.markers)
-                ax.set_title("PCA sample size %d" % sample_size)
-                fig.savefig(output_folder + "/pca_plot_{}_{}.pdf".format(region, sample_size))
-                fig.clf()
     finally:
-        if args.tmp:
-            for hic in hics:
-                file_name = hic.file.filename
-                hic.close()
-                os.unlink(file_name)
-            shutil.move(output_path, output_folder + '/hics.coll')
+        for matrix in matrices:
+            matrix.close()
 
 
-def call_peaks_parser():
+def loops_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic call_peaks",
-        description='Call enriched peaks in a Hic object'
+        prog="kaic loops",
+        description='Call loops in a Hic object using Kai-C '
+                    'implementation of HICCUPS. See. Rao, Huntley et '
+                    'al. (2014), Cell, for details.'
     )
 
     parser.add_argument(
         'input',
-        help='''Input Hic file'''
+        help='Input Hic file'
     )
 
     parser.add_argument(
         'output',
-        help='''Output HDF5 file'''
+        nargs='?',
+        help='Output file. If input file is already '
+             'a Kai-C compatible loops object, filtering '
+             'can also be done in place.'
     )
 
     parser.add_argument(
         '-c', '--chromosomes', dest='chromosomes',
         nargs='+',
-        help='''Chromosomes to be investigated.'''
+        help='Chromosomes to be investigated.'
     )
 
     parser.add_argument(
         '-p', '--peak-size', dest='peak_size',
         type=int,
-        help='''Size of the expected peak in pixels. If not set, will be estimated to correspond to ~ 25kb.'''
+        help='Size of the expected peak in pixels. '
+             'If not set, will be estimated to '
+             'correspond to ~ 25kb.'
     )
 
     parser.add_argument(
-        '-w', '--width', dest='width',
+        '-w', '--neighborhood-width', dest='width',
         type=int,
-        help='''Width of the investigated area surrounding a peak in pixels. If not set, will be estimated at p+3'''
-    )
-
-    parser.add_argument(
-        '-m', '--min-dist', dest='min_dist',
-        type=int,
-        default=3,
-        help='''Minimum distance in pixels for two loci to be considered as peaks. Default: 3'''
+        help='Width of the investigated area surrounding '
+             'pixels. If not set, will be estimated at p+3'
     )
 
     parser.add_argument(
         '-t', '--threads', dest='threads',
         type=int,
-        default=4,
-        help='''Number of threads for parallel processing. Default: 4'''
+        default=1,
+        help='Number of threads for parallel processing. ' 
+             'Default: 1 - it is advised to set this as '
+             'high as possible, since loop calling is '
+             'very computationally expensive!'
     )
 
     parser.add_argument(
-        '-s', '--slice-size', dest='slice_size',
+        '--min-distance', dest='min_dist',
         type=int,
-        default=200,
-        help='''Width of submatrix examined per process. Default: 200'''
+        help='Minimum distance in bins for two loci '
+             'to be considered as loops. Default: peak size. '
+             'Set this value higher to exclude loops '
+             'close to the diagonal.'
     )
 
     parser.add_argument(
-        '--minimum_mappability', dest='minimum_mappability',
+        '-m', '--mappability', dest='mappability_global_cutoff',
         type=float,
-        default=0.7,
-        help='''Minimum mappable fraction of a pixel neighborhood to consider pixel as peak'''
+        help='Global mappability filter for all neighborhoods.'
+             'Minimum mappable fraction of a pixel ' 
+             'neighborhood to consider pixel as loop. '
+             'Can be overridden by filters for local neighborhoods.'
     )
 
     parser.add_argument(
-        '-i', '--inter-chromosomal', dest='inter',
-        action='store_true',
-        help='''If set, also find peaks in inter-chromosomal data.'''
-    )
-    parser.set_defaults(inter=False)
-
-    parser.add_argument(
-        '--sge', dest='sge',
-        action='store_true',
-        help='''Run on SGE cluster'''
-    )
-    parser.set_defaults(sge=False)
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
-
-
-def call_peaks(argv):
-    parser = call_peaks_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    sge = args.sge
-
-    import kaic
-    import kaic.peaks as kn
-    from kaic.tools.files import create_temporary_copy
-
-    # copy file if required
-    original_input_path = os.path.expanduser(args.input)
-    original_output_path = os.path.expanduser(args.output)
-    if args.tmp:
-        logger.info("Copying data to temporary file...")
-        input_path = create_temporary_copy(original_input_path)
-        logger.info("Working from temporary file %s" % input_path)
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        tmp_file.close()
-        output_path = tmp_file.name
-        logger.info("Temporary output file: %s" % output_path)
-    else:
-        input_path = os.path.expanduser(args.input)
-        output_path = os.path.expanduser(args.output)
-
-    pk = kn.RaoPeakCaller(p=args.peak_size, w_init=args.width, min_locus_dist=args.min_dist,
-                          n_processes=args.threads, slice_size=args.slice_size,
-                          process_inter=args.inter, cluster=sge,
-                          min_mappable_fraction=args.minimum_mappability)
-
-    hic = kaic.load(input_path, mode='r')
-
-    if args.chromosomes is None:
-        chromosome_pairs = None
-    else:
-        chromosome_pairs = []
-        for i in range(len(args.chromosomes)):
-            chromosome1 = args.chromosomes[i]
-            for j in range(i, len(args.chromosomes)):
-                chromosome2 = args.chromosomes[j]
-                chromosome_pairs.append((chromosome1, chromosome2))
-
-    peaks = pk.call_peaks(hic, chromosome_pairs=chromosome_pairs, file_name=output_path)
-
-    logger.info("Found %d potential peaks" % len(peaks))
-    peaks.close()
-
-    if args.tmp:
-        os.unlink(input_path)
-        logger.info("Moving temporary output file to destination %s" % original_output_path)
-        shutil.move(output_path, original_output_path)
-
-
-def filter_peaks_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic filter_peaks",
-        description='Filter peaks called with call_peaks. By default, this is a pass-through filter.'
-                    'Enable different filters using the below parameters.'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input Peaks file'''
-    )
-
-    parser.add_argument(
-        'output',
-        nargs='?',
-        help='''Output filtered Peaks file'''
-    )
-
-    parser.add_argument(
-        '-f', '--fdr', dest='fdr_cutoff',
+        '--mappability-donut', dest='mappability_donut_cutoff',
         type=float,
-        help='''Global FDR cutoff for all neighborhoods. Value between 0 and 1.'''
+        help='Mappability filter for donut neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-fd', '--fdr-donut', dest='fdr_donut_cutoff',
+        '--mappability-horizontal', dest='mappability_horizontal_cutoff',
         type=float,
-        help='''Donut neighborhood FDR cutoff. Value between 0 and 1.'''
+        help='Mappability filter for horizontal neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-fh', '--fdr-horizontal', dest='fdr_horizontal_cutoff',
+        '--mappability-vertical', dest='mappability_vertical_cutoff',
         type=float,
-        help='''Horizontal neighborhood FDR cutoff. Value between 0 and 1.'''
+        help='Mappability filter for vertical neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-fv', '--fdr-vertical', dest='fdr_vertical_cutoff',
+        '--mappability-lower-left', dest='mappability_lower_left_cutoff',
         type=float,
-        help='''Vertical neighborhood FDR cutoff. Value between 0 and 1.'''
+        help='Mappability filter for lower-left neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-fl', '--fdr-lower-left', dest='fdr_lower_left_cutoff',
+        '-q', '--fdr', dest='fdr_global_cutoff',
         type=float,
-        help='''Lower-left neighborhood FDR cutoff. Value between 0 and 1.'''
+        help='Global FDR filter all neighborhoods. '
+             'Individual neighborhood filters can '
+             'override this global setting. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-e', '--enrichment', dest='enrichment_cutoff',
+        '--fdr-donut', dest='fdr_donut_cutoff',
         type=float,
-        help='''Global enrichment cutoff. Value between 0 and infinity,
-                    e.g. 2.0 means two-fold enrichment over every contact neighborhood.'''
+        help='FDR filter for donut neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-ed', '--enrichment-donut', dest='enrichment_donut_cutoff',
+        '--fdr-horizontal', dest='fdr_horizontal_cutoff',
         type=float,
-        help='''Donut enrichment cutoff. Value between 0 and infinity.'''
+        help='FDR filter for horizontal neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-eh', '--enrichment-horizontal', dest='enrichment_horizontal_cutoff',
+        '--fdr-vertical', dest='fdr_vertical_cutoff',
         type=float,
-        help='''Horizontal enrichment cutoff. Value between 0 and infinity.'''
+        help='FDR filter for vertical neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-ev', '--enrichment-vertical', dest='enrichment_vertical_cutoff',
+        '--fdr-lower-left', dest='fdr_lower_left_cutoff',
         type=float,
-        help='''Vertical enrichment cutoff. Value between 0 and infinity.'''
+        help='FDR filter for lower-left neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-el', '--enrichment-lower_left', dest='enrichment_lower_left_cutoff',
+        '-e', '--enrichment', dest='enrichment_global_cutoff',
         type=float,
-        help='''Lower left enrichment cutoff. Value between 0 and infinity.'''
+        help='Global observed/expected filter all neighborhoods. '
+             'Individual neighborhood filters can '
+             'override this global setting. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-m', '--mappability', dest='mappability_cutoff',
+        '--enrichment-donut', dest='enrichment_donut_cutoff',
         type=float,
-        help='''Global mappability cutoff for all neighborhoods. Value between 0 and 1.'''
+        help='Observed/expected enrichment filter for donut neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-md', '--mappability-donut', dest='mappability_donut_cutoff',
+        '--enrichment-horizontal', dest='enrichment_horizontal_cutoff',
         type=float,
-        help='''Donut neighborhood mappability cutoff. Value between 0 and 1.'''
+        help='Observed/expected enrichment filter for horizontal neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-mh', '--mappability-horizontal', dest='mappability_horizontal_cutoff',
+        '--enrichment-vertical', dest='enrichment_vertical_cutoff',
         type=float,
-        help='''Horizontal neighborhood mappability cutoff. Value between 0 and 1.'''
+        help='Observed/expected enrichment filter for vertical neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
-        '-mv', '--mappability-vertical', dest='mappability_vertical_cutoff',
+        '--enrichment-lower-left', dest='enrichment_lower_left_cutoff',
         type=float,
-        help='''Vertical neighborhood mappability cutoff. Value between 0 and 1.'''
-    )
-
-    parser.add_argument(
-        '-ml', '--mappability-lower-left', dest='mappability_lower_left_cutoff',
-        type=float,
-        help='''Lower-left neighborhood mappability cutoff. Value between 0 and 1.'''
+        help='Observed/expected enrichment filter for lower-left neighborhood. '
+             'Value between 0 and 1.'
     )
 
     parser.add_argument(
         '-o', '--observed', dest='observed',
         type=int,
-        help='''Minimum observed value (integer, uncorrected). Default: 1'''
+        help='Minimum observed value '
+             '(integer, uncorrected). Default: 1'
     )
 
     parser.add_argument(
-        '-r', '--rao', dest='rao',
+        '--rh-filter', dest='rh_filter',
         action='store_true',
-        help='''Filter peaks as Rao et al. (2014) does. It only retains peaks that
-
-                        1. are at least 2-fold enriched over either the donut or lower-left neighborhood
-                        2. are at least 1.5-fold enriched over the horizontal and vertical neighborhoods
-                        3. are at least 1.75-fold enriched over both the donut and lower-left neighborhood
-                        4. have an FDR <= 0.1 in every neighborhood
-            '''
+        default=False,
+        help='Filter peaks as in Rao, Huntley et al. (2014), Cell. '
+             'It only retains peaks that are at least 2-fold enriched '
+             'over either the donut or lower-left neighborhood, '
+             'at least 1.5-fold enriched over the horizontal and '
+             'vertical neighborhoods, at least 1.75-fold enriched '
+             'over both the donut and lower-left neighborhood, and '
+             'have an FDR <= 0.1 in every neighborhood '
     )
-    parser.set_defaults(rao=False)
 
     parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
+        '--sge', dest='sge',
         action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
-
-
-def filter_peaks(argv):
-    parser = filter_peaks_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    rao = args.rao
-    fdr_cutoff = args.fdr_cutoff
-    fdr_cutoff_ll = args.fdr_lower_left_cutoff
-    fdr_cutoff_h = args.fdr_horizontal_cutoff
-    fdr_cutoff_v = args.fdr_vertical_cutoff
-    fdr_cutoff_d = args.fdr_donut_cutoff
-    mappability_cutoff = args.mappability_cutoff
-    mappability_cutoff_ll = args.mappability_lower_left_cutoff
-    mappability_cutoff_h = args.mappability_horizontal_cutoff
-    mappability_cutoff_v = args.mappability_vertical_cutoff
-    mappability_cutoff_d = args.mappability_donut_cutoff
-    enrichment_cutoff = args.enrichment_cutoff
-    enrichment_cutoff_ll = args.enrichment_lower_left_cutoff
-    enrichment_cutoff_h = args.enrichment_horizontal_cutoff
-    enrichment_cutoff_v = args.enrichment_vertical_cutoff
-    enrichment_cutoff_d = args.enrichment_donut_cutoff
-    observed_cutoff = args.observed
-    tmp = args.tmp
-
-    import kaic.peaks as kn
-    from kaic.tools.files import create_temporary_copy, copy_or_expand
-
-    # copy file if required
-    original_input_path = os.path.expanduser(args.input)
-    if tmp:
-        logger.info("Copying data to temporary file...")
-        input_path = create_temporary_copy(original_input_path)
-    else:
-        input_path = copy_or_expand(args.input, args.output)
-
-    peaks = kn.RaoPeakInfo(input_path, mode='a')
-
-    if rao:
-        logger.info("Rao filter")
-        peaks.filter_rao(queue=True)
-
-    if fdr_cutoff is not None:
-        logger.info("Global FDR filter at {}".format(fdr_cutoff))
-        peaks.filter_fdr(fdr_cutoff, queue=True)
-    elif (fdr_cutoff_d is not None or fdr_cutoff_h is not None
-          or fdr_cutoff_v is not None or fdr_cutoff_ll is not None):
-        logger.info("Local FDR filter")
-        fdr_mask = peaks.add_mask_description('fdr', 'FDR cutoff filter')
-        fdr_filter = kn.FdrPeakFilter(fdr_ll_cutoff=fdr_cutoff_ll,
-                                      fdr_d_cutoff=fdr_cutoff_d,
-                                      fdr_h_cutoff=fdr_cutoff_h,
-                                      fdr_v_cutoff=fdr_cutoff_v,
-                                      mask=fdr_mask)
-        peaks.filter(fdr_filter, queue=True)
-
-    if mappability_cutoff is not None:
-        logger.info("Global mappability filter at {}".format(mappability_cutoff))
-        peaks.filter_mappability(mappability_cutoff, queue=True)
-    elif (mappability_cutoff_d is not None or mappability_cutoff_h is not None
-          or mappability_cutoff_v is not None or mappability_cutoff_ll is not None):
-        logger.info("Local mappability filter")
-        mappability_mask = peaks.add_mask_description('mappability', 'mappability cutoff filter')
-        mappability_filter = kn.MappabilityPeakFilter(mappability_ll_cutoff=mappability_cutoff_ll,
-                                                      mappability_d_cutoff=mappability_cutoff_d,
-                                                      mappability_h_cutoff=mappability_cutoff_h,
-                                                      mappability_v_cutoff=mappability_cutoff_v,
-                                                      mask=mappability_mask)
-        peaks.filter(mappability_filter, queue=True)
-
-    if enrichment_cutoff is not None:
-        logger.info("Global enrichment filter at {}".format(enrichment_cutoff))
-        peaks.filter_enrichment(enrichment_cutoff, queue=True)
-    elif (enrichment_cutoff_d is not None or enrichment_cutoff_h is not None
-          or enrichment_cutoff_v is not None or enrichment_cutoff_ll is not None):
-        logger.info("Local enrichment filter")
-        enrichment_mask = peaks.add_mask_description('enrichment', 'enrichment cutoff filter')
-        enrichment_filter = kn.EnrichmentPeakFilter(enrichment_ll_cutoff=enrichment_cutoff_ll,
-                                                    enrichment_d_cutoff=enrichment_cutoff_d,
-                                                    enrichment_h_cutoff=enrichment_cutoff_h,
-                                                    enrichment_v_cutoff=enrichment_cutoff_v,
-                                                    mask=enrichment_mask)
-        peaks.filter(enrichment_filter, queue=True)
-
-    if observed_cutoff is not None:
-        peaks.filter_observed(observed_cutoff, queue=True)
-
-    peaks.run_queued_filters()
-    peaks.close()
-
-    if args.tmp:
-        output_path = os.path.expanduser(args.output)
-        if os.path.isdir(output_path):
-            output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-        logger.info("Moving temporary output file to destination %s..." % output_path)
-        shutil.move(input_path, output_path)
-
-    logger.info("All done.")
-
-
-def merge_peaks_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic merge_peaks",
-        description='Filter peaks called with call_peaks'
+        default=False,
+        help='Run on SGE cluster. This option is highly '
+             'recommended if you are running "kaic loops" on '
+             'a Sun/Oracle Grid Engine Cluster. The "-t" option '
+             'specifies the number of SGE slots if this flag '
+             'is set. The main process will then submit jobs '
+             'to the grid using "gridmap" and collect the '
+             'results. (https://gridmap.readthedocs.io/) '
     )
 
     parser.add_argument(
-        'input',
-        help='''Input Peaks file'''
+        '--batch-size', dest='slice_size',
+        type=int,
+        default=200,
+        help='Width of submatrix examined per '
+             'process. Default: 200'
     )
 
     parser.add_argument(
-        'output',
-        help='''Output merged Peaks file'''
+        '-j', '--merge-pixels', dest='merge',
+        action='store_true',
+        default=False,
+        help='Merge individual pixels into peaks after filtering.'
     )
 
     parser.add_argument(
-        '-d', '--distance', dest='distance',
+        '--merge-distance', dest='merge_distance',
         type=int,
         default=20000,
-        help='''Maximum distance in base pairs at which to merge two peaks. Default 20000bp'''
+        help='Maximum distance in base pairs at '
+             'which to merge two pixels. '
+             'Default 20000'
+    )
+
+    parser.add_argument(
+        '-s', '--remove-singlets', dest='remove_singlets',
+        action='store_true',
+        default=False,
+        help='Remove isolated pixels after merging step.'
+    )
+
+    parser.add_argument(
+        '-b', '--bedpe', dest='bedpe',
+        help='BEDPE output file. When set, merged loops '
+             'will be written to this file after all '
+             'filtering steps have completed.'
+    )
+
+    parser.add_argument(
+        '-f', '--force-overwrite', dest='force_overwrite',
+        action='store_true',
+        default=False,
+        help='''If the specified output file exists, it will be 
+                        overwritten without warning.'''
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Work in temporary directory'''
+        default=False,
+        help='Work in temporary directory'
     )
-    parser.set_defaults(tmp=False)
+
     return parser
 
 
-def merge_peaks(argv):
-    parser = merge_peaks_parser()
+def loops(argv):
+    parser = loops_parser()
 
     args = parser.parse_args(argv[2:])
 
-    import kaic.peaks as kn
-    from kaic.tools.files import create_temporary_copy
+    import os
 
-    # copy file if required
-    original_input_path = os.path.expanduser(args.input)
-    original_output_path = os.path.expanduser(args.output)
-    if args.tmp:
-        logger.info("Copying data to temporary file...")
-        input_path = create_temporary_copy(original_input_path)
-        logger.info("Working from temporary file %s" % input_path)
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        tmp_file.close()
-        output_path = tmp_file.name
-        logger.info("Temporary output file: %s" % output_path)
-    else:
-        input_path = os.path.expanduser(args.input)
-        output_path = os.path.expanduser(args.output)
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output) if args.output is not None else None
+    chromosomes = args.chromosomes
+    peak_size = args.peak_size
+    width = args.width
+    threads = args.threads
+    min_dist = args.min_dist
 
-    peaks = kn.RaoPeakInfo(input_path, mode='r')
-    peaks.merged_peaks(output_path, euclidian_distance=args.distance)
+    mappability_cutoff_global = args.mappability_global_cutoff
+    mappability_cutoff_donut = args.mappability_donut_cutoff
+    mappability_cutoff_horizontal = args.mappability_horizontal_cutoff
+    mappability_cutoff_vertical = args.mappability_vertical_cutoff
+    mappability_cutoff_lower_left = args.mappability_lower_left_cutoff
 
-    if args.tmp:
-        os.unlink(input_path)
-        logger.info("Moving temporary output file to destination %s" % original_output_path)
-        shutil.move(output_path, original_output_path)
+    enrichment_cutoff_global = args.enrichment_global_cutoff
+    enrichment_cutoff_donut = args.enrichment_donut_cutoff
+    enrichment_cutoff_horizontal = args.enrichment_horizontal_cutoff
+    enrichment_cutoff_vertical = args.enrichment_vertical_cutoff
+    enrichment_cutoff_lower_left = args.enrichment_lower_left_cutoff
 
+    fdr_cutoff_global = args.fdr_global_cutoff
+    fdr_cutoff_donut = args.fdr_donut_cutoff
+    fdr_cutoff_horizontal = args.fdr_horizontal_cutoff
+    fdr_cutoff_vertical = args.fdr_vertical_cutoff
+    fdr_cutoff_lower_left = args.fdr_lower_left_cutoff
 
-def filter_merged_peaks_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic filter_merged_peaks",
-        description='Filter merged peaks'
-    )
+    min_observed = args.observed
 
-    parser.add_argument(
-        'input',
-        help='''Input merged Peaks file'''
-    )
+    rh_filter = args.rh_filter
+    sge = args.sge
+    batch_size = args.batch_size
+    merge = args.merge
+    merge_distance = args.merge_distance
+    remove_singlets = args.remove_singlets
+    bedpe_file = os.path.expanduser(args.bedpe) if args.bedpe is not None else None
 
-    parser.add_argument(
-        'output',
-        nargs='?',
-        help='''Output filtered merged Peaks file'''
-    )
+    force_overwrite = args.force_overwrite
+    tmp = args.tmp
 
-    parser.add_argument(
-        '-r', '--rao', dest='rao',
-        action='store_true',
-        help='''Filter peaks as Rao et al. (2014) does.
-                It removes peaks that are singlets and have a q-value sum >.02.
-            '''
-    )
-    parser.set_defaults(rao=False)
+    if not force_overwrite and os.path.exists(output_file):
+        parser.error("Output file {} exists! Use -f to force "
+                     "overwriting it!".format(output_file))
 
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
+    import kaic
+    import kaic.peaks
+    from kaic.tools.files import create_temporary_output
 
+    tmp_input_files = []
 
-def filter_merged_peaks(argv):
-    parser = filter_merged_peaks_parser()
+    original_output_file = output_file
+    if tmp:
+        tmp = False
+        if output_file is not None:
+            output_file = create_temporary_output(output_file)
+        tmp = True
 
-    args = parser.parse_args(argv[2:])
+    matrix = None
+    try:
+        matrix = kaic.load(input_file, mode='a', tmpdir=tmp)
+        is_rh_peaks = isinstance(input_file, kaic.peaks.RaoPeakInfo)
+        is_merged_peaks = isinstance(matrix, kaic.peaks.PeakInfo)
+        is_matrix = isinstance(matrix, kaic.matrix.RegionMatrixContainer)
 
-    import kaic.peaks as kn
-    from kaic.tools.files import create_temporary_copy, copy_or_expand
+        if not is_matrix:
+            parser.error("Input type {} not supported".format(type(matrix)))
 
-    # copy file if required
-    original_input_path = os.path.expanduser(args.input)
-    if args.tmp:
-        logger.info("Copying data to temporary file...")
-        input_path = create_temporary_copy(original_input_path)
-    else:
-        input_path = copy_or_expand(args.input, args.output)
+        if (merge and not is_merged_peaks) or (is_matrix and not is_rh_peaks and not is_merged_peaks):
+            if output_file is None:
+                parser.error("Must provide output file when calling or merging peaks!")
 
-    merged_peaks = kn.PeakInfo(input_path, mode='a')
+        # perform pixel loop probability estimate
+        if is_matrix and not is_rh_peaks and not is_merged_peaks:
+            pk = kaic.peaks.RaoPeakCaller(p=peak_size, w_init=width, min_locus_dist=peak_size,
+                                          n_processes=threads, slice_size=batch_size,
+                                          cluster=sge, min_mappable_fraction=0.0)
+            chromosome_pairs = [(chromosome, chromosome) for chromosome in chromosomes]
 
-    if args.rao:
-        logger.info("Running Rao filter")
-        merged_peaks.filter_rao()
+            if not merge:
+                o = output_file
+            else:
+                o = create_temporary_output('test.peaks')
+                tmp_input_files.append(o)
 
-    if args.tmp:
-        output_path = os.path.expanduser(args.output)
-        if os.path.isdir(output_path):
-            output_path = "%s/%s" % (output_path, os.path.basename(original_input_path))
-        logger.info("Moving temporary output file to destination %s..." % output_path)
-        shutil.move(input_path, output_path)
+            peaks = pk.call_peaks(matrix, chromosome_pairs=chromosome_pairs, file_name=o)
+            matrix.close()
+            matrix = peaks
+            is_rh_peaks = True
 
-    logger.info("All done.")
+        # filter pixels based on loop probability
+        if is_rh_peaks and not is_merged_peaks:
+            filters = []
+            if (fdr_cutoff_global is not None or fdr_cutoff_donut is not None or
+                    fdr_cutoff_horizontal is not None or fdr_cutoff_lower_left is not None or
+                    fdr_cutoff_vertical is not None):
+                fdr_mask = matrix.add_mask_description('fdr', 'FDR cutoff filter')
+                fdr_filter = kaic.peaks.FdrPeakFilter(fdr_cutoff=fdr_cutoff_global,
+                                                      fdr_ll_cutoff=fdr_cutoff_lower_left,
+                                                      fdr_d_cutoff=fdr_cutoff_donut,
+                                                      fdr_h_cutoff=fdr_cutoff_horizontal,
+                                                      fdr_v_cutoff=fdr_cutoff_vertical,
+                                                      mask=fdr_mask)
+                filters.append(fdr_filter)
+            
+            if (mappability_cutoff_global is not None or
+                    mappability_cutoff_donut is not None or
+                    mappability_cutoff_horizontal is not None or
+                    mappability_cutoff_lower_left is not None or
+                    mappability_cutoff_vertical is not None):
+                mappability_mask = matrix.add_mask_description('mappability', 'Mappability filter')
+                mappability_filter = kaic.peaks.MappabilityPeakFilter(
+                    mappability_cutoff=mappability_cutoff_global,
+                    mappability_ll_cutoff=mappability_cutoff_lower_left,
+                    mappability_d_cutoff=mappability_cutoff_donut,
+                    mappability_h_cutoff=mappability_cutoff_horizontal,
+                    mappability_v_cutoff=mappability_cutoff_vertical,
+                    mask=mappability_mask)
+                filters.append(mappability_filter)
+                
+            if (enrichment_cutoff_global is not None or
+                    enrichment_cutoff_donut is not None or
+                    enrichment_cutoff_horizontal is not None or
+                    enrichment_cutoff_lower_left is not None or
+                    enrichment_cutoff_vertical is not None):
+                enrichment_mask = matrix.add_mask_description('enrichment', 'O/E filter')
+                enrichment_filter = kaic.peaks.EnrichmentPeakFilter(
+                    enrichment_cutoff=enrichment_cutoff_global,
+                    enrichment_ll_cutoff=enrichment_cutoff_lower_left,
+                    enrichment_d_cutoff=enrichment_cutoff_donut,
+                    enrichment_h_cutoff=enrichment_cutoff_horizontal,
+                    enrichment_v_cutoff=enrichment_cutoff_vertical,
+                    mask=enrichment_mask)
+                filters.append(enrichment_filter)
+
+            if min_dist is not None and min_dist > peak_size:
+                distance_mask = matrix.add_mask_description('distance', 'Min distance filter')
+                distance_filter = kaic.peaks.DistancePeakFilter(peak_size + min_dist,
+                                                                mask=distance_mask)
+                filters.append(distance_filter)
+
+            if min_observed is not None:
+                observed_mask = matrix.add_mask_description('observed', 'Min observed filter')
+                observed_filter = kaic.peaks.ObservedPeakFilter(min_observed,
+                                                                mask=observed_mask)
+                filters.append(observed_filter)
+
+            if rh_filter:
+                rh_mask = matrix.add_mask_description('rao_huntley', "Rao Huntley filter")
+                rh = kaic.peaks.RaoPeakFilter(mask=rh_mask)
+                filters.append(rh)
+
+            if len(filters) > 0:
+                for f in filters:
+                    matrix.filter(f, queue=True)
+                matrix.run_queued_filters()
+
+        if merge and not is_merged_peaks:
+            merged_peaks = matrix.merged_peaks(output_file, euclidian_distance=merge_distance)
+            matrix.close()
+            matrix = merged_peaks
+            is_merged_peaks = True
+
+        if is_merged_peaks and remove_singlets:
+            matrix.filter_rao()
+
+        if is_merged_peaks and bedpe_file is not None:
+            matrix.to_bedpe(bedpe_file)
+
+    finally:
+        if matrix is not None:
+            matrix.close()
+
+        for tmp_input_file in tmp_input_files:
+            os.remove(tmp_input_file)
+
+        if tmp and output_file is not None and original_output_file is not None:
+            shutil.copy(output_file, original_output_file)
+            os.remove(output_file)
 
 
 def overlap_peaks_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic overlap_peaks",
+        prog="kaic overlap-peaks",
         description='Overlap peaks from multiple samples'
     )
 
@@ -2524,6 +2329,7 @@ def overlap_peaks(argv):
         input_paths = [create_temporary_copy(i) for i in original_input_paths]
     else:
         input_paths = original_input_paths
+    import kaic
 
     peaks = [kaic.load(i, mode="r") for i in input_paths]
 
@@ -2594,70 +2400,6 @@ def plot_ligation_err(argv):
     logger.info("All done.")
 
 
-def plot_pair_stats_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic plot_pair_stats",
-        description='Plot the filtering statistics of a Pairs object'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input filtered Pairs file'''
-    )
-
-    parser.add_argument(
-        'output',
-        help='''Output pdf'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        default=False,
-        help='''Work in temporary directory'''
-    )
-    return parser
-
-
-def plot_pair_stats(argv):
-    parser = plot_pair_stats_parser()
-    args = parser.parse_args(argv[2:])
-
-    import matplotlib
-    matplotlib.use('agg')
-    import kaic
-    from kaic.tools.files import create_temporary_copy, copy_or_expand
-    import matplotlib.pyplot as plt
-    from kaic.plotting.plot_statistics import statistics_plot
-
-    stats_file = os.path.expanduser(args.output)
-    original_input_path = os.path.expanduser(args.input)
-    if args.tmp:
-        logger.info("Creating temporary copy of input file...")
-        input_path = create_temporary_copy(original_input_path)
-        logger.info("Working from copy in %s" % input_path)
-    else:
-        input_path = copy_or_expand(args.input, args.output)
-
-    pairs = kaic.load(file_name=input_path, mode='r')
-
-    statistics = pairs.filter_statistics()
-    pairs.close()
-    logger.info("Done creating pairs.")
-
-    logger.info("Saving statistics...")
-
-    fig, ax = plt.subplots()
-    statistics_plot(statistics)
-    fig.savefig(stats_file)
-    plt.close(fig)
-
-    if args.tmp:
-        os.remove(input_path)
-
-    logger.info("All done.")
-
-
 def plot_re_dist_parser():
     parser = argparse.ArgumentParser(
         prog="kaic plot_re_dist",
@@ -2707,63 +2449,6 @@ def plot_re_dist(argv):
     pairs_re_distance_plot(pairs, output=output_path, limit=args.limit, max_distance=args.max_dist)
     pairs.close()
 
-    logger.info("All done.")
-
-
-def plot_hic_corr_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic plot_hic_corr",
-        description='Plot the correlation of two Hic objects'
-    )
-
-    parser.add_argument(
-        'hic1',
-        help='''First Hi-C file'''
-    )
-
-    parser.add_argument(
-        'hic2',
-        help='''Second Hi-C file'''
-    )
-
-    parser.add_argument(
-        'output',
-        nargs="?",
-        help='''Output PDF file'''
-    )
-
-    parser.add_argument(
-        '-c', '--colormap', dest='colormap',
-        help='''Matplotlib colormap'''
-    )
-    return parser
-
-
-def plot_hic_corr(argv):
-    parser = plot_hic_corr_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.config import config
-    from kaic.plotting.plot_genomic_data import hic_correlation_plot
-
-    colormap = config.colormap_hic if args.colormap is None else args.colormap
-
-    hic1_path = os.path.expanduser(args.hic1)
-    hic2_path = os.path.expanduser(args.hic2)
-
-    hic1 = kaic.load(hic1_path, mode='r')
-    hic2 = kaic.load(hic2_path, mode='r')
-
-    output_path = None
-    if args.output:
-        output_path = os.path.expanduser(args.output)
-
-    hic_correlation_plot(hic1, hic2, output=output_path, colormap=colormap, size=15)
-
-    hic1.close()
-    hic2.close()
     logger.info("All done.")
 
 
@@ -2823,56 +2508,80 @@ def boundaries_parser():
         prog="kaic boundaries",
         description='Determine structural boundaries'
     )
+
     parser.add_argument(
-        'architecture',
-        help='Input InsulationIndex file'
+        'input',
+        help='Input InsulationScores or regions file'
     )
+
     parser.add_argument(
         'output',
-        help="Output folder for boundary BED files (default or when using '-r' option) or "
-             "path for boundary BED file (when using -w option)."
+        help="Output folder for boundary BED files "
+             "(default or when using '-r' option) or "
+             "path for boundary BED file (when using "
+             "a single window size or if input file "
+             "only has one score in it)."
     )
+
     parser.add_argument(
-        '-r', '--range', dest='range',
+        '-w', '--window-sizes', dest='window',
         type=int,
-        nargs=2,
-        help='Range of insulation index window sizes (<low> <high>) to calculate boundaries on.'
-    )
-    parser.add_argument(
-        '-w', '--window', dest='window',
-        type=int,
+        nargs='+',
         help='Insulation index window size to calculate boundaries on'
     )
+
     parser.add_argument(
         '-d', '--delta', dest='delta',
         type=int, default=3,
-        help='Window size for calculating the delta vector (in bins). Calculation takes into '
-             'account d bins upstream and d bins downstream for a total '
-             'window size of 2*d + 1 bins. Default 3.'
+        help='Window size for calculating the delta '
+             'vector (in bins). Calculation takes into '
+             'account d bins upstream and d bins '
+             'downstream for a total window size of '
+             '2*d + 1 bins. Default 3.'
     )
+
     parser.add_argument(
         '-s', '--min-score', dest='min_score',
         type=float,
-        help='Report only peaks where the two surrounding extrema of the delta vector have '
-             'at least this difference in height. Default: no threshold.'
+        help='Report only peaks where the two '
+             'surrounding extrema of the delta '
+             'vector have at least this difference '
+             'in height. Default: no threshold.'
     )
+
     parser.add_argument(
         '-x', '--sub-bin-precision', dest='sub_bin_precision',
         action='store_true',
-        help='Report boundary positions with sub-bin precision. This works because the minimum '
-             'the insulation score can be determined with sub-bin precision. Default: False'
+        help='Report boundary positions with sub-bin precision. '
+             'This works because the minimum or the '
+             'the insulation score track can be determined '
+             'with sub-bin precision. Default: False'
     )
+
     parser.add_argument(
         '-p', '--prefix', dest='prefix',
         default='boundaries',
-        help='''Output file prefix. Not necessary when using 'w' modus. Default: boundaries'''
+        help='Output file prefix. '
+             'Not necessary when using -w modus. '
+             'Default: boundaries'
     )
+
     parser.add_argument(
         '-l', '--log', dest='log',
         action='store_true',
-        help='''log-transform index values before boundary calling.'''
+        default=False,
+        help='log-transform index values before '
+             'boundary calling.'
     )
-    parser.set_defaults(log=False)
+
+    parser.add_argument(
+        '-m', '--maxima', dest='maxima',
+        action='store_true',
+        default=False,
+        help='Call maxima of the insulation score '
+             'instead of minima.'
+    )
+
     return parser
 
 
@@ -2881,263 +2590,187 @@ def boundaries(argv):
 
     args = parser.parse_args(argv[2:])
 
-    import kaic
-    from kaic.tools.general import mkdir
+    import os
 
-    input_file = os.path.expanduser(args.architecture)
+    input_file = os.path.expanduser(args.input)
     output_path = os.path.expanduser(args.output)
+    windows = args.window
+    delta = args.delta
+    min_score = args.min_score
+    sub_bin_precision = args.sub_bin_precision
+    prefix = args.prefix
+    maxima = args.maxima
+    log = args.log
 
-    array = kaic.load(input_file, mode='r')
+    import kaic
+    from kaic.tools.general import mkdir, human_format
+    import genomic_regions as gr
+    from kaic.architecture.domains import InsulationScores, InsulationScore, Boundaries
 
-    single = False
-    window_sizes = []
-    if args.range is not None:
-        for window_size in array.window_sizes:
-            if args.range[0] <= window_size <= args.range[1]:
-                window_sizes.append(window_size)
-    elif args.window is not None:
-        if args.window in array.window_sizes:
-            window_sizes.append(args.window)
-        single = True
+    insulation = kaic.load(input_file, mode='r')
+
+    if isinstance(insulation, InsulationScores):
+        if windows is None:
+            windows = insulation.window_sizes
+
+        if len(windows) > 1:
+            for window in windows:
+                regions = insulation.score_regions(window)
+                b = Boundaries.from_insulation_score(regions, min_score=min_score,
+                                                     delta_window=delta,
+                                                     sub_bin_precision=sub_bin_precision,
+                                                     log=log, call_maxima=maxima)
+                output_dir = mkdir(output_path)
+                b.to_bed(os.path.join(output_dir, prefix + '_{}'.format(human_format(window))))
+        else:
+            regions = insulation.score_regions(windows[0])
+            b = Boundaries.from_insulation_score(regions, min_score=min_score,
+                                                 delta_window=delta,
+                                                 sub_bin_precision=sub_bin_precision,
+                                                 log=log, call_maxima=maxima)
+            b.to_bed(output_path)
+
+    elif isinstance(insulation, InsulationScore) or isinstance(insulation, gr.RegionBased):
+        regions = insulation.regions
+        b = Boundaries.from_insulation_score(regions, min_score=min_score,
+                                             delta_window=delta,
+                                             sub_bin_precision=sub_bin_precision,
+                                             log=log, call_maxima=maxima)
+        b.to_bed(output_path)
     else:
-        window_sizes = array.window_sizes
-
-    if len(window_sizes) == 0:
-        raise ValueError("No valid window size specified!")
-
-    def _to_bed(bs, file_name):
-        with open(file_name, 'w') as bed:
-            for b in bs:
-                bed.write("{}\t{}\t{}\t.\t{}\n".format(b.chromosome, b.start, b.end, b.score))
-
-    if not single:
-        mkdir(output_path)
-        for window_size in window_sizes:
-            logger.info("Processing window size: {}".format(window_size))
-            boundaries = array.boundaries(window_size, min_score=args.min_score,
-                                          delta_window=args.delta, log=args.log,
-                                          sub_bin_precision=args.sub_bin_precision)
-            _to_bed(boundaries, output_path + "/{}_{}.bed".format(args.prefix, window_size))
-    else:
-        boundaries = array.boundaries(window_sizes[0], min_score=args.min_score,
-                                      delta_window=args.delta, log=args.log,
-                                      sub_bin_precision=args.sub_bin_precision)
-        _to_bed(boundaries, output_path)
+        parser.error("Cannot recognise input file format!")
 
     logger.info("All done.")
 
 
-def fold_change_parser():
+def compare_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic fold_change",
-        description='Create pairwise fold-change Hi-C comparison maps'
+        prog="kaic compare",
+        description='Create pairwise comparisons of Hi-C comparison maps'
     )
     parser.add_argument(
         'input',
         nargs=2,
-        help='Input Hic files'
+        help='Input matrix (e.g. Hic) files.'
     )
     parser.add_argument(
         'output',
-        help='Output FoldChangeMatrix file.'
+        help='Output ComparisonMatrix file.'
+    )
+
+    parser.add_argument(
+        '-c', '--comparison', dest='comparison',
+        default='fold_change',
+        help='Type of comparison. Default: fold_change,'
+             'other options are: difference'
     )
 
     parser.add_argument(
         '-S', '--no-scale', dest='scale',
         action='store_false',
-        help='''Do not scale input matrices'''
+        default=True,
+        help='Do not scale input matrices to the ' 
+             'same number of valid pairs'
     )
-    parser.set_defaults(scale=True)
 
     parser.add_argument(
-        '-l', '--log2', dest='log',
+        '-l', '--log', dest='log',
         action='store_true',
-        help='''Log2-convert fold-change values'''
+        default=False,
+        help='''Log2-convert comparison values'''
     )
-    parser.set_defaults(log=False)
 
     parser.add_argument(
         '-Z', '--ignore-zero', dest='ignore_zero',
         action='store_true',
+        default=False,
         help='''Do not consider pixels where one matrix entry is zero'''
     )
-    parser.set_defaults(ignore_zero=False)
 
     parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
+        '-I', '--ignore-infinite', dest='ignore_infinite',
         action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
-
-
-def fold_change(argv):
-    parser = fold_change_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.architecture.hic_architecture import FoldChangeMatrix
-    import os.path
-
-    tmpdir = None
-    if args.tmp:
-        import tempfile
-        tmpdir = tempfile.gettempdir()
-
-    hic1 = kaic.load(os.path.expanduser(args.input[0]), mode='r')
-    hic2 = kaic.load(os.path.expanduser(args.input[1]), mode='r')
-
-    output_file = os.path.expanduser(args.output)
-    with FoldChangeMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
-                          scale_matrices=args.scale, log2=args.log, ignore_zero=args.ignore_zero) as fcm:
-        fcm.calculate()
-
-
-def difference_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic difference",
-        description='Create pairwise differences of Hi-C maps'
-    )
-    parser.add_argument(
-        'input',
-        nargs=2,
-        help='Input Hic files'
-    )
-    parser.add_argument(
-        'output',
-        help='Output DifferenceMatrix file.'
-    )
-
-    parser.add_argument(
-        '-S', '--no-scale', dest='scale',
-        action='store_false',
-        help='''Do not scale input matrices'''
-    )
-    parser.set_defaults(scale=True)
-
-    parser.add_argument(
-        '-l', '--log2', dest='log',
-        action='store_true',
-        help='''Log2-convert difference values'''
-    )
-    parser.set_defaults(log=False)
-
-    parser.add_argument(
-        '-Z', '--ignore-zero', dest='ignore_zero',
-        action='store_true',
-        help='''Do not consider pixels where one matrix entry is zero'''
-    )
-    parser.set_defaults(ignore_zero=False)
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-    return parser
-
-
-def difference(argv):
-    parser = difference_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.architecture.hic_architecture import DifferenceMatrix
-    import os.path
-
-    tmpdir = None
-    if args.tmp:
-        import tempfile
-        tmpdir = tempfile.gettempdir()
-
-    hic1 = kaic.load(os.path.expanduser(args.input[0]), mode='r')
-    hic2 = kaic.load(os.path.expanduser(args.input[1]), mode='r')
-
-    output_file = os.path.expanduser(args.output)
-    with DifferenceMatrix(hic1, hic2, file_name=output_file, tmpdir=tmpdir, mode='w',
-                          scale_matrices=args.scale, log2=args.log, ignore_zero=args.ignore_zero) as diff:
-        diff.calculate()
-
-
-def average_tracks_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic average_tracks",
-        description='Calculate average Hi-C contact profiles per region'
-    )
-    parser.add_argument(
-        'input',
-        help='Input matrix (Hi-C, fold-change map, ...)'
-    )
-    parser.add_argument(
-        'output',
-        help='Output RegionContactAverage file.'
-    )
-
-    parser.add_argument(
-        '-w', '--window-sizes', dest='window_sizes',
-        nargs='+',
-        type=int,
-        default=[200000, 400000, 600000, 1000000],
-        help='''Window sizes in base pairs to calculate region average in.
-                    The total window size is composed of the left window plus the right window, i.e. 2x this value.'''
-    )
-
-    parser.add_argument(
-        '-o', '--offset', dest='offset',
-        type=int,
-        default=0,
-        help='''Window offset in base pairs from the diagonal.'''
-    )
-
-    parser.add_argument(
-        '-p', '--padding', dest='padding',
-        type=int,
-        default=1,
-        help='''Padding (in number of regions) to calculate average on larger regions.
-                    Acts similarly to curve smooting'''
+        default=False,
+        help='Do not consider pixels where the comparison yields "inf"'
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Work in temporary directory'''
+        default=False,
+        help='Work in temporary directory'
     )
-    parser.set_defaults(tmp=False)
-
-    parser.add_argument(
-        '-i', '--impute', dest='impute',
-        action='store_true',
-        help='''Impute missing values in matrix'''
-    )
-    parser.set_defaults(impute=False)
     return parser
 
 
-def average_tracks(argv):
-    parser = average_tracks_parser()
+def compare(argv):
+    parser = compare_parser()
 
     args = parser.parse_args(argv[2:])
 
-    import kaic
-    from kaic.architecture.hic_architecture import RegionContactAverage
-    import os.path
-    import tempfile
-
-    input_file = os.path.expanduser(args.input)
+    import os
+    input_file1 = os.path.expanduser(args.input[0])
+    input_file2 = os.path.expanduser(args.input[1])
     output_file = os.path.expanduser(args.output)
-    tmpdir = None
-    if args.tmp:
-        tmpdir = tempfile.gettempdir()
+    scale = args.scale
+    comparison = args.comparison
+    filter_zero = args.ignore_zero
+    filter_infinite = args.ignore_infinite
+    log = args.log
+    tmp = args.tmp
 
-    matrix = kaic.load(input_file, mode='r')
+    import kaic
+    from kaic.architecture.comparisons import FoldChangeMatrix, DifferenceMatrix, NonzeroFilter, \
+        FoldChangeScores, DifferenceScores, FoldChangeRegions, DifferenceRegions
+    from kaic.matrix import RegionMatrixContainer
+    from kaic.architecture.domains import RegionScoreParameterTable
+    from genomic_regions import RegionBased
 
-    with RegionContactAverage(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
-                              offset=args.offset, padding=args.padding, impute_missing=args.impute) as rca:
-        rca.calculate()
+    matrix1 = kaic.load(input_file1, mode='r')
+    matrix2 = kaic.load(input_file2, mode='r')
+
+    if isinstance(matrix1, RegionMatrixContainer) and isinstance(matrix2, RegionMatrixContainer):
+        if filter_zero:
+            filters = [NonzeroFilter()]
+        else:
+            filters = None
+
+        ComparisonMatrix = None
+        if comparison == 'fold_change' or comparison == 'fc':
+            ComparisonMatrix = FoldChangeMatrix
+        elif comparison == 'difference' or comparison == 'diff':
+            ComparisonMatrix = DifferenceMatrix
+        else:
+            parser.error("Comparison type -c {} not recognised!".format(comparison))
+
+        ComparisonMatrix.from_matrices(matrix1, matrix2, file_name=output_file,
+                                       tmpdir=tmp, mode='w',
+                                       scale=scale,
+                                       log=log,
+                                       ignore_infinite=filter_infinite,
+                                       filters=filters)
+    elif isinstance(matrix1, RegionScoreParameterTable) and isinstance(matrix2, RegionScoreParameterTable):
+        ComparisonScores = None
+        if comparison == 'fold_change' or comparison == 'fc':
+            ComparisonScores = FoldChangeScores
+        elif comparison == 'difference' or comparison == 'diff':
+            ComparisonScores = DifferenceScores
+        else:
+            parser.error("Comparison type -c {} not recognised!".format(comparison))
+
+        ComparisonScores.from_matrices(matrix1, matrix2, file_name=output_file,
+                                       tmpdir=tmp, mode='w', log=log)
+    elif isinstance(matrix1, RegionBased) and isinstance(matrix2, RegionBased):
+        ComparisonRegions = None
+        if comparison == 'fold_change' or comparison == 'fc':
+            ComparisonRegions = FoldChangeRegions
+        elif comparison == 'difference' or comparison == 'diff':
+            ComparisonRegions = DifferenceRegions
+        else:
+            parser.error("Comparison type -c {} not recognised!".format(comparison))
+
+        ComparisonRegions.from_matrices(matrix1, matrix2, file_name=output_file,
+                                        tmpdir=tmp, mode='w', log=log)
 
 
 def directionality_parser():
@@ -3151,7 +2784,23 @@ def directionality_parser():
     )
     parser.add_argument(
         'output',
-        help='Output DirectionalityIndex file.'
+        nargs='?',
+        help='Output file. Format will be determined by '
+             '"-o". By default, this is a Kai-C DirectionalityIndexes '
+             'object, for maximum compatibility with other analyses. '
+             'If you choose a text-based output format (BED, GFF, '
+             'BigWig), this parameter will be the file prefix, and '
+             'the window size will be appended.'
+    )
+
+    parser.add_argument(
+        '-o', '--output-format', dest='output_format',
+        default='directionality_index',
+        help='Format of the output file. '
+             'By default, this is a Kai-C DirectionalityIndex '
+             'object, for maximum compatibility with other '
+             'analyses. Other options are "bed", "bigwig", '
+             'and "gff"'
     )
 
     parser.add_argument(
@@ -3159,57 +2808,55 @@ def directionality_parser():
         nargs='+',
         type=int,
         default=[200000, 400000, 600000, 1000000],
-        help='''Window sizes in base pairs to calculate directionality index on.
-                    The total window size is composed of the left window plus the right window, i.e. 2x this value.'''
+        help='Window sizes in base pairs to calculate insulation '
+             'score on. The total window size is composed of the '
+             'left window plus the right window, i.e. 2x this value.'
     )
 
     parser.add_argument(
         '-r', '--region', dest='region',
-        help='''Region selector (<chr>:<start>-<end>) to only calculate DI for this region.'''
+        help='Region selector (<chr>:<start>-<end>) '
+             'to only calculate directionality index '
+             'for this region.'
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Work in temporary directory'''
+        default=False,
+        help='Work in temporary directory'
     )
-    parser.set_defaults(tmp=False)
 
-    parser.add_argument(
-        '-i', '--impute', dest='impute',
-        action='store_true',
-        help='''Impute missing values in matrix'''
-    )
-    parser.set_defaults(impute=False)
     return parser
 
 
 def directionality(argv):
-    parser = directionality_parser()
+    parser = insulation_parser()
 
     args = parser.parse_args(argv[2:])
 
-    import kaic
-    from kaic.architecture.hic_architecture import DirectionalityIndex
-    import os.path
-    import tempfile
+    from kaic.architecture.domains import DirectionalityIndexes
+    import os
 
     input_file = os.path.expanduser(args.input)
     output_file = os.path.expanduser(args.output)
-    tmpdir = None
-    if args.tmp:
-        tmpdir = tempfile.gettempdir()
+    output_format = args.output_format
+    sub_region = args.region
+    window_sizes = args.window_sizes
+    tmp = args.tmp
 
-    matrix = kaic.load(input_file, mode='r')
+    if output_format.lower() not in ['directionality_index', 'bed', 'gff', 'bigwig', 'bw']:
+        parser.error("Output format must be one of directionality_index, bed, gff, or bigwig!")
 
-    with DirectionalityIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes) as di:
-        di.calculate()
+    _domain_scores(input_file, output_file, output_format, DirectionalityIndexes,
+                   sub_region=sub_region, tmp=tmp,
+                   tmpdir=tmp, mode='w', window_sizes=window_sizes)
 
 
 def insulation_parser():
     parser = argparse.ArgumentParser(
         prog="kaic insulation",
-        description='Calculate insulation index for Hic object'
+        description='Calculate insulation scores for Hic object'
     )
     parser.add_argument(
         'input',
@@ -3217,7 +2864,23 @@ def insulation_parser():
     )
     parser.add_argument(
         'output',
-        help='Output InsulationIndex file.'
+        nargs='?',
+        help='Output file. Format will be determined by '
+             '"-o". By default, this is a Kai-C InsulationScores '
+             'object, for maximum compatibility with other analyses. '
+             'If you choose a text-based output format (BED, GFF, '
+             'BigWig), this parameter will be the file prefix, and '
+             'the window size will be appended.'
+    )
+
+    parser.add_argument(
+        '-o', '--output-format', dest='output_format',
+        default='insulation_score',
+        help='Format of the output file. '
+             'By default, this is a Kai-C InsulationScore '
+             'object, for maximum compatibility with other '
+             'analyses. Other options are "bed", "bigwig", '
+             'and "gff"'
     )
 
     parser.add_argument(
@@ -3225,81 +2888,92 @@ def insulation_parser():
         nargs='+',
         type=int,
         default=[200000, 400000, 600000, 1000000],
-        help='''Window sizes in base pairs to calculate insulation index on.
-                    The total window size is composed of the left window plus the right window, i.e. 2x this value.'''
+        help='Window sizes in base pairs to calculate insulation '
+             'score on. The total window size is composed of the '
+             'left window plus the right window, i.e. 2x this value.'
     )
 
     parser.add_argument(
         '-r', '--region', dest='region',
-        help='''Region selector (<chr>:<start>-<end>) to only calculate II for this region.'''
+        help='Region selector (<chr>:<start>-<end>) '
+             'to only calculate II for this region.'
     )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
 
     parser.add_argument(
         '-i', '--impute', dest='impute',
         action='store_true',
-        help='''Impute missing values in matrix'''
+        default=False,
+        help='Impute missing values in matrix. If set, '
+             'missing matrix values (where an entire Hi-C bin '
+             'has 0 contacts) will be replaced by the '
+             'expected value at the given distance.'
     )
-    parser.set_defaults(impute=False)
 
     parser.add_argument(
-        '-o', '--offset', dest='offset',
+        '--offset', dest='offset',
         type=int,
         default=0,
-        help='''Window offset in base pairs from the diagonal.'''
+        help='Window offset in base pairs from the diagonal.'
     )
 
     parser.add_argument(
         '-l', '--log', dest='log',
         action='store_true',
-        help='''Log2-transform insulation index after normalisation (roughly centers values around 0).'''
+        default=False,
+        help='Log2-transform insulation index after '
+             'normalisation. This roughly centers values '
+             'around 0, but if you need this to be exactly '
+             'centered, use the "--geom-mean" option.'
     )
-    parser.set_defaults(log=False)
 
     parser.add_argument(
-        '-n', '--normalise', dest='normalise',
+        '-n', '--norm', dest='normalise',
         action='store_true',
-        help='''Normalise index to insulation average (default is per-chromosome - to normalise to
-                    smaller regions, use -nw).'''
+        default=False,
+        help='Normalise index to insulation average '
+             '(default is the whole chromosome - to normalise '
+             'to smaller regions, use --normalisation-window).'
     )
-    parser.set_defaults(normalise=False)
 
     parser.add_argument(
-        '-nw', '--normalisation-window', dest='normalisation_window',
+        '--normalisation-window', dest='normalisation_window',
         type=int,
-        help='''Size of the normalisation window (moving average) in bins. Default: whole chromosome.'''
+        help='Size of the normalisation window (moving average) '
+             'in bins. Default: whole chromosome.'
     )
 
     parser.add_argument(
         '-s', '--subtract-mean', dest='subtract',
         action='store_true',
         default=False,
-        help='''Subtract mean instead of dividing by it when '--normalise' is enabled.
-                        You probably don't want this, unless you are working with 
-                        log-transformed matrices (e.g. fold-change matrices)'''
+        help='Subtract mean instead of dividing by it when "-n" is enabled. '
+             'You probably do not want this, unless you are working with '
+             'log-transformed matrices (e.g. fold-change matrices)'
     )
 
     parser.add_argument(
         '-g', '--geom-mean', dest='geom_mean',
         action='store_true',
         default=False,
-        help='''Use geometric mean for normalisation (rather than arithmetic mean).
-                Useful in conjunction with --log to center the distribution at 0.'''
+        help='Use geometric mean for normalisation (rather than arithmetic mean). '
+             'Useful in conjunction with --log to center the distribution at 0.'
     )
 
     parser.add_argument(
         '--trim-mean', dest='trim_mean',
         type=float,
         default=0.0,
-        help='''Use a trimmed mean for insulation index normalisation with 
-                this cutoff (fraction of scores)'''
+        help='Use a trimmed mean for insulation index normalisation with '
+             'this cutoff (fraction of scores)'
     )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='Work in temporary directory'
+    )
+
     return parser
 
 
@@ -3308,197 +2982,394 @@ def insulation(argv):
 
     args = parser.parse_args(argv[2:])
 
-    import kaic
-    from kaic.architecture.hic_architecture import InsulationIndex
-    import os.path
-    import tempfile
+    from kaic.architecture.domains import InsulationScores
+    import os
 
     input_file = os.path.expanduser(args.input)
     output_file = os.path.expanduser(args.output)
-    tmpdir = None
-    if args.tmp:
-        tmpdir = tempfile.gettempdir()
-
-    matrix = kaic.load(input_file, mode='r')
-
-    with InsulationIndex(matrix, file_name=output_file, tmpdir=tmpdir, window_sizes=args.window_sizes,
-                         impute_missing=args.impute, normalise=args.normalise, offset=args.offset,
-                         mode='w', subtract_mean=args.subtract, log=args.log,
-                         trim_mean_proportion=args.trim_mean, geometric_mean=args.geom_mean,
-                         _normalisation_window=args.normalisation_window) as ii:
-        ii.calculate()
-
-
-def ii_to_bw_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic ii_to_bw",
-        description='Convert insulation index object to BigWig'
-    )
-    parser.add_argument(
-        'input',
-        help='InsulationIndex file'
-    )
-    parser.add_argument(
-        'output',
-        help='Folder for BigWig output or BigWig filename (if -w option in use and only a single size'
-             'was specified).'
-    )
-
-    parser.add_argument(
-        '-w', '--window-sizes', dest='window_sizes',
-        nargs='+',
-        type=int,
-        help='''Window sizes in base pairs to convert to BigWig.'''
-    )
-
-    parser.add_argument(
-        '-r', '--region', dest='region',
-        help='''Region selector (<chr>:<start>-<end>) to only write values for these regions.'''
-    )
-
-    parser.add_argument(
-        '-p', '--prefix', dest='prefix',
-        help='''Prefix for files when using multiple window sizes.'''
-    )
-
-    return parser
-
-
-def ii_to_bw(argv):
-    parser = ii_to_bw_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import os
-    import kaic
-
-    input_file = os.path.expanduser(args.input)
-    output = os.path.expanduser(args.output)
+    output_format = args.output_format
+    sub_region = args.region
+    tmp = args.tmp
     window_sizes = args.window_sizes
-    region = args.region
-    prefix = args.prefix
+    impute = args.impute
+    normalise = args.normalise
+    offset = args.offset
+    subtract_mean = args.subtract
+    trim_mean = args.trim_mean
+    geom_mean = args.geom_mean
+    log = args.log
+    normalisation_window = args.normalisation_window
 
-    if prefix is None:
-        prefix = os.path.basename(os.path.splitext(input_file)[0])
+    if output_format.lower() not in ['insulation_score', 'bed', 'gff', 'bigwig', 'bw']:
+        parser.error("Output format must be one of insulation_score, bed, gff, or bigwig!")
 
-    ii = kaic.load(input_file, mode='r')
-
-    if window_sizes is None:
-        window_sizes = ii.window_sizes
-
-    for window_size in window_sizes:
-        logger.info("Window size {}".format(window_size))
-        output_file = os.path.join(output, prefix + '_{}.bw'.format(window_size)) if len(window_sizes) > 1 else output
-        ii.to_bigwig(output_file, subset=region, score_field='ii_{}'.format(window_size))
-    ii.close()
+    _domain_scores(input_file, output_file, output_format, InsulationScores,
+                   sub_region=sub_region, tmp=tmp,
+                   tmpdir=tmp, mode='w', window_sizes=window_sizes,
+                   impute_missing=impute, normalise=normalise, offset=offset,
+                   subtract_mean=subtract_mean, log=log,
+                   trim_mean_proportion=trim_mean, geometric_mean=geom_mean,
+                   normalisation_window=normalisation_window)
 
 
-def ab_parser():
+def _domain_scores(input_file, output_file, output_format,
+                   score_class, sub_region=None, tmp=False,
+                   **kwargs):
+    import kaic
+    output_format = output_format.lower()
+    window_sizes = kwargs.get('window_sizes', [])
+
+    if not output_format == output_format:
+        output_prefix = output_file
+        output_file = None
+        sub_output_file = None
+    elif sub_region is not None:
+        sub_output_file = output_file
+        output_file = None
+        output_prefix = None
+    else:
+        output_prefix = None
+        sub_output_file = None
+
+    scores = None
+    try:
+        matrix = kaic.load(input_file, mode='r')
+        if not isinstance(matrix, score_class):
+            scores = score_class.from_hic(matrix, file_name=output_file, mode='w',
+                                          **kwargs)
+        else:
+            scores = matrix
+
+        if output_format in ['bed', 'gff', 'bigwig', 'bw']:
+            for window_size in window_sizes:
+                output_file = output_prefix + '_{}'.format(window_size) + output_format.lower()
+
+                if output_format in ['bw', 'bigwig']:
+                    scores.to_bigwig(output_file, window_size, subset=sub_region)
+
+                elif output_format in ['bed']:
+                    scores.to_bed(output_file, window_size, subset=sub_region)
+
+                elif output_format in ['gff']:
+                    scores.to_gff(output_file, window_size, subset=sub_region)
+        elif sub_region is not None:
+            sub_scores = score_class(sub_output_file, mode='w', tmpdir=tmp)
+            sub_scores.add_regions(scores.regions(sub_region), preserve_attributes=True)
+            sub_scores.close()
+    finally:
+        if scores is not None:
+            scores.close()
+
+
+def compartments_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic ab",
+        prog="kaic compartments",
         description='Calculate AB compartment matrix'
     )
     parser.add_argument(
-        'input',
-        help='Input matrix (Hi-C, fold-change map, ...)'
+        'matrix',
+        help='Input matrix (Hi-C, fold-change map, ...) or'
+             'existing AB compartment matrix.'
     )
     parser.add_argument(
-        'output',
-        help='Output AB matrix file.'
+        'ab_compartments',
+        nargs='?',
+        help='AB compartment matrix file.'
     )
 
     parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
+        '-d', '--domains', dest='domains',
+        help='Write AB domains to this file. AB domains'
+             'are output in BED format, and include the '
+             'domains type (A/B) in the name field, and the '
+             'eigenvector values (averaged across all bins '
+             'in the domain) in the score field'
     )
-    parser.set_defaults(tmp=False)
 
-    return parser
-
-
-def ab(argv):
-    parser = ab_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.architecture.hic_architecture import ABDomainMatrix
-    import os.path
-    import tempfile
-
-    input_file = os.path.expanduser(args.input)
-    output_file = os.path.expanduser(args.output)
-    tmpdir = None
-    if args.tmp:
-        tmpdir = tempfile.gettempdir()
-
-    matrix = kaic.load(input_file, mode='r')
-
-    with ABDomainMatrix(matrix, file_name=output_file, mode='w', tmpdir=tmpdir) as ab:
-        ab.calculate()
-
-
-def ab_domains_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic ab_domains",
-        description='Assign A or B compartment to each region in Hi-C object'
-    )
     parser.add_argument(
-        'input',
-        help='Input matrix (Hi-C or ABDomains)'
+        '-v', '--eigenvector', dest='eigenvector',
+        help='Write eigenvector values to this file.'
+             'Output format is BED, containing of each '
+             'matrix bin. The score field contains '
+             'the eigenvector value of the bin.'
     )
+
     parser.add_argument(
-        'output',
-        help='Output BED.'
+        '-e', '--enrichment-profile', dest='enrichment_file',
+        help='Plot AB enrichment profile to this file.'
+    )
+
+    parser.add_argument(
+        '-m', '--enrichment-matrix', dest='matrix_file',
+        help='Path to save enrichment profile matrix '
+             '(numpy txt format)'
     )
 
     parser.add_argument(
         '-g', '--genome', dest='genome',
-        help='''Genome file (FASTA, folder with FASTA, comma-separated list of FASTA, Genome object)
-                used to change sign of eigenvector based on GC content.'''
+        help='Genome file. Used to "orient" the '
+             'eigenvector values (change sign) using '
+             'the average GC content of domains. '
+             'Possible input files are '
+             'FASTA, folder with FASTA, '
+             'comma-separated list of FASTA) '
+             'used to change sign of eigenvector '
+             'based on GC content.'
+    )
+
+    parser.add_argument(
+        '-w', '--whole-genome', dest='whole_genome',
+        action='store_true',
+        default=False,
+        help='Calculate AB compartments on the whole genome '
+             'matrix, instead of individual chromosomes.'
+    )
+
+    parser.add_argument(
+        '-r', '--region', dest='region',
+        help='Only outputs domains / eigenvector values in '
+             'this region. Only works with the -d and -e '
+             'arguments. Compartmentalisation is always '
+             'calculated on the whole genome.'
+    )
+
+    parser.add_argument(
+        '-i', '--eigenvector-index', dest='eigenvector_index',
+        type=int,
+        default=1,
+        help='Eigenvector index. By default, the first '
+             'eigenvector is output for eigenvector and domain '
+             'analysis. Sometimes, it is useful to choose a '
+             'higher eigenvector. E.g. for second eigenvector,'
+             'specify "-i 2".'
+    )
+
+    parser.add_argument(
+        '-p', '--enrichment-percentiles', dest='percentiles',
+        type=float,
+        nargs='+',
+        default=(20.0, 40.0, 60.0, 80.0, 100.0),
+        help='Percentiles to use for calculation of the ' 
+             'enrichment profile. By default uses '
+             '20, 40, 60, 80, 100. The 0 percentile is '
+             'included by default.'
+    )
+
+    parser.add_argument(
+        '-c', '--enrichment-colormap', dest='colormap',
+        default='RdBu_r',
+        help='Matplotlib colormap to use for plotting ' 
+             'the enrichment profile.'
+    )
+
+    parser.add_argument(
+        '-s', '--enrichment-symmetric-at', dest='symmetric_at',
+        type=int,
+        help='Make enrichment profile plot symmetric around this value '
+             '(e.g. use 0 to ensure that 0 is in the center of the plot).'
+    )
+
+    parser.add_argument(
+        '--enrichment-min', dest='vmin',
+        type=float,
+        default=-1,
+        help='Minimum saturation value in enrichment profile. '
+             'Default -1'
+    )
+
+    parser.add_argument(
+        '--enrichment-max', dest='vmax',
+        type=float,
+        default=1,
+        help='Maximum saturation value in enrichment profile. '
+             'Default: 1'
+    )
+
+    parser.add_argument(
+        '-G', '--only-gc', dest='only_gc',
+        action='store_true',
+        help='Only use GC content for enrichment profile calculation, '
+             'not the correlation matrix eigenvector.'
+    )
+    parser.set_defaults(only_gc=False)
+
+    parser.add_argument(
+        '-x', '--enrichment-exclude', dest='exclude',
+        nargs='+',
+        help='Chromosome names to exclude from '
+             'enrichment profile calculation'
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Work in temporary directory'''
+        default=False,
+        help='Work in temporary directory'
     )
-    parser.set_defaults(tmp=False)
+
+    parser.add_argument(
+        '-f', '--force', dest='force',
+        action='store_true',
+        default=False,
+        help='Force overwriting of output files.'
+    )
 
     return parser
 
 
-def ab_domains(argv):
-    parser = ab_domains_parser()
+def compartments(argv):
+    parser = compartments_parser()
 
     args = parser.parse_args(argv[2:])
+
     import os
+
     input_file = os.path.expanduser(args.input)
-    output_file = os.path.expanduser(args.output)
-    genome_file = args.genome
+    output_file = os.path.expanduser(args.ab_compartments) if args.ab_compartments is not None else None
+    domains_file = os.path.expanduser(args.domains) if args.domains is not None else None
+    genome_file = os.path.expanduser(args.genome) if args.genome is not None else None
+    eigenvector_file = os.path.expanduser(args.eigenvector) if args.eigenvector is not None else None
+    ev_index = args.eigenvector_index - 1
+    region_subset = args.region
+    whole_genome = args.whole_genome
+
+    matrix_file = os.path.expanduser(args.matrix_file) if args.matrix_file is not None else None
+    enrichment_file = os.path.expanduser(args.enrichment_file) if args.enrichment_file is not None else None
+
+    percentiles = args.percentiles
+    symmetric_at = args.symmetric_at
+    cmap = args.colormap
+    vmin = args.vmin
+    vmax = args.vmax
+    only_gc = args.only_gc
+    exclude = args.exclude if args.exclude is not None else []
+
+    force = args.force
     tmp = args.tmp
+
+    if not force and output_file is not None and os.path.exists(output_file):
+        parser.error("Output file {} already exists. Use -f to override!".format(output_file))
+    if not force and domains_file is not None and os.path.exists(domains_file):
+        parser.error("Output file {} already exists. Use -f to override!".format(domains_file))
+    if not force and eigenvector_file is not None and os.path.exists(eigenvector_file):
+        parser.error("Output file {} already exists. Use -f to override!".format(eigenvector_file))
+    if not force and matrix_file is not None and os.path.exists(matrix_file):
+        parser.error("Output file {} already exists. Use -f to override!".format(matrix_file))
+    if not force and enrichment_file is not None and os.path.exists(enrichment_file):
+        parser.error("Output file {} already exists. Use -f to override!".format(enrichment_file))
 
     import kaic
     from kaic.tools.files import write_bed
+    from kaic.matrix import RegionMatrixContainer
+    from kaic.architecture.compartments import ABCompartmentMatrix
 
-    matrix = kaic.load(input_file, mode='r')
-    if isinstance(matrix, kaic.Hic):
-        matrix = kaic.ABDomainMatrix(matrix, tmpdir=tmp)
-        matrix.calculate()
-    elif not isinstance(matrix, kaic.ABDomainMatrix):
-        raise ValueError("Supplied input must be either a Hic object or an ABDomainMatrix")
+    matrix = kaic.load(input_file, tmpdir=tmp)
+    ab_matrix = None
+    try:
+        # input is Hic or other matrix
+        if not isinstance(matrix, ABCompartmentMatrix):
+            if not isinstance(matrix, RegionMatrixContainer):
+                parser.error("Input must be Kai-C matrix (e.g. Hic)")
 
-    with kaic.ABDomains(matrix, genome=genome_file, tmpdir=tmp) as abd:
-        regions = abd.ab_regions()
-        write_bed(output_file, regions)
-    matrix.close()
+            if output_file is None:
+                parser.error("Must provide an output file if calculating or loading "
+                             "AB compartment matrix. You can only omit this if your "
+                             "first argument is already an AB compartment matrix!")
+
+            if os.path.exists(output_file) and not force:
+                ab_matrix = kaic.load(output_file)
+                if not isinstance(ab_matrix, ABCompartmentMatrix):
+                    parser.error("Found existing file {}, but it is not an AB compartment matrix."
+                                 "Use -f to overwrite it.")
+                logger.warning("Found existing AB compartment matrix at {}. Will not recalculate - "
+                               "use -f to overwrite the existing file!")
+            else:
+                logger.info("Computing AB compartment matrix")
+                ab_matrix = ABCompartmentMatrix.from_hic(matrix,
+                                                         file_name=output_file, tmpdir=tmp,
+                                                         per_chromosome=not whole_genome)
+
+        # calculate eigenvector
+        if eigenvector_file is not None:
+            ev = ab_matrix.eigenvector(region=region_subset, genome=genome_file,
+                                       eigenvector=ev_index)
+            regions = []
+            for i, region in enumerate(ab_matrix.regions(region_subset)):
+                r = region.copy()
+                r.score = ev[i]
+                r.name = 'A' if ev[i] >= 0 else 'B'
+                regions.append(r)
+            write_bed(eigenvector_file, regions)
+
+        # Calculate domains
+        if domains_file is not None:
+            domains = ab_matrix.domains(region=region_subset, genome=genome_file,
+                                        eigenvector=ev_index)
+            write_bed(eigenvector_file, domains)
+
+        # Calculate enrichment profile
+        if matrix_file is not None or enrichment_file is not None:
+            m, cutoffs = ab_matrix.enrichment_profile(matrix,
+                                                      percentiles=percentiles,
+                                                      per_chromosome=not whole_genome,
+                                                      only_gc=only_gc,
+                                                      symmetric_at=symmetric_at,
+                                                      exclude_chromosomes=exclude)
+
+            if matrix_file is not None:
+                import numpy as np
+                np.savetxt(matrix_file, m)
+
+            if enrichment_file is not None:
+                import matplotlib
+                matplotlib.use('pdf')
+                import matplotlib.pyplot as plt
+                import matplotlib.gridspec as grd
+                import numpy as np
+
+                fig = plt.figure(figsize=(5, 5), dpi=300)
+                gs = grd.GridSpec(2, 2,
+                                  height_ratios=[5, 1],
+                                  width_ratios=[5, 1])
+                heatmap_ax = plt.subplot(gs[0, 0])
+                im = heatmap_ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax,
+                                       interpolation='nearest', aspect='auto')
+                cax = plt.subplot(gs[0, 1])
+                cb = plt.colorbar(im, cax=cax)
+                cb.set_label('log enrichment')
+                heatmap_ax.set_xticks([0, m.shape[1] - 1])
+                heatmap_ax.set_xticklabels(['active', 'inactive'])
+                heatmap_ax.set_yticks([0, m.shape[1] - 1])
+                heatmap_ax.set_yticklabels(['active', 'inactive'])
+
+                pos = np.arange(m.shape[1])
+                barplot_ax = plt.subplot(gs[1, 0])
+                barplot_ax.bar(pos, cutoffs, color='grey')
+                if not only_gc:
+                    extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
+                    barplot_ax.set_yticks([-1 * extent, 0, extent])
+                else:
+                    barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
+                barplot_ax.get_xaxis().set_visible(False)
+                barplot_ax.spines['right'].set_visible(False)
+                barplot_ax.spines['top'].set_visible(False)
+                barplot_ax.spines['bottom'].set_visible(False)
+                barplot_ax.yaxis.set_ticks_position('left')
+                barplot_ax.xaxis.set_ticks_position('none')
+                barplot_ax.set_xlim([pos[0], pos[-1]])
+                fig.savefig(output_file)
+                plt.close(fig)
+    finally:
+        matrix.close()
+        if ab_matrix is not None:
+            ab_matrix.close()
 
 
-def distance_decay_parser():
+def expected_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic distance_decay",
-        description='Calculate Hi-C distance decay (expected values)'
+        prog="kaic expected",
+        description='Calculate Hi-C expected values '
+                    '(distance decay)'
     )
     parser.add_argument(
         'input',
@@ -3506,55 +3377,58 @@ def distance_decay_parser():
     )
     parser.add_argument(
         'output',
-        help='Output distance decay file.'
+        help='Output expected contacts (tsv).'
     )
 
     parser.add_argument(
-        '-r', '--regions', dest='regions',
-        help='''Region subset for expected value calculation.'''
+        '-c', '--chromosome', dest='chromosome',
+        help='Specific chromosome to calculate '
+             'expected values for.'
     )
-
-    parser.add_argument(
-        '-s', '--smooth', dest='smooth',
-        action='store_true',
-        help='''Smoothe expected value curve'''
-    )
-    parser.set_defaults(smooth=False)
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Work in temporary directory'''
+        default=False,
+        help='Work in temporary directory'
     )
-    parser.set_defaults(tmp=False)
 
     return parser
 
 
 def distance_decay(argv):
-    parser = distance_decay_parser()
+    parser = expected_parser()
 
     args = parser.parse_args(argv[2:])
 
     import kaic
-    from kaic.architecture.hic_architecture import ExpectedContacts
     import os.path
-    import tempfile
 
     input_file = os.path.expanduser(args.input)
     output_file = os.path.expanduser(args.output)
-    tmpdir = None
-    if args.tmp:
-        tmpdir = tempfile.gettempdir()
+    chromosome = args.chromosome
+    tmp = args.tmp
 
-    matrix = kaic.load(input_file, mode='r')
+    with kaic.load(input_file, mode='r', tmpdir=tmp) as matrix:
+        intra_expected, intra_expected_chromosome, inter_expected = matrix.expected_values()
 
-    with ExpectedContacts(matrix, file_name=output_file, smooth=args.smooth, mode='w',
-                          regions=args.regions, tmpdir=tmpdir) as ex:
-        ex.calculate()
+        logger.info("Inter-chromosomal expected value: {}".format(inter_expected))
+
+        if chromosome is not None:
+            expected = intra_expected_chromosome[chromosome]
+        else:
+            expected = intra_expected
+
+        bin_size = matrix.bin_size
+
+        with open(output_file, 'w') as o:
+            o.write("distance\texpected\n")
+            for i, v in enumerate(expected):
+                d = i * bin_size
+                o.write("{}\t{}\n".format(d, v))
 
 
-def subset_hic_parser():
+def subset_parser():
     parser = argparse.ArgumentParser(
         prog="kaic subset",
         description='Create a new Hic object by subsetting'
@@ -3575,8 +3449,8 @@ def subset_hic_parser():
     return parser
 
 
-def subset_hic(argv):
-    parser = subset_hic_parser()
+def subset(argv):
+    parser = subset_parser()
     args = parser.parse_args(argv[2:])
 
     import os.path
@@ -3591,542 +3465,346 @@ def subset_hic(argv):
     new_hic.close()
 
 
-def diff_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic diff",
-        description='Calculate difference between two vectors (v1-v2)'
-    )
-
-    parser.add_argument(
-        'vector1',
-        help='First vector (/array, e.g. InsulationIndex)'
-    )
-
-    parser.add_argument(
-        'vector2',
-        help='Second vector (/array, e.g. InsulationIndex)'
-    )
-
-    parser.add_argument(
-        'output',
-        help='Output VectorDifference file.'
-    )
-
-    parser.add_argument(
-        '-a', '--absolute', dest='absolute',
-        action='store_true',
-        help='''Output absolute difference'''
-    )
-    parser.set_defaults(absolute=False)
-    return parser
-
-
-def diff(argv):
-    parser = diff_parser()
-
-    args = parser.parse_args(argv[2:])
-
-    import os.path
-    import kaic
-
-    v1 = kaic.load(args.vector1, mode='r')
-    v2 = kaic.load(args.vector2, mode='r')
-
-    output_file = os.path.expanduser(args.output)
-
-    with kaic.VectorDifference(v1, v2, absolute=args.absolute, file_name=output_file, mode='w') as d:
-        d.calculate()
-
-
-def aggregate_tads_parser():
+def aggregate_parser():
     parser = argparse.ArgumentParser(
         prog="kaic aggregate_tads",
         description='Make a TAD aggregate plot'
     )
 
     parser.add_argument(
-        'hic',
-        help='Hic file'
+        'input',
+        help='Kaic-C matrix file (e.g. Hic)'
     )
 
     parser.add_argument(
-        'tads',
-        help='File with TAD regions (BED, GFF, Tabix, ...)'
+        'regions',
+        help='File with regions '
+             '(BED, GFF, Tabix, ...) or '
+             'region pairs (BEDPE)'
     )
 
     parser.add_argument(
         'output',
-        help='Output image file (extension determines file format)'
+        nargs='?',
+        help='Output AggregateMatrix file for further processing.'
+             'See -p and -m option for aggregate plot and matrix, '
+             'respectively.'
     )
 
     parser.add_argument(
-        '-p', '--pixels', dest='pixels',
+        '-m', '--save-matrix', dest='matrix_file',
+        help='Path to save aggregate matrix (numpy txt format)'
+    )
+
+    parser.add_argument(
+        '-p', '--save-plot', dest='plot_file',
+        help='Path to save aggregate plot (PDF)'
+    )
+
+    parser.add_argument(
+        '--tads', dest='tads_preset',
+        default=False,
+        action='store_true',
+        help='Use presets for aggregate TADs: '
+             '--relative 1.0 --expected '
+             '--log --vmin -1 --vmax 1'
+    )
+
+    parser.add_argument(
+        '--tads-flyamer', dest='tads_flyamer_preset',
+        default=False,
+        action='store_true',
+        help='Use presets for aggregate TADs: '
+             '--relative 1.0 --expected'
+             '--rescale'
+    )
+
+    parser.add_argument(
+        '--loops', dest='loops_preset',
+        default=False,
+        action='store_true',
+        help='Use presets for aggregate loops: '
+             '--pixels 16 -l '
+    )
+
+    parser.add_argument(
+        '-w', '--window', dest='window',
+        help='Width of the region window used for aggregation. '
+             'If set, will only use the center position from '
+             'the input regions and extract a submatrix of width -w '
+             'around this region.'
+    )
+
+    parser.add_argument(
+        '--pixels', dest='pixels',
         type=int,
         default=90,
-        help='''Width of the output image in pixels. Default: 90'''
+        help='Width of the output image in pixels. '
+             'Default: 90'
     )
 
     parser.add_argument(
         '-i', '--interpolation', dest='interpolation',
         default='nearest',
-        help='''Type of interpolation performed to shrink/expand matrices. Default: nearest'''
+        help='Type of interpolation performed to '
+             'shrink/expand matrices. Default: nearest'
     )
 
     parser.add_argument(
         '-r', '--relative', dest='relative',
         type=float,
-        default=1.0,
-        help='''Extension (e) of each region as fraction of TAD length (l). 
-                    Final region in the image will be: 
-                    <start of TAD - e*l> to <end of TAD + e*l>.
-                    Default: 1.0 (results in 3 times TAD size image). 
-                    Additive with '-a' parameter!'''
+        help='Relative extension of each region as fraction '
+             'of region length (l). Final region in the '
+             'image will be: <start of region - e*l> to '
+             '<end of region + e*l>. Default: 1.0 (results '
+             'in 3 times region size image). Additive '
+             'with "-a" parameter!'
     )
 
     parser.add_argument(
         '-a', '--absolute', dest='absolute',
         type=int,
-        default=0,
-        help='''Extension (e) of each region in base pairs. 
-                    Final region in the image will be: 
-                    <start of TAD - e> to <end of TAD + e>.
-                    Default: 0 (no extension). 
-                    Additive with '-r' parameter!'''
+        help='Extension (e) of each region in base pairs. '
+             'Final region in the image will be:  <start '
+             'of TAD - e> to <end of TAD + e>. Default: 0 '
+             '(no extension). Additive with "-r" parameter!'
     )
 
     parser.add_argument(
-        '-n', '--norm', dest='norm',
+        '-e', '--expected-norm', dest='oe',
         action='store_true',
-        help='''Normalize matrix to expected values'''
+        default=False,
+        help='Normalize matrix to expected values'
     )
-    parser.set_defaults(norm=False)
 
     parser.add_argument(
-        '-L', '--no-log', dest='log',
-        action='store_false',
-        help='''Do not log2-transform normalized matrices.
-                Only used in conjunction with '--norm'.'''
-    )
-    parser.set_defaults(log=True)
-
-    parser.add_argument(
-        '-s', '--rescale', dest='rescale',
+        '-l', '--log', dest='log',
         action='store_true',
-        help='''Do not rescale normalized contact matrices using an a=-0.25 power law.
-                Only used in conjunction with '--norm'.'''
-    )
-    parser.set_defaults(rescale=False)
-
-    parser.add_argument(
-        '-C', '--no-cache', dest='cache',
-        action='store_false',
-        help='''Do not cache chromosome matrices (slower, but saves a lot of memory)'''
-    )
-    parser.set_defaults(cache=True)
-
-    parser.add_argument(
-        '-m', '--save-matrix', dest='matrix_file',
-        help='''Path to save aggregate matrix (numpy txt format)'''
+        default=False,
+        help='log2-transform normalized matrices. '
+             'Only used in conjunction with "-e".'
     )
 
     parser.add_argument(
-        '-c', '--colormap', dest='colormap',
-        help='''Matplotlib colormap to use for matrix'''
+        '--rescale', dest='rescale',
+        action='store_true',
+        default=False,
+        help='Rescale normalized contact matrices '
+             'using an a=-0.25 power law. '
+             'Only used in conjunction with "-e".'
+    )
+
+    parser.add_argument(
+        '--colormap', dest='colormap',
+        help='Matplotlib colormap to use for matrix'
     )
 
     parser.add_argument(
         '--vmin', dest='vmin',
         type=float,
-        help='''Minimum saturation value in image'''
+        help='Minimum saturation value in image'
     )
 
     parser.add_argument(
         '--vmax', dest='vmax',
         type=float,
-        help='''Maximum saturation value in image'''
+        help='Maximum saturation value in image'
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
-        help='''Work in temporary directory'''
+        default=False,
+        help='Work in temporary directory'
     )
-    parser.set_defaults(tmp=False)
 
     parser.add_argument(
-        '--preset-flyamer', dest='preset_flyamer',
-        action='store_true',
-        help='''Use presets to create matrices as in Flyamer et al. (2017).
-                Overrides the following parameters:
-                --norm -L -s -r 1.0 -a 0'''
+        '-C', '--no-cache', dest='cache',
+        action='store_false',
+        default=True,
+        help='Do not cache chromosome matrices '
+             'Slower, but saves a lot of memory. '
+             'Use this if you are having trouble '
+             'with memory usage.'
     )
-    parser.set_defaults(preset_flyamer=False)
+
+    parser.add_argument(
+        '--keep-submatrices', dest='keep_submatrices',
+        action='store_true',
+        default=False,
+        help='Save all the individual matrices that make '
+             'up the aggregate matrix in the output object. '
+             'Useful for debugging and downstream processing. '
+             'Potentially uses a lot of memory and/or disk space.'
+    )
+
+    parser.add_argument(
+        '-s', '--orient-by-strand', dest='orient_strand',
+        action='store_true',
+        default=False,
+        help='Flip submatrix if region is on the negative strand.'
+    )
+
+    parser.add_argument(
+        '--labels', dest='labels',
+        nargs=3,
+        help='Labels for the left, center, and right edge of the matrix.'
+    )
 
     return parser
 
 
-def aggregate_tads(argv):
-    parser = aggregate_tads_parser()
+def aggregate(argv):
+    parser = aggregate_parser()
 
     args = parser.parse_args(argv[2:])
     import os
 
-    hic_file = os.path.expanduser(args.hic)
-    tads_file = os.path.expanduser(args.tads)
-    output_file = os.path.expanduser(args.output)
+    input_file = os.path.expanduser(args.input)
+    regions_file = os.path.expanduser(args.regions)
+    output_file = os.path.expanduser(args.output) if args.output is not None else None
+    matrix_file = os.path.expanduser(args.matrix_file) if args.matrix_file is not None else None
+    plot_file = os.path.expanduser(args.plot_file) if args.plot_file is not None else None
+    tads_preset = args.tads_preset
+    tads_flyamer_preset = args.tads_flyamer_preset
+    loops_preset = args.loops_preset
+    window = args.window
     pixels = args.pixels
     interpolation = args.interpolation
     relative = args.relative
     absolute = args.absolute
-    norm = args.norm
+    oe = args.oe
     log = args.log
     rescale = args.rescale
-    cache = args.cache
-    matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
-    cmap = args.colormap
+    colormap = args.colormap
     vmin = args.vmin
     vmax = args.vmax
+    cache = args.cache
+    keep_submatrices = args.keep_submatrices
+    orient_strand = args.orient_strand
+    labels = args.labels
     tmp = args.tmp
-    preset_flyamer = args.preset_flyamer
 
-    if preset_flyamer:
-        logging.info("Using Flyamer et al. (2017) preset")
-        norm = True
-        rescale = True
+    presets = sum([tads_preset, tads_flyamer_preset, loops_preset])
+    if len(presets) > 1:
+        parser.error("--tads, --tads-flyamer, and --loops are mutually exclusive!")
+
+    if tads_preset:
+        if relative is None:
+            relative = 1.0
+        oe = True
+        log = True
+        rescale = False
+        if vmin is None:
+            vmin = -1
+        if vmax is None:
+            vmax = 1
+
+    if tads_flyamer_preset:
         relative = 1.0
-        absolute = 0
+        oe = True
         log = False
+        rescale = True
+        colormap = 'germany' if colormap is None else colormap
+
+    if loops_preset:
+        oe = True
+        log = True
+        rescale = False
+        if vmin is None:
+            vmin = -1
+        if vmax is None:
+            vmax = 1
+        pixels = 16
 
     import kaic
-    from kaic.config import config
-    from kaic.architecture.hic_architecture import aggregate_tads
-    import matplotlib
-    matplotlib.use('agg')
-    import matplotlib.pyplot as plt
-    import kaic.plotting
+    import genomic_regions as gr
+    from kaic.architecture.aggregate import AggregateMatrix
+    from kaic.tools.general import human_format, str_to_int
 
-    if cmap is None:
-        cmap = 'bwr' if norm and log else config.colormap_hic
+    if window is not None:
+        window = str_to_int(window)
 
-    with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
-        tads = kaic.load(tads_file)
-        m = aggregate_tads(hic, tads.regions, pixels=pixels, interpolation=interpolation,
-                           relative_extension=relative, absolute_extension=absolute,
-                           rescale=rescale, cache=cache, norm=norm, log=log)
+    aggregate_matrix = None
+    regions = None
+    try:
+        with kaic.load(input_file, mode='r') as matrix:
+            if not isinstance(matrix, AggregateMatrix):
+                regions = kaic.load(regions_file)
 
-    if matrix_file is not None:
-        import numpy as np
-        np.savetxt(matrix_file, m)
+                b = matrix.bin_size
+                if isinstance(regions, gr.Bedpe):
+                    logger.info("Detected BEDPE. Running pairwise region extraction")
 
-    fig, ax = plt.subplots()
-    im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest')
-    plt.colorbar(im)
-    ax.set_axis_off()
-    fig.savefig(output_file)
-    plt.close(fig)
+                    aggregate_matrix = AggregateMatrix.from_center_pairs(matrix, regions.regions,
+                                                                         window=window, pixels=pixels,
+                                                                         keep_components=keep_submatrices,
+                                                                         file_name=output_file, tmpdir=tmp,
+                                                                         oe=oe, log=log,
+                                                                         orient_strand=orient_strand,
+                                                                         cache=cache)
+                    if labels is None:
+                        left = int(pixels / 2)
+                        right = left if pixels % 2 == 1 else left - 1
+                        labels = ['-{}b'.format(human_format(left * b)), '',
+                                  '+{}b'.format(human_format(right * b))]
 
+                elif isinstance(regions, gr.RegionBased):
+                    if window is not None:
+                        aggregate_matrix = AggregateMatrix.from_center(matrix, regions.regions,
+                                                                       window=window, rescale=rescale,
+                                                                       keep_components=keep_submatrices,
+                                                                       file_name=output_file, tmpdir=tmp,
+                                                                       oe=oe, log=log,
+                                                                       orient_strand=orient_strand,
+                                                                       cache=cache)
 
-def aggregate_loops_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic aggregate_loop",
-        description='Make a loop aggregate plot'
-    )
+                        if labels is None:
+                            wh = int(window / 2)
+                            labels = ['-{}b'.format(human_format(-wh)), '',
+                                      '+{}b'.format(human_format(wh))]
+                    else:
+                        aggregate_matrix = AggregateMatrix.from_regions(matrix, regions.regions,
+                                                                        pixels=pixels, rescale=rescale,
+                                                                        interpolation=interpolation,
+                                                                        absolute_extension=absolute,
+                                                                        relative_extension=relative,
+                                                                        keep_components=keep_submatrices,
+                                                                        file_name=output_file,
+                                                                        tmpdir=tmp,
+                                                                        oe=oe, log=log,
+                                                                        orient_strand=orient_strand,
+                                                                        cache=cache)
+            else:
+                aggregate_matrix = matrix
+                b = 1
 
-    parser.add_argument(
-        'hic',
-        help='Hic file'
-    )
+            if matrix_file is not None:
+                import numpy as np
+                np.savetxt(matrix_file, aggregate_matrix.matrix())
 
-    parser.add_argument(
-        'loops',
-        help='File with loop anchor regions (BEDPE)'
-    )
+            if plot_file is not None:
+                import matplotlib
+                matplotlib.use('pdf')
+                import matplotlib.pyplot as plt
 
-    parser.add_argument(
-        'output',
-        help='Output image file (extension determines file format)'
-    )
+                m = aggregate_matrix.matrix()
 
-    parser.add_argument(
-        '-p', '--pixels', dest='pixels',
-        type=int,
-        default=16,
-        help='''Width of the output image in pixels. 
-                Equal to the amount of bins in Hi-C matrix around loop
-                Default: 16'''
-    )
+                if labels is None:
+                    labels = ['', '', '']
 
-    parser.add_argument(
-        '-N', '--no-norm', dest='norm',
-        action='store_false',
-        help='''Do not normalize matrix to expected values'''
-    )
-    parser.set_defaults(norm=True)
-
-    parser.add_argument(
-        '-L', '--no-log', dest='log',
-        action='store_false',
-        help='''Do not log2-transform normalized matrices.
-                Only used in conjunction with '--norm'.'''
-    )
-    parser.set_defaults(log=True)
-
-    parser.add_argument(
-        '-C', '--no-cache', dest='cache',
-        action='store_false',
-        help='''Do not cache chromosome matrices (slower, but saves a lot of memory)'''
-    )
-    parser.set_defaults(cache=True)
-
-    parser.add_argument(
-        '-m', '--save-matrix', dest='matrix_file',
-        help='''Path to save aggregate matrix (numpy txt format)'''
-    )
-
-    parser.add_argument(
-        '-c', '--colormap', dest='colormap',
-        help='''Matplotlib colormap to use for matrix'''
-    )
-
-    parser.add_argument(
-        '--vmin', dest='vmin',
-        type=float,
-        help='''Minimum saturation value in image'''
-    )
-
-    parser.add_argument(
-        '--vmax', dest='vmax',
-        type=float,
-        help='''Maximum saturation value in image'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-
-    return parser
-
-
-def aggregate_loops(argv):
-    parser = aggregate_loops_parser()
-
-    args = parser.parse_args(argv[2:])
-    import os
-
-    hic_file = os.path.expanduser(args.hic)
-    loops_file = os.path.expanduser(args.loops)
-    output_file = os.path.expanduser(args.output)
-    pixels = args.pixels
-    norm = args.norm
-    log = args.log
-    cache = args.cache
-    matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
-    cmap = args.colormap
-    vmin = args.vmin
-    vmax = args.vmax
-    tmp = args.tmp
-
-    from genomic_regions import Bedpe
-    from kaic.config import config
-    from kaic.architecture.hic_architecture import aggregate_loops
-    import matplotlib
-    matplotlib.use('agg')
-    import matplotlib.pyplot as plt
-    import kaic.plotting
-    from kaic.tools.general import human_format
-
-    if cmap is None:
-        cmap = 'bwr' if norm and log else config.colormap_hic
-
-    with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
-        b = hic.bin_size
-        loops = Bedpe(loops_file)
-        m = aggregate_loops(hic, loops, pixels=pixels, cache=cache, norm=norm, log=log)
-
-    if matrix_file is not None:
-        import numpy as np
-        np.savetxt(matrix_file, m)
-
-    left = int(pixels / 2)
-    right = left if pixels % 2 == 1 else left - 1
-
-    fig, ax = plt.subplots()
-    im = ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest')
-    plt.colorbar(im)
-    ax.set_xticks([0, left, pixels - 1])
-    ax.set_xticklabels(['-{}b'.format(human_format(left * b)), '', '+{}b'.format(human_format(right * b))])
-    ax.set_yticks([0, left, pixels - 1])
-    ax.set_yticklabels(['-{}b'.format(human_format(left * b)), '', '+{}b'.format(human_format(right * b))])
-    fig.savefig(output_file)
-    plt.close(fig)
-
-
-def ab_profile_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic ab_profile",
-        description='Make an A-B compartment interaction profile'
-    )
-
-    parser.add_argument(
-        'hic',
-        help='Hic file'
-    )
-
-    parser.add_argument(
-        'genome',
-        help="Can be an HDF5 Genome object, a FASTA file, "
-             "a folder with FASTA files, or a "
-             "comma-separated list of FASTA files."
-    )
-
-    parser.add_argument(
-        'output',
-        help='Output image file (extension determines file format)'
-    )
-
-    parser.add_argument(
-        '-p', '--percentiles', dest='percentiles',
-        type=float,
-        nargs='+',
-        default=(20.0, 40.0, 60.0, 80.0, 100.0),
-        help='''Percentiles to use for calculation'''
-    )
-
-    parser.add_argument(
-        '-c', '--colormap', dest='colormap',
-        default='RdBu_r',
-        help='''Matplotlib colormap to use for matrix'''
-    )
-
-    parser.add_argument(
-        '-s', '--symmetric-at', dest='symmetric_at',
-        type=int,
-        help='''Make profile plot symmetric around this value 
-                (e.g. to ensure that 0 is in the center of the plot)'''
-    )
-
-    parser.add_argument(
-        '--vmin', dest='vmin',
-        type=float,
-        default=-1,
-        help='''Minimum saturation value in image'''
-    )
-
-    parser.add_argument(
-        '--vmax', dest='vmax',
-        type=float,
-        default=1,
-        help='''Maximum saturation value in image'''
-    )
-
-    parser.add_argument(
-        '-C', '--no-chromosome', dest='per_chromosome',
-        action='store_false',
-        help='''Do not restrict calculation to intra-chromosomal regions'''
-    )
-    parser.set_defaults(per_chromosome=True)
-
-    parser.add_argument(
-        '-G', '--only-gc', dest='only_gc',
-        action='store_true',
-        help='''Only use GC content for domain calculation, 
-                not the correlation matrix eigenvector.'''
-    )
-    parser.set_defaults(only_gc=False)
-
-    parser.add_argument(
-        '-m', '--save-matrix', dest='matrix_file',
-        help='''Path to save aggregate matrix (numpy txt format)'''
-    )
-
-    parser.add_argument(
-        '-x', '--exclude', dest='exclude',
-        nargs='+',
-        help='''Chromosome names to exclude from analysis'''
-    )
-
-    parser.add_argument(
-        '-tmp', '--work-in-tmp', dest='tmp',
-        action='store_true',
-        help='''Work in temporary directory'''
-    )
-    parser.set_defaults(tmp=False)
-
-    return parser
-
-
-def ab_profile(argv):
-    parser = ab_profile_parser()
-
-    args = parser.parse_args(argv[2:])
-    import os
-
-    hic_file = os.path.expanduser(args.hic)
-    genome_file = os.path.expanduser(args.genome)
-    output_file = os.path.expanduser(args.output)
-    percentiles = args.percentiles
-    per_chromosome = args.per_chromosome
-    symmetric_at = args.symmetric_at
-    cmap = args.colormap
-    matrix_file = None if args.matrix_file is None else os.path.expanduser(args.matrix_file)
-    vmin = args.vmin
-    vmax = args.vmax
-    only_gc = args.only_gc
-    exclude = args.exclude if args.exclude is not None else []
-    tmp = args.tmp
-
-    import kaic
-    from kaic.architecture.hic_architecture import ab_enrichment_profile
-    import matplotlib
-    matplotlib.use('agg')
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as grd
-    import numpy as np
-
-    with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
-        with kaic.Genome.from_string(genome_file, tmpdir=tmp, mode='r') as genome:
-            m, cutoffs = ab_enrichment_profile(hic, genome, percentiles=percentiles,
-                                               per_chromosome=per_chromosome, only_gc=only_gc,
-                                               symmetric_at=symmetric_at, exclude_chromosomes=exclude)
-
-    if matrix_file is not None:
-        import numpy as np
-        np.savetxt(matrix_file, m)
-
-    fig = plt.figure(figsize=(5, 5), dpi=300)
-    gs = grd.GridSpec(2, 2,
-                      height_ratios=[5, 1],
-                      width_ratios=[5, 1])
-    heatmap_ax = plt.subplot(gs[0, 0])
-    im = heatmap_ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax, interpolation='nearest', aspect='auto')
-    cax = plt.subplot(gs[0, 1])
-    cb = plt.colorbar(im, cax=cax)
-    cb.set_label('log enrichment')
-    heatmap_ax.set_xticks([0, m.shape[1] - 1])
-    heatmap_ax.set_xticklabels(['active', 'inactive'])
-    heatmap_ax.set_yticks([0, m.shape[1] - 1])
-    heatmap_ax.set_yticklabels(['active', 'inactive'])
-
-    pos = np.arange(m.shape[1])
-    barplot_ax = plt.subplot(gs[1, 0])
-    barplot_ax.bar(pos, cutoffs, color='grey')
-    if not only_gc:
-        extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
-        barplot_ax.set_yticks([-1*extent, 0, extent])
-    else:
-        barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
-    barplot_ax.get_xaxis().set_visible(False)
-    barplot_ax.spines['right'].set_visible(False)
-    barplot_ax.spines['top'].set_visible(False)
-    barplot_ax.spines['bottom'].set_visible(False)
-    barplot_ax.yaxis.set_ticks_position('left')
-    barplot_ax.xaxis.set_ticks_position('none')
-    barplot_ax.set_xlim([pos[0], pos[-1]])
-    fig.savefig(output_file)
-    plt.close(fig)
+                fig, ax = plt.subplots()
+                im = ax.imshow(m, cmap=colormap, vmin=vmin, vmax=vmax, interpolation='nearest')
+                plt.colorbar(im)
+                ax.set_xticks([0, pixels/2, pixels - 1])
+                ax.set_xticklabels(labels)
+                ax.set_yticks([0, pixels/2, pixels - 1])
+                ax.set_yticklabels(labels)
+                fig.savefig(output_file)
+                plt.close(fig)
+    finally:
+        if aggregate_matrix is not None:
+            aggregate_matrix.close()
 
 
 def stats_parser():
@@ -4144,12 +3822,6 @@ def stats_parser():
         '-f', '--fastq', dest='fastq',
         nargs='+',
         help='''List of FASTQ files or folders containing FASTQ files.'''
-    )
-
-    parser.add_argument(
-        '-r', '--reads', dest='reads',
-        nargs='+',
-        help='''List of Reads files or folders containing Reads files ('.reads ending').'''
     )
 
     parser.add_argument(
@@ -4231,38 +3903,7 @@ def stats(argv):
         with open(output_file, 'a') as o:
             o.write("fastq\ttotal\tcount\t{}\n".format(total_count))
 
-    # 2. Reads statistics
-    if args.reads is not None:
-        logger.info("Processing Reads files.")
-
-        import kaic
-        reads_files = get_files(args.reads, ('.reads',))
-
-        reads_summary = defaultdict(int)
-        for reads_file in reads_files:
-            logger.info("{}".format(reads_file))
-            reads = kaic.load(reads_file, mode='r')
-            statistics, total = stats(reads, reads._reads)
-
-            with open(output_file, 'a') as o:
-                for key in sorted(statistics.keys()):
-                    o.write("reads\t{}\t{}\t{}\n".format(reads_file, key, statistics[key]))
-                    reads_summary[key] += statistics[key]
-
-            with open(output_file, 'a') as o:
-                o.write("reads\t{}\ttotal\t{}\n".format(reads_file, total))
-                reads_summary['total'] += total
-            reads_summary['filtered'] += total - statistics['unmasked']
-            reads_summary['remaining'] += statistics['unmasked']
-
-        with open(output_file, 'a') as o:
-            for key in sorted(reads_summary.keys()):
-                if key != 'filtered' and key != 'remaining':
-                    o.write("reads\ttotal\t{}\t{}\n".format(key, reads_summary[key]))
-            o.write("reads\ttotal\tfiltered\t{}\n".format(reads_summary['filtered']))
-            o.write("reads\ttotal\tremaining\t{}\n".format(reads_summary['remaining']))
-
-    # 3. Pairs statistics
+    # 2. Pairs statistics
     if args.pairs is not None:
         logger.info("Processing Pairs files.")
         import kaic
@@ -4388,7 +4029,7 @@ def cis_trans(argv):
     normalise = args.normalise
 
     import kaic
-    from kaic.architecture.hic_architecture import cis_trans_ratio
+    from kaic.architecture.stats import cis_trans_ratio
 
     if output_file:
         with open(output_file, 'w') as o:
@@ -4410,15 +4051,15 @@ def cis_trans(argv):
         hic.close()
 
 
-def hic_sample_parser():
+def downsample_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic hic_sample",
-        description='Sample contacts from a Hic object.'
+        prog="kaic downsample",
+        description='Downsample contacts from a Hic object.'
     )
 
     parser.add_argument(
         'hic',
-        help="Hic object to be sampled."
+        help="Hic object to be downsampled."
     )
 
     parser.add_argument(
@@ -4428,23 +4069,23 @@ def hic_sample_parser():
 
     parser.add_argument(
         'output',
-        help="Sampled Hic output."
+        help="Downsampled Hic output."
     )
 
     parser.add_argument(
-        '-e', '--exact', dest='exact',
+        '-r', '--with-replacement', dest='replace',
         action='store_true',
         default=False,
-        help='''Use sampling of pairs without replacement. 
-                Warning: This only works on uncorrected Hi-C matrices
-                and might consume a lot of memory!.'''
+        help='Use sampling of pairs with replacement. '
+             'Use this if you are having trouble with memory usage. '
+             'Warning: Sampling with replacement is not exact.'
     )
 
     return parser
 
 
-def hic_sample(argv):
-    parser = hic_sample_parser()
+def downsample(argv):
+    parser = downsample_parser()
 
     args = parser.parse_args(argv[2:])
 
@@ -4468,7 +4109,7 @@ def hic_sample(argv):
 def upgrade_parser():
     parser = argparse.ArgumentParser(
         prog="kaic upgrade-hic",
-        description='Sample contacts from a Hic object.'
+        description='Upgrade Hic objects from old Kai-C versions.'
     )
 
     parser.add_argument(
