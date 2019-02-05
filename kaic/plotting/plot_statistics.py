@@ -142,21 +142,23 @@ def mapq_hist_plot(reads, output=None, include_masked=False):
     _plot_figure(mqplot.figure, output, old_backend)
 
 
-def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
+def pca_plot(pca_res, variance=None, eigenvectors=(0, 0),
+             markers=None, colors=None, names=None):
     if markers is None:
         markers = ('^', 'o', '*', 's', 'D', 'v', 'd', 'H', 'p', '>')
     if colors is None:
-        colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black', 'orange', 'pink', 'cyan', 'lawngreen')
+        colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black',
+                  'orange', 'pink', 'cyan', 'lawngreen')
     markers = itertools.cycle(markers)
     colors = itertools.cycle(colors)
 
     xlabel = 'PC1'
-    if pca_info is not None:
-        xlabel += ' (%d%%)' % int(pca_info.explained_variance_ratio_[0]*100)
+    if variance is not None:
+        xlabel += ' (%d%%)' % int(variance[eigenvectors[0]]*100)
 
     ylabel = 'PC2'
-    if pca_info is not None:
-        ylabel += ' (%d%%)' % int(pca_info.explained_variance_ratio_[1]*100)
+    if variance is not None:
+        ylabel += ' (%d%%)' % int(variance[eigenvectors[1]]*100)
 
     if names is not None:
         ax_main = plt.subplot(121)
@@ -169,7 +171,8 @@ def pca_plot(pca_res, pca_info=None, markers=None, colors=None, names=None):
 
     for i in range(pca_res.shape[0]):
         name = names[i] if names is not None else None
-        ax_main.plot(pca_res[i, 0], pca_res[i, 1], marker=next(markers), color=next(colors), label=name)
+        ax_main.plot(pca_res[i, eigenvectors[0]], pca_res[i, eigenvectors[1]],
+                     marker=next(markers), color=next(colors), label=name)
 
     if names is not None:
         ax_main.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
