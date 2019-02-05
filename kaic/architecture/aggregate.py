@@ -2,124 +2,261 @@ from genomic_regions import GenomicRegion, Bedpe
 from collections import defaultdict
 import numpy as np
 from ..tools.general import RareUpdateProgressBar
-from ..tools.matrix import kth_diag_indices
-from ..config import config
+from ..general import FileGroup
 from scipy.misc import imresize
+import tables
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class AggregateMatrix(object):
-    def __init__(self, matrix, regions=None, x=None, y=None, components=None):
-        self.matrix = matrix
-        self.regions = regions
+class AggregateMatrix(FileGroup):
+    def __init__(self, file_name=None, mode='r', tmpdir=None,
+                 x=None, y=None):
+        FileGroup.__init__(self, 'aggregate', file_name=file_name, mode=mode, tmpdir=tmpdir)
+
         self.x = x
         self.y = y
-        self.components = components
+
+    def matrix(self, m=None):
+        if m is not None:
+            try:
+                self.file.remove_node(self._group, 'aggregate_matrix')
+            except tables.NoSuchNodeError:
+                pass
+            am = self.file.create_carray(self._group, 'aggregate_matrix', tables.Float32Atom(), m.shape)
+            am[:] = m
+
+        return self._group.aggregate_matrix[:]
+
+    def region_pairs(self, pairs=None):
+        if pairs is not None:
+            try:
+                self.file.remove_node(self._group, 'region_pairs')
+            except tables.NoSuchNodeError:
+                pass
+
+            pairs_table = self.file.create_table(self._group, 'region_pairs',
+                                                 description={
+                                                     'chromosome1': tables.StringCol(50, pos=0),
+                                                     'start1': tables.Int32Col(pos=1),
+                                                     'end1': tables.Int32Col(pos=2),
+                                                     'strand1': tables.Int32Col(pos=3),
+                                                     'chromosome2': tables.StringCol(50, pos=4),
+                                                     'start2': tables.Int32Col(pos=5),
+                                                     'end2': tables.Int32Col(pos=6),
+                                                     'strand2': tables.Int32Col(pos=7)
+                                                 })
+
+            row = pairs_table.row
+            for r1, r2 in pairs:
+                row['chromosome1'] = r1.chromosome
+                row['start1'] = r1.start
+                row['end1'] = r1.end
+                row['strand1'] = r1.strand
+
+                row['chromosome2'] = r2.chromosome
+                row['start2'] = r2.start
+                row['end2'] = r2.end
+                row['strand2'] = r2.strand
+
+                row.append()
+
+            pairs_table.flush()
+
+        pairs = []
+        pairs_table = self.file.get_node(self._group, 'region_pairs')
+        for row in pairs_table.iterrrows():
+            r1 = GenomicRegion(chromosome=row['chromosome1'], start=row['start1'],
+                               end=row['end1'], strand=row['strand1'])
+            r2 = GenomicRegion(chromosome=row['chromosome2'], start=row['start2'],
+                               end=row['end2'], strand=row['strand2'])
+            pairs.append((r1, r2))
+        return pairs
+
+    def components(self, components=None):
+        if components is not None:
+            try:
+                self.file.remove_node(self._group, 'components', recursive=True)
+            except tables.NoSuchNodeError:
+                pass
+
+            component_group = self.file.create_group(self._group, 'components')
+
+            for i, m in enumerate(components):
+                cm = self.file.create_carray(component_group, 'component_{}',
+                                             tables.Float32Atom(), m.shape)
+                cm[:] = m
+
+                if hasattr(m, 'mask'):
+                    mm = self.file.create_carray(component_group, 'mask_{}',
+                                                 tables.BoolAtom(), m.shape)
+                    mm[:] = m.mask
+
+        max_ix = []
+        masks = dict()
+        components = dict()
+        component_group = self.file.get_node(self._group, 'components')
+        for node in self.file.iter_nodes(component_group):
+            if node.name.startswith('mask_'):
+                ix = int(node.name[5:])
+                masks[ix] = node[:]
+                max_ix = max(ix, max_ix)
+            elif node.name.startswith('component_'):
+                ix = int(node.name[10:])
+                components[ix] = node[:]
+                max_ix = max(ix, max_ix)
+
+        sorted_components = []
+        for ix in range(max_ix):
+            component = components[ix]
+            if ix in masks:
+                mask = masks[ix]
+            else:
+                mask = None
+
+            sorted_components.append(np.ma.masked_array(component, mask=mask))
+        return sorted_components
 
     @classmethod
-    def from_regions(cls, matrix, regions, window, cache=False, oe=False,
-                     keep_components=False, **kwargs):
-        """
-        Construct a matrix by superimposing subsets of the Hi-C matrix from different regions.
+    def from_center(cls, matrix, regions, window=200000,
+                    rescale=False, scaling_exponent=-0.25,
+                    keep_components=True,
+                    file_name=None, tmpdir=None,
+                    **kwargs):
+        kwargs.setdefault('oe', True)
+        kwargs.setdefault('keep_invalid', False)
+        kwargs.setdefault('log', True)
 
-        For each region, a matrix of a certain window size (region at the center) will be
-        extracted. All matrices will be added and divided by the number of regions.
+        region_pairs = []
+        for region in regions.regions:
+            new_start = int(region.center - int(window / 2))
+            new_end = int(region.center + int(window / 2))
+            new_region = GenomicRegion(chromosome=region.chromosome, start=new_start, end=new_end,
+                                       strand=region.strand)
+            region_pairs.append((new_region, new_region))
 
-        :param matrix: RegionMatrixContainer object (such as Hic)
-        :param regions: Iterable with :class:`GenomicRegion` objects
-        :param window: Window size in base pairs around each region
-        :param cache: Load chromosome matrices into memory to speed up matrix generation
-        :param oe: If True, will normalise the averaged maps to the expected map (per chromosome)
-        :return: numpy array
-        """
-        bins = window / matrix.bin_size
-        bins_half = max(1, int(bins / 2))
-        shape = bins_half * 2 + 1
-
-        chromosome_bins = matrix.chromosome_bins
-        regions_by_chromosome = defaultdict(list)
-        region_counter = 0
         component_regions = []
-        for region in regions:
-            component_regions.append(region.copy())
-            regions_by_chromosome[region.chromosome].append(region)
-            region_counter += 1
+        component_matrices = []
+        counter_matrix = None
+        matrix_sum = None
+        for (r1, r2), m in extract_submatrices(matrix, region_pairs, **kwargs):
+            if counter_matrix is None:
+                shape = m.shape
+                counter_matrix = np.zeros(shape)
+                matrix_sum = np.zeros(shape)
 
-        if oe:
-            _, intra_expected_chromosome, _ = matrix.expected_values()
-        else:
-            intra_expected_chromosome = defaultdict(lambda: defaultdict(lambda: 1))
+            if hasattr(m, 'mask'):
+                inverted_mask = ~m.mask
+                counter_matrix += inverted_mask.astype('int')
+            else:
+                counter_matrix += np.ones(counter_matrix.shape)
 
-        cmatrix = np.zeros((shape, shape))
-        components = []
+            matrix_sum += m
 
-        counter = 0
-        counter_matrix = np.zeros((shape, shape))
-        with RareUpdateProgressBar(max_value=len(regions), silent=config.hide_progressbars) as pb:
-            i = 0
-            for chromosome, chromosome_regions in regions_by_chromosome.items():
-                if chromosome not in chromosome_bins:
-                    continue
+            component_regions.append((r1, r2))
+            if keep_components:
+                component_matrices.append(m)
 
-                matrix_expected = np.ones((shape, shape))
-                if oe:
-                    intra_expected = intra_expected_chromosome[chromosome]
+        am = matrix_sum / counter_matrix
 
-                    for j in range(shape):
-                        matrix_expected[kth_diag_indices(shape, j)] = intra_expected[j]
-                        matrix_expected[kth_diag_indices(shape, -1 * j)] = intra_expected[j]
+        if rescale:
+            am = _rescale_oe_matrix(am, matrix.bin_size, scaling_exponent=scaling_exponent)
 
-                if cache:
-                    chromosome_matrix = matrix.matrix((chromosome, chromosome), **kwargs)
-                    offset = chromosome_bins[chromosome][0]
-                else:
-                    chromosome_matrix = matrix
-                    offset = 0
+        aggregate_object = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
+        aggregate_object.matrix(am)
+        aggregate_object.region_pairs(component_regions)
+        aggregate_object.components(component_matrices)
 
-                for region in chromosome_regions:
-                    i += 1
+        return aggregate_object
 
-                    center_region = GenomicRegion(chromosome=chromosome,
-                                                  start=region.center,
-                                                  end=region.center)
-                    center_bin = list(matrix.regions(center_region))[0].ix
-                    if center_bin - bins_half < chromosome_bins[chromosome][0] \
-                            or chromosome_bins[chromosome][1] <= center_bin + bins_half + 1:
-                        continue
-                    center_bin -= offset
+    @classmethod
+    def from_regions(cls, hic, tad_regions, pixels=90,
+                     rescale=False, scaling_exponent=-0.25,
+                     interpolation='nearest', keep_mask=True,
+                     absolute_extension=0, relative_extension=1.0,
+                     keep_components=True,
+                     file_name=None, tmpdir=None,
+                     **kwargs):
+        kwargs.setdefault('oe', True)
+        kwargs.setdefault('keep_invalid', False)
+        kwargs.setdefault('log', True)
 
-                    s = slice(center_bin - bins_half, center_bin + bins_half + 1)
-                    if cache:
-                        matrix = chromosome_matrix[s, s].copy()
-                    else:
-                        matrix = chromosome_matrix.matrix((s, s), **kwargs).copy()
+        component_regions = []
+        component_matrices = []
+        shape = (pixels, pixels)
+        counter_matrix = np.zeros(shape)
+        matrix_sum = np.zeros(shape)
+        for (r1, r2), m in _tad_matrix_iterator(hic, tad_regions,
+                                                absolute_extension=absolute_extension,
+                                                relative_extension=relative_extension,
+                                                **kwargs):
+            ms = imresize(m, shape, interp=interpolation, mode='F')
 
-                    if matrix.shape[0] != matrix.shape[1] or matrix.shape[0] != shape:
-                        continue
+            if keep_mask and hasattr(ms, 'mask'):
+                mask = imresize(m.mask, shape, interp='nearest').astype('bool')
+                ms = np.ma.masked_where(mask, ms)
+                inverted_mask = ~mask
+                counter_matrix += inverted_mask.astype('int')
+            else:
+                counter_matrix += np.ones(shape)
 
-                    component = matrix / matrix_expected
+            matrix_sum += ms
 
-                    if keep_components:
-                        components.append(component)
+            component_regions.append((r1, r2))
+            if keep_components:
+                component_matrices.append(m)
 
-                    cmatrix += component
-                    inverted_mask = ~matrix.mask
-                    counter_matrix += inverted_mask.astype('int')
-                    counter += 1
-                    pb.update(i)
+        am = matrix_sum/counter_matrix
 
-        if counter is None:
-            raise ValueError("No valid regions found!")
+        if rescale:
+            am = _rescale_oe_matrix(am, hic.bin_size, scaling_exponent=scaling_exponent)
 
-        cmatrix /= counter_matrix
+        aggregate_object = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
+        aggregate_object.matrix(am)
+        aggregate_object.region_pairs(component_regions)
+        aggregate_object.components(component_matrices)
 
-        if oe:
-            cmatrix = np.log2(cmatrix)
+        return aggregate_object
 
-        return cls(matrix=cmatrix, regions=component_regions, components=components)
+    @classmethod
+    def from_center_pairs(cls, hic, pair_regions, window=None, pixels=16,
+                          keep_components=True, file_name=None, tmpdir=None,
+                          **kwargs):
+        kwargs.setdefault('oe', True)
+        kwargs.setdefault('keep_invalid', False)
+        kwargs.setdefault('log', True)
+
+        if window is not None:
+            bin_size = hic.bin_size
+            pixels = np.round(window/bin_size)
+
+        component_regions = []
+        component_matrices = []
+        shape = (pixels, pixels)
+        counter_matrix = np.zeros(shape)
+        matrix_sum = np.zeros(shape)
+        for (r1, r2), m in _loop_matrix_iterator(hic, pair_regions, pixels=pixels, **kwargs):
+            if hasattr(m, 'mask'):
+                inverted_mask = ~m.mask
+                counter_matrix += inverted_mask.astype('int')
+            else:
+                counter_matrix += np.ones(shape)
+            matrix_sum += m
+
+            component_regions.append((r1, r2))
+            if keep_components:
+                component_matrices.append(m)
+
+        am = matrix_sum/counter_matrix
+
+        aggregate_object = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
+        aggregate_object.matrix(am)
+        aggregate_object.region_pairs(component_regions)
+        aggregate_object.components(component_matrices)
+
+        return aggregate_object
 
 
 def _aggregate_region_bins(hic, region, offset=0):
@@ -148,7 +285,7 @@ def extract_submatrices(matrix, region_pairs, oe=False,
             is_invalid = True
         if is_invalid:
             invalid += 1
-            invalid_region_pairs.append(ix)
+            invalid_region_pairs.append((ix, region1, region2))
         else:
             valid += 1
             valid_region_pairs[(region1.chromosome, region2.chromosome)].append((ix, region1, region2))
@@ -161,6 +298,7 @@ def extract_submatrices(matrix, region_pairs, oe=False,
 
     order = []
     matrices = []
+    final_regions = []
     with RareUpdateProgressBar(max_value=valid, prefix='Matrices') as pb:
         current_matrix = 0
         for (chromosome1, chromosome2), regions_pairs_by_chromosome in valid_region_pairs.items():
@@ -174,6 +312,7 @@ def extract_submatrices(matrix, region_pairs, oe=False,
                 offset2 = 0
 
             for (region_ix, region1, region2) in regions_pairs_by_chromosome:
+                final_regions.append((region1, region2))
                 current_matrix += 1
                 region1_bins = _aggregate_region_bins(matrix, region1, offset1)
                 region2_bins = _aggregate_region_bins(matrix, region2, offset2)
@@ -221,11 +360,15 @@ def extract_submatrices(matrix, region_pairs, oe=False,
                 del sub_matrix
 
     if keep_invalid:
-        for region_ix in invalid_region_pairs:
+        for region_ix, r1, r2 in invalid_region_pairs:
             matrices.append(None)
             order.append(region_ix)
+            final_regions.append((r1, r2))
 
-    return [matrices[ix] for ix in np.argsort(order)]
+    final_regions = [final_regions[ix] for ix in np.argsort(order)]
+    matrices = [matrices[ix] for ix in np.argsort(order)]
+
+    return zip(final_regions, matrices)
 
 
 def _rescale_oe_matrix(matrix, bin_size, scaling_exponent=-0.25):
@@ -289,8 +432,8 @@ def _tad_matrix_iterator(hic, tad_regions, absolute_extension=0, relative_extens
         new_region = region.expand(absolute=absolute_extension, relative=relative_extension)
         region_pairs.append((new_region, new_region))
 
-    for m in extract_submatrices(hic, region_pairs, **kwargs):
-        yield m
+    for pair, m in extract_submatrices(hic, region_pairs, **kwargs):
+        yield pair, m
 
 
 def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=-0.25,
@@ -386,8 +529,8 @@ def _loop_matrix_iterator(hic, loop_regions, pixels=16, **kwargs):
     if invalid > 0:
         logger.warning("{} region pairs invalid, most likely due to missing chromosome data".format(invalid))
 
-    for m in extract_submatrices(hic, region_pairs, **kwargs):
-        yield m
+    for pair, m in extract_submatrices(hic, region_pairs, **kwargs):
+        yield pair, m
 
 
 def aggregate_loops(hic, loop_regions, pixels=16, **kwargs):
