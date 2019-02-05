@@ -574,12 +574,38 @@ class ObservedPeakFilter(PeakFilter):
         return True
 
 
+class DistancePeakFilter(PeakFilter):
+    """
+    Filter for peaks where regions are closer than this cutoff in bins.
+    """
+    def __init__(self, cutoff=1, mask=None):
+        """
+        Initialize filter object.
+
+        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param cutoff: Minimum observed value to consider peak
+        """
+        super(DistancePeakFilter, self).__init__(mask=mask)
+        self.cutoff = cutoff
+
+    def valid_peak(self, peak):
+        """
+        Evaluate whether a peak passes FDR cutoffs set in __init__
+        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :return: True if peak passes internal FDR cutoffs, False otherwise
+        """
+        if abs(peak.source - peak.sink) < self.cutoff:
+            return False
+        return True
+
+
 class FdrPeakFilter(PeakFilter):
     """
     Filter for peaks that do not pass a certain FDR cutoff.
     """
-    def __init__(self, mask=None, fdr_cutoff=None, fdr_ll_cutoff=0.1, fdr_v_cutoff=0.1,
-                 fdr_h_cutoff=0.1, fdr_d_cutoff=0.1):
+    def __init__(self, mask=None, fdr_cutoff=None,
+                 fdr_ll_cutoff=None, fdr_v_cutoff=None,
+                 fdr_h_cutoff=None, fdr_d_cutoff=None):
         """
         Initialize filter object.
 
@@ -592,16 +618,18 @@ class FdrPeakFilter(PeakFilter):
         :param fdr_d_cutoff: FDR cutoff for the donut neighborhood
         """
         super(FdrPeakFilter, self).__init__(mask=mask)
-        if fdr_cutoff is not None:
-            fdr_ll_cutoff = fdr_cutoff
-            fdr_h_cutoff = fdr_cutoff
-            fdr_v_cutoff = fdr_cutoff
-            fdr_d_cutoff = fdr_cutoff
-        self.fdr_cutoff = fdr_cutoff
-        self.fdr_ll_cutoff = fdr_ll_cutoff
-        self.fdr_h_cutoff = fdr_h_cutoff
-        self.fdr_v_cutoff = fdr_v_cutoff
-        self.fdr_d_cutoff = fdr_d_cutoff
+        self.fdr_ll_cutoff = fdr_cutoff
+        self.fdr_h_cutoff = fdr_cutoff
+        self.fdr_v_cutoff = fdr_cutoff
+        self.fdr_d_cutoff = fdr_cutoff
+        if fdr_ll_cutoff is not None:
+            self.fdr_ll_cutoff = fdr_ll_cutoff
+        if fdr_h_cutoff is not None:
+            self.fdr_h_cutoff = fdr_h_cutoff
+        if fdr_v_cutoff is not None:
+            self.fdr_v_cutoff = fdr_v_cutoff
+        if fdr_d_cutoff is not None:
+            self.fdr_d_cutoff = fdr_d_cutoff
 
     def valid_peak(self, peak):
         """
@@ -625,8 +653,8 @@ class MappabilityPeakFilter(PeakFilter):
     Filter for peaks that do not pass a certain FDR cutoff.
     """
     def __init__(self, mask=None, mappability_cutoff=None,
-                 mappability_ll_cutoff=0.1, mappability_v_cutoff=0.1,
-                 mappability_h_cutoff=0.1, mappability_d_cutoff=0.1):
+                 mappability_ll_cutoff=None, mappability_v_cutoff=None,
+                 mappability_h_cutoff=None, mappability_d_cutoff=None):
         """
         Initialize filter object.
 
@@ -639,16 +667,18 @@ class MappabilityPeakFilter(PeakFilter):
         :param mappability_d_cutoff: Mappability cutoff for the donut neighborhood
         """
         super(MappabilityPeakFilter, self).__init__(mask=mask)
-        if mappability_cutoff is not None:
-            mappability_ll_cutoff = mappability_cutoff
-            mappability_h_cutoff = mappability_cutoff
-            mappability_v_cutoff = mappability_cutoff
-            mappability_d_cutoff = mappability_cutoff
-        self.mappability_cutoff = mappability_cutoff
-        self.mappability_ll_cutoff = mappability_ll_cutoff
-        self.mappability_h_cutoff = mappability_h_cutoff
-        self.mappability_v_cutoff = mappability_v_cutoff
-        self.mappability_d_cutoff = mappability_d_cutoff
+        self.mappability_ll_cutoff = mappability_cutoff
+        self.mappability_h_cutoff = mappability_cutoff
+        self.mappability_v_cutoff = mappability_cutoff
+        self.mappability_d_cutoff = mappability_cutoff
+        if mappability_ll_cutoff is not None:
+            self.mappability_ll_cutoff = mappability_ll_cutoff
+        if mappability_h_cutoff is not None:
+            self.mappability_h_cutoff = mappability_h_cutoff
+        if mappability_v_cutoff is not None:
+            self.mappability_v_cutoff = mappability_v_cutoff
+        if mappability_d_cutoff is not None:
+            self.mappability_d_cutoff = mappability_d_cutoff
 
     def valid_peak(self, peak):
         """
@@ -671,8 +701,10 @@ class EnrichmentPeakFilter(PeakFilter):
     """
     Filter peaks that do not have a sufficiently strong observed/expected ratio.
     """
-    def __init__(self, enrichment_ll_cutoff=1.0, enrichment_h_cutoff=1.0,
-                 enrichment_v_cutoff=1.0, enrichment_d_cutoff=1.0, mask=None):
+    def __init__(self, enrichment_cutoff=None, 
+                 enrichment_ll_cutoff=None, enrichment_h_cutoff=None,
+                 enrichment_v_cutoff=None, enrichment_d_cutoff=None, 
+                 mask=None):
         """
         Initialize filter object.
 
@@ -685,23 +717,31 @@ class EnrichmentPeakFilter(PeakFilter):
                  False otherwise
         """
         super(EnrichmentPeakFilter, self).__init__(mask=mask)
-        self.ll_ratio = enrichment_ll_cutoff
-        self.h_ratio = enrichment_h_cutoff
-        self.v_ratio = enrichment_v_cutoff
-        self.d_ratio = enrichment_d_cutoff
+        self.enrichment_ll_cutoff = enrichment_cutoff
+        self.enrichment_h_cutoff = enrichment_cutoff
+        self.enrichment_v_cutoff = enrichment_cutoff
+        self.enrichment_d_cutoff = enrichment_cutoff
+        if enrichment_ll_cutoff is not None:
+            self.enrichment_ll_cutoff = enrichment_ll_cutoff
+        if enrichment_h_cutoff is not None:
+            self.enrichment_h_cutoff = enrichment_h_cutoff
+        if enrichment_v_cutoff is not None:
+            self.enrichment_v_cutoff = enrichment_v_cutoff
+        if enrichment_d_cutoff is not None:
+            self.enrichment_d_cutoff = enrichment_d_cutoff
 
     def valid_peak(self, peak):
         # covering my ass for legacy_old bug
         if peak.e_d == 0 or peak.e_ll == 0 or peak.e_h == 0 or peak.e_v == 0:
             return False
 
-        if self.ll_ratio is not None and peak.oe_ll < self.ll_ratio:
+        if self.enrichment_ll_cutoff is not None and peak.oe_ll < self.enrichment_ll_cutoff:
             return False
-        if self.h_ratio is not None and peak.oe_h < self.h_ratio:
+        if self.enrichment_h_cutoff is not None and peak.oe_h < self.enrichment_h_cutoff:
             return False
-        if self.v_ratio is not None and peak.oe_v < self.v_ratio:
+        if self.enrichment_v_cutoff is not None and peak.oe_v < self.enrichment_v_cutoff:
             return False
-        if self.d_ratio is not None and peak.oe_d < self.d_ratio:
+        if self.enrichment_d_cutoff is not None and peak.oe_d < self.enrichment_d_cutoff:
             return False
         return True
 
