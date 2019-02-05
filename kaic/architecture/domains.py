@@ -1,4 +1,4 @@
-from genomic_regions import GenomicRegion, GenomicDataFrame
+from genomic_regions import GenomicRegion
 from .maxima_callers import MaximaCallerDelta
 from .helpers import RegionScoreMatrix
 from ..regions import RegionsTable
@@ -45,29 +45,41 @@ class RegionScoreParameterTable(RegionMultiScoreTable):
     def __init__(self, parameter_values, parameter_prefix='score_', *args, **kwargs):
         self._parameter_prefix = parameter_prefix
         self._parameters = parameter_values
-        self._score_fields = self._score_field_generator()
+        self._score_fields = self._score_field_converter()
         RegionMultiScoreTable.__init__(self, self._score_fields, *args, **kwargs)
 
-    def _score_field_generator(self, parameters=None):
+    def _score_field_converter(self, parameters=None):
         if parameters is None:
             parameters = self._parameters
         return [self._parameter_prefix + str(v) for v in parameters]
 
     def scores(self, parameter, scores=None):
-        score_field = self._score_field_generator([parameter])[0]
+        score_field = self._score_field_converter([parameter])[0]
         return self.region_data(score_field, scores)
+
+    def score_regions(self, parameter):
+        score_field = self._score_field_converter([parameter])[0]
+        regions = []
+        for region in self.regions:
+            r = GenomicRegion(chromosome=region.chromosome,
+                              start=region.start, end=region.end,
+                              strand=region.strand, score=getattr(region, score_field))
+            regions.append(r)
+        scores = RegionScoreTable()
+        scores.add_regions(regions)
+        return scores
 
     def score_matrix(self, region=None, parameters=None):
         scores = []
         regions = list(self.regions(region))
-        columns = self._score_field_generator(parameters)
+        columns = self._score_field_converter(parameters)
         for r in regions:
             row = [getattr(r, name) for name in columns]
             scores.append(row)
         return RegionScoreMatrix(np.array(scores), row_regions=regions, columns=columns)
 
     def _to_file(self, file_name, parameter, subset=None, _write_function=write_bed):
-        score_field = self._score_field_generator([parameter])[0]
+        score_field = self._score_field_converter([parameter])[0]
 
         regions = []
         for region in self.regions(subset):
@@ -365,6 +377,7 @@ class Boundaries(RegionScoreTable):
     def from_insulation_score(cls, insulation_score, min_score=None,
                               delta_window=3, log=False,
                               sub_bin_precision=False, call_maxima=False,
+                              score_field='score',
                               **kwargs):
         """
         Call insulation boundaries based on minima in an insulation vector of this object.
@@ -382,7 +395,7 @@ class Boundaries(RegionScoreTable):
         :param call_maxima: Call maxima instead of minima as boundaries
         :return: list of :class:`~kaic.data.genomic.GenomicRegion`
         """
-        index = insulation_score.region_data('score')
+        index = insulation_score.region_data(score_field)
         if log:
             index = np.log2(index)
         peaks = MaximaCallerDelta(index, window_size=delta_window, sub_bin_precision=sub_bin_precision)
