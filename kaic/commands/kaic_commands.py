@@ -3373,11 +3373,23 @@ def expected_parser():
     )
     parser.add_argument(
         'input',
+        nargs='+',
         help='Input matrix (Hi-C, fold-change map, ...)'
     )
     parser.add_argument(
         'output',
         help='Output expected contacts (tsv).'
+    )
+
+    parser.add_argument(
+        '-p', '--plot', dest='plot_file',
+        help='Output file for distance decay plot (pdf).'
+    )
+
+    parser.add_argument(
+        '-l', '--labels', dest='labels',
+        nargs='+',
+        help='Labels for input objects.'
     )
 
     parser.add_argument(
@@ -3396,7 +3408,7 @@ def expected_parser():
     return parser
 
 
-def distance_decay(argv):
+def expected(argv):
     parser = expected_parser()
 
     args = parser.parse_args(argv[2:])
@@ -3404,28 +3416,84 @@ def distance_decay(argv):
     import kaic
     import os.path
 
-    input_file = os.path.expanduser(args.input)
+    input_files = [os.path.expanduser(file_name) for file_name in args.input]
     output_file = os.path.expanduser(args.output)
     chromosome = args.chromosome
+    plot_file = os.path.expanduser(args.plot_file) if args.plot_file is not None else None
+    labels = args.labels
     tmp = args.tmp
 
-    with kaic.load(input_file, mode='r', tmpdir=tmp) as matrix:
-        intra_expected, intra_expected_chromosome, inter_expected = matrix.expected_values()
+    if labels is None:
+        labels = ['Matrix_{}'.format(i) for i in range(len(input_files))]
 
-        logger.info("Inter-chromosomal expected value: {}".format(inter_expected))
+    if len(labels) != len(input_files):
+        parser.error("Must provide the same number of labels "
+                     "({}) as input files ({})!".format(len(labels), len(input_files)))
 
-        if chromosome is not None:
-            expected = intra_expected_chromosome[chromosome]
+    expected_values = dict()
+    distances = dict()
+    equal_distances = True
+    for label, input_file in zip(labels, input_files):
+        with kaic.load(input_file, mode='r', tmpdir=tmp) as matrix:
+            intra_expected, intra_expected_chromosome, inter_expected = matrix.expected_values()
+
+            logger.info("Inter-chromosomal expected value: {}".format(inter_expected))
+
+            if chromosome is not None:
+                expected = intra_expected_chromosome[chromosome]
+            else:
+                expected = intra_expected
+
+            bin_size = matrix.bin_size
+            distance = [i * bin_size for i in range(len(expected))]
+
+            expected_values[label] = expected
+            distances[label] = distance
+
+            equal_d = True
+            for i in range(len(distance)):
+                if i != distances[labels[0]][i]:
+                    equal_distances = False
+                    break
+
+            if not equal_d:
+                equal_distances = False
+                logger.warning("Distances of matrices are not equal. "
+                               "({} vs {}). This may be due to "
+                               "different binning of matrices.".format(labels[0], label))
+
+    with open(output_file, 'w') as o:
+        if equal_distances:
+            header = "distance"
+            for label in labels:
+                header += "\t{}".format(label)
+            o.write(header + "\n")
+
+            for i in range(len(distances[labels[0]])):
+                line = "{}".format(distances[labels[0]][i])
+                for label in labels:
+                    line += "\t{}".format(expected_values[label][i])
+                o.write(line + "\n")
         else:
-            expected = intra_expected
+            logger.warning("Cannot write output file due to unequal distances / bin sizes!")
 
-        bin_size = matrix.bin_size
+    if plot_file is not None:
+        import matplotlib
+        matplotlib.use("pdf")
+        import matplotlib.pyplot as plt
 
-        with open(output_file, 'w') as o:
-            o.write("distance\texpected\n")
-            for i, v in enumerate(expected):
-                d = i * bin_size
-                o.write("{}\t{}\n".format(d, v))
+        fig, ax = plt.subplots()
+        for label in labels:
+            distance = distances[label]
+            expected = expected_values[label]
+            ax.plot(distance, expected, label=label)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel("Distance")
+        ax.set_ylabel("Average contacts")
+        fig.tight_layout()
+        fig.savefig(plot_file)
+        plt.close(fig)
 
 
 def subset_parser():
