@@ -1657,14 +1657,14 @@ def pca_parser():
 
     parser.add_argument(
         '--min-distance', dest='min_distance',
-        type=int,
-        help='Minimum distance of matrix bins in base pairs.'
+        help='Minimum distance of matrix bins in base pairs. '
+             'You can use abbreviated formats such as 1mb, 10k, etc.'
     )
 
     parser.add_argument(
         '--max-distance', dest='max_distance',
-        type=int,
-        help='Maximum distance of matrix bins in base pairs.'
+        help='Maximum distance of matrix bins in base pairs. '
+             'You can use abbreviated formats such as 1mb, 10k, etc.'
     )
 
     parser.add_argument(
@@ -1701,8 +1701,8 @@ def pca_parser():
     parser.add_argument(
         '-v', '--eigenvectors', dest='eigenvectors',
         nargs=2,
-        default=[1, 1],
-        help='Which eigenvectors to plot. Default: 1 1'
+        default=[1, 2],
+        help='Which eigenvectors to plot. Default: 1 2'
     )
 
     parser.add_argument(
@@ -1710,6 +1710,16 @@ def pca_parser():
         action='store_true',
         default=False,
         help='''Ignore pixels with no contacts in any sample.'''
+    )
+
+    parser.add_argument(
+        '-S', '--no-scaling', dest='scaling',
+        action='store_false',
+        default=True,
+        help='Do not scale input matrices to the '
+             'same number of valid pairs. Use this only '
+             'if you are sure matrices are directly '
+             'comparable.'
     )
 
     parser.add_argument(
@@ -1744,6 +1754,7 @@ def pca(argv):
     colors = args.colors
     markers = args.markers
     eigenvectors = args.eigenvectors
+    scale = args.scaling
     tmp = args.tmp
 
     if argument_sample_names is None:
@@ -1765,6 +1776,10 @@ def pca(argv):
 
     eigenvectors = [eigenvectors[0] - 1, eigenvectors[1] - 1]
 
+    from kaic.tools.general import str_to_int
+    min_distance = str_to_int(min_distance) if min_distance is not None else None
+    max_distance = str_to_int(max_distance) if max_distance is not None else None
+
     import kaic
     matrices = []
     try:
@@ -1779,14 +1794,15 @@ def pca(argv):
                                         background_ligation=background_filter,
                                         min_distance=min_distance, max_distance=max_distance,
                                         min_libraries_above_background=1,
-                                        inter_chromosomal=inter_chromosomal)
+                                        inter_chromosomal=inter_chromosomal,
+                                        scale=scale)
             variance = pca_info.explained_variance_ratio_
 
             with open(output_file, 'w') as o:
-                o.write("sample\n" + "\t".join(["ev_{}".format(i+1) for i in range(len(sample_names))]))
+                o.write("sample\t{}\n".format("\t".join(["ev_{}".format(i+1) for i in range(len(sample_names))])))
                 for i, v in enumerate(pca_res):
-                    o.write("{}\t".format(sample_names[i]) + "\t".join(v) + "\n")
-                o.write("variance\t" + "\t".join(variance) + "\n")
+                    o.write("{}\t".format(sample_names[i]) + "\t".join([str(x) for x in v]) + "\n")
+                o.write("variance\t" + "\t".join([str(v) for v in variance]) + "\n")
 
             pca_res_file = output_file
         else:
@@ -1794,6 +1810,7 @@ def pca(argv):
 
         if plot_file is not None:
             import pandas
+            import numpy as np
             pca_info = pandas.read_csv(pca_res_file, sep="\t")
             pca_res = pca_info.iloc[:-1, 1:]
             variance = pca_info.iloc[-1, 1:]
@@ -1802,9 +1819,9 @@ def pca(argv):
                 sample_names = pca_info.iloc[:-1, 0]
 
             import matplotlib
-            matplotlib.use("pdf")
+            matplotlib.use("agg")
             from kaic.plotting.plot_statistics import pca_plot
-            fig, ax = pca_plot(pca_res, variance=variance, names=sample_names,
+            fig, ax = pca_plot(np.array(pca_res), variance=variance, names=sample_names,
                                markers=args.markers, colors=args.colors,
                                eigenvectors=eigenvectors)
             ax.set_title("PCA sample size {}".format(sample_size))
@@ -2850,7 +2867,7 @@ def directionality(argv):
 
     _domain_scores(input_file, output_file, output_format, DirectionalityIndexes,
                    sub_region=sub_region, tmp=tmp,
-                   tmpdir=tmp, mode='w', window_sizes=window_sizes)
+                   tmpdir=tmp, window_sizes=window_sizes)
 
 
 def insulation_parser():
@@ -2886,8 +2903,7 @@ def insulation_parser():
     parser.add_argument(
         '-w', '--window-sizes', dest='window_sizes',
         nargs='+',
-        type=int,
-        default=[200000, 400000, 600000, 1000000],
+        default=['200000', '400000', '600000', '1000000'],
         help='Window sizes in base pairs to calculate insulation '
              'score on. The total window size is composed of the '
              'left window plus the right window, i.e. 2x this value.'
@@ -2917,22 +2933,22 @@ def insulation_parser():
     )
 
     parser.add_argument(
-        '-l', '--log', dest='log',
-        action='store_true',
-        default=False,
-        help='Log2-transform insulation index after '
-             'normalisation. This roughly centers values '
+        '-L', '--no-log', dest='log',
+        action='store_false',
+        default=True,
+        help='Do not log2-transform insulation index after '
+             'normalisation. Log-transformation roughly centers values '
              'around 0, but if you need this to be exactly '
              'centered, use the "--geom-mean" option.'
     )
 
     parser.add_argument(
-        '-n', '--norm', dest='normalise',
-        action='store_true',
-        default=False,
-        help='Normalise index to insulation average '
-             '(default is the whole chromosome - to normalise '
-             'to smaller regions, use --normalisation-window).'
+        '-N', '--no-norm', dest='normalise',
+        action='store_false',
+        default=True,
+        help='Do not normalise index to insulation average '
+             'Default is whole chromosome normalisation - to normalise '
+             'to smaller regions, use --normalisation-window.'
     )
 
     parser.add_argument(
@@ -3005,8 +3021,8 @@ def insulation(argv):
 
     _domain_scores(input_file, output_file, output_format, InsulationScores,
                    sub_region=sub_region, tmp=tmp,
-                   tmpdir=tmp, mode='w', window_sizes=window_sizes,
-                   impute_missing=impute, normalise=normalise, offset=offset,
+                   tmpdir=tmp, window_sizes=window_sizes,
+                   impute_missing=impute, normalise=normalise, window_offset=offset,
                    subtract_mean=subtract_mean, log=log,
                    trim_mean_proportion=trim_mean, geometric_mean=geom_mean,
                    normalisation_window=normalisation_window)
@@ -3016,6 +3032,7 @@ def _domain_scores(input_file, output_file, output_format,
                    score_class, sub_region=None, tmp=False,
                    **kwargs):
     import kaic
+    from kaic.tools.general import str_to_int
     output_format = output_format.lower()
     window_sizes = kwargs.get('window_sizes', [])
 
@@ -3035,13 +3052,15 @@ def _domain_scores(input_file, output_file, output_format,
     try:
         matrix = kaic.load(input_file, mode='r')
         if not isinstance(matrix, score_class):
-            scores = score_class.from_hic(matrix, file_name=output_file, mode='w',
+            scores = score_class.from_hic(matrix, file_name=output_file,
                                           **kwargs)
         else:
             scores = matrix
 
         if output_format in ['bed', 'gff', 'bigwig', 'bw']:
             for window_size in window_sizes:
+                window_size = str_to_int(window_size)
+
                 output_file = output_prefix + '_{}'.format(window_size) + output_format.lower()
 
                 if output_format in ['bw', 'bigwig']:
@@ -3214,6 +3233,15 @@ def compartments_parser():
         help='Force overwriting of output files.'
     )
 
+    parser.add_argument(
+        '--recalculate', dest='recalculate',
+        action='store_true',
+        default=False,
+        help='Force recalculation of eigenvector even if a '
+             'vector with the same parameters has previously '
+             'been calculated.'
+    )
+
     return parser
 
 
@@ -3224,7 +3252,7 @@ def compartments(argv):
 
     import os
 
-    input_file = os.path.expanduser(args.input)
+    input_file = os.path.expanduser(args.matrix)
     output_file = os.path.expanduser(args.ab_compartments) if args.ab_compartments is not None else None
     domains_file = os.path.expanduser(args.domains) if args.domains is not None else None
     genome_file = os.path.expanduser(args.genome) if args.genome is not None else None
@@ -3243,12 +3271,11 @@ def compartments(argv):
     vmax = args.vmax
     only_gc = args.only_gc
     exclude = args.exclude if args.exclude is not None else []
+    recalculate = args.recalculate
 
     force = args.force
     tmp = args.tmp
 
-    if not force and output_file is not None and os.path.exists(output_file):
-        parser.error("Output file {} already exists. Use -f to override!".format(output_file))
     if not force and domains_file is not None and os.path.exists(domains_file):
         parser.error("Output file {} already exists. Use -f to override!".format(domains_file))
     if not force and eigenvector_file is not None and os.path.exists(eigenvector_file):
@@ -3258,14 +3285,20 @@ def compartments(argv):
     if not force and enrichment_file is not None and os.path.exists(enrichment_file):
         parser.error("Output file {} already exists. Use -f to override!".format(enrichment_file))
 
+    if matrix_file is not None or enrichment_file is not None:
+        if output_file is None:
+            parser.error("Need Input matrix for AB compartment profile!")
+
     import kaic
+    import warnings
     from kaic.tools.files import write_bed
     from kaic.matrix import RegionMatrixContainer
     from kaic.architecture.compartments import ABCompartmentMatrix
 
-    matrix = kaic.load(input_file, tmpdir=tmp)
+    matrix = None
     ab_matrix = None
     try:
+        matrix = kaic.load(input_file, tmpdir=tmp)
         # input is Hic or other matrix
         if not isinstance(matrix, ABCompartmentMatrix):
             if not isinstance(matrix, RegionMatrixContainer):
@@ -3276,23 +3309,27 @@ def compartments(argv):
                              "AB compartment matrix. You can only omit this if your "
                              "first argument is already an AB compartment matrix!")
 
-            if os.path.exists(output_file) and not force:
+            if os.path.exists(output_file) and not recalculate:
                 ab_matrix = kaic.load(output_file)
                 if not isinstance(ab_matrix, ABCompartmentMatrix):
                     parser.error("Found existing file {}, but it is not an AB compartment matrix."
                                  "Use -f to overwrite it.")
                 logger.warning("Found existing AB compartment matrix at {}. Will not recalculate - "
-                               "use -f to overwrite the existing file!")
+                               "use --recalculate to overwrite the existing file!")
             else:
                 logger.info("Computing AB compartment matrix")
                 ab_matrix = ABCompartmentMatrix.from_hic(matrix,
                                                          file_name=output_file, tmpdir=tmp,
                                                          per_chromosome=not whole_genome)
+        else:
+            matrix.close()
+            matrix = None
+            ab_matrix = kaic.load(input_file, mode='a', tmpdir=tmp)
 
         # calculate eigenvector
         if eigenvector_file is not None:
-            ev = ab_matrix.eigenvector(region=region_subset, genome=genome_file,
-                                       eigenvector=ev_index)
+            ev = ab_matrix.eigenvector(sub_region=region_subset, genome=genome_file,
+                                       eigenvector=ev_index, force=recalculate)
             regions = []
             for i, region in enumerate(ab_matrix.regions(region_subset)):
                 r = region.copy()
@@ -3303,9 +3340,9 @@ def compartments(argv):
 
         # Calculate domains
         if domains_file is not None:
-            domains = ab_matrix.domains(region=region_subset, genome=genome_file,
-                                        eigenvector=ev_index)
-            write_bed(eigenvector_file, domains)
+            domains = ab_matrix.domains(sub_region=region_subset, genome=genome_file,
+                                        eigenvector=ev_index, force=recalculate)
+            write_bed(domains_file, domains)
 
         # Calculate enrichment profile
         if matrix_file is not None or enrichment_file is not None:
@@ -3322,47 +3359,52 @@ def compartments(argv):
 
             if enrichment_file is not None:
                 import matplotlib
-                matplotlib.use('pdf')
+                matplotlib.use('agg')
                 import matplotlib.pyplot as plt
                 import matplotlib.gridspec as grd
                 import numpy as np
 
                 fig = plt.figure(figsize=(5, 5), dpi=300)
-                gs = grd.GridSpec(2, 2,
-                                  height_ratios=[5, 1],
-                                  width_ratios=[5, 1])
+                gs = grd.GridSpec(3, 3,
+                                  height_ratios=[5, 1, 1],
+                                  width_ratios=[5, 1, 1])
                 heatmap_ax = plt.subplot(gs[0, 0])
                 im = heatmap_ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax,
                                        interpolation='nearest', aspect='auto')
-                cax = plt.subplot(gs[0, 1])
+                cax = plt.subplot(gs[0, 2])
                 cb = plt.colorbar(im, cax=cax)
-                cb.set_label('log enrichment')
+                cb.set_ticks([vmin, 0, vmax])
+                cb.set_label("log O/E")
                 heatmap_ax.set_xticks([0, m.shape[1] - 1])
                 heatmap_ax.set_xticklabels(['active', 'inactive'])
                 heatmap_ax.set_yticks([0, m.shape[1] - 1])
                 heatmap_ax.set_yticklabels(['active', 'inactive'])
 
                 pos = np.arange(m.shape[1])
-                barplot_ax = plt.subplot(gs[1, 0])
-                barplot_ax.bar(pos, cutoffs, color='grey')
+                barplot_ax = plt.subplot(gs[2, 0])
+                barplot_ax.bar(pos, cutoffs, color='grey', width=1)
                 if not only_gc:
                     extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
                     barplot_ax.set_yticks([-1 * extent, 0, extent])
                 else:
                     barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
+                barplot_ax.set_xlim(heatmap_ax.get_xlim())
                 barplot_ax.get_xaxis().set_visible(False)
                 barplot_ax.spines['right'].set_visible(False)
                 barplot_ax.spines['top'].set_visible(False)
                 barplot_ax.spines['bottom'].set_visible(False)
                 barplot_ax.yaxis.set_ticks_position('left')
                 barplot_ax.xaxis.set_ticks_position('none')
-                barplot_ax.set_xlim([pos[0], pos[-1]])
-                fig.savefig(output_file)
+                barplot_ax.set_title("EV percentile cutoffs")
+                fig.savefig(enrichment_file)
                 plt.close(fig)
     finally:
-        matrix.close()
-        if ab_matrix is not None:
-            ab_matrix.close()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if matrix is not None:
+                matrix.close()
+            if ab_matrix is not None:
+                ab_matrix.close()
 
 
 def expected_parser():
@@ -3405,6 +3447,21 @@ def expected_parser():
         help='Work in temporary directory'
     )
 
+    parser.add_argument(
+        '--recalculate', dest='recalculate',
+        action='store_true',
+        default=False,
+        help='Recalculate expected values regardless of whether '
+             'they are already stored in the matrix object.'
+    )
+
+    parser.add_argument(
+        '-N', '--no-norm', dest='norm',
+        action='store_false',
+        default=True,
+        help='Calculate expected values on unnormalised data.'
+    )
+
     return parser
 
 
@@ -3421,6 +3478,8 @@ def expected(argv):
     chromosome = args.chromosome
     plot_file = os.path.expanduser(args.plot_file) if args.plot_file is not None else None
     labels = args.labels
+    recalculate = args.recalculate
+    norm = args.norm
     tmp = args.tmp
 
     if labels is None:
@@ -3434,8 +3493,9 @@ def expected(argv):
     distances = dict()
     equal_distances = True
     for label, input_file in zip(labels, input_files):
-        with kaic.load(input_file, mode='r', tmpdir=tmp) as matrix:
-            intra_expected, intra_expected_chromosome, inter_expected = matrix.expected_values()
+        with kaic.load(input_file, mode='a', tmpdir=tmp) as matrix:
+            intra_expected, intra_expected_chromosome, inter_expected = matrix.expected_values(
+                force=recalculate, norm=norm)
 
             logger.info("Inter-chromosomal expected value: {}".format(inter_expected))
 
@@ -3452,8 +3512,12 @@ def expected(argv):
 
             equal_d = True
             for i in range(len(distance)):
-                if i != distances[labels[0]][i]:
-                    equal_distances = False
+                try:
+                    if distance[i] != distances[labels[0]][i]:
+                        equal_d = False
+                        break
+                except KeyError:
+                    equal_d = False
                     break
 
             if not equal_d:
@@ -3479,10 +3543,10 @@ def expected(argv):
 
     if plot_file is not None:
         import matplotlib
-        matplotlib.use("pdf")
+        matplotlib.use("agg")
         import matplotlib.pyplot as plt
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
         for label in labels:
             distance = distances[label]
             expected = expected_values[label]
@@ -3491,6 +3555,7 @@ def expected(argv):
         ax.set_yscale("log")
         ax.set_xlabel("Distance")
         ax.set_ylabel("Average contacts")
+        ax.legend()
         fig.tight_layout()
         fig.savefig(plot_file)
         plt.close(fig)
