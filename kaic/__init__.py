@@ -63,37 +63,7 @@ def load(file_name, *args, **kwargs):
             logger.debug("Detected {}".format(cls_))
             return cls_(file_name=file_name, mode=mode, *args, **kwargs)
         except AttributeError:
-            pass
-
-            # others
-            detectables = (
-                ('insulation_index', InsulationIndex),
-                ('directionality_index', DirectionalityIndex),
-                ('contact_average', RegionContactAverage),
-                ('expected_contacts', FoldChangeMatrix),
-                ('distance_decay', ExpectedContacts),
-                ('observed_expected', ObservedExpectedRatio),
-                ('ab_domains', ABDomains),
-                ('ab_domain_matrix', ABDomainMatrix),
-                ('possible_contacts', PossibleContacts),
-                ('meta_matrix', MetaArray),
-                ('meta_heatmap', MetaHeatmap),
-                ('tracks', GenomicTrack),
-                ('fragments', Pairs),
-                ('vector_diff', VectorDifference),
-                ('region_data', VectorArchitecturalRegionFeature),
-                ('array_region_data', MultiVectorArchitecturalRegionFeature),
-            )
-
-            for name, cls in detectables:
-                try:
-                    f.file.get_node('/' + name)
-                    f.close()
-                    return cls(file_name, mode=mode, *args, **kwargs)
-                except tables.NoSuchNodeError:
-                    pass
-
-            f.close()
+            raise
             raise ValueError("File ({}) does not have a '_classid' meta attribute. This might be fixed by loading the "
                              "class once explicitly with the appropriate class in append mode. "
                              "It was also impossible to auto-detect the file type from the file "
