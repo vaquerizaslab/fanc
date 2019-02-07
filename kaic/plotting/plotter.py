@@ -506,8 +506,8 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
     Plot matrix from a :class:`~kaic.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature` object.
     """
 
-    def __init__(self, array, keys=None, y_coords=None, y_scale='linear', plot_kwargs=None,
-                 **kwargs):
+    def __init__(self, array, parameters=None, y_coords=None, y_scale='linear',
+                 plot_kwargs=None, **kwargs):
         """
         :param array: :class:`~kaic.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature`
         :param keys: keys for which vectors to use for array. None indicates all vectors will be used.
@@ -524,13 +524,13 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
 
         super(GenomicVectorArrayPlot, self).__init__(**kwargs)
         self.array = array
-        self.keys = keys
+        self.parameters = parameters
         if plot_kwargs is None:
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
         if y_coords is None:
-            if self.array.y_values is not None:
-                self.y_coords = self.array.y_values
+            if self.array._parameters is not None:
+                self.y_coords = self.array._parameters
             else:
                 self.y_coords = None
         self.hm = None
@@ -545,7 +545,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
         self.collection._A = None
         self._update_mesh_colors()
         self.ax.set_yscale(self.y_scale)
-        self.ax.set_ylim(self.hm.y_values[0], self.hm.y_values[-1])
+        self.ax.set_ylim(self.parameters[0], self.parameters[-1])
 
         def drag_pan(self, button, key, x, y):
             mpl.axes.Axes.drag_pan(self, button, 'x', x, y)  # pretend key=='x'
@@ -553,9 +553,9 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
         self.ax.drag_pan = types.MethodType(drag_pan, self.ax)
 
     def _mesh_data(self, region):
-        hm = self.array.as_matrix(regions=region, keys=self.keys)
-        bin_coords = np.r_[[(x.start - 1) for x in hm.regions], hm.regions[-1].end]
-        x, y = np.meshgrid(bin_coords, hm.y_values)
+        hm = self.array.score_matrix(region=region, parameters=self.parameters)
+        bin_coords = np.r_[[(x.start - 1) for x in hm.row_regions], hm.row_regions[-1].end]
+        x, y = np.meshgrid(bin_coords, self.parameters)
         return x, y, hm
 
     def _update_mesh_colors(self):
@@ -725,8 +725,10 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
     Regions will be plotted as bars with the height equal to the score provided in the file.
     """
-    def __init__(self, regions, attribute='score', feature_types=None, color_neutral='grey', color_forward='red',
-                 color_reverse='blue', annotation_field=None, ylim=None, **kwargs):
+    def __init__(self, regions, attribute='score', feature_types=None,
+                 color_neutral='grey', color_forward='red',
+                 color_reverse='blue', annotation_field=None, ylim=None,
+                 **kwargs):
         """
         :param regions: Any input that pybedtools can parse. Can be a path to a
                         GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), ...]
@@ -813,6 +815,22 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
         for i in range(len(x)):
             x[i] += width[i]/2
+        x = np.array(x)
+        y = np.array(y)
+        width = np.array(width)
+        colors = np.array(colors)
+        annotations = np.array(annotations)
+
+        ixs = np.where(np.isfinite(y))[0]
+        if len(colors) == len(x):
+            colors = colors[ixs]
+        else:
+            colors = None
+        y = y[ixs]
+        x = x[ixs]
+        width = width[ixs]
+        annotations = annotations[ixs]
+
         rects = self.ax.bar(x, y, width=width, color=colors, edgecolor=colors, alpha=0.5)
 
         sns.despine(ax=self.ax, top=True, right=True)
