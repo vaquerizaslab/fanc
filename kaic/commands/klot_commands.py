@@ -149,13 +149,13 @@ def subplot_parser():
     return parser
 
 
-def fc(parameters):
+def oe(parameters):
     parser = subplot_parser()
-    parser.description = '''Fold-change plot.'''
+    parser.description = 'O/E (observed/expected) plot.'
 
     parser.add_argument(
-        'fc_matrix',
-        help='''Fold-change matrix.'''
+        'matrix',
+        help='''Kai-C compatible matrix matrix.'''
     )
 
     parser.add_argument(
@@ -177,11 +177,11 @@ def fc(parameters):
     )
 
     parser.add_argument(
-        '-l', '--log', dest='log',
-        action='store_true',
+        '-L', '--no-log', dest='log',
+        action='store_false',
+        default=True,
         help='''Log-transform heatmap values'''
     )
-    parser.set_defaults(log=False)
 
     parser.add_argument(
         '-S', '--no-symmetry', dest='symmetry',
@@ -221,15 +221,26 @@ def fc(parameters):
     )
     parser.set_defaults(show_colorbar=True)
 
+    parser.add_argument(
+        '-N', '--no-norm', dest='norm',
+        action='store_false',
+        default=True,
+        help='''Do not normalise matrix values'''
+    )
+
     args = parser.parse_args(parameters)
 
-    matrix = kaic.FoldChangeMatrix(os.path.expanduser(args.fc_matrix), mode='r')
-    norm = "lin" if not args.log else "log"
+    matrix = kaic.load(os.path.expanduser(args.matrix), mode='r')
+    norm = "lin" #  if not args.log else "log"
     colorbar_symmetry = 0 if args.symmetry else None
-    return kplt.HicPlot(matrix, colormap=args.colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
+
+    from kaic.tools.general import str_to_int
+    max_dist = str_to_int(args.max_dist) if args.max_dist is not None else None
+
+    return kplt.HicPlot(matrix, colormap=args.colormap, max_dist=max_dist, norm=norm, vmin=args.vmin,
                         vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
                         colorbar_symmetry=colorbar_symmetry, default_value=args.default_value,
-                        weight_field=args.weight_field), args
+                        weight_field=args.weight_field, matrix_norm=args.norm, oe=True, log=args.log), args
 
 
 def hic_parser():
@@ -687,7 +698,7 @@ def array_parser():
 
     parser.add_argument(
         'array',
-        help='''Array object, e.g. InsulationIndex, DirectionalityIndex, ... .'''
+        help='''Array object, e.g. InsulationScores, DirectionalityIndexes, ... .'''
     )
 
     parser.add_argument(
@@ -710,12 +721,6 @@ def array_parser():
     parser.set_defaults(log=False)
 
     parser.add_argument(
-        '-m', '--matrix-height', dest='matrix_height',
-        type=int,
-        help='''Matrix height in (steps/bins)'''
-    )
-
-    parser.add_argument(
         '-r', '--range', dest='range',
         nargs=2,
         type=int,
@@ -723,10 +728,10 @@ def array_parser():
     )
 
     parser.add_argument(
-        '-f', '--fields', dest='fields',
+        '-p', '--parameters', dest='parameters',
         type=str,
         nargs='+',
-        help='''List of specific fields to plot.'''
+        help='''List of specific window sizes / parameters to plot.'''
     )
 
     parser.add_argument(
@@ -765,19 +770,18 @@ def array(parameters):
     array = kaic.load(os.path.expanduser(args.array), mode='r')
     norm = "linear" if not args.log else "log"
 
-    data_selection = None
     if args.range is not None:
         data_selection = []
-        for i, y in enumerate(array.y_values):
+        for i, y in enumerate(array._parameters):
             if args.range[0] <= y <= args.range[1]:
                 data_selection.append(i)
-    elif args.matrix_height is not None:
-        data_selection = args.matrix_height
-    elif args.fields is not None:
-        data_selection = args.fields
+    elif args.parameters is not None:
+        data_selection = args.parameters
+    else:
+        data_selection = array._parameters
 
     colorbar_symmetry = 0 if args.symmetry else None
-    p = kplt.GenomicVectorArrayPlot(array, keys=data_selection, y_scale=norm, colormap=args.colormap,
+    p = kplt.GenomicVectorArrayPlot(array, parameters=data_selection, y_scale=norm, colormap=args.colormap,
                                     colorbar_symmetry=colorbar_symmetry, vmin=args.vmin, vmax=args.vmax,
                                     show_colorbar=args.show_colorbar, replacement_color=args.replacement_color)
     return p, args
