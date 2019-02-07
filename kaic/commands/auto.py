@@ -173,9 +173,10 @@ class SgeTaskRunner(TaskRunner):
             tmp_file.write(" ".join(task.command) + "\n")
             tmp_file.flush()
 
-            command = [config.sge_qsub_path, config.sge_qsub_options,
+            command = [config.sge_qsub_path,
                        '-N', job_id, '-cwd',
-                       '-pe', config.sge_parallel_environment, str(task.threads)]
+                       '-pe', config.sge_parallel_environment,
+                       str(task.threads)] + config.sge_qsub_options.split()
 
             if config.sge_default_queue is not None:
                 command += ['-q', config.sge_default_queue]
