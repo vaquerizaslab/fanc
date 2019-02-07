@@ -368,7 +368,7 @@ class RegionPairsContainer(RegionBased):
                         continue
 
                     try:
-                        if not row_region.valid or not col_region.valid:
+                        if not getattr(row_region, 'valid', True) or not getattr(col_region, 'valid', True):
                             continue
                     except AttributeError:
                         pass
@@ -473,7 +473,7 @@ class RegionPairsContainer(RegionBased):
         """
         Get the mappability vector of this matrix.
         """
-        return np.array([True if r.valid else False for r in self.regions])
+        return np.array([True if getattr(r, 'valid', True) else False for r in self.regions])
 
 
 class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
@@ -557,7 +557,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                    getattr(edge, score_field, self._default_value))
 
     def matrix(self, key=None, norm=True, oe=False,
-               oe_per_chromosome=True,
+               oe_per_chromosome=True, log=False,
                score_field=None, bias_field='bias',
                default_value=None, mask=True,
                _mappable=None):
@@ -567,6 +567,9 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         if default_value is None:
             default_value = self._default_value
+
+        if oe:
+            default_value = 1.0
 
         row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key, norm=norm, oe=oe,
                                                                                    score_field=score_field,
@@ -580,6 +583,10 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
             jr = sink
             if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
                 m[ir, jr] = weight
+
+        if log:
+            m = np.log2(m)
+            m[~np.isfinite(m)] = default_value
 
         if isinstance(key, tuple) and len(key) == 2:
             if isinstance(key[0], int) and isinstance(key[1], int):
@@ -652,7 +659,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return intra_total, chromosome_intra_total, inter_total
 
-    def expected_values(self, selected_chromosome=None, norm=True):
+    def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
         # get all the bins of the different chromosomes
         chromosome_bins = self.chromosome_bins
         chromosome_dict = defaultdict(list)
@@ -1419,10 +1426,11 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         self.region_data('bias', biases)
         self._remove_expected_values()
 
-    def expected_values(self, selected_chromosome=None, norm=True):
+    def expected_values(self, selected_chromosome=None, norm=True,
+                        force=False, *args, **kwargs):
         group_name = 'corrected' if norm else 'uncorrected'
 
-        if self._expected_value_group is not None:
+        if not force and self._expected_value_group is not None:
             try:
                 group = self.file.get_node(self._expected_value_group, group_name)
                 if selected_chromosome is not None:
