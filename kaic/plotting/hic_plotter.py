@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
-                       weight_field=None, default_value=None, smooth_sigma=None):
+                       weight_field=None, default_value=None, smooth_sigma=None,
+                       norm=True, oe=False, log=False):
     """
     Prepare :class:`~BufferedMatrix` from hic data.
 
@@ -40,10 +41,13 @@ def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
     if isinstance(hic_data, RegionMatrixTable):
         return BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
                               buffering_arg=buffering_arg, weight_field=weight_field,
-                              default_value=default_value, smooth_sigma=smooth_sigma)
+                              default_value=default_value, smooth_sigma=smooth_sigma,
+                              norm=norm, oe=oe, log=log)
     elif isinstance(hic_data, RegionMatrixContainer):
         return BufferedMatrix.from_hic_matrix(hic_data, weight_field=weight_field,
-                                              default_value=default_value, smooth_sigma=smooth_sigma)
+                                              default_value=default_value,
+                                              smooth_sigma=smooth_sigma,
+                                              norm=norm, oe=oe, log=log)
     else:
         raise ValueError("Unknown type for hic_data")
 
@@ -60,7 +64,8 @@ class BufferedMatrix(object):
     _STRATEGY_RELATIVE = "relative"
 
     def __init__(self, data, buffering_strategy="relative", buffering_arg=1,
-                 weight_field=None, default_value=None, smooth_sigma=None):
+                 weight_field=None, default_value=None, smooth_sigma=None,
+                 norm=True, oe=False, log=False):
         """
         Initialize a buffer for Matrix-like objects that support
         indexing using class:`~GenomicRegion` objects, such as class:`~kaic.Hic`
@@ -87,9 +92,13 @@ class BufferedMatrix(object):
         self.weight_field = weight_field
         self.default_value = default_value
         self.smooth_sigma = smooth_sigma
+        self.norm = norm
+        self.oe = oe
+        self.log = log
 
     @classmethod
-    def from_hic_matrix(cls, hic_matrix, weight_field=None, default_value=None, smooth_sigma=None):
+    def from_hic_matrix(cls, hic_matrix, weight_field=None, default_value=None,
+                        smooth_sigma=None, norm=True, oe=False, log=False):
         """
         Wrap a :class:`~HicMatrix` in a :class:`~BufferedMatrix` container.
         Default buffering strategy is set to "all" by default.
@@ -98,7 +107,8 @@ class BufferedMatrix(object):
         :return: :class:`~BufferedMatrix`
         """
         bm = cls(data=None, buffering_strategy="all", weight_field=weight_field,
-                 default_value=default_value, smooth_sigma=smooth_sigma)
+                 default_value=default_value, smooth_sigma=smooth_sigma,
+                 norm=norm, oe=oe, log=log)
         bm.buffered_region = bm._STRATEGY_ALL
         bm.buffered_matrix = hic_matrix
         return bm
@@ -147,7 +157,8 @@ class BufferedMatrix(object):
         self.buffered_region = self._STRATEGY_ALL
         self.buffered_matrix = self.data.matrix(key=tuple([slice(0, None, None)]*len(regions)),
                                                 score_field=self.weight_field,
-                                                default_value=self.default_value)
+                                                default_value=self.default_value,
+                                                norm=self.norm, oe=self.oe, log=self.log)
 
     def _buffer_relative(self, *regions):
         """
@@ -169,7 +180,8 @@ class BufferedMatrix(object):
                 self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
         self.buffered_matrix = self.data.matrix(tuple(self.buffered_region),
                                                 score_field=self.weight_field,
-                                                default_value=self.default_value)
+                                                default_value=self.default_value,
+                                                norm=self.norm, oe=self.oe, log=self.log)
 
     def _buffer_fixed(self, *regions):
         """
@@ -190,7 +202,8 @@ class BufferedMatrix(object):
                 self.buffered_region.append(GenomicRegion(start=None, end=None, chromosome=rq.chromosome))
         self.buffered_matrix = self.data.matrix(tuple(self.buffered_region),
                                                 score_field=self.weight_field,
-                                                default_value=self.default_value)
+                                                default_value=self.default_value,
+                                                norm=self.norm, oe=self.oe, log=self.log)
 
     @property
     def buffered_min(self):
@@ -250,7 +263,8 @@ class BasePlotterHic(BasePlotterMatrix):
     """
 
     def __init__(self, hic_data, adjust_range=False, buffering_strategy="relative",
-                 buffering_arg=1, weight_field=None, default_value=None, smooth_sigma=None, **kwargs):
+                 buffering_arg=1, weight_field=None, default_value=None, smooth_sigma=None,
+                 matrix_norm=True, oe=False, log=False, **kwargs):
         """
         :param hic_data: Path to Hi-C data on disk or
                         :class:`~kaic.data.genomic.Hic` or :class:`~kaic.data.genomic.RegionMatrix`
@@ -264,7 +278,8 @@ class BasePlotterHic(BasePlotterMatrix):
         self.hic_data = hic_data
         self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
                                              buffering_arg=buffering_arg, weight_field=weight_field,
-                                             default_value=default_value, smooth_sigma=smooth_sigma)
+                                             default_value=default_value, smooth_sigma=smooth_sigma,
+                                             norm=matrix_norm, oe=oe, log=log)
         self.slider = None
         self.adjust_range = adjust_range
         self.vmax_slider = None
