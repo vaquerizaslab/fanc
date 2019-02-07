@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 class RegionScoreTable(RegionsTable):
+
+    _classid = 'REGIONSCORETABLE'
+
     def __init__(*args, **kwargs):
         additional_fields = kwargs.get('additional_fields', None)
         if additional_fields is None:
@@ -30,23 +33,39 @@ class RegionScoreTable(RegionsTable):
 
 
 class RegionMultiScoreTable(RegionsTable):
-    def __init__(self, score_fields=('score', ), *args, **kwargs):
-        additional_fields = kwargs.get('additional_fields', None)
-        if additional_fields is None:
-            additional_fields = {}
-        for i, score_field in enumerate(score_fields):
-            additional_fields[score_field] = tables.Float32Col(pos=i)
-        kwargs['additional_fields'] = additional_fields
+
+    _classid = 'REGIONMULTISCORETABLE'
+
+    def __init__(self, score_fields=None, *args, **kwargs):
+        if score_fields is not None:
+            additional_fields = kwargs.get('additional_fields', None)
+            if additional_fields is None:
+                additional_fields = {}
+            for i, score_field in enumerate(score_fields):
+                additional_fields[score_field] = tables.Float32Col(pos=i)
+            kwargs['additional_fields'] = additional_fields
 
         RegionsTable.__init__(self, *args, **kwargs)
 
 
 class RegionScoreParameterTable(RegionMultiScoreTable):
-    def __init__(self, parameter_values, parameter_prefix='score_', *args, **kwargs):
-        self._parameter_prefix = parameter_prefix
-        self._parameters = parameter_values
-        self._score_fields = self._score_field_converter()
-        RegionMultiScoreTable.__init__(self, self._score_fields, *args, **kwargs)
+
+    _classid = 'REGIONSCOREPARAMETERTABLE'
+
+    def __init__(self, parameter_values=None, parameter_prefix='score_', *args, **kwargs):
+        if parameter_values is None:
+            RegionMultiScoreTable.__init__(self, None, *args, **kwargs)
+            prefix = self.meta.parameter_prefix
+            self._parameter_prefix = prefix.decode('utf-8') if isinstance(prefix, bytes) else prefix
+            self._parameters = self.meta.parameter_values
+            self._score_fields = self._score_field_converter()
+        else:
+            self._parameter_prefix = parameter_prefix
+            self._parameters = parameter_values
+            self._score_fields = self._score_field_converter(parameter_values)
+            RegionMultiScoreTable.__init__(self, self._score_fields, *args, **kwargs)
+            self.meta['parameter_values'] = parameter_values
+            self.meta['parameter_prefix'] = parameter_prefix
 
     def _score_field_converter(self, parameters=None):
         if parameters is None:
@@ -102,6 +121,9 @@ class RegionScoreParameterTable(RegionMultiScoreTable):
 
 
 class InsulationScore(RegionScoreTable):
+
+    _classid = 'INSULATIONSCORE'
+
     def __init__(*args, **kwargs):
         RegionScoreTable.__init__(*args, **kwargs)
 
@@ -112,7 +134,7 @@ class InsulationScore(RegionScoreTable):
                  trim_mean_proportion=0.0, geometric_mean=False,
                  subtract_mean=False, log=True):
         window_size = hic.distance_to_bins(window_size_in_bp)
-        insulation_score_regions = cls(file_name=file_name, tmpdir=tmpdir)
+        insulation_score_regions = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         insulation_score_regions.add_regions(hic.regions, preserve_attributes=False)
 
         if geometric_mean:
@@ -256,6 +278,9 @@ class InsulationScore(RegionScoreTable):
 
 
 class InsulationScores(RegionScoreParameterTable):
+
+    _classid = 'INSULATIONSCORES'
+
     def __init__(*args, **kwargs):
         RegionScoreParameterTable.__init__(*args, **kwargs)
 
@@ -268,10 +293,11 @@ class InsulationScores(RegionScoreParameterTable):
                  **kwargs):
         insulation_scores = cls(parameter_prefix='insulation_',
                                 parameter_values=list(window_sizes),
-                                file_name=file_name, tmpdir=tmpdir)
+                                file_name=file_name, mode='w',
+                                tmpdir=tmpdir)
 
         for i, window_size in enumerate(window_sizes):
-            logger.debug("Window size {}".format(window_size))
+            logger.info("Calculating insulation score with window size {}".format(window_size))
             ii = InsulationScore.from_hic(hic, window_size, **kwargs)
             if i == 0:
                 insulation_scores.add_regions(ii.regions, preserve_attributes=False)
@@ -283,6 +309,9 @@ class InsulationScores(RegionScoreParameterTable):
 
 
 class DirectionalityIndex(RegionScoreTable):
+
+    _classid = 'DIRECTIONALITYINDEX'
+
     def __init__(*args, **kwargs):
         RegionScoreTable.__init__(*args, **kwargs)
 
@@ -290,7 +319,7 @@ class DirectionalityIndex(RegionScoreTable):
     def from_hic(cls, hic, window_size=2000000, weight_field=None,
                  file_name=None, tmpdir=None, **kwargs):
         bin_window_size = hic.distance_to_bins(window_size)
-        directionality_index_regions = cls(file_name=file_name, tmpdir=tmpdir)
+        directionality_index_regions = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         directionality_index_regions.add_regions(hic.regions, preserve_attributes=False)
 
         weight_field = hic._default_score_field if weight_field is None else weight_field
@@ -343,6 +372,9 @@ class DirectionalityIndex(RegionScoreTable):
 
 
 class DirectionalityIndexes(RegionScoreParameterTable):
+
+    _classid = 'DIRECTIONALITYINDEXES'
+
     def __init__(*args, **kwargs):
         RegionScoreParameterTable.__init__(*args, **kwargs)
 
@@ -355,7 +387,8 @@ class DirectionalityIndexes(RegionScoreParameterTable):
                  **kwargs):
         directionality_indexes = cls(parameter_prefix='directionality_',
                                      parameter_values=list(window_sizes),
-                                     file_name=file_name, tmpdir=tmpdir)
+                                     file_name=file_name, mode='w',
+                                     tmpdir=tmpdir)
 
         for i, window_size in enumerate(window_sizes):
             logger.debug("Window size {}".format(window_size))
@@ -370,6 +403,9 @@ class DirectionalityIndexes(RegionScoreParameterTable):
 
 
 class Boundaries(RegionScoreTable):
+
+    _classid = 'BOUNDARIES'
+
     def __init__(*args, **kwargs):
         RegionScoreTable.__init__(*args, **kwargs)
 
