@@ -171,34 +171,37 @@ class SgeTaskRunner(TaskRunner):
                 tmp_file.write("trap notify_handler SIGUSR1\n")
                 tmp_file.write("trap notify_handler SIGUSR2\n\n")
             tmp_file.write(" ".join(task.command) + "\n")
+            tmp_file.flush()
 
-        command = [config.sge_qsub_path, config.sge_qsub_options,
-                   '-N', job_id, '-cwd',
-                   '-pe', config.sge_parallel_environment, str(task.threads)]
+            command = [config.sge_qsub_path, config.sge_qsub_options,
+                       '-N', job_id, '-cwd',
+                       '-pe', config.sge_parallel_environment, str(task.threads)]
 
-        if config.sge_default_queue is not None:
-            command += ['-q', config.sge_default_queue]
+            if config.sge_default_queue is not None:
+                command += ['-q', config.sge_default_queue]
 
-        if config.sge_shell is None:
-            shell = '/bin/bash'
-        else:
-            shell = config.sge_shell
-        command += ['-S', shell]
+            if config.sge_shell is None:
+                shell = '/bin/bash'
+            else:
+                shell = config.sge_shell
+            command += ['-S', shell]
 
-        if task.wait_for is not None and len(task.wait_for) > 0:
-            hold_ids = ",".join([self._task_prefix + '{}'.format(self._task_ixs[t.id])
-                                 for t in task.wait_for])
-            command += ['-hold_jid', hold_ids]
+            if task.wait_for is not None and len(task.wait_for) > 0:
+                hold_ids = ",".join([self._task_prefix + '{}'.format(self._task_ixs[t.id])
+                                     for t in task.wait_for])
+                command += ['-hold_jid', hold_ids]
 
-        if self._log_dir is not None:
-            command += ['-o', os.path.join(self._log_dir, job_id + '_o')]
-            command += ['-e', os.path.join(self._log_dir, job_id + '_e')]
-        else:
-            command += ['-o', '/dev/null']
-            command += ['-e', '/dev/null']
+            if self._log_dir is not None:
+                command += ['-o', os.path.join(self._log_dir, job_id + '_o')]
+                command += ['-e', os.path.join(self._log_dir, job_id + '_e')]
+            else:
+                command += ['-o', '/dev/null']
+                command += ['-e', '/dev/null']
 
-        logger.info("Submitting {}".format(" ".join(command)))
-        subprocess.call(command)
+            command += [tmp_file.name]
+
+            logger.info("Submitting {}".format(" ".join(command)))
+            subprocess.call(command)
 
     def run(self, *args, **kwargs):
         for task in self._tasks:
