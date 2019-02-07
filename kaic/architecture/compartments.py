@@ -18,21 +18,27 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
     _classid = 'ABCOMPARTMENTMATRIX'
 
-    def __init__(self, file_name=None, tmpdir=None):
-        RegionMatrixTable.__init__(self, file_name=file_name, tmpdir=tmpdir,
+    def __init__(self, file_name=None, mode='r', tmpdir=None):
+        RegionMatrixTable.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                    additional_region_fields={
                                        'name': tables.StringCol(1, pos=0),
                                        'score': tables.Float32Col(pos=1),
                                    })
-        self.meta['per_chromosome'] = True
-        self.meta['oe_per_chromosome'] = True
-        self.meta['has_ev'] = False
-        self.meta['eigenvector'] = 0
+        if 'per_chromosome' not in self.meta:
+            self.meta['per_chromosome'] = True
+        if 'oe_per_chromosome' not in self.meta:
+            self.meta['oe_per_chromosome'] = True
+        if 'has_ev' not in self.meta:
+            self.meta['has_ev'] = False
+        if 'eigenvector' not in self.meta:
+            self.meta['eigenvector'] = 0
+        if 'gc' not in self.meta:
+            self.meta['gc'] = False
 
     @classmethod
     def from_hic(cls, hic, file_name=None, tmpdir=None,
                  per_chromosome=True, oe_per_chromosome=None):
-        ab_matrix = cls(file_name=file_name, tmpdir=tmpdir)
+        ab_matrix = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         ab_matrix.add_regions(hic.regions, preserve_attributes=False)
         ab_matrix.meta.per_chromosome = per_chromosome
         ab_matrix.meta.oe_per_chromosome = oe_per_chromosome
@@ -44,7 +50,6 @@ class ABCompartmentMatrix(RegionMatrixTable):
             for chromosome in chromosomes:
                 m = hic.matrix((chromosome, chromosome), oe=True, oe_per_chromosome=oe_per_chromosome)
                 corr_m = np.corrcoef(m)
-                print(corr_m)
 
                 logger.info("Chromosome {}".format(chromosome))
                 with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars) as pb:
@@ -85,7 +90,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
         return ab_matrix
 
-    def eigenvector(self, region=None, genome=None, eigenvector=0,
+    def eigenvector(self, sub_region=None, genome=None, eigenvector=0,
                     per_chromosome=None, oe_per_chromosome=None,
                     force=False):
         if per_chromosome is None:
@@ -119,10 +124,10 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
             if genome is not None:
                 logger.info("Using GC content to orient eigenvector...")
+                close_genome = False
                 if isinstance(genome, string_types):
-                    genome = Genome.from_string(self.genome, mode='r')
-                else:
-                    genome = genome
+                    genome = Genome.from_string(genome, mode='r')
+                    close_genome = True
 
                 gc_content = [np.nan] * len(self.regions)
                 for chromosome_sub in self.chromosomes():
@@ -132,6 +137,9 @@ class ABCompartmentMatrix(RegionMatrixTable):
                         s = chromosome_sequence[region.start - 1:region.end]
                         gc_content[region.ix] = calculate_gc_content(s)
                 gc_content = np.array(gc_content)
+
+                if close_genome:
+                    genome.close()
 
                 # use gc content to orient AB domain vector per chromosome
                 cb = self.chromosome_bins
@@ -152,16 +160,17 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 self.meta.oe_per_chromosome = oe_per_chromosome
                 self.meta.has_ev = True
                 self.meta.eigenvector = eigenvector
+                self.meta.gc = genome is not None
                 compartments = ['A' if s >= 0 else 'B' for s in ev]
                 self.region_data('name', compartments)
             except OSError:
                 logger.warning("Cannot save eigenvector to ABCompartmentMatrix since the file "
                                "is opened in read-only mode.")
 
-        if region is None:
+        if sub_region is None:
             return ev
 
-        regions = list(self.regions(region))
+        regions = list(self.regions(sub_region))
         return ev[regions[0].ix:regions[-1].ix + 1]
 
     def domains(self, *args, **kwargs):
