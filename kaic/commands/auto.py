@@ -179,6 +179,12 @@ class SgeTaskRunner(TaskRunner):
         if config.sge_default_queue is not None:
             command += ['-q', config.sge_default_queue]
 
+        if config.sge_shell is None:
+            shell = '/bin/bash'
+        else:
+            shell = config.sge_shell
+        command += ['-S', shell]
+
         if task.wait_for is not None and len(task.wait_for) > 0:
             hold_ids = ",".join([self._task_prefix + '{}'.format(self._task_ixs[t.id])
                                  for t in task.wait_for])

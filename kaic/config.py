@@ -50,8 +50,8 @@ sge_default_queue: all.q
 sge_log_dir:
 sge_parallel_environment: smp
 sge_nodes:
-sge_qsub_options: "-S bash -V -notify"
-sge_shell: bash
+sge_qsub_options: "-V -notify"
+sge_shell: /bin/bash
 
 #
 # Juicer
