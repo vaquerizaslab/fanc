@@ -170,6 +170,7 @@ class SgeTaskRunner(TaskRunner):
                                '(>&2 echo "Received termination notice")\n}\n')
                 tmp_file.write("trap notify_handler SIGUSR1\n")
                 tmp_file.write("trap notify_handler SIGUSR2\n\n")
+                tmp_file.write("export PYTHONUNBUFFERED=1\n\n")
             tmp_file.write(" ".join(task.command) + "\n")
             tmp_file.flush()
 
