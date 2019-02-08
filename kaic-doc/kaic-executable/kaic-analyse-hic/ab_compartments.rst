@@ -8,6 +8,13 @@ AB compartment analysis
 Regions in a Hi-C matrix can generally be assigned to either the active or the inactive
 compartment, also called 'A' and 'B' compartments, respectively.
 
+.. argparse::
+   :module: kaic.commands.kaic_commands
+   :func: compartments_parser
+   :prog: kaic compartments
+   :nodescription:
+
+
 ******************
 Correlation matrix
 ******************

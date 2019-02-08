@@ -11,5 +11,6 @@ It provides convenient commands for the generation, modification, and analysis o
 
     Expected values and O/E matrices <kaic-analyse-hic/oe>
     AB compartments <kaic-analyse-hic/ab_compartments>
-    TADs and TAD boundaries <kaic-analyse-hic/tads>
+    PCA <kaic-analyse-hic/pca>
+    TADs and TAD boundaries <kaic-analyse-hic/domains>
     Aggregate Hi-C matrices <kaic-analyse-hic/aggregate_hic>
