@@ -2533,16 +2533,15 @@ def boundaries_parser():
 
     parser.add_argument(
         'output',
-        help="Output folder for boundary BED files "
-             "(default or when using '-r' option) or "
-             "path for boundary BED file (when using "
-             "a single window size or if input file "
-             "only has one score in it)."
+        help="Path for boundary BED file. When specifying "
+             "multiple window sizes or if input file "
+             " has multiple scores in it, this forms "
+             "the output file prefix and will be appended by "
+             "'<window size>.bed'"
     )
 
     parser.add_argument(
         '-w', '--window-sizes', dest='window',
-        type=int,
         nargs='+',
         help='Insulation index window size to calculate boundaries on'
     )
@@ -2573,14 +2572,6 @@ def boundaries_parser():
              'This works because the minimum or the '
              'the insulation score track can be determined '
              'with sub-bin precision. Default: False'
-    )
-
-    parser.add_argument(
-        '-p', '--prefix', dest='prefix',
-        default='boundaries',
-        help='Output file prefix. '
-             'Not necessary when using -w modus. '
-             'Default: boundaries'
     )
 
     parser.add_argument(
@@ -2615,12 +2606,11 @@ def boundaries(argv):
     delta = args.delta
     min_score = args.min_score
     sub_bin_precision = args.sub_bin_precision
-    prefix = args.prefix
     maxima = args.maxima
     log = args.log
 
     import kaic
-    from kaic.tools.general import mkdir, human_format
+    from kaic.tools.general import human_format, str_to_int
     import genomic_regions as gr
     from kaic.architecture.domains import InsulationScores, InsulationScore, Boundaries
 
@@ -2629,6 +2619,8 @@ def boundaries(argv):
     if isinstance(insulation, InsulationScores):
         if windows is None:
             windows = insulation.window_sizes
+        else:
+            windows = [str_to_int(window) for window in windows]
 
         if len(windows) > 1:
             for window in windows:
@@ -2637,8 +2629,7 @@ def boundaries(argv):
                                                      delta_window=delta,
                                                      sub_bin_precision=sub_bin_precision,
                                                      log=log, call_maxima=maxima)
-                output_dir = mkdir(output_path)
-                b.to_bed(os.path.join(output_dir, prefix + '_{}'.format(human_format(window))))
+                b.to_bed('{}_{}b.bed'.format(output_path, human_format(window, lowercase=True)))
         else:
             regions = insulation.score_regions(windows[0])
             b = Boundaries.from_insulation_score(regions, min_score=min_score,
@@ -2808,6 +2799,9 @@ def directionality_parser():
              'If you choose a text-based output format (BED, GFF, '
              'BigWig), this parameter will be the file prefix, and '
              'the window size will be appended.'
+             'If not specified and output format is one of '
+             'bed, gff, or bigwig, the input file name forms the '
+             'output file prefix.'
     )
 
     parser.add_argument(
@@ -2823,11 +2817,11 @@ def directionality_parser():
     parser.add_argument(
         '-w', '--window-sizes', dest='window_sizes',
         nargs='+',
-        type=int,
-        default=[200000, 400000, 600000, 1000000],
-        help='Window sizes in base pairs to calculate insulation '
-             'score on. The total window size is composed of the '
-             'left window plus the right window, i.e. 2x this value.'
+        help='Window sizes in base pairs. You can also use '
+             'abbreviated number format (i.e. 1.5M, 250kb, etc). '
+             'If not specified, will choose the window sizes based '
+             'on the matrix resolution r when calculating scores. '
+             'Specifically: r*3, r*5, r*7, r*10, and r*15'
     )
 
     parser.add_argument(
@@ -2848,7 +2842,7 @@ def directionality_parser():
 
 
 def directionality(argv):
-    parser = insulation_parser()
+    parser = directionality_parser()
 
     args = parser.parse_args(argv[2:])
 
@@ -2856,7 +2850,7 @@ def directionality(argv):
     import os
 
     input_file = os.path.expanduser(args.input)
-    output_file = os.path.expanduser(args.output)
+    output_file = os.path.expanduser(args.output) if args.output is not None else None
     output_format = args.output_format
     sub_region = args.region
     window_sizes = args.window_sizes
@@ -2865,7 +2859,8 @@ def directionality(argv):
     if output_format.lower() not in ['directionality_index', 'bed', 'gff', 'bigwig', 'bw']:
         parser.error("Output format must be one of directionality_index, bed, gff, or bigwig!")
 
-    _domain_scores(input_file, output_file, output_format, DirectionalityIndexes,
+    _domain_scores(parser, input_file, output_file, output_format,
+                   'directionality_index', DirectionalityIndexes,
                    sub_region=sub_region, tmp=tmp,
                    tmpdir=tmp, window_sizes=window_sizes)
 
@@ -2888,6 +2883,9 @@ def insulation_parser():
              'If you choose a text-based output format (BED, GFF, '
              'BigWig), this parameter will be the file prefix, and '
              'the window size will be appended.'
+             'If not specified and output format is one of '
+             'bed, gff, or bigwig, the input file name forms the '
+             'output file prefix.'
     )
 
     parser.add_argument(
@@ -2903,10 +2901,11 @@ def insulation_parser():
     parser.add_argument(
         '-w', '--window-sizes', dest='window_sizes',
         nargs='+',
-        default=['200000', '400000', '600000', '1000000'],
-        help='Window sizes in base pairs to calculate insulation '
-             'score on. The total window size is composed of the '
-             'left window plus the right window, i.e. 2x this value.'
+        help='Window sizes in base pairs. You can also use '
+             'abbreviated number format (i.e. 1.5M, 250kb, etc). '
+             'If not specified, will choose the window sizes based '
+             'on the matrix resolution r when calculating scores. '
+             'Specifically: r*3, r*5, r*7, r*10, and r*15'
     )
 
     parser.add_argument(
@@ -3002,7 +3001,7 @@ def insulation(argv):
     import os
 
     input_file = os.path.expanduser(args.input)
-    output_file = os.path.expanduser(args.output)
+    output_file = os.path.expanduser(args.output) if args.output is not None else None
     output_format = args.output_format
     sub_region = args.region
     tmp = args.tmp
@@ -3019,7 +3018,8 @@ def insulation(argv):
     if output_format.lower() not in ['insulation_score', 'bed', 'gff', 'bigwig', 'bw']:
         parser.error("Output format must be one of insulation_score, bed, gff, or bigwig!")
 
-    _domain_scores(input_file, output_file, output_format, InsulationScores,
+    _domain_scores(parser, input_file, output_file, output_format,
+                   'insulation_score', InsulationScores,
                    sub_region=sub_region, tmp=tmp,
                    tmpdir=tmp, window_sizes=window_sizes,
                    impute_missing=impute, normalise=normalise, window_offset=offset,
@@ -3028,40 +3028,63 @@ def insulation(argv):
                    normalisation_window=normalisation_window)
 
 
-def _domain_scores(input_file, output_file, output_format,
+def _domain_scores(parser, input_file, output_file, output_format, default_output_format,
                    score_class, sub_region=None, tmp=False,
                    **kwargs):
     import kaic
-    from kaic.tools.general import str_to_int
+    from kaic.tools.general import str_to_int, human_format
     output_format = output_format.lower()
-    window_sizes = kwargs.get('window_sizes', [])
+    window_sizes = kwargs.get('window_sizes', None)
 
-    if not output_format == output_format:
-        output_prefix = output_file
+    if not output_format == default_output_format:
+        if output_file is None:
+            output_prefix = input_file
+        else:
+            output_prefix = output_file
         output_file = None
         sub_output_file = None
-    elif sub_region is not None:
-        sub_output_file = output_file
-        output_file = None
-        output_prefix = None
     else:
-        output_prefix = None
-        sub_output_file = None
+        if sub_region is not None:
+            sub_output_file = output_file
+            output_file = None
+            output_prefix = None
+        else:
+            output_prefix = None
+            sub_output_file = None
 
     scores = None
     try:
         matrix = kaic.load(input_file, mode='r')
+
         if not isinstance(matrix, score_class):
+            if output_file is None:
+                parser.error("Output file cannot be empty when "
+                             "choosing default output format!")
+
+            if window_sizes is not None:
+                window_sizes = [str_to_int(window_size) for window_size in window_sizes]
+            else:
+                bin_size = matrix.bin_size
+                window_sizes = [
+                    bin_size * 3, bin_size * 5, bin_size * 7, bin_size * 10, bin_size * 15
+                ]
+            kwargs['window_sizes'] = window_sizes
+            logger.info("Chosen window sizes: {}".format(window_sizes))
             scores = score_class.from_hic(matrix, file_name=output_file,
                                           **kwargs)
         else:
             scores = matrix
 
+            if window_sizes is None:
+                window_sizes = scores.window_sizes
+            else:
+                window_sizes = [str_to_int(window_size) for window_size in window_sizes]
+
         if output_format in ['bed', 'gff', 'bigwig', 'bw']:
             for window_size in window_sizes:
-                window_size = str_to_int(window_size)
+                window_size_human = human_format(window_size).lower() + 'b'
 
-                output_file = output_prefix + '_{}'.format(window_size) + output_format.lower()
+                output_file = output_prefix + '_{}.{}'.format(window_size_human, output_format.lower())
 
                 if output_format in ['bw', 'bigwig']:
                     scores.to_bigwig(output_file, window_size, subset=sub_region)
@@ -3072,9 +3095,18 @@ def _domain_scores(input_file, output_file, output_format,
                 elif output_format in ['gff']:
                     scores.to_gff(output_file, window_size, subset=sub_region)
         elif sub_region is not None:
+            if output_file is None:
+                parser.error("Output file cannot be empty when "
+                             "choosing default output format!")
             sub_scores = score_class(sub_output_file, mode='w', tmpdir=tmp)
             sub_scores.add_regions(scores.regions(sub_region), preserve_attributes=True)
             sub_scores.close()
+        elif output_file is None:
+            logger.debug("No action specified, printing insulation score info")
+            print("Window sizes available in object:")
+            print("{}".format(" ".join([human_format(window_size, lowercase=True) + 'b'
+                                        for window_size in scores.window_sizes])))
+
     finally:
         if scores is not None:
             scores.close()
@@ -3600,17 +3632,18 @@ def subset(argv):
 
 def aggregate_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic aggregate_tads",
-        description='Make a TAD aggregate plot'
+        prog="kaic aggregate",
+        description='Make aggregate plots with Kai-C'
     )
 
     parser.add_argument(
         'input',
-        help='Kaic-C matrix file (e.g. Hic)'
+        help='Kai-C matrix file (e.g. Hic)'
     )
 
     parser.add_argument(
         'regions',
+        nargs='?',
         help='File with regions '
              '(BED, GFF, Tabix, ...) or '
              'region pairs (BEDPE)'
@@ -3729,6 +3762,7 @@ def aggregate_parser():
 
     parser.add_argument(
         '--colormap', dest='colormap',
+        default='germany',
         help='Matplotlib colormap to use for matrix'
     )
 
@@ -3794,7 +3828,7 @@ def aggregate(argv):
     import os
 
     input_file = os.path.expanduser(args.input)
-    regions_file = os.path.expanduser(args.regions)
+    regions_file = os.path.expanduser(args.regions) if args.regions is not None else None
     output_file = os.path.expanduser(args.output) if args.output is not None else None
     matrix_file = os.path.expanduser(args.matrix_file) if args.matrix_file is not None else None
     plot_file = os.path.expanduser(args.plot_file) if args.plot_file is not None else None
@@ -3819,7 +3853,7 @@ def aggregate(argv):
     tmp = args.tmp
 
     presets = sum([tads_preset, tads_flyamer_preset, loops_preset])
-    if len(presets) > 1:
+    if presets > 1:
         parser.error("--tads, --tads-flyamer, and --loops are mutually exclusive!")
 
     if tads_preset:
@@ -3832,13 +3866,13 @@ def aggregate(argv):
             vmin = -1
         if vmax is None:
             vmax = 1
+        colormap = 'RdBu_r'
 
     if tads_flyamer_preset:
         relative = 1.0
         oe = True
         log = False
         rescale = True
-        colormap = 'germany' if colormap is None else colormap
 
     if loops_preset:
         oe = True
@@ -3849,9 +3883,11 @@ def aggregate(argv):
         if vmax is None:
             vmax = 1
         pixels = 16
+        colormap = 'RdBu_r'
 
     import kaic
     import genomic_regions as gr
+    import warnings
     from kaic.architecture.aggregate import AggregateMatrix
     from kaic.tools.general import human_format, str_to_int
 
@@ -3918,8 +3954,9 @@ def aggregate(argv):
 
             if plot_file is not None:
                 import matplotlib
-                matplotlib.use('pdf')
+                matplotlib.use('agg')
                 import matplotlib.pyplot as plt
+                import kaic.plotting
 
                 m = aggregate_matrix.matrix()
 
@@ -3933,11 +3970,13 @@ def aggregate(argv):
                 ax.set_xticklabels(labels)
                 ax.set_yticks([0, pixels/2, pixels - 1])
                 ax.set_yticklabels(labels)
-                fig.savefig(output_file)
+                fig.savefig(plot_file)
                 plt.close(fig)
     finally:
-        if aggregate_matrix is not None:
-            aggregate_matrix.close()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if aggregate_matrix is not None:
+                aggregate_matrix.close()
 
 
 def stats_parser():
