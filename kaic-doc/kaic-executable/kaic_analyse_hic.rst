@@ -14,3 +14,4 @@ It provides convenient commands for the generation, modification, and analysis o
     PCA <kaic-analyse-hic/pca>
     TADs and TAD boundaries <kaic-analyse-hic/domains>
     Aggregate Hi-C matrices <kaic-analyse-hic/aggregate_hic>
+    Loop calling <kaic-analyse-hic/loops>

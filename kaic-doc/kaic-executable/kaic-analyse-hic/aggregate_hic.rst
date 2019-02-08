@@ -129,7 +129,16 @@ preset flags you can use called ``--tads`` and ``--tads-flyamer``, respectively.
 latter is named after the first author of the publication that first used rescaled
 aggregate matrices in this fashion
 (`Flyamer et al., 2017 <http://www.nature.com/doifinder/10.1038/nature21711>`_). In
-the above example, you can simply
+the above example, you can simply run
+
+.. code::
+
+    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+                   architecture/domains/gm12878_tads.bed \
+                   architecture/aggregate/kaic_example_100kb.agg \
+                   -p architecture/aggregate/kaic_example_100kb_oe_large.agg.png \
+                   -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
+                   --tads
 
 
 *******************
@@ -167,6 +176,25 @@ O/E and log2-transformed matrices, this becomes much more obvious:
 .. image:: images/kaic_example_100kb_boundaries_oe.agg.png
 
 
-
 You can change the viewpoint to other positions within a region, such as the 5' end,
 using the ``-v`` option.
+
+
+****************************************
+Loops and other pairwise genomic regions
+****************************************
+
+When you have loop calls or other pairwise genomic regions in BEDPE format, you can use
+``kaic aggregate`` to make aggregate loop plots. The preset for this is ``--loops``.
+
+.. code::
+
+    kaic aggregate architecture/loops/rao2014.chr11_77400000_78600000.hic \
+                   architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.bedpe \
+                   architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.agg \
+                   -p architecture/aggregate/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png \
+                   --loops
+
+.. image:: images/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png
+
+Control the size of the plot using the ``--pixels`` argument.
