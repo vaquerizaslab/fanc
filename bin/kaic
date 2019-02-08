@@ -74,7 +74,7 @@ class Kaic(object):
 
         # echo parameters back to user
         kaic_command = " ".join(sys.argv)
-        logger.info("Running '{}'".format(kaic_command))
+        logger.debug("Running '{}'".format(kaic_command))
 
         # use dispatch pattern to invoke method with same name
         from datetime import datetime
@@ -113,7 +113,7 @@ class Kaic(object):
                               server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
 
         # echo parameters back to user
-        logger.info("Finished '{}'".format(" ".join(sys.argv)))
+        logger.debug("Finished '{}'".format(" ".join(sys.argv)))
 
 
 if __name__ == '__main__':
