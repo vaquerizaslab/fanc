@@ -103,7 +103,7 @@ class RegionScoreParameterTable(RegionMultiScoreTable):
         regions = []
         for region in self.regions(subset):
             score = getattr(region, score_field)
-            r = GenomicRegion(chromsome=region.chromosome,
+            r = GenomicRegion(chromosome=region.chromosome,
                               start=region.start, end=region.end,
                               score=score)
             regions.append(r)
@@ -133,7 +133,7 @@ class InsulationScore(RegionScoreTable):
                  na_threshold=0.5, normalise=True, normalisation_window=None,
                  trim_mean_proportion=0.0, geometric_mean=False,
                  subtract_mean=False, log=True):
-        window_size = hic.distance_to_bins(window_size_in_bp)
+        window_size = int(hic.distance_to_bins(window_size_in_bp) / 2)
         insulation_score_regions = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         insulation_score_regions.add_regions(hic.regions, preserve_attributes=False)
 
@@ -431,7 +431,7 @@ class Boundaries(RegionScoreTable):
         :param call_maxima: Call maxima instead of minima as boundaries
         :return: list of :class:`~kaic.data.genomic.GenomicRegion`
         """
-        index = insulation_score.region_data(score_field)
+        index = list(insulation_score.region_data(score_field))
         if log:
             index = np.log2(index)
         peaks = MaximaCallerDelta(index, window_size=delta_window, sub_bin_precision=sub_bin_precision)
