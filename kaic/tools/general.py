@@ -246,19 +246,25 @@ def which(program):
     return None
 
 
-def human_format(num, precision=0):
+def human_format(num, precision=2, lowercase=False):
     """
     Format a number as a string, suffixing letter for 1000 (K), 100000 (M), ...
     :param num: any number larger than zero
     :param precision: number of positions after decimal point
+    :param lowercase: return lowercase suffix letters if True
     :return: string representing the number
     """
     magnitude = 0
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
-    # add more suffixes if you need them
-    return '{:.{prec}f}{}'.format(num, ['', 'k', 'M', 'G', 'T', 'P'][magnitude], prec=precision)
+
+    num = round(num, precision)
+
+    if num - int(num) == 0:
+        num = int(num)
+    num_str = '{}{}'.format(num, ['', 'k', 'M', 'G', 'T', 'P'][magnitude])
+    return num_str if not lowercase else num_str.lower()
 
 
 def str_to_int(num_string, decimal_separator='.', thousand_separator=','):
