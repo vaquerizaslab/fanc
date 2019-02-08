@@ -257,6 +257,25 @@ class Hic(RegionMatrixTable):
         return stats
 
 
+class LegacyHic(RegionMatrixTable):
+
+    _classid = 'ACCESSOPTIMISEDHIC'
+
+    def __init__(self, file_name=None, mode='a', tmpdir=None,
+                 partitioning_strategy='chromosome',
+                 additional_region_fields=None, additional_edge_fields=None,
+                 _table_name_regions='nodes', _table_name_edges='edges',
+                 _edge_buffer_size=1000000):
+        RegionMatrixTable.__init__(self, file_name=file_name,
+                                   mode=mode, tmpdir=tmpdir,
+                                   additional_region_fields=additional_region_fields,
+                                   additional_edge_fields=additional_edge_fields,
+                                   partitioning_strategy=partitioning_strategy,
+                                   _table_name_regions=_table_name_regions,
+                                   _table_name_edges=_table_name_edges,
+                                   _edge_buffer_size=_edge_buffer_size)
+
+
 class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
