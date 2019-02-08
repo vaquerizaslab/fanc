@@ -205,7 +205,7 @@ from kaic.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, H
     HicSlicePlot, HicPeakPlot
 from kaic.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot, GenomicRegionsPlot, \
     GenomicFeatureScorePlot, GenomicFigure, BigWigPlot, GenePlot, LinePlot, \
-    FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation, VerticalLineAnnotation, RegionsValuesPlot, \
+    FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation, RegionsValuesPlot, \
     BarPlot, Virtual4CPlot
 from kaic.plotting.helpers import append_axes, absolute_wspace_hspace, SymmetricNorm, \
                                   style_ticks_whitegrid, LimitGroup

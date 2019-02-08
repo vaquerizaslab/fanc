@@ -344,16 +344,6 @@ class HighlightAnnotation(BaseAnnotation):
         self._plot(region)
 
 
-class VerticalLineAnnotation(HighlightAnnotation):
-    """
-    Deprecated alias for :class:`~kaic.plotting.HighlightAnnotation`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super(VerticalLineAnnotation, self).__init__(*args, **kwargs)
-        warnings.warn("VerticalLineAnnotation is deprecated, use HighlightAnnotation instead.")
-
-
 class GenomicRegionsPlot(ScalarDataPlot):
     """
     Plot scalar values from one or more :class:`~GenomicRegions` objects
