@@ -3710,6 +3710,16 @@ def aggregate_parser():
     )
 
     parser.add_argument(
+        '-v', '--region-viewpoint', dest='region_viewpoint',
+        default='center',
+        help='Viewpoint relative to region when using -w. '
+             'By default, this measures the window from the '
+             'region center. You can change this to other locations '
+             'within each region using this parameter. Possible values:'
+             'start, end, five_prime, three_prime, center'
+    )
+
+    parser.add_argument(
         '-i', '--interpolation', dest='interpolation',
         default='nearest',
         help='Type of interpolation performed to '
@@ -3762,7 +3772,6 @@ def aggregate_parser():
 
     parser.add_argument(
         '--colormap', dest='colormap',
-        default='germany',
         help='Matplotlib colormap to use for matrix'
     )
 
@@ -3848,6 +3857,7 @@ def aggregate(argv):
     vmax = args.vmax
     cache = args.cache
     keep_submatrices = args.keep_submatrices
+    region_viewpoint = args.region_viewpoint
     orient_strand = args.orient_strand
     labels = args.labels
     tmp = args.tmp
@@ -3866,7 +3876,6 @@ def aggregate(argv):
             vmin = -1
         if vmax is None:
             vmax = 1
-        colormap = 'RdBu_r'
 
     if tads_flyamer_preset:
         relative = 1.0
@@ -3883,7 +3892,15 @@ def aggregate(argv):
         if vmax is None:
             vmax = 1
         pixels = 16
-        colormap = 'RdBu_r'
+
+    if colormap is None:
+        if oe and not rescale:
+            if log:
+                colormap = 'RdBu_r'
+            else:
+                colormap = 'Reds'
+        else:
+            colormap = 'germany'
 
     import kaic
     import genomic_regions as gr
@@ -3911,7 +3928,8 @@ def aggregate(argv):
                                                                          file_name=output_file, tmpdir=tmp,
                                                                          oe=oe, log=log,
                                                                          orient_strand=orient_strand,
-                                                                         cache=cache)
+                                                                         cache=cache,
+                                                                         region_viewpoint=region_viewpoint)
                     if labels is None:
                         left = int(pixels / 2)
                         right = left if pixels % 2 == 1 else left - 1
@@ -3926,12 +3944,15 @@ def aggregate(argv):
                                                                        file_name=output_file, tmpdir=tmp,
                                                                        oe=oe, log=log,
                                                                        orient_strand=orient_strand,
-                                                                       cache=cache)
+                                                                       cache=cache,
+                                                                       region_viewpoint=region_viewpoint)
 
                         if labels is None:
                             wh = int(window / 2)
                             labels = ['-{}b'.format(human_format(-wh)), '',
                                       '+{}b'.format(human_format(wh))]
+
+                        pixels = int(window/b)
                     else:
                         aggregate_matrix = AggregateMatrix.from_regions(matrix, regions.regions,
                                                                         pixels=pixels, rescale=rescale,
@@ -3953,6 +3974,7 @@ def aggregate(argv):
                 np.savetxt(matrix_file, aggregate_matrix.matrix())
 
             if plot_file is not None:
+                import numpy as np
                 import matplotlib
                 matplotlib.use('agg')
                 import matplotlib.pyplot as plt
@@ -3964,6 +3986,15 @@ def aggregate(argv):
                     labels = ['', '', '']
 
                 fig, ax = plt.subplots()
+                if vmin is None:
+                    vmin = np.nanmin(m)
+                if vmax is None:
+                    vmax = np.nanmax(m)
+
+                if oe and log:
+                    abs_max = max(abs(vmin), abs(vmax))
+                    vmin, vmax = -1*abs_max, abs_max
+
                 im = ax.imshow(m, cmap=colormap, vmin=vmin, vmax=vmax, interpolation='nearest')
                 plt.colorbar(im)
                 ax.set_xticks([0, pixels/2, pixels - 1])

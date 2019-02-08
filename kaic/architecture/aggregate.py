@@ -126,16 +126,16 @@ class AggregateMatrix(FileGroup):
     def from_center(cls, matrix, regions, window=200000,
                     rescale=False, scaling_exponent=-0.25,
                     keep_components=True,
-                    file_name=None, tmpdir=None,
+                    file_name=None, tmpdir=None, region_viewpoint='center',
                     **kwargs):
         kwargs.setdefault('oe', True)
         kwargs.setdefault('keep_invalid', False)
         kwargs.setdefault('log', True)
 
         region_pairs = []
-        for region in regions.regions:
-            new_start = int(region.center - int(window / 2))
-            new_end = int(region.center + int(window / 2))
+        for region in regions:
+            new_start = int(getattr(region, region_viewpoint) - int(window / 2))
+            new_end = int(getattr(region, region_viewpoint) + int(window / 2))
             new_region = GenomicRegion(chromosome=region.chromosome, start=new_start, end=new_end,
                                        strand=region.strand)
             region_pairs.append((new_region, new_region))
@@ -226,6 +226,7 @@ class AggregateMatrix(FileGroup):
     @classmethod
     def from_center_pairs(cls, hic, pair_regions, window=None, pixels=16,
                           keep_components=True, file_name=None, tmpdir=None,
+                          region_viewpoint='center',
                           **kwargs):
         kwargs.setdefault('oe', True)
         kwargs.setdefault('keep_invalid', False)
@@ -240,7 +241,9 @@ class AggregateMatrix(FileGroup):
         shape = (pixels, pixels)
         counter_matrix = np.zeros(shape)
         matrix_sum = np.zeros(shape)
-        for (r1, r2), m in _loop_matrix_iterator(hic, pair_regions, pixels=pixels, **kwargs):
+        for (r1, r2), m in _loop_matrix_iterator(hic, pair_regions, pixels=pixels,
+                                                 region_viewpoint=region_viewpoint,
+                                                 **kwargs):
             if hasattr(m, 'mask'):
                 inverted_mask = ~m.mask
                 counter_matrix += inverted_mask.astype('int')
@@ -503,7 +506,8 @@ def _loop_regions_from_bedpe(bedpe):
     return anchors
 
 
-def _loop_matrix_iterator(hic, loop_regions, pixels=16, **kwargs):
+def _loop_matrix_iterator(hic, loop_regions, pixels=16,
+                          region_viewpoint='center', **kwargs):
     left = int(pixels / 2)
     right = left if pixels % 2 == 1 else left - 1
 
@@ -514,8 +518,12 @@ def _loop_matrix_iterator(hic, loop_regions, pixels=16, **kwargs):
     region_pairs = []
     invalid = 0
     for (anchor1, anchor2) in loop_regions:
-        a1 = GenomicRegion(chromosome=anchor1.chromosome, start=anchor1.center, end=anchor1.center)
-        a2 = GenomicRegion(chromosome=anchor2.chromosome, start=anchor2.center, end=anchor2.center)
+        a1 = GenomicRegion(chromosome=anchor1.chromosome,
+                           start=getattr(anchor1, region_viewpoint),
+                           end=getattr(anchor1, region_viewpoint))
+        a2 = GenomicRegion(chromosome=anchor2.chromosome,
+                           start=getattr(anchor2, region_viewpoint),
+                           end=getattr(anchor2, region_viewpoint))
 
         try:
             r1 = list(hic.regions(a1))[0].copy()
