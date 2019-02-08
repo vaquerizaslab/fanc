@@ -147,7 +147,7 @@ class Chromosome(object):
                                    (e.g. HindIII)
         :return: List of RE sites in base-pairs (1-based)
         """
-        logger.info("Calculating RE sites")
+        logger.debug("Calculating RE sites")
         try:
             re = getattr(Restriction, restriction_enzyme)
         except SyntaxError:
