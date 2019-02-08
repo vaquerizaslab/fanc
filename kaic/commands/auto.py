@@ -159,7 +159,7 @@ class SgeTaskRunner(TaskRunner):
             self._log_dir = os.path.expanduser(log_dir)
         self._trap_sigusr = trap_sigusr
 
-    def _submit_task(self, task):
+    def _submit_task(self, task, kill=True):
         import tempfile
 
         task_ix = self._task_ixs[task.id]
@@ -172,6 +172,20 @@ class SgeTaskRunner(TaskRunner):
                 tmp_file.write("trap notify_handler SIGUSR2\n\n")
                 tmp_file.write("export PYTHONUNBUFFERED=1\n\n")
             tmp_file.write(" ".join(task.command) + "\n")
+            tmp_file.write("OUT=$?\n")
+            tmp_file.write("if [ $OUT -ne 0 ]; then\n")
+            tmp_file.write('    (>&2 echo "Job $JOB_ID / $JOB_NAME had non-zero exit status")\n')
+            if kill is not None:
+                if self._log_dir is not None:
+                    tmp_file.write(
+                        '    echo "Failed job ID: {}" > {}\n'.format(
+                            job_id, os.path.join(self._log_dir, self._task_prefix + "FAILED")
+                        ))
+                tmp_file.write('    qdel "{}*"\n'.format(self._task_prefix))
+            tmp_file.write('    res="failed"\n')
+            tmp_file.write('else\n')
+            tmp_file.write('    res="succeeded"\n')
+            tmp_file.write("fi\n\n")
             tmp_file.flush()
 
             command = [config.sge_qsub_path,
