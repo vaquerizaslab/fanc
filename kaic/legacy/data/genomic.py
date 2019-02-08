@@ -5489,7 +5489,7 @@ class Hic(RegionMatrixTable):
 
     @property
     def architecture(self):
-        import kaic.architecture.hic_architecture as ha
+        import kaic.legacy.architecture.hic_architecture as ha
         return ha.HicArchitecture(self)
 
     @classmethod
