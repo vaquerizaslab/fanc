@@ -860,28 +860,35 @@ def line_parser():
     parser.description = '''Line plot.'''
 
     parser.add_argument(
-        'array',
-        help='''Array object, e.g. InsulationIndex, DirectionalityIndex, ... .'''
-    )
-
-    parser.add_argument(
-        '-f', '--fields', dest='fields',
+        'regions',
         nargs='+',
-        help='''Only plot these fields, otherwise all are plotted.'''
+        help='Region-based file, e.g. BED, GFF, BigWig, ...'
     )
 
     parser.add_argument(
-        '-r', '--range', dest='range',
-        nargs=2,
+        '-a', '--attribute', dest='attribute',
+        default='score',
+        help='Attribute to plot. Default: score'
+    )
+
+    parser.add_argument(
+        '-b', '--bin-size', dest='bin_size',
         type=int,
-        help='''Range of y-values to plot (<min> <max> inclusive)'''
+        help='Bin size. Specify if you want to bin scores into '
+             'larger regions (using weighted mean).'
     )
 
     parser.add_argument(
-        '-v', '--values', dest='values',
+        '-l', '--labels', dest='labels',
         nargs='+',
-        type=int,
-        help='''Y-values to plot'''
+        help='Labels for region datasets'
+    )
+
+    parser.add_argument(
+        '-f', '--fill', dest='fill',
+        action='store_true',
+        default=False,
+        help='Fill region between the line and the x axis.'
     )
 
     parser.add_argument(
@@ -897,24 +904,17 @@ def line(parameters):
     parser = line_parser()
     args = parser.parse_args(parameters)
 
-    array = kaic.load(args.array, mode='r')
+    regions = [kaic.load(file_name) for file_name in args.regions]
+    attribute = args.attribute
+    bin_size = args.bin_size
+    labels = args.labels
+    fill = args.fill
 
-    data_selection = None
-    if args.range is not None:
-        data_selection = []
-        for i, y in enumerate(array.y_values):
-            if args.range[0] <= y <= args.range[1]:
-                data_selection.append(array.data_field_names[i])
-    elif args.values is not None:
-        data_selection = []
-        values_set = set(args.values)
-        for i, y in enumerate(array.y_values):
-            if int(y) in values_set:
-                data_selection.append(array.data_field_names[i])
-    elif args.fields is not None:
-        data_selection = args.fields
+    if labels is not None and len(labels) != len(regions):
+        parser.error("Number of labels ({}) must be the same as number "
+                     "of datasets ({})".format(len(labels), len(regions)))
 
-    p = kplt.GenomicRegionsPlot(array, attributes=data_selection, ylim=args.ylim)
+    p = kplt.LinePlot(regions, bin_size=bin_size, fill=fill, attribute=attribute, labels=labels)
     return p, args
 
 
