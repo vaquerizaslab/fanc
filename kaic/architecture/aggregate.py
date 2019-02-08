@@ -4,6 +4,7 @@ import numpy as np
 from ..tools.general import RareUpdateProgressBar
 from ..general import FileGroup
 from scipy.misc import imresize
+import warnings
 import tables
 
 import logging
@@ -244,12 +245,17 @@ class AggregateMatrix(FileGroup):
         for (r1, r2), m in _loop_matrix_iterator(hic, pair_regions, pixels=pixels,
                                                  region_viewpoint=region_viewpoint,
                                                  **kwargs):
-            if hasattr(m, 'mask'):
-                inverted_mask = ~m.mask
-                counter_matrix += inverted_mask.astype('int')
-            else:
-                counter_matrix += np.ones(shape)
-            matrix_sum += m
+            try:
+                if hasattr(m, 'mask'):
+                    inverted_mask = ~m.mask
+                    counter_matrix += inverted_mask.astype('int')
+                else:
+                    counter_matrix += np.ones(shape)
+                matrix_sum += m
+            except ValueError:
+                warnings.warn("Regions {} vs {} did not produce a valid matrix for aggregation!"
+                              .format(r1, r2))
+                continue
 
             component_regions.append((r1, r2))
             if keep_components:
@@ -511,6 +517,7 @@ def _loop_matrix_iterator(hic, loop_regions, pixels=16,
     left = int(pixels / 2)
     right = left if pixels % 2 == 1 else left - 1
 
+    print(loop_regions)
     if isinstance(loop_regions, Bedpe):
         loop_regions = _loop_regions_from_bedpe(loop_regions)
 
