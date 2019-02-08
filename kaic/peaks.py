@@ -98,33 +98,55 @@ class PeakInfo(RegionMatrixTable):
 
         self.peak_table = self._edges
 
-    def _row_to_edge(self, row, lazy=False, distances_in_bp=False):
+    def _row_to_edge(self, row, lazy_edge=False, distances_in_bp=False):
         if distances_in_bp:
             bin_size = self.bin_size
         else:
             bin_size = 1
 
-        if not lazy:
+        if lazy_edge is None:
             source = row["source"]
             sink = row["sink"]
             d = dict()
             for field in self.field_names:
                 if field != 'source' and field != 'sink':
+                    value = row[field]
+                    value = value.decode() if isinstance(value, bytes) else value
                     if field in ('x', 'y', 'radius'):
-                        d[field] = row[field]*bin_size
+                        d[field] = value * bin_size
                     else:
-                        d[field] = row[field]
+                        d[field] = value
 
             source_node_row = self._regions[source]
-            source_node = self._row_to_region(source_node_row)
+            source_node = self.regions[source]
             sink_node_row = self._regions[sink]
-            sink_node = self._row_to_region(sink_node_row)
+            sink_node = self.regions[sink]
             return Peak(source_node, sink_node, **d)
-        else:
-            return LazyPeak(row, self._regions, bin_size=bin_size)
+
+        lazy_edge._row = row
+        return lazy_edge
 
     def peaks(self, distances_in_bp=False, lazy=False):
         return self.edges(lazy=lazy, distances_in_bp=distances_in_bp)
+
+    def _edges_subset(self, key=None, row_regions=None, col_regions=None,
+                      lazy=False, lazy_edge=None, *args, **kwargs):
+        if lazy:
+            lazy_edge = LazyPeak(None, self._regions)
+        else:
+            lazy_edge = None
+        return RegionMatrixTable._edges_subset(self, key=key, row_regions=row_regions,
+                                               col_regions=col_regions, lazy=lazy,
+                                               lazy_edge=lazy_edge, *args, **kwargs)
+
+    def _edges_iter(self, lazy=False, lazy_edge=None, *args, **kwargs):
+        if lazy:
+            lazy_edge = LazyPeak(None, self._regions)
+        else:
+            lazy_edge = None
+        return RegionMatrixTable._edges_iter(self, lazy=lazy,
+                                             lazy_edge=lazy_edge,
+                                             *args, **kwargs)
 
     def __iter__(self):
         return self.peaks()
@@ -137,7 +159,7 @@ class PeakInfo(RegionMatrixTable):
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('rao', 'Mask singlet peaks with a q-value sum < .02')
+        mask = self.add_mask_description('rao', 'Mask singlet peaks with a q-value sum > .02')
         rao_filter = RaoMergedPeakFilter(mask=mask)
         self.filter(rao_filter, queue)
 
@@ -841,7 +863,7 @@ class RaoPeakCaller(object):
     Hochberg false-discovery rate correction (but 'bonferroni' is also an option)
     """
 
-    def __init__(self, p=None, w_init=None, min_locus_dist=3, max_w=20, min_ll_reads=16,
+    def __init__(self, p=None, w_init=None, min_locus_dist=None, max_w=20, min_ll_reads=16,
                  process_inter=False, correct_inter='fdr', n_processes=4,
                  slice_size=200, min_mappable_fraction=0.7, cluster=False):
         """
@@ -1177,6 +1199,8 @@ class RaoPeakCaller(object):
             else:
                 p = int(24999/bin_size) if p is None else p
                 w_init = int(25000/bin_size + 0.5) + 2 if w_init is None else w_init
+        if self.min_locus_dist is None:
+            self.min_locus_dist = p
         logger.info("Initial parameter values: p=%d, w=%d" % (p, w_init))
 
         logger.info("Obtaining bias vector...")

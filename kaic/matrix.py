@@ -1178,8 +1178,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         return lazy_edge
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None,
-                      lazy=False, *args, **kwargs):
-        if lazy:
+                      lazy=False, lazy_edge=None, *args, **kwargs):
+        if lazy and lazy_edge is None:
             lazy_edge = LazyEdge(None, self._regions)
         else:
             lazy_edge = None
@@ -1187,8 +1187,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
             yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
 
-    def _edges_iter(self, lazy=False, *args, **kwargs):
-        if lazy:
+    def _edges_iter(self, lazy=False, lazy_edge=None, *args, **kwargs):
+        if lazy and lazy_edge is None:
             lazy_edge = LazyEdge(None, self._regions)
         else:
             lazy_edge = None
