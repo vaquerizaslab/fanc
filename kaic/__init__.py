@@ -63,7 +63,6 @@ def load(file_name, *args, **kwargs):
             logger.debug("Detected {}".format(cls_))
             return cls_(file_name=file_name, mode=mode, *args, **kwargs)
         except AttributeError:
-            raise
             raise ValueError("File ({}) does not have a '_classid' meta attribute. This might be fixed by loading the "
                              "class once explicitly with the appropriate class in append mode. "
                              "It was also impossible to auto-detect the file type from the file "
