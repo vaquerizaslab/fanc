@@ -2038,7 +2038,7 @@ def loops_parser():
     )
 
     parser.add_argument(
-        '--batch-size', dest='slice_size',
+        '--batch-size', dest='batch_size',
         type=int,
         default=200,
         help='Width of submatrix examined per '
@@ -2139,12 +2139,13 @@ def loops(argv):
     force_overwrite = args.force_overwrite
     tmp = args.tmp
 
-    if not force_overwrite and os.path.exists(output_file):
+    if not force_overwrite and output_file is not None and os.path.exists(output_file):
         parser.error("Output file {} exists! Use -f to force "
                      "overwriting it!".format(output_file))
 
     import kaic
     import kaic.peaks
+    import shutil
     from kaic.tools.files import create_temporary_output
 
     tmp_input_files = []
@@ -2159,7 +2160,7 @@ def loops(argv):
     matrix = None
     try:
         matrix = kaic.load(input_file, mode='a', tmpdir=tmp)
-        is_rh_peaks = isinstance(input_file, kaic.peaks.RaoPeakInfo)
+        is_rh_peaks = isinstance(matrix, kaic.peaks.RaoPeakInfo)
         is_merged_peaks = isinstance(matrix, kaic.peaks.PeakInfo)
         is_matrix = isinstance(matrix, kaic.matrix.RegionMatrixContainer)
 
@@ -2171,11 +2172,15 @@ def loops(argv):
                 parser.error("Must provide output file when calling or merging peaks!")
 
         # perform pixel loop probability estimate
+        ran_peak_calling = False
         if is_matrix and not is_rh_peaks and not is_merged_peaks:
             pk = kaic.peaks.RaoPeakCaller(p=peak_size, w_init=width, min_locus_dist=peak_size,
                                           n_processes=threads, slice_size=batch_size,
                                           cluster=sge, min_mappable_fraction=0.0)
-            chromosome_pairs = [(chromosome, chromosome) for chromosome in chromosomes]
+            if chromosomes is not None:
+                chromosome_pairs = [(chromosome, chromosome) for chromosome in chromosomes]
+            else:
+                chromosome_pairs = None
 
             if not merge:
                 o = output_file
@@ -2187,9 +2192,16 @@ def loops(argv):
             matrix.close()
             matrix = peaks
             is_rh_peaks = True
+            ran_peak_calling = True
 
         # filter pixels based on loop probability
         if is_rh_peaks and not is_merged_peaks:
+            if not ran_peak_calling and not merge and output_file is not None:
+                matrix.close()
+                import shutil
+                shutil.copy(matrix.file.filename, output_file)
+                matrix = kaic.load(output_file, mode='a')
+
             filters = []
             if (fdr_cutoff_global is not None or fdr_cutoff_donut is not None or
                     fdr_cutoff_horizontal is not None or fdr_cutoff_lower_left is not None or
@@ -3704,7 +3716,6 @@ def aggregate_parser():
     parser.add_argument(
         '--pixels', dest='pixels',
         type=int,
-        default=90,
         help='Width of the output image in pixels. '
              'Default: 90'
     )
@@ -3902,7 +3913,11 @@ def aggregate(argv):
         else:
             colormap = 'germany'
 
+    if pixels is None:
+        pixels = 90
+
     import kaic
+    import numpy as np
     import genomic_regions as gr
     import warnings
     from kaic.architecture.aggregate import AggregateMatrix
@@ -3922,7 +3937,15 @@ def aggregate(argv):
                 if isinstance(regions, gr.Bedpe):
                     logger.info("Detected BEDPE. Running pairwise region extraction")
 
-                    aggregate_matrix = AggregateMatrix.from_center_pairs(matrix, regions.regions,
+                    region_pairs = []
+                    for region in regions.regions:
+                        a1 = gr.GenomicRegion(chromosome=region.chromosome1,
+                                              start=region.start1, end=region.end1)
+                        a2 = gr.GenomicRegion(chromosome=region.chromosome2,
+                                              start=region.start2, end=region.end2)
+                        region_pairs.append((a1, a2))
+
+                    aggregate_matrix = AggregateMatrix.from_center_pairs(matrix, region_pairs,
                                                                          window=window, pixels=pixels,
                                                                          keep_components=keep_submatrices,
                                                                          file_name=output_file, tmpdir=tmp,
@@ -3953,6 +3976,8 @@ def aggregate(argv):
                                       '+{}b'.format(human_format(wh))]
 
                         pixels = int(window/b)
+                        if pixels % 2 == 0:
+                            pixels += 1
                     else:
                         aggregate_matrix = AggregateMatrix.from_regions(matrix, regions.regions,
                                                                         pixels=pixels, rescale=rescale,
@@ -3970,11 +3995,9 @@ def aggregate(argv):
                 b = 1
 
             if matrix_file is not None:
-                import numpy as np
                 np.savetxt(matrix_file, aggregate_matrix.matrix())
 
             if plot_file is not None:
-                import numpy as np
                 import matplotlib
                 matplotlib.use('agg')
                 import matplotlib.pyplot as plt
