@@ -898,7 +898,7 @@ class LinePlot(RegionPlotBase):
     Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
     """
 
-    def __init__(self, data, bin_size=None, fill=True,
+    def __init__(self, data, bin_size=None, fill=True, attribute='score',
                  **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
@@ -920,12 +920,18 @@ class LinePlot(RegionPlotBase):
         self.bin_size = bin_size
         self.lines = []
         self.fill = fill
+        self.attribute = attribute
 
     def _line_values(self, region):
         for i, d in enumerate(self.data):
-            intervals = d.region_intervals(region, bin_size=self.bin_size)
-            regions = [GenomicRegion(chromosome=region.chromosome, start=s, end=e) for s, e, v in intervals]
-            values = [v for s, e, v in intervals]
+            intervals = d.region_intervals(region, bin_size=self.bin_size,
+                                           score_field=self.attribute)
+            regions = []
+            values = []
+            for s, e, v in intervals:
+                regions.append(GenomicRegion(chromosome=region.chromosome, start=s, end=e))
+                values.append(v)
+
             x, y = self.get_plot_values(values, regions)
             yield i, x, y
 
