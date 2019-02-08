@@ -1885,7 +1885,7 @@ def loops_parser():
     )
 
     parser.add_argument(
-        '--min-distance', dest='min_dist',
+        '-d', '--min-distance', dest='min_dist',
         type=int,
         help='Minimum distance in bins for two loci '
              'to be considered as loops. Default: peak size. '
@@ -1973,35 +1973,30 @@ def loops_parser():
         help='Global observed/expected filter all neighborhoods. '
              'Individual neighborhood filters can '
              'override this global setting. '
-             'Value between 0 and 1.'
     )
 
     parser.add_argument(
         '--enrichment-donut', dest='enrichment_donut_cutoff',
         type=float,
         help='Observed/expected enrichment filter for donut neighborhood. '
-             'Value between 0 and 1.'
     )
 
     parser.add_argument(
         '--enrichment-horizontal', dest='enrichment_horizontal_cutoff',
         type=float,
         help='Observed/expected enrichment filter for horizontal neighborhood. '
-             'Value between 0 and 1.'
     )
 
     parser.add_argument(
         '--enrichment-vertical', dest='enrichment_vertical_cutoff',
         type=float,
         help='Observed/expected enrichment filter for vertical neighborhood. '
-             'Value between 0 and 1.'
     )
 
     parser.add_argument(
         '--enrichment-lower-left', dest='enrichment_lower_left_cutoff',
         type=float,
         help='Observed/expected enrichment filter for lower-left neighborhood. '
-             'Value between 0 and 1.'
     )
 
     parser.add_argument(
@@ -2066,6 +2061,15 @@ def loops_parser():
         action='store_true',
         default=False,
         help='Remove isolated pixels after merging step.'
+    )
+
+    parser.add_argument(
+        '--fdr-sum', dest='fdr_sum',
+        type=float,
+        help='FDR sum filter for merged peaks. '
+             'Merged peaks where the sum of donut FDR values of '
+             'all constituent pixels is larger than the specified '
+             'cutoff are filtered.'
     )
 
     parser.add_argument(
@@ -2134,6 +2138,7 @@ def loops(argv):
     merge = args.merge
     merge_distance = args.merge_distance
     remove_singlets = args.remove_singlets
+    fdr_sum = args.fdr_sum
     bedpe_file = os.path.expanduser(args.bedpe) if args.bedpe is not None else None
 
     force_overwrite = args.force_overwrite
@@ -2245,11 +2250,12 @@ def loops(argv):
                     mask=enrichment_mask)
                 filters.append(enrichment_filter)
 
-            if min_dist is not None and min_dist > peak_size:
-                distance_mask = matrix.add_mask_description('distance', 'Min distance filter')
-                distance_filter = kaic.peaks.DistancePeakFilter(peak_size + min_dist,
-                                                                mask=distance_mask)
-                filters.append(distance_filter)
+            if min_dist is not None:
+                if peak_size is None or min_dist > peak_size:
+                    distance_mask = matrix.add_mask_description('distance', 'Min distance filter')
+                    distance_filter = kaic.peaks.DistancePeakFilter(min_dist,
+                                                                    mask=distance_mask)
+                    filters.append(distance_filter)
 
             if min_observed is not None:
                 observed_mask = matrix.add_mask_description('observed', 'Min observed filter')
@@ -2273,8 +2279,23 @@ def loops(argv):
             matrix = merged_peaks
             is_merged_peaks = True
 
-        if is_merged_peaks and remove_singlets:
-            matrix.filter_rao()
+        if is_merged_peaks:
+            filters = []
+            if remove_singlets:
+                mask = matrix.add_mask_description('rao', 'Mask singlet peaks'
+                                                          'with a q-value sum > .02')
+                rao_filter = kaic.peaks.RaoMergedPeakFilter(mask=mask)
+                filters.append(rao_filter)
+            if fdr_sum is not None:
+                mask = matrix.add_mask_description('fdr_sum', 'Mask merged peaks '
+                                                              'with a q-value sum > cutoff')
+                fdr_sum_filter = kaic.peaks.FdrSumFilter(cutoff=fdr_sum, mask=mask)
+                filters.append(fdr_sum_filter)
+
+            if len(filters) > 0:
+                for f in filters:
+                    matrix.filter(f, queue=True)
+                matrix.run_queued_filters()
 
         if is_merged_peaks and bedpe_file is not None:
             matrix.to_bedpe(bedpe_file)
