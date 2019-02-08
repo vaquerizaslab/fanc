@@ -443,6 +443,7 @@ class RareUpdateProgressBar(progressbar.ProgressBar):
             self.one_percent = 1
 
         self.silent = silent
+        self.next_update = min_value
 
     def _needs_update(self):
         """
