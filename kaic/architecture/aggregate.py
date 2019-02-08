@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class AggregateMatrix(FileGroup):
+
+    _classid = 'AGGREGATEMATRIX'
+
     def __init__(self, file_name=None, mode='r', tmpdir=None,
                  x=None, y=None):
         FileGroup.__init__(self, 'aggregate', file_name=file_name, mode=mode, tmpdir=tmpdir)
@@ -54,12 +57,12 @@ class AggregateMatrix(FileGroup):
                 row['chromosome1'] = r1.chromosome
                 row['start1'] = r1.start
                 row['end1'] = r1.end
-                row['strand1'] = r1.strand
+                row['strand1'] = r1.strand if r1.strand is not None else 0
 
                 row['chromosome2'] = r2.chromosome
                 row['start2'] = r2.start
                 row['end2'] = r2.end
-                row['strand2'] = r2.strand
+                row['strand2'] = r2.strand if r2.strand is not None else 0
 
                 row.append()
 
@@ -67,7 +70,7 @@ class AggregateMatrix(FileGroup):
 
         pairs = []
         pairs_table = self.file.get_node(self._group, 'region_pairs')
-        for row in pairs_table.iterrrows():
+        for row in pairs_table.iterrows():
             r1 = GenomicRegion(chromosome=row['chromosome1'], start=row['start1'],
                                end=row['end1'], strand=row['strand1'])
             r2 = GenomicRegion(chromosome=row['chromosome2'], start=row['start2'],
@@ -94,7 +97,7 @@ class AggregateMatrix(FileGroup):
                                                  tables.BoolAtom(), m.shape)
                     mm[:] = m.mask
 
-        max_ix = []
+        max_ix = 0
         masks = dict()
         components = dict()
         component_group = self.file.get_node(self._group, 'components')
