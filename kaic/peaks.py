@@ -829,6 +829,21 @@ class RaoMergedPeakFilter(PeakFilter):
         return True
 
 
+class FdrSumFilter(PeakFilter):
+    """
+    Remove peaks that have a q-value sum > cutoff.
+    """
+    def __init__(self, cutoff=1.0, mask=None):
+        PeakFilter.__init__(self, mask=mask)
+        self.cutoff = cutoff
+
+    def valid_peak(self, peak):
+        if peak.q_value_sum > self.cutoff:
+            return False
+
+        return True
+
+
 class RaoPeakCaller(object):
     """
     Class that calls peaks the same way Rao et al. (2014) propose.
