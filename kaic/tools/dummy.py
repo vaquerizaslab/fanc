@@ -1,4 +1,6 @@
-from kaic.data.genomic import AccessOptimisedHic, Hic, Node, Edge
+from kaic.hic import LegacyHic, Hic
+from kaic.matrix import Edge
+from genomic_regions import GenomicRegion
 
 
 def sample_hic(file_name=None, tmpdir=None):
@@ -7,11 +9,11 @@ def sample_hic(file_name=None, tmpdir=None):
     # add some nodes (12 to be exact)
     nodes = []
     for i in range(1, 5000, 1000):
-        nodes.append(Node(chromosome="chr1", start=i, end=i+1000-1))
+        nodes.append(GenomicRegion(chromosome="chr1", start=i, end=i+1000-1))
     for i in range(1, 3000, 1000):
-        nodes.append(Node(chromosome="chr2", start=i, end=i+1000-1))
+        nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i+1000-1))
     for i in range(1, 2000, 500):
-        nodes.append(Node(chromosome="chr3", start=i, end=i+1000-1))
+        nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i+1000-1))
     hic.add_nodes(nodes)
 
     # add some edges with increasing weight for testing
@@ -33,11 +35,11 @@ def sample_hic_big(file_name=None, tmpdir=None):
     # add some nodes (120 to be exact)
     nodes = []
     for i in range(1, 50000, 1000):
-        nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr1", start=i, end=i + 1000 - 1))
     for i in range(1, 30000, 1000):
-        nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i + 1000 - 1))
     for i in range(1, 20000, 500):
-        nodes.append(Node(chromosome="chr3", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i + 1000 - 1))
     hic.add_nodes(nodes)
 
     # add some edges with increasing weight for testing
@@ -54,16 +56,16 @@ def sample_hic_big(file_name=None, tmpdir=None):
 
 
 def sample_fa_hic(file_name=None, zero_indices=set(), tmpdir=None):
-    hic = AccessOptimisedHic(file_name=file_name, tmpdir=tmpdir, mode='w')
+    hic = Hic(file_name=file_name, tmpdir=tmpdir, mode='w')
 
     # add some nodes (120 to be exact)
     nodes = []
     for i in range(1, 50000, 1000):
-        nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr1", start=i, end=i + 1000 - 1))
     for i in range(1, 30000, 1000):
-        nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i + 1000 - 1))
     for i in range(1, 20000, 500):
-        nodes.append(Node(chromosome="chr3", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i + 1000 - 1))
     hic.add_nodes(nodes)
 
     # add some edges with increasing weight for testing
@@ -81,16 +83,16 @@ def sample_fa_hic(file_name=None, zero_indices=set(), tmpdir=None):
 
 
 def sample_homogenous_hic(file_name=None, fill_value=1.0, zero_indices=set(), tmpdir=None):
-    hic = AccessOptimisedHic(file_name=file_name, tmpdir=tmpdir, mode='w')
+    hic = Hic(file_name=file_name, tmpdir=tmpdir, mode='w')
 
     # add some nodes (120 to be exact)
     nodes = []
     for i in range(1, 50000, 1000):
-        nodes.append(Node(chromosome="chr1", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr1", start=i, end=i + 1000 - 1))
     for i in range(1, 30000, 1000):
-        nodes.append(Node(chromosome="chr2", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i + 1000 - 1))
     for i in range(1, 20000, 500):
-        nodes.append(Node(chromosome="chr3", start=i, end=i + 1000 - 1))
+        nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i + 1000 - 1))
     hic.add_nodes(nodes)
 
     # add some edges with increasing weight for testing
@@ -119,16 +121,16 @@ def sample_hic_matrix1(file_name=None, tmpdir=None):
     # 8 #                 0 4
     # 9 #                   5
     nodes = [
-        Node('chr1', 1, 1000),
-        Node('chr1', 1001, 2000),
-        Node('chr1', 2001, 3000),
-        Node('chr1', 3001, 4000),
-        Node('chr1', 4001, 5000),
-        Node('chr1', 5001, 6000),
-        Node('chr1', 6001, 7000),
-        Node('chr1', 7001, 8000),
-        Node('chr1', 8001, 9000),
-        Node('chr1', 9001, 10000)
+        GenomicRegion('chr1', 1, 1000),
+        GenomicRegion('chr1', 1001, 2000),
+        GenomicRegion('chr1', 2001, 3000),
+        GenomicRegion('chr1', 3001, 4000),
+        GenomicRegion('chr1', 4001, 5000),
+        GenomicRegion('chr1', 5001, 6000),
+        GenomicRegion('chr1', 6001, 7000),
+        GenomicRegion('chr1', 7001, 8000),
+        GenomicRegion('chr1', 8001, 9000),
+        GenomicRegion('chr1', 9001, 10000)
     ]
 
     edges = [
@@ -150,7 +152,7 @@ def sample_hic_matrix1(file_name=None, tmpdir=None):
         Edge(source=3, sink=3, weight=7), Edge(source=9, sink=9, weight=5)
     ]
 
-    hic = AccessOptimisedHic(file_name=file_name, tmpdir=tmpdir)
+    hic = Hic(file_name=file_name, tmpdir=tmpdir)
     hic.add_nodes(nodes)
     hic.add_edges(edges)
 
@@ -171,16 +173,16 @@ def sample_hic_matrix2(file_name=None, tmpdir=None):
     # 8 #                 0 4
     # 9 #                   5
     nodes = [
-        Node('chr1', 1, 1000),
-        Node('chr1', 1001, 2000),
-        Node('chr1', 2001, 3000),
-        Node('chr1', 3001, 4000),
-        Node('chr1', 4001, 5000),
-        Node('chr1', 5001, 6000),
-        Node('chr1', 6001, 7000),
-        Node('chr1', 7001, 8000),
-        Node('chr1', 8001, 9000),
-        Node('chr1', 9001, 10000)
+        GenomicRegion('chr1', 1, 1000),
+        GenomicRegion('chr1', 1001, 2000),
+        GenomicRegion('chr1', 2001, 3000),
+        GenomicRegion('chr1', 3001, 4000),
+        GenomicRegion('chr1', 4001, 5000),
+        GenomicRegion('chr1', 5001, 6000),
+        GenomicRegion('chr1', 6001, 7000),
+        GenomicRegion('chr1', 7001, 8000),
+        GenomicRegion('chr1', 8001, 9000),
+        GenomicRegion('chr1', 9001, 10000)
     ]
 
     edges = [
@@ -199,7 +201,7 @@ def sample_hic_matrix2(file_name=None, tmpdir=None):
         Edge(source=3, sink=3, weight=7), Edge(source=9, sink=9, weight=5)
     ]
 
-    hic = AccessOptimisedHic(file_name=file_name, tmpdir=tmpdir)
+    hic = Hic(file_name=file_name, tmpdir=tmpdir)
     hic.add_nodes(nodes)
     hic.add_edges(edges)
 
