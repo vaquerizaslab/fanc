@@ -12,7 +12,6 @@ Kai-C documentation
 
    Getting started with Kai-C <getting_started>
    kaic: command line tools <kaic>
-   Command line access <command_line/command_line>
    API <api/api>
 
 Indices and tables
