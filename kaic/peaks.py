@@ -1267,15 +1267,17 @@ class RaoPeakCaller(object):
                 # region2 = regions_dict[peak.sink]
                 # if region1.chromosome == region2.chromosome:
                 try:
-                    peak.set_row_field('fdr_ll', fdr_cutoffs['ll'][peak.e_ll_chunk][peak.uncorrected])
-                    peak.set_row_field('fdr_h', fdr_cutoffs['h'][peak.e_h_chunk][peak.uncorrected])
-                    peak.set_row_field('fdr_v', fdr_cutoffs['v'][peak.e_v_chunk][peak.uncorrected])
-                    peak.set_row_field('fdr_d', fdr_cutoffs['d'][peak.e_d_chunk][peak.uncorrected])
+                    peak.fdr_ll = fdr_cutoffs['ll'][peak.e_ll_chunk][peak.uncorrected]
+                    peak.fdr_h = fdr_cutoffs['h'][peak.e_h_chunk][peak.uncorrected]
+                    peak.fdr_v = fdr_cutoffs['v'][peak.e_v_chunk][peak.uncorrected]
+                    peak.fdr_d = fdr_cutoffs['d'][peak.e_d_chunk][peak.uncorrected]
                 except KeyError:
-                    peak.set_row_field('fdr_ll', 1)
-                    peak.set_row_field('fdr_h', 1)
-                    peak.set_row_field('fdr_v', 1)
-                    peak.set_row_field('fdr_d', 1)
+                    peak.fdr_ll = 1
+                    peak.fdr_h = 1
+                    peak.fdr_v = 1
+                    peak.fdr_d = 1
+                peak.update()
+
                 pb.update(i)
                 # else:
                 #     # Bonferroni correction

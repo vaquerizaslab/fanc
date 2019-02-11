@@ -44,7 +44,7 @@ class Edge(object):
         The weight or contact strength of the edge. Can, for
         example, be the number of reads mapping to a contact.
     """
-    def __init__(self, source, sink, **kwargs):
+    def __init__(self, source, sink, _weight_field='weight', **kwargs):
         """
         :param source: The index of the "source" genomic region
                        or :class:`~Node` object.
@@ -56,14 +56,25 @@ class Edge(object):
         self._source = source
         self._sink = sink
         self.field_names = []
+        self._bias = 1.
+        self._weight_field = _weight_field
 
         for key, value in kwargs.items():
             setattr(self, key.decode() if isinstance(key, bytes) else key, value)
             self.field_names.append(key)
 
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    def __getattribute__(self, item):
+        if item == '_weight_field' or item != self._weight_field:
+            return object.__getattribute__(self, item)
+        return object.__getattribute__(self, item) * self._bias
+
+    @property
+    def bias(self):
+        return self._bias
+
+    @bias.setter
+    def bias(self, b):
+        self._bias = b
 
     @property
     def source(self):
@@ -98,67 +109,51 @@ class Edge(object):
         return base_info
 
 
-class LazyEdge(Edge):
-    def __init__(self, row, nodes_table=None):
+class LazyEdge(object):
+    def __init__(self, row, nodes_table=None, _weight_field='weight'):
         self._row = row
         self._nodes_table = nodes_table
-        self._updates = {}
-        self.__initialised = True
+        self._bias = 1.
+        self._weight_field = _weight_field
+
+    def update(self):
+        self._row.update()
 
     def __getattr__(self, item):
-        if item in self.__dict__:
-            return Edge.__getattribute__(self, item)
-
-        try:
-            return self._updates[item]
-        except KeyError:
+        if item != self._weight_field:
             try:
                 return self._row[item]
             except KeyError:
-                raise AttributeError("No such attribute {}".format(item))
+                raise AttributeError("No such attribute: {}".format(item))
+        return self._row[item] * self.bias
 
     def __setattr__(self, key, value):
-        if '_LazyEdge__initialised' not in self.__dict__:
-            return Edge.__setattr__(self, key, value)
-        elif key in self.__dict__:
-            Edge.__setattr__(self, key, value)
-            if key == '_row':
-                self._updates.clear()
+        if key == 'bias':
+            self._bias = value
+        elif not key.startswith('_'):
+            self._row[key] = value
         else:
-            self._updates[key] = value
+            object.__setattr__(self, key, value)
 
-    def set_row_field(self, key, value, auto_update=True):
-        self._row[key] = value
-        if auto_update:
-            self._row.update()
-
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            self._updates[key] = value
+    @property
+    def bias(self):
+        return self._bias
 
     @property
     def source_node(self):
         if self._nodes_table is None:
             raise RuntimeError("Must set the _nodes_table attribute before calling this method!")
 
-        if self._source_node is None:
-            source_row = self._nodes_table[self.source]
-            return LazyGenomicRegion(source_row)
-        return self._source_node
+        source_row = self._nodes_table[self.source]
+        return LazyGenomicRegion(source_row)
 
     @property
     def sink_node(self):
         if self._nodes_table is None:
             raise RuntimeError("Must set the _nodes_table attribute before calling this method!")
 
-        if self._sink_node is None:
-            sink_row = self._nodes_table[self.sink]
-            return LazyGenomicRegion(sink_row)
-        return self._sink_node
-
-    def __repr__(self):
-        base_info = "{}--{}".format(self.source, self.sink)
-        return base_info
+        sink_row = self._nodes_table[self.sink]
+        return LazyGenomicRegion(sink_row)
 
 
 def as_edge(edge):
@@ -353,7 +348,6 @@ class RegionPairsContainer(RegionBased):
                     edge_iter = self._regions_pairs._edges_subset(key, row_regions, col_regions,
                                                                   *args, **kwargs)
 
-                weight_field = kwargs.pop('weight_field', self._regions_pairs._default_score_field)
                 bias_field = kwargs.pop('bias_field', 'bias')
 
                 for edge in edge_iter:
@@ -369,14 +363,13 @@ class RegionPairsContainer(RegionBased):
                             continue
                     except AttributeError:
                         pass
-					
+
                     if norm:
                         try:
-                            weight = getattr(edge, weight_field)
                             row_bias = getattr(regions[edge.source], bias_field, 1.0)
                             col_bias = getattr(regions[edge.sink], bias_field, 1.0)
                             bias = row_bias * col_bias
-                            setattr(edge, weight_field, weight * bias)
+                            edge.bias = bias
                         except (TypeError, AttributeError):
                             pass
 
@@ -565,6 +558,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key, norm=norm, oe=oe,
                                                                                    score_field=score_field,
                                                                                    bias_field=bias_field,
+                                                                                   lazy=True,
                                                                                    oe_per_chromosome=oe_per_chromosome)
 
         m = np.full((len(row_regions), len(col_regions)), default_value)
@@ -1169,18 +1163,18 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         return lazy_edge
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None,
-                      lazy=False, lazy_edge=None, *args, **kwargs):
+                      lazy=False, lazy_edge=None, weight_field='weight', *args, **kwargs):
         if lazy and lazy_edge is None:
-            lazy_edge = LazyEdge(None, self._regions)
+            lazy_edge = LazyEdge(None, self._regions, _weight_field=weight_field)
         else:
             lazy_edge = None
 
         for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
             yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
 
-    def _edges_iter(self, lazy=False, lazy_edge=None, *args, **kwargs):
+    def _edges_iter(self, lazy=False, lazy_edge=None, weight_field='weight', *args, **kwargs):
         if lazy and lazy_edge is None:
-            lazy_edge = LazyEdge(None, self._regions)
+            lazy_edge = LazyEdge(None, self._regions, _weight_field=weight_field)
         else:
             lazy_edge = None
 
