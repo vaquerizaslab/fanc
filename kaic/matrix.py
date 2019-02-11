@@ -1,9 +1,6 @@
 """
-TODO
 
-update mappable region handling
-update expected value handling
-update normalisation handling
+
 
 """
 
@@ -372,22 +369,16 @@ class RegionPairsContainer(RegionBased):
                             continue
                     except AttributeError:
                         pass
-
-                    try:
-                        weight = getattr(edge, weight_field)
-                        if norm:
-                            try:
-                                row_bias = getattr(regions[edge.source], bias_field, 1.0)
-                                col_bias = getattr(regions[edge.sink], bias_field, 1.0)
-                                bias = row_bias * col_bias
-                            except AttributeError:
-                                bias = 1.0
-                        else:
-                            bias = 1.0
-
-                        setattr(edge, weight_field, weight * bias)
-                    except (TypeError, AttributeError):
-                        pass
+					
+                    if norm:
+                        try:
+                            weight = getattr(edge, weight_field)
+                            row_bias = getattr(regions[edge.source], bias_field, 1.0)
+                            col_bias = getattr(regions[edge.sink], bias_field, 1.0)
+                            bias = row_bias * col_bias
+                            setattr(edge, weight_field, weight * bias)
+                        except (TypeError, AttributeError):
+                            pass
 
                     yield edge
 
