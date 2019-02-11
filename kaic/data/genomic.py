@@ -5324,7 +5324,7 @@ class Hic(RegionMatrixTable):
         except ImportError:
             logger.error("Cannot import cooler. Install cooler 'pip install cooler'.")
             raise
-        from cooler.io import parse_cooler_uri
+        from cooler.util import parse_cooler_uri
         import h5py
         import itertools as it
         n_contacts = len(self)
@@ -5358,7 +5358,7 @@ class Hic(RegionMatrixTable):
         region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in self.regions()]
         region_df = p.DataFrame(region_dicts)
         logging.info("Writing cooler")
-        cooler.io.create(cool_uri=path, bins=region_df, pixels=contact_dict)
+        cooler.create_cooler(cool_uri=path, bins=region_df, pixels=contact_dict, ordered=True)
         if is_corrected:
             cool_path, group_path = parse_cooler_uri(path)
             logging.info("Writing bias vector")
