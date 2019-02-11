@@ -504,12 +504,12 @@ class LazyPeak(LazyEdge, Peak):
     """
     def __init__(self, row, nodes_table, bin_size=1):
         LazyEdge.__init__(self, row, nodes_table)
-        self.bin_size = bin_size
+        self._bin_size = bin_size
 
     def __getattr__(self, item):
         res = LazyEdge.__getattr__(self, item)
         if item in ('x', 'y', 'radius'):
-            return self.bin_size * res
+            return self._bin_size * res
         return res
 
 
