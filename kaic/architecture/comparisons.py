@@ -287,7 +287,7 @@ class ComparisonScores(RegionScoreParameterTable):
 
 class FoldChangeScores(ComparisonScores):
 
-    _classid = 'FOLDCHANGEMATRIX'
+    _classid = 'FOLDCHANGESCORES'
 
     def __init__(self, *args, **kwargs):
         ComparisonScores.__init__(self, *args, **kwargs)
@@ -298,7 +298,7 @@ class FoldChangeScores(ComparisonScores):
 
 class DifferenceScores(ComparisonScores):
 
-    _classid = 'DIFFERENCEMATRIX'
+    _classid = 'DIFFERENCESCORES'
 
     def __init__(self, *args, **kwargs):
         ComparisonScores.__init__(self, *args, **kwargs)
