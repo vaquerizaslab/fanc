@@ -118,7 +118,7 @@ class TestRaoPeakCaller:
         peak_caller = RaoPeakCaller()
         peaks = peak_caller.call_peaks(hic_10kb)
 
-        assert len(peaks.edges) == 6408
+        assert len(peaks.edges) == 6525
 
         valid_peaks = []
 
@@ -129,7 +129,7 @@ class TestRaoPeakCaller:
             if peak.source == 43 and peak.sink == 57:
                 has_43_57 = True
 
-        assert len(valid_peaks) == 124
+        assert len(valid_peaks) == 134
         assert has_43_57
         hic_10kb.close()
         peaks.close()

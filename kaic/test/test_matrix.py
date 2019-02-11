@@ -231,7 +231,8 @@ class TestRegionPairs:
 
     def test_lazy_edges_set_attribute(self):
         for edge in self.rmt.edges(lazy=True):
-            edge.set_row_field('foo', 999)
+            edge.foo = 999
+            edge.update()
 
         for edge in self.rmt.edges():
             assert edge.foo == 999
