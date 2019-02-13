@@ -343,8 +343,6 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         self.vmax_slider.on_changed(self._slider_refresh)
 
         self.ax.patch.set_visible(False)
-        if self.adjust_range:
-            self.add_adj_slider()
 
     def _slider_refresh(self, val):
         # new_vmin = self.vmin_slider.val
