@@ -3,8 +3,7 @@ import logging
 import h5py
 import numpy as np
 import pandas
-from cooler import Cooler
-from cooler.io import parse_cooler_uri, create
+import cooler
 from genomic_regions import GenomicRegion
 
 from ..matrix import RegionMatrixContainer, Edge
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def is_cooler(file_name):
     try:
-        Cooler(file_name)
+        cooler.Cooler(file_name)
         return True
     except KeyError:
         return False
@@ -52,9 +51,9 @@ def to_cooler(hic, path):
     region_df = pandas.DataFrame(region_dicts)
     logger.info("Writing cooler")
 
-    create(cool_uri=path, bins=region_df, pixels=contact_dict)
+    cooler.create_cooler(cool_uri=path, bins=region_df, pixels=contact_dict, ordered=True)
 
-    cool_path, group_path = parse_cooler_uri(path)
+    cool_path, group_path = cooler.util.parse_cooler_uri(path)
     logger.info("Writing bias vector")
     # Copied this section from
     # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
@@ -97,9 +96,9 @@ class LazyCoolerEdge(Edge):
         return ['weight']
 
 
-class CoolerMatrix(RegionMatrixContainer, Cooler):
+class CoolerMatrix(RegionMatrixContainer, cooler.Cooler):
     def __init__(self, *args, **kwargs):
-        Cooler.__init__(self, *args, **kwargs)
+        cooler.Cooler.__init__(self, *args, **kwargs)
         RegionMatrixContainer.__init__(self)
 
     def _series_to_region(self, series, ix=None):
@@ -181,7 +180,7 @@ class CoolerMatrix(RegionMatrixContainer, Cooler):
         row_start, row_end = self._min_max_region_ix(row_regions)
         col_start, col_end = self._min_max_region_ix(col_regions)
 
-        df = Cooler.matrix(self, as_pixels=True, balance=False)[row_start:row_end+1, col_start:col_end+1]
+        df = cooler.Cooler.matrix(self, as_pixels=True, balance=False)[row_start:row_end+1, col_start:col_end+1]
 
         for index, row in df.iterrows():
             yield self._series_to_edge(row, *args, **kwargs)

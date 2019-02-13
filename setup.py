@@ -57,7 +57,7 @@ setup(
         'genomic_regions',
     ],
     extras_require={
-        'cooler': ['cooler', 'h5py'],
+        'cooler': ['cooler>=0.8.0', 'h5py'],
     },
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={
