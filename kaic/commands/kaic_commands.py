@@ -1470,7 +1470,7 @@ def to_cooler_parser():
     return parser
 
 
-def hic_to_cooler(argv):
+def to_cooler(argv):
     parser = to_cooler_parser()
 
     args = parser.parse_args(argv[2:])
@@ -2458,103 +2458,6 @@ def overlap_peaks(argv):
     logger.info("All done.")
 
 
-def plot_ligation_err_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic plot_ligation_err",
-        description='Plot the ligation structure biases of a Pairs object'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input Pairs file'''
-    )
-
-    parser.add_argument(
-        'output',
-        nargs='?',
-        help='''Output pdf'''
-    )
-
-    parser.add_argument(
-        '-p', '--points', dest='points',
-        type=int,
-        help='''Data points that make up one increment of the x axis. More=smoother=less detail.'''
-    )
-
-    return parser
-
-
-def plot_ligation_err(argv):
-    parser = plot_ligation_err_parser()
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.plotting.plot_statistics import hic_ligation_structure_biases_plot
-
-    input_path = os.path.expanduser(args.input)
-    output_path = None
-    if args.output:
-        output_path = os.path.expanduser(args.output)
-
-    pairs = kaic.load(file_name=input_path, mode='r')
-    hic_ligation_structure_biases_plot(pairs, output=output_path, sampling=args.points)
-    pairs.close()
-
-    logger.info("All done.")
-
-
-def plot_re_dist_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic plot_re_dist",
-        description='Plot the restriction site distance of reads in a Pairs object'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input Pairs file'''
-    )
-
-    parser.add_argument(
-        'output',
-        nargs='?',
-        help='''Output pdf'''
-    )
-
-    parser.add_argument(
-        '-l', '--limit', dest='limit',
-        type=int,
-        default=10000,
-        help='''Limit the plot to the first LIMIT read pairs for the sake of speed. Default 10000'''
-    )
-
-    parser.add_argument(
-        '-m', '--max-dist', dest='max_dist',
-        type=int,
-        help='''Maximum RE site distance to include in the plot. Default: no max'''
-    )
-
-    return parser
-
-
-def plot_re_dist(argv):
-    parser = plot_re_dist_parser()
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.plotting.plot_statistics import pairs_re_distance_plot
-
-    input_path = os.path.expanduser(args.input)
-    output_path = None
-    if args.output:
-        output_path = os.path.expanduser(args.output)
-
-    pairs = kaic.load(file_name=input_path, mode='r')
-    pairs_re_distance_plot(pairs, output=output_path, limit=args.limit, max_distance=args.max_dist)
-    pairs.close()
-
-    logger.info("All done.")
-
-
 def plot_hic_marginals_parser():
     parser = argparse.ArgumentParser(
         prog="kaic plot_hic_marginals",
@@ -2609,7 +2512,7 @@ def plot_hic_marginals(argv):
 def boundaries_parser():
     parser = argparse.ArgumentParser(
         prog="kaic boundaries",
-        description='Determine structural boundaries'
+        description='Determine domain boundaries'
     )
 
     parser.add_argument(
