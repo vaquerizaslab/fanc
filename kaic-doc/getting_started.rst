@@ -116,7 +116,7 @@ From the examples folder, run:
 
 .. code:: bash
 
-   kaic auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip auto_output/ \
+   kaic auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip output/ \
              -g hg19_chr18_19.fa -i hg19_chr18_19/hg19_chr18_19 -n example -s 20 -t 4 -r HindIII \
              --run-with test
 
@@ -139,7 +139,7 @@ We can plot the newly generated Hi-C maps easily using the ``klot`` command. Sim
 
 .. code:: bash
 
-   klot chr18:63000000-70000000 -p -t hic auto_output/hic/corrected/example_50kb_corrected_pc.hic
+   klot chr18:63000000-70000000 -p -t hic output/hic/binned/kaic_example_100kb.hic
 
 This will plot the region 63-70Mb of chromosome 18 in the familiar Hi-C plot.
 Note that this dataset is very small and hence the quality of the matrix not
@@ -147,7 +147,7 @@ particularly great - but TADs are clearly visible.
 
 .. image:: images/chr18_63-70Mb.png
 
-You can find details about the plotting executable ``klot`` in :ref:`klot-executable`
+You can find details about the plotting executable ``klot`` in :ref:`klot-executable`.
 
 Next steps
 ==========

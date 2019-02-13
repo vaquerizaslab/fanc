@@ -9,5 +9,6 @@ It provides convenient commands for the generation, modification, and analysis o
 .. toctree::
    :maxdepth: 2
 
+    Overview and shared parameters <kaic-executable/kaic_basic>
     Generate Hi-C matrices <kaic-executable/kaic_generate_hic>
     Analyse Hi-C matrices <kaic-executable/kaic_analyse_hic>

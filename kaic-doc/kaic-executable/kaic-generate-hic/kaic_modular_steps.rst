@@ -16,13 +16,21 @@ Here is a minimal example:
 
 .. code:: bash
 
-    kaic map SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_1.sam \
-             -i bwa-index/hg19_chr18_19.fa
+    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+             SRR4271982_chr18_19_1.sam
 
 This command will map the FASTQ file ``SRR4271982_chr18_19_1.fastq.gzip`` using the BWA
 index specified with ``-i bwa-index/hg19_chr18_19.fa`` and output the mapped reads
 to ``SRR4271982_chr18_19_1.sam``. You can change the suffix of the output file to ``.bam``
 and ``kaic map`` will automatically convert the mapping output to BAM format.
+
+Importantly, ``kaic map`` will autodetect if you supply a BWA or Bowtie2 index, so
+the following command would use Bowtie2 as a mapper:
+
+.. code:: bash
+
+    kaic map SRR4271982_chr18_19_1.fastq.gzip hg19_chr18_19/hg19_chr18_19 \
+             SRR4271982_chr18_19_1.sam
 
 You can use additional parameters to control the mapping process:
 
@@ -38,16 +46,33 @@ This can result in high disk I/O - if you have issues with poor performance,
 try using the ``--mapper-parallel`` option, which will instead use the multithreading
 of your chosen mapping software.
 
+.. code:: bash
+
+    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+             SRR4271982_chr18_19_1.sam -t 16
+
 By default, ``kaic auto`` performs iterative mapping: Reads are initially trimmed to 25bp
 (change this with the ``-m`` option) before mapping, and then iteratively expanded by 10bp
 (change the step size with the ``-s`` option) until a unique, high quality mapping location
 can be found. The associated quality cutoff is 3 for BWA and 30 for Bowtie2, but can be
 changed with the ``-q`` parameter.
 
+.. code:: bash
+
+    # expand by 5bp every iteration and be satisfied with lower quality
+    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+             SRR4271982_chr18_19_1.sam -t 16 -s 5 -q 10
+
 The iterative mapping process is slower than simple mapping, but can typically
 improve mapping efficiency by a few percent, as smaller reads have a lower likelihood of
 mismatches due to sequencing errors. Disable iterative mapping with the ``--no-iterative``
 parameter.
+
+.. code:: bash
+
+    # do not perform iterative mapping
+    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+             SRR4271982_chr18_19_1.sam -t 16 --no-iterative
 
 BWA will automatically split chimeric reads and return both mapping locations. This is
 especially useful for Hi-C data, as reads are often sequenced through a ligation junction,
@@ -58,6 +83,12 @@ look up the enzyme's restriction pattern, predict the sequence of a ligation jun
 split reads at the predicted junction before mapping starts. Reads split in this manner will
 have an additional attribute in the SAM/BAM file ``ZL:i:<n>`` where <n> is an integer denoting
 the part of the split read.
+
+.. code:: bash
+
+    # Split reads at HindIII ligation junction before mapping
+    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+             SRR4271982_chr18_19_1.sam -t 16 -r HindIII
 
 If you are using Bowtie2, you can additionally use the ``--memory-map`` option,
 which will load the entire Bowtie2 index into memory to be shared across all Bowtie2 processes. Use
@@ -87,30 +118,36 @@ SAM/BAM files:
 
 .. code:: bash
 
-    kaic pairs sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam ./example_output/ \
+    kaic pairs output/sam/SRR4271982_chr18_19_1_sort.bam \
+               output/sam/SRR4271982_chr18_19_2_sort.bam \
+               output/pairs/SRR4271982_chr18_19.pairs \
                -g hg19_chr18_19_re_fragments.bed
 
 4D Nucleome pairs file:
 
 .. code:: bash
 
-    kaic pairs 4d_nucleome.pairs ./example_output/ -g hg19_chr18_19_re_fragments.bed
+    kaic pairs 4d_nucleome.pairs output/pairs/4d_nucleome.pairs \
+               -g hg19_chr18_19_re_fragments.bed
 
 
 HiC-Pro valid pairs file:
 
 .. code:: bash
 
-    kaic pairs hic_pro.validPairs ./example_output/ -g hg19_chr18_19_re_fragments.bed
+    kaic pairs hic_pro.validPairs output/pairs/hic_pro.pairs \
+               -g hg19_chr18_19_re_fragments.bed
 
 Existing Kai-C Pairs object:
 
 .. code:: bash
 
-    kaic pairs kaic.pairs ./example_output/
+    kaic pairs output/pairs/SRR4271982_chr18_19.pairs
 
 As you can see, the ``-g`` parameter is not necessary when proving an existing Pairs object,
-as this already has all the fragment information stored in the object.
+as this already has all the fragment information stored in the object. Neither do we need an
+output file, as further operations will be performed in place. This primarily applies to
+the filtering of read pairs according to various criteria.
 
 Additional parameters primarily control the filtering of read pairs:
 
@@ -131,9 +168,21 @@ and multimapping reads (``-u`` or ``-us``). It is also a good idea to filter by 
 quality (``-q <n>``). Good cutoffs for Bowtie2 and BWA are 30 and 3, respectively. If you suspect
 your Hi-C library to be contaminated by DNA from a different organism, you can align your
 original reads to a different genome and pass the resulting SAM/BAM file to the ``-c``
-parameter. This will filter out all reads that have a valid alignment in the putative
+parameter (ensure no unmappable reads are in the file!).
+This will filter out all reads that have a valid alignment in the putative
 contaminants genome (by qname). All of the above filters operate on single reads, but will
 filter out the pair if either of the reads is found to be invalid due to a filtering criterion.
+IMPORTANT: the ``-u``, ``-us``, ``-q``, and ``-c`` filter MUST be applied when loading read pairs
+from SAM/BAM file, and cannot be added later!
+
+.. code:: bash
+
+    kaic pairs output/sam/SRR4271982_chr18_19_1_sort.bam \
+               output/sam/SRR4271982_chr18_19_2_sort.bam \
+               output/pairs/SRR4271982_chr18_19.pairs \
+               -g hg19_chr18_19_re_fragments.bed \
+               -us \
+               -q 3
 
 An additional set of filters operates on the properties of the read pair. You may want to
 filter out self-ligated fragments, which provide no spatial information with the ``-l``
@@ -141,22 +190,56 @@ parameter. As Hi-C experiments generally rely on PCR amplification, it is expect
 a lot of PCR duplicates in the library. You can filter those with the ``-p <n>`` parameter,
 where ``<n>`` denotes the distance between the start of two alignments that would still be
 considered a duplicate. Normally you would use 1 or 2, but you can use higher values to be
-more strict with filtering. Depending on the experimental setup, it is sometimes expected
-to find valid Hi-C aligments near restriction sites. You can filter read pairs for their
-(cumulative) distance to the nearest restriction sites using the ``-d`` parameter.
+more strict with filtering.
+
+Example:
+
+.. code:: bash
+
+    kaic pairs output/pairs/SRR4271982_chr18_19.pairs \
+               -l  # filter self-ligated fragments \
+               -p 2  # filter PCR duplicates mapping within 2bp
+
+Depending on the experimental setup, it is sometimes expected to find valid Hi-C alignments
+near restriction sites. You can filter read pairs for their (cumulative) distance to the
+nearest restriction sites using the ``-d`` parameter. To determine that cutoff, or to detect
+any issues with the Hi-C library, you can first use the ``--re-dist-plot`` parameter. Note
+that this will only plot a sample of 10,000 read pairs for a quick assessment:
+
+.. code::
+
+    kaic pairs --re-dist-plot re-dist.png output/pairs/SRR4271982_chr18_19.pairs
+
+.. image:: images/re-dist.png
 
 `Jin et al. (2013)
 <http://www.nature.com/nature/journal/v503/n7475/abs/nature12644.html>`_ have identified
 several errors that stem from incomplete digestion and which can be identified from different
 types of ligation products. You can filter these using the ``-i <n>`` and ``-o <n>`` parameters,
 for the inward and outward ligation errors, respectively. If you need help finding a good
-cutoff, you may use the ``kaic plot-ligation-error`` utility - otherwise 10kb is a reasonable
-setting. You can also let Kai-C attempt to find suitable cutoffs based on the over-representation
-of certain ligation products using the ``--filter-ligation-auto`` parameter, but this is not
-always 100% reliable.
+cutoff, you may use the ``--ligation-error-plot`` parameter.
+
+.. code::
+
+    kaic pairs --ligation-error-plot ligation-err.png output/pairs/SRR4271982_chr18_19.pairs
+
+
+.. image:: images/ligation-err.png
+
+Otherwise 1-10kb are often a reasonable cutoffs. You can also let Kai-C attempt to find suitable
+cutoffs based on the over-representation of certain ligation products using the
+``--filter-ligation-auto`` parameter, but this is not always 100% reliable.
 
 Finally, you can output the filtering statistics to a file or plot using the ``-s`` and
 ``--statistics-plot`` parameters, respectively.
+
+.. code:: bash
+
+    kaic pairs output/pairs/SRR4271982_chr18_19.pairs \
+               --statistics-plot pairs.stats.png
+
+
+.. image:: images/pairs.stats.png
 
 
 .. _kaic-hic:
@@ -171,7 +254,7 @@ You can use Kai-C Pairs files as input for ``kaic hic``:
 
 .. code:: bash
 
-    kaic hic kaic.pairs output.hic
+    kaic hic output/pairs/SRR4271982_chr18_19.pairs output/hic/fragment_level.hic
 
 Without additional parameters, this will generate a fragment-level Hic object and exit.
 Multiple Pairs files will be converted into fragment-level Hic objects which are then merged
@@ -182,7 +265,7 @@ or matrix balancing, you can also use this as input:
 
 .. code:: bash
 
-    kaic hic kaic.pairs output.hic
+    kaic hic output/hic/fragment_level.hic output/hic/binned/example_1mb.hic -b 1mb
 
 You have to explicitly provide the binning, filtering and correcting parameters, otherwise
 the command will exit after it has obtained a single fragment-level Hic object. Here is an

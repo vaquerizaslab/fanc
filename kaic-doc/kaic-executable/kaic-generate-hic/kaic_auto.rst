@@ -72,13 +72,13 @@ the folder names should be self-explanatory.
 General arguments
 =================
 
-``kaic auto`` will name is output files using the ``-n`` parameter as prefix. If this is not
+``kaic auto`` will name its output files using the ``-n`` parameter as prefix. If this is not
 provided, it will try to come up with a basename from the largest overlap of the input file
 names. As this can be surprising it is often best to specify the ``-n`` parameter directly.
 
 You should also use the ``-t`` parameter to set the maximum number of parallel threads used
-by ``kaic auto`` - by default, it uses only a single processor, so large datasets will take
-a very long time to process.
+by ``kaic auto`` - by default, it uses only a single processor. It is highly recommended to
+set this to a much higher value to enable parallel processing of large datasets.
 
 If you are working on a network, or with multiple hard drives, you may want to use the ``-tmp``
 option. It instructs ``kaic auto`` to perform as many calculations as possible in a temporary
