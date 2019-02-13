@@ -120,16 +120,18 @@ def pairs_re_distance_plot(pairs, output=None, limit=10000, max_distance=None):
     for i, pair in enumerate(pairs.pairs(lazy=True)):
         d1 = pair.left.re_distance()
         d2 = pair.right.re_distance()
-        if max_distance is None or d1 <= max_distance:
-            distances.append(d1)
-        if max_distance is None or d2 <= max_distance:
-            distances.append(d2)
+
+        d = d1 + d2
+
+        if max_distance is None or d <= max_distance:
+            distances.append(d)
         if limit is not None and i >= limit:
             break
 
     old_backend = _prepare_backend(output)
     dplot = sns.distplot(distances)
-    dplot.set_xlim(left=0)
+    dplot.set_xlim(left=10)
+    dplot.set_xscale('log')
     _plot_figure(dplot.figure, output, old_backend)
 
 
