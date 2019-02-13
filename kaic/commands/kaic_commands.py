@@ -58,7 +58,7 @@ def kaic_parser():
              '"-vvv" to increase verbosity. Default is to show '
              'errors, warnings, and info messages (same as "-vv"). '
              '"-v" shows only errors and warnings,  "-vvv" shows '
-             'errors, warnings, info, and debug messages in addition.'
+             'errors, warnings, info, and debug messages.'
     )
 
     parser.add_argument(
@@ -708,6 +708,20 @@ def pairs_parser():
     )
 
     parser.add_argument(
+        '--re-dist-plot', dest='re_dist_plot',
+        help='Plot the distribution of restriction site distances '
+             'of all read pairs (sum left and right read).'
+    )
+
+    parser.add_argument(
+        '--ligation-error-plot', dest='ligation_error_plot',
+        help='Plot the relative orientation of read pairs mapped '
+             'to the reference genome as a fraction of reads oriented '
+             'in the same direction. Allows the identification of '
+             'ligation errors as a function of genomic distance.'
+    )
+
+    parser.add_argument(
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
@@ -780,6 +794,9 @@ def pairs(argv):
     filter_pcr_duplicates = args.dup_thresh
     statistics_file = os.path.expanduser(args.stats) if args.stats is not None else None
     statistics_plot_file = os.path.expanduser(args.stats_plot) if args.stats_plot is not None else None
+    re_dist_plot_file = os.path.expanduser(args.re_dist_plot) if args.re_dist_plot is not None else None
+    ligation_error_plot_file = os.path.expanduser(args.ligation_error_plot) \
+        if args.ligation_error_plot is not None else None
     threads = args.threads
     batch_size = args.batch_size
     check_sam_sorted = args.check_sorted
@@ -906,7 +923,7 @@ def pairs(argv):
                          "See help for details.".format(len(input_files)))
 
         do_filter_pairs = False
-        logger.info("Preparing read pair filters")
+        logger.debug("Preparing read pair filters")
         if filter_le_auto:
             logger.info("Filtering inward- and outward-facing reads using automatically"
                         "determined thresholds.")
@@ -943,8 +960,6 @@ def pairs(argv):
             pairs.run_queued_filters(log_progress=True)
             logger.info("Done.")
 
-        logger.info("Done creating pairs.")
-
         if statistics_file is not None or statistics_plot_file is not None:
             statistics = pairs.filter_statistics()
 
@@ -964,6 +979,14 @@ def pairs(argv):
                 statistics_plot(statistics)
                 fig.savefig(statistics_plot_file)
                 plt.close(fig)
+
+        if re_dist_plot_file is not None:
+            from kaic.plotting.plot_statistics import pairs_re_distance_plot
+            pairs_re_distance_plot(pairs, re_dist_plot_file, limit=10000)
+
+        if ligation_error_plot_file is not None:
+            from kaic.plotting.plot_statistics import hic_ligation_structure_biases_plot
+            hic_ligation_structure_biases_plot(pairs, output=ligation_error_plot_file, sampling=None)
 
         pairs.close()
     finally:
