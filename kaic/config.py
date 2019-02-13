@@ -41,17 +41,28 @@ raise_exception_on_trapped_signal: True
 hide_progressbars: False
 
 #
-# Grid engine
+# Sun/Oracle Grid Engine
 #
 gridmap_tmpdir:
 
 sge_qsub_path: qsub
+sge_qdel_path: qdel
 sge_default_queue: all.q
 sge_log_dir:
 sge_parallel_environment: smp
 sge_nodes:
 sge_qsub_options: "-V -notify"
 sge_shell: /bin/bash
+
+#
+# SLURM
+#
+
+slurm_sbatch_path: sbatch
+slurm_sbatch_options: ""
+slurm_scancel_path: scancel
+slurm_log_dir:
+slurm_shell: /bin/bash
 
 #
 # Juicer

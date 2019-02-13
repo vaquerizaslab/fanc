@@ -181,7 +181,7 @@ class SgeTaskRunner(TaskRunner):
                         '    echo "Failed job ID: {}" > {}\n'.format(
                             job_id, os.path.join(self._log_dir, self._task_prefix + "FAILED")
                         ))
-                tmp_file.write('    qdel "{}*"\n'.format(self._task_prefix))
+                tmp_file.write('    {} "{}*"\n'.format(config.sge_qdel_path, self._task_prefix))
             tmp_file.write('    res="failed"\n')
             tmp_file.write('else\n')
             tmp_file.write('    res="succeeded"\n')
@@ -213,6 +213,86 @@ class SgeTaskRunner(TaskRunner):
             else:
                 command += ['-o', '/dev/null']
                 command += ['-e', '/dev/null']
+
+            command += [tmp_file.name]
+
+            logger.info("Submitting {}".format(" ".join(command)))
+            subprocess.call(command)
+
+    def run(self, *args, **kwargs):
+        for task in self._tasks:
+            self._submit_task(task)
+
+
+class SlurmTaskRunner(TaskRunner):
+    def __init__(self, task_prefix=None,
+                 log_dir=None, trap_sigusr=True):
+        TaskRunner.__init__(self)
+        if task_prefix is None:
+            from kaic.tools.files import random_name
+            self._task_prefix = 'kaic_' + random_name(6) + '_'
+        else:
+            self._task_prefix = task_prefix
+
+        self._log_dir = log_dir
+        if log_dir is None:
+            self._log_dir = config.slurm_log_dir
+        else:
+            self._log_dir = os.path.expanduser(log_dir)
+        self._trap_sigusr = trap_sigusr
+
+    def _submit_task(self, task, kill=True):
+        import tempfile
+
+        task_ix = self._task_ixs[task.id]
+        job_id = self._task_prefix + '{}'.format(task_ix)
+        with tempfile.NamedTemporaryFile('w', prefix='kaic_auto_', suffix='.sh') as tmp_file:
+            tmp_file.write("#!{}\n".format(config.slurm_shell if config.slurm_shell is not None else "/bin/bash"))
+            tmp_file.write("#SBATCH --nodes=1\n")
+            tmp_file.write("#SBATCH --ntasks=1\n")
+            tmp_file.write("#SBATCH --cpus-per-task={}\n".format(task.threads))
+            tmp_file.write("#SBATCH --job-name={}\n".format(job_id))
+            if self._log_dir is not None:
+                tmp_file.write("#SBATCH --output={}\n".format(os.path.join(self._log_dir, job_id + '_o')))
+                tmp_file.write("#SBATCH --error={}\n".format(os.path.join(self._log_dir, job_id + '_e')))
+            else:
+                tmp_file.write("#SBATCH --output={}\n".format('/dev/null'))
+                tmp_file.write("#SBATCH --error={}\n".format('/dev/null'))
+
+            if task.wait_for is not None and len(task.wait_for) > 0:
+                dependencies = "afterok:{}".format(":".join(task.wait_for))
+                tmp_file.write("#SBATCH --dependencies={}\n".format(dependencies))
+
+            tmp_file.write("#SBATCH --export=ALL\n")
+
+            tmp_file.write("export PYTHONUNBUFFERED=1\n\n")
+
+            if self._trap_sigusr:
+                tmp_file.write('function notify_handler() {\n  '
+                               '(>&2 echo "Received termination notice")\n}\n')
+                tmp_file.write("trap notify_handler SIGUSR1\n")
+                tmp_file.write("trap notify_handler SIGUSR2\n\n")
+
+            tmp_file.write(" ".join(task.command) + "\n")
+            tmp_file.write("OUT=$?\n")
+            tmp_file.write("if [ $OUT -ne 0 ]; then\n")
+            tmp_file.write('    (>&2 echo "Job $JOB_ID / $JOB_NAME had non-zero exit status")\n')
+            if kill is not None:
+                if self._log_dir is not None:
+                    tmp_file.write(
+                        '    echo "Failed job ID: {}" > {}\n'.format(
+                            job_id, os.path.join(self._log_dir, self._task_prefix + "FAILED")
+                        ))
+                tmp_file.write('    {} --signal=USR1 "{}*"\n'.format(config.slurm_scancel_path,
+                                                                     self._task_prefix))
+            tmp_file.write('    res="failed"\n')
+            tmp_file.write('else\n')
+            tmp_file.write('    res="succeeded"\n')
+            tmp_file.write("fi\n\n")
+            tmp_file.flush()
+
+            command = [config.slurm_sbatch_path +
+                       config.slurm_sbatch_options.split()]
 
             command += [tmp_file.name]
 
@@ -450,13 +530,15 @@ def auto_parser():
              "'parallel' (default): Run kaic commands on local machine, "
              "use multiprocessing parallelisation. "
              "'sge': Submit kaic commands to a Sun/Oracle Grid Engine cluster. "
+             "'slurm': Submit kaic commands to a Slurm cluster. "
              "'test': Do not run kaic commands but print all commands " 
              "and their dependencies to stdout for review."
     )
 
     parser.add_argument(
-        '--sge-prefix', dest='sge_prefix',
-        help="Job Prefix for SGE. Works with '--run-with sge'. "
+        '--job-prefix', dest='job_prefix',
+        help="Job Prefix for SGE and Slurm. "
+             "Works with '--run-with sge' and --run-with slurm. "
              "Default: 'kaic_<6 random letters>_'"
     )
 
@@ -535,7 +617,7 @@ def auto(argv):
     ice = args.ice
     restore_coverage = args.restore_coverage
     run_with = args.run_with
-    sge_prefix = args.sge_prefix
+    job_prefix = args.job_prefix
     force_overwrite = args.force_overwrite
     output_folder = os.path.expanduser(args.output_folder)
 
@@ -559,11 +641,21 @@ def auto(argv):
                          "'sge_qsub_path' parameter".format(config.sge_qsub_path))
         from kaic.tools.files import mkdir
         sge_log_dir = mkdir(output_folder, 'sge_logs')
-        runner = SgeTaskRunner(log_dir=sge_log_dir, task_prefix=sge_prefix)
+        runner = SgeTaskRunner(log_dir=sge_log_dir, task_prefix=job_prefix)
+    elif run_with == 'slurm':
+        from kaic.config import config
+        if which(config.slurm_sbatch_path) is None:
+            parser.error("Using Slurm not possible: "
+                         "Cannot find 'sbatch' at path '{}'. You can change "
+                         "this path using kaic config files and the "
+                         "'slurm_sbatch_path' parameter".format(config.slurm_sbatch_path))
+        from kaic.tools.files import mkdir
+        slurm_log_dir = mkdir(output_folder, 'slurm_logs')
+        runner = SlurmTaskRunner(log_dir=slurm_log_dir, task_prefix=job_prefix)
     elif run_with == 'test':
         runner = ParallelTaskRunner(threads, test=True)
     else:
-        parser.error("Runner {} is not valid. See --run-with "
+        parser.error("Runner '{}' is not valid. See --run-with "
                      "parameter for options".format(run_with))
 
     for i in range(len(file_types)):
@@ -892,11 +984,11 @@ def auto(argv):
             runner.add_task(pairs_task, wait_for=sam_to_pairs_tasks, threads=1)
             pairs_tasks.append(pairs_task)
 
-            ligation_error_command = ['kaic', 'plot_ligation_err', file_names[ix], ligation_error_file]
+            ligation_error_command = ['kaic', 'pairs', '--ligation-error-plot', ligation_error_file, file_names[ix]]
             ligation_error_task = CommandTask(ligation_error_command)
             runner.add_task(ligation_error_task, wait_for=pairs_task, threads=1)
 
-            re_dist_command = ['kaic', 'plot_re_dist', file_names[ix], re_dist_file]
+            re_dist_command = ['kaic', 'pairs', '--re-dist-plot', re_dist_file, file_names[ix]]
             re_dist_task = CommandTask(re_dist_command)
             runner.add_task(re_dist_task, wait_for=pairs_task, threads=1)
     else:
@@ -992,7 +1084,7 @@ def auto(argv):
                                  hic_basename + '.stats.pdf'
 
                 hic_command = ['kaic', 'hic', '-f', '-b', str(bin_size), '-r', '0.1',
-                               '-s', hic_stats_file]
+                               '--statistics-plot', hic_stats_file]
                 if tmp:
                     hic_command.append('-tmp')
                 if ice:
