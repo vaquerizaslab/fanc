@@ -1496,20 +1496,25 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         default_field = merged_matrix._default_score_field
 
         chromosomes = merged_matrix.chromosomes()
-        for i in range(len(chromosomes)):
-            chromosome1 = chromosomes[i]
-            for j in range(i, len(chromosomes)):
-                chromosome2 = chromosomes[j]
+        lc = len(chromosomes)
+        with RareUpdateProgressBar(max_value=int((lc**2 + lc) / 2), prefix="Merge") as pb:
+            chromosome_pair_ix = 0
+            for i in range(len(chromosomes)):
+                chromosome1 = chromosomes[i]
+                for j in range(i, len(chromosomes)):
+                    chromosome2 = chromosomes[j]
+                    chromosome_pair_ix += 1
 
-                edges = defaultdict(int)
-                for matrix_object in matrices:
-                    for edge in matrix_object.edges((chromosome1, chromosome2), lazy=True):
-                        edges[edge.source, edge.sink] += getattr(edge, default_field)
+                    edges = defaultdict(int)
+                    for matrix_object in matrices:
+                        for edge in matrix_object.edges((chromosome1, chromosome2), lazy=True):
+                            edges[edge.source, edge.sink] += getattr(edge, default_field)
 
-                for (source, sink), weight in edges.items():
-                    e = Edge(source=source, sink=sink)
-                    setattr(e, default_field, weight)
-                    merged_matrix.add_edge(e)
+                    for (source, sink), weight in edges.items():
+                        e = Edge(source=source, sink=sink)
+                        setattr(e, default_field, weight)
+                        merged_matrix.add_edge(e)
+                    pb.update(chromosome_pair_ix)
 
         merged_matrix.flush()
         return merged_matrix
