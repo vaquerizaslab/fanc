@@ -1415,7 +1415,7 @@ class ContaminantFilter(ReadFilter):
 
     def __init__(self, contaminant_reads, mask=None):
         """
-        :param contaminant_reads: A :class:`~Reads` object representing a
+        :param contaminant_reads: A SAM/BAM file representing a
                                   contaminant
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered reads.
@@ -1429,9 +1429,9 @@ class ContaminantFilter(ReadFilter):
 
     def valid_read(self, read):
         """
-        Check if a read has a mapq >= cutoff.
+        Check if a read also maps to a contaminant
         """
-        if "%.0f" % read.qname_ix in self.contaminant_names:
+        if read.qname in self.contaminant_names:
             return False
         return True
 
