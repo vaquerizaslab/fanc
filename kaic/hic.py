@@ -146,7 +146,7 @@ class Hic(RegionMatrixTable):
                     for j in range(i, len(chromosomes)):
                         logger.debug("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
                         edges = defaultdict(int)
-                        for edge in hic.edges((chromosomes[i], chromosomes[j])):
+                        for edge in hic.edges((chromosomes[i], chromosomes[j]), lazy=True):
                             old_source, old_sink = edge.source, edge.sink
                             old_weight = getattr(edge, hic._default_score_field)
 
