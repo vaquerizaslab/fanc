@@ -809,6 +809,9 @@ def pairs(argv):
             parser.error("Output file {} exists! Use -f to force "
                          "overwriting it!".format(input_files[-1]))
 
+        if genome_file is None:
+            parser.error("Must provide genome file (-g) when loading reads or pairs!")
+
         logger.info("Getting genome regions (fragments or bins)")
         from kaic.regions import genome_regions
         try:
