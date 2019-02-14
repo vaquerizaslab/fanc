@@ -138,9 +138,9 @@ class Hic(RegionMatrixTable):
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
 
-            self._disable_edge_indexes()
             edge_counter = 0
-            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars) as pb:
+            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars,
+                                       prefix="Binning") as pb:
                 chromosomes = hic.chromosomes()
                 for i in range(len(chromosomes)):
                     for j in range(i, len(chromosomes)):
@@ -157,11 +157,9 @@ class Hic(RegionMatrixTable):
                             edge_counter += 1
                             pb.update(edge_counter)
 
-                        for (source, sink), weight in viewitems(edges):
-                            self.add_edge(Edge(source=source, sink=sink, weight=weight))
+                        self.add_edges(edges, flush=False)
 
             self.flush()
-            self._enable_edge_indexes()
 
     def bin(self, bin_size, *args, **kwargs):
         """

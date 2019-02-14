@@ -728,20 +728,54 @@ class ReadPairs(RegionPairsTable):
         if flush:
             self.flush()
 
+    def _flush_fragment_info_buffer(self):
+        for (source_partition, sink_partition), edges in self._edge_buffer.items():
+            edge_table = self._create_edge_table(source_partition, sink_partition)
+            row = edge_table.row
+
+            for fi1, fi2 in edges:
+                if fi1[2] > fi2[2]:
+                    fi1, fi2 = fi2, fi1
+
+                row['ix'] = self._pair_count
+                row['source'] = fi1[2]
+                row['sink'] = fi2[2]
+                row['left_read_position'] = fi1[0]
+                row['right_read_position'] = fi2[0]
+                row['left_read_strand'] = fi1[1]
+                row['right_read_strand'] = fi2[1]
+                row['left_fragment_start'] = fi1[4]
+                row['right_fragment_start'] = fi2[4]
+                row['left_fragment_end'] = fi1[5]
+                row['right_fragment_end'] = fi2[5]
+                row['left_fragment_chromosome'] = fi1[3]
+                row['right_fragment_chromosome'] = fi2[3]
+                row.append()
+                self._pair_count += 1
+
+            edge_table.flush()
+        self._edge_buffer = defaultdict(list)
+
     def add_read_pairs(self, read_pairs, batch_size=1000000, threads=1):
+        self._edges_dirty = True
+        self._disable_edge_indexes()
+
         start_time = timer()
         chunk_start_time = timer()
         pairs_counter = 0
-        default_edge = self._default_edge_list()
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs, batch_size=batch_size, threads=threads):
-            self._fast_add_infos(fi1, fi2, default_edge)
+            source_partition, sink_partition = self._get_edge_table_tuple(fi1[2], fi2[2])
+            self._edge_buffer[(source_partition, sink_partition)].append([fi1, fi2])
+
             pairs_counter += 1
-            if pairs_counter % 1000000 == 0:
+            if pairs_counter % self._edge_buffer_size == 0:
+                self._flush_fragment_info_buffer()
                 end_time = timer()
                 logger.debug("Wrote {} pairs in {}s (current 1M chunk: {}s)".format(
                     pairs_counter, end_time - start_time, end_time - chunk_start_time
                 ))
                 chunk_start_time = timer()
+        self._flush_fragment_info_buffer()
         end_time = timer()
         logger.debug("Wrote {} pairs in {}s".format(
             pairs_counter, end_time - start_time

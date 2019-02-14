@@ -278,16 +278,31 @@ class RegionPairsContainer(RegionBased):
         :param check_nodes_exist: Make sure that there are nodes
                                   that match source and sink indexes
         """
-        edge = as_edge(edge)
+        if isinstance(edge, Edge):
+            self.add_edge_from_edge(edge)
+        elif isinstance(edge, list) or isinstance(edge, tuple):
+            self.add_edge_from_list(edge)
+        elif isinstance(edge, dict):
+            self.add_edge_from_dict(edge)
+        else:
+            edge = as_edge(edge)
+            self._add_edge(edge, *args, **kwargs)
 
-        if check_nodes_exist:
-            n_regions = len(self.regions)
-            if edge.source >= n_regions or edge.sink >= n_regions:
-                raise ValueError("Node index ({}/{}) exceeds number of nodes ({}) in object".format(
-                    edge.source, edge.sink, n_regions
-                ))
+            if check_nodes_exist:
+                n_regions = len(self.regions)
+                if edge.source >= n_regions or edge.sink >= n_regions:
+                    raise ValueError("Node index ({}/{}) exceeds number of nodes ({}) in object".format(
+                        edge.source, edge.sink, n_regions
+                    ))
 
-        self._add_edge(edge, *args, **kwargs)
+    def add_edge_from_list(self, edge):
+        return self.add_edge(as_edge(edge))
+
+    def add_edge_from_dict(self, edge):
+        return self.add_edge(as_edge(edge))
+
+    def add_edge_from_edge(self, edge):
+        return self.add_edge(as_edge(edge))
 
     def add_edges(self, edges, *args, **kwargs):
         """
@@ -864,6 +879,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         # set up edge buffer
         self._edge_buffer = defaultdict(list)
         self._edge_buffer_size = _edge_buffer_size
+        self._flush_operation = self._flush_table_edge_buffer
 
     def _flush_table_edge_buffer(self):
         for (source_partition, sink_partition), records in self._edge_buffer.items():
@@ -882,7 +898,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         if self._edges_dirty:
             if len(self._edge_buffer) > 0:
                 logger.debug("Adding buffered edges...")
-                self._flush_table_edge_buffer()
+                self._flush_operation()
+                self._flush_operation = self._flush_table_edge_buffer
 
             with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges), silent=silent) as pb:
                 for i, edge_table in enumerate(self._edges):
@@ -964,15 +981,16 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         """
         Create and register an edge table for a partition combination.
         """
-        if fields is None:
-            fields = self._edge_table_dict[(0, 0)].coldescrs
-
         if (source_partition, sink_partition) in self._edge_table_dict:
             return self._edge_table_dict[(source_partition, sink_partition)]
 
+        if fields is None:
+            fields = self._edge_table_dict[(0, 0)].coldescrs
+
         edge_table = MaskedTable(self._edges,
                                  'chrpair_' + str(source_partition) + '_' + str(sink_partition),
-                                 fields, ignore_reserved_fields=True)
+                                 fields, ignore_reserved_fields=True,
+                                 expectedrows=10000000)
         edge_table.attrs['source_partition'] = source_partition
         edge_table.attrs['sink_partition'] = sink_partition
 
@@ -1045,11 +1063,134 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
             self._flush_table_edge_buffer()
 
-    def add_edges(self, edges, *args, **kwargs):
+    def _flush_edge_list_buffer(self):
+        for (source_partition, sink_partition), edges in self._edge_buffer.items():
+            edge_table = self._create_edge_table(source_partition, sink_partition)
+            row = edge_table.row
+
+            for edge in edges:
+                if edge[0] < edge[1]:
+                    row['source'], row['sink'] = edge[0], edge[1]
+                else:
+                    row['source'], row['sink'] = edge[1], edge[0]
+
+                row[self._default_score_field] = edge[2]
+                row.append()
+        self._edge_buffer = defaultdict(list)
+
+    def _add_edges_from_dict(self, edges_dict, *args, **kwargs):
+        edge_counter = 0
+        for (source, sink), weight in edges_dict.items():
+            source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
+            self._edge_buffer[(source_partition, sink_partition)].append([source, sink, weight])
+
+            edge_counter += 1
+            if edge_counter % self._edge_buffer_size == 0:
+                self._flush_edge_list_buffer()
+        self._flush_edge_list_buffer()
+
+    def _flush_edge_dict_buffer(self):
+        for (source_partition, sink_partition), edges in self._edge_buffer.items():
+            edge_table = self._create_edge_table(source_partition, sink_partition)
+            fields = edge_table.colnames
+            row = edge_table.row
+
+            for edge in edges:
+                if edge['source'] < edge['sink']:
+                    row['source'], row['sink'] = edge['source'], edge['sink']
+                else:
+                    row['source'], row['sink'] = edge['sink'], edge['source']
+
+                for field in fields:
+                    if field in edge and not field == 'source' and not field == 'sink':
+                        row[field] = edge[field]
+                row.append()
+        self._edge_buffer = defaultdict(list)
+
+    def _add_edges_from_dicts(self, edges, *args, **kwargs):
+        edge_counter = 0
+        for edge in edges:
+            source_partition, sink_partition = self._get_edge_table_tuple(edge['source'], edge['sink'])
+            self._edge_buffer[(source_partition, sink_partition)].append(edge)
+
+        edge_counter += 1
+        if edge_counter % self._edge_buffer_size == 0:
+            self._flush_edge_dict_buffer()
+
+        self._flush_edge_dict_buffer()
+
+    def _add_edges_from_lists(self, edges, *args, **kwargs):
+        edge_counter = 0
+        for edge in edges:
+            source_partition, sink_partition = self._get_edge_table_tuple(edge[0], edge[1])
+            if len(edge) > 2:
+                self._edge_buffer[(source_partition, sink_partition)].append(edge[:3])
+            else:
+                self._edge_buffer[(source_partition, sink_partition)].append(edge[:2])
+        edge_counter += 1
+        if edge_counter % self._edge_buffer_size == 0:
+            self._flush_edge_list_buffer()
+
+        self._flush_edge_list_buffer()
+
+    def _flush_edge_buffer(self):
+        for (source_partition, sink_partition), edges in self._edge_buffer.items():
+            edge_table = self._create_edge_table(source_partition, sink_partition)
+            fields = edge_table.colnames
+            row = edge_table.row
+
+            for edge in edges:
+                if edge.source < edge.sink:
+                    source, sink = edge.source, edge.sink
+                else:
+                    source, sink = edge.sink, edge.source
+
+                row['source'] = source
+                row['sink'] = sink
+                for field in fields:
+                    if hasattr(edge, field) and not field == 'source' and not field == 'sink':
+                        row[field] = getattr(edge, field)
+                row.append()
+        self._edge_buffer = defaultdict(list)
+
+    def _add_edges_from_edges(self, edges, *args, **kwargs):
+        edge_counter = 0
+        for edge in edges:
+            source_partition, sink_partition = self._get_edge_table_tuple(edge.source, edge.sink)
+            self._edge_buffer[(source_partition, sink_partition)].append(edge)
+        edge_counter += 1
+        if edge_counter % self._edge_buffer_size == 0:
+            self._flush_edge_buffer()
+
+        self._flush_edge_buffer()
+
+    def add_edges(self, edges, flush=True, *args, **kwargs):
         if self._regions_dirty:
             self._flush_regions()
-        RegionPairsContainer.add_edges(self, edges, *args, **kwargs)
-        self._flush_edges()
+
+        self._edges_dirty = True
+        self._disable_edge_indexes()
+
+        if isinstance(edges, dict):
+            self._add_edges_from_dict(edges, *args, **kwargs)
+        else:
+            edges_iter = iter(edges)
+            first_edge = next(edges_iter)
+            if isinstance(first_edge, list) or isinstance(first_edge, tuple):
+                self._add_edges_from_lists(edges_iter)
+            elif isinstance(first_edge, dict):
+                self._add_edges_from_dicts(edges_iter)
+            elif isinstance(first_edge, Edge):
+                self._add_edges_from_edges(edges_iter)
+            else:
+                RegionPairsContainer.add_edges(self, edges, *args, **kwargs)
+
+        for edge_table in self._edge_table_dict.values():
+            edge_table.flush()
+
+        if flush:
+            self._enable_edge_indexes()
+            self._flush_edges()
 
     def _get_partition_ix(self, region_ix):
         """
@@ -1475,12 +1616,15 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         if isinstance(matrices, RegionMatrixContainer):
             matrices = [matrices]
 
+        logger.info("Creating merged matrix in {}".format(kwargs.get('file_name',
+                                                                     'MEMORY')))
         if 'mode' not in kwargs:
             kwargs['mode'] = 'w'
         merged_matrix = cls(*args, **kwargs)
 
         matrices = [matrix_object for matrix_object in matrices]  # ensure list
 
+        logger.info("Checking if regions are identical")
         regions = list(matrices[0].regions)
         for matrix_object in matrices[1:]:
             try:
@@ -1491,18 +1635,23 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
             except AssertionError:
                 raise ValueError("Regions in matrix objects are not identical, cannot perform merge!")
 
+        logger.info("Adding regions to merged matrix")
         merged_matrix.add_regions(regions, preserve_attributes=False)
 
         default_field = merged_matrix._default_score_field
 
+        logger.info("Adding edges to merged matrix")
         chromosomes = merged_matrix.chromosomes()
         lc = len(chromosomes)
+        merged_matrix._edges_dirty = True
+        merged_matrix._disable_edge_indexes()
         with RareUpdateProgressBar(max_value=int((lc**2 + lc) / 2), prefix="Merge") as pb:
             chromosome_pair_ix = 0
             for i in range(len(chromosomes)):
                 chromosome1 = chromosomes[i]
                 for j in range(i, len(chromosomes)):
                     chromosome2 = chromosomes[j]
+                    logger.debug("Adding edges from {} vs {}".format(chromosome1, chromosome2))
                     chromosome_pair_ix += 1
 
                     edges = defaultdict(int)
@@ -1510,10 +1659,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                         for edge in matrix_object.edges((chromosome1, chromosome2), lazy=True):
                             edges[edge.source, edge.sink] += getattr(edge, default_field)
 
-                    for (source, sink), weight in edges.items():
-                        e = Edge(source=source, sink=sink)
-                        setattr(e, default_field, weight)
-                        merged_matrix.add_edge(e)
+                    merged_matrix.add_edges(edges, flush=False)
                     pb.update(chromosome_pair_ix)
 
         merged_matrix.flush()

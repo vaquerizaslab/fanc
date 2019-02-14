@@ -341,7 +341,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                 current += 1
                 basic_fields[key] = value
 
-            self._regions = t.Table(self._group, 'regions', basic_fields)
+            self._regions = t.Table(self._group, 'regions', basic_fields, expectedrows=100000)
 
             # create indexes
             create_col_index(self._regions.cols.ix)
