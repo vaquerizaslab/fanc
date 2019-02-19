@@ -137,7 +137,7 @@ def load(file_name, *args, **kwargs):
             ft = f.file_type
             if ft != 'empty':
                 return f
-        except (IndexError, pybedtools.MalformedBedLineError):
+        except (IndexError, pybedtools.MalformedBedLineError, UnicodeDecodeError):
             pass
 
         try:
