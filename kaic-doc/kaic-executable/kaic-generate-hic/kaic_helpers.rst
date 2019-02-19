@@ -36,13 +36,29 @@ all contacts made between two regions. E.g. use chr1--chr1 to export the chromos
 sub-matrix.
 
 
-===================================
-kaic sample: downsample Hic objects
-===================================
+=============================================
+kaic subset: create Hic objects by subsetting
+=============================================
+
+It is sometimes useful to work with smaller Hi-C objects, for example for speed reasons
+or to focus the analysis on a particular genomic region of interest. The ``kaic subset``
+command makes it possible to create a Hic object that only contains regions and contacts
+between a user-specified genomic regions from an existing Hic object.
+
+.. argparse::
+   :module: kaic.commands.kaic_commands
+   :func: subset_parser
+   :prog: kaic subset
+   :nodescription:
+
+
+=======================================
+kaic downsample: downsample Hic objects
+=======================================
 
 Often Hi-C matrices have differing numbers of valid pairs, which can be a confounding factor
 in many analyses. Differences can stem from varying sequencing depths, different library
-qualities, or other experimental and computational factors. ``kaic sample`` is a utility
+qualities, or other experimental and computational factors. ``kaic downsample`` is a utility
 that downsamples Hic objects to a specific number of valid pairs.
 
 .. argparse::

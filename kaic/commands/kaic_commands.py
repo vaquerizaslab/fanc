@@ -3590,11 +3590,11 @@ def expected(argv):
 def subset_parser():
     parser = argparse.ArgumentParser(
         prog="kaic subset",
-        description='Create a new Hic object by subsetting'
+        description='Create a new Hic object by subsetting.'
     )
     parser.add_argument(
         'input',
-        help='Input Hic file'
+        help='Input Hic file.'
     )
     parser.add_argument(
         'output',
@@ -3603,7 +3603,16 @@ def subset_parser():
 
     parser.add_argument(
         'regions',
-        nargs='+'
+        nargs='+',
+        help='List of regions that will be used in the output '
+             'Hic object. All contacts between these regions '
+             'will be in the output object. For example, '
+             '"chr1 chr3" will result in a Hic object with '
+             'all regions in chromosomes 1 and 3, plus all '
+             'contacts within chromosome 1, all contacts within '
+             'chromosome 3, and all contacts between chromosome '
+             '1 and 3. "chr1" will only contain regions and contacts'
+             'within chromosome 1.'
     )
     return parser
 
