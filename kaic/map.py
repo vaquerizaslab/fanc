@@ -7,6 +7,7 @@ import traceback
 import gzip
 import re
 import threading
+import pysam
 import tempfile
 import shutil
 import uuid
@@ -657,13 +658,13 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
 
         if convert_to_bam:
             logger.info("Converting intermediate SAM file to BAM ({})".format(sam_file))
-            bam_command = ['samtools', 'view', '-b', '-o', sam_file, intermediate_sam_file]
-            res = subprocess.call(bam_command)
-            if res == 0:
+            try:
+                pysam.view('-b', '-o', sam_file, intermediate_sam_file, catch_stdout=False)
                 logger.info("Success, removing intermediate.")
                 os.remove(intermediate_sam_file)
-            else:
-                logger.error("Could not convert to BAM, but your output is still in {}".format(intermediate_sam_file))
+            except pysam.SamtoolsError:
+                logger.error("Could not convert to BAM, but your "
+                             "output is still in {}".format(intermediate_sam_file))
     finally:
         logger.debug(tmp_folder)
         shutil.rmtree(tmp_folder, ignore_errors=True)
