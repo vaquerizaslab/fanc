@@ -869,8 +869,10 @@ class RegionPlotBase(ScalarDataPlot):
         self.data = []
         self.labels = labels
 
+        if isinstance(data, string_types):
+            data = [data]
         # If data has attribute keys, assume it's dictionary
-        if hasattr(data, "keys"):
+        elif hasattr(data, "keys"):
             self.labels = list(data.keys()) if self.labels is None else self.labels
             data = list(data.values())
         # First assume that input is an iterable with multiple datasets
