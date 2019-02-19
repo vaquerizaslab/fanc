@@ -146,13 +146,17 @@ class Hic(RegionMatrixTable):
                     for j in range(i, len(chromosomes)):
                         logger.debug("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
                         edges = defaultdict(int)
-                        for edge in hic.edges((chromosomes[i], chromosomes[j]), lazy=True):
-                            old_source, old_sink = edge.source, edge.sink
-                            old_weight = getattr(edge, hic._default_score_field)
+                        for edge in hic.edges_dict((chromosomes[i], chromosomes[j]), lazy=True, norm=False):
+                            old_source, old_sink = edge['source'], edge['sink']
+                            try:
+                                old_weight = edge[hic._default_score_field]
+                            except KeyError:
+                                old_weight = edge['weight']
 
-                            for new_edge in _edges_by_overlap_method([old_source, old_sink, old_weight], overlap_map):
-                                if new_edge[2] != 0:
-                                    edges[(new_edge[0], new_edge[1])] += new_edge[2]
+                            for new_source, new_sink, new_weight in _edges_by_overlap_method(
+                                    [old_source, old_sink, old_weight], overlap_map):
+                                if new_weight != 0:
+                                    edges[(new_source, new_sink)] += new_weight
 
                             edge_counter += 1
                             pb.update(edge_counter)
@@ -455,7 +459,8 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
             marginal_error = tolerance + 1
             current_iteration = 0
 
-            edges = [[e.source, e.sink, e.weight] for e in hic.edges((chromosome, chromosome), norm=False)]
+            edges = [[e['source'], e['sink'], e['weight']]
+                     for e in hic.edges_dict((chromosome, chromosome), lazy=True, norm=False)]
 
             while (marginal_error > tolerance and
                    current_iteration <= max_iterations):
