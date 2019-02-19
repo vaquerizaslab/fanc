@@ -29,7 +29,7 @@ from .tools.general import RareUpdateProgressBar, create_col_index
 
 logger = logging.getLogger(__name__)
 
-_filter = t.Filters(complib="blosc", complevel=2, shuffle=True)
+_filter = t.Filters(complib="blosc", complevel=1, shuffle=True)
 
 
 class MetaFileBased(type):
@@ -556,7 +556,7 @@ class MaskedTable(t.Table):
     _c_classid = 'MASKEDTABLE'
     
     def __init__(self, parentnode, name, description=None,
-                 title="", filters=None, expectedrows=None,
+                 title="", filters=_filter, expectedrows=None,
                  chunkshape=None, byteorder=None, _log=False,
                  mask_field='_mask', mask_index_field='_mask_ix',
                  ignore_reserved_fields=False):
