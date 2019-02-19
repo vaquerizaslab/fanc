@@ -1605,7 +1605,7 @@ def dump(argv):
                     if only_intra and ix_to_chromosome[source.ix] != ix_to_chromosome[sink.ix]:
                         continue
 
-                    weight = getattr(edge, hic.default_field)
+                    weight = getattr(edge, hic._default_score_field)
                     print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
                         source.chromosome, source.start, source.end,
                         sink.chromosome, sink.start, sink.end,
@@ -1617,7 +1617,7 @@ def dump(argv):
                         for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
                             source, i = row_regions_dict[edge.source]
                             sink, j = col_regions_dict[edge.sink]
-                            weight = getattr(edge, hic.default_field)
+                            weight = getattr(edge, hic._default_score_field)
                             o.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
                                 source.chromosome, source.start, source.end,
                                 sink.chromosome, sink.start, sink.end,
@@ -1627,7 +1627,7 @@ def dump(argv):
                         for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
                             source, i = row_regions_dict[edge.source]
                             sink, j = col_regions_dict[edge.sink]
-                            weight = getattr(edge, hic.default_field)
+                            weight = getattr(edge, hic._default_score_field)
                             o.write("{}\t{}\t{}\n".format(
                                 i, j, weight
                             ))
