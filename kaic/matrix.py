@@ -1968,15 +1968,18 @@ class RegionMatrix(np.ma.MaskedArray):
         except TypeError:
             col_regions = None
 
-        if isinstance(row_regions, GenomicRegion):
-            out.row_regions = [row_regions]
-        else:
-            out.row_regions = row_regions
+        try:
+            if isinstance(row_regions, GenomicRegion):
+                out.row_regions = [row_regions]
+            else:
+                out.row_regions = row_regions
 
-        if isinstance(col_regions, GenomicRegion):
-            out.col_regions = [col_regions]
-        else:
-            out.col_regions = col_regions
+            if isinstance(col_regions, GenomicRegion):
+                out.col_regions = [col_regions]
+            else:
+                out.col_regions = col_regions
+        except AttributeError:
+            pass
 
         return out
 
