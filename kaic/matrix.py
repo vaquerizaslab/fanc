@@ -68,6 +68,12 @@ class Edge(object):
             return object.__getattribute__(self, item)
         return object.__getattribute__(self, item) * self._bias
 
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError("No such key: {}".format(item))
+
     @property
     def bias(self):
         return self._bias
@@ -134,6 +140,12 @@ class LazyEdge(object):
             self._row[key] = value
         else:
             object.__setattr__(self, key, value)
+
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError("No such key: {}".format(item))
 
     @property
     def bias(self):
@@ -279,13 +291,6 @@ class RegionPairsContainer(RegionBased):
                                   that match source and sink indexes
         """
         if isinstance(edge, Edge):
-            self.add_edge_from_edge(edge)
-        elif isinstance(edge, list) or isinstance(edge, tuple):
-            self.add_edge_from_list(edge)
-        elif isinstance(edge, dict):
-            self.add_edge_from_dict(edge)
-        else:
-            edge = as_edge(edge)
             self._add_edge(edge, *args, **kwargs)
 
             if check_nodes_exist:
@@ -394,6 +399,10 @@ class RegionPairsContainer(RegionBased):
                 return self._regions_pairs._edges_length()
 
         return EdgeIter(self)
+
+    def edges_dict(self, *args, **kwargs):
+        kwargs['norm'] = False
+        return self.edges(*args, **kwargs)
 
     def edge_subset(self, key=None, *args, **kwargs):
         """
@@ -1213,14 +1222,14 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             return True
         return False
 
-    def _edge_subset_rows(self, key):
+    def _edge_subset_rows(self, key=None, *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key, lazy=False)
 
         return self._edge_subset_rows_from_regions(
-            row_regions, col_regions
+            row_regions, col_regions, *args, **kwargs
         )
 
-    def _edge_subset_rows_from_regions(self, row_regions, col_regions):
+    def _edge_subset_rows_from_regions(self, row_regions, col_regions, *args, **kwargs):
         row_start, row_end = self._min_max_region_ix(row_regions)
         col_start, col_end = self._min_max_region_ix(col_regions)
 
@@ -1325,6 +1334,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     for row in self._edge_table_dict[(i, j)]:
                         yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
 
+    def edges_dict(self, *args, **kwargs):
+        return self._edge_subset_rows(*args, **kwargs)
+
     def _edges_length(self):
         s = 0
         for edge_table in self._edge_table_dict.values():
@@ -1342,17 +1354,23 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
     def _update_mappability(self):
         logger.info("Updating region mappability")
         mappable = [False] * len(self.regions)
+        weight_field = getattr(self, '_default_score_field', None)
+        default_value = getattr(self, '_default_value', 1.)
+
         with RareUpdateProgressBar(max_value=len(self.edges), prefix='Mappability',
                                    silent=config.hide_progressbars) as pb:
-            for i, edge in enumerate(self.edges(lazy=True, norm=False)):
+            for i, edge in enumerate(self.edges_dict(lazy=True)):
                 try:
-                    weight = getattr(edge, self._default_score_field, self._default_value)
-                except TypeError:
-                    weight = self._default_value
+                    if weight_field is not None:
+                        weight = edge[self._default_score_field]
+                    else:
+                        weight = default_value
+                except KeyError:
+                    weight = default_value
 
                 if weight > 0:
-                    mappable[edge.source] = True
-                    mappable[edge.sink] = True
+                    mappable[edge['source']] = True
+                    mappable[edge['sink']] = True
                 pb.update(i)
         self.region_data('valid', mappable)
 
