@@ -2760,8 +2760,8 @@ def compare(argv):
         else:
             parser.error("Comparison type -c {} not recognised!".format(comparison))
 
-        ComparisonScores.from_matrices(matrix1, matrix2, file_name=output_file,
-                                       tmpdir=tmp, mode='w', log=log)
+        ComparisonScores.from_scores(matrix1, matrix2, file_name=output_file,
+                                     tmpdir=tmp, mode='w', log=log)
     elif isinstance(matrix1, RegionBased) and isinstance(matrix2, RegionBased):
         ComparisonRegions = None
         if comparison == 'fold_change' or comparison == 'fc':
@@ -2771,8 +2771,8 @@ def compare(argv):
         else:
             parser.error("Comparison type -c {} not recognised!".format(comparison))
 
-        ComparisonRegions.from_matrices(matrix1, matrix2, file_name=output_file,
-                                        tmpdir=tmp, mode='w', log=log)
+        ComparisonRegions.from_regions(matrix1, matrix2, file_name=output_file,
+                                       tmpdir=tmp, mode='w', log=log)
 
 
 def directionality_parser():
@@ -3341,7 +3341,7 @@ def compartments(argv):
                     parser.error("Found existing file {}, but it is not an AB compartment matrix."
                                  "Use -f to overwrite it.")
                 logger.warning("Found existing AB compartment matrix at {}. Will not recalculate - "
-                               "use --recalculate to overwrite the existing file!")
+                               "use --recalculate to overwrite the existing file!".format(output_file))
             else:
                 logger.info("Computing AB compartment matrix")
                 ab_matrix = ABCompartmentMatrix.from_hic(matrix,
