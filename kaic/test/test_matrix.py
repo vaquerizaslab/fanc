@@ -7,6 +7,8 @@ from kaic.hic import Hic, _get_overlap_map, _edge_overlap_split_rao, kr_balancin
 from kaic.regions import Chromosome, Genome
 from kaic.pairs import ReadPairs, SamBamReadPairGenerator
 from kaic.tools.matrix import is_symmetric
+from kaic.compatibility.juicer import JuicerHic
+from kaic.compatibility.cooler import CoolerHic
 import tables
 import pytest
 
@@ -114,6 +116,23 @@ class TestHic(RegionMatrixContainerTestFactory):
     def teardown_method(self, method):
         self.matrix.close()
 
+
+class TestJuicer(RegionMatrixContainerTestFactory):
+    def setup_method(self, method):
+        hic_file = os.path.join(test_dir, 'test_matrix', 'test_juicer.hic')
+        self.matrix = JuicerHic(hic_file, resolution=1000000)
+
+    def teardown_method(self, method):
+        pass
+
+
+class TestCooler(RegionMatrixContainerTestFactory):
+    def setup_method(self, method):
+        hic_file = os.path.join(test_dir, 'test_matrix', 'test_cooler.hic')
+        self.matrix = CoolerHic(hic_file)
+
+    def teardown_method(self, method):
+        pass
 
 class TestRegionPairs:
     def setup_method(self, method):
