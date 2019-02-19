@@ -3,7 +3,7 @@ from kaic.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator, MaxNLocator
 from kaic import load
-from genomic_regions import GenomicRegion, GenomicDataFrame, merge_regions
+from genomic_regions import GenomicRegion, GenomicDataFrame, merge_overlapping_regions
 from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
                                        BasePlotter, BaseAnnotation
 from kaic.plotting.hic_plotter import BasePlotterMatrix
@@ -1216,7 +1216,7 @@ class OldGenePlot(BasePlotter1D):
         # Squash transcripts
         if self.squash:
             for group_id, exons in genes.items():
-                merged_exons = merge_regions(exons)
+                merged_exons = merge_overlapping_regions(exons)
                 for exon in merged_exons:
                     exon.name = group_id
                 genes[group_id] = merged_exons
@@ -1785,7 +1785,7 @@ class GenePlot(BasePlotter1D):
             for group_id, exons in genes.items():
                 names = [exon.name for exon in exons]
                 name = max(set(names), key=names.count)
-                merged_exons = merge_regions(exons)
+                merged_exons = merge_overlapping_regions(exons)
                 for exon in merged_exons:
                     exon.name = name
                 genes[group_id] = merged_exons
