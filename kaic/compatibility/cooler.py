@@ -63,13 +63,34 @@ def to_cooler(hic, path):
         h5opts = dict(compression='gzip', compression_opts=6)
         grp['bins'].create_dataset("weight", data=bias, **h5opts)
 
-    return CoolerMatrix(path)
+    return CoolerHic(path)
 
 
 class LazyCoolerEdge(Edge):
     def __init__(self, series, c):
         self._series = series
         self._c = c
+        self._weight_field = 'weight'
+        self._bias = 1.
+
+    def __getattribute__(self, item):
+        if item == '_weight_field' or item != self._weight_field:
+            return object.__getattribute__(self, item)
+        return object.__getattribute__(self, item) * self._bias
+
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError("No such key: {}".format(item))
+
+    @property
+    def bias(self):
+        return self._bias
+
+    @bias.setter
+    def bias(self, b):
+        self._bias = b
 
     @property
     def source(self):
@@ -96,10 +117,11 @@ class LazyCoolerEdge(Edge):
         return ['weight']
 
 
-class CoolerMatrix(RegionMatrixContainer, cooler.Cooler):
+class CoolerHic(RegionMatrixContainer, cooler.Cooler):
     def __init__(self, *args, **kwargs):
         cooler.Cooler.__init__(self, *args, **kwargs)
         RegionMatrixContainer.__init__(self)
+        self._mappability = None
 
     def _series_to_region(self, series, ix=None):
         index = set(series.index)
@@ -111,6 +133,8 @@ class CoolerMatrix(RegionMatrixContainer, cooler.Cooler):
 
         kwargs = {name: series[name] for name in index}
         kwargs['chromosome'] = series.chrom
+        kwargs['bias'] = series.weight
+        kwargs['start'] = series.start + 1
         if ix is not None:
             kwargs['ix'] = ix
         return GenomicRegion(**kwargs)
@@ -122,7 +146,7 @@ class CoolerMatrix(RegionMatrixContainer, cooler.Cooler):
     def _region_subset(self, region, *args, **kwargs):
         query = "{}".format(region.chromosome)
         if region.start is not None and region.end is not None:
-            query += ':{}-{}'.format(region.start, region.end)
+            query += ':{}-{}'.format(region.start - 1, region.end)
 
         df = self.bins().fetch(query)
         for index, row in df.iterrows():
@@ -173,8 +197,10 @@ class CoolerMatrix(RegionMatrixContainer, cooler.Cooler):
             return LazyCoolerEdge(series, self)
 
     def _edges_iter(self, *args, **kwargs):
-        for df in self.bins():
-            yield self._series_to_edge(df.iloc[0])
+        selector = cooler.Cooler.matrix(self, as_pixels=True, balance=False)
+        for df in selector:
+            for index, row in df.iterrows():
+                yield self._series_to_edge(row)
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None, *args, **kwargs):
         row_start, row_end = self._min_max_region_ix(row_regions)
@@ -197,3 +223,17 @@ class CoolerMatrix(RegionMatrixContainer, cooler.Cooler):
 
     def _edges_length(self):
         return len(self.pixels())
+
+    def mappable(self):
+        """
+        Get the mappability vector of this matrix.
+        """
+        if self._mappability is not None:
+            return self._mappability
+
+        mappable = [False] * len(self.regions)
+        for edge in self.edges(lazy=True):
+            mappable[edge.source] = True
+            mappable[edge.sink] = True
+        self._mappability = mappable
+        return mappable
