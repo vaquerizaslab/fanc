@@ -6,9 +6,10 @@ import shlex
 import uuid
 import threading
 import multiprocessing as mp
+import tempfile
 from future.utils import string_types
-import time
 from kaic.config import config
+import re
 
 
 # configure logging
@@ -160,8 +161,6 @@ class SgeTaskRunner(TaskRunner):
         self._trap_sigusr = trap_sigusr
 
     def _submit_task(self, task, kill=True):
-        import tempfile
-
         task_ix = self._task_ixs[task.id]
         job_id = self._task_prefix + '{}'.format(task_ix)
         with tempfile.NamedTemporaryFile('w', prefix='kaic_auto_', suffix='.sh') as tmp_file:
@@ -241,27 +240,35 @@ class SlurmTaskRunner(TaskRunner):
             self._log_dir = os.path.expanduser(log_dir)
         self._trap_sigusr = trap_sigusr
 
-    def _submit_task(self, task, kill=True):
-        import tempfile
+        self._slurm_job_ids = dict()
 
-        task_ix = self._task_ixs[task.id]
-        job_id = self._task_prefix + '{}'.format(task_ix)
+    def _submit_batch_command(self, task, kill=True):
+        job_name = self._task_prefix
         with tempfile.NamedTemporaryFile('w', prefix='kaic_auto_', suffix='.sh') as tmp_file:
             tmp_file.write("#!{}\n".format(config.slurm_shell if config.slurm_shell is not None else "/bin/bash"))
             tmp_file.write("#SBATCH --nodes=1\n")
             tmp_file.write("#SBATCH --ntasks=1\n")
             tmp_file.write("#SBATCH --cpus-per-task={}\n".format(task.threads))
-            tmp_file.write("#SBATCH --job-name={}\n".format(job_id))
+            tmp_file.write("#SBATCH --job-name={}\n".format(job_name))
             if self._log_dir is not None:
-                tmp_file.write("#SBATCH --output={}\n".format(os.path.join(self._log_dir, job_id + '_o')))
-                tmp_file.write("#SBATCH --error={}\n".format(os.path.join(self._log_dir, job_id + '_e')))
+                task_ix = self._task_ixs[task.id]
+                log_prefix = self._task_prefix + str(task_ix)
+                tmp_file.write("#SBATCH --output={}\n".format(os.path.join(self._log_dir, log_prefix + '_o')))
+                tmp_file.write("#SBATCH --error={}\n".format(os.path.join(self._log_dir, log_prefix + '_e')))
             else:
                 tmp_file.write("#SBATCH --output={}\n".format('/dev/null'))
                 tmp_file.write("#SBATCH --error={}\n".format('/dev/null'))
 
             if task.wait_for is not None and len(task.wait_for) > 0:
-                dependencies = "afterok:{}".format(":".join(task.wait_for))
-                tmp_file.write("#SBATCH --dependencies={}\n".format(dependencies))
+                wait_job_ids = []
+                for t in task.wait_for:
+                    try:
+                        wait_job_ids.append(self._slurm_job_ids[t.id])
+                    except KeyError:
+                        raise RuntimeError("Task {} has not been submitted to Slurm yet!".format(t.id))
+
+                dependencies = "afterok:{}".format(":".join(wait_job_ids))
+                tmp_file.write("#SBATCH --dependency={}\n".format(dependencies))
 
             tmp_file.write("#SBATCH --export=ALL\n")
 
@@ -281,27 +288,59 @@ class SlurmTaskRunner(TaskRunner):
                 if self._log_dir is not None:
                     tmp_file.write(
                         '    echo "Failed job ID: {}" > {}\n'.format(
-                            job_id, os.path.join(self._log_dir, self._task_prefix + "FAILED")
+                            job_name, os.path.join(self._log_dir,
+                                                   self._task_prefix + "FAILED")
                         ))
-                tmp_file.write('    {} --signal=USR1 "{}*"\n'.format(config.slurm_scancel_path,
-                                                                     self._task_prefix))
+                tmp_file.write('    {} --signal=USR1 -n "{}"\n'.format(config.slurm_scancel_path,
+                                                                       self._task_prefix))
             tmp_file.write('    res="failed"\n')
             tmp_file.write('else\n')
             tmp_file.write('    res="succeeded"\n')
             tmp_file.write("fi\n\n")
             tmp_file.flush()
 
-            command = [config.slurm_sbatch_path +
-                       config.slurm_sbatch_options.split()]
+            with open(tmp_file.name, 'r') as f:
+                for line in f:
+                    line = line.rstrip()
+                    print(line)
+
+            command = [config.slurm_sbatch_path] + config.slurm_sbatch_options.split()
 
             command += [tmp_file.name]
 
-            logger.info("Submitting {}".format(" ".join(command)))
-            subprocess.call(command)
+            slurm_job_id = subprocess.check_output(command)
+            slurm_job_id = slurm_job_id.rstrip()
+            if isinstance(slurm_job_id, bytes):
+                slurm_job_id = slurm_job_id.decode('utf-8')
+            m = re.search(r'(\d+)', slurm_job_id)
+            slurm_job_id = m.group(1)
+
+            return slurm_job_id
 
     def run(self, *args, **kwargs):
-        for task in self._tasks:
-            self._submit_task(task)
+        completed = set()
+
+        remaining_tasks = len(self._tasks)
+        while remaining_tasks > 0:
+
+            # find tasks that can be executed
+            for task in self._tasks:
+                if task.id in completed:
+                    continue
+
+                is_executable = True
+                for wait_task in task.wait_for:
+                    if wait_task.id not in completed:
+                        is_executable = False
+                        break
+
+                if not is_executable:
+                    continue
+
+                # all dependencies submitted
+                self._slurm_job_ids[task.id] = self._submit_batch_command(task)
+                completed.add(task.id)
+                remaining_tasks -= 1
 
 
 def auto_parser():
