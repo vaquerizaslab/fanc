@@ -883,6 +883,7 @@ def pairs(argv):
                                    read_filters=read_filters, output_file=pairs_file,
                                    check_sorted=check_sam_sorted, threads=threads,
                                    batch_size=batch_size)
+            pairs.close()
         elif len(input_files) == 2:
             logger.info("Two arguments detected, assuming HiC-Pro or 4D Nucleome input.")
             from kaic.pairs import HicProPairGenerator, FourDNucleomePairGenerator, ReadPairs
@@ -911,6 +912,7 @@ def pairs(argv):
 
             pairs.add_regions(regions, preserve_attributes=False)
             pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
+            pairs.close()
         elif len(input_files) == 1:
             logger.info("One argument received, assuming existing Pairs object.")
             pairs_file = os.path.expanduser(input_files[0])
@@ -920,78 +922,78 @@ def pairs(argv):
                 original_pairs_file = pairs_file
                 pairs_file = create_temporary_copy(pairs_file)
                 tmp = True
-            pairs = kaic.load(input_files[0], mode='a')
         else:
             parser.error("Number of input arguments ({}) cannot be parsed. "
                          "See help for details.".format(len(input_files)))
 
-        do_filter_pairs = False
-        logger.debug("Preparing read pair filters")
-        if filter_le_auto:
-            logger.info("Filtering inward- and outward-facing reads using automatically"
-                        "determined thresholds.")
-            pairs.filter_ligation_products(queue=True)
-            do_filter_pairs = True
-        else:
-            if filter_inward:
-                logger.info("Filtering inward-facing reads at %dbp" % filter_inward)
-                pairs.filter_inward(minimum_distance=filter_inward, queue=True)
-                do_filter_pairs = True
+        if (filter_le_auto or filter_inward or filter_outward or filter_re_distance or
+                filter_self_ligations or filter_pcr_duplicates):
+            pairs = kaic.load(pairs_file, mode='a')
 
-            if filter_outward:
-                logger.info("Filtering outward-facing reads at %dbp" % filter_outward)
-                pairs.filter_outward(minimum_distance=filter_outward, queue=True)
-                do_filter_pairs = True
+            logger.debug("Preparing read pair filters")
+            if filter_le_auto:
+                logger.info("Filtering inward- and outward-facing reads using automatically"
+                            "determined thresholds.")
+                pairs.filter_ligation_products(queue=True)
+            else:
+                if filter_inward:
+                    logger.info("Filtering inward-facing reads at %dbp" % filter_inward)
+                    pairs.filter_inward(minimum_distance=filter_inward, queue=True)
 
-        if filter_re_distance:
-            logger.info("Filtering reads with RE distance > %dbp" % filter_re_distance)
-            pairs.filter_re_dist(filter_re_distance, queue=True)
-            do_filter_pairs = True
+                if filter_outward:
+                    logger.info("Filtering outward-facing reads at %dbp" % filter_outward)
+                    pairs.filter_outward(minimum_distance=filter_outward, queue=True)
 
-        if filter_self_ligations:
-            logger.info("Filtering self-ligated read pairs")
-            pairs.filter_self_ligated(queue=True)
-            do_filter_pairs = True
+            if filter_re_distance:
+                logger.info("Filtering reads with RE distance > %dbp" % filter_re_distance)
+                pairs.filter_re_dist(filter_re_distance, queue=True)
 
-        if filter_pcr_duplicates:
-            logger.info("Filtering PCR duplicates, threshold <= %dbp" % filter_pcr_duplicates)
-            pairs.filter_pcr_duplicates(threshold=filter_pcr_duplicates, queue=True)
-            do_filter_pairs = True
+            if filter_self_ligations:
+                logger.info("Filtering self-ligated read pairs")
+                pairs.filter_self_ligated(queue=True)
 
-        if do_filter_pairs:
+            if filter_pcr_duplicates:
+                logger.info("Filtering PCR duplicates, threshold <= %dbp" % filter_pcr_duplicates)
+                pairs.filter_pcr_duplicates(threshold=filter_pcr_duplicates, queue=True)
+
             logger.info("Running filters...")
             pairs.run_queued_filters(log_progress=True)
             logger.info("Done.")
 
-        if statistics_file is not None or statistics_plot_file is not None:
-            statistics = pairs.filter_statistics()
+            pairs.close()
 
-            if statistics_file is not None:
-                with open(statistics_file, 'w') as o:
-                    for name, value in statistics.items():
-                        o.write("{}\t{}\n".format(name, value))
+        if (statistics_file is not None or statistics_plot_file is not None or
+                re_dist_plot_file is not None or ligation_error_plot_file is not None):
+            pairs = kaic.load(pairs_file, mode='r')
+            if statistics_file is not None or statistics_plot_file is not None:
+                statistics = pairs.filter_statistics()
 
-            if statistics_plot_file is not None:
-                logger.info("Saving statistics...")
-                import matplotlib
-                matplotlib.use('agg')
-                import matplotlib.pyplot as plt
-                from kaic.plotting.plot_statistics import statistics_plot
-                statistics_plot_file = os.path.expanduser(statistics_plot_file)
-                fig, ax = plt.subplots()
-                statistics_plot(statistics)
-                fig.savefig(statistics_plot_file)
-                plt.close(fig)
+                if statistics_file is not None:
+                    with open(statistics_file, 'w') as o:
+                        for name, value in statistics.items():
+                            o.write("{}\t{}\n".format(name, value))
 
-        if re_dist_plot_file is not None:
-            from kaic.plotting.plot_statistics import pairs_re_distance_plot
-            pairs_re_distance_plot(pairs, re_dist_plot_file, limit=10000)
+                if statistics_plot_file is not None:
+                    logger.info("Saving statistics...")
+                    import matplotlib
+                    matplotlib.use('agg')
+                    import matplotlib.pyplot as plt
+                    from kaic.plotting.plot_statistics import statistics_plot
+                    statistics_plot_file = os.path.expanduser(statistics_plot_file)
+                    fig, ax = plt.subplots()
+                    statistics_plot(statistics)
+                    fig.savefig(statistics_plot_file)
+                    plt.close(fig)
 
-        if ligation_error_plot_file is not None:
-            from kaic.plotting.plot_statistics import hic_ligation_structure_biases_plot
-            hic_ligation_structure_biases_plot(pairs, output=ligation_error_plot_file, sampling=None)
+            if re_dist_plot_file is not None:
+                from kaic.plotting.plot_statistics import pairs_re_distance_plot
+                pairs_re_distance_plot(pairs, re_dist_plot_file, limit=10000)
 
-        pairs.close()
+            if ligation_error_plot_file is not None:
+                from kaic.plotting.plot_statistics import hic_ligation_structure_biases_plot
+                hic_ligation_structure_biases_plot(pairs, output=ligation_error_plot_file, sampling=None)
+
+            pairs.close()
     finally:
         if tmp:
             for tmp_input_file in tmp_input_files:
