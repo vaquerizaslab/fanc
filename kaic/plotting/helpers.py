@@ -306,23 +306,6 @@ def load_score_data(data):
     # If it's already an instance of kaic data, just return it
     if isinstance(data, RegionBased):
         return data
-    # If it's a pyBigWig instance, turn it into a RegionBased instance
-    if isinstance(data, _pyBigWig_type):
-        return BigWig(data)
-    try:
-        # First attempt to load into pybedtools
-        # Used for [("chr", start, end), ...] queries
-        try:
-            bt = pbt.BedTool(data)
-            # check if the bedtools object actually can sucessfully
-            # parse the file. Happily opens e.g. bigwig, but can't
-            # parse it
-            bt[0]
-            # Turn into kaic Bed object
-            return Bed(bt.fn)
-        except (pbt.MalformedBedLineError, IndexError):
-            pass
-        # If it's anything else let's hope kaic.load can deal with it
-        return kaic.load(data)
-    except:
-        raise ValueError("Can't load data")
+
+    # If it's anything else let's hope kaic.load can deal with it
+    return kaic.load(data)
