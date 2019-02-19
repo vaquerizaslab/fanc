@@ -304,6 +304,7 @@ class InsulationScores(RegionScoreParameterTable):
 
             scores = list(ii.scores())
             insulation_scores.scores(window_size, scores)
+            ii.close()
 
         return insulation_scores
 
