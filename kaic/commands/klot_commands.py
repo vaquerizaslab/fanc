@@ -180,7 +180,7 @@ def oe(parameters):
         '-L', '--no-log', dest='log',
         action='store_false',
         default=True,
-        help='''Log-transform heatmap values'''
+        help='''Do not log2-transform heatmap values'''
     )
 
     parser.add_argument(
