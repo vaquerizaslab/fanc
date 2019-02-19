@@ -100,6 +100,6 @@ def trim_stats(a, proportiontocut=0.0, axis=0, stat=np.nanmean):
 
     sl = [slice(None)] * s.ndim
     sl[axis] = slice(ix, len(s)-ix, 1)
-    s_sub = s[sl]
+    s_sub = s[tuple(sl)]
 
     return stat(s_sub)
