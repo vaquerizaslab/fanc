@@ -604,7 +604,8 @@ class ReadPairs(RegionPairsTable):
                                   _table_name_edges=_table_name_pairs)
 
         self._pairs = self._edges
-        self._pair_count = sum(edge_table._original_len() for edge_table in self._edge_table_dict.values())
+        self._pair_count = sum(edge_table._original_len()
+                               for edge_table in self._edge_table_dict.values())
 
     def flush(self, update_mappability=True, silent=config.hide_progressbars):
         RegionPairsTable.flush(self, silent=silent)
