@@ -1,9 +1,11 @@
 from __future__ import division
 
+import tables
 import logging
 import operator
 from collections import defaultdict
 
+from ..tools.general import RareUpdateProgressBar
 from ..regions import RegionsTable
 from ..matrix import RegionMatrixTable, Edge
 from .domains import RegionScoreParameterTable
@@ -43,10 +45,15 @@ def _edge_collection(*hics, region=None, scale=True,
 
     edges = defaultdict(list)
     for i, hic in enumerate(hics):
-        for edge in hic.edges(region, lazy=True, **kwargs):
-            weight = edge.weight * scaling_factors[i]
-            source, sink = edge.source, edge.sink
-            edges[(source, sink)].append(weight)
+        logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
+
+        with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
+            for j, edge in enumerate(hic.edges(region, lazy=True, **kwargs)):
+                weight = edge.weight * scaling_factors[i]
+                source, sink = edge.source, edge.sink
+                edges[(source, sink)].append(weight)
+
+                pb.update(j)
 
         for k, v in edges.items():
             if len(v) < i + 1:
@@ -186,7 +193,7 @@ class ComparisonMatrix(RegionMatrixTable):
     @classmethod
     def from_matrices(cls, matrix1, matrix2, file_name=None, tmpdir=None,
                       log=False, ignore_infinite=True, *args, **kwargs):
-        comparison_matrix = cls(file_name=file_name, tmpdir=tmpdir)
+        comparison_matrix = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         comparison_matrix.add_regions(matrix1.regions, preserve_attributes=False)
 
         chromosomes = matrix1.chromosomes()
@@ -203,7 +210,7 @@ class ComparisonMatrix(RegionMatrixTable):
                         weight = np.log2(weight)
                     if ignore_infinite and not np.isfinite(weight):
                         continue
-                    comparison_matrix.add_edge(Edge(source=source, sink=sink, weight=weight))
+                    comparison_matrix.add_edge([source, sink, weight])
         comparison_matrix.flush()
         return comparison_matrix
 
@@ -260,7 +267,7 @@ class ComparisonScores(RegionScoreParameterTable):
                     attributes.append(p)
 
         comparison_scores = cls(parameter_values=attributes, parameter_prefix=field_prefix,
-                                file_name=file_name, tmpdir=tmpdir)
+                                file_name=file_name, mode='w', tmpdir=tmpdir)
         comparison_scores.add_regions(scores1.regions, preserve_attributes=False)
 
         region_pairs = list()
@@ -274,10 +281,11 @@ class ComparisonScores(RegionScoreParameterTable):
             region_pairs[ix][1] = region
 
         for attribute in attributes:
+            field = scores1._score_field_converter([attribute])[0]
             cmp_scores = []
             for r1, r2 in region_pairs:
-                v1 = getattr(r1, attribute)
-                v2 = getattr(r2, attribute)
+                v1 = getattr(r1, field)
+                v2 = getattr(r2, field)
                 v_cmp = comparison_scores.compare(v1, v2)
                 if log:
                     v_cmp = np.log2(v_cmp)
@@ -329,7 +337,8 @@ class ComparisonRegions(RegionsTable):
     def from_regions(cls, region_based1, region_based2, attribute='score',
                      file_name=None, tmpdir=None, log=False, score_field='score',
                      *args, **kwargs):
-        comparison_regions = cls(file_name=file_name, tmpdir=tmpdir)
+        comparison_regions = cls(file_name=file_name, mode='w', tmpdir=tmpdir,
+                                 additional_fields={attribute: tables.Float32Col()})
         comparison_regions.add_regions(region_based1.regions, preserve_attributes=False)
 
         regions = dict()
