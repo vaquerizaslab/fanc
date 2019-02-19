@@ -10,6 +10,7 @@ from ..hic import Hic
 from ..matrix import RegionMatrixContainer, Edge
 
 import subprocess
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -110,11 +111,14 @@ def _read_cstr(f):
 
 
 class JuicerHic(RegionMatrixContainer):
-    def __init__(self, hic_file, resolution, norm='NONE'):
+    def __init__(self, hic_file, resolution=None, norm='NONE'):
         RegionMatrixContainer.__init__(self)
         self._hic_file = hic_file
 
         bp_resolutions, _ = self.resolutions()
+        if resolution is None:
+            resolution = bp_resolutions[0]
+            warnings.warn("No resolution chosen for Juicer Hic! Using {}bp".format(resolution))
         if resolution not in bp_resolutions:
             raise ValueError("Resolution {} not supported ({})".format(resolution, bp_resolutions))
         self._resolution = resolution
