@@ -341,7 +341,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                 current += 1
                 basic_fields[key] = value
 
-            self._regions = t.Table(self._group, 'regions', basic_fields, expectedrows=100000)
+            self._regions = t.Table(self._group, 'regions', basic_fields, expectedrows=1000000)
 
             # create indexes
             create_col_index(self._regions.cols.ix)
@@ -395,6 +395,15 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             self.meta['max_region_ix'] = ix
 
         return ix
+
+    def chromosomes(self):
+        chromosomes_set = set()
+        chromosomes = []
+        for region in self.regions(lazy=True):
+            if region.chromosome not in chromosomes_set:
+                chromosomes_set.add(region.chromosome)
+                chromosomes.append(region.chromosome)
+        return chromosomes
 
     def add_regions(self, regions, *args, **kwargs):
         """
