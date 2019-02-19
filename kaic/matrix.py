@@ -796,10 +796,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
                  additional_region_fields=None, additional_edge_fields=None,
-                 partitioning_strategy='chromosome',
+                 partition_strategy='auto',
                  _table_name_regions='regions', _table_name_edges='edges',
                  _edge_buffer_size=1000000):
-
         """
         Initialize a :class:`~RegionPairsTable` object.
 
@@ -815,7 +814,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         # private variables
         self._edges_dirty = False
         self._mappability_dirty = False
-        self._partitioning_strategy = partitioning_strategy
+        self._partition_strategy = partition_strategy
 
         file_exists = False
         if file_name is not None:
@@ -839,6 +838,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             # retrieve edge tables and partitions
             self._edges = self.file.get_node('/', _table_name_edges)
             self._partition_breaks = getattr(self.meta, 'partition_breaks', None)
+            self._partition_strategy = getattr(self.meta, 'partition_strategy', 'chromosome')
             if self._partition_breaks is None:
                 self._update_partitions()
         else:
@@ -946,20 +946,29 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def _update_partitions(self):
         partition_breaks = []
+        if self._partition_strategy == 'auto':
+            size = max(10000, int(len(self.regions) / 100))
+            self._partition_strategy = size
 
-        if self._partitioning_strategy == 'chromosome':
+        if self._partition_strategy == 'chromosome':
             previous_chromosome = None
             for i, region in enumerate(self.regions(lazy=True)):
                 if region.chromosome != previous_chromosome and previous_chromosome is not None:
                     partition_breaks.append(i)
                 previous_chromosome = region.chromosome
-        elif isinstance(self._partitioning_strategy, int):
+        elif isinstance(self._partition_strategy, int):
             n_regions = len(self.regions)
-            for i in range(self._partitioning_strategy, n_regions, self._partitioning_strategy):
+            for i in range(self._partition_strategy, n_regions, self._partition_strategy):
                 partition_breaks.append(i)
+        elif (isinstance(self._partition_strategy, list) or
+              isinstance(self._partition_strategy, tuple)):
+            partition_breaks = self._partition_strategy
+        else:
+            raise ValueError("{} is not a valid partitioning strategy!".format(self._partition_strategy))
 
         self._partition_breaks = partition_breaks
         try:
+            self.meta['partition_strategy'] = self._partition_strategy
             self.meta['partition_breaks'] = partition_breaks
         except tables.FileModeError:
             pass
@@ -1503,7 +1512,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
     _classid = 'REGIONMATRIXTABLE'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
-                 partitioning_strategy='chromosome',
+                 partition_strategy='auto',
                  additional_region_fields=None, additional_edge_fields=None,
                  default_score_field='weight', default_value=0.0,
                  _table_name_regions='regions', _table_name_edges='edges',
@@ -1526,7 +1535,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                                   file_name=file_name, mode=mode, tmpdir=tmpdir,
                                   additional_region_fields=additional_region_fields,
                                   additional_edge_fields=additional_edge_fields,
-                                  partitioning_strategy=partitioning_strategy,
+                                  partition_strategy=partition_strategy,
                                   _table_name_regions=_table_name_regions,
                                   _table_name_edges=_table_name_edges,
                                   _edge_buffer_size=_edge_buffer_size)
