@@ -34,15 +34,15 @@ logger.addHandler(logging.NullHandler())
 
 
 def load(file_name, *args, **kwargs):
-
+    mode = kwargs.pop('mode', 'r')
     file_name = os.path.expanduser(file_name)
 
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            from kaic.compatibility.cooler import is_cooler, CoolerMatrix
+            from kaic.compatibility.cooler import is_cooler, CoolerHic
         if is_cooler(file_name):
-            return CoolerMatrix(file_name, *args, **kwargs)
+            return CoolerHic(file_name, *args, **kwargs)
     except (ImportError, OSError):
         pass
 
@@ -53,7 +53,7 @@ def load(file_name, *args, **kwargs):
     try:
         logger.debug("Trying FileBased classes")
         f = FileBased(file_name, mode='r')
-        mode = kwargs.pop('mode', 'r')
+
         classid = None
         try:
             classid = f.meta._classid
