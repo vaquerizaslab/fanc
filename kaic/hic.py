@@ -103,7 +103,7 @@ class Hic(RegionMatrixTable):
     _classid = 'HIC'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
-                 partitioning_strategy='chromosome',
+                 partition_strategy='auto',
                  additional_region_fields=None, additional_edge_fields=None,
                  _table_name_regions='regions', _table_name_edges='edges',
                  _edge_buffer_size=1000000):
@@ -111,7 +111,7 @@ class Hic(RegionMatrixTable):
                                    mode=mode, tmpdir=tmpdir,
                                    additional_region_fields=additional_region_fields,
                                    additional_edge_fields=additional_edge_fields,
-                                   partitioning_strategy=partitioning_strategy,
+                                   partition_strategy=partition_strategy,
                                    _table_name_regions=_table_name_regions,
                                    _table_name_edges=_table_name_edges,
                                    _edge_buffer_size=_edge_buffer_size)
@@ -260,7 +260,7 @@ class LegacyHic(RegionMatrixTable):
     _classid = 'ACCESSOPTIMISEDHIC'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
-                 partitioning_strategy='chromosome',
+                 partition_strategy='chromosome',
                  additional_region_fields=None, additional_edge_fields=None,
                  _table_name_regions='nodes', _table_name_edges='edges',
                  _edge_buffer_size=1000000):
@@ -268,7 +268,7 @@ class LegacyHic(RegionMatrixTable):
                                    mode=mode, tmpdir=tmpdir,
                                    additional_region_fields=additional_region_fields,
                                    additional_edge_fields=additional_edge_fields,
-                                   partitioning_strategy=partitioning_strategy,
+                                   partition_strategy=partition_strategy,
                                    _table_name_regions=_table_name_regions,
                                    _table_name_edges=_table_name_edges,
                                    _edge_buffer_size=_edge_buffer_size)
