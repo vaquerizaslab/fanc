@@ -299,6 +299,13 @@ class RegionPairsContainer(RegionBased):
                     raise ValueError("Node index ({}/{}) exceeds number of nodes ({}) in object".format(
                         edge.source, edge.sink, n_regions
                     ))
+        elif isinstance(edge, list) or isinstance(edge, tuple):
+            self.add_edge_from_list(edge)
+        elif isinstance(edge, dict):
+            self.add_edge_from_dict(edge)
+        else:
+            edge = as_edge(edge)
+            self.add_edge_from_edge(edge)
 
     def add_edge_from_list(self, edge):
         return self.add_edge(as_edge(edge))
@@ -439,6 +446,20 @@ class RegionPairsContainer(RegionBased):
         """
         return self.edges(key, *args, **kwargs)
 
+    @staticmethod
+    def regions_identical(pairs):
+        logger.info("Checking if regions are identical")
+        regions = list(pairs[0].regions)
+        for matrix_object in pairs[1:]:
+            try:
+                for r1, r2 in zip(regions, matrix_object.regions):
+                    assert r1.chromosome == r2.chromosome
+                    assert r1.start == r2.start
+                    assert r1.end == r2.end
+            except AssertionError:
+                return False
+        return True
+
     @classmethod
     def merge(cls, pairs, *args, **kwargs):
         if 'mode' not in kwargs:
@@ -447,17 +468,10 @@ class RegionPairsContainer(RegionBased):
 
         pairs = [pair_object for pair_object in pairs]
 
-        regions = list(pairs[0].regions)
-        for pair_object in pairs[1:]:
-            try:
-                for r1, r2 in zip(regions, pair_object.regions):
-                    assert r1.chromosome == r2.chromosome
-                    assert r1.start == r2.start
-                    assert r1.end == r2.end
-            except AssertionError:
-                raise ValueError("Regions in pair objects are not identical, cannot perform merge!")
+        if not RegionPairsContainer.regions_identical(pairs):
+            raise ValueError("Regions in pair objects are not identical, cannot perform merge!")
 
-        merged_pairs.add_regions(regions)
+        merged_pairs.add_regions(pairs[0].regions(lazy=True))
 
         for pair_object in pairs:
             merged_pairs.add_edges(pair_object.edges(lazy=True))
@@ -1470,6 +1484,68 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         return new_pairs
 
+    @classmethod
+    def merge_region_pairs_tables(cls, pairs, check_regions_identical=True,
+                                  *args, **kwargs):
+        try:
+            for pair in pairs:
+                assert isinstance(pair, RegionPairsTable)
+
+            # check partitions are identical
+            breaks = [p._partition_breaks for p in pairs]
+            for i in range(1, len(breaks)):
+                assert np.array_equal(breaks[0], breaks[i])
+
+            if check_regions_identical and not RegionPairsContainer.regions_identical(pairs):
+                raise ValueError("Regions in pair objects are not identical, cannot perform merge!")
+
+            kwargs['mode'] = 'w'
+            kwargs['partitioning_strategy'] = breaks[0]
+            new_pairs = cls(*args, **kwargs)
+
+            new_pairs.add_regions(pairs[0].regions(lazy=True))
+            new_pairs._disable_edge_indexes()
+
+            # create edge tables
+            partition_pairs = []
+            for (source_partition, sink_partition) in pairs[0]._edge_table_dict.items():
+                new_pairs._create_edge_table(source_partition, sink_partition)
+                partition_pairs.append((source_partition, sink_partition))
+
+            logger.info("Starting fast pair merge")
+            for partition_pair in partition_pairs:
+                edge_table = new_pairs._edge_table_dict[partition_pair]
+                fields = edge_table.colnames
+                new_row = edge_table.row
+                for pair in pairs:
+                    for row in pair._edge_table_dict[partition_pair].iterrows():
+                        for field in fields:
+                            new_row[field] = row[field]
+                        new_row.append()
+                edge_table.flush()
+            new_pairs._edges_dirty = True
+
+            new_pairs.flush()
+        except (AttributeError, AssertionError):
+            raise ValueError("Partitioning is not identical, cannot "
+                             "perform region pairs table merge")
+        return new_pairs
+
+    @classmethod
+    def merge(cls, pairs, *args, **kwargs):
+        pairs = [pair for pair in pairs]
+        if not RegionPairsContainer.regions_identical(pairs):
+            raise ValueError("Regions in pair objects are not identical, "
+                             "cannot perform merge!")
+
+        try:
+            return cls.merge_region_pairs_tables(pairs, check_regions_identical=False)
+        except ValueError:
+            logger.info("Pair objects not compatible with fast merge, "
+                        "performing regular merge")
+
+        return RegionPairsContainer.merge(cls, pairs, *args, **kwargs)
+
     def subset(self, *regions, **kwargs):
         """
         Subset a Hic object by specifying one or more subset regions.
@@ -1639,40 +1715,86 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         return intra_expected, chromosome_intra_expected, inter_expected
 
     @classmethod
-    def merge(cls, matrices, *args, **kwargs):
-        if isinstance(matrices, RegionMatrixContainer):
-            matrices = [matrices]
+    def merge_region_matrix_tables(cls, matrices, check_regions_identical=True,
+                                   *args, **kwargs):
+        try:
+            for matrix in matrices:
+                assert isinstance(matrix, RegionMatrixTable)
 
-        logger.info("Creating merged matrix in {}".format(kwargs.get('file_name',
-                                                                     'MEMORY')))
-        if 'mode' not in kwargs:
+            # check partitions are identical
+            breaks = [m._partition_breaks for m in matrices]
+            for i in range(1, len(breaks)):
+                assert np.array_equal(breaks[0], breaks[i])
+
+            if check_regions_identical and not RegionPairsContainer.regions_identical(matrices):
+                raise ValueError("Regions in matrix objects are not "
+                                 "identical, cannot perform merge!")
+
             kwargs['mode'] = 'w'
+            kwargs['partitioning_strategy'] = breaks[0]
+
+            new_matrix = cls(*args, **kwargs)
+
+            new_matrix.add_regions(matrices[0].regions(lazy=True))
+
+            # create edge tables
+            partition_pairs = []
+            for (source_partition, sink_partition) in matrices[0]._edge_table_dict.keys():
+                new_matrix._create_edge_table(source_partition, sink_partition)
+                partition_pairs.append((source_partition, sink_partition))
+
+            new_matrix._disable_edge_indexes()
+
+            default_field = getattr(new_matrix, '_default_score_field', 'weight')
+            logger.info("Starting fast pair merge")
+            for partition_pair in partition_pairs:
+                edges = defaultdict(int)
+                for pair in matrices:
+                    for row in pair._edge_table_dict[partition_pair].iterrows():
+                        edges[(row['source'], row['sink'])] += row[default_field]
+
+                edge_table = new_matrix._edge_table_dict[partition_pair]
+                new_row = edge_table.row
+                for (source, sink), weight in edges.items():
+                    new_row['source'] = source
+                    new_row['sink'] = sink
+                    new_row[default_field] = weight
+                    new_row.append()
+                edge_table.flush()
+            new_matrix._edges_dirty = True
+
+            new_matrix.flush()
+        except (AttributeError, AssertionError):
+            raise ValueError("Partitioning is not identical, cannot "
+                             "perform region pairs table merge")
+
+        return new_matrix
+
+    @classmethod
+    def merge(cls, matrices, *args, **kwargs):
+        matrices = [matrix for matrix in matrices]
+        if not RegionPairsContainer.regions_identical(matrices):
+            raise ValueError("Regions in matrix objects are not identical, "
+                             "cannot perform merge!")
+
+        try:
+            return cls.merge_region_matrix_tables(matrices, check_regions_identical=False,
+                                                  *args, **kwargs)
+        except ValueError:
+            logger.info("Pair objects not compatible with fast merge, "
+                        "performing regular merge")
+
+        logger.info("Adding {} regions to merged matrix".format(len(matrices[0].regions)))
+        kwargs['mode'] = 'w'
         merged_matrix = cls(*args, **kwargs)
+        merged_matrix.add_regions(matrices[0].regions(lazy=True), preserve_attributes=False)
 
-        matrices = [matrix_object for matrix_object in matrices]  # ensure list
-
-        logger.info("Checking if regions are identical")
-        regions = list(matrices[0].regions)
-        for matrix_object in matrices[1:]:
-            try:
-                for r1, r2 in zip(regions, matrix_object.regions):
-                    assert r1.chromosome == r2.chromosome
-                    assert r1.start == r2.start
-                    assert r1.end == r2.end
-            except AssertionError:
-                raise ValueError("Regions in matrix objects are not identical, cannot perform merge!")
-
-        logger.info("Adding regions to merged matrix")
-        merged_matrix.add_regions(regions, preserve_attributes=False)
-
-        default_field = merged_matrix._default_score_field
+        default_field = getattr(merged_matrix, '_default_score_field', 'weight')
 
         logger.info("Adding edges to merged matrix")
         chromosomes = merged_matrix.chromosomes()
         lc = len(chromosomes)
-        merged_matrix._edges_dirty = True
-        merged_matrix._disable_edge_indexes()
-        with RareUpdateProgressBar(max_value=int((lc**2 + lc) / 2), prefix="Merge") as pb:
+        with RareUpdateProgressBar(max_value=int((lc ** 2 + lc) / 2), prefix="Merge") as pb:
             chromosome_pair_ix = 0
             for i in range(len(chromosomes)):
                 chromosome1 = chromosomes[i]
@@ -1683,7 +1805,8 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
                     edges = defaultdict(int)
                     for matrix_object in matrices:
-                        for edge in matrix_object.edges((chromosome1, chromosome2), lazy=True):
+                        for edge in matrix_object.edges((chromosome1, chromosome2),
+                                                        lazy=True, norm=False):
                             edges[edge.source, edge.sink] += getattr(edge, default_field)
 
                     merged_matrix.add_edges(edges, flush=False)
