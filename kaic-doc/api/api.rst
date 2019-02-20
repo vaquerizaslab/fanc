@@ -1,10 +1,12 @@
 .. _kaic-api:
 
-=========
-Kai-C API
-=========
+==================
+kaic Python module
+==================
 
 .. toctree::
    :maxdepth: 2
 
-   matrix
+   Quickstart <api_basic>
+   Matrices <matrix>
+   Modules, classes, functions <modules>

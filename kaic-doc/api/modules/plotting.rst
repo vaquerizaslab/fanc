@@ -1,5 +1,10 @@
+.. _kaic-plotting:
+
+============
 Plotting API
 ============
+
+Here is an overview of the plot types and functions available in the plotting API.
 
 Index of plot classes
 '''''''''''''''''''''
