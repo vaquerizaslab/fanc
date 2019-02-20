@@ -8,6 +8,12 @@ logger = logging.getLogger(__name__)
 
 _default_config_content = """\
 #
+# Mapping
+#
+bowtie2_path: bowtie2
+bwa_path: bwa
+
+#
 # PLOTTING
 #
 colormap_hic: germany
