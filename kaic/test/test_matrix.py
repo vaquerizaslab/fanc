@@ -90,7 +90,7 @@ class RegionMatrixContainerTestFactory:
     def test_get_edges_uncorrected(self, lazy):
         edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges(norm=False)}
 
-        for edge in self.matrix.edges(norm=False):
+        for edge in self.matrix.edges(norm=False, lazy=lazy):
             assert np.isclose(edge.weight,
                               edges_dict[(edge.source, edge.sink)],
                               rtol=1e-03)
@@ -133,6 +133,7 @@ class TestCooler(RegionMatrixContainerTestFactory):
 
     def teardown_method(self, method):
         pass
+
 
 class TestRegionPairs:
     def setup_method(self, method):
