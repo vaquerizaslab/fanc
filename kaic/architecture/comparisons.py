@@ -292,6 +292,8 @@ class ComparisonScores(RegionScoreParameterTable):
                 cmp_scores.append(v_cmp)
             comparison_scores.scores(attribute, cmp_scores)
 
+        return comparison_scores
+
 
 class FoldChangeScores(ComparisonScores):
 
@@ -355,6 +357,7 @@ class ComparisonRegions(RegionsTable):
                 v = np.log2(v)
             scores.append(v)
         comparison_regions.region_data(score_field, scores)
+        return comparison_regions
 
 
 class FoldChangeRegions(ComparisonRegions):
