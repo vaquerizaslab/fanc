@@ -353,9 +353,13 @@ def natural_cmp(pa, pb):
 
 def ligation_site_pattern(restriction_enzyme):
     if isinstance(restriction_enzyme, string_types):
-        restriction_enzyme = getattr(Restriction, restriction_enzyme)
-
-    cut_pattern = restriction_enzyme.elucidate()
+        if "^" in restriction_enzyme and "_" in restriction_enzyme:
+            cut_pattern = restriction_enzyme
+        else:
+            restriction_enzyme = getattr(Restriction, restriction_enzyme)
+            cut_pattern = restriction_enzyme.elucidate()
+    else:
+        cut_pattern = restriction_enzyme.elucidate()
 
     left_side = []
     right_side = []
