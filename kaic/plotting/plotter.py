@@ -1584,6 +1584,7 @@ class Virtual4CPlot(BasePlotter1D):
 
         line = self.ax.plot(x, v4c_signal, color=self.color, alpha=self.alpha)
         self.lines.append(line)
+        self.remove_colorbar_ax()
 
     def _refresh(self, region):
         while len(self.lines) > 0:
