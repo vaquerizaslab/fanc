@@ -2662,9 +2662,16 @@ def compare_parser():
 
     parser.add_argument(
         '-c', '--comparison', dest='comparison',
-        default='fold_change',
-        help='Type of comparison. Default: fold_change,'
+        default='fold-change',
+        help='Type of comparison. Default: fold-change, '
              'other options are: difference'
+    )
+
+    parser.add_argument(
+        '-o', '--output-format', dest='output_format',
+        help='Output format for region-based comparisons. '
+             'Only relevant when using BED, GFF, or another '
+             'region-based format as input.'
     )
 
     parser.add_argument(
@@ -2718,6 +2725,7 @@ def compare(argv):
     comparison = args.comparison
     filter_zero = args.ignore_zero
     filter_infinite = args.ignore_infinite
+    output_format = args.output_format
     log = args.log
     tmp = args.tmp
 
@@ -2738,7 +2746,7 @@ def compare(argv):
             filters = None
 
         ComparisonMatrix = None
-        if comparison == 'fold_change' or comparison == 'fc':
+        if comparison == 'fold-change' or comparison == 'fc':
             ComparisonMatrix = FoldChangeMatrix
         elif comparison == 'difference' or comparison == 'diff':
             ComparisonMatrix = DifferenceMatrix
@@ -2771,8 +2779,24 @@ def compare(argv):
         else:
             parser.error("Comparison type -c {} not recognised!".format(comparison))
 
-        ComparisonRegions.from_regions(matrix1, matrix2, file_name=output_file,
-                                       tmpdir=tmp, mode='w', log=log)
+        if output_format is None:
+            comparison_output = output_file
+        else:
+            output_format = output_format.lower()
+            comparison_output = None
+        cmp = ComparisonRegions.from_regions(matrix1, matrix2, file_name=comparison_output,
+                                             tmpdir=tmp, mode='w', log=log)
+
+        if output_format == 'bed':
+            from kaic.tools.files import write_bed
+            write_bed(output_file, cmp.regions)
+        elif output_format == 'bigwig' or output_format == 'bw':
+            from kaic.tools.files import write_bigwig
+            write_bigwig(output_file, cmp.regions)
+        elif output_format == 'gff':
+            from kaic.tools.files import write_gff
+            write_gff(output_file, cmp.regions)
+        cmp.close()
 
 
 def directionality_parser():
@@ -2965,7 +2989,9 @@ def insulation_parser():
         action='store_true',
         default=False,
         help='Use geometric mean for normalisation (rather than arithmetic mean). '
-             'Useful in conjunction with --log to center the distribution at 0.'
+             'Useful in conjunction with --log to center the distribution at 0. '
+             'This is very important when comparing insulation scores, for example '
+             'using the "kaic compare" command!'
     )
 
     parser.add_argument(
