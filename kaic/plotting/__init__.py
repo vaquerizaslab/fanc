@@ -73,7 +73,7 @@ to the top-level kaic directory where the setup.py file is located.
     # Open plot in an interactive window
     fig.show()
 
-.. figure:: ../../../kaic-doc/images/example_plot.png
+.. figure:: ../../../kaic-doc/klot-executable/images/example_plot.png
 
     Example rendering of the above code saved using
     ``fig.savefig("example.png", dpi=100)``.

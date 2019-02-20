@@ -145,7 +145,7 @@ This will plot the region 63-70Mb of chromosome 18 in the familiar Hi-C plot.
 Note that this dataset is very small and hence the quality of the matrix not
 particularly great - but TADs are clearly visible.
 
-.. image:: images/chr18_63-70Mb.png
+.. image:: kaic-executable/kaic-generate-hic/images/chr18_63-70Mb.png
 
 You can find details about the plotting executable ``klot`` in :ref:`klot-executable`.
 
