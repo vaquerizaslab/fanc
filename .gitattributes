@@ -1,0 +1,7 @@
+*.fastq.gzip filter=lfs diff=lfs merge=lfs -text
+kaic/test/test_matrix/test_juicer.hic filter=lfs diff=lfs merge=lfs -text
+examples/bwa-index/hg19_chr18_19.fa.amb filter=lfs diff=lfs merge=lfs -text
+examples/bwa-index/hg19_chr18_19.fa.ann filter=lfs diff=lfs merge=lfs -text
+examples/bwa-index/hg19_chr18_19.fa.bwt filter=lfs diff=lfs merge=lfs -text
+examples/bwa-index/hg19_chr18_19.fa.pac filter=lfs diff=lfs merge=lfs -text
+examples/bwa-index/hg19_chr18_19.fa.sa filter=lfs diff=lfs merge=lfs -text
