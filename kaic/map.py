@@ -1,3 +1,24 @@
+"""
+This module performs iterative mapping of reads in FASTQ files to a reference genome.
+
+The main function is :func:`~iterative_mapping`, which requires an input FASTQ file,
+an output SAM file, and a suitable mapper. Mapper options are :class:`~Bowtie2Mapper`
+and :class:`~BwaMapper` for the time being, but by subclassing :class:`~Mapper` a user
+can easily write their own mapper implementations that can fully leverage the iterative
+mapping capabilities of Kai-C. Take a look at the code of :class:`~Bowtie2Mapper` for
+an example.
+
+Example usage:
+
+.. code::
+
+    import kaic
+    mapper = kaic.BwaMapper("bwa-index/hg19_chr18_19.fa", min_quality=3)
+    kaic.iterative_mapping("SRR4271982_chr18_19_1.fastq.gzip", "SRR4271982_chr18_19_1.bam",
+                           mapper, threads=4, restriction_enzyme="HindIII")
+
+"""
+
 import os
 import io
 import subprocess
@@ -11,15 +32,27 @@ import pysam
 import tempfile
 import shutil
 import uuid
-from kaic.tools.general import which, ligation_site_pattern, split_at_ligation_junction, WorkerMonitor
+from .config import config
+from .tools.files import which
+from .tools.general import ligation_site_pattern, split_at_ligation_junction, WorkerMonitor
 import logging
 logger = logging.getLogger(__name__)
+
+__all__ = ['Bowtie2Mapper', 'BwaMapper',
+           'SimpleBowtie2Mapper', 'SimpleBwaMapper',
+           'iterative_mapping']
 
 _read_name_re = re.compile("^@(.+?)\s(.*)$")
 _read_name_nospace_re = re.compile("^@(.+)$")
 
 
 def read_name(line):
+    """
+    Extract read name from FASTQ line.
+
+    :param line: str of the FASTQ line, starting with "@"
+    :return: tuple of read name and other info. info can be None
+    """
     matches = _read_name_re.match(line)
     if matches is None:
         matches = _read_name_nospace_re.match(line)
@@ -32,6 +65,15 @@ def read_name(line):
 
 
 class Monitor(WorkerMonitor):
+    """
+    Monitor class keeping an eye on mapping workers.
+
+    Thread-safe by using locks on each attribute.
+
+    .. attribute:: value
+
+        Counter used to track worker progress.
+    """
     def __init__(self, value=0):
         WorkerMonitor.__init__(self, value=value)
         self.resubmitting_lock = threading.Lock()
@@ -44,31 +86,104 @@ class Monitor(WorkerMonitor):
             self.submitting = False
 
     def set_resubmitting(self, value):
+        """
+        Set the resubmission status of a mapping worker.
+
+        :param value: True if worker status changed to resubmitting,
+                      False otherwise
+        """
         with self.resubmitting_lock:
             self.resubmitting = value
 
     def is_resubmitting(self):
+        """
+        Query resubission status of a worker.
+
+        :return: True if worker is in the process of resubmitting,
+                 False otherwise
+        """
         with self.resubmitting_lock:
             return self.resubmitting
 
     def set_submitting(self, value):
+        """
+        Set the submission status of a mapping worker.
+
+        :param value: True if worker status changed to submitting,
+                      False otherwise
+        """
         with self.submitting_lock:
             self.submitting = value
 
     def is_submitting(self):
+        """
+        Query subission status of a worker.
+
+        :return: True if worker is in the process of submitting,
+                 False otherwise
+        """
         with self.submitting_lock:
             return self.submitting
 
 
 class Mapper(object):
-    def __init__(self):
-        self.resubmit_unmappable = True
-        self.attempt_resubmit = True
+    """
+    Mapper base class for mapping sequencing reads to a reference genome.
+
+    This base class handles the resubmission checks for iterative mapping,
+    spawns mapping processes, and compiles a FASTQ that can be used as input
+    for external mapping software.
+
+    To actually do any work, this class must be inherited, and the _map and
+    _resubmit methods must be overridden.
+
+    :func:`~Mapper._map` must handle the actual mapping given an input file
+
+    :func:`~Mapper._resubmit` determines whether a read should be resubmitted
+    (after expanding it)
+
+    See :class:`~Bowtie2Mapper` or :class:`~BwaMapper` for examples.
+    """
+
+    def __init__(self, resubmit_unmappable=True, attempt_resubmit=True):
+        self.resubmit_unmappable = resubmit_unmappable
+        self.attempt_resubmit = attempt_resubmit
 
     def _map(self, input_file, output_file, *args, **kwargs):
+        """
+        Map reads in the given FASTQ file to a reference genome.
+
+        Must be overridden by classes implementing :class:`~Mapper`.
+        Arguments are provided at runtime by the iterative mapping
+        process.
+
+        :param input_file: Path to FASTQ file
+        :param output_file: Path to SAM file
+        :param args: Optional positional arguments
+        :param kwargs: Optional keyword arguments
+        :return: Must return 0 if mapping successful,
+                 any other integer otherwise
+        """
         raise NotImplementedError("Must implement _map method!")
 
     def map(self, input_file, output_folder=None):
+        """
+        Map reads in the given FASTQ file using :func:`~Mapper._map` implementation.
+
+        Will internally map the FASTQ reads to a SAM file in a
+        temporary folder (use output_folder to choose a specific folder),
+        split the SAM output into (i) valid alignments according to
+        :func:`~Mapper._resubmit` and (ii) invalid alignments that get
+        caught by the resubmission filter. A FASTQ file will be constructed
+        from the invalid alignments, extending the reads by a given step size,
+        which can then be used to iteratively repeat the mapping process until
+        a valid alignment is found or the full length of the read has been
+        restored.
+
+        :param input_file: Path to FASTQ file
+        :param output_folder: (optional) path to temporary folder for SAM output
+        :return: tuple, path to valid SAM alignments, path to resubmission FASTQ
+        """
         if output_folder is None:
             output_folder = tempfile.mkdtemp()
 
@@ -96,14 +211,39 @@ class Mapper(object):
         return sam_valid_file, resubmission_file
 
     def _resubmit(self, sam_fields):
-        raise NotImplementedError("Mapper must implement 'resubmit'")
+        """
+        Determine if an alignment should be resubmitted.
+
+        :param sam_fields: The individual fields in a SAM line (split by tab)
+        :return: True if read should be extended and aligned to the reference again,
+                 False if the read passes the validity criteria.
+        """
+        raise NotImplementedError("Mapper must implement '_resubmit'")
 
     def resubmit(self, sam_fields):
+        """
+        Determine if an alignment should be resubmitted.
+
+        Filters unmappable reads by default. Additional criteria can be
+        implemented using the :func:`~Mapper._resubmit` method.
+
+        :param sam_fields: The individual fields in a SAM line (split by tab)
+        :return: True if read should be extended and aligned to the reference again,
+                 False if the read passes the validity criteria.
+        """
         if self.resubmit_unmappable and int(sam_fields[1]) & 4:
             return True
         return self._resubmit(sam_fields)
 
     def _valid_and_resubmissions(self, input_sam_file, output_folder):
+        """
+        Determine valid alignments and resubmissions from SAM file.
+
+        :param input_sam_file: Path to SAM file
+        :param output_folder: Path to temporary output folder
+        :return: tuple with path to valid SAM file, dictionary with
+                 read names that should be resubmitted
+        """
         logger.debug('Getting mapped reads and resubmissions')
         resubmit = dict()
         with io.open(input_sam_file) as f:
@@ -130,6 +270,15 @@ class Mapper(object):
         return output_sam_file, resubmit
 
     def _resubmission_fastq(self, input_fastq, resubmit, output_folder):
+        """
+        Create the FASTQ file for resubmissions.
+
+        :param input_fastq: Path to original FASTQ file
+        :param resubmit: Dictionary with read names that should be expanded
+                         and then resubmitted
+        :param output_folder: temporary folder
+        :return: Path to resubmission FASTQ
+        """
         logger.debug('Creating FASTQ file for resubmission')
 
         resubmission_counter = 0
@@ -167,18 +316,48 @@ class Mapper(object):
         return output_fastq
 
     def close(self):
+        """
+        Final operations after mapping completes.
+        """
         pass
 
 
 class Bowtie2Mapper(Mapper):
+    """
+    Bowtie2 Mapper for aligning reads against a reference genome.
+
+    Implements :class:`~Mapper` by calling the command line "bowtie2"
+    program.
+
+    .. attribute:: bowtie2_index
+
+        Path to the bowtie2 index of the reference genome of choice.
+
+    .. attribute:: min_quality
+
+        Minimum MAPQ of an alignment so that it won't be resubmitted in
+        iterative mapping.
+
+    .. attribute:: additional_arguments
+
+        Arguments passed to the "bowtie2" command in addition to
+        -x, -U, --no-unal, --threads, and -S.
+
+    .. attribute:: threads
+
+        Number of threads for this mapping process.
+
+    """
     def __init__(self, bowtie2_index, min_quality=30, additional_arguments=(),
-                 threads=1, _bowtie2_path='bowtie2'):
-        Mapper.__init__(self)
+                 threads=1, _bowtie2_path=config.bowtie2_path, **kwargs):
+        Mapper.__init__(self, **kwargs)
         self.index = os.path.expanduser(bowtie2_index)
         if self.index.endswith('.'):
             self.index = self.index[:-1]
         self.args = [a for a in additional_arguments]
         self._path = _bowtie2_path
+        if self._path is None:
+            self._path = "bowtie2"
         if which(self._path) is None:
             raise ValueError("Cannot find {}".format(self._path))
         self.min_quality = min_quality
@@ -207,27 +386,83 @@ class Bowtie2Mapper(Mapper):
 
 
 class SimpleBowtie2Mapper(Bowtie2Mapper):
+    """
+    Bowtie2 Mapper for aligning reads against a reference genome without resubmission.
+
+    Implements :class:`~Mapper` by calling the command line "bowtie2"
+    program. Does not resubmit reads under any circumstance.
+
+    .. attribute:: bowtie2_index
+
+        Path to the bowtie2 index of the reference genome of choice.
+
+    .. attribute:: additional_arguments
+
+        Arguments passed to the "bowtie2" command in addition to
+        -x, -U, --no-unal, --threads, and -S.
+
+    .. attribute:: threads
+
+        Number of threads for this mapping process.
+    """
     def __init__(self, bowtie2_index, additional_arguments=(),
                  threads=1, _bowtie2_path='bowtie2'):
         Bowtie2Mapper.__init__(self, bowtie2_index, min_quality=0,
                                additional_arguments=additional_arguments,
                                threads=threads,
-                               _bowtie2_path=_bowtie2_path)
-        self.resubmit_unmappable = False
+                               _bowtie2_path=_bowtie2_path,
+                               resubmit_unmappable=False)
 
     def _resubmit(self, sam_fields):
         return False
 
 
 class BwaMapper(Mapper):
+    """
+    BWA Mapper for aligning reads against a reference genome.
+
+    Implements :class:`~Mapper` by calling the command line "bwa"
+    program.
+
+    .. attribute:: bwa_index
+
+        Path to the BWA index of the reference genome of choice.
+
+    .. attribute:: min_quality
+
+        Minimum MAPQ of an alignment so that it won't be resubmitted in
+        iterative mapping.
+
+    .. attribute:: additional_arguments
+
+        Arguments passed to the "bowtie2" command in addition to
+        -t and -o.
+
+    .. attribute:: threads
+
+        Number of threads for this mapping process.
+
+    .. attribute:: algorithm
+
+        BWA algorithm to use for mapping. Uses "mem" by default.
+        See http://bio-bwa.sourceforge.net/bwa.shtml for other options.
+
+    .. attribute: memory_map
+
+        Set to true if you want to commit the entire BWA index to memory.
+        This sometimes leads to clashes between different BWA threads.
+
+    """
     def __init__(self, bwa_index, min_quality=0, additional_arguments=(),
-                 threads=1, algorithm='mem', memory_map=False, _bwa_path='bwa'):
+                 threads=1, algorithm='mem', memory_map=False, _bwa_path=config.bwa_path):
         Mapper.__init__(self)
         self.index = os.path.expanduser(bwa_index)
         if self.index.endswith('.'):
             self.index = self.index[:-1]
         self.args = [a for a in additional_arguments]
         self._path = _bwa_path
+        if self._path is None:
+            self._path = 'bwa'
         if which(self._path) is None:
             raise ValueError("Cannot find {}".format(self._path))
         self.algorithm = algorithm
@@ -278,6 +513,42 @@ class BwaMapper(Mapper):
 
 
 class SimpleBwaMapper(BwaMapper):
+    """
+    BWA Mapper for aligning reads against a reference genome without resubmission.
+
+    Implements :class:`~Mapper` by calling the command line "bwa"
+    program. Does not resubmit reads under any circumstance, i.e.
+    does not perform iterative mapping.
+
+    .. attribute:: bwa_index
+
+        Path to the BWA index of the reference genome of choice.
+
+    .. attribute:: min_quality
+
+        Minimum MAPQ of an alignment so that it won't be resubmitted in
+        iterative mapping.
+
+    .. attribute:: additional_arguments
+
+        Arguments passed to the "bowtie2" command in addition to
+        -t and -o.
+
+    .. attribute:: threads
+
+        Number of threads for this mapping process.
+
+    .. attribute:: algorithm
+
+        BWA algorithm to use for mapping. Uses "mem" by default.
+        See http://bio-bwa.sourceforge.net/bwa.shtml for other options.
+
+    .. attribute: memory_map
+
+        Set to true if you want to commit the entire BWA index to memory.
+        This sometimes leads to clashes between different BWA threads.
+
+    """
     def __init__(self, bwa_index, additional_arguments=(),
                  threads=1, memory_map=False, _bwa_path='bwa'):
         BwaMapper.__init__(self, bwa_index, min_quality=0,
@@ -292,6 +563,16 @@ class SimpleBwaMapper(BwaMapper):
 
 
 def _trim_read(input_seq, step_size=5, min_size=25, front=False):
+    """
+    Trim an input sequence by step_size.
+
+    :param input_seq: input DNA sequence
+    :param step_size: truncation step size
+    :param min_size: minimum size of input DNA before error is raised
+    :param front: If True, trim from front instead of back.
+    :return: tuple: read name, trimmed sequence, '+', and trimmed quality
+                    string
+    """
     name, seq, plus, qual = input_seq
     if len(seq) <= min_size:
         raise ValueError("Already reached minimum size, cannot truncate read further")
@@ -313,6 +594,17 @@ def _trim_read(input_seq, step_size=5, min_size=25, front=False):
 
 def _iterative_mapping_worker(mapper, input_queue, output_folder, output_queue,
                               resubmission_queue, monitor, exception_queue):
+    """
+    Worker performing the iterative mapping of FASTQ files.
+
+    :param mapper: :class:`~Mapper` implementation
+    :param input_queue: queue with input FASTQ files
+    :param output_folder: Output folder for intermediate results
+    :param output_queue: queue for valid output alignments
+    :param resubmission_queue: queue for resubmissions (iterative mapping)
+    :param monitor: worker monitor
+    :param exception_queue: queue for exceptions
+    """
     try:
         # generate worker's uuid
         worker_uuid = uuid.uuid4()
@@ -347,6 +639,21 @@ def _iterative_mapping_worker(mapper, input_queue, output_folder, output_queue,
 
 def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
                     exception_queue=None, worker_pool=None, restriction_enzyme=None):
+    """
+    Submit FASTQ batches to input queue.
+
+    Also does ligation site splitting, if requested.
+
+    :param fastq_file: Path to input FASTQ file
+    :param output_folder: Path to output folder (tmp)
+    :param batch_size: Number of reads submitted to a monitor
+    :param input_queue: queue for batch FASTQ files
+    :param monitor: worker monitor
+    :param exception_queue: queue for exceptions
+    :param worker_pool: Pool of mapping workers "_iterative_mapping_worker"
+    :param restriction_enzyme: Name of restriction enzyme of restriction pattern
+                               (e.g. A^AGCT_T)
+    """
     monitor.set_submitting(True)
 
     if restriction_enzyme is not None:
@@ -359,7 +666,8 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
     submission_counter = 0
     try:
         if fastq_file.endswith('.gz') or fastq_file.endswith('.gzip'):
-            open_file = lambda x: io.BufferedReader(gzip.open(x, 'r'), buffer_size=4*io.DEFAULT_BUFFER_SIZE)
+            open_file = lambda x: io.BufferedReader(gzip.open(x, 'r'),
+                                                    buffer_size=4*io.DEFAULT_BUFFER_SIZE)
         else:
             open_file = io.open
 
@@ -454,6 +762,21 @@ def _resubmissions_to_queue(resubmission_queue, output_folder, batch_size,
                             input_queue, monitor, step_size=5, min_size=25,
                             trim_front=False,
                             exception_queue=None, worker_pool=None):
+    """
+    Collect resubmission files, process the FASTQ, and resubmit to input queue.
+
+    :param resubmission_queue: queue for resubmission files
+    :param output_folder: output folder (tmp)
+    :param batch_size: Number of reads submitted to a monitor
+    :param input_queue: queue for input (batch) FASTQ files
+    :param monitor: worker monitor
+    :param step_size: Step size for read trimming
+    :param min_size: Minimum read size
+    :param trim_front: If True, trims reads from front instead of back
+    :param exception_queue: queue for exceptions
+    :param worker_pool: Pool of mapping workers "_iterative_mapping_worker"
+    :return:
+    """
     collected_resubmits = 0
     tmp_output_file = None
     read_counter = 0
@@ -564,8 +887,9 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
     :param trim_front: Trim bases from front of read instead of back
     :param restriction_enzyme: If provided, will calculate the expected ligation
                                junction between reads and split reads accordingly.
-                               Both ends will be attempted to map
-    :return:
+                               Both ends will be attempted to map. Can be the name
+                               of a restriction enzyme or a restriction pattern
+                               (e.g. A^AGCT_T)
     """
     if tmp_folder is None:
         tmp_folder = tempfile.mkdtemp()
@@ -668,3 +992,5 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
     finally:
         logger.debug(tmp_folder)
         shutil.rmtree(tmp_folder, ignore_errors=True)
+
+    return sam_file
