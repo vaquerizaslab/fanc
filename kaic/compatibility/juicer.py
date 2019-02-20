@@ -110,8 +110,48 @@ def _read_cstr(f):
             buf = buf + b
 
 
+class LazyJuicerEdge(Edge):
+    def __init__(self, source, sink, matrix, **kwargs):
+        self._matrix = matrix
+        self._weight_field = 'weight'
+        self._bias = 1.
+        self._source = source
+        self._sink = sink
+
+    def __getattribute__(self, item):
+        if item == '_weight_field' or item != self._weight_field:
+            return object.__getattribute__(self, item)
+        return object.__getattribute__(self, item) * self._bias
+
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError("No such key: {}".format(item))
+
+    @property
+    def bias(self):
+        return self._bias
+
+    @bias.setter
+    def bias(self, b):
+        self._bias = b
+
+    @property
+    def source_node(self):
+        return self._matrix.region_by_ix(self.source)
+
+    @property
+    def sink_node(self):
+        return self._matrix.region_by_ix(self.sink)
+
+    @property
+    def field_names(self):
+        return ['weight']
+
+
 class JuicerHic(RegionMatrixContainer):
-    def __init__(self, hic_file, resolution=None, norm='NONE'):
+    def __init__(self, hic_file, resolution=None, norm='KR'):
         RegionMatrixContainer.__init__(self)
         self._hic_file = hic_file
 
@@ -124,6 +164,7 @@ class JuicerHic(RegionMatrixContainer):
         self._resolution = resolution
         self._normalisation = norm
         self._unit = 'BP'
+        self._mappability = None
 
         if not is_juicer(hic_file):
             raise ValueError("File {} does not seem to be a .hic "
@@ -213,7 +254,7 @@ class JuicerHic(RegionMatrixContainer):
 
         return chromosome_lengths
 
-    def chromosomes(self):
+    def _all_chromosomes(self):
         with open(self._hic_file, 'rb') as req:
             JuicerHic._skip_to_chromosome_lengths(req)
 
@@ -222,8 +263,15 @@ class JuicerHic(RegionMatrixContainer):
             for _ in range(0, n_chromosomes):
                 name = _read_cstr(req)
                 req.read(4)
-                if name.lower() != 'all':
-                    chromosomes.append(name)
+                chromosomes.append(name)
+
+        return chromosomes
+
+    def chromosomes(self):
+        chromosomes = []
+        for chromosome in self._all_chromosomes():
+            if chromosome.lower() != 'all':
+                chromosomes.append(chromosome)
 
         return chromosomes
 
@@ -435,6 +483,33 @@ class JuicerHic(RegionMatrixContainer):
                          "chromosome: {}, normalisation: {}, "
                          "resolution: {}, unit: {}".format(chromosome, normalisation, resolution, unit))
 
+    def region_by_ix(self, ix):
+        chromosome_lengths = self.chromosome_lengths
+
+        offset_ix = 0
+        remaining_ix = ix
+        chromosomes = self.chromosomes()
+        current_chromosome = None
+        for chromosome in chromosomes:
+            current_chromosome = chromosome
+            chromosome_length = chromosome_lengths[chromosome]
+            if chromosome.lower() == 'all':
+                continue
+
+            ixs = int(np.ceil(chromosome_length / self._resolution))
+            if remaining_ix > ixs:
+                offset_ix += ixs
+                remaining_ix -= ixs
+            else:
+                break
+
+        region_ix = offset_ix + remaining_ix
+        start = remaining_ix * self._resolution + 1
+        return GenomicRegion(chromosome=current_chromosome, start=start,
+                             end=min(start + self._resolution - 1,
+                                     chromosome_lengths[current_chromosome]),
+                             ix=region_ix)
+
     def _chromosome_ix_offset(self, target_chromosome):
         chromosome_lengths = self.chromosome_lengths
         if target_chromosome not in chromosome_lengths:
@@ -585,17 +660,18 @@ class JuicerHic(RegionMatrixContainer):
         region1 = self._convert_region(region1)
         region2 = self._convert_region(region2)
 
-        chromosomes = self.chromosomes()
+        chromosomes = self._all_chromosomes()
         chromosome1_ix = chromosomes.index(region1.chromosome)
         chromosome2_ix = chromosomes.index(region2.chromosome)
 
         if chromosome1_ix > chromosome2_ix:
             region1, region2 = region2, region1
+            chromosome1_ix, chromosome2_ix = chromosome2_ix, chromosome1_ix
 
         region1_chromosome_offset = self._chromosome_ix_offset(region1.chromosome)
         region2_chromosome_offset = self._chromosome_ix_offset(region2.chromosome)
 
-        matrix_file_position = self._matrix_positions()[(region1.chromosome, region2.chromosome)]
+        matrix_file_position = self._matrix_positions()[(str(chromosome1_ix), str(chromosome2_ix))]
 
         with open(self._hic_file, 'rb') as req:
             req.seek(matrix_file_position)
@@ -667,7 +743,7 @@ class JuicerHic(RegionMatrixContainer):
                     logger.debug("Could not find block {}".format(block_number))
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None,
-                      *args, **kwargs):
+                      lazy=False, *args, **kwargs):
 
         if row_regions[0].chromosome != row_regions[-1].chromosome:
             raise ValueError("Cannot subset rows across multiple chromosomes!")
@@ -687,10 +763,20 @@ class JuicerHic(RegionMatrixContainer):
                                  start=col_regions[0].start,
                                  end=col_regions[-1].end)
 
-        for x, y, weight in self._read_matrix(row_span, col_span):
-            yield Edge(source=regions_by_ix[x],
-                       sink=regions_by_ix[y],
-                       weight=weight)
+        if not lazy:
+            for x, y, weight in self._read_matrix(row_span, col_span):
+                if x > y:
+                    x, y = y, x
+                yield Edge(source=regions_by_ix[x],
+                           sink=regions_by_ix[y],
+                           weight=weight)
+        else:
+            edge = LazyJuicerEdge(source=0, sink=0, weight=1.0, matrix=self)
+            for x, y, weight in self._read_matrix(row_span, col_span):
+                if x > y:
+                    x, y = y, x
+                edge._source, edge._sink, edge.weight = x, y, weight
+                yield edge
 
     def _edges_iter(self, *args, **kwargs):
         chromosomes = self.chromosomes()
@@ -699,6 +785,34 @@ class JuicerHic(RegionMatrixContainer):
             for ix2 in range(ix1, len(chromosomes)):
                 chromosome2 = chromosomes[ix2]
 
-                for edge in self.edges((chromosome1, chromosome2), *args, **kwargs):
+                key = chromosome1, chromosome2
+                row_regions, col_regions = self._key_to_regions(key)
+
+                if isinstance(row_regions, GenomicRegion):
+                    row_regions = [row_regions]
+                else:
+                    row_regions = list(row_regions)
+
+                if isinstance(col_regions, GenomicRegion):
+                    col_regions = [col_regions]
+                else:
+                    col_regions = list(col_regions)
+
+                for edge in self._edges_subset(key=key, row_regions=row_regions,
+                                               col_regions=col_regions, *args, **kwargs):
                     yield edge
 
+    def mappable(self):
+        """
+        Get the mappability vector of this matrix.
+        """
+        if self._mappability is not None:
+            return self._mappability
+
+        mappable = [False] * len(self.regions)
+        for edge in self.edges(lazy=True):
+            mappable[edge.source] = True
+            mappable[edge.sink] = True
+        self._mappability = mappable
+
+        return mappable
