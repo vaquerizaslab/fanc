@@ -13,12 +13,13 @@ import warnings
 import os
 
 from genomic_regions import GenomicRegion, load as gr_load
-from kaic.architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex
-from kaic.architecture.compartments import ABCompartmentMatrix
-from kaic.architecture.comparisons import FoldChangeMatrix, DifferenceMatrix
-from kaic.architecture.aggregate import AggregateMatrix, aggregate_boundaries, aggregate_loops
-from kaic.config import config
+from .architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex
+from .architecture.compartments import ABCompartmentMatrix
+from .architecture.comparisons import FoldChangeMatrix, DifferenceMatrix
+from .architecture.aggregate import AggregateMatrix, aggregate_boundaries, aggregate_loops
+from .config import config
 from .general import FileBased
+from .map import *
 from .hic import Hic
 from .matrix import Edge, RegionMatrix
 from .pairs import ReadPairs as Pairs
