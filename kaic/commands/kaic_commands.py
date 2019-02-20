@@ -44,7 +44,7 @@ def kaic_parser():
     )
 
     parser.add_argument(
-        '--version', dest='print_version',
+        '-V', '--version', dest='print_version',
         action='store_true',
         help='Print version information'
     )

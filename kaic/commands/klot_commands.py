@@ -72,7 +72,7 @@ def klot_parser():
     parser.set_defaults(invert_x=False)
 
     parser.add_argument(
-        '-v', '--version', dest='print_version',
+        '-V', '--version', dest='print_version',
         action='store_true',
         help='''Print version information'''
     )
