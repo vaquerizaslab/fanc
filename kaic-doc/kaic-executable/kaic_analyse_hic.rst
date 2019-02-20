@@ -13,5 +13,6 @@ It provides convenient commands for the generation, modification, and analysis o
     AB compartments <kaic-analyse-hic/ab_compartments>
     PCA <kaic-analyse-hic/pca>
     TADs and TAD boundaries <kaic-analyse-hic/domains>
+    Matrix and score comparisons <kaic-analyse-hic/comparisons>
     Aggregate Hi-C matrices <kaic-analyse-hic/aggregate_hic>
     Loop calling <kaic-analyse-hic/loops>
