@@ -122,9 +122,6 @@ class LazyEdge(object):
         self._bias = 1.
         self._weight_field = _weight_field
 
-    def update(self):
-        self._row.update()
-
     def __getattr__(self, item):
         if item != self._weight_field:
             try:
@@ -146,6 +143,9 @@ class LazyEdge(object):
             return getattr(self, item)
         except AttributeError:
             raise KeyError("No such key: {}".format(item))
+
+    def update(self):
+        self._row.update()
 
     @property
     def bias(self):
