@@ -247,26 +247,27 @@ class LazyGenomicRegion(GenomicRegion):
                             making changes.
         """
         self._row = row
-        self.static_ix = ix
-        self.auto_update = auto_update
+        self._static_ix = ix
+        self._auto_update = auto_update
 
     def __getattr__(self, item):
-        if item == 'reserved' or item in self.reserved:
-            return object.__getattribute__(self, item)
         try:
             value = self._row[item]
             value = value.decode() if isinstance(value, bytes) else value
             return value
         except KeyError:
-            raise AttributeError
+            raise AttributeError("No such attribute: {}".format(item))
 
     def __setattr__(self, key, value):
-        if key == 'reserved' or key in self.reserved:
-            super(LazyGenomicRegion, self).__setattr__(key, value)
-        else:
+        if not key.startswith('_'):
             self._row[key] = value
-            if self.auto_update:
+            if self._auto_update:
                 self._row.update()
+        else:
+            object.__setattr__(self, key, value)
+
+    def update(self):
+        self._row.update()
 
     @property
     def strand(self):
@@ -283,13 +284,21 @@ class LazyGenomicRegion(GenomicRegion):
 
     @property
     def ix(self):
-        if self.static_ix is None:
+        """
+        Region index.
+
+        Location in underlying list of regions.
+        """
+        if self._static_ix is None:
             return self._row["ix"]
-        return self.static_ix
+        return self._static_ix
 
     @property
     def attributes(self):
-        return self._row.tables.colnames
+        """
+        List of all attributes in this region.
+        """
+        return self._row.table.colnames
 
 
 class RegionBasedWithBins(RegionBased):
