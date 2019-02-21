@@ -483,27 +483,12 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             create_col_index(self._regions.cols.start)
             create_col_index(self._regions.cols.end)
 
-        self._ix_to_chromosome = dict()
-        self._chromosome_to_ix = dict()
-        self._update_references()
-
-    def _update_references(self):
-        chromosomes = []
-        for region in self.regions(lazy=True):
-            if len(chromosomes) == 0 or chromosomes[-1] != region.chromosome:
-                chromosomes.append(region.chromosome)
-
-        for i, chromosome in enumerate(chromosomes):
-            self._ix_to_chromosome[i] = chromosome
-            self._chromosome_to_ix[chromosome] = i
-
     def _flush_regions(self):
         """
         Write buffered regions to PyTables Table.
         """
         if self._regions_dirty:
             self._regions.flush()
-            self._update_references()
             self._regions_dirty = False
 
     def flush(self):

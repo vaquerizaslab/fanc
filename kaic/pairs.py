@@ -606,6 +606,28 @@ class ReadPairs(RegionPairsTable):
         self._pairs = self._edges
         self._pair_count = sum(edge_table._original_len()
                                for edge_table in self._edge_table_dict.values())
+        self._ix_to_chromosome = dict()
+        self._chromosome_to_ix = dict()
+        self._update_references()
+
+    def _update_references(self):
+        """
+        Update internal chromosome index dictionaries.
+        """
+        chromosomes = []
+        for region in self.regions(lazy=True):
+            if len(chromosomes) == 0 or chromosomes[-1] != region.chromosome:
+                chromosomes.append(region.chromosome)
+
+        for i, chromosome in enumerate(chromosomes):
+            self._ix_to_chromosome[i] = chromosome
+            self._chromosome_to_ix[chromosome] = i
+
+    def _flush_regions(self):
+        if self._regions_dirty:
+            self._regions.flush()
+            self._update_references()
+            self._regions_dirty = False
 
     def flush(self, update_mappability=True, silent=config.hide_progressbars):
         RegionPairsTable.flush(self, silent=silent)
