@@ -1,3 +1,55 @@
+"""
+Module for handling genomic regions such as chromosomes, bins, and restriction fragments.
+
+The class :class:`~RegionsTable` is an implementation of the :class:`~RegionBased`
+interface from the :mod:`genomic_regions` package. More details on how to use the
+:class:`~genomic_regions.RegionBased` interface can be found in the :mod:`genomic_regions`
+documentation, but here is an example to get you started:
+
+.. code::
+
+    import kaic
+    rt = kaic.RegionsTable()
+
+    # demo how to add regions
+    regions = []
+    for chromosome in ['chr1', 'chr2']:
+        for start in range(1, 10000, 1000):
+            r = kaic.GenomicRegion(chromosome=chromosome, start=start, end=start+999)
+            regions.append(r)
+    rt.add_regions(regions)
+
+    # query regions on chromosome 1
+    for r in rt.regions('chr1'):
+        print(r)  # chr1:1-1000, chr1:1001-2000, ..., chr1:9001-10000
+
+The class :class:`~Chromosome` holds chromosome information, specifically the
+chromosome name in the reference genome, its length in base pairs, and its DNA
+sequence. Multiple :class:`~Chromosome` objects can be grouped into a :class:`~Genome`,
+which provides convenient access to its chromosomes and has useful functions for
+in silico digestion and genome binning.
+
+.. code::
+
+    import kaic
+
+    # create chromosomes
+    chromosome1 = kaic.Chromosome(name='chr1', sequence='AAGTCCGTGCTGTCGATCATAGCTAGCTAGCTA')
+    chromosome2 = kaic.Chromosome(name='chr2', sequence='GTGTCGATCAAATCGAAA')
+    len(chromosome1)  # 33
+
+    # create genome
+    genome = kaic.Genome()
+    genome.add_chromosome(chromosome1)
+    genome.add_chromosome(chromosome2)
+
+    # in silico digestion
+    restriction_fragments = genome.get_regions('MboI')  # cuts 'GATC'
+    for r in restriction_fragments.regions:
+        print(r)  # chr1:1-15, chr1:16-33, chr2:1-6, chr2:7-18
+
+"""
+
 from __future__ import division, print_function
 
 import os.path
@@ -8,7 +60,7 @@ from Bio import SeqIO, Restriction, Seq
 from genomic_regions import RegionBased, GenomicRegion, load as gr_load
 from .general import FileGroup
 from .tools.files import is_fasta_file
-from .tools.general import create_col_index, RareUpdateProgressBar
+from .tools.general import create_col_index
 
 try:
     from itertools import izip as zip
@@ -25,6 +77,18 @@ __all__ = ['Chromosome', 'Genome', 'RegionsTable', 'LazyGenomicRegion', 'genome_
 
 
 def genome_regions(re_or_file, restriction_enzyme=None):
+    """
+    Obtain RE fragments or bins of equal size from a reference genome.
+
+    :param re_or_file: Path to or :class:`~RegionBased` file with regions corresponding
+                       to restriction fragments, or path to FASTA file with chromosomes
+    :param restriction_enzyme: If the first argument is a FASTA file, you must
+                               provide the name of a restriction enzyme here
+                               for in silico genome digestion. You can also provide
+                               an integer, in which case the genome will be binned into
+                               regions of this size in bp.
+    :return: :class:`~RegionsTable` of restriction fragments
+    """
     if isinstance(re_or_file, RegionBased):
         return re_or_file
 
@@ -108,7 +172,7 @@ class Chromosome(object):
 
         This class method will load a FASTA file and convert it into
         a :class:`~Chromosome` object. If the FASTA file contains multiple
-        sequences, only the first one will be read.
+        sequences, the output will be a list of :class:`~Chromosome` objects.
 
         :param file_name: Path to the FASTA file
         :param name: Chromosome name. If None (default), will be read
@@ -126,13 +190,14 @@ class Chromosome(object):
             chromosomes = []
             for fasta in fastas:
                 if include_sequence:
-                    chromosome = cls(name if name else fasta.id, length=len(fasta), sequence=str(fasta.seq))
+                    chromosome = cls(name if name else fasta.id, length=len(fasta),
+                                     sequence=str(fasta.seq))
                 else:
                     chromosome = cls(name if name else fasta.id, length=len(fasta))
                 chromosomes.append(chromosome)
 
         if len(chromosomes) == 0:
-            raise ValueError("File %s does not appear to be a FASTA file" % file_name)
+            raise ValueError("File {} does not appear to be a FASTA file".format(file_name))
         if len(chromosomes) == 1:
             return chromosomes[0]
         return chromosomes
@@ -141,7 +206,7 @@ class Chromosome(object):
         """
         Find the restriction sites of a provided enzyme in this chromosome.
 
-        Internally uses biopython to find RE sites.
+        Internally uses Biopython to find RE sites.
 
         :param restriction_enzyme: The name of the restriction enzyme
                                    (e.g. HindIII)
@@ -159,8 +224,28 @@ class Chromosome(object):
 
 
 class LazyGenomicRegion(GenomicRegion):
+    """
+    A :class:`~GenomicRegion` object with lazy attribute loading.
+
+    This class is central to an efficient retrieval of regions from
+    objects subclassing :class:`~RegionsTable`. Its handling should
+    be mostly identical to :class:`~GenomicRegion`, but attributes
+    will only be loaded on demand. Changes to attributes will change
+    the underlying row in the HDF5 regions table if the auto_update
+    parameter is set to True (default). Else you can manually call
+    :func:`~LazyGenomicRegion.update`.
+    """
     def __init__(self, row, ix=None, auto_update=True):
-        self.reserved = {'_row', 'static_ix', 'strand', 'auto_update', 'attributes'}
+        """
+        Initialise this LazyGenomicRegion.
+
+        :param row: Pytables row from a :class:`~RegionsTable`
+        :param ix: (optional) region index. Overrides "ix" set in row.
+        :param auto_update: Write changed attribute data to underlying table
+                            if True (default). If False, call
+                            :func:`~LazyGenomicRegion.update` manually after
+                            making changes.
+        """
         self._row = row
         self.static_ix = ix
         self.auto_update = auto_update
@@ -185,6 +270,12 @@ class LazyGenomicRegion(GenomicRegion):
 
     @property
     def strand(self):
+        """
+        Strand this region is located on as int.
+
+        :return: 1: forward strand, -1 reverse strand, 0 or
+                 None: unknown.
+        """
         try:
             return self._row["strand"]
         except KeyError:
@@ -202,6 +293,11 @@ class LazyGenomicRegion(GenomicRegion):
 
 
 class RegionBasedWithBins(RegionBased):
+    """
+    Extension of :class:`~RegionBased` with support for genomic bins.
+
+    Provides a few convenience functions for dealing with genomic bins.
+    """
     def __init__(self):
         super(RegionBasedWithBins, self).__init__()
 
@@ -216,9 +312,9 @@ class RegionBasedWithBins(RegionBased):
         """
         return self._chromosome_bins()
 
-    def _chromosome_bins(self):
+    def _chromosome_bins(self, *args, **kwargs):
         chr_bins = {}
-        for r in self.regions:
+        for r in self.regions(*args, **kwargs):
             if chr_bins.get(r.chromosome) is None:
                 chr_bins[r.chromosome] = [r.ix, r.ix + 1]
             else:
@@ -228,9 +324,9 @@ class RegionBasedWithBins(RegionBased):
     @property
     def bin_size(self):
         """
-        Return the size of the first region in the dataset.
+        Return the length of the first region in the dataset.
 
-        Assumes all regions have equal size.
+        Assumes all bins have equal size.
 
         :return: int
         """
@@ -258,10 +354,18 @@ class RegionBasedWithBins(RegionBased):
         """
         return int(self.bin_size * bins)
 
-    def region_bins(self, region):
+    def region_bins(self, *args, **kwargs):
+        """
+        Return slice of start and end indices spanned by a region.
+
+        :param args: provide a :class:`~GenomicRegion` here to get
+                     the slice of start and end bins of onlythis region.
+                     To get the slice over all regions leave this blank.
+        :return:
+        """
         start_ix = None
         end_ix = None
-        for i, r in enumerate(self.regions(region)):
+        for i, r in enumerate(self.regions(*args, **kwargs)):
             ix = getattr(r, 'ix', i)
             if start_ix is None:
                 start_ix = ix
@@ -275,8 +379,25 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
     This class is inherited by objects working with lists of genomic
     regions, such as equidistant bins along chromosomes in a genome
-    (:class:`~Hic`) or restriction fragments of genomic DNA
-    (:class:`~kaic.construct.seq.FragmentMappedReadPairs`)
+    (:class:`~kaic.hic.Hic`) or restriction fragments of genomic DNA
+    (:class:`~kaic.pairs.ReadPairs`)
+
+    Internally, each genomic region is encoded in a PyTables Table and
+    the following region attributes are represented as table columns:
+    ix, chromosome, start, end, and strand. To add additional region
+    attributes, such as a score, use the "additional_fields" parameter
+    of the __init__ method. This must be a dict where the keys are str
+    and values are PyTables column descriptors, such as
+    :class:`~tables.StringCol`. Example for adding a score field:
+
+    .. code::
+
+        import kaic
+        import tables
+        rt = kaic.RegionsTable(
+                additional_fields={'score': tables.Float32Col()}
+             )
+
     """
 
     _classid = 'REGIONSTABLE'
@@ -297,7 +418,20 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         """
         Initialize region table.
 
-        :param file_name: Path to file
+        :param file_name: Path to file or None for in-memory file
+        :param mode: File mode. Defaults to 'a' (append). Use 'r' for read-only
+                     access, and 'w' for write mode that will overwrite any
+                     previous file content.
+        :param tmpdir: If True, will copy an existing or create a new file to a
+                       temporary directory. You can also pass the path to a folder
+                       here directly. The file is copied to the location given by
+                       file_name when calling :func:`~RegionsTable.close`
+        :param additional_fields: Dictionary of additional columns to be appended
+                                  to the PyTables table holding the genomic regions.
+                                  By default, the columns are: ix, chromosome, start,
+                                  end, strand, and _mask_ix. This must be a dict
+                                  where the keys are str and values are PyTables
+                                  column descriptors
         :param _table_name_regions: (Internal) name of the HDF5
                                     node that stores data for this
                                     object
@@ -323,7 +457,8 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
             current = len(basic_fields)
             if additional_fields is not None:
-                if not isinstance(additional_fields, dict) and issubclass(additional_fields, t.IsDescription):
+                if (not isinstance(additional_fields, dict) and
+                        issubclass(additional_fields, t.IsDescription)):
                     # IsDescription subclass case
                     additional_fields = additional_fields.columns
 
@@ -363,15 +498,33 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             self._chromosome_to_ix[chromosome] = i
 
     def _flush_regions(self):
+        """
+        Write buffered regions to PyTables Table.
+        """
         if self._regions_dirty:
             self._regions.flush()
             self._update_references()
             self._regions_dirty = False
 
     def flush(self):
+        """
+        Write buffered data to file.
+        """
         self._flush_regions()
 
     def _add_region(self, region, preserve_attributes=True, *args, **kwargs):
+        """
+        Basic function to add a region to this object.
+
+        :param region: :class:`~GenomicRegion`
+        :param preserve_attributes: If True, will attempt to copy all region
+                                    attributes to this region table. If False,
+                                    will only use chromosome, start, end, and
+                                    strand
+        :param args: Currently not used
+        :param kwargs: Currently not used
+        :return: Region index of the added region.
+        """
         self._regions_dirty = True
         ix = getattr(self.meta, 'max_region_ix', -1) + 1
 
@@ -397,6 +550,10 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         return ix
 
     def chromosomes(self):
+        """
+        List all chromosomes in this regions table.
+        :return: list of chromosome names.
+        """
         chromosomes_set = set()
         chromosomes = []
         for region in self.regions(lazy=True):
@@ -449,6 +606,14 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         return None
 
     def _row_to_region(self, row, lazy_region=None):
+        """
+        Convert a PyTables row to :class:`~GenomicRegion`.
+
+        :param row: PyTables row object
+        :param lazy_region: (optional) :class:`~LazyGenomicRegion` that is
+                            used for loading attributes.
+        :return: :class:`~GenomicRegion` or :class:`~LazyGenomicRegion`
+        """
         if lazy_region is not None:
             lazy_region._row = row
             return lazy_region
@@ -469,6 +634,9 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                              end=row["end"], ix=row["ix"], _mask_ix=mask_ix, **kwargs)
 
     def _region_iter(self, lazy=False, auto_update=True, *args, **kwargs):
+        """
+        Iterate over all genomic regions.
+        """
         if lazy:
             lazy_region = LazyGenomicRegion(row=None, auto_update=auto_update)
         else:
@@ -478,6 +646,9 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             yield self._row_to_region(row, lazy_region=lazy_region)
 
     def _region_subset(self, region, lazy=False, auto_update=True, *args, **kwargs):
+        """
+        Iterate over a range of genomic regions.
+        """
         if lazy:
             lazy_region = LazyGenomicRegion(row=None, auto_update=auto_update)
         else:
@@ -488,6 +659,9 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             yield sub_region
 
     def _get_regions(self, key, *args, **kwargs):
+        """
+        Get specific regions by key.
+        """
         res = self._regions[key]
 
         if isinstance(res, np.ndarray):
@@ -499,13 +673,16 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             return self._row_to_region(res)
 
     def _region_len(self):
+        """
+        Get the number of regions in this object.
+        """
         return len(self._regions)
 
     def _subset_rows(self, key):
         """
         Iterate over a subset of regions given the specified key.
 
-        :param key: A :class:`~kaic.data.genomic.GenomicRegion` object,
+        :param key: A :class:`~GenomicRegion` object,
                     or a list of the former. Also accepts slices and integers
         :return: Iterator over the specified subset of regions
         """
@@ -553,12 +730,9 @@ class Genome(FileGroup):
     """
     Class representing a collection of chromosomes.
 
-    Extends the :class:`~RegionsTable` class and provides
-    all the expected functionality. Provides some convenience batch
+    Provides some convenience batch
     methods that call :class:`~Chromosome` methods for every
     chromosome in this object.
-
-    This object can be saved to file.
     """
 
     class ChromosomeDefinition(t.IsDescription):
@@ -601,6 +775,9 @@ class Genome(FileGroup):
                 self.add_chromosome(chromosome)
 
     def chromosomes(self):
+        """
+        Get list of chromosomes in this object
+        """
         return self._names
 
     @property
@@ -870,6 +1047,14 @@ class Genome(FileGroup):
         return regions
 
     def sub_sequence(self, chromosome, start=None, end=None):
+        """
+        Extract the chromosome DNA sequence between start and end.
+
+        :param chromosome: Name of chromosome
+        :param start: start position in bp (1-based, inclusive)
+        :param end: end position in bp (1-based, inclusive)
+        :return: str
+        """
         if start is not None:
             selection_region = GenomicRegion(chromosome=chromosome, start=start, end=end)
         elif isinstance(chromosome, GenomicRegion):
