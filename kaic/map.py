@@ -143,6 +143,15 @@ class Mapper(object):
     (after expanding it)
 
     See :class:`~Bowtie2Mapper` or :class:`~BwaMapper` for examples.
+
+    .. attribute:: resubmit_unmappable
+
+        Set to True (default) if unmappable reads should be resubmitted
+
+    .. attribute:: attempt_resubmit
+
+        Try to resubmit a read if it failed the :func:`~Mapper._resubmit`
+        test.
     """
 
     def __init__(self, resubmit_unmappable=True, attempt_resubmit=True):
