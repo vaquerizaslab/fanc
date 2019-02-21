@@ -48,6 +48,15 @@ in silico digestion and genome binning.
     for r in restriction_fragments.regions:
         print(r)  # chr1:1-15, chr1:16-33, chr2:1-6, chr2:7-18
 
+    # binning
+    bins = genome.get_regions(10)  # cuts 'GATC'
+    for r in bins.regions:
+        print(r)  # chr1:1-10, chr1:11-20, chr1:21-30, chr1:31-33, chr2:1-10, chr2:11-18
+
+    # load genome from file
+    genome_from_file = Genome.from_string("hg19_chr18_19.fa")
+    genome_from_file.chromosomes() # ['chr18', 'chr19']
+
 """
 
 from __future__ import division, print_function
