@@ -39,6 +39,25 @@ def load(file_name, *args, **kwargs):
     file_name = os.path.expanduser(file_name)
 
     try:
+        logger.debug("Trying FileBased classes")
+
+        f = tables.open_file(file_name, mode='r')
+        try:
+            classid = f.get_node('/', 'meta_information').meta_node.attrs['_classid']
+            classid = classid.decode() if isinstance(classid, bytes) else classid
+        finally:
+            f.close()
+        cls_ = class_id_dict[classid]
+        logger.debug("Detected {}".format(cls_))
+        return cls_(file_name=file_name, mode=mode, *args, **kwargs)
+    except (tables.HDF5ExtError, AttributeError, KeyError):
+        pass
+
+    from kaic.compatibility.juicer import JuicerHic, is_juicer
+    if is_juicer(file_name):
+        return JuicerHic(file_name, *args, **kwargs)
+
+    try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             from kaic.compatibility.cooler import is_cooler, CoolerHic
@@ -47,31 +66,7 @@ def load(file_name, *args, **kwargs):
     except (ImportError, OSError):
         pass
 
-    from kaic.compatibility.juicer import JuicerHic, is_juicer
-    if is_juicer(file_name):
-        return JuicerHic(file_name, *args, **kwargs)
-
-    try:
-        logger.debug("Trying FileBased classes")
-        f = FileBased(file_name, mode='r')
-
-        classid = None
-        try:
-            classid = f.meta._classid
-            classid = classid.decode() if isinstance(classid, bytes) else classid
-            f.close()
-            cls_ = class_id_dict[classid]
-            logger.debug("Detected {}".format(cls_))
-            return cls_(file_name=file_name, mode=mode, *args, **kwargs)
-        except AttributeError:
-            raise ValueError("File ({}) does not have a '_classid' meta attribute. This might be fixed by loading the "
-                             "class once explicitly with the appropriate class in append mode. "
-                             "It was also impossible to auto-detect the file type from the file "
-                             "structure.".format(file_name))
-        except KeyError:
-            raise ValueError("classid attribute ({}) does not have a registered class.".format(classid))
-    except tables.HDF5ExtError:
-        return gr_load(file_name, *args, **kwargs)
+    return gr_load(file_name, *args, **kwargs)
 
 
 example_data = dict(
