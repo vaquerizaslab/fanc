@@ -1,17 +1,17 @@
 from __future__ import division
 
-import os
 import copy
 import gzip
 import logging
 import multiprocessing as mp
-from queue import Empty
+import os
 import threading
 import uuid
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
 from builtins import object
 from collections import defaultdict
+from queue import Empty
 from timeit import default_timer as timer
 
 import msgpack
@@ -21,11 +21,11 @@ import tables as t
 from future.utils import with_metaclass, viewitems
 
 from genomic_regions import GenomicRegion
-from .regions import genome_regions
-from .matrix import Edge, RegionPairsTable
-from .hic import Hic
 from .config import config
 from .general import MaskFilter, MaskedTable, Mask
+from .hic import Hic
+from .matrix import Edge, RegionPairsTable
+from .regions import genome_regions
 from .tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions, WorkerMonitor
 from .tools.sambam import natural_cmp
 
@@ -36,6 +36,29 @@ def generate_pairs(sam1_file, sam2_file, regions,
                    restriction_enzyme=None, read_filters=(),
                    output_file=None, check_sorted=True,
                    threads=1, batch_size=10000000):
+    """
+    Generate Pairs object from SAM/BAM files.
+
+    This is a convenience function that let's you create a
+    Pairs object from SAM/BAM data in a single step.
+
+    :param sam1_file: Path to a sorted SAM/BAM file (1st mate)
+    :param sam2_file: Path to a sorted SAM/BAM file (2nd mate)
+    :param regions: Path to file with restriction fragments (BED, GFF)
+                    or FASTA with genomic sequence
+    :param restriction_enzyme: Name of restriction enzyme
+                               (only when providing FASTA as regions)
+    :param read_filters: List of :class:`~ReadFilter` to filter reads
+                         while loading from SAM/BAM
+    :param output_file: Path to output file
+    :param check_sorted: Double-check that input SAM files
+                         are sorted if True (default)
+    :param threads: Number of threads used for finding restriction
+                    fragments for read pairs
+    :param batch_size: Number of read pairs sent to each restriction
+                       fragment worker
+    :return: :class:`~ReadPairs`
+    """
     regions = genome_regions(regions, restriction_enzyme=restriction_enzyme)
 
     sb = SamBamReadPairGenerator(sam1_file, sam2_file, check_sorted=check_sorted)
@@ -51,6 +74,9 @@ def generate_pairs(sam1_file, sam2_file, regions,
 
 
 class Monitor(WorkerMonitor):
+    """
+    Class to monitor fragment info worker threads.
+    """
     def __init__(self, value=0):
         WorkerMonitor.__init__(self, value=value)
         self.generating_pairs_lock = threading.Lock()
@@ -59,15 +85,34 @@ class Monitor(WorkerMonitor):
             self.generating_pairs = True
 
     def set_generating_pairs(self, value):
+        """
+        Set the pair generating status.
+        """
         with self.generating_pairs_lock:
             self.generating_pairs = value
 
     def is_generating_pairs(self):
+        """
+        Check the pair generating status.
+        """
         with self.generating_pairs_lock:
             return self.generating_pairs
 
 
 def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
+    """
+    Worker that finds the restriction fragment info for read pairs.
+
+    Finds the restriction fragment each read maps to, and returns the
+    coordinates of the read and fragment pairs for each read pair.
+
+    :param monitor: :class:`~Monitor`
+    :param input_queue: Queue for input read_pairs
+    :param output_queue: Queue for output fragment infos
+    :param fi: Fragment info dictionary by chromosome and fragment index
+    :param fe: Fragment end coordinates by chromosome
+    :return: list of fragment infos
+    """
     worker_uuid = uuid.uuid4()
     logger.debug("Starting fragment info worker {}".format(worker_uuid))
 
@@ -108,6 +153,14 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
 
 
 def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=100000):
+    """
+    Worker to distribute incoming read pairs to fragment info workers.
+
+    :param read_pairs: Iterator of read tuples (read1, read2)
+    :param input_queue: Input queue for read pairs
+    :param monitor: :class:`~Monitor`
+    :param batch_size: Number of read pairs sent to each worker
+    """
     logger.debug("Starting read pairs worker")
     try:
         read_pairs_batch = []
@@ -131,6 +184,37 @@ def _read_pairs_worker(read_pairs, input_queue, monitor, batch_size=100000):
 
 
 class MinimalRead(object):
+    """
+    Minimal class representing an aligned read.
+
+    .. attribute:: chromosome
+
+        Chromosome name
+
+    .. attribute:: reference_name
+
+        Identical to chromosome, exists for
+        compatibility with pysam
+
+    .. attribute:: position
+
+        Position of aligned read on chromosome
+
+    .. attribute:: pos
+
+        Identical to position, exists for
+        compatibility with Pysam
+
+    .. attribute:: strand
+
+        Strand of the alignment
+
+    .. attribute:: flag
+
+        Flag representing the strandedness of a read.
+        0 if on forward strand, else -1
+    """
+
     def __init__(self, chromosome, position, strand):
         self.chromosome = chromosome
         self.reference_name = chromosome
@@ -141,13 +225,31 @@ class MinimalRead(object):
 
 
 class ReadPairGenerator(object):
+    """
+    Base class for generating and filtering read pairs.
+
+    This class primarily provides filtering capabilities for
+    read pairs generated by subclasses of :class:`~ReadPairGenerator`.
+    You can add a :class:`~ReadFilter` using :func:`~ReadPairGenerator.add_filter`,
+    which will be used during read pair generation. Filtering statistics
+    are collected during the run, and can be obtained via
+    :func:`~ReadPairGenerator.stats`.
+
+    These generators are primarily meant as input for
+    :func:`~ReadPairs.add_read_pairs`, but can also be used
+    independently.
+
+    Subclasses of :class:`~ReadPairGenerator` must implement the
+    :func:`~ReadPairGenerator._iter_read_pairs` function.
+    """
     def __init__(self):
         self.filters = []
         self._filter_stats = defaultdict(int)
         self._total_pairs = 0
         self._valid_pairs = 0
 
-        unmapped_filter = UnmappedFilter(mask=Mask('unmapped', 'Mask unmapped reads', ix=len(self.filters)))
+        unmapped_filter = UnmappedFilter(mask=Mask('unmappable', 'Mask unmapped reads',
+                                                   ix=len(self.filters)))
         self.add_filter(unmapped_filter)
         self._unmapped_filter_ix = len(self.filters) - 1
 
@@ -155,11 +257,29 @@ class ReadPairGenerator(object):
         raise NotImplementedError("Class must override iter_read_pairs")
 
     def add_filter(self, read_filter):
+        """
+        Add a :class:`~ReadFilter` to this object.
+
+        The filter will be applied during read pair generation.
+
+        :param read_filter: :class:`~ReadFilter`
+        """
         if not isinstance(read_filter, ReadFilter):
             raise ValueError("argument must be an instance of class ReadFilter!")
         self.filters.append(read_filter)
 
     def stats(self):
+        """
+        Return filter statistics collected during read pair generation.
+
+        The :func:`~ReadPairGenerator.__iter__` filters reads based on the
+        filters added using :func:`~ReadPairGenerator.add_filter`. During
+        filtering, it keeps track of the numbers of read pairs that were
+        filtered. This function returns a :class:`~dict` of the form
+        <filter_name>: <number of reads filtered out>.
+
+        :return: dict
+        """
         filter_names = []
         for i, f in enumerate(self.filters):
             if hasattr(f, 'mask_name') and f.mask_name is not None:
@@ -191,9 +311,45 @@ class ReadPairGenerator(object):
 
 
 class TxtReadPairGenerator(ReadPairGenerator):
+    """
+    Generate read pairs from a plain text file.
+
+    This is an implementation of :class:`~ReadPairGenerator` for
+    reading read pairs from an arbitrary text file. For specific
+    text file formats have a look at :class:`~FourDNucleomePairGenerator`
+    or :class:`~HicProPairGenerator`.
+
+    :class:`~TxtReadPairGenerator` iterates over lines in
+    a file and splits them into fields at "sep". It then extracts
+    the chromosome, position and strand for each read in the pair,
+    according to the fields specified by "chr<1|2>_field",
+    "pos<1|2>_field", and "strand<1|2>_field". If your file does not
+    have strand fields, or if you don't want to load them, you can
+    simply set them to "None".
+    """
     def __init__(self, valid_pairs_file, sep=None,
                  chr1_field=1, pos1_field=2, strand1_field=3,
                  chr2_field=4, pos2_field=5, strand2_field=6):
+        """
+        Initialise read pair generator.
+
+        :param valid_pairs_file: Path to a txt file with valid pairs.
+                                 May be gzipped, in which case the file
+                                 name must end with ".gz" or ".gzip"
+        :param sep: A field separator. Defaults to whitespace.
+        :param chr1_field: int, index of the field which has the information
+                           for the first mate's chromosome
+        :param pos1_field: int, index of the field which has the information
+                           for the first mate's position on the reference in bp
+        :param strand1_field: int, index of the field which has the information
+                              for the first mate's strand (+/-)
+        :param chr2_field: int, index of the field which has the information
+                           for the second mate's chromosome
+        :param pos2_field: int, index of the field which has the information
+                           for the second mate's position on the reference in bp
+        :param strand2_field: int, index of the field which has the information
+                              for the second mate's strand (+/-)
+        """
         ReadPairGenerator.__init__(self)
         self._file_name = valid_pairs_file
         self.sep = sep
@@ -245,6 +401,12 @@ class TxtReadPairGenerator(ReadPairGenerator):
                 break
 
     def _iter_read_pairs(self, *args, **kwargs):
+        """
+        Iterate over read pairs encoded in each line of the txt file.
+
+        :return: read pair iterator over tuples of the form
+                 (:class:`~MinimalRead`, :class:`~MinimalRead`)
+        """
         with self._open_file(self._file_name, 'rt') as f:
             for line in f:
                 line = line.rstrip()
@@ -265,13 +427,31 @@ class TxtReadPairGenerator(ReadPairGenerator):
 
 
 class HicProPairGenerator(TxtReadPairGenerator):
+    """
+    Read pair generator for HiC-Pro "validPairs" files.
+
+    This generator is a subclass of :class:`~TxtReadPairGenerator`
+    with presets for fields in HiC-Pro validPairs files.
+    """
     def __init__(self, file_name):
+        """
+        Inititalise this HiC-Pro read pair generator.
+
+        :param file_name: Path to HiC-Pro ".validPairs" file
+        """
         TxtReadPairGenerator.__init__(self, file_name, sep="\t",
                                       chr1_field=1, pos1_field=2, strand1_field=3,
                                       chr2_field=4, pos2_field=5, strand2_field=6)
 
 
 class FourDNucleomePairGenerator(TxtReadPairGenerator):
+    """
+    Read pair generator that works on 4D Nucleome ".pairs" files.
+
+    For details on the 4D Nucleome pairs format see:
+    https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md
+
+    """
     def __init__(self, pairs_file):
         if pairs_file.endswith('.gz') or pairs_file.endswith('gzip'):
             open_file = gzip.open
@@ -306,6 +486,22 @@ class FourDNucleomePairGenerator(TxtReadPairGenerator):
 
 
 class SamBamReadPairGenerator(ReadPairGenerator):
+    """
+    Generate read pairs from paired-end SAM/BAM files.
+
+    This :class:`~ReadPairGenerator` iterates over two SAM or BAM
+    files that have been sorted by qname (for example with
+    :code:`samtools sort -n`).
+
+    Chimeric reads (mapping partially to multiple genomic locations),
+    such as output by BWA, are handled as follows: If both mate pairs
+    are chimeric, they are removed. If only one mate is chimeric, but
+    it is split into more than 2 alignments, it is also removed. If
+    one mate is chimeric and split into two alignments. If one part
+    of the chimeric alignment maps within 100bp of the regular alignment,
+    the read pair is kept and returned. In all other cases, the pair is
+    removed.
+    """
     def __init__(self, sam_file1, sam_file2, check_sorted=True):
         ReadPairGenerator.__init__(self)
         self.sam_file1 = sam_file1
@@ -440,7 +636,8 @@ class SamBamReadPairGenerator(ReadPairGenerator):
         :param cutoff: Minimum mapping quality (mapq) a read must have to pass
                        the filter
         """
-        mask = Mask('mapq', 'Mask read pairs with a mapping quality lower than {}'.format(cutoff), ix=len(self.filters))
+        mask = Mask('map quality', 'Mask read pairs with a mapping quality lower than {}'.format(cutoff),
+                    ix=len(self.filters))
         quality_filter = QualityFilter(cutoff, mask)
         self.add_filter(quality_filter)
 
@@ -448,11 +645,11 @@ class SamBamReadPairGenerator(ReadPairGenerator):
         """
         Convenience function that registers an UnmappedFilter.
         """
-        mask = Mask('unmapped', 'Mask read pairs that are unmapped', ix=len(self.filters))
+        mask = Mask('unmappable', 'Mask read pairs that are unmapped', ix=len(self.filters))
         unmapped_filter = UnmappedFilter(mask)
         self.add_filter(unmapped_filter)
 
-    def filter_non_unique(self, strict=True):
+    def filter_multi_mapping(self, strict=True):
         """
         Convenience function that registers a UniquenessFilter.
         The actual algorithm and rationale used for filtering will depend on the
@@ -462,7 +659,8 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                        will filter only when XS tag is not 0. This is applied if
                        alignments are from bowtie2.
         """
-        mask = Mask('uniqueness', 'Mask reads that do not map uniquely (according to XS tag)', ix=len(self.filters))
+        mask = Mask('multi-mapping', 'Mask reads that do not map uniquely (according to XS tag)',
+                    ix=len(self.filters))
         uniqueness_filter = UniquenessFilter(strict, mask)
         self.add_filter(uniqueness_filter)
 
@@ -473,7 +671,7 @@ class FragmentRead(object):
 
     .. attribute:: fragment
 
-        A :class:`~kaic.data.genomic.GenomicRegion` delineated by
+        A :class:`~kaic.GenomicRegion` delineated by
         restriction sites.
 
     .. attribute:: position
@@ -484,13 +682,18 @@ class FragmentRead(object):
     .. attribute:: strand
 
         The strand this read maps to (-1 or +1).
+
+    .. attribute:: qname_ix
+
+        Index of the read name, so we don't have to store the
+        exact name on disk
     """
 
     def __init__(self, fragment=None, position=None, strand=0, qname_ix=None):
         """
         Initialize this :class:`~FragmentRead` object.
 
-        :param fragment: A :class:`~kaic.data.genomic.GenomicRegion` delineated by
+        :param fragment: A :class:`~kaic.GenomicRegion` delineated by
                          restriction sites.
         :param position: The position of this read in base-pairs (1-based) from the
                          start of the chromosome it maps to.
@@ -502,6 +705,10 @@ class FragmentRead(object):
         self.qname_ix = qname_ix
 
     def re_distance(self):
+        """
+        Get the distance of the alignment to the nearest restriction site.
+        :return: int
+        """
         return min(abs(self.position - self.fragment.start),
                    abs(self.position - self.fragment.end))
 
@@ -514,46 +721,71 @@ class FragmentRead(object):
 
 
 class LazyFragmentRead(FragmentRead):
+    """
+    :class:`~FragmentRead` implementation with lazy attribute loading.
+
+    .. attribute:: fragment
+
+        A :class:`~kaic.GenomicRegion` delineated by
+        restriction sites.
+
+    .. attribute:: position
+
+        The position of this read in base-pairs (1-based) from the
+        start of the chromosome it maps to.
+
+    .. attribute:: strand
+
+        The strand this read maps to (-1 or +1).
+
+    .. attribute:: qname_ix
+
+        Index of the read name, so we don't have to store the
+        exact name on disk
+    """
     def __init__(self, row, pairs, side="left"):
-        self.row = row
-        self.pairs = pairs
-        self.side = side
+        self._row = row
+        self._pairs = pairs
+        self._side = side
 
     @property
     def position(self):
-        return self.row[self.side + "_read_position"]
+        return self._row[self._side + "_read_position"]
 
     @property
     def strand(self):
-        return self.row[self.side + "_read_strand"]
+        return self._row[self._side + "_read_strand"]
 
     @property
     def qname_ix(self):
-        return self.row[self.side + "_read_qname_ix"]
+        return self._row[self._side + "_read_qname_ix"]
 
     @property
     def fragment(self):
-        return LazyFragment(self.row, self.pairs, side=self.side)
+        return LazyFragment(self._row, self._pairs, side=self._side)
 
 
 class LazyFragment(GenomicRegion):
+    """
+    :class:`~kaic.GenomicRegion` representing a fragment with lazy attribute loading.
+    """
     def __init__(self, row, pairs, ix=None, side="left"):
-        self.row = row
-        self.pairs = pairs
-        self.side = side
-        self.static_ix = ix
+        self._row = row
+        self._pairs = pairs
+        self._side = side
+        self._static_ix = ix
 
     @property
     def chromosome(self):
-        return self.pairs._ix_to_chromosome[self.row[self.side + "_fragment_chromosome"]]
+        return self._pairs._ix_to_chromosome[self._row[self._side + "_fragment_chromosome"]]
 
     @property
     def start(self):
-        return self.row[self.side + "_fragment_start"]
+        return self._row[self._side + "_fragment_start"]
 
     @property
     def end(self):
-        return self.row[self.side + "_fragment_end"]
+        return self._row[self._side + "_fragment_end"]
 
     @property
     def strand(self):
@@ -561,12 +793,58 @@ class LazyFragment(GenomicRegion):
 
     @property
     def ix(self):
-        if self.static_ix is None:
-            return self.row['source'] if self.side == 'left' else self.row['sink']
-        return self.static_ix
+        if self._static_ix is None:
+            return self._row['source'] if self._side == 'left' else self._row['sink']
+        return self._static_ix
 
 
 class ReadPairs(RegionPairsTable):
+    """
+    Class representing a collection of read pairs mapped to restriction fragments.
+
+    This class is a :class:`~kaic.RegionBased` object, where each
+    :class:`~kaic.GenomicRegion` represents a restriction fragment
+    from a Hi-C experiment. A list of fragments can be obtained with
+    the :func:`~kaic.regions.genome_regions` function, for example.
+
+    To create a :class:`~ReadPairs` object, you first have to add
+    the restriction fragments before adding read pairs:
+
+    .. code::
+
+        import kaic
+
+        re_fragments = kaic.genome_regions("hg19_chr18_19.fa", "HindIII")
+
+        rp = kaic.ReadPairs()
+        rp.add_regions(re_fragments.regions)
+
+    Read pairs can easily be generate fro different types of input using
+    :class:`~ReadPairGenerator` implementations, e.g.
+    :class:`~HicProReadPairGenerator` or :class:`~SamBamReadPairGenerator`.
+
+    .. code::
+
+        rp_generator = kaic.SamBamReadPairGenerator("output/sam/SRR4271982_chr18_19_1_sort.bam",
+                                                    "output/sam/SRR4271982_chr18_19_2_sort.bam")
+        rp.add_read_pairs(rp_generator, threads=4)
+
+
+    You can query regions using the :class:`~kaic.RegionBased` interface:
+
+    .. code::
+
+        chr1_fragments = rp.regions("chr1")
+
+    and you can iterate over read pairs using the :func:`~ReadPairs.pairs`:
+
+    .. code:
+
+        for pair in rp.pairs(lazy=True):
+            print(pair)
+
+    you can also use the :cls:Region
+    """
     _classid = 'READPAIRS'
 
     def __init__(self, file_name=None, mode='a',
