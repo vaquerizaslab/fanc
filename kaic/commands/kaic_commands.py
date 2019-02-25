@@ -641,11 +641,12 @@ def pairs_parser():
         '-q', '--filter-quality', dest='quality',
         type=float,
         help='Cutoff for the minimum mapping quality of a read. '
+             'For numbers larger than 1, will filter on MAPQ. '
              'If a number between 0 and 1 is provided, will filter '
-             'on the AS tag instead of mapping quality. The quality ' 
-             'cutoff is then interpreted as the fraction of bases that '
-             'have to be matched for any given read. ' 
-             'only applies to SAM/BAM input!'
+             'on the AS tag instead of mapping quality (only BWA). '
+             'The quality cutoff is then interpreted as the '
+             'fraction of bases that have to be matched for any '
+             'given read. Only applies to SAM/BAM input!'
     )
 
     parser.add_argument(
@@ -856,21 +857,23 @@ def pairs(argv):
 
             read_filters = []
             if filter_unmappable:
-                f = UnmappedFilter(mask=Mask(ix=0, name='unmapped'))
+                f = UnmappedFilter(mask=Mask(ix=0, name='unmappable'))
                 read_filters.append(f)
 
             if filter_unique or filter_unique_strict:
                 if bwa:
-                    f = BwaMemUniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
+                    f = BwaMemUniquenessFilter(strict=filter_unique_strict,
+                                               mask=Mask(ix=1, name='multi-mapping'))
                 else:
-                    f = UniquenessFilter(strict=filter_unique_strict, mask=Mask(ix=1, name='unique'))
+                    f = UniquenessFilter(strict=filter_unique_strict,
+                                         mask=Mask(ix=1, name='multi-mapping'))
                 read_filters.append(f)
 
             if filter_quality is not None:
                 if 0 < filter_quality < 1:
-                    f = BwaMemQualityFilter(filter_quality, mask=Mask(ix=2, name='quality_as'))
+                    f = BwaMemQualityFilter(filter_quality, mask=Mask(ix=2, name='alignment score'))
                 else:
-                    f = QualityFilter(int(filter_quality), mask=Mask(ix=2, name='quality'))
+                    f = QualityFilter(int(filter_quality), mask=Mask(ix=2, name='MAPQ'))
                 read_filters.append(f)
 
             if filter_contaminant is not None:
