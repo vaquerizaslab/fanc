@@ -222,6 +222,10 @@ class MinimalRead(object):
         self.strand = strand
         self.flag = 0 if strand == '+' or strand == 1 else -1
         self.pos = position
+        self.tags = {}
+
+    def get_tag(self, tag):
+        raise KeyError("tag '{}' not present".format(tag))
 
 
 class ReadPairGenerator(object):
@@ -290,7 +294,7 @@ class ReadPairGenerator(object):
         stats = dict()
         for i, count in self._filter_stats.items():
             stats[filter_names[i]] = count
-        stats['unmasked'] = self._valid_pairs
+        stats['valid'] = self._valid_pairs
         stats['total'] = self._total_pairs
         return stats
 
@@ -768,6 +772,26 @@ class LazyFragmentRead(FragmentRead):
 class LazyFragment(GenomicRegion):
     """
     :class:`~kaic.GenomicRegion` representing a fragment with lazy attribute loading.
+
+    .. attribute:: chromosome
+
+        The reference sequence this region is located on
+
+    .. attribute:: start
+
+        start position of this region on the reference (1-based, inclusive)
+
+    .. attribute:: end
+
+        end position of this region on the reference (1-based, inclusive)
+
+    .. attribute:: strand
+
+        strand of the reference this region is located on (-1, 1, 0, or None)
+
+    .. attribute:: ix
+
+        Region index within the context of regions from the same object.
     """
     def __init__(self, row, pairs, ix=None, side="left"):
         self._row = row
@@ -858,11 +882,9 @@ class ReadPairs(RegionPairsTable):
         :param file_name: Path to a file that will be created to save
                           this object or path to an existing HDF5 file
                           representing a FragmentMappedReadPairs object.
-        :param group_name: Internal, name for hdf5 group that info for
-                           this object will be saved under
-        :param table_name_fragments: Internal, name of the HDF5 node
-                                     that will house the region/fragment
-                                     data
+        :param mode: File mode. Defaults to 'a' (append). Use 'w' to overwrite
+                     an existing file in the same location, and 'r' for safe
+                     read-only access.
         """
         RegionPairsTable.__init__(self, file_name=file_name, mode=mode, tmpdir=tmpdir,
                                   additional_edge_fields={
@@ -902,12 +924,20 @@ class ReadPairs(RegionPairsTable):
             self._chromosome_to_ix[chromosome] = i
 
     def _flush_regions(self):
+        """
+        Write buffered regions to file and update region references.
+        """
         if self._regions_dirty:
             self._regions.flush()
             self._update_references()
             self._regions_dirty = False
 
-    def flush(self, update_mappability=True, silent=config.hide_progressbars):
+    def flush(self, silent=config.hide_progressbars):
+        """
+        Write buffered data to file and update indexes,
+
+        :param silent: If True, does not use progressbars.
+        """
         RegionPairsTable.flush(self, silent=silent)
 
     def _read_fragment_info(self, read):
@@ -932,6 +962,18 @@ class ReadPairs(RegionPairsTable):
                 (read2.pos, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
 
     def _read_pairs_fragment_info(self, read_pairs, threads=4, batch_size=1000000, timeout=180):
+        """
+        Parallel loading of read pairs along with mapping to restriction fragments.
+
+        :param read_pairs: iterator of read pairs, typically
+                           from a :class:`~ReadPairGenerator`
+        :param threads: Number of threads used for parallel
+                        fragment info finding.
+        :param batch_size: Number of read pairs sent to each worker
+        :param timeout: Time to wait for reply of first worker. If this
+                        threshold is exceeded before any read pairs have been
+                        returned, a warning is displayed.
+        """
         fragment_infos = defaultdict(list)
         fragment_ends = defaultdict(list)
         for region in self.regions(lazy=True):
@@ -966,9 +1008,9 @@ class ReadPairs(RegionPairsTable):
                     output_counter += 1
                     del read_pair_infos
                 except Empty:
-                    logger.debug("Reached SAM pair generator timeout. This could mean that no "
-                                 "valid read pairs were found after filtering. "
-                                 "Check filter settings!")
+                    logger.warning("Reached SAM pair generator timeout. This could mean that no "
+                                   "valid read pairs were found after filtering. "
+                                   "Check filter settings!")
         finally:
             if worker_pool is not None:
                 worker_pool.terminate()
@@ -1058,6 +1100,33 @@ class ReadPairs(RegionPairsTable):
         self._edge_buffer = defaultdict(list)
 
     def add_read_pairs(self, read_pairs, batch_size=1000000, threads=1):
+        """
+        Add read pairs to this object.
+
+        This function requires tuples of read pairs as input, for
+        example from :class:`~MinimalRead` or :class:`~pysam.AlignedSegment`.
+        Typically, you won't have to construct these from scratch, but can
+        use one of the :class:`~ReadPairGenerator` classes to generate
+        read pairs from input files.
+
+        .. code::
+
+            import kaic
+
+            re_fragments = kaic.genome_regions("hg19_chr18_19.fa", "HindIII")
+            rp = kaic.ReadPairs()
+            rp.add_regions(re_fragments.regions)
+
+            # read pairs are added here from BAM files
+            rp_generator = kaic.SamBamReadPairGenerator("output/sam/SRR4271982_chr18_19_1_sort.bam",
+                                                        "output/sam/SRR4271982_chr18_19_2_sort.bam")
+            rp.add_read_pairs(rp_generator, threads=4)
+
+        :param read_pairs: iterator over tuples of read pairs. Typically
+                           instances of :class:`~ReadPairGenerator`
+        :param batch_size: Batch size of read pairs sent to fragment info workers
+        :param threads: Number of threads for simultaneous fragment info finding
+        """
         self._edges_dirty = True
         self._disable_edge_indexes()
 
@@ -1134,8 +1203,9 @@ class ReadPairs(RegionPairsTable):
         :param skip_self_ligations: If True (default), will not consider
                                     self-ligated fragments for assessing
                                     the error rates.
+        :return: tuple with (list of gap sizes between reads, list of matching le type ratios)
         """
-        l = len(self)
+        n_pairs = len(self)
         type_same = 0
         type_inward = 1
         type_outward = 2
@@ -1149,8 +1219,9 @@ class ReadPairs(RegionPairsTable):
             gaps = []
             types = []
 
-            with RareUpdateProgressBar(max_value=len(self), silent=config.hide_progressbars) as pb:
-                for i, pair in enumerate(self):
+            with RareUpdateProgressBar(max_value=len(self), silent=config.hide_progressbars,
+                                       prefix="Ligation error") as pb:
+                for i, pair in enumerate(self.pairs(lazy=True)):
                     if pair.is_same_fragment():
                         same_fragment_count += 1
                         if skip_self_ligations:
@@ -1166,13 +1237,13 @@ class ReadPairs(RegionPairsTable):
                                 types.append(type_inward)
                                 inward_count += 1
                             else:
-                                types.append(0)
+                                types.append(type_same)
                                 same_count += 1
                     else:
                         inter_chrm_count += 1
                     pb.update(i)
 
-            logger.info("Pairs: %d" % l)
+            logger.info("Pairs: %d" % n_pairs)
             logger.info("Inter-chromosomal: {}".format(inter_chrm_count))
             logger.info("Same fragment: {}".format(same_fragment_count))
             logger.info("Same: {}".format(same_count))
@@ -1184,12 +1255,6 @@ class ReadPairs(RegionPairsTable):
             points = zip(gaps, types)
             sorted_points = sorted(points)
             return zip(*sorted_points)
-
-        def _guess_sampling(sampling):
-            if sampling is None:
-                sampling = max(100, int(l * 0.0025))
-            logger.info("Number of data points averaged per point in plot: {}".format(sampling))
-            return sampling
 
         def _calculate_ratios(gaps, types, sampling):
             x = []
@@ -1226,7 +1291,8 @@ class ReadPairs(RegionPairsTable):
         # sort data
         gaps, types = _sort_data(gaps, types)
         # best guess for number of data points
-        sampling = _guess_sampling(sampling)
+        sampling = max(100, int(n_pairs * 0.0025)) if sampling is None else sampling
+        logger.debug("Number of data points averaged per point in plot: {}".format(sampling))
         # calculate ratios
         return _calculate_ratios(gaps, types, sampling)
 
@@ -1234,7 +1300,10 @@ class ReadPairs(RegionPairsTable):
     def _auto_dist(dists, ratios, sample_sizes, p=0.05, expected_ratio=0.5):
         """
         Function that attempts to infer sane distances for filtering inward
-        and outward read pairs
+        and outward read pairs.
+
+        Use with caution, it is almost always preferable to plot the ligation
+        error and choose the cutoff manually.
 
         :param dists: List of distances in bp.
         :param ratios: List of ratios
@@ -1255,6 +1324,16 @@ class ReadPairs(RegionPairsTable):
         return None
 
     def filter(self, pair_filter, queue=False, log_progress=not config.hide_progressbars):
+        """
+        Apply a :class:`~FragmentReadPairFilter` to the read pairs in this object.
+
+        :param pair_filter: :class:`~FragmentReadPairFilter`
+        :param queue: If True, does not do the filtering immediately, but
+                      queues this filter. All queued filters can then be run
+                      at the same time using :func:`~ReadPairs.run_queued_filters`
+        :param log_progress:
+        :return:
+        """
         pair_filter.set_pairs_object(self)
 
         total = 0
@@ -1277,7 +1356,7 @@ class ReadPairs(RegionPairsTable):
 
     def run_queued_filters(self, log_progress=not config.hide_progressbars):
         """
-        Run queued filters.
+        Run queued filters. See :func:`~ReadPairs.filter`
 
         :param log_progress: If true, process iterating through all edges
                              will be continuously reported.
@@ -1300,17 +1379,19 @@ class ReadPairs(RegionPairsTable):
         """
         Convenience function that applies an :class:`~PCRDuplicateFilter`.
 
-        :param threshold: If distance between two alignments is smaller or equal the threshold, the alignments
+        :param threshold: If distance between two alignments is smaller or
+                          equal the threshold, the alignments
                           are considered to be starting at the same position
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('pcr_duplicate', 'Mask read pairs that are considered PCR duplicates')
-        pcr_duplicate_filter = AOPCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
+        mask = self.add_mask_description('PCR duplicates', 'Mask read pairs that are '
+                                                           'considered PCR duplicates')
+        pcr_duplicate_filter = PCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
         self.filter(pcr_duplicate_filter, queue)
 
-    def filter_inward(self, minimum_distance=None, queue=False, *args, **kwargs):
+    def filter_inward(self, minimum_distance=None, queue=False, **kwargs):
         """
         Convenience function that applies an :class:`~InwardPairsFilter`.
 
@@ -1319,23 +1400,24 @@ class ReadPairs(RegionPairsTable):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
-        :param *args **kwargs: Additional arguments to pass
-                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
+        :param kwargs: Additional arguments to pass
+                       to :func:`~ReadPairs.get_ligation_structure_biases`
         """
         if minimum_distance is None:
-            dists, inward_ratios, _, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
+            dists, inward_ratios, _, bins_sizes = self.get_ligation_structure_biases(**kwargs)
             minimum_distance = self._auto_dist(dists, inward_ratios, bins_sizes)
         if minimum_distance:
-            mask = self.add_mask_description('inward',
+            mask = self.add_mask_description('inward ligation error',
                                              'Mask read pairs that are inward facing and < {}bp apart'
                                              .format(minimum_distance))
             logger.info("Filtering out inward facing read pairs < {} bp apart".format(minimum_distance))
             inward_filter = InwardPairsFilter(minimum_distance=minimum_distance, mask=mask)
             self.filter(inward_filter, queue)
         else:
-            raise Exception('Could not automatically detect a sane distance threshold for filtering inward reads')
+            raise Exception('Could not automatically detect a sane distance threshold for '
+                            'filtering inward reads')
 
-    def filter_outward(self, minimum_distance=None, queue=False, *args, **kwargs):
+    def filter_outward(self, minimum_distance=None, queue=False, **kwargs):
         """
         Convenience function that applies an :class:`~OutwardPairsFilter`.
 
@@ -1344,14 +1426,14 @@ class ReadPairs(RegionPairsTable):
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
-        :param *args **kwargs: Additional arguments to pass
-                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
+        :param kwargs: Additional arguments to pass
+                       to :func:`~ReadPairs.get_ligation_structure_biases`
         """
         if minimum_distance is None:
-            dists, _, outward_ratios, bins_sizes = self.get_ligation_structure_biases(*args, **kwargs)
+            dists, _, outward_ratios, bins_sizes = self.get_ligation_structure_biases(**kwargs)
             minimum_distance = self._auto_dist(dists, outward_ratios, bins_sizes)
         if minimum_distance:
-            mask = self.add_mask_description('outward',
+            mask = self.add_mask_description('outward ligation error',
                                              'Mask read pairs that are outward facing and < {}bp apart'
                                              .format(minimum_distance))
             logger.info("Filtering out outward facing read pairs < {} bp apart".format(minimum_distance))
@@ -1360,22 +1442,24 @@ class ReadPairs(RegionPairsTable):
         else:
             raise Exception('Could not automatically detect a sane distance threshold for filtering outward reads')
 
-    def filter_ligation_products(self, inward_threshold=None, outward_threshold=None, queue=False, *args, **kwargs):
+    def filter_ligation_products(self, inward_threshold=None, outward_threshold=None, queue=False, **kwargs):
         """
         Convenience function that applies an :class:`~OutwardPairsFilter` and an :class:`~InwardPairsFilter`.
 
         :param inward_threshold: Minimum distance inward-facing read
-                                 pairs must have to pass this filter. If None, will be infered from the data
+                                 pairs must have to pass this filter.
+                                 If None, will be inferred from the data
         :param outward_threshold: Minimum distance outward-facing read
-                                 pairs must have to pass this filter. If None, will be infered from the data
+                                 pairs must have to pass this filter.
+                                 If None, will be inferred from the data
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       run_queued_filters
-        :param *args **kwargs: Additional arguments to pass
-                               to :met:`~FragmentMappedReadPairs.get_ligation_structure_biases`
+        :param kwargs: Additional arguments to pass
+                       to :func:`~ReadPairs.get_ligation_structure_biases`
         """
-        self.filter_inward(inward_threshold, queue=queue, *args, **kwargs)
-        self.filter_outward(outward_threshold, queue=queue, *args, **kwargs)
+        self.filter_inward(inward_threshold, queue=queue, **kwargs)
+        self.filter_outward(outward_threshold, queue=queue, **kwargs)
 
     def filter_re_dist(self, maximum_distance, queue=False):
         """
@@ -1387,8 +1471,9 @@ class ReadPairs(RegionPairsTable):
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('re-dist',
-                                         'Mask read pairs where a read is >%dbp away from nearest RE site' % maximum_distance)
+        mask = self.add_mask_description('Restriction site distance',
+                                         'Mask read pairs where the cumulative distance of reads to '
+                                         'the nearest RE site exceeds {}'.format(maximum_distance))
         re_filter = ReDistanceFilter(maximum_distance=maximum_distance, mask=mask)
         self.filter(re_filter, queue)
 
@@ -1400,8 +1485,8 @@ class ReadPairs(RegionPairsTable):
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('self_ligated',
-                                         'Mask read pairs the represet a self-ligated fragment')
+        mask = self.add_mask_description('self-ligations',
+                                         'Mask read pairs that represent a self-ligated fragment')
         self_ligation_filter = SelfLigationFilter(mask=mask)
         self.filter(self_ligation_filter, queue)
 
@@ -1427,6 +1512,22 @@ class ReadPairs(RegionPairsTable):
                 yield row
 
     def pairs(self, key=None, lazy=False, *args, **kwargs):
+        """
+        Iterate over the :class:`~FragmentReadPair` objects.
+
+        :param key: Region string of the form <chromosome>[:<start>-<end>],
+                    :class:`~kaic.GenomicRegion` or tuples thereof
+        :param lazy: If True, use lazy loading of objects and their attributes.
+                     Much faster, but can lead to unexpected results if one is
+                     not careful. For example, this: :code:`list(object.pairs())`
+                     is not the same as :code:`list(object.pairs(lazy=True))`! In
+                     the latter case, all objects in the list will be identical
+                     due to the lazy loading process. Only use lazy loading to access
+                     attributes in an iterator!
+        :param args: Positional arguments passed to :func:`~RegionPairs.edges_dict`
+        :param kwargs: Keyword arguments passed to :func:`~RegionPairs.edges_dict`
+        :return:
+        """
         if lazy:
             fr1 = LazyFragmentRead({}, self, side='left')
             fr2 = LazyFragmentRead({}, self, side='right')
@@ -1441,7 +1542,7 @@ class ReadPairs(RegionPairsTable):
         Get an edge by index.
 
         :param row_conversion_args: Arguments passed to :func:`RegionPairs._row_to_edge`
-        :param row_conversion_args: Keyword arguments passed to :func:`RegionPairs._row_to_edge`
+        :param row_conversion_kwargs: Keyword arguments passed to :func:`RegionPairs._row_to_edge`
         :return: :class:`~Edge`
         """
         if item < 0:
@@ -1486,23 +1587,28 @@ class ReadPairs(RegionPairsTable):
         return l
 
     def to_hic(self, file_name=None, tmpdir=None, _hic_class=Hic):
+        """
+        Convert this :class:`~ReadPairs` to a :class:`~kaic.Hic` object.
+
+        :param file_name: Path to the :class:`~kaic.Hic` output file
+        :param tmpdir: If True (or path to temporary directory) will
+                       work in temporary directory until closed
+        """
         hic = _hic_class(file_name=file_name, mode='w', tmpdir=tmpdir)
         hic.add_regions(self.regions(), preserve_attributes=False)
 
         hic._disable_edge_indexes()
 
-        l = len(self)
+        n_pairs = len(self)
         pairs_counter = 0
-        with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
+        with RareUpdateProgressBar(max_value=n_pairs, silent=config.hide_progressbars) as pb:
             for _, pairs_edge_table in self._iter_edge_tables():
 
-                partition_edge_buffer = defaultdict(dict)
+                partition_edge_buffer = defaultdict(lambda: defaultdict(int))
                 for row in pairs_edge_table:
                     key = (row['source'], row['sink'])
                     source_partition = self._get_partition_ix(key[0])
                     sink_partition = self._get_partition_ix(key[1])
-                    if key not in partition_edge_buffer[(source_partition, sink_partition)]:
-                        partition_edge_buffer[(source_partition, sink_partition)][key] = 0
                     partition_edge_buffer[(source_partition, sink_partition)][key] += 1
                     pb.update(pairs_counter)
                     pairs_counter += 1
@@ -1523,18 +1629,29 @@ class ReadPairs(RegionPairsTable):
 
         return hic
 
-    def pairs_by_chromosomes(self, chromosome1, chromosome2, lazy=False):
-        return self.pairs((chromosome1, chromosome2), lazy=lazy)
+    def pairs_by_chromosomes(self, chromosome1, chromosome2, **kwargs):
+        """
+        Only iterate over read pairs in this combination of chromosomes.
+        :param chromosome1: Name of first chromosome
+        :param chromosome2: Name of second chromosome
+        :param kwargs: Keyword arguments passed to :func:`~ReadPairs.pairs`
+        :return:
+        """
+        return self.pairs(key=(chromosome1, chromosome2), **kwargs)
 
     def filter_statistics(self):
+        """
+        Get filtering statistics for this object.
+        :return: dict with {filter_type: count, ...}
+        """
         try:
             read_stats = self.meta.read_filter_stats
         except AttributeError:
             read_stats = dict()
 
         pair_stats = self.mask_statistics(self._pairs)
-        if 'unmasked' in pair_stats:
-            read_stats['unmasked'] = pair_stats['unmasked']
+        if 'valid' in pair_stats:
+            read_stats['valid'] = pair_stats['valid']
         pair_stats.update(read_stats)
         return pair_stats
 
@@ -1566,7 +1683,7 @@ class FragmentReadPair(object):
         to the plus the right read to the minus strand and both
         reads map to the same chromosome.
 
-        :return: True is reads are inward-facing, False otherwise
+        :return: True if reads are inward-facing, False otherwise
         """
         if not self.is_same_chromosome():
             return False
@@ -1583,7 +1700,7 @@ class FragmentReadPair(object):
         to the minus the right read to the plus strand and both
         reads map to the same chromosome.
 
-        :return: True is reads are outward-facing, False otherwise
+        :return: True if reads are outward-facing, False otherwise
         """
         if not self.is_same_chromosome():
             return False
@@ -1596,7 +1713,7 @@ class FragmentReadPair(object):
         """
         Check if reads face in the same direction.
 
-        :return: True if reads map to the same fragment,
+        :return: True if reads are facing in the same direction,
                  False otherwise.
         """
         if not self.is_same_chromosome():
@@ -1645,7 +1762,7 @@ class FragmentReadPair(object):
             return self.left
         if key == 1:
             return self.right
-        raise KeyError("Can only access read [0] and read [1]")
+        raise KeyError("Can only access read [0] and read [1], not '{}'".format(key))
 
     def __repr__(self):
         left_repr = self.left.__repr__()
@@ -1653,22 +1770,20 @@ class FragmentReadPair(object):
         return "{} -- {}".format(left_repr, right_repr)
 
 
-class ReadFilter(MaskFilter):
+class ReadFilter(object):
     """
-    Abstract class that provides filtering functionality for the
-    Reads object.
+    Abstract class that provides filtering functionality for
+    :class:`~MinimalRead`, :class:`~pysam.AlignedSegment` or
+    compatible.
 
-    Extends MaskFilter and overrides valid(self, read) to make
-    Read filtering more "natural".
-
-    To create custom filters for the Reads object, extend this
+    To create a custom :class:`~ReadFilter`, extend this
     class and override the valid_read(self, read) method.
-    valid_read should return False for a specific Read object
+    valid_read should return False for a specific read object
     if the object is supposed to be filtered/masked and True
     otherwise. See :class:`~QualityFilter` for an example.
 
-    Pass a custom filter to the filter method in :class:`~Reads`
-    to aplly it.
+    Pass a custom filter to the filter method in
+    :class:`~ReadPairGenerator` to apply it.
     """
 
     def __init__(self, mask=None):
@@ -1680,17 +1795,16 @@ class ReadFilter(MaskFilter):
                      Mask will be used.
         """
         super(ReadFilter, self).__init__(mask)
-        self._reads = None
 
     def valid_read(self, read):
         """
-        Determine if a Read object is valid or should be filtered.
+        Determine if a read is valid or should be filtered.
 
-        When implementing custom ReadFilters this method must be
-        overridden. It should return False for Read objects that
-        are to be fitered and True otherwise.
+        When implementing custom read filters this method must be
+        overridden. It should return False for reads that
+        are to be filtered and True otherwise.
 
-        Internally, the Reads object will iterate over all Read
+        Internally, the ReadPairs object will iterate over all Read
         instances to determine their validity on an individual
         basis.
 
@@ -1698,26 +1812,6 @@ class ReadFilter(MaskFilter):
         :return: True if Read is valid, False otherwise
         """
         raise NotImplementedError("ReadFilters must implement valid_read function")
-
-    def set_reads_object(self, reads_object):
-        """
-        Set the Reads instance to be filtered by this ReadFilter.
-
-        Used internally by Reads instance.
-
-        :param reads_object: Reads object
-        """
-        self._reads = reads_object
-
-    def valid(self, row):
-        """
-        Map valid_read to MaskFilter.valid(self, row).
-
-        :param row: A pytables Table row.
-        :return: The boolean value returned by valid_read.
-        """
-        read = self._reads._row2read(row, lazy=True)
-        return self.valid_read(read)
 
 
 class QualityFilter(ReadFilter):
@@ -1744,7 +1838,7 @@ class QualityFilter(ReadFilter):
 
 class ContaminantFilter(ReadFilter):
     """
-    Filter mapped reads based on mapping quality.
+    Filter reads that also map to a contaminant genome.
     """
 
     def __init__(self, contaminant_reads, mask=None):
@@ -1772,8 +1866,9 @@ class ContaminantFilter(ReadFilter):
 
 class BwaMemQualityFilter(ReadFilter):
     """
-    Filters `bwa mem` generated alignements base on the alignment score
-    (normalized by the length of the alignment).
+    Filters :code:`bwa mem` generated alignments
+    based on the alignment score (normalized by
+    the length of the alignment).
     """
     def __init__(self, cutoff=0.90, mask=None):
         """
@@ -1814,25 +1909,26 @@ class UniquenessFilter(ReadFilter):
         """
         Check if a read has an XS tag.
 
-        If strict is disabled checks if a read has an XS tag and
-        the value of the XS tag id different from 0.
+        If strict is enabled checks if a read has an XS tag.
+        If not strict, XS has to be smaller than AS (alignment score)
+        for a valid read.
         """
-        tags = read.tags
-        if self.strict:
-            for tag in tags:
-                if tag[0] == 'XS':
-                    return False
-        else:
-            tags = {tag[0]: tag[1] for tag in tags}
-
-            if tags['AS'] == tags['XS']:
+        try:
+            tag_xs = read.get_tag('XS')
+            if self.strict:
                 return False
+            else:
+                tag_as = read.get_tag('AS')
+                if tag_as <= tag_xs:
+                    return False
+        except KeyError:
+            pass
         return True
 
 
 class BwaMemUniquenessFilter(ReadFilter):
     """
-    Filters `bwa mem` generated alignements based on whether they are unique or not.
+    Filters `bwa mem` generated alignments based on whether they are unique or not.
     The presence of a non-zero XS tag does not mean a read is a multi-mapping one.
     Instead, we make sure that the ratio XS/AS is inferior to a certain threshold.
     """
@@ -1846,37 +1942,28 @@ class BwaMemUniquenessFilter(ReadFilter):
                      that is applied to filtered reads.
         """
         super(BwaMemUniquenessFilter, self).__init__(mask)
-        if strict:
-            self.valid_read = self._valid_read_strict
-        else:
-            self.valid_read = self._valid_read
-
-    def _valid_read(self, read):
-        try:
-            xa = read.get_tag('XA')
-        except KeyError:
-            return True
-
-        try:
-            nm = read.get_tag('NM')
-        except KeyError:
-            return False
-
-        for alt in xa.split(';'):
-            if alt == '':
-                continue
-            _, _, _, nm_alt = alt.split(',')
-            if int(nm_alt) <= nm:
-                return False
-        return True
-
-    def _valid_read_strict(self, read):
-        if read.has_tag('XA'):
-            return False
-        return True
+        self.strict = strict
 
     def valid_read(self, read):
-        pass
+        try:
+            xa = read.get_tag('XA')
+            if self.strict:
+                return False
+
+            try:
+                nm = read.get_tag('NM')
+            except KeyError:
+                return False
+
+            for alt in xa.split(';'):
+                if alt == '':
+                    continue
+                _, _, _, nm_alt = alt.split(',')
+                if int(nm_alt) <= nm:
+                    return False
+        except KeyError:
+            pass
+        return True
 
 
 class UnmappedFilter(ReadFilter):
@@ -1899,7 +1986,7 @@ class UnmappedFilter(ReadFilter):
         return True
 
 
-class FragmentMappedReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
+class FragmentReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
     Abstract class that provides filtering functionality for the
     :class:`~FragmentReadPair` object.
@@ -1919,7 +2006,7 @@ class FragmentMappedReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
 
     def __init__(self, mask=None):
-        super(FragmentMappedReadPairFilter, self).__init__(mask)
+        super(FragmentReadPairFilter, self).__init__(mask)
         self.pairs = None
 
     def set_pairs_object(self, pairs):
@@ -1937,7 +2024,7 @@ class FragmentMappedReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
         return self.valid_pair(pair)
 
 
-class InwardPairsFilter(FragmentMappedReadPairFilter):
+class InwardPairsFilter(FragmentReadPairFilter):
     """
     Filter inward-facing read pairs at a distance less
     than a specified cutoff.
@@ -1945,7 +2032,7 @@ class InwardPairsFilter(FragmentMappedReadPairFilter):
 
     def __init__(self, minimum_distance=10000, mask=None):
         """
-        Initialize filter with filter settings.
+        Initialize filter.
 
         :param minimum_distance: Minimum distance below which
                                  reads are invalidated
@@ -1957,108 +2044,32 @@ class InwardPairsFilter(FragmentMappedReadPairFilter):
 
     def valid_pair(self, pair):
         """
-        Check if a pair is inward-facing and <minimum_distance apart.
+        Check if a pair is inward-facing and <minimum_distance> apart.
         """
-        if not pair.is_inward_pair():
-            return True
-
-        if pair.get_gap_size() > self.minimum_distance:
-            return True
-        return False
-
-
-class PCRDuplicateFilter(FragmentMappedReadPairFilter):
-    """
-    Masks alignments that are suspected to be PCR duplicates.
-    In order to be considered duplicates, two pairs need to have identical
-    start positions of their respective left alignments AND of their right alignments.
-    """
-
-    def __init__(self, pairs, threshold=3, mask=None):
-        """
-        Initialize filter with filter settings.
-
-        :param pairs: The :class:`~FragmentMappedReadPairs` instance that the filter will be
-                      applied to
-        :param threshold: If distance between two alignments is smaller or equal the threshold,
-                          the alignments are considered to be starting at the same position
-        :param mask: Optional Mask object describing the mask
-                     that is applied to filtered reads.
-        """
-        FragmentMappedReadPairFilter.__init__(self, mask=mask)
-        self.threshold = threshold
-        self.pairs = pairs
-        self.duplicates_set = set()
-        self.duplicate_stats = defaultdict(int)
-        self._mark_duplicates(self.pairs._pairs)
-
-        n_dups = len(self.duplicates_set)
-        percent_dups = 1. * n_dups / self.pairs._pairs._original_len()
-        logger.info("PCR duplicate stats: " +
-                    "{} ({:.1%}) of pairs marked as duplicate. ".format(n_dups, percent_dups) +
-                    " (multiplicity:occurances) " +
-                    " ".join("{}:{}".format(k, v) for k, v in self.duplicate_stats.items()))
-
-    def _mark_duplicates(self, edge_table):
-        # In order for sorted iteration to work, column needs to be indexed
-        try:
-            edge_table.cols.left_read_position.create_csindex()
-            index_existed = False
-        except ValueError:  # Index already exists
-            index_existed = True
-
-        # Using itersorted from Table class, since MaskedTable.itersorted only yields unmasked entries
-        all_iter = super(MaskedTable, edge_table).itersorted(sortby="left_read_position")
-        cur_pos = {}
-        cur_duplicates = {}
-        for p in all_iter:
-            pair = self.pairs._pair_from_row(p, lazy=True)
-            chrm = (pair.left.fragment.chromosome, pair.right.fragment.chromosome)
-            if cur_pos.get(chrm) is None:
-                cur_pos[chrm] = (pair.left.position, pair.right.position)
-                cur_duplicates[chrm] = 1
-                continue
-            if (abs(pair.left.position - cur_pos[chrm][0]) <= self.threshold and
-                    abs(pair.right.position - cur_pos[chrm][1]) <= self.threshold):
-                self.duplicates_set.add(pair.ix)
-                cur_duplicates[chrm] += 1
-                continue
-            if cur_duplicates[chrm] > 1:
-                self.duplicate_stats[cur_duplicates[chrm]] += 1
-            cur_pos[chrm] = (pair.left.position, pair.right.position)
-            cur_duplicates[chrm] = 1
-
-        if not index_existed:
-            edge_table.cols.left_read_position.remove_index()
-
-    def valid_pair(self, pair):
-        """
-        Check if a pair is duplicated.
-        """
-        if pair.ix in self.duplicates_set:
+        if pair.is_inward_pair() and pair.get_gap_size() <= self.minimum_distance:
             return False
         return True
 
 
-class AOPCRDuplicateFilter(PCRDuplicateFilter):
+class PCRDuplicateFilter(FragmentReadPairFilter):
     """
     Masks alignments that are suspected to be PCR duplicates.
     In order to be considered duplicates, two pairs need to have identical
     start positions of their respective left alignments AND of their right alignments.
     """
 
-    def __init__(self, pairs, threshold=3, mask=None):
+    def __init__(self, pairs, threshold=2, mask=None):
         """
         Initialize filter with filter settings.
 
-        :param pairs: The :class:`~FragmentMappedReadPairs` instance that the filter will be
+        :param pairs: The :class:`~FragmentReadPairs` instance that the filter will be
                       applied to
         :param threshold: If distance between two alignments is smaller or equal the threshold,
                           the alignments are considered to be starting at the same position
         :param mask: Optional Mask object describing the mask
                      that is applied to filtered reads.
         """
-        FragmentMappedReadPairFilter.__init__(self, mask=mask)
+        FragmentReadPairFilter.__init__(self, mask=mask)
         self.threshold = threshold
         self.pairs = pairs
         self.duplicates_set = set()
@@ -2075,8 +2086,51 @@ class AOPCRDuplicateFilter(PCRDuplicateFilter):
                     " (multiplicity:occurances) " +
                     " ".join("{}:{}".format(k, v) for k, v in self.duplicate_stats.items()))
 
+    def _mark_duplicates(self, edge_table):
+        pairs = [
+            (
+                row['ix'],
+                row['left_fragment_chromosome'], row['right_fragment_chromosome'],
+                row['left_read_position'], row['right_read_position']
+             ) for row in edge_table._iter_visible_and_masked()
+        ]
+        pairs = sorted(pairs, key=lambda p: p[3])
 
-class OutwardPairsFilter(FragmentMappedReadPairFilter):
+        current_positions = {}
+        current_duplicates = {}
+        for ix, left_chromosome, right_chromosome, left_position, right_position in pairs:
+            chromosomes = (left_chromosome, right_chromosome)
+
+            # case 1: no current duplicates
+            if current_positions.get(chromosomes) is None:
+                current_positions[chromosomes] = (left_position, right_position)
+                current_duplicates[chromosomes] = 1
+                continue
+
+            # case 2: found duplicate
+            if (abs(left_position - current_positions[chromosomes][0]) <= self.threshold and
+                    abs(right_position - current_positions[chromosomes][1]) <= self.threshold):
+                self.duplicates_set.add(ix)
+                current_duplicates[chromosomes] += 1
+                continue
+
+            # update statistics
+            if current_duplicates[chromosomes] > 1:
+                self.duplicate_stats[current_duplicates[chromosomes]] += 1
+
+            current_positions[chromosomes] = (left_position, right_position)
+            current_duplicates[chromosomes] = 1
+
+    def valid_pair(self, pair):
+        """
+        Check if a pair is duplicated.
+        """
+        if pair.ix in self.duplicates_set:
+            return False
+        return True
+
+
+class OutwardPairsFilter(FragmentReadPairFilter):
     """
     Filter outward-facing read pairs at a distance less
     than a specified cutoff.
@@ -2103,7 +2157,7 @@ class OutwardPairsFilter(FragmentMappedReadPairFilter):
         return False
 
 
-class ReDistanceFilter(FragmentMappedReadPairFilter):
+class ReDistanceFilter(FragmentReadPairFilter):
     """
     Filters read pairs where one or both reads are more than
     maximum_distance away from the nearest restriction site.
@@ -2128,7 +2182,7 @@ class ReDistanceFilter(FragmentMappedReadPairFilter):
         return True
 
 
-class SelfLigationFilter(FragmentMappedReadPairFilter):
+class SelfLigationFilter(FragmentReadPairFilter):
     """
     Filters read pairs where one or both reads are more than
     maximum_distance away from the nearest restriction site.
