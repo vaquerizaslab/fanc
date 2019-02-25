@@ -812,7 +812,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                  additional_region_fields=None, additional_edge_fields=None,
                  partition_strategy='auto',
                  _table_name_regions='regions', _table_name_edges='edges',
-                 _edge_buffer_size=1000000):
+                 _edge_buffer_size=1000000, _edge_table_prefix='chrpair_'):
         """
         Initialize a :class:`~RegionPairsTable` object.
 
@@ -829,6 +829,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._edges_dirty = False
         self._mappability_dirty = False
         self._partition_strategy = partition_strategy
+        self._edge_table_prefix = _edge_table_prefix
 
         file_exists = False
         if file_name is not None:
@@ -847,7 +848,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                               mode=mode, tmpdir=tmpdir, additional_fields=additional_region_fields)
         Maskable.__init__(self, self.file)
 
-        self._edge_table_dict = dict()
         if file_exists and mode != 'w':
             # retrieve edge tables and partitions
             self._edges = self.file.get_node('/', _table_name_edges)
@@ -883,13 +883,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             self._partition_breaks = None
             self._update_partitions()
 
-            self._create_edge_table(0, 0, fields=basic_fields)
-
-        # update edge table dict
-        self._edge_table_dict = dict()
-        for edge_table in self._edges:
-            self._edge_table_dict[(edge_table.attrs['source_partition'],
-                                   edge_table.attrs['sink_partition'])] = edge_table
+            self._edge_table(0, 0, fields=basic_fields)
 
         # update field names
         self._source_field_ix = 0
@@ -904,12 +898,48 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._edge_buffer_size = _edge_buffer_size
         self._flush_operation = self._flush_table_edge_buffer
 
+    def _edge_table(self, source_partition, sink_partition, fields=None, create_if_missing=True):
+        """
+        Create and register an edge table for a partition combination.
+        """
+        edge_table_name = self._edge_table_prefix + str(source_partition) + '_' + str(sink_partition)
+        try:
+            return getattr(self._edges, edge_table_name)
+        except tables.NoSuchNodeError:
+            if not create_if_missing:
+                raise ValueError("The edge table {}/{} cannot be found!".format(source_partition,
+                                                                                sink_partition))
+
+        if fields is None:
+            fields = self._edge_table(0, 0).coldescrs
+
+        edge_table = MaskedTable(self._edges,
+                                 edge_table_name,
+                                 fields, ignore_reserved_fields=True,
+                                 expectedrows=10000000)
+        edge_table.attrs['source_partition'] = source_partition
+        edge_table.attrs['sink_partition'] = sink_partition
+
+        # index
+        create_col_index(edge_table.cols.source)
+        create_col_index(edge_table.cols.sink)
+
+        return edge_table
+
+    def _iter_edge_tables(self):
+        for source_partition in range(len(self._partition_breaks) + 1):
+            for sink_partition in range(source_partition, len(self._partition_breaks) + 1):
+                try:
+                    yield (source_partition, sink_partition), self._edge_table(source_partition,
+                                                                               sink_partition,
+                                                                               create_if_missing=False)
+                except ValueError:
+                    pass
+
     def _flush_table_edge_buffer(self):
         for (source_partition, sink_partition), records in self._edge_buffer.items():
-            if not (source_partition, sink_partition) in self._edge_table_dict:
-                self._create_edge_table(source_partition, sink_partition)
-            table = self._edge_table_dict[(source_partition, sink_partition)]
-            table.append(records)
+            edge_table = self._edge_table(source_partition, sink_partition)
+            edge_table.append(records)
         self._edge_buffer = defaultdict(list)
 
     def _flush_regions(self):
@@ -947,13 +977,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._flush_edges(silent=silent)
 
     def _disable_edge_indexes(self):
-        for edge_table in self._edge_table_dict.values():
+        for _, edge_table in self._iter_edge_tables():
             edge_table.cols.source.remove_index()
             edge_table.cols.sink.remove_index()
             edge_table.disable_mask_index()
 
     def _enable_edge_indexes(self):
-        for edge_table in self._edge_table_dict.values():
+        for _, edge_table in self._iter_edge_tables():
             create_col_index(edge_table.cols.source)
             create_col_index(edge_table.cols.sink)
             edge_table.enable_mask_index()
@@ -991,7 +1021,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         """
         Set internal object variables related to edge table field names.
         """
-        edge_table = self._edge_table_dict[(0, 0)]
+        edge_table = self._edge_table(0, 0)
 
         # update field names
         self._source_field_ix = 0
@@ -1008,30 +1038,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 self._sink_field_ix = i
             self._field_names_dict[name] = i
             self._edge_field_defaults[name] = edge_table.coldescrs[name].dflt
-
-    def _create_edge_table(self, source_partition, sink_partition, fields=None):
-        """
-        Create and register an edge table for a partition combination.
-        """
-        if (source_partition, sink_partition) in self._edge_table_dict:
-            return self._edge_table_dict[(source_partition, sink_partition)]
-
-        if fields is None:
-            fields = self._edge_table_dict[(0, 0)].coldescrs
-
-        edge_table = MaskedTable(self._edges,
-                                 'chrpair_' + str(source_partition) + '_' + str(sink_partition),
-                                 fields, ignore_reserved_fields=True,
-                                 expectedrows=10000000)
-        edge_table.attrs['source_partition'] = source_partition
-        edge_table.attrs['sink_partition'] = sink_partition
-
-        # index
-        create_col_index(edge_table.cols.source)
-        create_col_index(edge_table.cols.sink)
-
-        self._edge_table_dict[(source_partition, sink_partition)] = edge_table
-        return edge_table
 
     def _get_edge_table_tuple(self, source, sink):
         if source > sink:
@@ -1097,7 +1103,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def _flush_edge_list_buffer(self):
         for (source_partition, sink_partition), edges in self._edge_buffer.items():
-            edge_table = self._create_edge_table(source_partition, sink_partition)
+            edge_table = self._edge_table(source_partition, sink_partition)
             row = edge_table.row
 
             for edge in edges:
@@ -1123,7 +1129,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def _flush_edge_dict_buffer(self):
         for (source_partition, sink_partition), edges in self._edge_buffer.items():
-            edge_table = self._create_edge_table(source_partition, sink_partition)
+            edge_table = self._edge_table(source_partition, sink_partition)
             fields = edge_table.colnames
             row = edge_table.row
 
@@ -1167,7 +1173,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def _flush_edge_buffer(self):
         for (source_partition, sink_partition), edges in self._edge_buffer.items():
-            edge_table = self._create_edge_table(source_partition, sink_partition)
+            edge_table = self._edge_table(source_partition, sink_partition)
             fields = edge_table.colnames
             row = edge_table.row
 
@@ -1217,7 +1223,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             else:
                 RegionPairsContainer.add_edges(self, edges, *args, **kwargs)
 
-        for edge_table in self._edge_table_dict.values():
+        for _, edge_table in self._iter_edge_tables():
             edge_table.flush()
 
         if flush:
@@ -1277,10 +1283,10 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 row_covered = self._is_partition_covered(a, row_start, row_end)
                 col_covered = self._is_partition_covered(b, col_start, col_end)
 
-                if (i, j) not in self._edge_table_dict:
+                try:
+                    edge_table = self._edge_table(i, j, create_if_missing=False)
+                except ValueError:
                     continue
-
-                edge_table = self._edge_table_dict[(i, j)]
 
                 # if we need to get all regions in a table, return the whole thing
                 if row_covered and col_covered:
@@ -1351,18 +1357,16 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         else:
             lazy_edge = None
 
-        for i in range(0, len(self._partition_breaks) + 1):
-            for j in range(i, len(self._partition_breaks) + 1):
-                if (i, j) in self._edge_table_dict:
-                    for row in self._edge_table_dict[(i, j)]:
-                        yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
+        for (i, j), edge_table in self._iter_edge_tables():
+            for row in edge_table:
+                yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
 
     def edges_dict(self, *args, **kwargs):
         return self._edge_subset_rows(*args, **kwargs)
 
     def _edges_length(self):
         s = 0
-        for edge_table in self._edge_table_dict.values():
+        for _, edge_table in self._iter_edge_tables():
             s += len(edge_table)
         return s
 
@@ -1414,9 +1418,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         total = 0
         filtered = 0
         if not queue:
-            with RareUpdateProgressBar(max_value=len(self._edge_table_dict),
+            with RareUpdateProgressBar(max_value=len(self._edges),
                                        silent=not log_progress) as pb:
-                for i, edge_table in enumerate(self._edge_table_dict.values()):
+                for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                     stats = edge_table.filter(edge_filter, _logging=False)
                     for key, value in stats.items():
                         if key != 0:
@@ -1426,7 +1430,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             if log_progress:
                 logger.info("Total: {}. Filtered: {}".format(total, filtered))
         else:
-            for edge_table in self._edge_table_dict.values():
+            for _, edge_table in self._iter_edge_tables():
                 edge_table.queue_filter(edge_filter)
 
         self._update_mappability()
@@ -1440,9 +1444,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         """
         total = 0
         filtered = 0
-        with RareUpdateProgressBar(max_value=len(self._edge_table_dict),
+        with RareUpdateProgressBar(max_value=len(self._edges),
                                    silent=not log_progress) as pb:
-            for i, edge_table in enumerate(self._edge_table_dict.values()):
+            for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                 stats = edge_table.run_queued_filters(_logging=False)
                 for key, value in stats.items():
                     if key != 0:
@@ -1508,17 +1512,17 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
             # create edge tables
             partition_pairs = []
-            for (source_partition, sink_partition) in pairs[0]._edge_table_dict.items():
-                new_pairs._create_edge_table(source_partition, sink_partition)
+            for (source_partition, sink_partition), _ in pairs[0]._iter_edge_tables():
+                new_pairs._edge_table(source_partition, sink_partition)
                 partition_pairs.append((source_partition, sink_partition))
 
             logger.info("Starting fast pair merge")
-            for partition_pair in partition_pairs:
-                edge_table = new_pairs._edge_table_dict[partition_pair]
+            for source_partition, sink_partition in partition_pairs:
+                edge_table = new_pairs._edge_table(source_partition, sink_partition)
                 fields = edge_table.colnames
                 new_row = edge_table.row
                 for pair in pairs:
-                    for row in pair._edge_table_dict[partition_pair].iterrows():
+                    for row in pair._edge_table(source_partition, sink_partition).iterrows():
                         for field in fields:
                             new_row[field] = row[field]
                         new_row.append()
@@ -1739,21 +1743,21 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
             # create edge tables
             partition_pairs = []
-            for (source_partition, sink_partition) in matrices[0]._edge_table_dict.keys():
-                new_matrix._create_edge_table(source_partition, sink_partition)
+            for (source_partition, sink_partition), _ in matrices[0]._iter_edge_tables():
+                new_matrix._edge_table(source_partition, sink_partition)
                 partition_pairs.append((source_partition, sink_partition))
 
             new_matrix._disable_edge_indexes()
 
             default_field = getattr(new_matrix, '_default_score_field', 'weight')
             logger.info("Starting fast pair merge")
-            for partition_pair in partition_pairs:
+            for source_partition, sink_partition in partition_pairs:
                 edges = defaultdict(int)
                 for pair in matrices:
-                    for row in pair._edge_table_dict[partition_pair].iterrows():
+                    for row in pair._edge_table(source_partition, sink_partition).iterrows():
                         edges[(row['source'], row['sink'])] += row[default_field]
 
-                edge_table = new_matrix._edge_table_dict[partition_pair]
+                edge_table = new_matrix._edge_table(source_partition, sink_partition)
                 new_row = edge_table.row
                 for (source, sink), weight in edges.items():
                     new_row['source'] = source

@@ -605,7 +605,7 @@ class ReadPairs(RegionPairsTable):
 
         self._pairs = self._edges
         self._pair_count = sum(edge_table._original_len()
-                               for edge_table in self._edge_table_dict.values())
+                               for _, edge_table in self._iter_edge_tables())
         self._ix_to_chromosome = dict()
         self._chromosome_to_ix = dict()
         self._update_references()
@@ -753,7 +753,7 @@ class ReadPairs(RegionPairsTable):
 
     def _flush_fragment_info_buffer(self):
         for (source_partition, sink_partition), edges in self._edge_buffer.items():
-            edge_table = self._create_edge_table(source_partition, sink_partition)
+            edge_table = self._edge_table(source_partition, sink_partition)
             row = edge_table.row
 
             for fi1, fi2 in edges:
@@ -981,9 +981,9 @@ class ReadPairs(RegionPairsTable):
         total = 0
         filtered = 0
         if not queue:
-            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_dict.keys()),
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
                                        silent=not log_progress) as pb:
-                for i, edge_table in enumerate(self._edge_table_dict.values()):
+                for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                     stats = edge_table.filter(pair_filter, _logging=False)
                     for key, value in stats.items():
                         if key != 0:
@@ -993,7 +993,7 @@ class ReadPairs(RegionPairsTable):
             if log_progress:
                 logger.info("Total: {}. Filtered: {}".format(total, filtered))
         else:
-            for edge_table in self._edge_table_dict.values():
+            for _, edge_table in self._iter_edge_tables():
                 edge_table.queue_filter(pair_filter)
 
     def run_queued_filters(self, log_progress=not config.hide_progressbars):
@@ -1005,9 +1005,9 @@ class ReadPairs(RegionPairsTable):
         """
         total = 0
         filtered = 0
-        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edge_table_dict.keys()),
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
                                    silent=not log_progress) as pb:
-            for i, edge_table in enumerate(self._edge_table_dict.values()):
+            for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                 stats = edge_table.run_queued_filters(_logging=False)
                 for key, value in stats.items():
                     if key != 0:
@@ -1138,7 +1138,7 @@ class ReadPairs(RegionPairsTable):
         """
         excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
 
-        for (ix1, ix2), edge_table in self._edge_table_dict.items():
+        for (ix1, ix2), edge_table in self._iter_edge_tables():
             if not intra_chromosomal and ix1 == ix2:
                 continue
             if not inter_chromosomal and ix1 != ix2:
@@ -1163,7 +1163,7 @@ class ReadPairs(RegionPairsTable):
             item += len(self)
 
         l = 0
-        for edge_table in self._edge_table_dict.values():
+        for _, edge_table in self._iter_edge_tables():
             if l <= item < l + len(edge_table):
                 res = edge_table[item - l]
                 return self._row_to_edge(res, *row_conversion_args, **row_conversion_kwargs)
@@ -1196,7 +1196,7 @@ class ReadPairs(RegionPairsTable):
 
     def __len__(self):
         l = 0
-        for edge_table in self._edge_table_dict.values():
+        for _, edge_table in self._iter_edge_tables():
             l += len(edge_table)
         return l
 
@@ -1209,7 +1209,7 @@ class ReadPairs(RegionPairsTable):
         l = len(self)
         pairs_counter = 0
         with RareUpdateProgressBar(max_value=l, silent=config.hide_progressbars) as pb:
-            for pairs_edge_table in self._edge_table_dict.values():
+            for _, pairs_edge_table in self._iter_edge_tables():
 
                 partition_edge_buffer = defaultdict(dict)
                 for row in pairs_edge_table:
@@ -1223,7 +1223,7 @@ class ReadPairs(RegionPairsTable):
                     pairs_counter += 1
 
                 for hic_partition_key, edge_buffer in viewitems(partition_edge_buffer):
-                    hic_edge_table = hic._create_edge_table(hic_partition_key[0], hic_partition_key[1])
+                    hic_edge_table = hic._edge_table(hic_partition_key[0], hic_partition_key[1])
                     row = hic_edge_table.row
 
                     for (source, sink), weight in viewitems(edge_buffer):
@@ -1787,7 +1787,7 @@ class AOPCRDuplicateFilter(PCRDuplicateFilter):
         self.duplicates_set = set()
         self.duplicate_stats = defaultdict(int)
         original_len = 0
-        for edge_table in self.pairs._edge_table_dict.values():
+        for _, edge_table in self.pairs._iter_edge_tables():
             original_len += edge_table._original_len()
             self._mark_duplicates(edge_table)
 
