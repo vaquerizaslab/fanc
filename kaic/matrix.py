@@ -591,7 +591,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         if default_value is None:
             default_value = self._default_value
 
-        if oe:
+        if oe and not log:
             default_value = 1.0
 
         row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key, norm=norm, oe=oe,
