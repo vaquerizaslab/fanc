@@ -820,13 +820,14 @@ class ReadPairs(RegionPairsTable):
         self.add_edge(pair, check_nodes_exist=False, replace=True)
         self._pair_count += 1
 
-    def _pair_from_row(self, row, lazy=False):
+    def _pair_from_row(self, row, lazy_pair=None):
         """
         Convert a PyTables row to a FragmentReadPair
         """
-        if lazy:
-            left_read = LazyFragmentRead(row, self, side="left")
-            right_read = LazyFragmentRead(row, self, side="right")
+        if lazy_pair is not None:
+            lazy_pair.left._row = row
+            lazy_pair.right._row = row
+            return lazy_pair
         else:
             fragment1 = GenomicRegion(start=row['left_fragment_start'],
                                       end=row['left_fragment_end'],
@@ -842,7 +843,7 @@ class ReadPairs(RegionPairsTable):
             right_read = FragmentRead(fragment2, position=row['right_read_position'],
                                       strand=row['right_read_strand'])
 
-        return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
+            return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
     def get_ligation_structure_biases(self, sampling=None, skip_self_ligations=True):
 
@@ -1147,9 +1148,15 @@ class ReadPairs(RegionPairsTable):
             for row in edge_table.iterrows(excluded_masks=excluded_masks):
                 yield row
 
-    def pairs(self, lazy=False, excluded_filters=()):
-        for row in self._edge_row_iter(excluded_filters=excluded_filters):
-            yield self._pair_from_row(row, lazy=lazy)
+    def pairs(self, key=None, lazy=False, *args, **kwargs):
+        if lazy:
+            fr1 = LazyFragmentRead({}, self, side='left')
+            fr2 = LazyFragmentRead({}, self, side='right')
+            lazy_pair = FragmentReadPair(fr1, fr2)
+        else:
+            lazy_pair = None
+        for row in self.edges_dict(key=key, *args, **kwargs):
+            yield self._pair_from_row(row, lazy_pair=lazy_pair)
 
     def get_edge(self, item, *row_conversion_args, **row_conversion_kwargs):
         """
@@ -1191,7 +1198,7 @@ class ReadPairs(RegionPairsTable):
         else:
             pairs = []
             for row in self.edges.get_row_range(item):
-                pairs.append(self._pair_from_row(row, lazy=False))
+                pairs.append(self._pair_from_row(row))
             return pairs
 
     def __len__(self):
@@ -1239,15 +1246,7 @@ class ReadPairs(RegionPairsTable):
         return hic
 
     def pairs_by_chromosomes(self, chromosome1, chromosome2, lazy=False):
-        chromosome_bins = self.chromosome_bins
-        if chromosome1 not in chromosome_bins or chromosome2 not in chromosome_bins:
-            raise ValueError("Chromosomes {}/{} not in object".format(chromosome1, chromosome2))
-        source_partition = self._get_partition_ix(chromosome_bins[chromosome1][0])
-        sink_partition = self._get_partition_ix(chromosome_bins[chromosome2][0])
-        if source_partition > sink_partition:
-            source_partition, sink_partition = sink_partition, source_partition
-        for row in self._edge_table_dict[(source_partition, sink_partition)]:
-            yield self._pair_from_row(row, lazy=lazy)
+        return self.pairs((chromosome1, chromosome2), lazy=lazy)
 
     def filter_statistics(self):
         try:
