@@ -376,6 +376,7 @@ class RegionPairsContainer(RegionBased):
                                                                   *args, **kwargs)
 
                 bias_field = kwargs.pop('bias_field', 'bias')
+                valid_field = kwargs.pop('valid_field', 'valid')
 
                 for edge in edge_iter:
                     row_region = regions[edge.source]
@@ -386,7 +387,7 @@ class RegionPairsContainer(RegionBased):
                         continue
 
                     try:
-                        if not getattr(row_region, 'valid', True) or not getattr(col_region, 'valid', True):
+                        if not getattr(row_region, valid_field, True) or not getattr(col_region, valid_field, True):
                             continue
                     except AttributeError:
                         pass
