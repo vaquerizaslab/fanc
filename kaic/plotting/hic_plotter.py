@@ -38,16 +38,11 @@ def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
                                           are buffered
     :param buffering_arg: Number specifying how much around the query area is buffered
     """
-    if isinstance(hic_data, RegionMatrixTable):
+    if isinstance(hic_data, RegionMatrixContainer):
         return BufferedMatrix(hic_data, buffering_strategy=buffering_strategy,
                               buffering_arg=buffering_arg, weight_field=weight_field,
                               default_value=default_value, smooth_sigma=smooth_sigma,
                               norm=norm, oe=oe, log=log)
-    elif isinstance(hic_data, RegionMatrixContainer):
-        return BufferedMatrix.from_hic_matrix(hic_data, weight_field=weight_field,
-                                              default_value=default_value,
-                                              smooth_sigma=smooth_sigma,
-                                              norm=norm, oe=oe, log=log)
     else:
         raise ValueError("Unknown type for hic_data")
 
