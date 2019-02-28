@@ -301,10 +301,10 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
 
         if self.flip:
             m = np.flipud(m)
-            extent = [self.current_matrix.row_regions[0].end, self.current_matrix.row_regions[-1].end,
+            extent = [self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end,
                       self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end]
         else:
-            extent = [self.current_matrix.row_regions[0].end, self.current_matrix.row_regions[-1].end,
+            extent = [self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end,
                       self.current_matrix.col_regions[-1].end, self.current_matrix.col_regions[0].start]
 
         color_matrix = self.get_color_matrix(m)
