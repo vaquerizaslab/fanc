@@ -10,5 +10,4 @@ It provides basic commands for plotting Hi-C data and other genomic tracks.
    :maxdepth: 2
 
     Overview and basic usage <klot-executable/klot_basic>
-    Generate Hi-C matrices <kaic-executable/kaic_generate_hic>
-    Analyse Hi-C matrices <kaic-executable/kaic_analyse_hic>
+
