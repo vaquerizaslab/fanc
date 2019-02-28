@@ -1775,11 +1775,15 @@ class ReadFilter(object):
         """
         Initialize ReadFilter.
 
-        :param mask: The Mask object that should be used to mask
+        :param mask: The :class:`~kaic.general.Mask` object that
+                     should be used to mask
                      filtered Read objects. If None the default
                      Mask will be used.
         """
-        super(ReadFilter, self).__init__(mask)
+        if mask is not None:
+            self.mask = mask
+        else:
+            self.mask = Mask('default', 'Default mask')
 
     def valid_read(self, read):
         """
@@ -1993,9 +1997,13 @@ class FragmentReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
     def __init__(self, mask=None):
         super(FragmentReadPairFilter, self).__init__(mask)
         self.pairs = None
+        self._lazy_pair = None
 
     def set_pairs_object(self, pairs):
         self.pairs = pairs
+        fr1 = LazyFragmentRead({}, pairs, side='left')
+        fr2 = LazyFragmentRead({}, pairs, side='right')
+        self._lazy_pair = FragmentReadPair(fr1, fr2)
 
     @abstractmethod
     def valid_pair(self, fr_pair):
@@ -2005,7 +2013,7 @@ class FragmentReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
         """
         Map validity check of rows to pairs.
         """
-        pair = self.pairs._pair_from_row(row, lazy=True)
+        pair = self.pairs._pair_from_row(row, lazy_pair=self._lazy_pair)
         return self.valid_pair(pair)
 
 
