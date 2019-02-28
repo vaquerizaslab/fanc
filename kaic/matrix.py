@@ -1625,12 +1625,18 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         else:
             edges_iter = iter(edges)
             first_edge = next(edges_iter)
+
+            def full_edges_iter():
+                yield first_edge
+                for edge in edges_iter:
+                    yield edge
+
             if isinstance(first_edge, list) or isinstance(first_edge, tuple):
-                self._add_edges_from_lists(edges_iter)
+                self._add_edges_from_lists(full_edges_iter())
             elif isinstance(first_edge, dict):
-                self._add_edges_from_dicts(edges_iter)
+                self._add_edges_from_dicts(full_edges_iter())
             elif isinstance(first_edge, Edge):
-                self._add_edges_from_edges(edges_iter)
+                self._add_edges_from_edges(full_edges_iter())
             else:
                 RegionPairsContainer.add_edges(self, edges, *args, **kwargs)
 
@@ -1702,7 +1708,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
                 # if we need to get all regions in a table, return the whole thing
                 if row_covered and col_covered:
-                    for row in edge_table:
+                    for row in edge_table.iterrows(excluded_filters=excluded_filters,
+                                                   maskable=self):
                         yield row
 
                 # otherwise only return the subset defined by the respective indices
@@ -1716,10 +1723,12 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
                     overlap = range_overlap(row_start, row_end, col_start, col_end)
 
-                    for edge_row in edge_table.where(condition1):
+                    for edge_row in edge_table.where(condition1, excluded_filters=excluded_filters,
+                                                     maskable=self):
                         yield edge_row
 
-                    for edge_row in edge_table.where(condition2):
+                    for edge_row in edge_table.where(condition2, excluded_filters=excluded_filters,
+                                                     maskable=self):
                         if overlap is not None:
                             if (overlap[0] <= edge_row['source'] <= overlap[1]) and (
                                     overlap[0] <= edge_row['sink'] <= overlap[1]):
@@ -1760,7 +1769,10 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         else:
             lazy_edge = None
 
-        for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
+        excluded_filters = kwargs.get('excluded_filters', 0)
+
+        for row in self._edge_subset_rows_from_regions(row_regions, col_regions,
+                                                       excluded_filters=excluded_filters):
             yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
 
     def _edges_iter(self, lazy=False, lazy_edge=None, weight_field='weight', *args, **kwargs):
@@ -1769,8 +1781,10 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         else:
             lazy_edge = None
 
+        excluded_filters = kwargs.get('excluded_filters', 0)
+
         for (i, j), edge_table in self._iter_edge_tables():
-            for row in edge_table:
+            for row in edge_table.iterrows(maskable=self, excluded_filters=excluded_filters):
                 yield self._row_to_edge(row, lazy_edge=lazy_edge, **kwargs)
 
     def edges_dict(self, *args, **kwargs):
@@ -1828,7 +1842,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         total = 0
         filtered = 0
         if not queue:
-            with RareUpdateProgressBar(max_value=len(self._edges),
+            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
                                        silent=not log_progress) as pb:
                 for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                     stats = edge_table.filter(edge_filter, _logging=False)
@@ -1854,7 +1868,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         """
         total = 0
         filtered = 0
-        with RareUpdateProgressBar(max_value=len(self._edges),
+        with RareUpdateProgressBar(max_value=(1 for _ in self._edges),
                                    silent=not log_progress) as pb:
             for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                 stats = edge_table.run_queued_filters(_logging=False)

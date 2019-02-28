@@ -504,10 +504,16 @@ class Maskable(FileBased):
 
 
 class MaskedTableView(object):
-    def __init__(self, masked_table, it=None, excluded_masks=0):
+    def __init__(self, masked_table, it=None, excluded_masks=0, maskable=None):
         self.masked_table = masked_table
         self.iter = it if it else self.masked_table._iter_visible_and_masked()
-        self.excluded_mask_ix = excluded_masks
+        if isinstance(excluded_masks, int):
+            self.excluded_mask_ix = excluded_masks
+        elif maskable is not None:
+            self.excluded_mask_ix = maskable.get_binary_mask_from_masks(excluded_masks)
+        else:
+            raise ValueError("Must provide maskable object in order to derive mask "
+                             "ixs from mask names ({})".format(excluded_masks))
 
     def __iter__(self):
         return self
@@ -636,9 +642,9 @@ class MaskedTable(t.Table):
             # commit index changes
             t.Table.flush(self)
 
-    def iterrows(self, start=None, stop=None, step=None, excluded_masks=0):
+    def iterrows(self, start=None, stop=None, step=None, excluded_filters=0, maskable=None):
         it = t.Table.iterrows(self, start, stop, step)
-        return MaskedTableView(self, it, excluded_masks=excluded_masks)
+        return MaskedTableView(self, it, excluded_masks=excluded_filters, maskable=maskable)
 
     def itersorted(self, sortby, checkCSI=False,
                    start=None, stop=None, step=None, excluded_masks=0):
@@ -791,6 +797,17 @@ class MaskedTable(t.Table):
         except t.FileModeError:
             pass
 
+    def reset_all_masks(self):
+        n_rows = self._original_len()
+        with RareUpdateProgressBar(max_value=n_rows, silent=config.hide_progressbars) as pb:
+            ix = 0
+            for i, row in enumerate(self._iter_visible_and_masked()):
+                row[self._mask_field] = 0
+                row[self._mask_index_field] = ix
+                ix += 1
+                row.update()
+                pb.update(i)
+
     def mask_stats(self):
         stats = defaultdict(int)
         for row in self._iter_visible_and_masked():
@@ -857,7 +874,7 @@ class MaskedTable(t.Table):
         self.attrs['masked_length'] = ix
 
         if _logging:
-            logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
+            logger.info("Total: {}. Valid: {}".format(total, total + (mask_ix-1)))
 
         try:
             self.attrs['mask_stats'] = stats
@@ -921,13 +938,16 @@ class MaskedTable(t.Table):
             pass
 
         self.flush(update_index=False)
+        self._queued_filters = []
         return stats
 
     def where(self, condition, condvars=None,
-              start=None, stop=None, step=None):
+              start=None, stop=None, step=None,
+              excluded_filters=0, maskable=None):
         condition = "(" + condition + ") & (%s >= 0)" % self._mask_index_field
-        return super(MaskedTable, self).where(condition, condvars=None,
-                                              start=None, stop=None, step=None)
+        it = super(MaskedTable, self).where(condition, condvars=None,
+                                            start=None, stop=None, step=None)
+        return MaskedTableView(self, it, excluded_masks=excluded_filters, maskable=maskable)
 
 
 class MaskFilter(with_metaclass(ABCMeta, object)):
