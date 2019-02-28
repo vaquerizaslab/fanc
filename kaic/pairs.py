@@ -961,7 +961,7 @@ class ReadPairs(RegionPairsTable):
         return ((read1.pos, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
                 (read2.pos, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2))
 
-    def _read_pairs_fragment_info(self, read_pairs, threads=4, batch_size=1000000, timeout=180):
+    def _read_pairs_fragment_info(self, read_pairs, threads=4, batch_size=1000000, timeout=600):
         """
         Parallel loading of read pairs along with mapping to restriction fragments.
 
@@ -1495,21 +1495,6 @@ class ReadPairs(RegionPairsTable):
         Iterate over unfiltered fragment-mapped read pairs.
         """
         return self.pairs(lazy=False)
-
-    def _edge_row_iter(self, intra_chromosomal=True, inter_chromosomal=True, excluded_filters=()):
-        """
-        Yield rows in edge tables, ordered by partition.
-        """
-        excluded_masks = self.get_binary_mask_from_masks(excluded_filters)
-
-        for (ix1, ix2), edge_table in self._iter_edge_tables():
-            if not intra_chromosomal and ix1 == ix2:
-                continue
-            if not inter_chromosomal and ix1 != ix2:
-                continue
-
-            for row in edge_table.iterrows(excluded_masks=excluded_masks):
-                yield row
 
     def pairs(self, key=None, lazy=False, *args, **kwargs):
         """
