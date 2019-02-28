@@ -39,29 +39,34 @@ class Edge(object):
 
         The index of the "sink" genomic region.
 
-    .. attribute:: weight
+    .. attribute:: bias
 
-        The weight or contact strength of the edge. Can, for
-        example, be the number of reads mapping to a contact.
+        Bias factor obtained via normalisation of the Hi-C matrix
+
+    .. attribute:: source_node
+
+        The first :class:`~kaic.GenomicRegion` in this contact
+
+    .. attribute:: sink_node
+
+        The second :class:`~kaic.GenomicRegion` in this contact
     """
     def __init__(self, source, sink, _weight_field='weight', **kwargs):
         """
         :param source: The index of the "source" genomic region
-                       or :class:`~Node` object.
+                       or :class:`~kaic.GenomicRegion` object.
         :param sink: The index of the "sink" genomic region
-                     or :class:`~Node` object.
-        :param data: The weight or of the edge or a dictionary with
-                     other fields
+                     or :class:`~kaic.GenomicRegion` object.
+        :param kwargs: Other key, value pairs to be stored as
+                       :class:`~Edge` attributes
         """
         self._source = source
         self._sink = sink
-        self.field_names = []
         self._bias = 1.
         self._weight_field = _weight_field
 
         for key, value in kwargs.items():
             setattr(self, key.decode() if isinstance(key, bytes) else key, value)
-            self.field_names.append(key)
 
     def __getattribute__(self, item):
         if item == '_weight_field' or item != self._weight_field:
@@ -100,25 +105,54 @@ class Edge(object):
     def source_node(self):
         if isinstance(self._source, GenomicRegion):
             return self._source
-        raise RuntimeError("Source not not provided during object initialization!")
+        raise ValueError("Source not not provided during object initialization!")
 
     @property
     def sink_node(self):
         if isinstance(self._sink, GenomicRegion):
             return self._sink
-        raise RuntimeError("Sink not not provided during object initialization!")
+        raise ValueError("Sink not not provided during object initialization!")
 
     def __repr__(self):
         base_info = "{}--{}".format(self.source, self.sink)
-        for field in self.field_names:
-            base_info += "; {}: {}".format(field, str(getattr(self, field)))
+        for field in dir(self):
+            if not field.startswith('_') and not field == 'source' and not field == 'sink':
+                try:
+                    value = getattr(self, field)
+                    base_info += "; {}: {}".format(field, value)
+                except ValueError:
+                    pass
         return base_info
 
 
 class LazyEdge(object):
-    def __init__(self, row, nodes_table=None, _weight_field='weight'):
+    """
+    An :class:`~Edge` equivalent supporting lazy loading.
+
+    .. attribute:: source
+
+        The index of the "source" genomic region. By convention,
+        source <= sink.
+
+    .. attribute:: sink
+
+        The index of the "sink" genomic region.
+
+    .. attribute:: bias
+
+        Bias factor obtained via normalisation of the Hi-C matrix
+
+    .. attribute:: source_node
+
+        The first :class:`~kaic.GenomicRegion` in this contact
+
+    .. attribute:: sink_node
+
+        The second :class:`~kaic.GenomicRegion` in this contact
+    """
+    def __init__(self, row, regions_table=None, _weight_field='weight'):
         self._row = row
-        self._nodes_table = nodes_table
+        self._regions_table = regions_table
         self._bias = 1.
         self._weight_field = _weight_field
 
@@ -145,6 +179,9 @@ class LazyEdge(object):
             raise KeyError("No such key: {}".format(item))
 
     def update(self):
+        """
+        Write changes to PyTables row to file.
+        """
         self._row.update()
 
     @property
@@ -152,23 +189,35 @@ class LazyEdge(object):
         return self._bias
 
     @property
-    def source_node(self):
-        if self._nodes_table is None:
-            raise RuntimeError("Must set the _nodes_table attribute before calling this method!")
+    def source_region(self):
+        if self._regions_table is None:
+            raise RuntimeError("Must set the _regions_table attribute before calling this method!")
 
-        source_row = self._nodes_table[self.source]
+        source_row = self._regions_table[self.source]
         return LazyGenomicRegion(source_row)
 
     @property
-    def sink_node(self):
-        if self._nodes_table is None:
-            raise RuntimeError("Must set the _nodes_table attribute before calling this method!")
+    def sink_region(self):
+        if self._regions_table is None:
+            raise RuntimeError("Must set the _regions_table attribute before calling this method!")
 
-        sink_row = self._nodes_table[self.sink]
+        sink_row = self._regions_table[self.sink]
         return LazyGenomicRegion(sink_row)
+
+    def __repr__(self):
+        return "<{}.{} for row {}>".format(self.__module__, self.__class__.__name__, self._row)
 
 
 def as_edge(edge):
+    """
+    Convert input to :class:`~Edge`.
+
+    :param edge: Can be :class:`~Edge`,
+                 tuple or list of the form (source, sink, weight),
+                 tuple of the form (:class:`~kaic.GenomicRegion`, :class:`~kaic.GenomicRegion`),
+                 dict, or :class:`~Edge` equivalent
+    :return: :class:`~Edge`
+    """
     if isinstance(edge, Edge):
         return edge
 
@@ -211,7 +260,75 @@ def as_edge(edge):
 
 
 class RegionPairsContainer(RegionBased):
+    """
+    Class representing pairs of genomic regions.
 
+    This is the basic interface for all pair and matrix classes in this module.
+    It inherits all methods from :class:`~genomic_regions.RegionBased`, and is
+    therefore based on a list of genomic regions (:class:`~kaic.GenomicRegion`)
+    representing the underlying genome. You can use the
+    :func:`~genomic_regions.RegionBased.regions` method to access genomic regions
+    in a intuitive fashion, for example:
+
+    .. code ::
+
+        for region in rpc.regions('chr1'):
+            # do something with region
+            print(region)
+
+    For more details on region access, see the :code:`genomic_regions`
+    documentation, on which this module is built.
+
+    :class:`~RegionPairsContainer` adds methods for *pairs* of genomic regions
+    on top of the :class:`~genomic_regions.RegionBased` methods for individual
+    regions. In the nomenclature of this module, which borrows from network
+    analysis terminology, a pair of regions is represented by an :class:`~Edge`.
+
+    .. code ::
+
+        # iterate over all region pairs / edges in chr1
+        for edge in rpc.edges(("chr1", "chr1")):
+            # do something with edge / region pair
+            region1 = edge.source_region
+            region2 = edge.sink_region
+
+    for more details see the :func:`~RegionPairsContainer.edges` method help.
+
+    This class itself is only an interface and cannot actually be used to add
+    regions and region pairs. Implementations of this interface, i.e. subclasses
+    such as :class:`~RegionPairsTable` must override various hidden methods
+    to give them full functionality.
+
+    * :func:`~RegionPairsContainer._add_edge` is used to save region pairs / edges
+      to the object. It receives a single :class:`~Edge` as input and should
+      return the index of the added edge.
+
+    * :func:`~RegionPairsContainer._edges_iter` is required by
+      :func:`~RegionPairsContainer.edges`. It is used to iterate over all
+      edges in the object in no particular order. It should return a generator
+      of :class:`~Edge` objects representing all region pairs in the object.
+
+    * :func:`~RegionPairsContainer._edges_subset` is also used by
+      :func:`~RegionPairsContainer.edges`. It is used to iterate over a subset of
+      edges in this object. It receives as input a :code:`key` representing the requested
+      subset (further described in :func:`~RegionPairsContainer.edges`), and
+      two lists of :class:`~kaic.GenomicRegion` objects, :code:`row_regions` and
+      :code:`col_regions` representing the two dimensions of regions selected
+      by :code:`key`. It should return an iterator over :class:`~Edge` objects.
+
+    * :func:`~RegionPairsContainer._edges_getitem` is used by
+      :func:`~RegionPairsContainer.edges` for retrieval of edges by bracket notation.
+      For integer input, it should return a single :class:`~Edge`, for :class:`~slice`
+      input a list of :class:`~Edge` objects.
+
+    The above methods cover all the basic :class:`~RegionPairsContainer` functionality,
+    but for speed improvements you may also want to override the following method,
+    which by default iterates over all edges
+
+    * :func:`~RegionPairsContainer._edges_length` which returns the total number of
+      edges in the object
+
+    """
     def __init__(self):
         RegionBased.__init__(self)
         self._default_value = 1.0
@@ -277,11 +394,19 @@ class RegionPairsContainer(RegionBased):
         return self.edges()
 
     def add_contact(self, contact, *args, **kwargs):
+        """
+        Alias for :func:`~RegionPairsContainer.add_edge`
+        :param contact: :class:`~Edge`
+        :param args: Positional arguments passed to
+                     :func:`~RegionPairsContainer._add_edge`
+        :param kwargs: Keyword arguments passed to
+                       :func:`~RegionPairsContainer._add_edge`
+        """
         return self.add_edge(contact, *args, **kwargs)
 
     def add_edge(self, edge, check_nodes_exist=True, *args, **kwargs):
         """
-        Add an edge to this object.
+        Add an edge / contact between two regions to this object.
 
         :param edge: :class:`~Edge`, dict with at least the
                      attributes source and sink, optionally weight,
@@ -289,6 +414,10 @@ class RegionPairsContainer(RegionBased):
                      (source, sink, weight).
         :param check_nodes_exist: Make sure that there are nodes
                                   that match source and sink indexes
+        :param args: Positional arguments passed to
+                     :func:`~RegionPairsContainer._add_edge`
+        :param kwargs: Keyword arguments passed to
+                       :func:`~RegionPairsContainer._add_edge`
         """
         if isinstance(edge, Edge):
             self._add_edge(edge, *args, **kwargs)
@@ -308,17 +437,40 @@ class RegionPairsContainer(RegionBased):
             self.add_edge_from_edge(edge)
 
     def add_edge_from_list(self, edge):
+        """
+        Direct method to add an edge from list or tuple input.
+
+        :param edge: List or tuple. Should be of length 2
+                     (source, sink) or 3 (source, sink, weight)
+        """
         return self.add_edge(as_edge(edge))
 
     def add_edge_from_dict(self, edge):
+        """
+        Direct method to add an edge from dict input.
+
+        :param edge: dict with at least the keys "source"
+                     and "sink". Additional keys will be loaded
+                     as edge attributes
+        """
         return self.add_edge(as_edge(edge))
 
     def add_edge_from_edge(self, edge):
+        """
+        Direct method to add an edge from :class:`~Edge` input.
+
+        :param edge: :class:`~Edge`
+        """
         return self.add_edge(as_edge(edge))
 
     def add_edges(self, edges, *args, **kwargs):
         """
         Bulk-add edges from a list.
+
+        List items can be any of the supported edge types,
+        list, tuple, dict, or :class:`~Edge`. Repeatedly
+        calls :func:`~RegionPairsContainer.add_edge`, so
+        may be inefficient for large amounts of data.
 
         :param edges: List (or iterator) of edges. See
                       :func:`~RegionMatrixTable.add_edge`
@@ -328,14 +480,151 @@ class RegionPairsContainer(RegionBased):
             self.add_edge(edge, *args, **kwargs)
 
     def add_contacts(self, contacts, *args, **kwargs):
+        """
+        Alias for :func:`~RegionPairsTable.add_edges`
+        """
         return self.add_edges(contacts, *args, **kwargs)
 
     @property
     def edges(self):
         """
-        Iterate over :class:`~Edge` objects.
+        Iterate over contacts / edges.
 
-        :return: Iterator over :class:`~Edge`
+        :func:`~RegionPairsContainer.edges` is the central function of
+        :class:`~RegionPairsContainer`. Here, we will use the
+        :class:`~kaic.Hic` implementation for demonstration purposes,
+        but the usage is exactly the same for all compatible
+        objects implementing :class:`~RegionPairsContainer`, including
+        :class:`~kaic.compatibility.juicer.JuicerHic` and
+        :class:`~kaic.compatibility.cooler.CoolerHic`.
+
+        .. code ::
+
+            import kaic
+
+            # file from Kai-C examples
+            hic = kaic.load("output/hic/binned/kaic_example_1mb.hic")
+
+        We can easily find the number of edges in the sample
+        :class:`~kaic.Hic` object:
+
+        .. code ::
+
+            len(hic.edges)  # 8695
+
+        When used in an iterator context, :func:`~RegionPairsContainer.edges`
+        iterates over all edges in the :class:`~RegionPairsContainer`:
+
+        .. code ::
+
+            for edge in hic.edges:
+                # do something with edge
+                print(edge)
+                # 42--42; bias: 5.797788472650082e-05; sink_node: chr18:42000001-43000000; source_node: chr18:42000001-43000000; weight: 0.12291311562018173
+                # 24--28; bias: 6.496381719803623e-05; sink_node: chr18:28000001-29000000; source_node: chr18:24000001-25000000; weight: 0.025205961072838057
+                # 5--76; bias: 0.00010230955745211447; sink_node: chr18:76000001-77000000; source_node: chr18:5000001-6000000; weight: 0.00961709840049876
+                # 66--68; bias: 8.248432587969082e-05; sink_node: chr18:68000001-69000000; source_node: chr18:66000001-67000000; weight: 0.03876763316345468
+                # ...
+
+        Calling :func:`~RegionPairsContainer.edges` as a method has the
+        same effect:
+
+        .. code ::
+
+            # note the '()'
+            for edge in hic.edges():
+                # do something with edge
+                print(edge)
+                # 42--42; bias: 5.797788472650082e-05; sink_node: chr18:42000001-43000000; source_node: chr18:42000001-43000000; weight: 0.12291311562018173
+                # 24--28; bias: 6.496381719803623e-05; sink_node: chr18:28000001-29000000; source_node: chr18:24000001-25000000; weight: 0.025205961072838057
+                # 5--76; bias: 0.00010230955745211447; sink_node: chr18:76000001-77000000; source_node: chr18:5000001-6000000; weight: 0.00961709840049876
+                # 66--68; bias: 8.248432587969082e-05; sink_node: chr18:68000001-69000000; source_node: chr18:66000001-67000000; weight: 0.03876763316345468
+                # ...
+
+        Rather than iterate over all edges in the object, we can select only a subset.
+        If the key is a string or a :class:`~kaic.GenomicRegion`, all non-zero edges connecting
+        the region described by the key to any other region are returned. If the key is a
+        tuple of strings or :class:`~kaic.GenomicRegion`, only edges between the two regions
+        are returned.
+
+        .. code ::
+
+            # select all edges between chromosome 19
+            # and any other region:
+            for edge in hic.edges("chr19"):
+                print(edge)
+                # 49--106; bias: 0.00026372303696871666; sink_node: chr19:27000001-28000000; source_node: chr18:49000001-50000000; weight: 0.003692122517562033
+                # 6--82; bias: 0.00021923129703834945; sink_node: chr19:3000001-4000000; source_node: chr18:6000001-7000000; weight: 0.0008769251881533978
+                # 47--107; bias: 0.00012820949175399097; sink_node: chr19:28000001-29000000; source_node: chr18:47000001-48000000; weight: 0.0015385139010478917
+                # 38--112; bias: 0.0001493344481069762; sink_node: chr19:33000001-34000000; source_node: chr18:38000001-39000000; weight: 0.0005973377924279048
+                # ...
+
+            # select all edges that are only on
+            # chromosome 19
+            for edge in hic.edges(('chr19', 'chr19')):
+                print(edge)
+                # 90--116; bias: 0.00021173151730025176; sink_node: chr19:37000001-38000000; source_node: chr19:11000001-12000000; weight: 0.009104455243910825
+                # 135--135; bias: 0.00018003890596887822; sink_node: chr19:56000001-57000000; source_node: chr19:56000001-57000000; weight: 0.10028167062466517
+                # 123--123; bias: 0.00011063368998965993; sink_node: chr19:44000001-45000000; source_node: chr19:44000001-45000000; weight: 0.1386240135570439
+                # 92--93; bias: 0.00040851066434864896; sink_node: chr19:14000001-15000000; source_node: chr19:13000001-14000000; weight: 0.10090213409411629
+                # ...
+
+            # select inter-chromosomal edges
+            # between chromosomes 18 and 19
+            for edge in hic.edges(('chr18', 'chr19')):
+                print(edge)
+                # 49--106; bias: 0.00026372303696871666; sink_node: chr19:27000001-28000000; source_node: chr18:49000001-50000000; weight: 0.003692122517562033
+                # 6--82; bias: 0.00021923129703834945; sink_node: chr19:3000001-4000000; source_node: chr18:6000001-7000000; weight: 0.0008769251881533978
+                # 47--107; bias: 0.00012820949175399097; sink_node: chr19:28000001-29000000; source_node: chr18:47000001-48000000; weight: 0.0015385139010478917
+                # 38--112; bias: 0.0001493344481069762; sink_node: chr19:33000001-34000000; source_node: chr18:38000001-39000000; weight: 0.0005973377924279048
+                # ...
+
+        By default, :func:`~RegionPairsContainer.edges` will retrieve all edge attributes,
+        which can be slow when iterating over a lot of edges. This is why all file-based Kai-C
+        :class:`~RegionPairsContainer` objects support lazy loading, where attributes
+        are only read on demand.
+
+        .. code ::
+
+            for edge in hic.edges('chr18', lazy=True):
+                print(edge.source, edge.sink, edge.weight, edge)
+                # 42 42 0.12291311562018173 <kaic.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #0>
+                # 24 28 0.025205961072838057 <kaic.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #1>
+                # 5 76 0.00961709840049876 <kaic.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #2>
+                # 66 68 0.03876763316345468 <kaic.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #3>
+                # ...
+
+        .. warning :: The lazy iterator reuses the :class:`~LazyEdge` object in every iteration,
+                      and overwrites the :class:`~LazyEdge` attributes. Therefore **do not** use
+                      lazy iterators if you need to store edge objects for later access.
+                      For example, the following code works as expected
+                      :code:`list(hic.edges())`, with all :class:`~Edge` objects stored in the
+                      list, while this code :code:`list(hic.edges(lazy=True))`
+                      will result in a list of identical :class:`~LazyEdge` objects. Always ensure
+                      you do all edge processing in the loop when working with lazy iterators!
+
+        When working with normalised contact frequencies, such as obtained through
+        matrix balancing in the example above, :func:`~RegionPairsContainer.edges`
+        automatically returns normalised edge weights. In addition, the :code:`bias`
+        attribute will (typically) have a value different from 1.
+
+        When you are interested in the raw contact frequency, use the :code:`norm=False`
+        parameter:
+
+        .. code ::
+
+            for edge in hic.edges('chr18', lazy=True, norm=False):
+                print(edge.source, edge.sink, edge.weight)
+                # 42 42 2120.0
+                # 24 28 388.0
+                # 5 76 94.0
+                # 66 68 470.0
+                # ...
+
+        You can also choose to omit all intra- or inter-chromosomal edges using
+        :code:`intra_chromosomal=False` or :code:`inter_chromosomal=False`, respectively.
+
+        :return: Iterator over :class:`~Edge` or equivalent.
         """
 
         class EdgeIter(object):
@@ -409,6 +698,13 @@ class RegionPairsContainer(RegionBased):
         return EdgeIter(self)
 
     def edges_dict(self, *args, **kwargs):
+        """
+        Edges iterator with access by bracket notation.
+
+        This iterator **always** returns unnormalised edges.
+
+        :return: dict or dict-like iterator
+        """
         kwargs['norm'] = False
         return self.edges(*args, **kwargs)
 
@@ -416,39 +712,22 @@ class RegionPairsContainer(RegionBased):
         """
         Get a subset of edges.
 
-        :param key: Possible key types are:
+        This is an alias for :func:`~RegionPairsContainer.edges`.
 
-                    Region types
-
-                    - Node: Only the ix of this node will be used for
-                      identification
-                    - GenomicRegion: self-explanatory
-                    - str: key is assumed to describe a genomic region
-                      of the form: <chromosome>[:<start>-<end>:[<strand>]],
-                      e.g.: 'chr1:1000-54232:+'
-
-                    Node types
-
-                    - int: node index
-                    - slice: node range
-
-                    List types
-
-                    - list: This key type allows for a combination of all
-                      of the above key types - the corresponding matrix
-                      will be concatenated
-
-
-                    If the key is a 2-tuple, each entry will be treated as the
-                    row and column key, respectively,
-                    e.g.: 'chr1:0-1000, chr4:2300-3000' will extract the Hi-C
-                    map of the relevant regions between chromosomes 1 and 4.
         :return: generator (:class:`~Edge`)
         """
         return self.edges(key, *args, **kwargs)
 
     @staticmethod
     def regions_identical(pairs):
+        """
+        Check if the regions in all objects in the list are identical.
+
+        :param pairs: :class:`~list` of :class:`~genomic_regions.RegionBased`
+                      objects
+        :return: True if chromosome, start, and end are identical between
+                 all regions in the same list positions.
+        """
         logger.info("Checking if regions are identical")
         regions = list(pairs[0].regions)
         for matrix_object in pairs[1:]:
@@ -463,6 +742,15 @@ class RegionPairsContainer(RegionBased):
 
     @classmethod
     def merge(cls, pairs, *args, **kwargs):
+        """
+        Merge two or more :class:`~RegionPairsContainer` objects.
+
+        :param pairs: :class:`~list` of :class:`~RegionPairsContainer`
+        :param args: Positional arguments passed to constructor of this
+                     class
+        :param kwargs: Keyword arguments passed to constructor of this
+                       class
+        """
         if 'mode' not in kwargs:
             kwargs['mode'] = 'w'
         merged_pairs = cls(*args, **kwargs)
@@ -480,34 +768,26 @@ class RegionPairsContainer(RegionBased):
         return merged_pairs
 
     def edge_data(self, attribute, *args, **kwargs):
+        """
+        Iterate over specific edge attribute.
+
+        :param attribute: Name of the attribute, e.g. "weight"
+        :param args: Positional arguments passed to :func:`~RegionPairsContainer.edges`
+        :param kwargs: Keyword arguments passed to :func:`~RegionPairsContainer.edges`
+        :return: iterator over edge attribute
+        """
         for edge in self.edges(*args, **kwargs):
             yield getattr(edge, attribute)
 
     def regions_and_edges(self, key, *args, **kwargs):
-        row_regions, col_regions = self._key_to_regions(key)
-        if key is None:
-            edges = self._edges_iter(*args, **kwargs)
-        else:
-            edges = self._edges_subset(key, row_regions, col_regions, *args, **kwargs)
-
-        return row_regions, col_regions, edges
-
-    def mappable(self):
         """
-        Get the mappability vector of this matrix.
+        Convenient access to regions and edges selected by key.
+
+        :param key: Edge selector, see :func:`~RegionPairsContainer.edges`
+        :param args: Positional arguments passed to :func:`~RegionPairsContainer.edges`
+        :param kwargs: Keyword arguments passed to :func:`~RegionPairsContainer.edges`
+        :return: list of row regions, list of col regions, iterator over edges
         """
-        return np.array([True if getattr(r, 'valid', True) else False for r in self.regions])
-
-
-class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
-    def __init__(self):
-        RegionPairsContainer.__init__(self)
-        self._default_value = 0.0
-        self._default_score_field = 'weight'
-
-    def regions_and_matrix_entries(self, key, norm=True, oe=False, oe_per_chromosome=True,
-                                   bias_field='bias', score_field=None,
-                                   *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key)
         if isinstance(row_regions, GenomicRegion):
             row_regions = [row_regions]
@@ -519,41 +799,123 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         else:
             col_regions = list(col_regions)
 
+        edges = self.edges((row_regions, col_regions), *args, **kwargs)
+
+        return row_regions, col_regions, edges
+
+    def mappable(self):
+        """
+        Get the mappability of regions in this object.
+
+        A "mappable" region has at least one contact to another region
+        in the genome.
+
+        :return: :class:`~np.array` where True means mappable
+                 and False unmappable
+        """
+        return np.array([True if getattr(r, 'valid', True) else False for r in self.regions])
+
+
+class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
+    """
+    Class representing matrices where pixels correspond to genomic region pairs.
+
+    This is the common interface for all matrix-based classes, such as
+    :class:`~kaic.Hic` or :class:`~kaic.FoldChangeMatrix`. It provides
+    access to specialised matrix methods, most importantly
+    :func:`~RegionMatrixContainer.matrix`, which assembles :mod:`numpy`
+    arrays from the list of pairwise contacts stored in each object.
+
+    It inherits all region methods from :class:`~genomic_regions.RegionBased`,
+    and all edge/contact methods from :class:`~RegionPairsContainer`.
+    You can use the same type of keys for :func:`~RegionMatrixContainer.matrix`
+    that you would use for :func:`~RegionPairsContainer.edges`, and additionally
+    have the option to retrieve the observed/expected matrix.
+
+    .. code ::
+
+        import kaic
+        hic = kaic.load("output/hic/binned/kaic_example_1mb.hic")
+
+        # get the whole-genome matrix
+        m = hic.matrix()
+        type(m)  # kaic.matrix.RegionMatrix
+        isinstance(m, np.ndarray)  # True
+        m.shape  # 139, 139
+
+        # get just the chromosome 18 intra-chromosomal matrix
+        m = hic.matrix(('chr18', 'chr18'))
+        m.shape  # 79, 79
+
+        # get all rows of the whole-genome matrix
+        # corresponding to chromosome 18
+        m = hic.matrix('chr18')
+        m.shape  # 79, 139
+
+        # get unnormalised chromosome 18 matrix
+        m = hic.matrix(('chr18', 'chr18'), norm=False)
+
+        # get chromosome 18 O/E matrix
+        m = hic.matrix(('chr18', 'chr18'), oe=True)
+
+        # get log2-transformed chromosome 18 O/E matrix
+        m = hic.matrix(('chr18', 'chr18'), oe=True, log=True)
+
+    """
+    def __init__(self):
+        RegionPairsContainer.__init__(self)
+        self._default_value = 0.0
+        self._default_score_field = 'weight'
+
+    def regions_and_matrix_entries(self, key, oe=False, oe_per_chromosome=True,
+                                   score_field=None, *args, **kwargs):
+        """
+        Convenient access to non-zero matrix entries and associated regions.
+
+        :param key: Edge key, see :func:`~RegionPairsContainer.edges`
+        :param oe: If True, will divide observed values by their expected value
+                   at the given distance. False by default
+        :param oe_per_chromosome: If True (default), will do a per-chromosome O/E
+                                  calculation rather than using the whole matrix
+                                  to obtain expected values
+        :param score_field: (optional) any edge attribute that returns a number
+                            can be specified here for filling the matrix. Usually
+                            this is defined by the :code:`_default_score_field`
+                            attribute of the matrix class.
+        :param args: Positional arguments passed to :func:`~RegionPairsContainer.edges`
+        :param kwargs: Keyword arguments passed to :func:`~RegionPairsContainer.edges`
+        :return: list of row regions, list of col regions, iterator over (i, j, weight) tuples
+        """
+        row_regions, col_regions, edges_iter = self.regions_and_edges(key, *args, **kwargs)
+
         try:
             row_offset = row_regions[0].ix
             col_offset = col_regions[0].ix
         except IndexError:
             return row_regions, col_regions, []
 
-        basic_iter = self._matrix_entries(key, row_regions, col_regions,
-                                          score_field=score_field,
-                                          *args, **kwargs)
-
-        if norm:
-            biases = dict()
-            for regions in (row_regions, col_regions):
-                for region in regions:
-                    biases[region.ix] = getattr(region, bias_field, 1.0)
-        else:
-            biases = defaultdict(lambda: 1)
+        if score_field is None:
+            score_field = self._default_score_field
 
         def offset_iter(edge_iter):
-            for source, sink, weight in edge_iter:
+            for edge in edge_iter:
+                source, sink, weight = edge.source, edge.sink, getattr(edge, score_field, self._default_value)
                 i = source - row_offset
                 j = sink - col_offset
                 if i >= 0 and j >= 0:
-                    yield source, sink, i, j, weight * biases[source] * biases[sink]
+                    yield source, sink, i, j, weight
 
                 l = source - col_offset
                 k = sink - row_offset
                 if (i, j) != (k, l) and k >= 0 and l >= 0:
-                    yield source, sink, k, l, weight * biases[source] * biases[sink]
+                    yield source, sink, k, l, weight
 
+        edges_iter = self.edges((row_regions, col_regions), *args, **kwargs)
         if not oe:
             entry_iter = ((i, j, weight)
-                          for source, sink, i, j, weight in offset_iter(basic_iter))
-
+                          for _, _, i, j, weight in offset_iter(edges_iter))
         else:
+            norm = kwargs.get("norm", True)
             intra_expected, chromosome_intra_expected, inter_expected = self.expected_values(norm=norm)
 
             if oe_per_chromosome:
@@ -561,44 +923,46 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                                weight / chromosome_intra_expected[row_regions[i].chromosome][abs(source - sink)]
                                if row_regions[i].chromosome == col_regions[j].chromosome
                                else weight / inter_expected)
-                              for source, sink, i, j, weight in offset_iter(basic_iter))
+                              for source, sink, i, j, weight in offset_iter(edges_iter))
             else:
                 entry_iter = ((i, j,
                                weight / intra_expected[abs(source - sink)]
                                if row_regions[i].chromosome == col_regions[j].chromosome
                                else weight / inter_expected)
-                              for source, sink, i, j, weight in offset_iter(basic_iter))
+                              for source, sink, i, j, weight in offset_iter(edges_iter))
+
         return row_regions, col_regions, entry_iter
 
-    def _matrix_entries(self, key, row_regions, col_regions,
-                        score_field=None, *args, **kwargs):
-        if score_field is None:
-            score_field = self._default_score_field
-
-        for edge in self._edges_subset(key, row_regions, col_regions, *args, **kwargs):
-            yield (edge.source, edge.sink,
-                   getattr(edge, score_field, self._default_value))
-
-    def matrix(self, key=None, norm=True, oe=False,
-               oe_per_chromosome=True, log=False,
-               score_field=None, bias_field='bias',
+    def matrix(self, key=None,
+               log=False,
                default_value=None, mask=True,
-               _mappable=None):
+               _mappable=None, *args, **kwargs):
+        """
+        Assemble a :class:`~RegionMatrix` from region pairs.
 
-        if score_field is None:
-            score_field = self._default_score_field
+        :param key: Matrix selector. See :func:`~RegionPairsContainer.edges`
+                    for all supported key types
+        :param log: If True, log2-transform the matrix entries
+        :param default_value: (optional) set the default value of matrix entries
+                              that have no associated edge/contact
+        :param mask: If False, do not mask unmappable regions
+        :param args: Positional arguments passed to
+                     :func:`~RegionMatrixContainer.regions_and_matrix_entries`
+        :param kwargs: Keyword arguments passed to
+                       :func:`~RegionMatrixContainer.regions_and_matrix_entries`
+        :return: :class:`~RegionMatrix`
+        """
 
         if default_value is None:
             default_value = self._default_value
 
-        if oe and not log:
+        if kwargs.get('oe', False) and not log:
             default_value = 1.0
 
-        row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key, norm=norm, oe=oe,
-                                                                                   score_field=score_field,
-                                                                                   bias_field=bias_field,
-                                                                                   lazy=True,
-                                                                                   oe_per_chromosome=oe_per_chromosome)
+        kwargs['lazy'] = True
+        row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key,
+                                                                                   *args,
+                                                                                   **kwargs)
 
         m = np.full((len(row_regions), len(col_regions)), default_value)
 
@@ -626,6 +990,22 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         return self.matrix(item)
 
     def possible_contacts(self):
+        """
+        Calculate the possible number of contacts in the genome.
+
+        This calculates the number of potential region pairs in
+        a genome for any possible separation distance, taking into
+        account the existence of unmappable regions.
+
+        It will calculate one number for inter-chromosomal pairs,
+        return a list with the number of possible pairs where the
+        list index corresponds to the number of bins separating two regions,
+        and a dictionary of lists for each chromosome.
+
+        :return: possible intra-chromosomal pairs,
+                 possible intra-chromosomal pairs by chromosome,
+                 possible inter-chromosomal pairs
+        """
         logger.debug("Calculating possible counts")
         regions = list(self.regions)
         chromosomes = self.chromosomes()
@@ -684,6 +1064,32 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         return intra_total, chromosome_intra_total, inter_total
 
     def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
+        """
+        Calculate the expected values for genomic contacts at all distances.
+
+        This calculates the expected values between genomic regions
+        separated by a specific distance. Expected values are calculated
+        as the average weight of edges between region pairs with the same
+        genomic separation, taking into account unmappable regions.
+
+        It will return a tuple with three values: a list of genome-wide
+        intra-chromosomal expected values (list index corresponds to number
+        of separating bins), a dict with chromosome names as keys and
+        intra-chromosomal expected values specific to each chromosome, and
+        a float for inter-chromosomal expected value.
+
+        :param selected_chromosome: (optional) Chromosome name. If provided,
+                                    will only return expected values for this
+                                    chromosome.
+        :param norm: If False, will calculate the expected values on the
+                     unnormalised matrix.
+        :param args:
+        :param kwargs:
+        :return: list of intra-chromosomal expected values,
+                 dict of intra-chromosomal expected values by chromosome,
+                 inter-chromosomal expected value
+
+        """
         # get all the bins of the different chromosomes
         chromosome_bins = self.chromosome_bins
         chromosome_dict = defaultdict(list)
@@ -765,7 +1171,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         marginals = np.zeros(len(self.regions), float)
 
         logger.debug("Calculating marginals...")
-        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars) as pb:
+        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars,
+                                   prefix="Marginals") as pb:
             for i, edge in enumerate(self.edges(lazy=True, norm=norm)):
                 marginals[edge.source] += getattr(edge, weight_column)
                 if edge.source != edge.sink:
@@ -806,6 +1213,9 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
 
 class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
+    """
+    HDF5 implementation of the :class:`~RegionPairsContainer` interface.
+    """
 
     _classid = 'REGIONPAIRSTABLE'
 
@@ -1009,7 +1419,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
               isinstance(self._partition_strategy, tuple)):
             partition_breaks = self._partition_strategy
         else:
-            raise ValueError("{} is not a valid partitioning strategy!".format(self._partition_strategy))
+            raise ValueError("{} is not a valid partition strategy!".format(self._partition_strategy))
 
         self._partition_breaks = partition_breaks
         try:
@@ -1259,7 +1669,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             row_regions, col_regions, *args, **kwargs
         )
 
-    def _edge_subset_rows_from_regions(self, row_regions, col_regions, *args, **kwargs):
+    def _edge_subset_rows_from_regions(self, row_regions, col_regions, excluded_filters=0,
+                                       *args, **kwargs):
         row_start, row_end = self._min_max_region_ix(row_regions)
         col_start, col_end = self._min_max_region_ix(col_regions)
 
@@ -1321,7 +1732,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         if score_field is None:
             score_field = self._default_score_field
 
-        for row in self._edge_subset_rows_from_regions(row_regions, col_regions):
+        for row in self._edge_subset_rows_from_regions(row_regions, col_regions, *args, **kwargs):
             yield (row['source'], row['sink'], row[score_field])
 
     def _row_to_edge(self, row, lazy_edge=None, **kwargs):
@@ -1405,14 +1816,12 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
     def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
         """
         Filter edges in this object by using a
-        :class:`~HicEdgeFilter`.
+        :class:`~kaic.general.MaskFilter`.
 
-        :param edge_filter: Class implementing :class:`~HicEdgeFilter`.
-                            Must override valid_edge method, ideally sets mask parameter
-                            during initialization.
+        :param edge_filter: Class implementing :class:`~kaic.general.MaskFilter`.
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
-                      run_queued_filters
+                      :func:`~RegionPairsTable.run_queued_filters`
         :param log_progress: If true, process iterating through all edges
                              will be continuously reported.
         """
@@ -1460,6 +1869,19 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._update_mappability()
 
     def sample(self, n, with_replacement=False, file_name=None):
+        """
+        Sample edges from this object.
+
+        Sampling is always done on uncorrected Hi-C matrices.
+
+        :param n: Sample size
+        :param with_replacement: If True, edges can be sampled multiple times,
+                                 even if their weight is 1. By default, this is
+                                 False, but potentially this could use a lot
+                                 of memory.
+        :param file_name: Output file name for down-sampled object.
+        :return: :class:`~RegionPairsTable`
+        """
         if isinstance(n, RegionPairsContainer):
             n = len(n.edges)
 
@@ -1538,6 +1960,12 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     @classmethod
     def merge(cls, pairs, *args, **kwargs):
+        """
+        Merge two or more :class:`~RegionPairsTable` objects.
+
+        :param pairs: list of :class:`~RegionPairsTable`
+        :return: merged :class:`~RegionPairsTable`
+        """
         pairs = [pair for pair in pairs]
         if not RegionPairsContainer.regions_identical(pairs):
             raise ValueError("Regions in pair objects are not identical, "
@@ -1559,7 +1987,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         :param kwargs: Supports
                        file_name: destination file name of subset Hic object;
                        tmpdir: if True works in tmp until object is closed
-        :return: Hic
+        :return: :class:`~kaic.Hic`
         """
         file_name = kwargs.get("file_name", None)
         tmpdir = kwargs.get('tmpdir', None)
@@ -1589,6 +2017,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
 
 class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
+    """
+    HDF5 implementation of the :class:`~RegionMatrixContainer` interface.
+    """
 
     _classid = 'REGIONMATRIXTABLE'
 
@@ -1777,6 +2208,14 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
     @classmethod
     def merge(cls, matrices, *args, **kwargs):
+        """
+        Merge multiple :class:`~RegionMatrixContainer` objects.
+
+        Merging is done by adding the weight of edges in each object.
+
+        :param matrices: list of :class:`~RegionMatrixContainer`
+        :return: merged :class:`~RegionMatrixContainer`
+        """
         matrices = [matrix for matrix in matrices]
         if not RegionPairsContainer.regions_identical(matrices):
             raise ValueError("Regions in matrix objects are not identical, "
@@ -1822,15 +2261,48 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
 
 class RegionMatrix(np.ma.MaskedArray):
-    def __new__(cls, input_matrix, col_regions=None, row_regions=None,
+    """
+    Subclass of :class:`~np.ma.masked_array` with genomic region support.
+
+    Objects of this type are returned by :class:`~RegionMatrixContainer.matrix`.
+    :class:`~RegionMatrix` supports subsetting by :class:`~kaic.GenomicRegion`
+    and region strings of the form :code:`<chromosome>[:<start>-<end>]`.
+
+    .. code::
+
+        import kaic
+        hic = kaic.load("output/hic/binned/kaic_example_1mb.hic")
+
+        m = hic.matrix(('chr18', 'chr18'))
+        type(m)  # kaic.matrix.RegionMatrix
+
+        m_sub = m['chr18:1-5mb', 'chr18:1-10mb']
+        type(m_sub)  # kaic.matrix.RegionMatrix
+        m.shape  # 5, 10
+        m_sub.row_regions  # [chr18:1-1000000, chr18:1000001-2000000,
+                           #  chr18:2000001-3000000, chr18:3000001-4000000,
+                           #  chr18:4000001-5000000]
+
+    If the associated row or col regions have a :code:`False` :code:`valid`
+    attribute, the rows/cols of the ::class:`~RegionMatrix` will be masked.
+
+    .. attribute:: row_regions
+
+        A list of regions matching the first matrix dimension
+
+    .. attribute:: col_regions
+
+        A list of regions matching the second matrix dimension
+    """
+    def __new__(cls, input_matrix, row_regions=None, col_regions=None,
                 mask=True, *args, **kwargs):
         obj = np.asarray(input_matrix).view(cls, *args, **kwargs)
         obj._row_region_trees = None
         obj._col_region_trees = None
         obj.col_regions = None
         obj.row_regions = None
-        obj.set_col_regions(col_regions)
         obj.set_row_regions(row_regions)
+        obj.set_col_regions(col_regions)
         obj._do_mask = mask
         if mask:
             obj._apply_mask()
