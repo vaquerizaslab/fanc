@@ -1477,11 +1477,9 @@ def overlap_peaks(peaks, max_distance=6000):
     max_distance = max_distance/bin_size
     logger.info("Fetching and sorting peaks...")
 
-    print(peaks[0].file)
-
     all_peaks = list(sorted(((s, p) for s, pgen in viewitems(peaks) for p in pgen),
                             key=key_func, reverse=True))
-    print(all_peaks)
+
     logger.info("Done.")
     logger.info("Finding overlaps...")
     out_peaks = defaultdict(list)
@@ -1527,4 +1525,5 @@ def overlap_peaks(peaks, max_distance=6000):
         stat["n"] = len(p_list)
         out_stats.append(stat)
     logger.info("Done.")
+
     return pd.DataFrame(out_stats), out_dict
