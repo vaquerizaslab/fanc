@@ -14,7 +14,7 @@ def sample_hic(file_name=None, tmpdir=None):
         nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i+1000-1))
     for i in range(1, 2000, 500):
         nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i+1000-1))
-    hic.add_nodes(nodes)
+    hic.add_regions(nodes)
 
     # add some edges with increasing weight for testing
     edges = []
@@ -40,15 +40,14 @@ def sample_hic_big(file_name=None, tmpdir=None):
         nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i + 1000 - 1))
     for i in range(1, 20000, 500):
         nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i + 1000 - 1))
-    hic.add_nodes(nodes)
+    hic.add_regions(nodes)
 
     # add some edges with increasing weight for testing
     edges = []
-    weight = 1
     for i in range(0, len(nodes)):
         for j in range(i, len(nodes)):
+            weight = i + len(nodes) - (j - i)
             edges.append(Edge(source=i, sink=j, weight=weight))
-            weight += 1
 
     hic.add_edges(edges)
 
@@ -66,7 +65,7 @@ def sample_fa_hic(file_name=None, zero_indices=set(), tmpdir=None):
         nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i + 1000 - 1))
     for i in range(1, 20000, 500):
         nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i + 1000 - 1))
-    hic.add_nodes(nodes)
+    hic.add_regions(nodes)
 
     # add some edges with increasing weight for testing
     edges = []
@@ -93,7 +92,7 @@ def sample_homogenous_hic(file_name=None, fill_value=1.0, zero_indices=set(), tm
         nodes.append(GenomicRegion(chromosome="chr2", start=i, end=i + 1000 - 1))
     for i in range(1, 20000, 500):
         nodes.append(GenomicRegion(chromosome="chr3", start=i, end=i + 1000 - 1))
-    hic.add_nodes(nodes)
+    hic.add_regions(nodes)
 
     # add some edges with increasing weight for testing
     edges = []
@@ -153,7 +152,7 @@ def sample_hic_matrix1(file_name=None, tmpdir=None):
     ]
 
     hic = Hic(file_name=file_name, tmpdir=tmpdir)
-    hic.add_nodes(nodes)
+    hic.add_regions(nodes)
     hic.add_edges(edges)
 
     return hic
@@ -202,7 +201,7 @@ def sample_hic_matrix2(file_name=None, tmpdir=None):
     ]
 
     hic = Hic(file_name=file_name, tmpdir=tmpdir)
-    hic.add_nodes(nodes)
+    hic.add_regions(nodes)
     hic.add_edges(edges)
 
     return hic
