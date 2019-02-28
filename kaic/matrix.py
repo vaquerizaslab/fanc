@@ -1868,7 +1868,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         """
         total = 0
         filtered = 0
-        with RareUpdateProgressBar(max_value=(1 for _ in self._edges),
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
                                    silent=not log_progress) as pb:
             for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                 stats = edge_table.run_queued_filters(_logging=False)
