@@ -1941,7 +1941,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 raise ValueError("Regions in pair objects are not identical, cannot perform merge!")
 
             kwargs['mode'] = 'w'
-            kwargs['partitioning_strategy'] = breaks[0]
+            kwargs['partition_strategy'] = breaks[0]
             new_pairs = cls(*args, **kwargs)
 
             new_pairs.add_regions(pairs[0].regions(lazy=True))
@@ -2181,7 +2181,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                                  "identical, cannot perform merge!")
 
             kwargs['mode'] = 'w'
-            kwargs['partitioning_strategy'] = breaks[0]
+            kwargs['partition_strategy'] = breaks[0]
 
             new_matrix = cls(*args, **kwargs)
 
