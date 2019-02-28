@@ -216,7 +216,7 @@ class TestMaskedTable:
 
     def test_exclude_filters(self):
         t = self.filtered_table
-        assert len(list(t.iterrows(excluded_masks=1))) == 50
+        assert len(list(t.iterrows(excluded_filters=1))) == 50
 
 
 class RegisteredTable(t.Table):
