@@ -615,11 +615,13 @@ class MaskedTable(t.Table):
 
     def disable_mask_index(self):
         mask_ix_col = getattr(self.cols, self._mask_index_field)
-        mask_ix_col.remove_index()
+        if mask_ix_col.is_indexed:
+            mask_ix_col.remove_index()
 
     def enable_mask_index(self):
         mask_ix_col = getattr(self.cols, self._mask_index_field)
-        create_col_index(mask_ix_col)
+        if not mask_ix_col.is_indexed:
+            create_col_index(mask_ix_col)
 
     def flush(self, update_index=False, log_progress=True):
         """
