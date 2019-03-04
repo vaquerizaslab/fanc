@@ -160,9 +160,10 @@ class Hic(RegionMatrixTable):
 
                             edge_counter += 1
                             pb.update(edge_counter)
-
+                        logger.debug("Adding edges {}/{} ({})".format(i, j, len(edges)))
                         self.add_edges(edges, flush=False)
 
+            logger.debug("Final flush")
             self.flush()
 
     def bin(self, bin_size, *args, **kwargs):
