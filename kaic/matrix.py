@@ -1360,8 +1360,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def _flush_edges(self, silent=config.hide_progressbars):
         if self._edges_dirty:
+            logger.debug("Flushing edge buffer")
             if len(self._edge_buffer) > 0:
-                logger.debug("Adding buffered edges...")
                 self._flush_operation()
                 self._flush_operation = self._flush_table_edge_buffer
 
@@ -1370,10 +1370,11 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     edge_table.flush(update_index=False, log_progress=False)
                     pb.update(i)
 
-            self._enable_edge_indexes()
             for i, edge_table in enumerate(self._edges):
                 edge_table.flush(update_index=True, log_progress=False)
                 pb.update(i)
+
+            self._enable_edge_indexes()
             self._edges_dirty = False
 
             self._update_mappability()
@@ -1406,7 +1407,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
     def _update_partitions(self):
         partition_breaks = []
         if self._partition_strategy == 'auto':
-            size = max(10000, int(len(self.regions) / 100))
+            size = max(1000, int(len(self.regions) / 100))
             self._partition_strategy = size
 
         if self._partition_strategy == 'chromosome':
@@ -1529,6 +1530,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
                 row[self._default_score_field] = edge[2]
                 row.append()
+            edge_table.flush(update_index=False)
         self._edge_buffer = defaultdict(list)
 
     def _add_edges_from_dict(self, edges_dict, *args, **kwargs):
@@ -1558,6 +1560,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     if field in edge and not field == 'source' and not field == 'sink':
                         row[field] = edge[field]
                 row.append()
+            edge_table.flush(update_index=False)
         self._edge_buffer = defaultdict(list)
 
     def _add_edges_from_dicts(self, edges, *args, **kwargs):
@@ -1604,6 +1607,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     if hasattr(edge, field) and not field == 'source' and not field == 'sink':
                         row[field] = getattr(edge, field)
                 row.append()
+            edge_table.flush(update_index=False)
         self._edge_buffer = defaultdict(list)
 
     def _add_edges_from_edges(self, edges, *args, **kwargs):
@@ -1623,7 +1627,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         if not self._edges_dirty:
             self._edges_dirty = True
-            self._disable_edge_indexes()
+            #self._disable_edge_indexes()
 
         if isinstance(edges, dict):
             self._add_edges_from_dict(edges, *args, **kwargs)
@@ -1645,10 +1649,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             else:
                 RegionPairsContainer.add_edges(self, edges, *args, **kwargs)
 
-        for _, edge_table in self._iter_edge_tables():
-            edge_table.flush()
-
         if flush:
+            for _, edge_table in self._iter_edge_tables():
+                edge_table.flush()
             self._enable_edge_indexes()
             self._flush_edges()
 
@@ -1859,8 +1862,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             if log_progress:
                 logger.info("Total: {}. Filtered: {}".format(total, filtered))
         else:
-            for _, edge_table in self._iter_edge_tables():
-                edge_table.queue_filter(edge_filter)
+            self._queued_filters.append(edge_filter)
 
         self._update_mappability()
 
@@ -1876,6 +1878,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
                                    silent=not log_progress) as pb:
             for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
+                for f in self._queued_filters:
+                    edge_table.queue_filter(f)
+
                 stats = edge_table.run_queued_filters(_logging=False)
                 for key, value in stats.items():
                     if key != 0:
@@ -1885,6 +1890,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         if log_progress:
             logger.info("Total: {}. Filtered: {}".format(total, filtered))
 
+        self._queued_filters = []
         self._update_mappability()
 
     def sample(self, n, with_replacement=False, file_name=None):
