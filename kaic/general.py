@@ -340,6 +340,8 @@ class Maskable(FileBased):
                 row['description'] = 'Default mask'
                 row.append()
                 self._mask.flush()
+
+        self._queued_filters = []
         
     def _set_mask_table(self, table):
         if type(table) == t.table.Table:
