@@ -928,9 +928,8 @@ class ReadPairs(RegionPairsTable):
         Write buffered regions to file and update region references.
         """
         if self._regions_dirty:
-            self._regions.flush()
+            RegionPairsTable._flush_regions(self)
             self._update_references()
-            self._regions_dirty = False
 
     def flush(self, silent=config.hide_progressbars):
         """
@@ -1096,7 +1095,7 @@ class ReadPairs(RegionPairsTable):
                 row.append()
                 self._pair_count += 1
 
-            edge_table.flush()
+            edge_table.flush(update_index=False)
         self._edge_buffer = defaultdict(list)
 
     def add_read_pairs(self, read_pairs, batch_size=1000000, threads=1):
@@ -1349,10 +1348,9 @@ class ReadPairs(RegionPairsTable):
                         total += stats[key]
                     pb.update(i)
             if log_progress:
-                logger.info("Total: {}. Filtered: {}".format(total, filtered))
+                logger.info("Total: {}. Valid: {}".format(total, total - filtered))
         else:
-            for _, edge_table in self._iter_edge_tables():
-                edge_table.queue_filter(pair_filter)
+            self._queued_filters.append(pair_filter)
 
     def run_queued_filters(self, log_progress=not config.hide_progressbars):
         """
@@ -1366,6 +1364,9 @@ class ReadPairs(RegionPairsTable):
         with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
                                    silent=not log_progress) as pb:
             for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
+                for f in self._queued_filters:
+                    edge_table.queue_filter(f)
+
                 stats = edge_table.run_queued_filters(_logging=False)
                 for key, value in stats.items():
                     if key != 0:
@@ -1373,7 +1374,10 @@ class ReadPairs(RegionPairsTable):
                     total += stats[key]
                 pb.update(i)
         if log_progress:
-            logger.info("Total: {}. Filtered: {}".format(total, filtered))
+            logger.info("Total: {}. Valid: {}".format(total, total - filtered))
+
+        self._queued_filters = []
+        self._update_mappability()
 
     def filter_pcr_duplicates(self, threshold=3, queue=False):
         """
