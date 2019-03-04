@@ -573,7 +573,7 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                         describe a genomic region. See
                         :class:`~RegionsTable.add_region` for options.
         """
-
+        self._regions_dirty = True
         for i, region in enumerate(regions):
             self.add_region(region, *args, **kwargs)
 
