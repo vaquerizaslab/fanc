@@ -22,7 +22,7 @@ from .general import FileBased
 from .map import *
 from .hic import Hic
 from .matrix import Edge, RegionMatrix
-from .pairs import ReadPairs as Pairs
+from .pairs import ReadPairs
 from .peaks import RaoPeakInfo
 from .regions import Genome, Chromosome
 from .registry import class_id_dict
