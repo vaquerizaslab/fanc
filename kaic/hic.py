@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def _edge_overlap_split_rao(original_edge, overlap_map):
     """
     Resolve the distribution of contacts when binning using
-    Rao et al. 2014 approach.
+    Rao and Rowley et al. 2014 approach.
     """
     original_source = original_edge[0]
     original_sink = original_edge[1]
@@ -60,7 +60,7 @@ def _get_overlap_map(old_regions, new_regions):
     # 1. organize regions in self by chromosome
     new_region_map = {}
     for i, new_region in enumerate(new_regions):
-        if not new_region.chromosome in new_region_map:
+        if new_region.chromosome not in new_region_map:
             new_region_map[new_region.chromosome] = []
         new_region_map[new_region.chromosome].append([new_region.start, new_region.end, i])
 
@@ -99,6 +99,12 @@ def _get_overlap_map(old_regions, new_regions):
 
 
 class Hic(RegionMatrixTable):
+    """
+    Central class for working with Hi-C data.
+
+    This class adds functions for matrix binning and filtering to
+    the base class :class:`~RegionMatrixTable`.
+    """
 
     _classid = 'HIC'
 
@@ -119,6 +125,13 @@ class Hic(RegionMatrixTable):
     def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
         """
         Load data from another :class:`~Hic` object.
+
+        If this object has no associated regions, the regions and
+        contacts of the provided object will simply be copied.
+
+        If regions are already present, the contacts of the provided
+        matrix will be binned into the regions of this object using the
+        overlap method provided.
 
         :param hic: Another :class:`~Hic` object
         :param _edges_by_overlap_method: A function that maps reads from
@@ -200,6 +213,15 @@ class Hic(RegionMatrixTable):
         return hic
 
     def bias_vector(self, vector=None):
+        """
+        Get or set the vector of region biases in this object.
+
+        This internally sets the "bias" attribute of each region in the
+        object.
+
+        :param vector: a numpy array with bias values
+        :return: a numpy array with bias values
+        """
         if vector is not None:
             self.region_data('bias', vector)
 
@@ -211,7 +233,7 @@ class Hic(RegionMatrixTable):
         Convenience function that applies a :class:`~DiagonalFilter`.
 
         :param distance: Distance from the diagonal up to which matrix entries
-                         will be filtered. The default, 0, filters only the
+                         will be filtered/removed. The default, 0, filters only the
                          diagonal itself.
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
