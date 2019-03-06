@@ -1292,7 +1292,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                         basic_fields[key] = value
 
             self._partition_breaks = None
-            self._update_partitions()
 
             self._edge_table(0, 0, fields=basic_fields)
 
@@ -1405,9 +1404,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             edge_table.enable_mask_index()
 
     def _update_partitions(self):
+        n_regions = len(self.regions)
+        if n_regions == 0:
+            return
+
         partition_breaks = []
         if self._partition_strategy == 'auto':
-            size = max(1000, int(len(self.regions) / 100))
+            size = max(1000, int(n_regions / 100))
             self._partition_strategy = size
 
         if self._partition_strategy == 'chromosome':
@@ -1417,7 +1420,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     partition_breaks.append(i)
                 previous_chromosome = region.chromosome
         elif isinstance(self._partition_strategy, int):
-            n_regions = len(self.regions)
             for i in range(self._partition_strategy, n_regions, self._partition_strategy):
                 partition_breaks.append(i)
         elif (isinstance(self._partition_strategy, list) or
