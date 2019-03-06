@@ -369,17 +369,17 @@ class JuicerHic(RegionMatrixContainer):
             return chromosome_pair_positions
 
     @staticmethod
-    def _expected_value_vectors_from_pos(req, normalisation=None):
+    def _expected_value_vectors_from_pos(req, normalisation=None, unit='BP'):
         expected_values = dict()
         scaling_factors = dict()
 
         n_vectors = struct.unpack('<i', req.read(4))[0]
         for _ in range(n_vectors):
-            while req.read(1).decode("utf-8", "backslashreplace") != '\0':
-                pass
             if normalisation:
                 entry_normalisation = _read_cstr(req)
+                entry_unit = _read_cstr(req)
             else:
+                entry_unit = _read_cstr(req)
                 entry_normalisation = 'NONE'
 
             bin_size = struct.unpack('<i', req.read(4))[0]
@@ -387,11 +387,12 @@ class JuicerHic(RegionMatrixContainer):
             expected_values[bin_size] = []
             ev = []
             n_values = struct.unpack('<i', req.read(4))[0]
+
             for j in range(n_values):
                 v = struct.unpack('<d', req.read(8))[0]
                 ev.append(v)
 
-            if normalisation is None or entry_normalisation == normalisation:
+            if entry_unit == unit and (normalisation is None or entry_normalisation == normalisation):
                 expected_values[bin_size] = ev
 
             scaling_factors[bin_size] = dict()
@@ -414,13 +415,14 @@ class JuicerHic(RegionMatrixContainer):
         if resolution is None:
             resolution = self._resolution
 
-        chromosome_ix = self.chromosomes().index(chromosome)
+        chromosome_ix = self._all_chromosomes().index(chromosome)
 
         if normalisation == 'NONE':
             vectors, scaling_factors = self.expected_value_vectors()
             return np.array(vectors[resolution]) * scaling_factors[resolution][chromosome_ix]
         else:
             vectors, scaling_factors = self.normalised_expected_value_vectors(normalisation)
+            print(vectors[resolution], scaling_factors[resolution][chromosome_ix])
             return np.array(vectors[resolution]) * scaling_factors[resolution][chromosome_ix]
 
     def expected_value_vectors(self):
@@ -801,6 +803,10 @@ class JuicerHic(RegionMatrixContainer):
                 for edge in self._edges_subset(key=key, row_regions=row_regions,
                                                col_regions=col_regions, *args, **kwargs):
                     yield edge
+
+    @property
+    def bin_size(self):
+        return self._resolution
 
     def mappable(self):
         """
