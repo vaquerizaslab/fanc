@@ -20,3 +20,4 @@ examples/output/sam/SRR4271982_chr18_19_2_sort.bam filter=lfs diff=lfs merge=lfs
 examples/output/sam/SRR4271982_chr18_19_1.bam filter=lfs diff=lfs merge=lfs -text
 examples/output/sam/SRR4271982_chr18_19_2.bam filter=lfs diff=lfs merge=lfs -text
 examples/output_fast/sam/SRR4271982_chr18_19_1_sort.bam filter=lfs diff=lfs merge=lfs -text
+kaic/test/test_matrix/test_cooler.hic filter=lfs diff=lfs merge=lfs -text
