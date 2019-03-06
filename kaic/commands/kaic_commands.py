@@ -3142,7 +3142,7 @@ def compartments_parser():
     )
     parser.add_argument(
         'matrix',
-        help='Input matrix (Hi-C, fold-change map, ...) or'
+        help='Input matrix (Hi-C, fold-change map, ...) or '
              'existing AB compartment matrix.'
     )
     parser.add_argument(
@@ -3153,7 +3153,7 @@ def compartments_parser():
 
     parser.add_argument(
         '-d', '--domains', dest='domains',
-        help='Write AB domains to this file. AB domains'
+        help='Write AB domains to this file. AB domains '
              'are output in BED format, and include the '
              'domains type (A/B) in the name field, and the '
              'eigenvector values (averaged across all bins '
@@ -3333,12 +3333,18 @@ def compartments(argv):
 
     if not force and domains_file is not None and os.path.exists(domains_file):
         parser.error("Output file {} already exists. Use -f to override!".format(domains_file))
-    if not force and eigenvector_file is not None and os.path.exists(eigenvector_file):
-        parser.error("Output file {} already exists. Use -f to override!".format(eigenvector_file))
     if not force and matrix_file is not None and os.path.exists(matrix_file):
         parser.error("Output file {} already exists. Use -f to override!".format(matrix_file))
     if not force and enrichment_file is not None and os.path.exists(enrichment_file):
         parser.error("Output file {} already exists. Use -f to override!".format(enrichment_file))
+    if eigenvector_file is not None and not force and os.path.exists(eigenvector_file):
+            if matrix_file is not None or enrichment_file is not None:
+                logger.warning("Found existing eigenvector at {}. "
+                               "Will use the values in the file for "
+                               "enrichment profile calculations. "
+                               "This may not be what you want!".format(eigenvector_file))
+            else:
+                parser.error("Output file {} already exists. Use -f to override!".format(eigenvector_file))
 
     if matrix_file is not None or enrichment_file is not None:
         if output_file is None:
@@ -3382,16 +3388,21 @@ def compartments(argv):
             ab_matrix = kaic.load(input_file, mode='a', tmpdir=tmp)
 
         # calculate eigenvector
+        ev = None
         if eigenvector_file is not None:
-            ev = ab_matrix.eigenvector(sub_region=region_subset, genome=genome_file,
-                                       eigenvector=ev_index, force=recalculate)
-            regions = []
-            for i, region in enumerate(ab_matrix.regions(region_subset)):
-                r = region.copy()
-                r.score = ev[i]
-                r.name = 'A' if ev[i] >= 0 else 'B'
-                regions.append(r)
-            write_bed(eigenvector_file, regions)
+            if os.path.exists(eigenvector_file) and not force:
+                ev_regions = kaic.load(eigenvector_file)
+                ev = [r.score for r in ev_regions.regions]
+            else:
+                ev = ab_matrix.eigenvector(sub_region=region_subset, genome=genome_file,
+                                           eigenvector=ev_index, force=recalculate)
+                regions = []
+                for i, region in enumerate(ab_matrix.regions(region_subset)):
+                    r = region.copy()
+                    r.score = ev[i]
+                    r.name = 'A' if ev[i] >= 0 else 'B'
+                    regions.append(r)
+                write_bed(eigenvector_file, regions)
 
         # Calculate domains
         if domains_file is not None:
@@ -3406,7 +3417,8 @@ def compartments(argv):
                                                       per_chromosome=not whole_genome,
                                                       only_gc=only_gc,
                                                       symmetric_at=symmetric_at,
-                                                      exclude_chromosomes=exclude)
+                                                      exclude_chromosomes=exclude,
+                                                      eigenvector=ev)
 
             if matrix_file is not None:
                 import numpy as np
