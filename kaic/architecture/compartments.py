@@ -207,31 +207,39 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
     def enrichment_profile(self, hic, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
                            only_gc=False, symmetric_at=None,
-                           exclude_chromosomes=(), *args, **kwargs):
+                           exclude_chromosomes=(),
+                           eigenvector=None, *args, **kwargs):
 
-        logger.info("Generating profile...")
-        if only_gc:
-            genome = kwargs.get('genome', None)
-            if genome is None:
-                raise ValueError("genome cannot be 'None' when using GC content "
-                                 "for compartment analysis.")
-            # calculate GC content
-            if isinstance(genome, string_types):
-                logger.info("Loading genome...")
-                genome = Genome.from_string(genome)
-
-            logger.info("Calculating GC content...")
-            gc_content = [np.nan] * len(self.regions)
-            for chromosome in self.chromosomes():
-                logger.info("{}".format(chromosome))
-                chromosome_sequence = genome[chromosome].sequence
-                for region in self.regions(chromosome):
-                    s = chromosome_sequence[region.start - 1:region.end]
-                    gc_content[region.ix] = calculate_gc_content(s)
-            gc_content = np.array(gc_content)
-            ev = gc_content
+        if eigenvector is not None:
+            ev = np.array(eigenvector)
+            if not len(ev) == len(hic.regions):
+                raise ValueError("Eigenvector must have same number of "
+                                 "entries ({}) as regions in genome ({})!"
+                                 .format(len(ev), len(hic.regions)))
         else:
-            ev = self.eigenvector(*args, **kwargs)
+            logger.info("Generating profile...")
+            if only_gc:
+                genome = kwargs.get('genome', None)
+                if genome is None:
+                    raise ValueError("genome cannot be 'None' when using GC content "
+                                     "for compartment analysis.")
+                # calculate GC content
+                if isinstance(genome, string_types):
+                    logger.info("Loading genome...")
+                    genome = Genome.from_string(genome)
+
+                logger.info("Calculating GC content...")
+                gc_content = [np.nan] * len(self.regions)
+                for chromosome in self.chromosomes():
+                    logger.info("{}".format(chromosome))
+                    chromosome_sequence = genome[chromosome].sequence
+                    for region in self.regions(chromosome):
+                        s = chromosome_sequence[region.start - 1:region.end]
+                        gc_content[region.ix] = calculate_gc_content(s)
+                gc_content = np.array(gc_content)
+                ev = gc_content
+            else:
+                ev = self.eigenvector(*args, **kwargs)
 
         mappable = self.mappable()
         return vector_enrichment_profile(hic, ev, mappable=mappable,
