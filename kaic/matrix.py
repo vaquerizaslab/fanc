@@ -2152,25 +2152,26 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         intra_expected, chromosome_intra_expected, inter_expected = RegionMatrixContainer.expected_values(self, norm=norm)
 
         # try saving to object
-        try:
+        if hasattr(self, '_expected_value_group') and self._expected_value_group is not None:
             try:
-                group = self.file.get_node(self._expected_value_group, group_name)
-            except tables.NoSuchNodeError:
-                group = self.file.create_group(self._expected_value_group, group_name)
+                try:
+                    group = self.file.get_node(self._expected_value_group, group_name)
+                except tables.NoSuchNodeError:
+                    group = self.file.create_group(self._expected_value_group, group_name)
 
-            self.file.create_array(group, '__intra__',
-                                   np.array(intra_expected), "Intra-chromosomal expected values")
-            self.file.create_array(group, '__inter__',
-                                   np.array([inter_expected]), "Inter-chromosomal expected value")
-            for chromosome, values in chromosome_intra_expected.items():
-                self.file.create_array(group, '_' + chromosome,
-                                       np.array(values), "Intra-chromosomal expected "
-                                                         "value {}".format(chromosome))
-        except tables.FileModeError:
-            warnings.warn("Matrix file opened in read-only mode, "
-                          "cannot save expected values to object. "
-                          "Use mode 'a' to add expected values to "
-                          "an existing object!")
+                self.file.create_array(group, '__intra__',
+                                       np.array(intra_expected), "Intra-chromosomal expected values")
+                self.file.create_array(group, '__inter__',
+                                       np.array([inter_expected]), "Inter-chromosomal expected value")
+                for chromosome, values in chromosome_intra_expected.items():
+                    self.file.create_array(group, '_' + chromosome,
+                                           np.array(values), "Intra-chromosomal expected "
+                                                             "value {}".format(chromosome))
+            except tables.FileModeError:
+                warnings.warn("Matrix file opened in read-only mode, "
+                              "cannot save expected values to object. "
+                              "Use mode 'a' to add expected values to "
+                              "an existing object!")
 
         if selected_chromosome is not None:
             return chromosome_intra_expected[selected_chromosome]
