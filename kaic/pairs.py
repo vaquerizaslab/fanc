@@ -904,8 +904,11 @@ class ReadPairs(RegionPairsTable):
                                   _table_name_edges=_table_name_pairs)
 
         self._pairs = self._edges
-        self._pair_count = sum(edge_table._original_len()
-                               for _, edge_table in self._iter_edge_tables())
+        if self._partition_breaks is None:
+            self._pair_count = 0
+        else:
+            self._pair_count = sum(edge_table._original_len()
+                                   for _, edge_table in self._iter_edge_tables())
         self._ix_to_chromosome = dict()
         self._chromosome_to_ix = dict()
         self._update_references()
