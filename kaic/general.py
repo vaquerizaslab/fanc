@@ -811,6 +811,12 @@ class MaskedTable(t.Table):
                 ix += 1
                 row.update()
                 pb.update(i)
+            self.attrs['masked_length'] = ix
+            try:
+                self.attrs['mask_stats'] = {}
+            except t.FileModeError:
+                pass
+
         self.flush(update_index=False)
 
     def mask_stats(self):
