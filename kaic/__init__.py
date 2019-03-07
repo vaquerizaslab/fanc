@@ -47,6 +47,7 @@ def load(file_name, *args, **kwargs):
             classid = classid.decode() if isinstance(classid, bytes) else classid
         finally:
             f.close()
+        logger.debug("Class ID string: {}".format(classid))
         cls_ = class_id_dict[classid]
         logger.debug("Detected {}".format(cls_))
         return cls_(file_name=file_name, mode=mode, *args, **kwargs)
