@@ -489,7 +489,7 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
         for chromosome in hic.chromosomes():
             region_converter = dict()
             bias_vector = []
-            for i, region in enumerate(hic.subset(chromosome)):
+            for i, region in enumerate(hic.regions(chromosome)):
                 region_converter[region.ix] = i
                 bias_vector.append(1)
             bias_vector = np.array(bias_vector, dtype='float64')
@@ -529,10 +529,11 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
         bias_vector = np.ones(len(hic.regions), float)
         marginal_error = tolerance + 1
         current_iteration = 0
-        logger.info("Starting iterations")
+        logger.info("Collecting edges")
         edges = [[e.source, e.sink, e.weight] for e in hic.edges(norm=False,
                                                                  intra_chromosomal=intra_chromosomal,
                                                                  inter_chromosomal=inter_chromosomal)]
+        logger.info("Starting iterations")
         while (marginal_error > tolerance and
                current_iteration <= max_iterations):
 
