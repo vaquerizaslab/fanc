@@ -1,6 +1,6 @@
 from .config import config
 from .regions import Chromosome, Genome
-from .matrix import RegionMatrixTable, Edge
+from .matrix import RegionMatrixTable, RegionMatrixContainer, Edge
 from abc import abstractmethod, ABCMeta
 from future.utils import with_metaclass, string_types, viewitems
 from .tools.general import distribute_integer, RareUpdateProgressBar
@@ -299,6 +299,21 @@ class LegacyHic(RegionMatrixTable):
                                    _table_name_regions=_table_name_regions,
                                    _table_name_edges=_table_name_edges,
                                    _edge_buffer_size=_edge_buffer_size)
+        self._expected_value_cache = None
+
+    def expected_values(self, selected_chromosome=None, norm=True,
+                        force=False, *args, **kwargs):
+        if not force and self._expected_value_cache is not None:
+            intra_expected, chromosome_intra_expected, inter_expected = self._expected_value_cache
+        else:
+            intra_expected, chromosome_intra_expected, \
+                inter_expected = RegionMatrixContainer.expected_values(self, norm=norm)
+            self._expected_value_cache = intra_expected, chromosome_intra_expected, inter_expected
+
+        if selected_chromosome is not None:
+            return chromosome_intra_expected[selected_chromosome]
+
+        return intra_expected, chromosome_intra_expected, inter_expected
 
 
 class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
