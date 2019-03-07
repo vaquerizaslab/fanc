@@ -480,6 +480,17 @@ class RaoPeakInfo(RegionMatrixTable):
         merged_peaks.flush()
         return merged_peaks
 
+    def parameter_tool(self, *region_pairs, **kwargs):
+        from .plotting.hic_plotter import PeakParameterPlot
+        import matplotlib.pyplot as plt
+        parameters_plot = PeakParameterPlot(self, **kwargs)
+        parameters_plot.plot(*region_pairs)
+        plt.show()
+
+        return parameters_plot.observed_cutoff, \
+               parameters_plot.oe_cutoffs, \
+               parameters_plot.fdr_cutoffs
+
 
 class Peak(Edge):
     """
@@ -1017,11 +1028,14 @@ class RaoPeakCaller(object):
         """
         Use bisection to find a matching lambda chunk for a given expected value.
         """
-        if value is None:
+        if value is None or np.isnan(value):
             return None
         if value < 1:
             return 0
-        return max(0, int(chunk_func(value)) + 1)
+        v = chunk_func(value)
+        if not np.isfinite(v):
+            return None
+        return max(0, int(v) + 1)
 
     def _process_jobs(self, jobs, peaks, observed_chunk_distribution):
         """
@@ -1041,6 +1055,13 @@ class RaoPeakCaller(object):
         for compressed_results in job_outputs:
             results = msgpack.loads(compressed_results)
             for result in results:
+                found_none = False
+                for value in result:
+                    if value is None:
+                        found_none = True
+                if found_none:
+                    continue
+
                 source, sink, weight, w_corr, p, observed, \
                     ll_sum, e_ll, e_v, e_h, e_d, \
                     o_chunk, e_ll_chunk, e_v_chunk, e_h_chunk, e_d_chunk, \
