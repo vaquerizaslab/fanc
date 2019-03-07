@@ -3,11 +3,12 @@ from kaic.config import config
 from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot, \
                                        PlotMeta, BaseOverlayPlotter
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
-from genomic_regions import GenomicRegion
+from genomic_regions import GenomicRegion, as_region
 from ..matrix import RegionMatrixTable, RegionMatrixContainer
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
+from matplotlib.widgets import Slider, CheckButtons
+import matplotlib.gridspec as grd
 import matplotlib.patches as patches
 from abc import ABCMeta
 import numpy as np
@@ -16,6 +17,9 @@ import itertools as it
 import types
 import seaborn as sns
 from future.utils import with_metaclass, string_types
+from collections import defaultdict
+from ..matrix import RegionMatrix
+from ..peaks import ObservedPeakFilter, FdrPeakFilter, EnrichmentPeakFilter
 import logging
 logger = logging.getLogger(__name__)
 
@@ -630,3 +634,382 @@ class HicPeakPlot(BaseOverlayPlotter):
             plot_func((p.source_node.start + p.source_node.end)/2,
                       (p.sink_node.start + p.sink_node.end)/2,
                       self.radius if self.radius is not None else getattr(p, "radius", self.peaks.bin_size*3)*self.peaks.bin_size)
+
+
+class EdgeFilterBuffer(object):
+    def __init__(self, hic, plot_field='weight', default_value=0, log2=False):
+        self.hic = hic
+        self._region_buffer = dict()
+        self._edge_buffer = dict()
+        self._filters = []
+        self._plot_field = plot_field
+        self._default_value = default_value
+        self._log2 = log2
+        self._last_matrix = None
+
+    def add_filter(self, filter):
+        self._filters.append(filter)
+
+    @property
+    def buffered_min(self):
+        """
+        Find the smallest non-zero buffered matrix value.
+
+        :return: float or None if nothing is buffered
+        """
+        return float(np.nanmin(self._last_matrix[np.ma.nonzero(self._last_matrix)])) \
+            if self._last_matrix is not None else None
+
+    @property
+    def buffered_max(self):
+        """
+        Find the largest buffered matrix value
+        :return: float or None if nothing is buffered
+        """
+        return float(np.nanmax(self._last_matrix)) if self._last_matrix is not None else None
+
+    def get_matrix(self, *regions):
+        row_region = regions[0]
+        col_region = regions[1]
+        row_key = (row_region.chromosome, row_region.start, row_region.end)
+        col_key = (col_region.chromosome, col_region.start, col_region.end)
+
+        if row_key in self._region_buffer:
+            sub_row_regions = self._region_buffer[row_key]
+        else:
+            sub_row_regions = list(self.hic.regions(row_region))
+            self._region_buffer[row_key] = sub_row_regions
+
+        if col_key in self._region_buffer:
+            sub_col_regions = self._region_buffer[col_key]
+        else:
+            sub_col_regions = list(self.hic.regions(col_region))
+            self._region_buffer[col_key] = sub_col_regions
+
+        row_offset = sub_row_regions[0].ix
+        col_offset = sub_col_regions[0].ix
+
+        if (row_key, col_key) in self._edge_buffer:
+            edges = self._edge_buffer[(row_key, col_key)]
+        else:
+            edges = list(self.hic.edge_subset((row_region, col_region)))
+            self._edge_buffer[(row_key, col_key)] = edges
+
+        m = np.full((len(sub_row_regions), len(sub_col_regions)), self._default_value,
+                    dtype=np.float64)
+
+        n_filtered = 0
+        n_filtered_by_filter = defaultdict(int)
+        for edge in edges:
+            valid = True
+            for filter_ix, filter in enumerate(self._filters):
+                if not filter.valid_peak(edge):
+                    n_filtered_by_filter[filter_ix] += 1
+                    valid = False
+                    break
+
+            if not valid:
+                n_filtered += 1
+                continue
+
+            source = edge.source
+            sink = edge.sink
+            weight = getattr(edge, self._plot_field)
+            if self._log2:
+                weight = np.log2(weight)
+
+            ir = source - row_offset
+            jr = sink - col_offset
+            if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                m[ir, jr] = weight
+
+            ir = sink - row_offset
+            jr = source - col_offset
+            if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
+                m[ir, jr] = weight
+
+        rm = RegionMatrix(m, row_regions=sub_row_regions, col_regions=sub_col_regions)
+        self._last_matrix = rm
+        return rm
+
+
+class EdgeHicPlot(HicPlot2D):
+    def __init__(self, hic, plot_field='weight', default_value=0,
+                 log2=False, highlight_edges=False,
+                 highlight_limit=100, *args, **kwargs):
+        HicPlot2D.__init__(self, hic, *args, **kwargs)
+
+        self.hic_buffer = EdgeFilterBuffer(hic, plot_field=plot_field,
+                                           default_value=default_value,
+                                           log2=log2)
+        self._highlight_edges = highlight_edges
+        self._highlight_circles = []
+        self._highlight_limit = highlight_limit
+
+    def update_highlights(self, m=None):
+        for circle in self._highlight_circles:
+            circle.remove()
+
+        self._highlight_circles = []
+
+        if self._highlight_edges and m is not None:
+            all_x, all_y = np.where(m != 0)
+            if not len(all_x) > self._highlight_limit:
+                for x, y in zip(all_x, all_y):
+                    region_x = m.row_regions[x]
+                    region_y = m.col_regions[y]
+
+                    circle = patches.Circle((region_x.center, region_y.center), len(region_x)*3,
+                                            facecolor='red')
+                    self.ax.add_patch(circle)
+                    self._highlight_circles.append(circle)
+
+    def _plot(self, region):
+        HicPlot2D._plot(self, region)
+
+    def _refresh(self, region):
+        HicPlot2D._refresh(self, region)
+
+
+class PeakParameterPlot(object):
+    def __init__(self, peaks, font_size=5, observed_init=1.,
+                 oe_d_init=1., oe_h_init=1., oe_v_init=1., oe_l_init=1.,
+                 fdr_d_init=1., fdr_h_init=1., fdr_v_init=1., fdr_l_init=1.,
+                 oe_slider_range=(0, 5), oe_slider_step=0.1,
+                 fdr_slider_range=(0, .1), fdr_slider_step=0.01,
+                 observed_range=(0, 50), observed_step=1,
+                 **kwargs):
+        self.peaks = peaks
+        self.font_size = font_size
+        self.hic_args = kwargs
+        
+        self.observed_init = observed_init
+
+        self.oe_init = {
+            'd': oe_d_init,
+            'v': oe_v_init,
+            'h': oe_h_init,
+            'l': oe_l_init,
+        }
+
+        self.fdr_init = {
+            'd': fdr_d_init,
+            'v': fdr_v_init,
+            'h': fdr_h_init,
+            'l': fdr_l_init,
+        }
+
+        self.fdr_range = fdr_slider_range
+        self.fdr_step = fdr_slider_step
+        self.oe_range = oe_slider_range
+        self.oe_step = oe_slider_step
+        self.observed_range = observed_range
+        self.observed_step = observed_step
+
+        self.observed_cutoff = self.observed_init
+        self.oe_cutoffs = self.oe_init.copy()
+        self.fdr_cutoffs = self.fdr_init.copy()
+
+        self.ax_fdr_sliders = {}
+        self.fdr_sliders = {}
+        self.oe_sliders = {}
+        self.ax_oe_sliders = {}
+        self.observed_slider = None
+
+        self.observed_filter = None
+        self.fdr_filter = None
+        self.oe_filter = None
+
+        self.filtered_plots = []
+        self.hic_plots = []
+
+        self.button = None
+        self.region_pairs = []
+
+        self.fig = None
+
+    def plot(self, *regions):
+        plt.rcParams.update({'font.size': self.font_size})
+
+        # process region pairs
+        self.region_pairs = []
+        for pair in regions:
+            if isinstance(pair, string_types):
+                r = as_region(pair)
+                pair = (r, r)
+            elif isinstance(pair, GenomicRegion):
+                pair = (pair, pair)
+
+            try:
+                r1, r2, vmax = pair
+            except ValueError:
+                r1, r2 = pair
+                if isinstance(r2, float) or isinstance(r2, int):
+                    vmax = r2
+                    r2 = r1
+                else:
+                    vmax = None
+            r1 = as_region(r1)
+            r2 = as_region(r2)
+            self.region_pairs.append((r1, r2, vmax))
+
+        #
+        # necessary plots: hic, oe_d, fdr_d, uncorrected,
+        #
+        gs = grd.GridSpec(len(self.region_pairs) + 3, 4,
+                          height_ratios=[10] * len(self.region_pairs) + [1, 1, 3],
+                          wspace=0.3, hspace=0.5)
+
+        self.fig = plt.figure(figsize=(10, len(self.region_pairs) * 2 + 2), dpi=150)
+
+        # sliders
+        inner_observed_gs = grd.GridSpecFromSubplotSpec(3, 1,
+                                                        subplot_spec=gs[len(self.region_pairs) + 2, 0],
+                                                        wspace=0.0, hspace=0.0)
+
+        ax_observed_slider = plt.subplot(inner_observed_gs[0, 0])
+        self.observed_slider = Slider(ax_observed_slider, 'uncorrected',
+                                      self.observed_range[0], self.observed_range[1],
+                                      valinit=self.observed_init, valstep=self.observed_step)
+
+        self.ax_oe_sliders = dict()
+        self.oe_sliders = dict()
+        self.ax_fdr_sliders = dict()
+        self.fdr_sliders = dict()
+        for i, neighborhood in enumerate(['d', 'h', 'v', 'l']):
+            # O/E
+            self.ax_oe_sliders[neighborhood] = plt.subplot(gs[len(self.region_pairs) + 0, i])
+            self.oe_sliders[neighborhood] = Slider(self.ax_oe_sliders[neighborhood],
+                                                   'O/E {}'.format(neighborhood.upper()),
+                                                   self.oe_range[0], self.oe_range[1],
+                                                   valinit=self.oe_init[neighborhood],
+                                                   valstep=self.oe_step)
+            # FDR
+            self.ax_fdr_sliders[neighborhood] = plt.subplot(gs[len(self.region_pairs) + 1, i])
+            self.fdr_sliders[neighborhood] = Slider(self.ax_fdr_sliders[neighborhood],
+                                                    'FDR {}'.format(neighborhood.upper()),
+                                                    self.fdr_range[0], self.fdr_range[1],
+                                                    valinit=self.fdr_init[neighborhood],
+                                                    valstep=self.fdr_step)
+
+        # check button
+        inner_button_gs = grd.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[len(self.region_pairs) + 2, 1],
+                                                      wspace=0.0, hspace=0.0)
+        ax_button = plt.subplot(inner_button_gs[0, 0])
+        self.button = CheckButtons(ax_button, ['Show loops'], [False])
+
+        # filters
+        self.observed_filter = ObservedPeakFilter(cutoff=self.observed_init)
+        self.oe_filter = EnrichmentPeakFilter(enrichment_d_cutoff=self.oe_init['d'],
+                                              enrichment_h_cutoff=self.oe_init['h'],
+                                              enrichment_v_cutoff=self.oe_init['v'],
+                                              enrichment_ll_cutoff=self.oe_init['l'])
+        self.fdr_filter = FdrPeakFilter(fdr_d_cutoff=self.fdr_init['d'],
+                                        fdr_ll_cutoff=self.fdr_init['h'],
+                                        fdr_h_cutoff=self.fdr_init['v'],
+                                        fdr_v_cutoff=self.fdr_init['l'])
+
+        self.hic_plots = []
+        self.filtered_plots = []
+        for i, (r1, r2, vmax) in enumerate(self.region_pairs):
+            ax_hic = plt.subplot(gs[i, 0])
+            ax_filtered = plt.subplot(gs[i, 1])
+            ax_oe = plt.subplot(gs[i, 2])
+            ax_fdr = plt.subplot(gs[i, 3])
+
+            hic_plot = EdgeHicPlot(self.peaks,
+                                   ax=ax_hic, show_colorbar=False, adjust_range=False,
+                                   unmappable_color='white', vmax=vmax,
+                                   highlight_edges=True, highlight_limit=200,
+                                   **self.hic_args)
+            filtered_plot = EdgeHicPlot(self.peaks,
+                                        ax=ax_filtered, show_colorbar=False, adjust_range=False,
+                                        unmappable_color='white', vmax=vmax,
+                                        **self.hic_args)
+            oe_plot = EdgeHicPlot(self.peaks, plot_field='oe_d', default_value=0, norm='lin',
+                                  ax=ax_oe, show_colorbar=False, colormap='white_red', adjust_range=False,
+                                  vmin=1, vmax=4, log2=False, unmappable_color='white')
+            fdr_plot = EdgeHicPlot(self.peaks, plot_field='fdr_d', default_value=1, norm='lin',
+                                   ax=ax_fdr, show_colorbar=False, adjust_range=False,
+                                   vmin=0, vmax=0.05, colormap='Greys_r', unmappable_color='white')
+
+            filtered_plot.hic_buffer.add_filter(self.observed_filter)
+            filtered_plot.hic_buffer.add_filter(self.oe_filter)
+            filtered_plot.hic_buffer.add_filter(self.fdr_filter)
+
+            self.hic_plots.append(hic_plot)
+            self.filtered_plots.append(filtered_plot)
+
+            hic_plot.plot((r1, r2))
+            filtered_plot.plot((r1, r2))
+            oe_plot.plot((r1, r2))
+            fdr_plot.plot((r1, r2))
+
+            ax_filtered.set_yticklabels([])
+            ax_oe.set_yticklabels([])
+            ax_fdr.set_yticklabels([])
+
+            self.fdr_filter.fdr_d_cutoff = self.fdr_cutoffs['d']
+            self.fdr_filter.fdr_h_cutoff = self.fdr_cutoffs['h']
+            self.fdr_filter.fdr_v_cutoff = self.fdr_cutoffs['v']
+            self.fdr_filter.fdr_ll_cutoff = self.fdr_cutoffs['l']
+
+            logger.info("FDR cutoffs set to: {}".format(self.fdr_cutoffs))
+            self.refresh_plots()
+
+            for neighborhood in ['d', 'h', 'v', 'l']:
+                self.oe_sliders[neighborhood].on_changed(self.update_oe_filter)
+                self.fdr_sliders[neighborhood].on_changed(self.update_fdr_filter)
+
+            self.observed_slider.on_changed(self.update_observed_filter)
+
+            self.button.on_clicked(self.refresh_plots)
+
+            return self.fig
+
+    def refresh_plots(self, event=None):
+        for i, (r1, r2, vmax) in enumerate(self.region_pairs):
+            self.filtered_plots[i].refresh((r1, r2))
+
+            if self.button.get_status()[0]:
+                self.hic_plots[i].update_highlights(self.filtered_plots[i].hic_buffer._last_matrix)
+            else:
+                self.hic_plots[i].update_highlights()
+
+        self.fig.canvas.draw()
+
+    def update_observed_filter(self, event):
+        self.observed_cutoff = self.observed_slider.val
+        self.observed_filter.cutoff = self.observed_cutoff
+        logger.info("Observed cutoff set to {}".format(self.observed_cutoff))
+        self.refresh_plots()
+
+    def update_oe_filter(self, event):
+        self.oe_cutoffs = {
+            'd': self.oe_sliders['d'].val,
+            'h': self.oe_sliders['h'].val,
+            'v': self.oe_sliders['v'].val,
+            'l': self.oe_sliders['l'].val
+        }
+
+        self.oe_filter.enrichment_d_cutoff = self.oe_cutoffs['d']
+        self.oe_filter.enrichment_h_cutoff = self.oe_cutoffs['h']
+        self.oe_filter.enrichment_v_cutoff = self.oe_cutoffs['v']
+        self.oe_filter.enrichment_ll_cutoff = self.oe_cutoffs['l']
+        logger.info("O/E cutoffs set to: {}".format(self.oe_cutoffs))
+        self.refresh_plots()
+
+    def update_fdr_filter(self, event):
+        self.fdr_cutoffs = {
+            'd': self.fdr_sliders['d'].val,
+            'h': self.fdr_sliders['h'].val,
+            'v': self.fdr_sliders['v'].val,
+            'l': self.fdr_sliders['l'].val
+        }
+        self.fdr_filter.fdr_d_cutoff = self.fdr_cutoffs['d']
+        self.fdr_filter.fdr_h_cutoff = self.fdr_cutoffs['h']
+        self.fdr_filter.fdr_v_cutoff = self.fdr_cutoffs['v']
+        self.fdr_filter.fdr_ll_cutoff = self.fdr_cutoffs['l']
+
+        logger.info("FDR cutoffs set to: {}".format(self.fdr_cutoffs))
+        self.refresh_plots()
