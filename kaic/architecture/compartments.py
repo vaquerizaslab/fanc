@@ -47,12 +47,13 @@ class ABCompartmentMatrix(RegionMatrixTable):
             if oe_per_chromosome is None:
                 oe_per_chromosome = True
             chromosomes = hic.chromosomes()
-            for chromosome in chromosomes:
-                m = hic.matrix((chromosome, chromosome), oe=True, oe_per_chromosome=oe_per_chromosome)
-                corr_m = np.corrcoef(m)
+            with RareUpdateProgressBar(max_value=len(chromosomes), silent=config.hide_progressbars,
+                                       prefix="AB") as pb:
+                for chr_ix, chromosome in enumerate(chromosomes):
+                    m = hic.matrix((chromosome, chromosome), oe=True, oe_per_chromosome=oe_per_chromosome)
+                    corr_m = np.corrcoef(m)
 
-                logger.info("Chromosome {}".format(chromosome))
-                with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars) as pb:
+                    logger.debug("Chromosome {}".format(chromosome))
                     for i, row_region in enumerate(m.row_regions):
                         for j, col_region in enumerate(m.col_regions):
                             if j < i:
@@ -67,7 +68,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                                 ab_matrix.add_edge(Edge(source=source, sink=sink, weight=corr_m[i, j]))
                             except IndexError:
                                 pass
-                        pb.update(i)
+                    pb.update(chr_ix)
         else:
             if oe_per_chromosome is None:
                 oe_per_chromosome = False
@@ -86,7 +87,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
         ab_matrix.flush()
 
-        ab_matrix.region_data('valid', list(hic.region_data('valid')))
+        mappable = hic.mappable()
+        ab_matrix.region_data('valid', mappable)
 
         return ab_matrix
 
