@@ -704,6 +704,13 @@ def pairs_parser():
     )
 
     parser.add_argument(
+        '--reset-filters', dest='reset_filters',
+        action='store_true',
+        default=False,
+        help='Remove all filters from the ReadPairs object.'
+    )
+
+    parser.add_argument(
         '--statistics-plot', dest='stats_plot',
         help='Path for saving filter statistics plot (PDF)'
     )
@@ -802,6 +809,7 @@ def pairs(argv):
     batch_size = args.batch_size
     check_sam_sorted = args.check_sorted
     force_overwrite = args.force_overwrite
+    reset_filters = args.reset_filters
     tmp = args.tmp
 
     regions = None
@@ -928,6 +936,12 @@ def pairs(argv):
         else:
             parser.error("Number of input arguments ({}) cannot be parsed. "
                          "See help for details.".format(len(input_files)))
+
+        if reset_filters:
+            logger.info("Resetting all filters")
+            pairs = kaic.load(pairs_file, mode='a')
+            pairs.reset_filters()
+            pairs.close()
 
         if (filter_le_auto or filter_inward or filter_outward or filter_re_distance or
                 filter_self_ligations or filter_pcr_duplicates):
@@ -1067,6 +1081,13 @@ def hic_parser():
     )
 
     parser.add_argument(
+        '--reset-filters', dest='reset_filters',
+        action='store_true',
+        default=False,
+        help='Remove all filters from the Hic object.'
+    )
+
+    parser.add_argument(
         '-i', '--ice-correct', dest='ice',
         action='store_true',
         default=False,
@@ -1153,6 +1174,7 @@ def hic(argv):
     statistics_file = os.path.expanduser(args.stats) if args.stats is not None else None
     statistics_plot_file = os.path.expanduser(args.stats_plot) if args.stats_plot is not None else None
     force_overwrite = args.force_overwrite
+    reset_filters = args.reset_filters
     tmp = args.tmp
 
     if kr and ice:
@@ -1255,6 +1277,10 @@ def hic(argv):
                 binned_hic = merged_hic.bin(bin_size, file_name=output_file)
             else:
                 binned_hic = kaic.load(merged_hic_file, mode='a')
+
+            if reset_filters:
+                logger.info("Resetting all filters")
+                binned_hic.reset_filters()
 
             filters = []
             if filter_low_coverage_auto:

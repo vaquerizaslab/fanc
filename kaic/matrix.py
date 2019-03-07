@@ -1890,6 +1890,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._queued_filters = []
         self._update_mappability()
 
+    def reset_filters(self, log_progress=not config.hide_progressbars):
+        with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
+                                   silent=not log_progress) as pb:
+            for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
+                edge_table.reset_all_masks(silent=True)
+                pb.update(i)
+
     def sample(self, n, with_replacement=False, file_name=None):
         """
         Sample edges from this object.

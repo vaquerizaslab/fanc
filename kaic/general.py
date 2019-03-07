@@ -801,9 +801,9 @@ class MaskedTable(t.Table):
         except t.FileModeError:
             pass
 
-    def reset_all_masks(self):
+    def reset_all_masks(self, silent=config.hide_progressbars):
         n_rows = self._original_len()
-        with RareUpdateProgressBar(max_value=n_rows, silent=config.hide_progressbars) as pb:
+        with RareUpdateProgressBar(max_value=n_rows, silent=silent) as pb:
             ix = 0
             for i, row in enumerate(self._iter_visible_and_masked()):
                 row[self._mask_field] = 0
@@ -811,6 +811,7 @@ class MaskedTable(t.Table):
                 ix += 1
                 row.update()
                 pb.update(i)
+        self.flush(update_index=False)
 
     def mask_stats(self):
         stats = defaultdict(int)
