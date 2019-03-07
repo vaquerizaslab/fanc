@@ -2357,7 +2357,7 @@ class RegionMatrix(np.ma.MaskedArray):
                             mask[row_ix] = True
 
                         col_ix = region.ix - col_offset
-                        if 0 <= col_ix <= self.shape[1]:
+                        if 0 <= col_ix < self.shape[1]:
                             mask[:, col_ix] = True
 
             self.mask = mask
