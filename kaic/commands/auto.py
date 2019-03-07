@@ -704,7 +704,7 @@ def auto(argv):
                 ds = kaic.load(file_names[i], mode='r')
                 if isinstance(ds, kaic.Hic):
                     file_types[i] = 'hic'
-                elif isinstance(ds, kaic.Pairs):
+                elif isinstance(ds, kaic.ReadPairs):
                     file_types[i] = 'pairs'
                 else:
                     raise ValueError("Could not detect file type using kaic load.")

@@ -1206,7 +1206,7 @@ def hic(argv):
                 o = kaic.load(input_file)
                 if isinstance(o, kaic.Hic):
                     hic_files.append(input_file)
-                elif isinstance(o, kaic.Pairs):
+                elif isinstance(o, kaic.ReadPairs):
                     pairs_files.append(input_file)
                 else:
                     parser.error("File ({}) type {} not supported."
