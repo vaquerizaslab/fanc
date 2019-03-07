@@ -1350,6 +1350,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         for (source_partition, sink_partition), records in self._edge_buffer.items():
             edge_table = self._edge_table(source_partition, sink_partition)
             edge_table.append(records)
+            edge_table.flush(update_index=False)
         self._edge_buffer = defaultdict(list)
 
     def _flush_regions(self):
@@ -1364,14 +1365,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 self._flush_operation()
                 self._flush_operation = self._flush_table_edge_buffer
 
-            with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges), silent=silent) as pb:
-                for i, edge_table in enumerate(self._edges):
-                    edge_table.flush(update_index=False, log_progress=False)
-                    pb.update(i)
-
-            for i, edge_table in enumerate(self._edges):
+            for _, edge_table in self._iter_edge_tables():
                 edge_table.flush(update_index=True, log_progress=False)
-                pb.update(i)
 
             self._enable_edge_indexes()
             self._edges_dirty = False
