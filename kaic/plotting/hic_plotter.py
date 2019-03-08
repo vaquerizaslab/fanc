@@ -19,7 +19,7 @@ import seaborn as sns
 from future.utils import with_metaclass, string_types
 from collections import defaultdict
 from ..matrix import RegionMatrix
-from ..peaks import ObservedPeakFilter, FdrPeakFilter, EnrichmentPeakFilter
+from ..peaks import ObservedPeakFilter, FdrPeakFilter, EnrichmentPeakFilter, MappabilityPeakFilter
 import logging
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,7 @@ class BufferedMatrix(object):
         :param regions: :class:`~GenomicRegion` object(s)
         :return: :class:`~HicMatrix`
         """
-        regions = tuple(reversed([r for r in regions]))
+        # regions = tuple(reversed([r for r in regions]))
         if not self.is_buffered_region(*regions):
             logger.debug("Buffering matrix")
             self._BUFFERING_STRATEGIES[self.buffering_strategy](self, *regions)
@@ -298,30 +298,15 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         self.vmax_slider = None
         self.current_matrix = None
         self.flip = flip
+        self.im = None
 
     def _plot(self, region):
-        self.current_matrix = self.hic_buffer.get_matrix(*region)
-        m = np.transpose(self.current_matrix)
-
-        if self.flip:
-            m = np.flipud(m)
-            extent = [self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end,
-                      self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end]
-        else:
-            extent = [self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end,
-                      self.current_matrix.col_regions[-1].end, self.current_matrix.col_regions[0].start]
-
-        color_matrix = self.get_color_matrix(m)
-        self.im = self.ax.imshow(color_matrix, interpolation='none', aspect='auto',
-                                 cmap=self.colormap, norm=self.norm, extent=extent)
+        self._refresh(region)
 
         self.ax.spines['right'].set_visible(False)
         self.ax.spines['top'].set_visible(False)
         self.ax.xaxis.set_ticks_position('bottom')
         self.ax.yaxis.set_ticks_position('left')
-
-        self.ax.set_xlim(extent[0], extent[1])
-        self.ax.set_ylim(extent[2], extent[3])
 
         if self.adjust_range:
             self.add_adj_slider()
@@ -359,19 +344,26 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
 
     def _refresh(self, region):
         self.current_matrix = self.hic_buffer.get_matrix(*region)
-        m = np.transpose(self.current_matrix)
+        old_image = self.im
 
+        m = np.transpose(self.current_matrix)
         if self.flip:
             m = np.flipud(m)
-            extent = [self.current_matrix.row_regions[0].end, self.current_matrix.row_regions[-1].end,
+            extent = [self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end,
                       self.current_matrix.col_regions[0].start, self.current_matrix.col_regions[-1].end]
         else:
-            extent = [self.current_matrix.row_regions[0].end, self.current_matrix.row_regions[-1].end,
+            extent = [self.current_matrix.row_regions[0].start, self.current_matrix.row_regions[-1].end,
                       self.current_matrix.col_regions[-1].end, self.current_matrix.col_regions[0].start]
 
         color_matrix = self.get_color_matrix(m)
-        self.im.set_data(color_matrix)
-        self.im.set_extent(extent)
+        self.im = self.ax.imshow(color_matrix, interpolation='none', aspect='auto',
+                                 cmap=self.colormap, norm=self.norm, extent=extent)
+
+        self.ax.set_xlim(extent[0], extent[1])
+        self.ax.set_ylim(extent[2], extent[3])
+
+        if old_image is not None:
+            old_image.remove()
 
 
 class HicSideBySidePlot2D(object):
@@ -476,6 +468,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         self.max_dist = max_dist
         self.hm = None
         self.rasterized = rasterized
+        self.collection = None
 
     def _plot(self, region):
         logger.debug("Generating matrix from hic object")
@@ -494,13 +487,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
             self._dimensions_stale = True
 
         # Have to copy unfortunately, otherwise modifying matrix in buffer
-        x_, y_, hm = self._mesh_data(region)
-        self.hm = hm
-
-        self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self.norm,
-                                             rasterized=self.rasterized)
-        self.collection._A = None
-        self._update_mesh_colors()
+        self._refresh(region)
 
         # set limits and aspect ratio
         # self.ax.set_aspect(aspect="equal")
@@ -550,10 +537,14 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         x_, y_, hm = self._mesh_data(region)
         self.hm = hm
 
-        self.collection._coordinates[:, :, 0] = x_
-        # update matrix data
-        self.collection.set_array(self.hm.ravel())
+        old_collection = self.collection
+        self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self.norm,
+                                             rasterized=self.rasterized)
+        self.collection._A = None
         self._update_mesh_colors()
+
+        if old_collection is not None:
+            old_collection.remove()
 
     def add_adj_slider(self, ax=None):
         if ax is None:
@@ -747,13 +738,14 @@ class EdgeHicPlot(HicPlot2D):
         self._highlight_limit = highlight_limit
 
     def update_highlights(self, m=None):
+        print('L: ', len(self._highlight_circles))
         for circle in self._highlight_circles:
             circle.remove()
 
         self._highlight_circles = []
 
         if self._highlight_edges and m is not None:
-            all_x, all_y = np.where(m != 0)
+            all_x, all_y = np.where(m > 0)
             if not len(all_x) > self._highlight_limit:
                 for x, y in zip(all_x, all_y):
                     region_x = m.row_regions[x]
@@ -763,6 +755,8 @@ class EdgeHicPlot(HicPlot2D):
                                             facecolor='red')
                     self.ax.add_patch(circle)
                     self._highlight_circles.append(circle)
+            else:
+                print('limit {}'.format(len(all_x)))
 
     def _plot(self, region):
         HicPlot2D._plot(self, region)
@@ -774,9 +768,12 @@ class EdgeHicPlot(HicPlot2D):
 class PeakParameterPlot(object):
     def __init__(self, peaks, font_size=5, observed_init=1.,
                  oe_d_init=1., oe_h_init=1., oe_v_init=1., oe_l_init=1.,
-                 fdr_d_init=1., fdr_h_init=1., fdr_v_init=1., fdr_l_init=1.,
+                 fdr_d_init=.1, fdr_h_init=.1, fdr_v_init=.1, fdr_l_init=.1,
+                 mappability_d_init=0., mappability_h_init=0.,
+                 mappability_v_init=0., mappability_l_init=0.,
                  oe_slider_range=(0, 5), oe_slider_step=0.1,
-                 fdr_slider_range=(0, .1), fdr_slider_step=0.01,
+                 fdr_slider_range=(0, .1), fdr_slider_step=0.001,
+                 mappability_slider_range=(0, 1.), mappability_slider_step=0.05,
                  observed_range=(0, 50), observed_step=1,
                  **kwargs):
         self.peaks = peaks
@@ -799,25 +796,38 @@ class PeakParameterPlot(object):
             'l': fdr_l_init,
         }
 
+        self.mappability_init = {
+            'd': mappability_d_init,
+            'v': mappability_v_init,
+            'h': mappability_h_init,
+            'l': mappability_l_init,
+        }
+
         self.fdr_range = fdr_slider_range
         self.fdr_step = fdr_slider_step
         self.oe_range = oe_slider_range
         self.oe_step = oe_slider_step
+        self.mappability_range = mappability_slider_range
+        self.mappability_step = mappability_slider_step
         self.observed_range = observed_range
         self.observed_step = observed_step
 
         self.observed_cutoff = self.observed_init
         self.oe_cutoffs = self.oe_init.copy()
         self.fdr_cutoffs = self.fdr_init.copy()
+        self.mappability_cutoffs = self.mappability_init.copy()
 
         self.ax_fdr_sliders = {}
         self.fdr_sliders = {}
         self.oe_sliders = {}
         self.ax_oe_sliders = {}
+        self.ax_mappability_sliders = {}
+        self.mappability_sliders = {}
         self.observed_slider = None
 
         self.observed_filter = None
         self.fdr_filter = None
+        self.mappability_filter = None
         self.oe_filter = None
 
         self.filtered_plots = []
@@ -856,15 +866,15 @@ class PeakParameterPlot(object):
         #
         # necessary plots: hic, oe_d, fdr_d, uncorrected,
         #
-        gs = grd.GridSpec(len(self.region_pairs) + 3, 4,
-                          height_ratios=[10] * len(self.region_pairs) + [1, 1, 3],
+        gs = grd.GridSpec(len(self.region_pairs) + 4, 4,
+                          height_ratios=[10] * len(self.region_pairs) + [1, 1, 1, 3],
                           wspace=0.3, hspace=0.5)
 
         self.fig = plt.figure(figsize=(10, len(self.region_pairs) * 2 + 2), dpi=150)
 
         # sliders
         inner_observed_gs = grd.GridSpecFromSubplotSpec(3, 1,
-                                                        subplot_spec=gs[len(self.region_pairs) + 2, 0],
+                                                        subplot_spec=gs[len(self.region_pairs) + 3, 0],
                                                         wspace=0.0, hspace=0.0)
 
         ax_observed_slider = plt.subplot(inner_observed_gs[0, 0])
@@ -876,6 +886,8 @@ class PeakParameterPlot(object):
         self.oe_sliders = dict()
         self.ax_fdr_sliders = dict()
         self.fdr_sliders = dict()
+        self.ax_mappability_sliders = dict()
+        self.mappability_sliders = dict()
         for i, neighborhood in enumerate(['d', 'h', 'v', 'l']):
             # O/E
             self.ax_oe_sliders[neighborhood] = plt.subplot(gs[len(self.region_pairs) + 0, i])
@@ -891,9 +903,17 @@ class PeakParameterPlot(object):
                                                     self.fdr_range[0], self.fdr_range[1],
                                                     valinit=self.fdr_init[neighborhood],
                                                     valstep=self.fdr_step)
+            # Mappability
+            self.ax_mappability_sliders[neighborhood] = plt.subplot(gs[len(self.region_pairs) + 2, i])
+            self.mappability_sliders[neighborhood] = Slider(self.ax_mappability_sliders[neighborhood],
+                                                            'Map {}'.format(neighborhood.upper()),
+                                                            self.mappability_range[0],
+                                                            self.mappability_range[1],
+                                                            valinit=self.mappability_init[neighborhood],
+                                                            valstep=self.mappability_step)
 
         # check button
-        inner_button_gs = grd.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[len(self.region_pairs) + 2, 1],
+        inner_button_gs = grd.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[len(self.region_pairs) + 3, 1],
                                                       wspace=0.0, hspace=0.0)
         ax_button = plt.subplot(inner_button_gs[0, 0])
         self.button = CheckButtons(ax_button, ['Show loops'], [False])
@@ -908,6 +928,10 @@ class PeakParameterPlot(object):
                                         fdr_ll_cutoff=self.fdr_init['h'],
                                         fdr_h_cutoff=self.fdr_init['v'],
                                         fdr_v_cutoff=self.fdr_init['l'])
+        self.mappability_filter = MappabilityPeakFilter(mappability_d_cutoff=self.mappability_init['d'],
+                                                        mappability_h_cutoff=self.mappability_init['h'],
+                                                        mappability_v_cutoff=self.mappability_init['v'],
+                                                        mappability_ll_cutoff=self.mappability_init['l'])
 
         self.hic_plots = []
         self.filtered_plots = []
@@ -921,21 +945,26 @@ class PeakParameterPlot(object):
                                    ax=ax_hic, show_colorbar=False, adjust_range=False,
                                    unmappable_color='white', vmax=vmax,
                                    highlight_edges=True, highlight_limit=200,
+                                   draw_tick_legend=False,
                                    **self.hic_args)
             filtered_plot = EdgeHicPlot(self.peaks,
                                         ax=ax_filtered, show_colorbar=False, adjust_range=False,
                                         unmappable_color='white', vmax=vmax,
+                                        draw_tick_legend=False,
                                         **self.hic_args)
             oe_plot = EdgeHicPlot(self.peaks, plot_field='oe_d', default_value=0, norm='lin',
                                   ax=ax_oe, show_colorbar=False, colormap='white_red', adjust_range=False,
-                                  vmin=1, vmax=4, log2=False, unmappable_color='white')
+                                  vmin=1, vmax=4, log2=False, unmappable_color='white',
+                                  draw_tick_legend=False,)
             fdr_plot = EdgeHicPlot(self.peaks, plot_field='fdr_d', default_value=1, norm='lin',
                                    ax=ax_fdr, show_colorbar=False, adjust_range=False,
-                                   vmin=0, vmax=0.05, colormap='Greys_r', unmappable_color='white')
+                                   vmin=0, vmax=0.05, colormap='Greys_r', unmappable_color='white',
+                                   draw_tick_legend=False)
 
             filtered_plot.hic_buffer.add_filter(self.observed_filter)
             filtered_plot.hic_buffer.add_filter(self.oe_filter)
             filtered_plot.hic_buffer.add_filter(self.fdr_filter)
+            filtered_plot.hic_buffer.add_filter(self.mappability_filter)
 
             self.hic_plots.append(hic_plot)
             self.filtered_plots.append(filtered_plot)
@@ -949,23 +978,16 @@ class PeakParameterPlot(object):
             ax_oe.set_yticklabels([])
             ax_fdr.set_yticklabels([])
 
-            self.fdr_filter.fdr_d_cutoff = self.fdr_cutoffs['d']
-            self.fdr_filter.fdr_h_cutoff = self.fdr_cutoffs['h']
-            self.fdr_filter.fdr_v_cutoff = self.fdr_cutoffs['v']
-            self.fdr_filter.fdr_ll_cutoff = self.fdr_cutoffs['l']
+        for neighborhood in ['d', 'h', 'v', 'l']:
+            self.oe_sliders[neighborhood].on_changed(self.update_oe_filter)
+            self.fdr_sliders[neighborhood].on_changed(self.update_fdr_filter)
+            self.mappability_sliders[neighborhood].on_changed(self.update_mappability_filter)
 
-            logger.info("FDR cutoffs set to: {}".format(self.fdr_cutoffs))
-            self.refresh_plots()
+        self.observed_slider.on_changed(self.update_observed_filter)
 
-            for neighborhood in ['d', 'h', 'v', 'l']:
-                self.oe_sliders[neighborhood].on_changed(self.update_oe_filter)
-                self.fdr_sliders[neighborhood].on_changed(self.update_fdr_filter)
-
-            self.observed_slider.on_changed(self.update_observed_filter)
-
-            self.button.on_clicked(self.refresh_plots)
-
-            return self.fig
+        self.button.on_clicked(self.refresh_plots)
+        self.refresh_plots()
+        return self.fig
 
     def refresh_plots(self, event=None):
         for i, (r1, r2, vmax) in enumerate(self.region_pairs):
@@ -1012,4 +1034,19 @@ class PeakParameterPlot(object):
         self.fdr_filter.fdr_ll_cutoff = self.fdr_cutoffs['l']
 
         logger.info("FDR cutoffs set to: {}".format(self.fdr_cutoffs))
+        self.refresh_plots()
+
+    def update_mappability_filter(self, event):
+        self.mappability_cutoffs = {
+            'd': self.mappability_sliders['d'].val,
+            'h': self.mappability_sliders['h'].val,
+            'v': self.mappability_sliders['v'].val,
+            'l': self.mappability_sliders['l'].val
+        }
+        self.mappability_filter.mappability_d_cutoff = self.mappability_cutoffs['d']
+        self.mappability_filter.mappability_h_cutoff = self.mappability_cutoffs['h']
+        self.mappability_filter.mappability_v_cutoff = self.mappability_cutoffs['v']
+        self.mappability_filter.mappability_ll_cutoff = self.mappability_cutoffs['l']
+
+        logger.info("Mappability cutoffs set to: {}".format(self.mappability_cutoffs))
         self.refresh_plots()
