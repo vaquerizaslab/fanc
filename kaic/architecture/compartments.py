@@ -210,6 +210,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
     def enrichment_profile(self, hic, percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
                            only_gc=False, symmetric_at=None,
                            exclude_chromosomes=(),
+                           intra_chromosomal=True, inter_chromosomal=False,
                            eigenvector=None, *args, **kwargs):
 
         if eigenvector is not None:
@@ -247,4 +248,6 @@ class ABCompartmentMatrix(RegionMatrixTable):
         return vector_enrichment_profile(hic, ev, mappable=mappable,
                                          per_chromosome=kwargs.get('per_chromosome', True),
                                          percentiles=percentiles, symmetric_at=symmetric_at,
-                                         exclude_chromosomes=exclude_chromosomes)
+                                         exclude_chromosomes=exclude_chromosomes,
+                                         intra_chromosomal=intra_chromosomal,
+                                         inter_chromosomal=inter_chromosomal)

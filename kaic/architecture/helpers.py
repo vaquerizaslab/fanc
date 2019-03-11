@@ -8,7 +8,8 @@ from future.utils import string_types
 
 def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True,
                               percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
-                              symmetric_at=None, exclude_chromosomes=()):
+                              symmetric_at=None, exclude_chromosomes=(),
+                              intra_chromosomal=True, inter_chromosomal=False):
     if len(exclude_chromosomes) > 0:
         chromosome_bins = matrix.chromosome_bins
         exclude_vector = []
@@ -43,24 +44,39 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
         mappable = matrix.mappable()
 
     if per_chromosome:
-        for chromosome in matrix.chromosomes():
-            if chromosome in exclude_chromosomes:
+        chromosomes = matrix.chromosomes()
+        for chr1_ix in range(len(chromosomes)):
+            chromosome1 = chromosomes[chr1_ix]
+            if chromosome1 in exclude_chromosomes:
                 continue
-            oem = matrix.matrix((chromosome, chromosome), oe=True, oe_per_chromosome=True)
-            for i, row_region in enumerate(oem.row_regions):
-                if not mappable[row_region.ix]:
-                    continue
-                i_bin = s - bins[row_region.ix] - 1
-                for j, col_region in enumerate(oem.col_regions):
-                    if not mappable[col_region.ix]:
-                        continue
-                    j_bin = s - bins[col_region.ix] - 1
-                    value = oem[i, j]
 
-                    m[i_bin, j_bin] += value
-                    c[i_bin, j_bin] += 1
-                    m[j_bin, i_bin] += value
-                    c[j_bin, i_bin] += 1
+            for chr2_ix in range(chr1_ix, len(chromosomes)):
+                chromosome2 = chromosomes[chr2_ix]
+                if chromosome2 in exclude_chromosomes:
+                    continue
+
+                if not inter_chromosomal and chromosome1 != chromosome2:
+                    continue
+
+                if not intra_chromosomal and chromosome1 == chromosome2:
+                    continue
+
+                oem = matrix.matrix((chromosome1, chromosome2),
+                                    oe=True, oe_per_chromosome=True)
+                for i, row_region in enumerate(oem.row_regions):
+                    if not mappable[row_region.ix]:
+                        continue
+                    i_bin = s - bins[row_region.ix] - 1
+                    for j, col_region in enumerate(oem.col_regions):
+                        if not mappable[col_region.ix]:
+                            continue
+                        j_bin = s - bins[col_region.ix] - 1
+                        value = oem[i, j]
+
+                        m[i_bin, j_bin] += value
+                        c[i_bin, j_bin] += 1
+                        m[j_bin, i_bin] += value
+                        c[j_bin, i_bin] += 1
     else:
         oem = matrix.matrix(oe=True)
         for i in range(oem.shape):
@@ -70,6 +86,14 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
             for j in range(i, oem.shape):
                 if not mappable[j]:
                     continue
+
+                if oem.row_regions[i].chromosome == oem.col_regions[j].chromosome:
+                    if not intra_chromosomal:
+                        continue
+                else:
+                    if not inter_chromosomal:
+                        continue
+
                 j_bin = s - bins[j] - 1
                 value = oem[i, j]
 
