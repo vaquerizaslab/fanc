@@ -366,25 +366,6 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
             old_image.remove()
 
 
-class HicSideBySidePlot2D(object):
-    def __init__(self, hic1, hic2, colormap=config.colormap_hic, norm="log",
-                 vmin=None, vmax=None, aspect=1., axes_style="ticks"):
-        self.hic_plotter1 = HicPlot2D(hic1, colormap=colormap, norm=norm,
-                                      vmin=vmin, vmax=vmax, aspect=aspect, axes_style=axes_style)
-        self.hic_plotter2 = HicPlot2D(hic2, colormap=colormap, norm=norm,
-                                      vmin=vmin, vmax=vmax, aspect=aspect, axes_style=axes_style)
-
-    def plot(self, region):
-        fig = plt.figure()
-        ax1 = plt.subplot(121)
-        ax2 = plt.subplot(122, sharex=ax1, sharey=ax1)
-
-        self.hic_plotter1.plot(x_region=region, y_region=region, ax=ax1)
-        self.hic_plotter2.plot(x_region=region, y_region=region, ax=ax2)
-
-        return fig, ax1, ax2
-
-
 class HicComparisonPlot2D(HicPlot2D):
     def __init__(self, hic_top, hic_bottom, buffering_strategy="relative", 
                  buffering_arg=1., scale_matrices=True, **kwargs):

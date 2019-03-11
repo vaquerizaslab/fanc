@@ -201,7 +201,7 @@ Hi-C datasets are visualized in a single figure:
 
 """
 
-from kaic.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, HicSideBySidePlot2D, \
+from kaic.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, \
     HicSlicePlot, HicPeakPlot
 from kaic.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot, GenomicRegionsPlot, \
     GenomicFeatureScorePlot, GenomicFigure, BigWigPlot, GenePlot, LinePlot, \
