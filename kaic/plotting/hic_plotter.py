@@ -18,6 +18,7 @@ import types
 import seaborn as sns
 from future.utils import with_metaclass, string_types
 from collections import defaultdict
+from itertools import cycle
 from ..matrix import RegionMatrix
 from ..peaks import ObservedPeakFilter, FdrPeakFilter, EnrichmentPeakFilter, MappabilityPeakFilter
 import logging
@@ -378,11 +379,12 @@ class HicComparisonPlot2D(HicPlot2D):
 
 class HicSlicePlot(ScalarDataPlot):
     """
-    Draw a Hi-C data as virtual 4C-plot. All interactions that 
+    Draw Hi-C data as virtual 4C-plot. All interactions that
     involve the slice region are shown.
     """
 
     def __init__(self, hic_data, slice_region, names=None,
+                 colors=None,
                  buffering_strategy="relative", buffering_arg=1,
                  weight_field=None, default_value=None, **kwargs):
         """
@@ -413,20 +415,38 @@ class HicSlicePlot(ScalarDataPlot):
         self.slice_region = slice_region
         self.x = None
         self.y = None
+        self.lines = []
+
+        if colors is None:
+            prop_cycle = plt.rcParams['axes.prop_cycle']
+            colors = prop_cycle.by_key()['color']
+        elif isinstance(colors, string_types):
+            colors = [colors]
+
+        self.colors = colors
+
+    def _refresh(self, region):
+        for line in self.lines:
+            line.remove()
+        self.lines = []
+
+        color_cycle = cycle(self.colors)
+        for i, b in enumerate(self.hic_buffers):
+            hm = b.get_matrix(self.slice_region, region.expand(relative=0.5))
+            m = np.mean(hm, axis=0)
+            bin_coords = np.r_[[x.start for x in hm.col_regions], hm.col_regions[-1].end]
+            bin_coords = (bin_coords[1:] + bin_coords[:-1])/2
+            line = self.ax.plot(bin_coords, m,
+                                color=next(color_cycle),
+                                label=self.names[i] if self.names else "")[0]
+            self.lines.append(line)
 
     def _plot(self, region):
-        for i, b in enumerate(self.hic_buffers):
-            hm = np.mean(b.get_matrix(self.slice_region, region).T, axis=0)
-            bin_coords = np.r_[[x.start for x in hm.row_regions], hm.row_regions[-1].end]
-            bin_coords = (bin_coords[1:] + bin_coords[:-1])/2
-            self.ax.plot(bin_coords, hm, label=self.names[i] if self.names else "")
+        self._refresh(region)
         if self.names:
             self.add_legend()
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
-
-    def _refresh(self, region):
-        pass
 
 
 class HicPlot(BasePlotterHic, BasePlotter1D):
