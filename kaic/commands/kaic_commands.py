@@ -1120,8 +1120,9 @@ def hic_parser():
     parser.add_argument(
         '--only-inter', dest='only_inter',
         action='store_true',
-        help='''Only correct inter-chromosomal contacts. Sets intra-chromosomal contacts to 0.
-                    Always uses whole-matrix balancing, therefore incompatible with -c.'''
+        help="Calculate bias vector only on inter-chromosomal contacts. "
+             "Ignores all intra-chromosomal contacts. "
+             "Always uses whole-matrix balancing, i.e. implicitly sets -w"
     )
     parser.set_defaults(only_inter=False)
 
@@ -1193,6 +1194,9 @@ def hic(argv):
 
     if ice and restore_coverage:
         parser.error("--restore-coverage not supported for ICE matrix balancing!")
+
+    if only_interchromosomal:
+        whole_matrix = True
 
     import tempfile
     import kaic
