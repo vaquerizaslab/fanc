@@ -489,7 +489,8 @@ class RaoPeakInfo(RegionMatrixTable):
 
         return parameters_plot.observed_cutoff, \
                parameters_plot.oe_cutoffs, \
-               parameters_plot.fdr_cutoffs
+               parameters_plot.fdr_cutoffs, \
+               parameters_plot.mappability_cutoffs
 
 
 class Peak(Edge):
