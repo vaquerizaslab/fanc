@@ -28,7 +28,8 @@ def kaic_parser():
         usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
 
     usage += "\n-- Matrix analysis --\n"
-    for name in ['cis-trans', 'expected', 'pca', 'insulation', 'directionality',
+    for name in ['cis-trans', 'expected', 'pca', 'compartments',
+                 'insulation', 'directionality', 'boundaries',
                  'compare', 'loops', 'aggregate']:
         padding = ' ' * (max_len - len(name))
         usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
@@ -453,7 +454,7 @@ def map(argv):
 def fragments_parser():
     parser = argparse.ArgumentParser(
         prog="kaic fragments",
-        description='Create a BED file with RE fragments'
+        description='In-silico genome digestion'
     )
 
     parser.add_argument(
