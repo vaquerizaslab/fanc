@@ -113,6 +113,9 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     m = self.matrix((chromosome_sub, chromosome_sub))
                     m[np.isnan(m)] = 0
                     w, v = np.linalg.eig(m)
+                    # v might end up being masked
+                    if hasattr(v, 'mask'):
+                        v.mask = False
                     ab_vector = v[:, eigenvector]
                     for i, region in enumerate(m.row_regions):
                         ev[region.ix] = ab_vector[i]
