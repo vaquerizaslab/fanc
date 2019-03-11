@@ -7,6 +7,7 @@ Kai-C Python modules
 .. toctree::
    :maxdepth: 2
 
+   init <modules/init>
    map <modules/map>
    regions <modules/regions>
    pairs <modules/pairs>

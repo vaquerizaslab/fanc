@@ -9,4 +9,4 @@ kaic Python module
 
    Quickstart <api_basic>
    Matrices <matrix>
-   Modules, classes, functions <modules>
+   Reference <modules>
