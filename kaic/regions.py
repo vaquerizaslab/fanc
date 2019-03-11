@@ -738,6 +738,8 @@ class Genome(FileGroup):
     chromosome in this object.
     """
 
+    _classid = 'GENOME'
+
     class ChromosomeDefinition(t.IsDescription):
         name = t.StringCol(255, pos=0)
         length = t.Int64Col(pos=1)
