@@ -867,7 +867,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         self._default_value = 0.0
         self._default_score_field = 'weight'
 
-    def regions_and_matrix_entries(self, key, oe=False, oe_per_chromosome=True,
+    def regions_and_matrix_entries(self, key=None, oe=False, oe_per_chromosome=True,
                                    score_field=None, *args, **kwargs):
         """
         Convenient access to non-zero matrix entries and associated regions.
@@ -1160,24 +1160,28 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return intra_expected, chromosome_intra_expected, inter_expected
 
-    def marginals(self, weight_column=None, norm=True):
+    def marginals(self, masked=True, *args, **kwargs):
         """
         Get the marginals vector of this Hic matrix.
         """
-        if weight_column is None:
-            weight_column = self._default_score_field
+        row_regions, col_regions, edges_iter = self.regions_and_matrix_entries(*args, **kwargs)
+        min_ix = min(row_regions[0].ix, col_regions[0].ix)
+        max_ix = max(row_regions[-1].ix, col_regions[-1].ix)
 
-        # prepare marginals dict
-        marginals = np.zeros(len(self.regions), float)
+        marginals = np.zeros(max_ix - min_ix + 1)
 
         logger.debug("Calculating marginals...")
-        with RareUpdateProgressBar(max_value=len(self.edges), silent=config.hide_progressbars,
-                                   prefix="Marginals") as pb:
-            for i, edge in enumerate(self.edges(lazy=True, norm=norm)):
-                marginals[edge.source] += getattr(edge, weight_column)
-                if edge.source != edge.sink:
-                    marginals[edge.sink] += getattr(edge, weight_column)
-                pb.update(i)
+        for i, (source, sink, weight) in enumerate(edges_iter):
+            if source <= sink:
+                marginals[source] += weight
+            if source < sink:
+                marginals[sink] += weight
+
+        if masked:
+            mask = np.zeros(len(marginals), dtype=bool)
+            for r in row_regions + col_regions:
+                mask[r.ix - min_ix] = not r.valid
+            marginals = np.ma.masked_where(mask, marginals)
 
         return marginals
 
@@ -1337,6 +1341,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         return edge_table
 
     def _iter_edge_tables(self):
+        if self._partition_breaks is None:
+            return
+
         for source_partition in range(len(self._partition_breaks) + 1):
             for sink_partition in range(source_partition, len(self._partition_breaks) + 1):
                 try:
