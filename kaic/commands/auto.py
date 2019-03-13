@@ -628,11 +628,22 @@ def file_basename(file_name):
     return basename
 
 
-def auto(argv):
+def auto(argv, **kwargs):
     from kaic.tools.general import which
 
     parser = auto_parser()
     args = parser.parse_args(argv[2:])
+
+    verbosity = kwargs.get("verbosity", 2)
+    if verbosity > 0:
+        verbosity_flag = '-' + 'v' * verbosity
+        kaic_base_command = ['kaic', verbosity_flag]
+    else:
+        kaic_base_command = ['kaic']
+
+    log_file = kwargs.get("log_file", None)
+    if log_file is not None:
+        kaic_base_command += ['-l', log_file]
 
     bin_sizes = args.bin_sizes
     split_ligation_junction = args.split_ligation_junction
@@ -816,9 +827,9 @@ def auto(argv):
             if not force_overwrite and os.path.exists(bam_file):
                 parser.error("File exists ({}), use -f to force overwriting it.".format(bam_file))
             bam_files.append(bam_file)
-            mapping_command = ['kaic', 'map', '-m', '25',
-                               '-s', str(step_size),
-                               '-t', str(threads)]
+            mapping_command = kaic_base_command + ['map', '-m', '25',
+                                                   '-s', str(step_size),
+                                                   '-t', str(threads)]
 
             if quality_cutoff is not None:
                 mapping_command += ['-q', str(quality_cutoff)]
@@ -866,7 +877,7 @@ def auto(argv):
 
                 sorted_sam_files.append(sorted_sam_file)
 
-                sort_command = ['kaic', 'sort_sam', file_names[ix], sorted_sam_file]
+                sort_command = kaic_base_command + ['sort_sam', file_names[ix], sorted_sam_file]
                 if tmp:
                     sort_command.append('-tmp')
 
@@ -901,10 +912,10 @@ def auto(argv):
 
             pairs_files.append(pairs_file)
 
-            pairs_command = ['kaic', 'pairs', '-f',
-                             # loading
-                             '-g', genome,
-                             '-t', str(load_threads)]
+            pairs_command = kaic_base_command + ['pairs', '-f',
+                                                 # loading
+                                                 '-g', genome,
+                                                 '-t', str(load_threads)]
 
             if restriction_enzyme is not None:
                 pairs_command += ['-r', restriction_enzyme]
@@ -954,12 +965,12 @@ def auto(argv):
             if not force_overwrite and os.path.exists(pairs_file):
                 parser.error("File exists ({}), use -f to force overwriting it.".format(pairs_file))
 
-            pairs_command = ['kaic', 'pairs', '-f',
-                             # loading
-                             '-g', genome,
-                             '-t', str(load_threads),
-                             # filtering
-                             '-m', '-us']
+            pairs_command = kaic_base_command + ['pairs', '-f',
+                                                 # loading
+                                                 '-g', genome,
+                                                 '-t', str(load_threads),
+                                                 # filtering
+                                                 '-m', '-us']
             if restriction_enzyme is not None:
                 pairs_command += ['-r', restriction_enzyme]
             if quality_cutoff is not None:
@@ -1003,9 +1014,10 @@ def auto(argv):
             ligation_error_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.ligation_error.pdf'
             re_dist_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.re_dist.pdf'
 
-            pairs_command = ['kaic', 'pairs',
-                             # filtering
-                             '-d', '10000', '-l', '-p', '2']
+            pairs_command = kaic_base_command + ['pairs',
+                                                 # filtering
+                                                 '-d', '10000',
+                                                 '-l', '-p', '2']
 
             if inward_cutoff is not None:
                 pairs_command += ['-i', str(inward_cutoff)]
@@ -1023,11 +1035,13 @@ def auto(argv):
             runner.add_task(pairs_task, wait_for=sam_to_pairs_tasks, threads=1)
             pairs_tasks.append(pairs_task)
 
-            ligation_error_command = ['kaic', 'pairs', '--ligation-error-plot', ligation_error_file, file_names[ix]]
+            ligation_error_command = kaic_base_command + ['pairs', '--ligation-error-plot',
+                                                          ligation_error_file, file_names[ix]]
             ligation_error_task = CommandTask(ligation_error_command)
             runner.add_task(ligation_error_task, wait_for=pairs_task, threads=1)
 
-            re_dist_command = ['kaic', 'pairs', '--re-dist-plot', re_dist_file, file_names[ix]]
+            re_dist_command = kaic_base_command + ['pairs', '--re-dist-plot',
+                                                   re_dist_file, file_names[ix]]
             re_dist_task = CommandTask(re_dist_command)
             runner.add_task(re_dist_task, wait_for=pairs_task, threads=1)
     else:
@@ -1052,7 +1066,7 @@ def auto(argv):
             if not force_overwrite and os.path.exists(hic_file):
                 parser.error("File exists ({}), use -f to force overwriting it.".format(hic_file))
 
-            hic_command = ['kaic', 'hic', '-f', file_names[ix], hic_file]
+            hic_command = kaic_base_command + ['hic', '-f', file_names[ix], hic_file]
             hic_task = CommandTask(hic_command)
             runner.add_task(hic_task, wait_for=pairs_tasks, threads=1)
             hic_tasks.append(hic_task)
@@ -1078,7 +1092,7 @@ def auto(argv):
         if not force_overwrite and os.path.exists(output_hic):
             parser.error("File exists ({}), use -f to force overwriting it.".format(output_hic))
 
-        merge_hic_command = ['kaic', 'hic', '-f']
+        merge_hic_command = kaic_base_command + ['hic', '-f']
         if tmp:
             merge_hic_command.append('-tmp')
 
@@ -1122,8 +1136,9 @@ def auto(argv):
                 hic_stats_file = output_folder + 'plots/stats/' + \
                                  hic_basename + '.stats.pdf'
 
-                hic_command = ['kaic', 'hic', '-f', '-b', str(bin_size), '-r', '0.1',
-                               '--statistics-plot', hic_stats_file]
+                hic_command = kaic_base_command + ['hic', '-f', '-b',
+                                                   str(bin_size), '-r', '0.1',
+                                                   '--statistics-plot', hic_stats_file]
                 if tmp:
                     hic_command.append('-tmp')
                 if ice:
