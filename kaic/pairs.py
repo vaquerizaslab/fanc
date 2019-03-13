@@ -286,8 +286,8 @@ class ReadPairGenerator(object):
         """
         filter_names = []
         for i, f in enumerate(self.filters):
-            if hasattr(f, 'mask_name') and f.mask_name is not None:
-                filter_names.append(f.mask_name)
+            if hasattr(f, 'mask') and f.mask is not None:
+                filter_names.append(f.mask.name)
             else:
                 filter_names.append('filter_{}'.format(i))
 
@@ -1176,6 +1176,7 @@ class ReadPairs(RegionPairsTable):
         if lazy_pair is not None:
             lazy_pair.left._row = row
             lazy_pair.right._row = row
+            lazy_pair.ix = row['ix']
             return lazy_pair
         else:
             fragment1 = GenomicRegion(start=row['left_fragment_start'],
@@ -1478,7 +1479,7 @@ class ReadPairs(RegionPairsTable):
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('Restriction site distance',
+        mask = self.add_mask_description('restriction site distance',
                                          'Mask read pairs where the cumulative distance of reads to '
                                          'the nearest RE site exceeds {}'.format(maximum_distance))
         re_filter = ReDistanceFilter(maximum_distance=maximum_distance, mask=mask)
@@ -1523,7 +1524,7 @@ class ReadPairs(RegionPairsTable):
         if lazy:
             fr1 = LazyFragmentRead({}, self, side='left')
             fr2 = LazyFragmentRead({}, self, side='right')
-            lazy_pair = FragmentReadPair(fr1, fr2)
+            lazy_pair = FragmentReadPair(fr1, fr2, ix=None)
         else:
             lazy_pair = None
         for row in self.edges_dict(key=key, *args, **kwargs):
