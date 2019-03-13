@@ -468,7 +468,7 @@ class Maskable(FileBased):
     def _mask_statistics_table(self, table, include_unmasked=True):
         masks = defaultdict(int)
         if include_unmasked:
-            masks['unmasked'] = 0
+            masks['valid'] = 0
 
         if 'mask_stats' in table.attrs:
             stats = table.attrs['mask_stats']
@@ -484,7 +484,7 @@ class Maskable(FileBased):
                 masks[mask.name] += count
 
             if not found_masks and include_unmasked:
-                masks['unmasked'] += count
+                masks['valid'] += count
         return masks
 
     def _mask_statistics_group(self, group, include_unmasked=True):
