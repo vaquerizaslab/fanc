@@ -33,11 +33,12 @@ class Kaic(object):
         args = parser.parse_args(sys.argv[1:option_ix+1])
 
         # configure logger
-        if args.verbosity == 1:
+        verbosity = args.verbosity
+        if verbosity == 1:
             log_level = logging.WARN
-        elif args.verbosity == 2:
+        elif verbosity == 2:
             log_level = logging.INFO
-        elif args.verbosity > 2:
+        elif verbosity > 2:
             log_level = logging.DEBUG
         else:
             log_level = logging.INFO
@@ -53,8 +54,8 @@ class Kaic(object):
             nh = logging.NullHandler()
             logger.addHandler(nh)
 
+        log_file = os.path.expanduser(args.log_file) if args.log_file is not None else None
         if args.log_file is not None:
-            log_file = os.path.expanduser(args.log_file)
             fh = logging.FileHandler(log_file, mode='a')
             formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
             fh.setFormatter(formatter)
@@ -78,13 +79,15 @@ class Kaic(object):
 
         # use dispatch pattern to invoke method with same name
         from datetime import datetime
-        start_date = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        start_time = datetime.now()
+        start_date = start_time.strftime('%d/%m/%Y %H:%M:%S')
         try:
             if config.raise_exception_on_trapped_signal:
                 enable_signal_traps()
 
             fixed_command = args.command.replace("-", "_")
-            getattr(commands, fixed_command)([sys.argv[0]] + sys.argv[option_ix:])
+            command = getattr(commands, fixed_command)
+            command([sys.argv[0]] + sys.argv[option_ix:], log_level=log_level, verbosity=verbosity)
             disable_signal_traps()
         except Exception:
             if args.email_to_address is not None:
@@ -112,8 +115,9 @@ class Kaic(object):
             emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
                               server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
 
+        end_time = datetime.now()
         # echo parameters back to user
-        logger.debug("Finished '{}'".format(" ".join(sys.argv)))
+        logger.debug("Finished '{}' in {}".format(" ".join(sys.argv), end_time - start_time))
 
 
 if __name__ == '__main__':
