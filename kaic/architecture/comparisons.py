@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from ..tools.general import RareUpdateProgressBar
 from ..regions import RegionsTable
-from ..matrix import RegionMatrixTable, Edge
+from ..matrix import RegionMatrixTable, RegionMatrix
 from .domains import RegionScoreParameterTable
 
 import numpy as np
@@ -380,6 +380,57 @@ class DifferenceRegions(ComparisonRegions):
 
     def compare(self, score1, score2):
         return score1 - score2
+
+
+class SplitMatrix(object):
+    def __init__(self, matrix_top, matrix_bottom, scaling_factor=1.):
+        self.matrix_top = matrix_top
+        self.matrix_bottom = matrix_bottom
+        self.scaling_factor = scaling_factor
+
+    def matrix(self, *args, **kwargs):
+        """
+        Return a :class:`~HicMatrix` where values above the diagonal
+        are from this object and values below the diagonal are from
+        another :class:`~Hic` object.
+
+        "Above the diagonal" refers to the diagonal of the complete
+        Hic object, not the diagonal of the returned matrix.
+
+        :param key: A matrix selector. Use tuple to select row and
+                    columns
+        :param scaling_factor: Factor to scale the hic values. If None,
+                               will be computed using
+                               :func:`~Hic.scaling_factor`.
+        :param kwargs: Keyword arguments passed to both matrices
+                       :func:`~kaic.matrix.RegionMatrixContainer.matrix`
+                       functions.
+        :return: :class:`~RegionMatrix`
+        """
+        m_top = self.matrix_top.matrix(*args, **kwargs)
+
+        # find diagonal
+        row_region = m_top.row_regions[0]
+        matching_index = None
+        for i, col_region in enumerate(m_top.col_regions):
+            if col_region == row_region:
+                matching_index = i
+
+        if matching_index is None:
+            col_region = m_top.col_regions[0]
+            for i, row_region in enumerate(m_top.row_regions):
+                if col_region == row_region:
+                    matching_index = -1 * i
+
+        if matching_index is None:
+            return m_top
+
+        # replace diagonal
+        m_bottom = self.matrix_bottom.matrix(*args, **kwargs) * self.scaling_factor
+        top_indices = np.triu_indices(m_top.shape[0], matching_index, m_top.shape[1])
+        m_bottom[top_indices] = m_top[top_indices]
+
+        return RegionMatrix(m_bottom, row_regions=m_top.row_regions, col_regions=m_top.col_regions)
 
 
 class EdgeCollectionSelector(object):
