@@ -273,16 +273,23 @@ def hic_parser():
     parser.add_argument(
         '-l', '--log', dest='log',
         action='store_true',
+        default=False,
         help='''Log-transform heatmap values'''
     )
-    parser.set_defaults(log=False)
 
     parser.add_argument(
         '-r', '--range-slider', dest='adjust_range',
         action='store_true',
+        default=False,
         help='''Add vmax/vmin slider to plot'''
     )
-    parser.set_defaults(adjust_range=False)
+
+    parser.add_argument(
+        '-u', '--uncorrected', dest='norm',
+        action='store_false',
+        default=True,
+        help='Plot uncorrected Hi-C matrix values.'
+    )
 
     parser.add_argument(
         '-c', '--colormap', dest='colormap',
@@ -328,7 +335,7 @@ def hic(parameters):
     return kplt.HicPlot(matrix, colormap=colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
                         vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
                         ylabel=args.ylabel, weight_field=args.weight_field,
-                        default_value=args.default_value), args
+                        default_value=args.default_value, matrix_norm=args.norm), args
 
 
 def hic2d_parser():
@@ -350,6 +357,13 @@ def hic2d_parser():
         '-vmax', '--maximum-value', dest='vmax',
         type=float,
         help='''Maximum value assigned the last color in the colorbar.'''
+    )
+
+    parser.add_argument(
+        '-u', '--uncorrected', dest='norm',
+        action='store_false',
+        default=True,
+        help='Plot uncorrected Hi-C matrix values.'
     )
 
     parser.add_argument(
@@ -398,7 +412,7 @@ def hic2d(parameters):
     matrix = kaic.load(os.path.expanduser(args.hic), mode='r')
     return kplt.HicPlot2D(matrix, colormap=colormap, norm=norm, vmin=args.vmin, vmax=args.vmax,
                           show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
-                          flip=args.flip), args
+                          flip=args.flip, matrix_norm=args.norm), args
 
 
 def hicsplit_parser():
@@ -463,8 +477,8 @@ def hicsplit(parameters):
 
     colormap = config.colormap_hic if args.colormap is None else args.colormap
 
-    matrix_bottom = kaic.load_hic(os.path.expanduser(args.hic_bottom), mode='r')
-    matrix_top = kaic.load_hic(os.path.expanduser(args.hic_top), mode='r')
+    matrix_bottom = kaic.load(os.path.expanduser(args.hic_bottom), mode='r')
+    matrix_top = kaic.load(os.path.expanduser(args.hic_top), mode='r')
 
     norm = "lin" if not args.log else "log"
     sp = kplt.HicComparisonPlot2D(matrix_top, matrix_bottom, colormap=colormap, norm=norm, vmin=args.vmin,
