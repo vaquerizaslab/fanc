@@ -1005,8 +1005,11 @@ def pairs(argv, **kwargs):
                     plt.close(fig)
 
             if re_dist_plot_file is not None:
-                from kaic.plotting.plot_statistics import pairs_re_distance_plot
-                pairs_re_distance_plot(pairs, re_dist_plot_file, limit=10000)
+                from kaic.plotting.statistics import restriction_site_distance_plot
+                fig, ax = plt.subplots()
+                restriction_site_distance_plot(pairs, ax=ax)
+                fig.savefig(re_dist_plot_file)
+                plt.close(fig)
 
             if ligation_error_plot_file is not None:
                 from kaic.plotting.statistics import ligation_bias_plot
@@ -1945,7 +1948,7 @@ def pca(argv, **kwargs):
 
             import matplotlib
             matplotlib.use("agg")
-            from kaic.plotting.plot_statistics import pca_plot
+            from kaic.plotting.statistics import pca_plot
             fig, ax = pca_plot(np.array(pca_res), variance=variance, names=sample_names,
                                markers=args.markers, colors=args.colors,
                                eigenvectors=eigenvectors)
@@ -2527,57 +2530,6 @@ def overlap_peaks(argv, **kwargs):
         peaks.file.copy_file(os.path.join(output_path, "_".join(n for n in names if n in name_set) + ".peaks"), overwrite=True)
     stats.to_csv(os.path.join(output_path, "stats_" + "_".join(names) + ".tsv"), sep="\t", index=False)
 
-    logger.info("All done.")
-
-
-def plot_hic_marginals_parser():
-    parser = argparse.ArgumentParser(
-        prog="kaic plot_hic_marginals",
-        description='Plot Hic matrix marginals'
-    )
-
-    parser.add_argument(
-        'input',
-        help='''Input Hi-C file'''
-    )
-
-    parser.add_argument(
-        'output',
-        nargs="?",
-        help='''Output PDF file'''
-    )
-
-    parser.add_argument(
-        '-l', '--lower', dest='lower',
-        type=float,
-        help='''Plot lower coverage bound at this level'''
-    )
-
-    parser.add_argument(
-        '-u', '--upper', dest='upper',
-        type=float,
-        help='''Plot lower coverage bound at this level'''
-    )
-    return parser
-
-
-def plot_hic_marginals(argv, **kwargs):
-    parser = plot_hic_marginals_parser()
-    args = parser.parse_args(argv[2:])
-
-    import kaic
-    from kaic.plotting.plot_genomic_data import hic_marginals_plot
-
-    input_path = os.path.expanduser(args.input)
-
-    hic = kaic.load(input_path, mode='r')
-
-    output_path = None
-    if args.output:
-        output_path = os.path.expanduser(args.output)
-
-    hic_marginals_plot(hic, output=output_path, lower=args.lower, upper=args.upper)
-    hic.close()
     logger.info("All done.")
 
 
