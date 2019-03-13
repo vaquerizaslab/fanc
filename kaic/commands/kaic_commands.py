@@ -109,9 +109,9 @@ def auto_parser():
     return kaic.commands.auto.auto_parser()
 
 
-def auto(argv):
+def auto(argv, **kwargs):
     import kaic.commands.auto
-    return kaic.commands.auto.auto(argv)
+    return kaic.commands.auto.auto(argv, **kwargs)
 
 
 def map_parser():
@@ -257,7 +257,7 @@ def map_parser():
     return parser
 
 
-def map(argv):
+def map(argv, **kwargs):
     parser = map_parser()
     args = parser.parse_args(argv[2:])
 
@@ -477,7 +477,7 @@ def fragments_parser():
     return parser
 
 
-def fragments(argv):
+def fragments(argv, **kwargs):
     parser = fragments_parser()
     args = parser.parse_args(argv[2:])
 
@@ -529,7 +529,7 @@ def sort_sam_parser():
     return parser
 
 
-def sort_sam(argv):
+def sort_sam(argv, **kwargs):
     parser = sort_sam_parser()
     args = parser.parse_args(argv[2:])
 
@@ -781,7 +781,7 @@ def pairs_parser():
     return parser
 
 
-def pairs(argv):
+def pairs(argv, **kwargs):
     parser = pairs_parser()
     args = parser.parse_args(argv[2:])
 
@@ -982,6 +982,10 @@ def pairs(argv):
 
         if (statistics_file is not None or statistics_plot_file is not None or
                 re_dist_plot_file is not None or ligation_error_plot_file is not None):
+            import matplotlib
+            matplotlib.use('agg')
+            import matplotlib.pyplot as plt
+
             pairs = kaic.load(pairs_file, mode='r')
             if statistics_file is not None or statistics_plot_file is not None:
                 statistics = pairs.filter_statistics()
@@ -993,13 +997,10 @@ def pairs(argv):
 
                 if statistics_plot_file is not None:
                     logger.info("Saving statistics...")
-                    import matplotlib
-                    matplotlib.use('agg')
-                    import matplotlib.pyplot as plt
-                    from kaic.plotting.plot_statistics import statistics_plot
+                    from kaic.plotting.statistics import summary_statistics_plot
                     statistics_plot_file = os.path.expanduser(statistics_plot_file)
                     fig, ax = plt.subplots()
-                    statistics_plot(statistics)
+                    summary_statistics_plot(statistics)
                     fig.savefig(statistics_plot_file)
                     plt.close(fig)
 
@@ -1008,8 +1009,11 @@ def pairs(argv):
                 pairs_re_distance_plot(pairs, re_dist_plot_file, limit=10000)
 
             if ligation_error_plot_file is not None:
-                from kaic.plotting.plot_statistics import hic_ligation_structure_biases_plot
-                hic_ligation_structure_biases_plot(pairs, output=ligation_error_plot_file, sampling=None)
+                from kaic.plotting.statistics import ligation_bias_plot
+                fig, ax = plt.subplots()
+                ligation_bias_plot(pairs, ax=ax)
+                fig.savefig(ligation_error_plot_file)
+                plt.close(fig)
 
             pairs.close()
     finally:
@@ -1079,6 +1083,11 @@ def hic_parser():
         type=int,
         help='''Filter bins along the diagonal up to this specified distance.
                 Use 0 for only filtering the diagonal.'''
+    )
+
+    parser.add_argument(
+        '--marginals-plot', dest='marginals_plot',
+        help='Plot Hi-C marginals to determine low coverage thresholds.'
     )
 
     parser.add_argument(
@@ -1155,7 +1164,7 @@ def hic_parser():
     return parser
 
 
-def hic(argv):
+def hic(argv, **kwargs):
     parser = hic_parser()
     args = parser.parse_args(argv[2:])
 
@@ -1177,6 +1186,7 @@ def hic(argv):
     statistics_plot_file = os.path.expanduser(args.stats_plot) if args.stats_plot is not None else None
     force_overwrite = args.force_overwrite
     reset_filters = args.reset_filters
+    marginals_plot_file = args.marginals_plot
     tmp = args.tmp
 
     if kr and ice:
@@ -1336,24 +1346,47 @@ def hic(argv):
                 binned_hic.run_queued_filters(log_progress=True)
                 logger.info("Done.")
 
-            if statistics_file is not None or statistics_plot_file is not None:
-                statistics = binned_hic.filter_statistics()
+            if statistics_file is not None or statistics_plot_file is not None or marginals_plot_file is not None:
+                import matplotlib
+                matplotlib.use('agg')
+                import matplotlib.pyplot as plt
+                if statistics_file is not None or statistics_plot_file is not None:
+                    statistics = binned_hic.filter_statistics()
 
-                if statistics_file is not None:
-                    with open(statistics_file, 'w') as o:
-                        for name, value in statistics.items():
-                            o.write("{}\t{}\n".format(name, value))
+                    if statistics_file is not None:
+                        with open(statistics_file, 'w') as o:
+                            for name, value in statistics.items():
+                                o.write("{}\t{}\n".format(name, value))
 
-                if statistics_plot_file is not None:
-                    logger.info("Saving statistics...")
-                    import matplotlib
-                    matplotlib.use('agg')
-                    import matplotlib.pyplot as plt
-                    from kaic.plotting.plot_statistics import statistics_plot
-                    statistics_plot_file = os.path.expanduser(statistics_plot_file)
-                    fig, ax = plt.subplots()
-                    statistics_plot(statistics)
-                    fig.savefig(statistics_plot_file)
+                    if statistics_plot_file is not None:
+                        logger.info("Saving statistics...")
+                        from kaic.plotting.statistics import summary_statistics_plot
+                        statistics_plot_file = os.path.expanduser(statistics_plot_file)
+                        fig, ax = plt.subplots()
+                        summary_statistics_plot(statistics)
+                        fig.savefig(statistics_plot_file)
+                        plt.close(fig)
+
+                if marginals_plot_file is not None:
+                    from kaic.plotting.statistics import marginals_plot
+                    chromosomes = binned_hic.chromosomes()
+                    cols = min(len(chromosomes), 4)
+                    rows, remainder = divmod(len(chromosomes), cols)
+                    if remainder > 0:
+                        rows += 1
+                    # fig, axes = plt.subplots(rows, cols)
+                    fig = plt.figure(figsize=(cols*2, rows*2))
+                    for i, chromosome in enumerate(chromosomes):
+                        row, col = divmod(i, cols)
+                        ax = plt.subplot2grid((rows, cols), (row, col))
+                        # if rows > 1:
+                        #     ax = axes[row, col]
+                        # else:
+                        #     ax = axes[col]
+                        marginals_plot(binned_hic, chromosome, lower=filter_low_coverage,
+                                       rel_cutoff=filter_low_coverage_relative, ax=ax)
+                        ax.set_title(chromosome)
+                    fig.savefig(marginals_plot_file)
                     plt.close(fig)
 
             if ice or kr:
@@ -1440,7 +1473,7 @@ def from_juicer_parser():
     return parser
 
 
-def from_juicer(argv):
+def from_juicer(argv, **kwargs):
     parser = from_juicer_parser()
 
     args = parser.parse_args(argv[2:])
@@ -1509,7 +1542,7 @@ def to_cooler_parser():
     return parser
 
 
-def to_cooler(argv):
+def to_cooler(argv, **kwargs):
     parser = to_cooler_parser()
 
     args = parser.parse_args(argv[2:])
@@ -1588,7 +1621,7 @@ def dump_parser():
     return parser
 
 
-def dump(argv):
+def dump(argv, **kwargs):
     parser = dump_parser()
     args = parser.parse_args(argv[2:])
     hic_file = os.path.expanduser(args.hic)
@@ -1823,7 +1856,7 @@ def pca_parser():
     return parser
 
 
-def pca(argv):
+def pca(argv, **kwargs):
     parser = pca_parser()
 
     args = parser.parse_args(argv[2:])
@@ -2189,7 +2222,7 @@ def loops_parser():
     return parser
 
 
-def loops(argv):
+def loops(argv, **kwargs):
     parser = loops_parser()
 
     args = parser.parse_args(argv[2:])
@@ -2444,7 +2477,7 @@ def overlap_peaks_parser():
     return parser
 
 
-def overlap_peaks(argv):
+def overlap_peaks(argv, **kwargs):
     parser = overlap_peaks_parser()
 
     args = parser.parse_args(argv[2:])
@@ -2528,7 +2561,7 @@ def plot_hic_marginals_parser():
     return parser
 
 
-def plot_hic_marginals(argv):
+def plot_hic_marginals(argv, **kwargs):
     parser = plot_hic_marginals_parser()
     args = parser.parse_args(argv[2:])
 
@@ -2621,7 +2654,7 @@ def boundaries_parser():
     return parser
 
 
-def boundaries(argv):
+def boundaries(argv, **kwargs):
     parser = boundaries_parser()
 
     args = parser.parse_args(argv[2:])
@@ -2746,7 +2779,7 @@ def compare_parser():
     return parser
 
 
-def compare(argv):
+def compare(argv, **kwargs):
     parser = compare_parser()
 
     args = parser.parse_args(argv[2:])
@@ -2893,7 +2926,7 @@ def directionality_parser():
     return parser
 
 
-def directionality(argv):
+def directionality(argv, **kwargs):
     parser = directionality_parser()
 
     args = parser.parse_args(argv[2:])
@@ -3046,7 +3079,7 @@ def insulation_parser():
     return parser
 
 
-def insulation(argv):
+def insulation(argv, **kwargs):
     parser = insulation_parser()
 
     args = parser.parse_args(argv[2:])
@@ -3331,7 +3364,7 @@ def compartments_parser():
     return parser
 
 
-def compartments(argv):
+def compartments(argv, **kwargs):
     parser = compartments_parser()
 
     args = parser.parse_args(argv[2:])
@@ -3563,7 +3596,7 @@ def expected_parser():
     return parser
 
 
-def expected(argv):
+def expected(argv, **kwargs):
     parser = expected_parser()
 
     args = parser.parse_args(argv[2:])
@@ -3689,7 +3722,7 @@ def subset_parser():
     return parser
 
 
-def subset(argv):
+def subset(argv, **kwargs):
     parser = subset_parser()
     args = parser.parse_args(argv[2:])
 
@@ -3904,7 +3937,7 @@ def aggregate_parser():
     return parser
 
 
-def aggregate(argv):
+def aggregate(argv, **kwargs):
     parser = aggregate_parser()
 
     args = parser.parse_args(argv[2:])
@@ -4127,7 +4160,7 @@ def stats_parser():
     return parser
 
 
-def stats(argv):
+def stats(argv, **kwargs):
     parser = stats_parser()
 
     args = parser.parse_args(argv[2:])
@@ -4212,8 +4245,8 @@ def stats(argv):
                 o.write("pairs\t{}\ttotal\t{}\n".format(pairs_file, total))
                 pairs_summary['total'] += total
 
-            pairs_summary['filtered'] += total - statistics['unmasked']
-            pairs_summary['remaining'] += statistics['unmasked']
+            pairs_summary['filtered'] += total - statistics['valid']
+            pairs_summary['remaining'] += statistics['valid']
 
         with open(output_file, 'a') as o:
             for key in sorted(pairs_summary.keys()):
@@ -4274,7 +4307,7 @@ def write_config_parser():
     return parser
 
 
-def write_config(argv):
+def write_config(argv, **kwargs):
     parser = write_config_parser()
 
     args = parser.parse_args(argv[2:])
@@ -4309,7 +4342,7 @@ def cis_trans_parser():
     return parser
 
 
-def cis_trans(argv):
+def cis_trans(argv, **kwargs):
     parser = cis_trans_parser()
 
     args = parser.parse_args(argv[2:])
@@ -4373,7 +4406,7 @@ def downsample_parser():
     return parser
 
 
-def downsample(argv):
+def downsample(argv, **kwargs):
     parser = downsample_parser()
 
     args = parser.parse_args(argv[2:])
@@ -4421,7 +4454,7 @@ def upgrade_parser():
     return parser
 
 
-def upgrade(argv):
+def upgrade(argv, **kwargs):
     parser = upgrade_parser()
 
     args = parser.parse_args(argv[2:])
