@@ -5,6 +5,7 @@ from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlo
 from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
 from genomic_regions import GenomicRegion, as_region
 from ..matrix import RegionMatrixTable, RegionMatrixContainer
+from ..architecture.comparisons import SplitMatrix
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
@@ -233,23 +234,12 @@ class BufferedCombinedMatrix(BufferedMatrix):
     A buffered square matrix where values above and below the diagonal
     come from different matrices.
     """
-    def __init__(self, top_matrix, bottom_matrix, scale_matrices=True, buffering_strategy="relative", buffering_arg=1):
+    def __init__(self, top_matrix, bottom_matrix, scale_matrices=True,
+                 buffering_strategy="relative", buffering_arg=1):
         super(BufferedCombinedMatrix, self).__init__(None, buffering_strategy, buffering_arg)
 
-        scaling_factor = 1
-        if scale_matrices:
-            scaling_factor = top_matrix.scaling_factor(bottom_matrix)
-
-        class CombinedData(object):
-            def __init__(self, hic_top, hic_bottom, scaling_factor=1):
-                self.hic_top = hic_top
-                self.hic_bottom = hic_bottom
-                self.scaling_factor = scaling_factor
-
-            def __getitem__(self, item):
-                return top_matrix.get_combined_matrix(self.hic_bottom, key=item, scaling_factor=self.scaling_factor)
-
-        self.data = CombinedData(top_matrix, bottom_matrix, scaling_factor)
+        scaling_factor = top_matrix.scaling_factor(bottom_matrix) if scale_matrices else 1.
+        self.data = SplitMatrix(top_matrix, bottom_matrix, scaling_factor=scaling_factor)
 
 
 class BasePlotterHic(BasePlotterMatrix):
