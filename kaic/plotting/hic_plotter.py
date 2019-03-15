@@ -374,7 +374,7 @@ class HicSlicePlot(ScalarDataPlot):
     """
 
     def __init__(self, hic_data, slice_region, names=None,
-                 colors=None,
+                 colors=None, fill=None,
                  buffering_strategy="relative", buffering_arg=1,
                  weight_field=None, default_value=None, **kwargs):
         """
@@ -406,6 +406,7 @@ class HicSlicePlot(ScalarDataPlot):
         self.x = None
         self.y = None
         self.lines = []
+        self.fill = fill
 
         if colors is None:
             prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -431,8 +432,21 @@ class HicSlicePlot(ScalarDataPlot):
                                 label=self.names[i] if self.names else "")[0]
             self.lines.append(line)
 
+            if self.fill:
+                self.ax.fill_between(bin_coords, [0] * len(m), m, color=line.get_color())
+
     def _plot(self, region):
         self._refresh(region)
+
+        # plot patch at slice region
+        bottom, top = self.ax.get_ylim()
+        patch_region = self.slice_region.copy()
+
+        rect = patches.Rectangle((patch_region.start, bottom),
+                                 len(patch_region), (top - bottom)/20,
+                                 facecolor='grey', edgecolor='grey')
+        self.ax.add_patch(rect)
+
         if self.names:
             self.add_legend()
         self.remove_colorbar_ax()
