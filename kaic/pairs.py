@@ -1146,8 +1146,10 @@ class ReadPairs(RegionPairsTable):
             if pairs_counter % self._edge_buffer_size == 0:
                 self._flush_fragment_info_buffer()
                 end_time = timer()
-                logger.debug("Wrote {} pairs in {}s (current 1M chunk: {}s)".format(
-                    pairs_counter, end_time - start_time, end_time - chunk_start_time
+                logger.debug("Wrote {} pairs in {}s (current {} chunk: {}s)".format(
+                    pairs_counter, end_time - start_time,
+                    self._edge_buffer_size,
+                    end_time - chunk_start_time
                 ))
                 chunk_start_time = timer()
         self._flush_fragment_info_buffer()
