@@ -47,7 +47,7 @@ def _edge_collection(*hics, region=None, scale=True,
     for i, hic in enumerate(hics):
         logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
 
-        with RareUpdateProgressBar(max_value=len(hic.edges)) as pb:
+        with RareUpdateProgressBar(max_value=len(hic.edges), prefix='Edge coll') as pb:
             for j, edge in enumerate(hic.edges(region, lazy=True, **kwargs)):
                 weight = edge.weight * scaling_factors[i]
                 source, sink = edge.source, edge.sink
