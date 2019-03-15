@@ -15,6 +15,44 @@ logger = logging.getLogger(__name__)
 
 
 class ABCompartmentMatrix(RegionMatrixTable):
+    """
+    Class representing O/E correlation matrix used to derive AB compartments.
+
+    You can generate an :class:`~ABCompartmentMatrix` from a Hic object
+    using the :func:`~ABCompartmentMatrix.from_hic` class method.
+
+    .. code::
+
+        hic = kaic.load("path/to/file.hic")
+        ab = ABCompartmentMatrix.from_hic(hic)
+
+    The :code:`ab` object can then be used to calculate compartmentalisation
+    eigenvectors and A/B compartment assignments:
+
+    .. code::
+
+        ev = ab.eigenvector()
+        domains = ab.domains()
+
+    For more robust A and B calls, you can use a genome file (FASTA) to
+    orient the eigenvector so that regions with higher GC content on average
+    get assigned positive EV values:
+
+    .. code::
+
+        ev = ab.eigenvector(genome="path/to/genome.fa")
+        domains = ab.domains(genome="path/to/genome.fa")
+
+    Finally, you can calculate an AB compertment enrichment profile using
+
+    .. code::
+
+        profile, ev_cutoffs = ab.enrichment_profile(hic)
+
+        # or with genome to orient the EV
+        profile, ev_cutoffs = ab.enrichment_profile(hic, genome="path/to/genome.fa")
+
+    """
 
     _classid = 'ABCOMPARTMENTMATRIX'
 
@@ -123,6 +161,9 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 m = self.matrix()
                 m[np.isnan(m)] = 0
                 w, v = np.linalg.eig(m)
+                # v might end up being masked
+                if hasattr(v, 'mask'):
+                    v.mask = False
                 ab_vector = v[:, eigenvector]
                 for i, region in enumerate(m.row_regions):
                     ev[region.ix] = ab_vector[i]
