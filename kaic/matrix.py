@@ -1340,6 +1340,14 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         return edge_table
 
+    def _has_edge_table(self, source_partition, sink_partition):
+        edge_table_name = self._edge_table_prefix + str(source_partition) + '_' + str(sink_partition)
+        try:
+            getattr(self._edges, edge_table_name)
+        except tables.NoSuchNodeError:
+            return False
+        return True
+
     def _iter_edge_tables(self):
         if self._partition_breaks is None:
             return
@@ -1959,9 +1967,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             for i in range(1, len(breaks)):
                 assert np.array_equal(breaks[0], breaks[i])
 
-            if check_regions_identical and not RegionPairsContainer.regions_identical(pairs):
-                raise ValueError("Regions in pair objects are not identical, cannot perform merge!")
+            if check_regions_identical:
+                if not RegionPairsContainer.regions_identical(pairs):
+                    raise ValueError("Regions in pair objects are not identical, cannot perform merge!")
+                else:
+                    logger.info("Regions identical")
 
+            logger.info("Creating merged pairs object")
             kwargs['mode'] = 'w'
             kwargs['partition_strategy'] = breaks[0]
             new_pairs = cls(*args, **kwargs)
@@ -1970,10 +1982,11 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             new_pairs._disable_edge_indexes()
 
             # create edge tables
-            partition_pairs = []
-            for (source_partition, sink_partition), _ in pairs[0]._iter_edge_tables():
-                new_pairs._edge_table(source_partition, sink_partition)
-                partition_pairs.append((source_partition, sink_partition))
+            partition_pairs = set()
+            for pair in pairs:
+                for (source_partition, sink_partition), _ in pair._iter_edge_tables():
+                    new_pairs._edge_table(source_partition, sink_partition)
+                    partition_pairs.add((source_partition, sink_partition))
 
             logger.info("Starting fast pair merge")
             for source_partition, sink_partition in partition_pairs:
@@ -1981,6 +1994,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 fields = edge_table.colnames
                 new_row = edge_table.row
                 for pair in pairs:
+                    if not pair._has_edge_table(source_partition, sink_partition):
+                        continue
                     for row in pair._edge_table(source_partition, sink_partition).iterrows():
                         for field in fields:
                             new_row[field] = row[field]
@@ -2199,47 +2214,58 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
             for i in range(1, len(breaks)):
                 assert np.array_equal(breaks[0], breaks[i])
 
-            if check_regions_identical and not RegionPairsContainer.regions_identical(matrices):
-                raise ValueError("Regions in matrix objects are not "
-                                 "identical, cannot perform merge!")
-
-            kwargs['mode'] = 'w'
-            kwargs['partition_strategy'] = breaks[0]
-
-            new_matrix = cls(*args, **kwargs)
-
-            new_matrix.add_regions(matrices[0].regions(lazy=True))
-
-            # create edge tables
-            partition_pairs = []
-            for (source_partition, sink_partition), _ in matrices[0]._iter_edge_tables():
-                new_matrix._edge_table(source_partition, sink_partition)
-                partition_pairs.append((source_partition, sink_partition))
-
-            new_matrix._disable_edge_indexes()
-
-            default_field = getattr(new_matrix, '_default_score_field', 'weight')
-            logger.info("Starting fast pair merge")
-            for source_partition, sink_partition in partition_pairs:
-                edges = defaultdict(int)
-                for pair in matrices:
-                    for row in pair._edge_table(source_partition, sink_partition).iterrows():
-                        edges[(row['source'], row['sink'])] += row[default_field]
-
-                edge_table = new_matrix._edge_table(source_partition, sink_partition)
-                new_row = edge_table.row
-                for (source, sink), weight in edges.items():
-                    new_row['source'] = source
-                    new_row['sink'] = sink
-                    new_row[default_field] = weight
-                    new_row.append()
-                edge_table.flush()
-            new_matrix._edges_dirty = True
-
-            new_matrix.flush()
-        except (AttributeError, AssertionError):
+            if check_regions_identical:
+                if not RegionPairsContainer.regions_identical(matrices):
+                    raise ValueError("Regions in matrix objects are not "
+                                     "identical, cannot perform merge!")
+                else:
+                    logger.info("Regions identical")
+        except (AttributeError, AssertionError) as e:
+            print(e)
             raise ValueError("Partitioning is not identical, cannot "
                              "perform region pairs table merge")
+
+        logger.info("Creating merged matrix object")
+        kwargs['mode'] = 'w'
+        kwargs['partition_strategy'] = breaks[0]
+
+        new_matrix = cls(*args, **kwargs)
+
+        logger.info("Adding regions to merged matrix")
+        new_matrix.add_regions(matrices[0].regions(lazy=True))
+
+        logger.info("Preparing internal file structure")
+        # create edge tables
+        partition_pairs = set()
+        for matrix in matrices:
+            for (source_partition, sink_partition), _ in matrix._iter_edge_tables():
+                new_matrix._edge_table(source_partition, sink_partition)
+                partition_pairs.add((source_partition, sink_partition))
+
+        new_matrix._disable_edge_indexes()
+
+        default_field = getattr(new_matrix, '_default_score_field', 'weight')
+        logger.info("Starting fast pair merge")
+        for source_partition, sink_partition in partition_pairs:
+            edges = defaultdict(int)
+            for matrix in matrices:
+                if not matrix._has_edge_table(source_partition, sink_partition):
+                    continue
+
+                for row in matrix._edge_table(source_partition, sink_partition).iterrows():
+                    edges[(row['source'], row['sink'])] += row[default_field]
+
+            edge_table = new_matrix._edge_table(source_partition, sink_partition)
+            new_row = edge_table.row
+            for (source, sink), weight in edges.items():
+                new_row['source'] = source
+                new_row['sink'] = sink
+                new_row[default_field] = weight
+                new_row.append()
+            edge_table.flush()
+        new_matrix._edges_dirty = True
+
+        new_matrix.flush()
 
         return new_matrix
 
