@@ -20,7 +20,7 @@ import pysam
 import tables as t
 from future.utils import with_metaclass, viewitems
 
-from genomic_regions import GenomicRegion
+from genomic_regions import GenomicRegion, RegionBased
 from .config import config
 from .general import MaskFilter, MaskedTable, Mask
 from .hic import Hic
@@ -67,7 +67,10 @@ def generate_pairs(sam1_file, sam2_file, regions,
 
     pairs = ReadPairs(file_name=output_file, mode='w')
 
-    pairs.add_regions(regions, preserve_attributes=False)
+    if isinstance(regions, RegionBased):
+        pairs.add_regions(regions.regions, preserve_attributes=False)
+    else:
+        pairs.add_regions(regions, preserve_attributes=False)
     pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
 
     return pairs
