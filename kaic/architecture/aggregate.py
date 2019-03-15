@@ -89,12 +89,12 @@ class AggregateMatrix(FileGroup):
             component_group = self.file.create_group(self._group, 'components')
 
             for i, m in enumerate(components):
-                cm = self.file.create_carray(component_group, 'component_{}',
+                cm = self.file.create_carray(component_group, 'component_{}'.format(i),
                                              tables.Float32Atom(), m.shape)
                 cm[:] = m
 
                 if hasattr(m, 'mask'):
-                    mm = self.file.create_carray(component_group, 'mask_{}',
+                    mm = self.file.create_carray(component_group, 'mask_{}'.format(i),
                                                  tables.BoolAtom(), m.shape)
                     mm[:] = m.mask
 
