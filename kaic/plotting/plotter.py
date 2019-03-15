@@ -514,7 +514,10 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
 
         super(GenomicVectorArrayPlot, self).__init__(**kwargs)
         self.array = array
-        self.parameters = parameters
+        if parameters is None:
+            self.parameters = array._parameters
+        else:
+            self.parameters = parameters
         if plot_kwargs is None:
             plot_kwargs = {}
         self.plot_kwargs = plot_kwargs
@@ -575,7 +578,7 @@ class VerticalSplitPlot(BasePlotter1D):
     def __init__(self, top_plot, bottom_plot, gap=0, cax_gap=.05, **kwargs):
         """
         :param top_plot: Plot instance on top
-        :param bottom_plot: Plot instace on bottom
+        :param bottom_plot: Plot instance on bottom
         :param gap: Gap between plots in inches
         :param cax_gap: Gap between colorbars in inches
         """
