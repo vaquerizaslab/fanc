@@ -84,8 +84,8 @@ def ligation_bias_plot(pairs, ax=None, log=False, **kwargs):
             "axes.linewidth": 0.5
     }):
         ax.set_title("Error structure by distance")
-        ax.plot(x, inward_ratios, 'b', label="inward/same strand")
-        ax.plot(x, outward_ratios, 'r', label="outward/same strand")
+        ax.plot(x, inward_ratios, 'b', label="inward/same strand", **kwargs)
+        ax.plot(x, outward_ratios, 'r', label="outward/same strand", **kwargs)
         ax.set_xscale('log')
         if log:
             ax.axhline(y=0, color='black', ls='dashed', lw=0.8)
@@ -105,6 +105,34 @@ def ligation_bias_plot(pairs, ax=None, log=False, **kwargs):
 def restriction_site_distance_plot(pairs, ax=None, max_percentile=95,
                                    sample=100000, max_distance=None,
                                    **kwargs):
+    """
+    Plot the distribution of read pair restriction site distances.
+
+    The sum of distances to the nearest restriction site of each mate
+    is equivalent to the insert size of the sequenced DNA molecule. As
+    such, this plot can serve as a quality control for DNA fragmentation
+    prior to sequencing. It can also be used to derive a cutoff for the
+    :class:`~kaic.pairs.ReDistanceFilter`, which excludes mate pairs with
+    very large insert sizes.
+
+    :param pairs: :class:`~kaic.pairs.ReadPairs`
+    :param ax: (optional) matplotlib axis
+    :param max_percentile: Percentile of values up to which the distribution
+                           is plotted. If this is set to 100, the distribution
+                           will be squeezed in a small section on
+                           the x axis if there are extremely large values
+                           in the distribution. The default (95) makes sure
+                           the distribution is properly visible.
+
+    :param sample: If this is an integer, only <sample> random number of mate
+                   pairs are plotted in the distribution to save time. If this
+                   is set to None, all mate pairs are plotted. By default, a
+                   sample of 100000 is shown.
+    :param max_distance: If this is different from None, distances larger
+                         than <max_distance> are ignored.
+    :param kwargs: Keyword arguments passed to :code:`seaborn.distplot`
+    :return: ax
+    """
     if ax is None:
         ax = plt.gca()
 
@@ -140,6 +168,23 @@ def restriction_site_distance_plot(pairs, ax=None, max_percentile=95,
 
 def marginals_plot(matrix, chromosome, ax=None, lower=None, rel_cutoff=0.1, color='#3E896D',
                    **kwargs):
+    """
+    Plot Hi-C marginals vector.
+
+    Marginals are the sum of values in each column of the matrix.
+    This plot can be used to determine sensible low coverage thresholds
+    for the :class:`~kaic.hic.LowCoverageFilter`.
+
+    :param matrix: :class:`~kaic.matrix.RegionMatrixContainer`
+    :param chromosome: Name of a chromosome to plot marginals for.
+    :param ax: Matplotlib axis
+    :param lower: Absolute lower cutoff for drawing threshold line
+    :param rel_cutoff: Relative lower cutoff for drawing thresold line
+    :param color: Color of line in plot
+    :param kwargs: Keyword arguments passed to
+                   :func:`~kaic.matrix.RegionMatrixContainer.matrix`
+    :return: ax
+    """
     if ax is None:
         ax = plt.gca()
 
@@ -168,6 +213,33 @@ def marginals_plot(matrix, chromosome, ax=None, lower=None, rel_cutoff=0.1, colo
     sns.despine(ax=ax)
     ax.figure.tight_layout()
 
+    return ax
+
+
+def distance_decay_plot(*matrices, ax=None, chromosome=None, **kwargs):
+    if ax is None:
+        ax = plt.gca()
+
+    for matrix in matrices:
+        ex, ex_chromosome, ex_inter = matrix.expected_values()
+
+        if chromosome is not None:
+            ex = ex_chromosome[chromosome]
+
+        bin_size = matrix.bin_size
+        distances = np.arange(0, bin_size * len(ex), bin_size)
+        ax.plot(distances, ex, **kwargs)
+
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+
+    ax.set_ylabel('Expected value')
+    ax.set_xlabel('Genomic separation')
+    ax.xaxis.set_major_formatter(GenomeCoordFormatter(chromosome if chromosome is not None else "All",
+                                                      minor_div=5,
+                                                      display_chromosome=False,
+                                                      display_scale=False))
+    ax.figure.tight_layout()
     return ax
 
 
