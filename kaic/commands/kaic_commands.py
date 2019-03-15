@@ -2548,7 +2548,7 @@ def boundaries_parser():
         'output',
         help="Path for boundary BED file. When specifying "
              "multiple window sizes or if input file "
-             " has multiple scores in it, this forms "
+             "has multiple scores in it, this forms "
              "the output file prefix and will be appended by "
              "'<window size>.bed'"
     )
