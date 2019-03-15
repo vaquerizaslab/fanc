@@ -32,6 +32,12 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
     else:
         bin_cutoffs = np.nanpercentile(exclude_vector, percentiles)
 
+    if isinstance(intra_chromosomal, bool):
+        if intra_chromosomal:
+            intra_chromosomal = 0
+        else:
+            intra_chromosomal = -1
+
     bins = []
     for value in vector:
         bins.append(bisect_left(bin_cutoffs, value))
@@ -40,6 +46,7 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
     m = np.zeros((s, s))
     c = np.zeros((s, s))
 
+    bin_size = matrix.bin_size
     if mappable is None:
         mappable = matrix.mappable()
 
@@ -55,10 +62,9 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
                 if chromosome2 in exclude_chromosomes:
                     continue
 
-                if not inter_chromosomal and chromosome1 != chromosome2:
-                    continue
+                is_intra_chromosomal = chromosome1 == chromosome2
 
-                if not intra_chromosomal and chromosome1 == chromosome2:
+                if not inter_chromosomal and not is_intra_chromosomal:
                     continue
 
                 oem = matrix.matrix((chromosome1, chromosome2),
@@ -70,6 +76,10 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
                     for j, col_region in enumerate(oem.col_regions):
                         if not mappable[col_region.ix]:
                             continue
+
+                        if is_intra_chromosomal and abs(j - i) * bin_size < intra_chromosomal:
+                            continue
+
                         j_bin = s - bins[col_region.ix] - 1
                         value = oem[i, j]
 
@@ -87,12 +97,13 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
                 if not mappable[j]:
                     continue
 
-                if oem.row_regions[i].chromosome == oem.col_regions[j].chromosome:
-                    if not intra_chromosomal:
+                is_intra_chromosomal = oem.row_regions[i].chromosome == oem.col_regions[j].chromosome
+
+                if is_intra_chromosomal:
+                    if abs(j - i) * bin_size < intra_chromosomal:
                         continue
-                else:
-                    if not inter_chromosomal:
-                        continue
+                elif not inter_chromosomal:
+                    continue
 
                 j_bin = s - bins[j] - 1
                 value = oem[i, j]
