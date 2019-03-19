@@ -4347,7 +4347,7 @@ def downsample_parser():
     )
 
     parser.add_argument(
-        '-r', '--with-replacement', dest='replace',
+        '-r', '--with-replacement', dest='with_replacement',
         action='store_true',
         default=False,
         help='Use sampling of pairs with replacement. '
@@ -4373,10 +4373,10 @@ def downsample(argv, **kwargs):
     else:
         n = int(n)
     output_file = args.output
-    exact = args.exact
+    with_replacement = args.with_replacement
 
     with kaic.load(hic_file) as hic:
-        output_hic = hic.sample(n, exact=exact, file_name=output_file)
+        output_hic = hic.sample(n, with_replacement=with_replacement, file_name=output_file)
         output_hic.close()
 
 
