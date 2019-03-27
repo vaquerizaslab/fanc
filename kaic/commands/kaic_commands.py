@@ -2772,12 +2772,13 @@ def compare(argv, **kwargs):
         else:
             parser.error("Comparison type -c {} not recognised!".format(comparison))
 
-        ComparisonMatrix.from_matrices(matrix1, matrix2, file_name=output_file,
-                                       tmpdir=tmp, mode='w',
-                                       scale=scale,
-                                       log=log,
-                                       ignore_infinite=filter_infinite,
-                                       filters=filters)
+        cmp = ComparisonMatrix.from_matrices(matrix1, matrix2, file_name=output_file,
+                                             tmpdir=tmp, mode='w',
+                                             scale=scale,
+                                             log=log,
+                                             ignore_infinite=filter_infinite,
+                                             filters=filters)
+        cmp.close()
     elif isinstance(matrix1, RegionScoreParameterTable) and isinstance(matrix2, RegionScoreParameterTable):
         ComparisonScores = None
         if comparison == 'fold_change' or comparison == 'fc':
@@ -2787,8 +2788,9 @@ def compare(argv, **kwargs):
         else:
             parser.error("Comparison type -c {} not recognised!".format(comparison))
 
-        ComparisonScores.from_scores(matrix1, matrix2, file_name=output_file,
-                                     tmpdir=tmp, mode='w', log=log)
+        cmp = ComparisonScores.from_scores(matrix1, matrix2, file_name=output_file,
+                                           tmpdir=tmp, mode='w', log=log)
+        cmp.close()
     elif isinstance(matrix1, RegionBased) and isinstance(matrix2, RegionBased):
         ComparisonRegions = None
         if comparison == 'fold_change' or comparison == 'fc':
