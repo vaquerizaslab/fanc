@@ -1200,7 +1200,8 @@ class ReadPairs(RegionPairsTable):
 
             return FragmentReadPair(left_read=left_read, right_read=right_read, ix=row['ix'])
 
-    def get_ligation_structure_biases(self, sampling=None, skip_self_ligations=True):
+    def get_ligation_structure_biases(self, sampling=None, skip_self_ligations=True,
+                                      **kwargs):
 
         """
         Compute the ligation biases (inward and outward to same-strand) of this data set.
@@ -1211,6 +1212,8 @@ class ReadPairs(RegionPairsTable):
         :param skip_self_ligations: If True (default), will not consider
                                     self-ligated fragments for assessing
                                     the error rates.
+        :param unfiltered: If True, uses all read pairs, even those that do not
+                           pass filters, for the ligation error calculation
         :return: tuple with (list of gap sizes between reads, list of matching le type ratios)
         """
         n_pairs = len(self)
@@ -1229,7 +1232,7 @@ class ReadPairs(RegionPairsTable):
 
             with RareUpdateProgressBar(max_value=len(self), silent=config.hide_progressbars,
                                        prefix="Ligation error") as pb:
-                for i, pair in enumerate(self.pairs(lazy=True)):
+                for i, pair in enumerate(self.pairs(lazy=True, **kwargs)):
                     if pair.is_same_fragment():
                         same_fragment_count += 1
                         if skip_self_ligations:
