@@ -315,6 +315,34 @@ class LegacyHic(RegionMatrixTable):
 
         return intra_expected, chromosome_intra_expected, inter_expected
 
+    def marginals(self, masked=True, *args, **kwargs):
+        """
+        Get the marginals vector of this Hic matrix.
+        """
+        row_regions, col_regions, edges_iter = self.regions_and_matrix_entries(*args, **kwargs)
+        min_ix = min(row_regions[0].ix, col_regions[0].ix)
+        max_ix = max(row_regions[-1].ix, col_regions[-1].ix)
+
+        marginals = np.zeros(max_ix - min_ix + 1)
+
+        logger.debug("Calculating marginals...")
+        for i, (source, sink, weight) in enumerate(edges_iter):
+            if source <= sink:
+                marginals[source] += weight
+            if source < sink:
+                marginals[sink] += weight
+
+        if masked:
+            mask = np.zeros(len(marginals), dtype=bool)
+            for i in range(len(marginals)):
+                mask[i] = marginals[i] == 0
+            marginals = np.ma.masked_where(mask, marginals)
+
+        return marginals
+
+    def mappable(self):
+        return self.marginals() > 0
+
 
 class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
     """
