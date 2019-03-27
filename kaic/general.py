@@ -512,6 +512,8 @@ class MaskedTableView(object):
         if isinstance(excluded_masks, int):
             self.excluded_mask_ix = excluded_masks
         elif maskable is not None:
+            if excluded_masks == 'all':
+                excluded_masks = list(maskable.masks)
             self.excluded_mask_ix = maskable.get_binary_mask_from_masks(excluded_masks)
         else:
             raise ValueError("Must provide maskable object in order to derive mask "
