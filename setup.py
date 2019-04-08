@@ -33,7 +33,7 @@ setup(
     packages=find_packages(),
     package_data={'kaic': ['test/data/*/*']},
     install_requires=[
-        'numpy>=1.8.0',
+        'numpy>=1.16.0',
         'scipy',
         'pillow',
         'matplotlib',
@@ -49,7 +49,7 @@ setup(
         'pybedtools',
         'pyBigWig',
         'PyYAML',
-        'tables>=3.2.3',
+        'tables>=3.5.1',
         'seaborn',
         'future',
         'gridmap>=0.14.0',
