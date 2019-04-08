@@ -1238,8 +1238,10 @@ def hic(argv, **kwargs):
         for input_file in input_files:
             original_input_file = input_file
             if tmp:
+                tmp = False
                 input_file = create_temporary_copy(input_file)
                 tmp_input_files.append(input_file)
+                tmp = True
 
             o = None
             try:
