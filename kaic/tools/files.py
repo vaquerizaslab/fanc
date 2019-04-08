@@ -18,7 +18,9 @@ import tables as t
 from Bio import SeqIO
 from future.utils import string_types
 
-from kaic.tools.general import mkdir, which
+from .general import mkdir, which
+from .sambam import natural_cmp
+
 
 # configure logging
 logger = logging.getLogger(__name__)
@@ -365,6 +367,119 @@ def merge_sam(input_sams, output_sam, tmp=None):
         if tmp:
             shutil.rmtree(tmp)
     return output_sam
+
+
+def reads_with_same_qname(iterator, last_read=None):
+    if last_read is not None:
+        read = last_read
+    else:
+        read = next(iterator)
+    qname = read.qname.encode('utf-8')
+
+    reads = []
+    try:
+        next_read = read
+        while natural_cmp(next_read.qname.encode('utf-8'), qname) == 0:
+            reads.append(next_read)
+            next_read = next(iterator)
+    except StopIteration:
+        next_read = None
+        if len(reads) == 0:
+            raise
+
+    return qname, reads, next_read
+
+
+def split_sam_pairs(sam_file_1, sam_file_2, output_prefix,
+                    chunk_size=10000000, check_sorted=True):
+    """
+    Form mate pairs and write them into separate chunks of predefined size.
+
+    :param sam_file_1: Path to SAM/BAM file or :class:`~pysam.AlignmentFile`
+    :param sam_file_2: Path to SAM/BAM file or :class:`~pysam.AlignmentFile`
+    :param output_prefix: prefix str that will form the output files of the form
+                          <output_prefix>_<n>.bam
+    :param check_sorted: If True, will raise an Exception if SAM/BAM files are not
+                         sorted by read name
+    :param chunk_size:
+    :return:
+    """
+    if isinstance(sam_file_1, pysam.AlignmentFile):
+        sam1 = sam_file_1
+    else:
+        sam1 = pysam.AlignmentFile(sam_file_1)
+
+    if isinstance(sam_file_2, pysam.AlignmentFile):
+        sam2 = sam_file_2
+    else:
+        sam2 = pysam.AlignmentFile(sam_file_2)
+
+    sam1_iter = iter(sam1)
+    sam2_iter = iter(sam2)
+
+    output_counter = 0
+    if sam1.is_bam:
+        output_base = output_prefix + "_{}.bam"
+        mode = 'wb'
+    else:
+        output_base = output_prefix + "_{}.sam"
+        mode = 'w'
+
+    output_file_name = output_base.format(output_counter)
+    output_file = pysam.AlignmentFile(output_file_name, mode=mode, template=sam1)
+    current_chunk_size = 0
+
+    try:
+        qname1, reads1, next_read1 = reads_with_same_qname(sam1_iter)
+        qname2, reads2, next_read2 = reads_with_same_qname(sam2_iter)
+
+        while True:
+            check1 = False
+            check2 = False
+            previous_qname1 = qname1
+            previous_qname2 = qname2
+
+            cmp = natural_cmp(qname1, qname2)
+            if cmp == 0:  # read name identical
+                for read in reads1:
+                    output_file.write(read)
+                for read in reads2:
+                    output_file.write(read)
+
+                current_chunk_size += 1
+
+                if current_chunk_size >= chunk_size:
+                    output_file.close()
+                    yield output_file_name
+                    output_counter += 1
+                    output_file_name = output_base.format(output_counter)
+                    output_file = pysam.AlignmentFile(output_file_name, mode=mode, template=sam1)
+                    current_chunk_size = 0
+
+                qname1, reads1, next_read1 = reads_with_same_qname(sam1_iter, last_read=next_read1)
+                qname2, reads2, next_read2 = reads_with_same_qname(sam2_iter, last_read=next_read2)
+            elif cmp < 0:  # first pointer behind
+                qname1, reads1, next_read1 = reads_with_same_qname(sam1_iter, last_read=next_read1)
+                check1 = True
+            else:  # second pointer behind
+                qname2, reads2, next_read2 = reads_with_same_qname(sam2_iter, last_read=next_read2)
+                check2 = True
+
+            # check that the files are sorted
+            if check_sorted:
+                if check1 and natural_cmp(previous_qname1, qname1) > 0:
+                    raise ValueError("First SAM file is not sorted by "
+                                     "read name (samtools sort -n)! Read names:"
+                                     "{} and {}".format(previous_qname1, qname1))
+                if check2 and natural_cmp(previous_qname2, qname2) > 0:
+                    raise ValueError("Second SAM file is not sorted by "
+                                     "read name (samtools sort -n)! Read names:"
+                                     "{} and {}".format(previous_qname2, qname2))
+    except StopIteration:
+        pass
+    finally:
+        output_file.close()
+        yield output_file_name
 
 
 def write_bed(file_name, regions, mode='w', **kwargs):
