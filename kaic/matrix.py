@@ -20,6 +20,7 @@ from .general import Maskable, MaskedTable
 
 from collections import defaultdict
 from future.utils import string_types
+from timeit import default_timer as timer
 
 from bisect import bisect_right
 
@@ -1362,11 +1363,15 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     pass
 
     def _flush_table_edge_buffer(self):
+        start_time = timer()
+        logger.debug("Flushing edge table buffer")
         for (source_partition, sink_partition), records in self._edge_buffer.items():
             edge_table = self._edge_table(source_partition, sink_partition)
             edge_table.append(records)
             edge_table.flush(update_index=False)
         self._edge_buffer = defaultdict(list)
+        end_time = timer()
+        logger.debug("Done flushing edge buffer in {}s".format(end_time - start_time))
 
     def _flush_regions(self):
         if self._regions_dirty:
@@ -2245,7 +2250,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         new_matrix._disable_edge_indexes()
 
         default_field = getattr(new_matrix, '_default_score_field', 'weight')
-        logger.info("Starting fast pair merge")
+        logger.info("Starting fast matrix merge")
         for source_partition, sink_partition in partition_pairs:
             edges = defaultdict(int)
             for matrix in matrices:
