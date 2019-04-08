@@ -13,6 +13,8 @@ from builtins import object
 from collections import defaultdict
 from queue import Empty
 from timeit import default_timer as timer
+import tempfile
+import shutil
 
 import msgpack
 import numpy as np
@@ -28,6 +30,8 @@ from .matrix import Edge, RegionPairsTable
 from .regions import genome_regions
 from .tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions, WorkerMonitor
 from .tools.sambam import natural_cmp
+from .tools.files import split_sam_pairs
+
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +80,46 @@ def generate_pairs(sam1_file, sam2_file, regions,
     return pairs
 
 
+def generate_pairs_split(sam1_file, sam2_file, regions,
+                         restriction_enzyme=None, read_filters=(),
+                         output_file=None, check_sorted=True,
+                         threads=1, batch_size=1000000):
+    """
+    Generate Pairs object from SAM/BAM files.
+
+    This is a convenience function that let's you create a
+    Pairs object from SAM/BAM data in a single step.
+
+    :param sam1_file: Path to a sorted SAM/BAM file (1st mate)
+    :param sam2_file: Path to a sorted SAM/BAM file (2nd mate)
+    :param regions: Path to file with restriction fragments (BED, GFF)
+                    or FASTA with genomic sequence
+    :param restriction_enzyme: Name of restriction enzyme
+                               (only when providing FASTA as regions)
+    :param read_filters: List of :class:`~ReadFilter` to filter reads
+                         while loading from SAM/BAM
+    :param output_file: Path to output file
+    :param check_sorted: Double-check that input SAM files
+                         are sorted if True (default)
+    :param threads: Number of threads used for finding restriction
+                    fragments for read pairs
+    :param batch_size: Number of read pairs sent to each restriction
+                       fragment worker
+    :return: :class:`~ReadPairs`
+    """
+    regions = genome_regions(regions, restriction_enzyme=restriction_enzyme)
+
+    pairs = ReadPairs(file_name=output_file, mode='w')
+
+    if isinstance(regions, RegionBased):
+        pairs.add_regions(regions.regions, preserve_attributes=False)
+    else:
+        pairs.add_regions(regions, preserve_attributes=False)
+    pairs.add_read_pairs_from_sam(sam1_file, sam2_file, threads=threads, batch_size=batch_size)
+
+    return pairs
+
+
 class Monitor(WorkerMonitor):
     """
     Class to monitor fragment info worker threads.
@@ -100,6 +144,97 @@ class Monitor(WorkerMonitor):
         """
         with self.generating_pairs_lock:
             return self.generating_pairs
+
+
+def _split_sam_worker(sam_file1, sam_file2, input_queue, monitor, batch_size=10000000,
+                      tmpdir=None, check_sorted=True):
+    monitor.set_generating_pairs(True)
+    try:
+        if tmpdir is None:
+            tmpdir = tempfile.mkdtemp()
+
+        output_prefix = os.path.join(tmpdir, 'split_pairs')
+        try:
+            logger.debug("Splitting and pairing SAM files")
+            for pairs_file in split_sam_pairs(sam_file1, sam_file2, output_prefix,
+                                              chunk_size=batch_size, check_sorted=check_sorted):
+                logger.debug("Split pairs batch {}".format(pairs_file))
+                input_queue.put(pairs_file)
+                monitor.increment()
+        except ValueError as e:
+            logger.error(e)
+            input_queue.put(None)
+    finally:
+        monitor.set_generating_pairs(False)
+
+
+def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe,
+                            partition_breaks, tmpdir=None, buffer_size=1000000):
+    worker_uuid = uuid.uuid4()
+    monitor.set_worker_busy(worker_uuid)
+    logger.debug("Starting load SAM worker {}".format(worker_uuid))
+
+    if tmpdir is None:
+        tmpdir = tempfile.mkdtemp()
+
+    file_counter = 0
+    while True:
+        # wait for input
+        monitor.set_worker_idle(worker_uuid)
+        logger.debug("Worker {} waiting for input".format(worker_uuid))
+        read_pairs_file = input_file_queue.get(True)
+        monitor.set_worker_busy(worker_uuid)
+        logger.debug('Worker {} received input!'.format(worker_uuid))
+
+        output_file = os.path.join(tmpdir, 'fragment_info_{}_{}.txt'.format(worker_uuid, file_counter))
+        logger.debug("Writing fragment info to output file {}".format(output_file))
+        file_counter += 1
+
+        lines = []
+        skipped_counter = 0
+        pair_generator = PairedSamBamReadPairGenerator(read_pairs_file)
+        for read1, read2 in pair_generator:
+            chrom1, pos1, flag1 = read1.reference_name, read1.pos, read1.flag
+            chrom2, pos2, flag2 = read2.reference_name, read2.pos, read2.flag
+            chrom1 = chrom1.decode() if isinstance(chrom1, bytes) else chrom1
+            chrom2 = chrom2.decode() if isinstance(chrom2, bytes) else chrom2
+
+            try:
+                pos_ix1 = bisect_right(fe[chrom1], pos1)
+                pos_ix2 = bisect_right(fe[chrom2], pos2)
+
+                f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi[chrom1][pos_ix1]
+                f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi[chrom2][pos_ix2]
+
+                p_ix1 = bisect_right(partition_breaks, f_ix1)
+                p_ix2 = bisect_right(partition_breaks, f_ix2)
+
+                if p_ix1 > p_ix2:
+                    p_ix1, p_ix2 = p_ix2, p_ix1
+
+                r_strand1 = -1 if flag1 & 16 else 1
+                r_strand2 = -1 if flag2 & 16 else 1
+
+                line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                    p_ix1, pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1,
+                    p_ix2, pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2
+                )
+                lines.append(line)
+
+                if len(lines) > buffer_size:
+                    with open(output_file, 'a') as o:
+                        for line in lines:
+                            o.write(line)
+                    lines = []
+            except (KeyError, IndexError):
+                skipped_counter += 1
+
+        with open(output_file, 'a') as o:
+            for line in lines:
+                o.write(line)
+
+        logger.debug("Done obtaining fragment info for {} in {}".format(read_pairs_file, output_file))
+        output_file_queue.put(output_file)
 
 
 def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
@@ -490,6 +625,108 @@ class FourDNucleomePairGenerator(TxtReadPairGenerator):
                                       pos2_field=columns['pos2'],
                                       strand2_field=columns['strand2'] if 'strand2' in columns else None,
                                       )
+
+
+class PairedSamBamReadPairGenerator(ReadPairGenerator):
+    """
+    Generate read pairs from single SAM/BAM files from reads with identical qname.
+
+    Chimeric reads (mapping partially to multiple genomic locations),
+    such as output by BWA, are handled as follows: If both mate pairs
+    are chimeric, they are removed. If only one mate is chimeric, but
+    it is split into more than 2 alignments, it is also removed. If
+    one mate is chimeric and split into two alignments. If one part
+    of the chimeric alignment maps within 100bp of the regular alignment,
+    the read pair is kept and returned. In all other cases, the pair is
+    removed.
+    """
+    def __init__(self, sam_file):
+        ReadPairGenerator.__init__(self)
+        self.sam_file = sam_file
+
+    @staticmethod
+    def resolve_chimeric(reads, max_dist_same_locus=100):
+        """
+        :return: read1, read2, is_chimeric
+        """
+        if len(reads) == 2:
+            return reads[0], reads[1], False
+        elif len(reads) == 3:
+            if reads[0].reference_id != reads[1].reference_id != reads[2].reference_id:
+                return None, None, False
+            elif reads[0].reference_id == reads[1].reference_id != reads[2].reference_id:
+                return reads[0], reads[2], True
+            elif reads[0].reference_id != reads[1].reference_id == reads[2].reference_id:
+                return reads[0], reads[1], True
+            else:
+                start0, stop0 = reads[0].pos, reads[0].pos + reads[0].alen
+                start1, stop1 = reads[1].pos, reads[1].pos + reads[1].alen
+                start2, stop2 = reads[2].pos, reads[2].pos + reads[2].alen
+
+                d0 = min(abs(start0 - stop1), abs(start1 - stop0))
+                d1 = min(abs(start0 - stop2), abs(start2 - stop0))
+                d2 = min(abs(start1 - stop2), abs(start2 - stop1))
+
+                if d0 < max_dist_same_locus < d1 <= d2:
+                    return reads[0], reads[2], True
+                elif d1 < max_dist_same_locus < d0 <= d2:
+                    return reads[0], reads[1], True
+                elif d2 < max_dist_same_locus < d0 <= d1:
+                    return reads[0], reads[1], True
+                return None, None, None
+        else:
+            return None, None, False
+
+    def _iter_read_pairs(self, *args, **kwargs):
+        if isinstance(self.sam_file, pysam.AlignmentFile):
+            sam = self.sam_file
+        else:
+            sam = pysam.AlignmentFile(self.sam_file)
+
+        chimeric_pairs = 0
+        normal_pairs = 0
+        abnormal_pairs = 0
+
+        current_qname = None
+        reads = []
+        for read in sam:
+            if read.is_unmapped:
+                self._filter_stats[self._unmapped_filter_ix] += 1
+                continue
+
+            qname = read.qname.encode('utf-8')
+            if current_qname is None or natural_cmp(qname, current_qname) == 0:
+                reads.append(read)
+            else:
+                if len(reads) > 0:
+                    read1, read2, is_chimeric = PairedSamBamReadPairGenerator.resolve_chimeric(reads)
+                    if read1 is not None and read2 is not None:
+                        yield (read1, read2)
+                        if is_chimeric:
+                            chimeric_pairs += 1
+                        else:
+                            normal_pairs += 1
+                    else:
+                        abnormal_pairs += 1
+                reads = [read]
+            current_qname = qname
+
+        # final reads
+        if len(reads) > 0:
+            read1, read2, is_chimeric = PairedSamBamReadPairGenerator.resolve_chimeric(reads)
+            if read1 is not None and read2 is not None:
+                yield (read1, read2)
+                if is_chimeric:
+                    chimeric_pairs += 1
+                else:
+                    normal_pairs += 1
+            else:
+                abnormal_pairs += 1
+
+        logger.info("Done generating read pairs.")
+        logger.info("Normal pairs: {}".format(normal_pairs))
+        logger.info("Chimeric pairs: {}".format(chimeric_pairs))
+        logger.info("Abnormal pairs: {}".format(abnormal_pairs))
 
 
 class SamBamReadPairGenerator(ReadPairGenerator):
@@ -1077,6 +1314,8 @@ class ReadPairs(RegionPairsTable):
             self.flush()
 
     def _flush_fragment_info_buffer(self):
+        start_time = timer()
+        old_pair_count = self._pair_count
         for (source_partition, sink_partition), edges in self._edge_buffer.items():
             edge_table = self._edge_table(source_partition, sink_partition)
             row = edge_table.row
@@ -1102,7 +1341,106 @@ class ReadPairs(RegionPairsTable):
                 self._pair_count += 1
 
             edge_table.flush(update_index=False)
+        end_time = timer()
+        logger.debug("Flushed edge buffer of size {} in {}s".format(
+            old_pair_count - self._pair_count, end_time - start_time
+        ))
         self._edge_buffer = defaultdict(list)
+
+    def load_read_pairs_fragment_info_file(self, read_pairs_file):
+        if read_pairs_file.endswith('.gz') or read_pairs_file.endswith('.gzip'):
+            open_ = gzip.open
+        else:
+            open_ = open
+
+        start_time = timer()
+        chunk_start_time = timer()
+        pairs_counter = 0
+        with open_(read_pairs_file) as f:
+            for line in f:
+                line = line.rstrip()
+                if line == '':
+                    continue
+
+                fields = line.split("\t")
+                p_ix1, p_ix2 = int(fields[0]), int(fields[7])
+                pos1, pos2 = int(fields[1]), int(fields[8])
+                r_strand1, r_strand2 = fields[2], fields[9]
+                f_ix1, f_ix2 = int(fields[3]), int(fields[10])
+                f_chromosome_ix1, f_chromosome_ix2 = int(fields[4]), int(fields[11])
+                f_start1, f_start2 = int(fields[5]), int(fields[6])
+                f_end1, f_end2 = int(fields[6]), int(fields[7])
+
+                self._edge_buffer[(p_ix1, p_ix2)].append(
+                    [(pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
+                     (pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2)]
+                )
+
+                pairs_counter += 1
+                if pairs_counter % 10000 == 0:
+                    if sum([len(entries) for entries in self._edge_buffer.values()]) > self._edge_buffer_size:
+                        self._flush_fragment_info_buffer()
+                        end_time = timer()
+                        logger.debug("Wrote {} pairs in {}s (current {} chunk: {}s)".format(
+                            pairs_counter, end_time - start_time,
+                            self._edge_buffer_size,
+                            end_time - chunk_start_time
+                        ))
+                        chunk_start_time = timer()
+            end_time = timer()
+            logger.debug("Wrote {} pairs in {}s".format(
+                pairs_counter, end_time - start_time
+            ))
+
+    def add_read_pairs_from_sam(self, sam_file1, sam_file2, batch_size=10000000, threads=1):
+        self._edges_dirty = True
+        self._disable_edge_indexes()
+
+        fragment_infos = defaultdict(list)
+        fragment_ends = defaultdict(list)
+        for region in self.regions(lazy=True):
+            chromosome = region.chromosome
+            fragment_infos[chromosome].append((region.ix, self._chromosome_to_ix[chromosome],
+                                               region.start, region.end))
+            fragment_ends[chromosome].append(region.end)
+
+        worker_pool = None
+        t_pairs = None
+        try:
+            queue_manager = mp.Manager()
+            input_file_queue = queue_manager.Queue()
+            output_file_queue = queue_manager.Queue()
+
+            monitor = Monitor()
+            monitor.set_generating_pairs(True)
+            t_split = threading.Thread(target=_split_sam_worker, args=(sam_file1, sam_file2,
+                                                                       input_file_queue,
+                                                                       monitor, batch_size))
+            t_split.daemon = True
+            t_split.start()
+
+            worker_pool = mp.Pool(threads, _load_paired_sam_worker,
+                                  (monitor, input_file_queue, output_file_queue,
+                                   fragment_infos, fragment_ends, self._partition_breaks))
+
+            output_counter = 0
+            while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
+                try:
+                    read_pairs_file = output_file_queue.get(block=True)
+                    self.load_read_pairs_fragment_info_file(read_pairs_file)
+                    output_counter += 1
+                except Empty:
+                    logger.warning("Reached SAM pair generator timeout. This could mean that no "
+                                   "valid read pairs were found after filtering. "
+                                   "Check filter settings!")
+        finally:
+            if worker_pool is not None:
+                worker_pool.terminate()
+            if t_pairs is not None:
+                t_pairs.join()
+
+        self._flush_fragment_info_buffer()
+        self.flush()
 
     def add_read_pairs(self, read_pairs, batch_size=1000000, threads=1):
         """
