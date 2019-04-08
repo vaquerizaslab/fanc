@@ -202,8 +202,11 @@ class ComparisonMatrix(RegionMatrixTable):
             for chr_j in range(chr_i, len(chromosomes)):
                 chromosome2 = chromosomes[chr_j]
 
+                logger.debug("Getting edges for {}-{}...".format(chromosome1, chromosome2))
                 edges = _edge_collection(matrix1, matrix2, region=(chromosome1, chromosome2),
                                          *args, **kwargs)
+
+                logger.debug("Comparing and saving edges...")
                 for (source, sink), weights in edges.items():
                     weight = comparison_matrix.compare(*weights)
                     if log:
@@ -211,6 +214,7 @@ class ComparisonMatrix(RegionMatrixTable):
                     if ignore_infinite and not np.isfinite(weight):
                         continue
                     comparison_matrix.add_edge([source, sink, weight])
+                logger.debug("Done adding edges for {}-{}...".format(chromosome1, chromosome2))
         comparison_matrix.flush()
         return comparison_matrix
 
