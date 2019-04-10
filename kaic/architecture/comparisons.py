@@ -33,7 +33,7 @@ def _edge_collection(*hics, region=None, scale=True,
     if filters is None:
         filters = []
 
-    scaling_factors = defaultdict(lambda: 1.0)
+    scaling_factors = [1.0] * len(hics)
     if scale:
         reference_hic = None
         for i, hic in enumerate(hics):
@@ -213,7 +213,8 @@ class ComparisonMatrix(RegionMatrixTable):
                         weight = np.log2(weight)
                     if ignore_infinite and not np.isfinite(weight):
                         continue
-                    comparison_matrix.add_edge([source, sink, weight])
+
+                    comparison_matrix.add_edge_simple(source, sink, weight=weight)
                 logger.debug("Done adding edges for {}-{}...".format(chromosome1, chromosome2))
         comparison_matrix.flush()
         return comparison_matrix
