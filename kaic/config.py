@@ -8,6 +8,11 @@ logger = logging.getLogger(__name__)
 
 _default_config_content = """\
 #
+# MEMORY
+#
+edge_buffer_size: 3G
+
+#
 # Mapping
 #
 bowtie2_path: bowtie2
