@@ -112,7 +112,7 @@ class Hic(RegionMatrixTable):
                  partition_strategy='auto',
                  additional_region_fields=None, additional_edge_fields=None,
                  _table_name_regions='regions', _table_name_edges='edges',
-                 _edge_buffer_size=1000000):
+                 _edge_buffer_size=config.edge_buffer_size):
         RegionMatrixTable.__init__(self, file_name=file_name,
                                    mode=mode, tmpdir=tmpdir,
                                    additional_region_fields=additional_region_fields,
@@ -174,7 +174,9 @@ class Hic(RegionMatrixTable):
                             edge_counter += 1
                             pb.update(edge_counter)
                         logger.debug("Adding edges {}/{} ({})".format(i, j, len(edges)))
-                        self.add_edges(edges, flush=False)
+
+                        for (source, sink), weight in edges.items():
+                            self.add_edge_simple(source, sink, weight=weight)
 
             logger.debug("Final flush")
             self.flush()
@@ -290,7 +292,7 @@ class LegacyHic(RegionMatrixTable):
                  partition_strategy='chromosome',
                  additional_region_fields=None, additional_edge_fields=None,
                  _table_name_regions='nodes', _table_name_edges='edges',
-                 _edge_buffer_size=1000000):
+                 _edge_buffer_size=config.edge_buffer_size):
         RegionMatrixTable.__init__(self, file_name=file_name,
                                    mode=mode, tmpdir=tmpdir,
                                    additional_region_fields=additional_region_fields,
@@ -342,6 +344,9 @@ class LegacyHic(RegionMatrixTable):
 
     def mappable(self):
         return self.marginals() > 0
+
+    def bias_vector(self):
+        return [row['bias'] for row in self.file.get_node('/', 'node_annot').iterrows()]
 
 
 class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
