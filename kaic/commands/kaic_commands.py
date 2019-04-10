@@ -4407,6 +4407,13 @@ def upgrade_parser():
         help='''Force upgrade even if object can be loaded.'''
     )
 
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='Work in temporary directory'
+    )
+
     return parser
 
 
@@ -4418,75 +4425,107 @@ def upgrade(argv, **kwargs):
     input_file = os.path.expanduser(args.hic)
     output_file = os.path.expanduser(args.output)
     force = args.force
+    tmp = args.tmp
 
     import kaic
+    import numpy as np
+    from kaic.hic import LegacyHic
     import tables
+    from kaic.tools.general import RareUpdateProgressBar
 
-    if not force:
+    original_output_file = None
+    tmp_files = []
+    try:
+        if tmp:
+            tmp = False
+            from kaic.tools.files import create_temporary_copy, create_temporary_output
+            input_file = create_temporary_copy(input_file)
+            tmp_files.append(input_file)
+            original_output_file = output_file
+            output_file = create_temporary_output(output_file)
+            tmp = True
+
+        if not force:
+            try:
+                f = kaic.load(input_file)
+                f.close()
+
+                parser.error("Can already load input file. "
+                             "There does not seem to be a need for an upgrade? "
+                             "You can force an upgrade with -f")
+            except (ValueError, TypeError):
+                pass
+
         try:
-            f = kaic.load(input_file)
-            f.close()
+            old_hic = kaic.load(input_file)
 
-            parser.error("Can already load input file. "
-                         "There does not seem to be a need for an upgrade? "
-                         "You can force an upgrade with -f")
+            if isinstance(old_hic, LegacyHic):
+                import kaic
+
+                new_hic = kaic.Hic(file_name=output_file, mode='w')
+                new_hic.add_regions(old_hic.regions)
+
+                bv = [row['bias'] for row in old_hic.file.get_node('/', 'node_annot').iterrows()]
+
+                with RareUpdateProgressBar(max_value=len(old_hic.edges)) as pb:
+                    for i, edge in enumerate(old_hic.edges(lazy=True)):
+                        source = edge.source
+                        sink = edge.sink
+                        weight = int(np.round(edge.weight / bv[source] / bv[sink]))
+
+                        new_hic.add_edge_simple(source, sink, weight=weight)
+                        pb.update(i)
+                new_hic.flush()
+                new_hic.bias_vector(bv)
+
+                old_hic.close()
+                new_hic.close()
+                return
         except (ValueError, TypeError):
             pass
 
-    file_based = kaic.FileBased(input_file, mode='r')
-    class_id = file_based.meta._classid
-    logger.info("Detected class ID '{}'".format(class_id))
+        file_based = kaic.FileBased(input_file, mode='r')
+        class_id = file_based.meta._classid
+        logger.info("Detected class ID '{}'".format(class_id))
 
-    target_class = None
-    if class_id == 'ACCESSOPTIMISEDHIC' or class_id == 'HIC':
-        target_class = kaic.Hic
-    elif class_id == 'RAOPEAKINFO':
-        target_class = kaic.RaoPeakInfo
-    else:
-        parser.error("No suitable upgrade method for {} - "
-                     "please consult the developer!".format(class_id))
+        target_class = None
+        if class_id == 'ACCESSOPTIMISEDHIC' or class_id == 'HIC':
+            target_class = kaic.Hic
+        elif class_id == 'RAOPEAKINFO':
+            target_class = kaic.RaoPeakInfo
+        else:
+            parser.error("No suitable upgrade method for {} - "
+                         "please consult the developer!".format(class_id))
 
-    bias = [row['bias'] for row in file_based.file.get_node('/', 'node_annot').iterrows()]
+        bias = [row['bias'] for row in file_based.file.get_node('/', 'node_annot').iterrows()]
 
-    regions = []
-    nodes_table = file_based.file.get_node('/', 'nodes')
-    try:
-        region_fields = nodes_table.coldescrs
-    except tables.NoSuchNodeError:
-        nodes_table = nodes_table.regions
-        region_fields = nodes_table.coldescrs
+        regions = []
+        nodes_table = file_based.file.get_node('/', 'nodes')
+        try:
+            region_fields = nodes_table.coldescrs
+        except tables.NoSuchNodeError:
+            nodes_table = nodes_table.regions
+            region_fields = nodes_table.coldescrs
 
-    for i, row in enumerate(nodes_table.iterrows()):
-        kwargs = {name: row[name] for name in region_fields.keys()}
-        kwargs['bias'] = bias[i]
-        r = kaic.GenomicRegion(**kwargs)
-        regions.append(r)
+        for i, row in enumerate(nodes_table.iterrows()):
+            kwargs = {name: row[name] for name in region_fields.keys()}
+            kwargs['bias'] = bias[i]
+            r = kaic.GenomicRegion(**kwargs)
+            regions.append(r)
 
-    edges_table = file_based.file.get_node('/', 'edges')
-    if isinstance(edges_table, tables.Table):
-        edge_fields = edges_table.coldescrs
-    else:
-        edge_fields = edges_table.chrpair_0_0.coldescrs
+        edges_table = file_based.file.get_node('/', 'edges')
+        if isinstance(edges_table, tables.Table):
+            edge_fields = edges_table.coldescrs
+        else:
+            edge_fields = edges_table.chrpair_0_0.coldescrs
 
-    upgraded_hic = target_class(output_file, mode='w',
-                                additional_region_fields=region_fields,
-                                additional_edge_fields=edge_fields)
-    upgraded_hic.add_regions(regions, preserve_attributes=False)
+        upgraded_hic = target_class(output_file, mode='w',
+                                    additional_region_fields=region_fields,
+                                    additional_edge_fields=edge_fields)
+        upgraded_hic.add_regions(regions, preserve_attributes=False)
 
-    if isinstance(edges_table, tables.Table):
-        for row in edges_table.iterrows():
-            kwargs = {name: row[name] for name in edge_fields.keys()}
-            source = kwargs['source']
-            sink = kwargs['sink']
-            weight = kwargs['weight']
-            # uncorrect matrix
-            uncorrected = weight / bias[source] / bias[sink]
-            kwargs['weight'] = uncorrected
-            edge = kaic.Edge(**kwargs)
-            upgraded_hic.add_edge(edge)
-    else:
-        for table in edges_table:
-            for row in table.iterrows():
+        if isinstance(edges_table, tables.Table):
+            for row in edges_table.iterrows():
                 kwargs = {name: row[name] for name in edge_fields.keys()}
                 source = kwargs['source']
                 sink = kwargs['sink']
@@ -4496,4 +4535,24 @@ def upgrade(argv, **kwargs):
                 kwargs['weight'] = uncorrected
                 edge = kaic.Edge(**kwargs)
                 upgraded_hic.add_edge(edge)
-    upgraded_hic.flush()
+        else:
+            for table in edges_table:
+                for row in table.iterrows():
+                    kwargs = {name: row[name] for name in edge_fields.keys()}
+                    source = kwargs['source']
+                    sink = kwargs['sink']
+                    weight = kwargs['weight']
+                    # uncorrect matrix
+                    uncorrected = weight / bias[source] / bias[sink]
+                    kwargs['weight'] = uncorrected
+                    edge = kaic.Edge(**kwargs)
+                    upgraded_hic.add_edge(edge)
+        upgraded_hic.flush()
+    finally:
+        if tmp:
+            if output_file is not None and original_output_file is not None:
+                shutil.copy(output_file, original_output_file)
+                os.remove(output_file)
+
+            for file_name in tmp_files:
+                os.remove(file_name)
