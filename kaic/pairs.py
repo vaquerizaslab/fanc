@@ -1274,33 +1274,6 @@ class ReadPairs(RegionPairsTable):
 
         self._add_pair(edge)
 
-    def _fast_add_infos(self, fi1, fi2, default_edge):
-        if fi1[2] > fi2[2]:
-            r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi2
-            r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi1
-        else:
-            r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
-            r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi2
-
-        edge = copy.copy(default_edge)
-        edge[self._field_names_dict['ix']] = self._pair_count
-        edge[self._field_names_dict['source']] = f_ix1
-        edge[self._field_names_dict['sink']] = f_ix2
-        edge[self._field_names_dict['left_read_position']] = r_pos1
-        edge[self._field_names_dict['right_read_position']] = r_pos2
-        edge[self._field_names_dict['left_read_strand']] = r_strand1
-        edge[self._field_names_dict['right_read_strand']] = r_strand2
-        edge[self._field_names_dict['left_fragment_start']] = f_start1
-        edge[self._field_names_dict['right_fragment_start']] = f_start2
-        edge[self._field_names_dict['left_fragment_end']] = f_end1
-        edge[self._field_names_dict['right_fragment_end']] = f_end2
-        edge[self._field_names_dict['left_fragment_chromosome']] = f_chromosome_ix1
-        edge[self._field_names_dict['right_fragment_chromosome']] = f_chromosome_ix2
-
-        self._add_edge_from_tuple(tuple(edge))
-
-        self._pair_count += 1
-
     def _default_edge_list(self):
         record = [None] * len(self._field_names_dict)
         for name, ix in self._field_names_dict.items():
@@ -1313,49 +1286,13 @@ class ReadPairs(RegionPairsTable):
         if flush:
             self.flush()
 
-    def _flush_fragment_info_buffer(self):
-        start_time = timer()
-        old_pair_count = self._pair_count
-        for (source_partition, sink_partition), edges in self._edge_buffer.items():
-            edge_table = self._edge_table(source_partition, sink_partition)
-            row = edge_table.row
-
-            for fi1, fi2 in edges:
-                if fi1[2] > fi2[2]:
-                    fi1, fi2 = fi2, fi1
-
-                row['ix'] = self._pair_count
-                row['source'] = fi1[2]
-                row['sink'] = fi2[2]
-                row['left_read_position'] = fi1[0]
-                row['right_read_position'] = fi2[0]
-                row['left_read_strand'] = fi1[1]
-                row['right_read_strand'] = fi2[1]
-                row['left_fragment_start'] = fi1[4]
-                row['right_fragment_start'] = fi2[4]
-                row['left_fragment_end'] = fi1[5]
-                row['right_fragment_end'] = fi2[5]
-                row['left_fragment_chromosome'] = fi1[3]
-                row['right_fragment_chromosome'] = fi2[3]
-                row.append()
-                self._pair_count += 1
-
-            edge_table.flush(update_index=False)
-        end_time = timer()
-        logger.debug("Flushed edge buffer of size {} in {}s".format(
-            old_pair_count - self._pair_count, end_time - start_time
-        ))
-        self._edge_buffer = defaultdict(list)
-
     def load_read_pairs_fragment_info_file(self, read_pairs_file):
         if read_pairs_file.endswith('.gz') or read_pairs_file.endswith('.gzip'):
             open_ = gzip.open
         else:
             open_ = open
 
-        start_time = timer()
-        chunk_start_time = timer()
-        pairs_counter = 0
+        edge = {}
         with open_(read_pairs_file) as f:
             for line in f:
                 line = line.rstrip()
@@ -1363,34 +1300,26 @@ class ReadPairs(RegionPairsTable):
                     continue
 
                 fields = line.split("\t")
-                p_ix1, p_ix2 = int(fields[0]), int(fields[7])
-                pos1, pos2 = int(fields[1]), int(fields[8])
-                r_strand1, r_strand2 = fields[2], fields[9]
-                f_ix1, f_ix2 = int(fields[3]), int(fields[10])
-                f_chromosome_ix1, f_chromosome_ix2 = int(fields[4]), int(fields[11])
-                f_start1, f_start2 = int(fields[5]), int(fields[6])
-                f_end1, f_end2 = int(fields[6]), int(fields[7])
+                source, sink = int(fields[3]), int(fields[10])
+                if source > sink:
+                    source, sink = sink, source
+                    info1, info2 = fields[7:], fields[:7]
+                else:
+                    info1, info2 = fields[:7], fields[7:]
 
-                self._edge_buffer[(p_ix1, p_ix2)].append(
-                    [(pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1),
-                     (pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2)]
-                )
+                p_ix1, p_ix2 = int(info1[0]), int(info2[0])
 
-                pairs_counter += 1
-                if pairs_counter % 10000 == 0:
-                    if sum([len(entries) for entries in self._edge_buffer.values()]) > self._edge_buffer_size:
-                        self._flush_fragment_info_buffer()
-                        end_time = timer()
-                        logger.debug("Wrote {} pairs in {}s (current {} chunk: {}s)".format(
-                            pairs_counter, end_time - start_time,
-                            self._edge_buffer_size,
-                            end_time - chunk_start_time
-                        ))
-                        chunk_start_time = timer()
-            end_time = timer()
-            logger.debug("Wrote {} pairs in {}s".format(
-                pairs_counter, end_time - start_time
-            ))
+                edge['ix'] = self._pair_count
+                edge['source'] = source
+                edge[sink] = sink
+                edge['left_read_position'], edge['right_read_position'] = int(info1[1]), int(info2[1])
+                edge['left_read_strand'], edge['right_read_strand'] = info1[2], info2[2]
+                edge['left_fragment_start'], edge['right_fragment_start'] = int(info1[5]), int(info2[5])
+                edge['left_fragment_end'], edge['right_fragment_end'] = int(info1[6]), int(info2[6])
+                edge['left_fragment_chromosome'], edge['right_fragment_chromosome'] = int(info1[4]), int(info2[4])
+
+                self._edge_buffer.add_dict(edge, partition=(p_ix1, p_ix2))
+                self._pair_count += 1
 
     def add_read_pairs_from_sam(self, sam_file1, sam_file2, batch_size=10000000, threads=1):
         self._edges_dirty = True
@@ -1439,7 +1368,7 @@ class ReadPairs(RegionPairsTable):
             if t_pairs is not None:
                 t_pairs.join()
 
-        self._flush_fragment_info_buffer()
+        self._edge_buffer.flush()
         self.flush()
 
     def add_read_pairs(self, read_pairs, batch_size=1000000, threads=1):
@@ -1476,25 +1405,24 @@ class ReadPairs(RegionPairsTable):
         start_time = timer()
         chunk_start_time = timer()
         pairs_counter = 0
+        edge = {}
         for fi1, fi2 in self._read_pairs_fragment_info(read_pairs, batch_size=batch_size, threads=threads):
-            source_partition, sink_partition = self._get_edge_table_tuple(fi1[2], fi2[2])
-            self._edge_buffer[(source_partition, sink_partition)].append([fi1, fi2])
+            source, sink = int(fi1[2]), int(fi2[2])
+            if source > sink:
+                source, sink = sink, source
+                fi1, fi2 = fi2, fi1
 
-            pairs_counter += 1
-            if pairs_counter % self._edge_buffer_size == 0:
-                self._flush_fragment_info_buffer()
-                end_time = timer()
-                logger.debug("Wrote {} pairs in {}s (current {} chunk: {}s)".format(
-                    pairs_counter, end_time - start_time,
-                    self._edge_buffer_size,
-                    end_time - chunk_start_time
-                ))
-                chunk_start_time = timer()
-        self._flush_fragment_info_buffer()
-        end_time = timer()
-        logger.debug("Wrote {} pairs in {}s".format(
-            pairs_counter, end_time - start_time
-        ))
+            edge['ix'] = self._pair_count
+            edge['source'] = source
+            edge['sink'] = sink
+            edge['left_read_position'], edge['right_read_position'] = int(fi1[0]), int(fi2[0])
+            edge['left_read_strand'], edge['right_read_strand'] = fi1[1], fi2[1]
+            edge['left_fragment_start'], edge['right_fragment_start'] = int(fi1[4]), int(fi2[4])
+            edge['left_fragment_end'], edge['right_fragment_end'] = int(fi1[5]), int(fi2[5])
+            edge['left_fragment_chromosome'], edge['right_fragment_chromosome'] = int(fi1[3]), int(fi2[3])
+
+            self._edge_buffer.add_dict(edge)
+            self._pair_count += 1
 
         logger.info('Done saving read pairs.')
 
