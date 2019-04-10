@@ -268,7 +268,11 @@ def human_format(num, precision=2, lowercase=False):
 
 
 def str_to_int(num_string, decimal_separator='.', thousand_separator=','):
-    num_string = num_string.replace(thousand_separator, '').lower()
+    try:
+        num_string = num_string.replace(thousand_separator, '').lower()
+    except AttributeError:
+        return num_string
+
     try:
         return int(num_string)
     except ValueError:
