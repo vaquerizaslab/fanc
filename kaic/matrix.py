@@ -15,7 +15,7 @@ import intervaltree
 
 from .config import config
 from .regions import LazyGenomicRegion, RegionsTable, RegionBasedWithBins
-from .tools.general import RareUpdateProgressBar, ranges, create_col_index, range_overlap
+from .tools.general import RareUpdateProgressBar, ranges, create_col_index, range_overlap, str_to_int
 from .general import Maskable, MaskedTable
 
 from collections import defaultdict
@@ -437,16 +437,16 @@ class RegionPairsContainer(RegionBased):
             edge = as_edge(edge)
             self.add_edge_from_edge(edge)
 
-    def add_edge_from_list(self, edge):
+    def add_edge_from_list(self, edge, *args, **kwargs):
         """
         Direct method to add an edge from list or tuple input.
 
         :param edge: List or tuple. Should be of length 2
                      (source, sink) or 3 (source, sink, weight)
         """
-        return self.add_edge(as_edge(edge))
+        return self.add_edge(as_edge(edge), *args, **kwargs)
 
-    def add_edge_from_dict(self, edge):
+    def add_edge_from_dict(self, edge, *args, **kwargs):
         """
         Direct method to add an edge from dict input.
 
@@ -454,15 +454,25 @@ class RegionPairsContainer(RegionBased):
                      and "sink". Additional keys will be loaded
                      as edge attributes
         """
-        return self.add_edge(as_edge(edge))
+        return self.add_edge(as_edge(edge), *args, **kwargs)
 
-    def add_edge_from_edge(self, edge):
+    def add_edge_from_edge(self, edge, *args, **kwargs):
         """
         Direct method to add an edge from :class:`~Edge` input.
 
         :param edge: :class:`~Edge`
         """
-        return self.add_edge(as_edge(edge))
+        return self.add_edge(as_edge(edge), *args, **kwargs)
+
+    def add_edge_simple(self, source, sink, weight=None, *args, **kwargs):
+        """
+        Direct method to add an edge from :class:`~Edge` input.
+
+        :param source: Source region index
+        :param sink: Sink region index
+        :param weight: Weight of the edge
+        """
+        return self.add_edge(Edge(source=source, sink=sink, weight=weight), *args, **kwargs)
 
     def add_edges(self, edges, *args, **kwargs):
         """
@@ -1217,6 +1227,167 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         return scaling_factor
 
 
+class TableBuffer(object):
+    def __init__(self, matrix, buffer_size='3G', large_distance=3, large_fraction=0.5):
+        self._matrix = matrix
+        self._buffer_size = buffer_size
+        self._small_template = None
+        self._large_template = None
+        self._buffer = dict()
+        self._counter = dict()
+        self._buffer_size = buffer_size
+        self._large_distance = large_distance
+        self._large_fraction = large_fraction
+        self._colnames = None
+        self._colindices = None
+        self._small_buffer_size = None
+        self._large_buffer_size = None
+        self._is_initialised = False
+        self._source_field = None
+        self._sink_field = None
+        self._weight_field = None
+
+    def initialise_buffers(self):
+        logger.debug("Initialising edge buffer!")
+        pairs_table = self._matrix._edge_table(0, 0)
+        self._colnames = pairs_table.colnames
+        self._colindices = {name: ix for ix, name in enumerate(self._colnames)}
+        self._source_field = self._colindices['source']
+        self._sink_field = self._colindices['sink']
+        if self._matrix._default_score_field is not None:
+            self._weight_field = self._colindices[self._matrix._default_score_field]
+        dtypes = [(name, pairs_table.coldtypes[name]) for name in self._colnames]
+        template_row = np.empty(1, dtype=dtypes)[0]
+
+        for i, name in enumerate(self._colnames):
+            template_row[i] = pairs_table.coldflts[name]
+
+        n_partitions = int(len(self._matrix._partition_breaks) ** 2 / 2 +
+                           len(self._matrix._partition_breaks))
+        n_large_partitions = self._large_distance * len(self._matrix._partition_breaks)
+        buffer_size_bytes = str_to_int(self._buffer_size)
+        large_buffer_size = int(buffer_size_bytes * self._large_fraction /
+                                n_large_partitions / template_row.nbytes)
+        small_buffer_size = int(buffer_size_bytes * (1 - self._large_fraction) /
+                                (n_partitions - n_large_partitions) / template_row.nbytes)
+
+        logger.debug("Partitions: {} ({})".format(n_partitions, n_large_partitions))
+        logger.debug("Buffer sizes ({}): {}/{}".format(self._buffer_size, large_buffer_size, small_buffer_size))
+
+        self._small_template = np.repeat(template_row, max(500, small_buffer_size))
+        self._large_template = np.repeat(template_row, max(500, large_buffer_size))
+
+        for source_partition in range(len(self._matrix._partition_breaks) + 1):
+            for sink_partition in range(source_partition, len(self._matrix._partition_breaks) + 1):
+                if sink_partition - source_partition < self._large_distance:
+                    self._buffer[(source_partition, sink_partition)] = self._large_template.copy()
+                else:
+                    self._buffer[(source_partition, sink_partition)] = self._small_template.copy()
+                self._counter[(source_partition, sink_partition)] = 0
+        self._is_initialised = True
+
+    def flush(self, partition=None):
+        if partition is None:
+            logger.debug("Flushing all buffers")
+            partitions = list(self._buffer.keys())
+        else:
+            logger.debug("Flushing buffer partition {}".format(partition))
+            partitions = [partition]
+
+        for partition in partitions:
+            edge_table = self._matrix._edge_table(partition[0], partition[1])
+            buffer_table = self._buffer[partition]
+            ix = self._counter[partition]
+            if ix == buffer_table.shape[0]:
+                edge_table.append(buffer_table)
+            elif ix > 0:
+                edge_table.append(buffer_table[:ix])
+            edge_table.flush(update_index=False)
+            self._counter[partition] = 0
+            if partition[1] - partition[0] < self._large_distance:
+                self._buffer[partition] = self._large_template.copy()
+            else:
+                self._buffer[partition] = self._small_template.copy()
+
+    def _current_buffer_row(self, partition):
+        if not self._matrix._edges_dirty:
+            logger.debug("Disabling edge indexes")
+            self._matrix._edges_dirty = True
+            self._matrix._disable_edge_indexes()
+
+        try:
+            ix = self._counter[partition]
+        except KeyError:
+            if self._is_initialised:
+                raise
+            self.initialise_buffers()
+            ix = self._counter[partition]
+
+        try:
+            row = self._buffer[partition][ix]
+        except IndexError:
+            self.flush(partition=partition)
+            ix = 0
+            row = self._buffer[partition][ix]
+
+        self._counter[partition] += 1
+
+        return row
+
+    def add(self, edge):
+        if isinstance(edge, Edge):
+            self.add_edge(edge)
+        elif isinstance(edge, dict):
+            self.add_dict(edge)
+        elif isinstance(edge, list) or isinstance(edge, tuple) or isinstance(edge, np.ndarray):
+            self.add_list(edge)
+        else:
+            raise ValueError("Edge format ({}) not supported!".format(type(edge)))
+
+    def add_edge(self, edge, partition=None):
+        if partition is None:
+            partition = self._matrix._get_edge_table_tuple(edge.source, edge.sink)
+
+        row = self._current_buffer_row(partition)
+        for i, name in enumerate(self._colnames):
+            try:
+                row[i] = getattr(edge, name)
+            except AttributeError:
+                pass
+
+    def add_list(self, edge_list, partition=None):
+        if partition is None:
+            partition = self._matrix._get_edge_table_tuple(edge_list[self._colindices['source']],
+                                                           edge_list[self._colindices['sink']])
+
+        row = self._current_buffer_row(partition)
+        for i, value in enumerate(edge_list):
+            row[i] = value
+
+    def add_dict(self, edge_dict, partition=None):
+        if partition is None:
+            partition = self._matrix._get_edge_table_tuple(edge_dict['source'],
+                                                           edge_dict['sink'])
+
+        row = self._current_buffer_row(partition)
+        for name in edge_dict.keys():
+            try:
+                ix = self._colindices[name]
+                row[ix] = edge_dict[name]
+            except KeyError:
+                continue
+
+    def add_weight(self, source, sink, weight=None, partition=None):
+        if partition is None:
+            partition = self._matrix._get_edge_table_tuple(source, sink)
+
+        row = self._current_buffer_row(partition)
+        row[self._source_field] = source
+        row[self._sink_field] = sink
+        if weight is not None:
+            row[self._weight_field] = weight
+
+
 class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
     """
     HDF5 implementation of the :class:`~RegionPairsContainer` interface.
@@ -1228,7 +1399,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                  additional_region_fields=None, additional_edge_fields=None,
                  partition_strategy='auto',
                  _table_name_regions='regions', _table_name_edges='edges',
-                 _edge_buffer_size=1000000, _edge_table_prefix='chrpair_'):
+                 _edge_buffer_size=config.edge_buffer_size, _edge_table_prefix='chrpair_'):
         """
         Initialize a :class:`~RegionPairsTable` object.
 
@@ -1309,9 +1480,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._update_field_names()
 
         # set up edge buffer
-        self._edge_buffer = defaultdict(list)
-        self._edge_buffer_size = _edge_buffer_size
-        self._flush_operation = self._flush_table_edge_buffer
+        self._edge_buffer = TableBuffer(self, _edge_buffer_size)
 
     def _edge_table(self, source_partition, sink_partition, fields=None, create_if_missing=True):
         """
@@ -1362,17 +1531,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 except ValueError:
                     pass
 
-    def _flush_table_edge_buffer(self):
-        start_time = timer()
-        logger.debug("Flushing edge table buffer")
-        for (source_partition, sink_partition), records in self._edge_buffer.items():
-            edge_table = self._edge_table(source_partition, sink_partition)
-            edge_table.append(records)
-            edge_table.flush(update_index=False)
-        self._edge_buffer = defaultdict(list)
-        end_time = timer()
-        logger.debug("Done flushing edge buffer in {}s".format(end_time - start_time))
-
     def _flush_regions(self):
         if self._regions_dirty:
             RegionsTable._flush_regions(self)
@@ -1381,9 +1539,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
     def _flush_edges(self, silent=config.hide_progressbars):
         if self._edges_dirty:
             logger.debug("Flushing edge buffer")
-            if len(self._edge_buffer) > 0:
-                self._flush_operation()
-                self._flush_operation = self._flush_table_edge_buffer
+            self._edge_buffer.flush()
 
             for _, edge_table in self._iter_edge_tables():
                 edge_table.flush(update_index=True, log_progress=False)
@@ -1412,7 +1568,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def _enable_edge_indexes(self):
         for _, edge_table in self._iter_edge_tables():
-            if edge_table.cols.source.is_indexed:
+            if not edge_table.cols.source.is_indexed:
                 create_col_index(edge_table.cols.source)
             if not edge_table.cols.sink.is_indexed:
                 create_col_index(edge_table.cols.sink)
@@ -1485,28 +1641,11 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         """
         Add an edge to an internal edge table.
         """
-        if not self._edges_dirty:
-            self._edges_dirty = True
-            self._disable_edge_indexes()
-
-        source, sink = edge.source, edge.sink
-        if source > sink:
-            source, sink = sink, source
-
         if row is None:
-            record = [None] * len(self._field_names_dict)
-            for name, ix in self._field_names_dict.items():
-                try:
-                    record[ix] = getattr(edge, name)
-                except AttributeError:
-                    record[ix] = self._edge_field_defaults[name]
-            record[self._field_names_dict['source']] = source
-            record[self._field_names_dict['sink']] = sink
-
-            self._add_edge_from_tuple(record)
+            self._edge_buffer.add_edge(edge)
         else:
-            row['source'] = source
-            row['sink'] = sink
+            row['source'] = edge.source
+            row['sink'] = edge.sink
             for name in self.field_names:
                 if not name == 'source' and not name == 'sink':
                     try:
@@ -1519,156 +1658,33 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                         pass
             row.update()
 
+    def add_edge_from_dict(self, edge, *args, **kwargs):
+        self._edge_buffer.add_dict(edge, **kwargs)
+
+    def add_edge_from_list(self, edge, *args, **kwargs):
+        if len(edge) < 3:
+            self._edge_buffer.add_weight(edge[0], edge[1], **kwargs)
+        else:
+            self._edge_buffer.add_weight(edge[0], edge[1], weight=edge[2], **kwargs)
+
+    def add_edge_simple(self, source, sink, weight=None, *args, **kwargs):
+        self._edge_buffer.add_weight(source, sink, weight=weight, **kwargs)
+
+    def add_edge_from_edge(self, edge, *args, **kwargs):
+        self._edge_buffer.add_edge(edge, **kwargs)
+
     def _add_edge_from_tuple(self, edge):
-        if not self._edges_dirty:
-            self._edges_dirty = True
-            self._disable_edge_indexes()
-
-        source = edge[self._source_field_ix]
-        sink = edge[self._sink_field_ix]
-        if source > sink:
-            source, sink = sink, source
-        source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
-
-        self._edge_buffer[(source_partition, sink_partition)].append(tuple(edge))
-        if sum(len(records) for records in self._edge_buffer.values()) > self._edge_buffer_size:
-            self._flush_table_edge_buffer()
-
-    def _flush_edge_list_buffer(self):
-        for (source_partition, sink_partition), edges in self._edge_buffer.items():
-            edge_table = self._edge_table(source_partition, sink_partition)
-            row = edge_table.row
-
-            for edge in edges:
-                if edge[0] < edge[1]:
-                    row['source'], row['sink'] = edge[0], edge[1]
-                else:
-                    row['source'], row['sink'] = edge[1], edge[0]
-
-                row[self._default_score_field] = edge[2]
-                row.append()
-            edge_table.flush(update_index=False)
-        self._edge_buffer = defaultdict(list)
-
-    def _add_edges_from_dict(self, edges_dict, *args, **kwargs):
-        edge_counter = 0
-        for (source, sink), weight in edges_dict.items():
-            source_partition, sink_partition = self._get_edge_table_tuple(source, sink)
-            self._edge_buffer[(source_partition, sink_partition)].append([source, sink, weight])
-
-            edge_counter += 1
-            if edge_counter % self._edge_buffer_size == 0:
-                self._flush_edge_list_buffer()
-        self._flush_edge_list_buffer()
-
-    def _flush_edge_dict_buffer(self):
-        for (source_partition, sink_partition), edges in self._edge_buffer.items():
-            edge_table = self._edge_table(source_partition, sink_partition)
-            fields = edge_table.colnames
-            row = edge_table.row
-
-            for edge in edges:
-                if edge['source'] < edge['sink']:
-                    row['source'], row['sink'] = edge['source'], edge['sink']
-                else:
-                    row['source'], row['sink'] = edge['sink'], edge['source']
-
-                for field in fields:
-                    if field in edge and not field == 'source' and not field == 'sink':
-                        row[field] = edge[field]
-                row.append()
-            edge_table.flush(update_index=False)
-        self._edge_buffer = defaultdict(list)
-
-    def _add_edges_from_dicts(self, edges, *args, **kwargs):
-        edge_counter = 0
-        for edge in edges:
-            source_partition, sink_partition = self._get_edge_table_tuple(edge['source'], edge['sink'])
-            self._edge_buffer[(source_partition, sink_partition)].append(edge)
-
-        edge_counter += 1
-        if edge_counter % self._edge_buffer_size == 0:
-            self._flush_edge_dict_buffer()
-
-        self._flush_edge_dict_buffer()
-
-    def _add_edges_from_lists(self, edges, *args, **kwargs):
-        edge_counter = 0
-        for edge in edges:
-            source_partition, sink_partition = self._get_edge_table_tuple(edge[0], edge[1])
-            if len(edge) > 2:
-                self._edge_buffer[(source_partition, sink_partition)].append(edge[:3])
-            else:
-                self._edge_buffer[(source_partition, sink_partition)].append(edge[:2])
-        edge_counter += 1
-        if edge_counter % self._edge_buffer_size == 0:
-            self._flush_edge_list_buffer()
-
-        self._flush_edge_list_buffer()
-
-    def _flush_edge_buffer(self):
-        for (source_partition, sink_partition), edges in self._edge_buffer.items():
-            edge_table = self._edge_table(source_partition, sink_partition)
-            fields = edge_table.colnames
-            row = edge_table.row
-
-            for edge in edges:
-                if edge.source < edge.sink:
-                    source, sink = edge.source, edge.sink
-                else:
-                    source, sink = edge.sink, edge.source
-
-                row['source'] = source
-                row['sink'] = sink
-                for field in fields:
-                    if hasattr(edge, field) and not field == 'source' and not field == 'sink':
-                        row[field] = getattr(edge, field)
-                row.append()
-            edge_table.flush(update_index=False)
-        self._edge_buffer = defaultdict(list)
-
-    def _add_edges_from_edges(self, edges, *args, **kwargs):
-        edge_counter = 0
-        for edge in edges:
-            source_partition, sink_partition = self._get_edge_table_tuple(edge.source, edge.sink)
-            self._edge_buffer[(source_partition, sink_partition)].append(edge)
-        edge_counter += 1
-        if edge_counter % self._edge_buffer_size == 0:
-            self._flush_edge_buffer()
-
-        self._flush_edge_buffer()
+        self._edge_buffer.add_list(edge)
 
     def add_edges(self, edges, flush=True, *args, **kwargs):
         if self._regions_dirty:
             self._flush_regions()
 
-        if not self._edges_dirty:
-            self._edges_dirty = True
-            #self._disable_edge_indexes()
-
-        if isinstance(edges, dict):
-            self._add_edges_from_dict(edges, *args, **kwargs)
-        else:
-            edges_iter = iter(edges)
-            first_edge = next(edges_iter)
-
-            def full_edges_iter():
-                yield first_edge
-                for edge in edges_iter:
-                    yield edge
-
-            if isinstance(first_edge, list) or isinstance(first_edge, tuple):
-                self._add_edges_from_lists(full_edges_iter())
-            elif isinstance(first_edge, dict):
-                self._add_edges_from_dicts(full_edges_iter())
-            elif isinstance(first_edge, Edge):
-                self._add_edges_from_edges(full_edges_iter())
-            else:
-                RegionPairsContainer.add_edges(self, edges, *args, **kwargs)
+        for edge in edges:
+            self.add_edge(edge)
 
         if flush:
-            for _, edge_table in self._iter_edge_tables():
-                edge_table.flush()
+            self._edge_buffer.flush()
             self._enable_edge_indexes()
             self._flush_edges()
 
@@ -2085,7 +2101,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                  default_score_field='weight', default_value=0.0,
                  _table_name_regions='regions', _table_name_edges='edges',
                  _table_name_expected_values='expected_values',
-                 _edge_buffer_size=1000000):
+                 _edge_buffer_size=config.edge_buffer_size):
 
         self._default_score_field = default_score_field
         self._default_value = default_value
