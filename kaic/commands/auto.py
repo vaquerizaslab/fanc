@@ -616,8 +616,8 @@ def file_type(file_name):
         return 'hic'
     if extension in ['.gz', '.gzip']:
         base, extension = os.path.splitext(base)
-        if extension in ['.fq', '.fastq']:
-            return 'fastq'
+    if extension in ['.fq', '.fastq']:
+        return 'fastq'
     return None
 
 
@@ -660,6 +660,7 @@ def auto(argv, **kwargs):
     iterative = args.iterative
     step_size = args.step_size
     sam_sort = args.sam_sort
+    filter_pairs = args.filter_pairs
     inward_cutoff = args.inward_cutoff
     outward_cutoff = args.outward_cutoff
     auto_le_cutoff = args.auto_le_cutoff
@@ -720,7 +721,7 @@ def auto(argv, **kwargs):
                 else:
                     raise ValueError("Could not detect file type using kaic load.")
             except ValueError:
-                parser.error("Not a valid input file type: {}".format(file_type))
+                parser.error("Not a valid input file type: {}".format(file_types[i]))
 
     if basename is None:
         if len(file_basenames) == 1:
@@ -1005,7 +1006,7 @@ def auto(argv, **kwargs):
             continue
         pairs_files.append(i)
 
-    if len(pairs_files) > 0:
+    if len(pairs_files) > 0 and filter_pairs:
         pairs_tasks = []
         for ix in pairs_files:
             pair_basename = os.path.basename(os.path.splitext(file_names[ix])[0])
@@ -1018,6 +1019,9 @@ def auto(argv, **kwargs):
                                                  # filtering
                                                  '-d', '10000',
                                                  '-l', '-p', '2']
+
+            if tmp:
+                pairs_command.append('-tmp')
 
             if inward_cutoff is not None:
                 pairs_command += ['-i', str(inward_cutoff)]
@@ -1066,7 +1070,10 @@ def auto(argv, **kwargs):
             if not force_overwrite and os.path.exists(hic_file):
                 parser.error("File exists ({}), use -f to force overwriting it.".format(hic_file))
 
-            hic_command = kaic_base_command + ['hic', '-f', file_names[ix], hic_file]
+            hic_command = kaic_base_command + ['hic', '-f']
+            if tmp:
+                hic_command.append('-tmp')
+            hic_command += [file_names[ix], hic_file]
             hic_task = CommandTask(hic_command)
             runner.add_task(hic_task, wait_for=pairs_tasks, threads=1)
             hic_tasks.append(hic_task)
