@@ -48,7 +48,7 @@ setup(
         'progressbar2',
         'pybedtools',
         'pyBigWig',
-        'PyYAML',
+        'PyYAML>=5.1',
         'tables>=3.5.1',
         'seaborn',
         'future',

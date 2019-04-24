@@ -80,7 +80,7 @@ slurm_shell: /bin/bash
 #
 juicer_tools_jar_path: 
 """
-default_config = yaml.load(_default_config_content)
+default_config = yaml.load(_default_config_content, Loader=yaml.FullLoader)
 
 _config_file_name = 'kaic.conf'
 _environment_variable_name = 'KAIC_CONF'
