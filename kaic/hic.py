@@ -400,6 +400,7 @@ class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
                      Mask will be used.
         """
         super(HicEdgeFilter, self).__init__(mask)
+        self._lazy_edge = LazyEdge(None)
         self._hic = hic
 
     @abstractmethod
@@ -439,7 +440,7 @@ class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
         :param row: A pytables Table row.
         :return: The boolean value returned by valid_edge.
         """
-        edge = self._hic._row_to_edge(row, lazy=True)
+        edge = self._hic._row_to_edge(row, lazy_edge=self._lazy_edge)
         return self.valid_edge(edge)
 
 
