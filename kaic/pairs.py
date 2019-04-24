@@ -24,7 +24,7 @@ from future.utils import with_metaclass, viewitems
 
 from genomic_regions import GenomicRegion, RegionBased
 from .config import config
-from .general import MaskFilter, MaskedTable, Mask
+from .general import MaskFilter, Mask
 from .hic import Hic
 from .matrix import Edge, RegionPairsTable
 from .regions import genome_regions
@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 
 
 def generate_pairs(sam1_file, sam2_file, regions,
-                   restriction_enzyme=None, read_filters=(),
-                   output_file=None, check_sorted=True,
+                   restriction_enzyme=None, output_file=None,
+                   read_filters=(), check_sorted=True,
                    threads=1, batch_size=10000000):
     """
     Generate Pairs object from SAM/BAM files.
@@ -81,8 +81,8 @@ def generate_pairs(sam1_file, sam2_file, regions,
 
 
 def generate_pairs_split(sam1_file, sam2_file, regions,
-                         restriction_enzyme=None, read_filters=(),
-                         output_file=None, check_sorted=True,
+                         restriction_enzyme=None,
+                         output_file=None, read_filters=(), check_sorted=True,
                          threads=1, batch_size=1000000):
     """
     Generate Pairs object from SAM/BAM files.
@@ -111,11 +111,18 @@ def generate_pairs_split(sam1_file, sam2_file, regions,
 
     pairs = ReadPairs(file_name=output_file, mode='w')
 
+    logger.debug("Adding regions")
     if isinstance(regions, RegionBased):
-        pairs.add_regions(regions.regions, preserve_attributes=False)
+        for i, region in enumerate(regions.regions(lazy=True)):
+            if i % 100000 == 0:
+                logger.debug("{} regions".format(i))
+            pairs._add_region(region, preserve_attributes=False)
+        pairs.flush()
     else:
         pairs.add_regions(regions, preserve_attributes=False)
-    pairs.add_read_pairs_from_sam(sam1_file, sam2_file, threads=threads, batch_size=batch_size)
+
+    pairs.add_read_pairs_from_sam(sam1_file, sam2_file, threads=threads, batch_size=batch_size,
+                                  read_filters=read_filters, check_sorted=check_sorted)
 
     return pairs
 
@@ -169,7 +176,8 @@ def _split_sam_worker(sam_file1, sam_file2, input_queue, monitor, batch_size=100
 
 
 def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe,
-                            partition_breaks, tmpdir=None, buffer_size=1000000):
+                            partition_breaks, read_filters=None,
+                            tmpdir=None, buffer_size=1000000):
     worker_uuid = uuid.uuid4()
     monitor.set_worker_busy(worker_uuid)
     logger.debug("Starting load SAM worker {}".format(worker_uuid))
@@ -193,6 +201,10 @@ def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe
         lines = []
         skipped_counter = 0
         pair_generator = PairedSamBamReadPairGenerator(read_pairs_file)
+        if read_filters is not None:
+            for f in read_filters:
+                pair_generator.add_filter(f)
+
         for read1, read2 in pair_generator:
             chrom1, pos1, flag1 = read1.reference_name, read1.pos, read1.flag
             chrom2, pos2, flag2 = read2.reference_name, read2.pos, read2.flag
@@ -209,16 +221,19 @@ def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe
                 p_ix1 = bisect_right(partition_breaks, f_ix1)
                 p_ix2 = bisect_right(partition_breaks, f_ix2)
 
-                if p_ix1 > p_ix2:
-                    p_ix1, p_ix2 = p_ix2, p_ix1
-
                 r_strand1 = -1 if flag1 & 16 else 1
                 r_strand2 = -1 if flag2 & 16 else 1
 
-                line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                    p_ix1, pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1,
-                    p_ix2, pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2
-                )
+                if p_ix1 > p_ix2:
+                    line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                        p_ix2, pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2,
+                        p_ix1, pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1
+                    )
+                else:
+                    line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                        p_ix1, pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1,
+                        p_ix2, pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2
+                    )
                 lines.append(line)
 
                 if len(lines) > buffer_size:
@@ -234,7 +249,7 @@ def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe
                 o.write(line)
 
         logger.debug("Done obtaining fragment info for {} in {}".format(read_pairs_file, output_file))
-        output_file_queue.put(output_file)
+        output_file_queue.put((read_pairs_file, output_file, pair_generator.stats()))
 
 
 def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
@@ -407,7 +422,8 @@ class ReadPairGenerator(object):
         :param read_filter: :class:`~ReadFilter`
         """
         if not isinstance(read_filter, ReadFilter):
-            raise ValueError("argument must be an instance of class ReadFilter!")
+            raise ValueError("argument must be an instance of "
+                             "class ReadFilter, not {}!".format(type(read_filter)))
         self.filters.append(read_filter)
 
     def stats(self):
@@ -1300,28 +1316,24 @@ class ReadPairs(RegionPairsTable):
                     continue
 
                 fields = line.split("\t")
-                source, sink = int(fields[3]), int(fields[10])
-                if source > sink:
-                    source, sink = sink, source
-                    info1, info2 = fields[7:], fields[:7]
-                else:
-                    info1, info2 = fields[:7], fields[7:]
-
-                p_ix1, p_ix2 = int(info1[0]), int(info2[0])
+                info1, info2 = fields[:7], fields[7:]
+                if int(info1[3]) > int(info2[3]):
+                    info1, info2 = info2, info1
 
                 edge['ix'] = self._pair_count
-                edge['source'] = source
-                edge[sink] = sink
+                edge['source'] = int(info1[3])
+                edge['sink'] = int(info2[3])
                 edge['left_read_position'], edge['right_read_position'] = int(info1[1]), int(info2[1])
                 edge['left_read_strand'], edge['right_read_strand'] = info1[2], info2[2]
                 edge['left_fragment_start'], edge['right_fragment_start'] = int(info1[5]), int(info2[5])
                 edge['left_fragment_end'], edge['right_fragment_end'] = int(info1[6]), int(info2[6])
                 edge['left_fragment_chromosome'], edge['right_fragment_chromosome'] = int(info1[4]), int(info2[4])
 
-                self._edge_buffer.add_dict(edge, partition=(p_ix1, p_ix2))
+                self._edge_buffer.add_dict(edge, partition=(int(info1[0]), int(info2[0])))
                 self._pair_count += 1
 
-    def add_read_pairs_from_sam(self, sam_file1, sam_file2, batch_size=10000000, threads=1):
+    def add_read_pairs_from_sam(self, sam_file1, sam_file2, batch_size=10000000, threads=1,
+                                read_filters=None, check_sorted=True, tmpdir=None):
         self._edges_dirty = True
         self._disable_edge_indexes()
 
@@ -1333,8 +1345,16 @@ class ReadPairs(RegionPairsTable):
                                                region.start, region.end))
             fragment_ends[chromosome].append(region.end)
 
+        if tmpdir is None:
+            split_tmpdir = tempfile.mkdtemp()
+            pairs_tmpdir = tempfile.mkdtemp()
+        else:
+            split_tmpdir = tempfile.mkdtemp(dir=tmpdir)
+            pairs_tmpdir = tempfile.mkdtemp(dir=tmpdir)
+
         worker_pool = None
-        t_pairs = None
+        t_split = None
+        all_stats = defaultdict(int)
         try:
             queue_manager = mp.Manager()
             input_file_queue = queue_manager.Queue()
@@ -1344,19 +1364,26 @@ class ReadPairs(RegionPairsTable):
             monitor.set_generating_pairs(True)
             t_split = threading.Thread(target=_split_sam_worker, args=(sam_file1, sam_file2,
                                                                        input_file_queue,
-                                                                       monitor, batch_size))
+                                                                       monitor, batch_size,
+                                                                       split_tmpdir,
+                                                                       check_sorted))
             t_split.daemon = True
             t_split.start()
 
             worker_pool = mp.Pool(threads, _load_paired_sam_worker,
                                   (monitor, input_file_queue, output_file_queue,
-                                   fragment_infos, fragment_ends, self._partition_breaks))
+                                   fragment_infos, fragment_ends, self._partition_breaks,
+                                   read_filters, pairs_tmpdir))
 
             output_counter = 0
             while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
                 try:
-                    read_pairs_file = output_file_queue.get(block=True)
+                    input_file, read_pairs_file, chunk_stats = output_file_queue.get(block=True)
+                    os.remove(input_file)
                     self.load_read_pairs_fragment_info_file(read_pairs_file)
+                    os.remove(read_pairs_file)
+                    for key, value in chunk_stats.items():
+                        all_stats[key] += value
                     output_counter += 1
                 except Empty:
                     logger.warning("Reached SAM pair generator timeout. This could mean that no "
@@ -1365,10 +1392,16 @@ class ReadPairs(RegionPairsTable):
         finally:
             if worker_pool is not None:
                 worker_pool.terminate()
-            if t_pairs is not None:
-                t_pairs.join()
+            if t_split is not None:
+                t_split.join()
+            shutil.rmtree(split_tmpdir)
+            shutil.rmtree(pairs_tmpdir)
 
-        self._edge_buffer.flush()
+        if 'read_filter_stats' not in self.meta:
+            self.meta.read_filter_stats = all_stats
+        else:
+            self.meta.read_filter_stats = add_dict(self.meta.read_filter_stats, all_stats)
+
         self.flush()
 
     def add_read_pairs(self, read_pairs, batch_size=1000000, threads=1):
@@ -2106,6 +2139,9 @@ class QualityFilter(ReadFilter):
         """
         return read.mapq >= self.cutoff
 
+    def __reduce__(self):
+        return QualityFilter, (self.cutoff, self.mask)
+
 
 class ContaminantFilter(ReadFilter):
     """
@@ -2121,6 +2157,7 @@ class ContaminantFilter(ReadFilter):
         """
         super(ContaminantFilter, self).__init__(mask)
 
+        self.contaminant_reads = contaminant_reads
         self.contaminant_names = set()
         with pysam.AlignmentFile(contaminant_reads) as contaminant:
             for read in contaminant:
@@ -2133,6 +2170,9 @@ class ContaminantFilter(ReadFilter):
         if read.qname in self.contaminant_names:
             return False
         return True
+
+    def __reduce__(self):
+        return ContaminantFilter, (self.contaminant_reads, self.mask)
 
 
 class BwaMemQualityFilter(ReadFilter):
@@ -2158,6 +2198,9 @@ class BwaMemQualityFilter(ReadFilter):
         if read.alen:
             return float(read.get_tag('AS')) / read.alen >= self.cutoff
         return False
+
+    def __reduce__(self):
+        return BwaMemQualityFilter, (self.cutoff, self.mask)
 
 
 class UniquenessFilter(ReadFilter):
@@ -2195,6 +2238,9 @@ class UniquenessFilter(ReadFilter):
         except KeyError:
             pass
         return True
+
+    def __reduce__(self):
+        return UniquenessFilter, (self.strict, self.mask)
 
 
 class BwaMemUniquenessFilter(ReadFilter):
@@ -2236,6 +2282,9 @@ class BwaMemUniquenessFilter(ReadFilter):
             pass
         return True
 
+    def __reduce__(self):
+        return BwaMemUniquenessFilter, (self.strict, self.mask)
+
 
 class UnmappedFilter(ReadFilter):
     """
@@ -2255,6 +2304,9 @@ class UnmappedFilter(ReadFilter):
         if read.flag & 4:
             return False
         return True
+
+    def __reduce__(self):
+        return UnmappedFilter, (self.mask,)
 
 
 class FragmentReadPairFilter(with_metaclass(ABCMeta, MaskFilter)):
