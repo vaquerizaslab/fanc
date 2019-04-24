@@ -813,33 +813,41 @@ def pairs(argv, **kwargs):
     reset_filters = args.reset_filters
     tmp = args.tmp
 
-    regions = None
-    if 2 <= len(input_files) <= 3:
-        if not force_overwrite and os.path.exists(input_files[-1]):
-            parser.error("Output file {} exists! Use -f to force "
-                         "overwriting it!".format(input_files[-1]))
-
-        if genome_file is None:
-            parser.error("Must provide genome file (-g) when loading reads or pairs!")
-
-        logger.info("Getting genome regions (fragments or bins)")
-        from kaic.regions import genome_regions
-        try:
-            regions = genome_regions(genome_file, restriction_enzyme=restriction_enzyme)
-        except ValueError:
-            if restriction_enzyme is None:
-                parser.error("Must provide --restriction-enzyme when --genome is "
-                             "not a list of fragments or genomic bins!")
-            else:
-                raise
-
-    import kaic
+    from kaic.tools.files import create_temporary_copy, create_temporary_output
 
     tmp_input_files = []
     original_pairs_file = None
     pairs_file = None
     pairs = None
     try:
+        regions = None
+        if 2 <= len(input_files) <= 3:
+            if not force_overwrite and os.path.exists(input_files[-1]):
+                parser.error("Output file {} exists! Use -f to force "
+                             "overwriting it!".format(input_files[-1]))
+
+            if genome_file is None:
+                parser.error("Must provide genome file (-g) when loading reads or pairs!")
+
+            logger.info("Getting genome regions (fragments or bins)")
+            from kaic.regions import genome_regions
+            try:
+                if tmp:
+                    tmp = False
+                    genome_file = create_temporary_copy(os.path.expanduser(genome_file))
+                    tmp_input_files.append(genome_file)
+                    tmp = True
+
+                regions = genome_regions(genome_file, restriction_enzyme=restriction_enzyme)
+            except ValueError:
+                if restriction_enzyme is None:
+                    parser.error("Must provide --restriction-enzyme when --genome is "
+                                 "not a list of fragments or genomic bins!")
+                else:
+                    raise
+
+        import kaic
+
         if len(input_files) == 3:
             logger.info("Three arguments detected, assuming SAM/BAM input.")
             sam1_file = os.path.expanduser(input_files[0])
@@ -848,10 +856,9 @@ def pairs(argv, **kwargs):
 
             if tmp:
                 tmp = False
-                from kaic.tools.files import create_temporary_copy, create_temporary_output
                 sam1_file = create_temporary_copy(sam1_file)
                 sam2_file = create_temporary_copy(sam2_file)
-                tmp_input_files = [sam1_file, sam2_file]
+                tmp_input_files += [sam1_file, sam2_file]
                 original_pairs_file = pairs_file
                 pairs_file = create_temporary_output(pairs_file)
                 tmp = True
@@ -889,7 +896,7 @@ def pairs(argv, **kwargs):
                 f = ContaminantFilter(filter_contaminant, mask=Mask(ix=3, name='contaminant'))
                 read_filters.append(f)
 
-            from kaic.pairs import generate_pairs
+            from kaic.pairs import generate_pairs_split as generate_pairs
             pairs = generate_pairs(sam1_file, sam2_file, regions,
                                    restriction_enzyme=restriction_enzyme,
                                    read_filters=read_filters, output_file=pairs_file,
