@@ -246,6 +246,9 @@ class Mask(object):
     def __repr__(self):
         return "%d. %s: %s" % (self.ix, self.name, self.description)
 
+    def __reduce__(self):
+        return Mask, (self.name, self.description, self.ix)
+
 
 class Maskable(FileBased):
     """
