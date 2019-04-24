@@ -501,6 +501,8 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
             create_col_index(self._regions.cols.start)
             create_col_index(self._regions.cols.end)
 
+        self._max_region_ix = None
+
     def _flush_regions(self):
         """
         Write buffered regions to PyTables Table.
@@ -529,7 +531,9 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         :return: Region index of the added region.
         """
         self._regions_dirty = True
-        ix = getattr(self.meta, 'max_region_ix', -1) + 1
+        if self._max_region_ix is None:
+            self._max_region_ix = len(self._regions) - 1
+        ix = self._max_region_ix + 1
 
         # actually append
         row = self._regions.row
@@ -547,8 +551,9 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
         row.append()
 
-        if ix > getattr(self.meta, 'max_region_ix', -1):
-            self.meta['max_region_ix'] = ix
+        # if ix > getattr(self.meta, 'max_region_ix', -1):
+        #     self.meta['max_region_ix'] = ix
+        self._max_region_ix += 1
 
         return ix
 
