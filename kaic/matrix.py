@@ -1249,27 +1249,28 @@ class TableBuffer(object):
 
     def initialise_buffers(self):
         logger.debug("Initialising edge buffer!")
-        pairs_table = self._matrix._edge_table(0, 0)
-        self._colnames = pairs_table.colnames
+        matrix_table = self._matrix._edge_table(0, 0)
+        self._colnames = matrix_table.colnames
         self._colindices = {name: ix for ix, name in enumerate(self._colnames)}
         self._source_field = self._colindices['source']
         self._sink_field = self._colindices['sink']
         if self._matrix._default_score_field is not None:
             self._weight_field = self._colindices[self._matrix._default_score_field]
-        dtypes = [(name, pairs_table.coldtypes[name]) for name in self._colnames]
+        dtypes = [(name, matrix_table.coldtypes[name]) for name in self._colnames]
         template_row = np.empty(1, dtype=dtypes)[0]
 
         for i, name in enumerate(self._colnames):
-            template_row[i] = pairs_table.coldflts[name]
+            template_row[i] = matrix_table.coldflts[name]
 
         n_partitions = int(len(self._matrix._partition_breaks) ** 2 / 2 +
                            len(self._matrix._partition_breaks))
-        n_large_partitions = self._large_distance * len(self._matrix._partition_breaks)
+        n_large_partitions = max(1, self._large_distance * len(self._matrix._partition_breaks))
         buffer_size_bytes = str_to_int(self._buffer_size)
+
         large_buffer_size = int(buffer_size_bytes * self._large_fraction /
                                 n_large_partitions / template_row.nbytes)
         small_buffer_size = int(buffer_size_bytes * (1 - self._large_fraction) /
-                                (n_partitions - n_large_partitions) / template_row.nbytes)
+                                max(1, n_partitions - n_large_partitions) / template_row.nbytes)
 
         logger.debug("Partitions: {} ({})".format(n_partitions, n_large_partitions))
         logger.debug("Buffer sizes ({}): {}/{}".format(self._buffer_size, large_buffer_size, small_buffer_size))
@@ -1294,20 +1295,27 @@ class TableBuffer(object):
             logger.debug("Flushing buffer partition {}".format(partition))
             partitions = [partition]
 
-        for partition in partitions:
-            edge_table = self._matrix._edge_table(partition[0], partition[1])
-            buffer_table = self._buffer[partition]
-            ix = self._counter[partition]
-            if ix == buffer_table.shape[0]:
-                edge_table.append(buffer_table)
-            elif ix > 0:
-                edge_table.append(buffer_table[:ix])
-            edge_table.flush(update_index=False)
-            self._counter[partition] = 0
-            if partition[1] - partition[0] < self._large_distance:
-                self._buffer[partition] = self._large_template.copy()
-            else:
-                self._buffer[partition] = self._small_template.copy()
+        with RareUpdateProgressBar(max_value=len(partitions),
+                                   silent=config.hide_progressbars and partition is not None) as pb:
+            for i, partition in enumerate(partitions):
+                edge_table = self._matrix._edge_table(partition[0], partition[1])
+                buffer_table = self._buffer[partition]
+                ix = self._counter[partition]
+                flush = False
+                if ix == buffer_table.shape[0]:
+                    edge_table.append(buffer_table)
+                    flush = True
+                elif ix > 0:
+                    edge_table.append(buffer_table[:ix])
+                    flush = True
+                if flush:
+                    edge_table.flush(update_index=False)
+                    self._counter[partition] = 0
+                    if partition[1] - partition[0] < self._large_distance:
+                        self._buffer[partition] = self._large_template.copy()
+                    else:
+                        self._buffer[partition] = self._small_template.copy()
+                pb.update(i)
 
     def _current_buffer_row(self, partition):
         if not self._matrix._edges_dirty:
@@ -1575,9 +1583,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             edge_table.enable_mask_index()
 
     def _update_partitions(self):
+        logger.debug("Updating partitions!")
         n_regions = len(self.regions)
         if n_regions == 0:
             return
+
+        logger.debug("Partition strategy: {}".format(self._partition_strategy))
+        logger.debug("Regions: {}".format(n_regions))
 
         partition_breaks = []
         if self._partition_strategy == 'auto':
@@ -1599,6 +1611,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         else:
             raise ValueError("{} is not a valid partition strategy!".format(self._partition_strategy))
 
+        logger.debug("Partition breaks: {}".format(partition_breaks))
         self._partition_breaks = partition_breaks
         try:
             self.meta['partition_strategy'] = self._partition_strategy
