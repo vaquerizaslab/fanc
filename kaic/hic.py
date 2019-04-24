@@ -1,6 +1,6 @@
 from .config import config
 from .regions import Chromosome, Genome
-from .matrix import RegionMatrixTable, RegionMatrixContainer, Edge
+from .matrix import RegionMatrixTable, RegionMatrixContainer, Edge, LazyEdge
 from abc import abstractmethod, ABCMeta
 from future.utils import with_metaclass, string_types, viewitems
 from .tools.general import distribute_integer, RareUpdateProgressBar
@@ -151,15 +151,39 @@ class Hic(RegionMatrixTable):
             # create region "overlap map"
             overlap_map = _get_overlap_map(hic.regions(), self.regions())
 
-            edge_counter = 0
-            with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars,
-                                       prefix="Binning") as pb:
-                chromosomes = hic.chromosomes()
-                for i in range(len(chromosomes)):
-                    for j in range(i, len(chromosomes)):
-                        logger.debug("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+            if not isinstance(hic, RegionMatrixTable):
+                edge_counter = 0
+                with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars,
+                                           prefix="Binning") as pb:
+                    chromosomes = hic.chromosomes()
+                    for i in range(len(chromosomes)):
+                        for j in range(i, len(chromosomes)):
+                            logger.debug("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
+                            edges = defaultdict(int)
+                            for edge in hic.edges_dict((chromosomes[i], chromosomes[j]), lazy=True, norm=False):
+                                old_source, old_sink = edge['source'], edge['sink']
+                                try:
+                                    old_weight = edge[hic._default_score_field]
+                                except KeyError:
+                                    old_weight = edge['weight']
+
+                                for new_source, new_sink, new_weight in _edges_by_overlap_method(
+                                        [old_source, old_sink, old_weight], overlap_map):
+                                    if new_weight != 0:
+                                        edges[(new_source, new_sink)] += new_weight
+
+                                edge_counter += 1
+                                pb.update(edge_counter)
+                            logger.debug("Adding edges {}/{} ({})".format(i, j, len(edges)))
+                            for (source, sink), weight in edges.items():
+                                self.add_edge_simple(source, sink, weight=weight)
+            else:
+                edge_counter = 0
+                with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars,
+                                           prefix="Binning") as pb:
+                    for partition, edge_table in hic._iter_edge_tables():
                         edges = defaultdict(int)
-                        for edge in hic.edges_dict((chromosomes[i], chromosomes[j]), lazy=True, norm=False):
+                        for edge in edge_table.iterrows():
                             old_source, old_sink = edge['source'], edge['sink']
                             try:
                                 old_weight = edge[hic._default_score_field]
@@ -173,7 +197,6 @@ class Hic(RegionMatrixTable):
 
                             edge_counter += 1
                             pb.update(edge_counter)
-                        logger.debug("Adding edges {}/{} ({})".format(i, j, len(edges)))
 
                         for (source, sink), weight in edges.items():
                             self.add_edge_simple(source, sink, weight=weight)
@@ -321,6 +344,7 @@ class LegacyHic(RegionMatrixTable):
         """
         Get the marginals vector of this Hic matrix.
         """
+        kwargs.setdefault('lazy', True)
         row_regions, col_regions, edges_iter = self.regions_and_matrix_entries(*args, **kwargs)
         min_ix = min(row_regions[0].ix, col_regions[0].ix)
         max_ix = max(row_regions[-1].ix, col_regions[-1].ix)
