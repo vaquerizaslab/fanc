@@ -433,7 +433,8 @@ class RaoPeakInfo(RegionMatrixTable):
                 last_peak_number = 0
                 current_peaks = []
                 n_remaining = len(remaining_peaks_set)
-                with RareUpdateProgressBar(max_value=n_remaining, silent=config.hide_progressbars) as pb:
+                with RareUpdateProgressBar(max_value=n_remaining, silent=config.hide_progressbars,
+                                           prefix="Peak merge") as pb:
                     while len(remaining_peaks_set) > 0:
                         x, y, radius = RaoPeakInfo._centroid_and_radius(current_peaks)
 
@@ -1507,7 +1508,8 @@ def overlap_peaks(peaks, max_distance=6000):
     out_peaks = defaultdict(list)
     total_n = len(all_peaks)
 
-    with RareUpdateProgressBar(max_value=total_n, silent=config.hide_progressbars) as pb:
+    with RareUpdateProgressBar(max_value=total_n, silent=config.hide_progressbars,
+                               prefix="Overlap") as pb:
         while len(all_peaks) > 0:
             cur_p = all_peaks.pop(0)
             cur_p_list = [cur_p]

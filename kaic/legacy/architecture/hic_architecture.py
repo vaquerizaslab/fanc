@@ -807,7 +807,8 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
                 corr_m = np.corrcoef(m)
 
                 logger.info("Chromosome {}".format(chromosome))
-                with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars) as pb:
+                with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars,
+                                           prefix="AB domain") as pb:
                     for i, row_region in enumerate(m.row_regions):
                         for j, col_region in enumerate(m.col_regions):
                             if j < i:
@@ -824,7 +825,8 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
         else:
             m = oer[:]
             corr_m = np.corrcoef(m)
-            with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars) as pb:
+            with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars,
+                                       prefix="AB domain") as pb:
                 for i, row_region in enumerate(m.row_regions):
                     for j in range(i, len(m.row_regions)):
                         col_region = m.row_regions[j]
@@ -2118,7 +2120,8 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
         except ValueError:
             pass
 
-        with RareUpdateProgressBar(max_value=region_counter, silent=config.hide_progressbars) as pb:
+        with RareUpdateProgressBar(max_value=region_counter, silent=config.hide_progressbars,
+                                   prefix='Sub') as pb:
             counter = 0
             for chromosome in chromosomes:
                 matrix = self.array.as_matrix(chromosome)

@@ -1296,7 +1296,8 @@ class TableBuffer(object):
             partitions = [partition]
 
         with RareUpdateProgressBar(max_value=len(partitions),
-                                   silent=config.hide_progressbars and partition is not None) as pb:
+                                   silent=config.hide_progressbars and partition is not None,
+                                   prefix="Buffers") as pb:
             for i, partition in enumerate(partitions):
                 edge_table = self._matrix._edge_table(partition[0], partition[1])
                 buffer_table = self._buffer[partition]
@@ -1897,7 +1898,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         filtered = 0
         if not queue:
             with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
-                                       silent=not log_progress) as pb:
+                                       silent=not log_progress,
+                                       prefix="Filter") as pb:
                 for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                     stats = edge_table.filter(edge_filter, _logging=False)
                     for key, value in stats.items():
@@ -1922,7 +1924,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         total = 0
         filtered = 0
         with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
-                                   silent=not log_progress) as pb:
+                                   silent=not log_progress,
+                                   prefix="Filter") as pb:
             for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                 for f in self._queued_filters:
                     edge_table.queue_filter(f)
@@ -1941,7 +1944,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def reset_filters(self, log_progress=not config.hide_progressbars):
         with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
-                                   silent=not log_progress) as pb:
+                                   silent=not log_progress,
+                                   prefix="Reset") as pb:
             for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                 edge_table.reset_all_masks(silent=True)
                 pb.update(i)
@@ -2280,7 +2284,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
         default_field = getattr(new_matrix, '_default_score_field', 'weight')
         logger.info("Starting fast matrix merge")
-        with RareUpdateProgressBar(max_value=len(partition_pairs)) as pb:
+        with RareUpdateProgressBar(max_value=len(partition_pairs), prefix="Merge") as pb:
             for i, (source_partition, sink_partition) in enumerate(partition_pairs):
                 edges = defaultdict(int)
                 for matrix in matrices:
@@ -2299,6 +2303,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                     new_row.append()
                 edge_table.flush()
                 pb.update(i)
+        logger.info("Done merging matrices")
         new_matrix._edges_dirty = True
 
         new_matrix.flush()

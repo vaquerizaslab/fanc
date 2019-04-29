@@ -785,7 +785,8 @@ class MaskedTable(t.Table):
         stats = defaultdict(int)
 
         l = self._original_len()
-        with RareUpdateProgressBar(max_value=l, silent=not log_progress) as pb:
+        with RareUpdateProgressBar(max_value=l, silent=not log_progress,
+                                   prefix="Update") as pb:
             ix = 0
             masked_ix = -1
             for i, row in enumerate(self._iter_visible_and_masked()):
@@ -808,7 +809,8 @@ class MaskedTable(t.Table):
 
     def reset_all_masks(self, silent=config.hide_progressbars):
         n_rows = self._original_len()
-        with RareUpdateProgressBar(max_value=n_rows, silent=silent) as pb:
+        with RareUpdateProgressBar(max_value=n_rows, silent=silent,
+                                   prefix="Reset") as pb:
             ix = 0
             for i, row in enumerate(self._iter_visible_and_masked()):
                 row[self._mask_field] = 0
@@ -869,7 +871,8 @@ class MaskedTable(t.Table):
 
         # statistics
         stats = defaultdict(int)
-        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging) as pb:
+        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging,
+                                   prefix="Filter") as pb:
             for i, row in enumerate(self._iter_visible_and_masked()):
                 total += 1
 
@@ -924,7 +927,8 @@ class MaskedTable(t.Table):
         total = 0
 
         stats = defaultdict(int)
-        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging) as pb:
+        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging,
+                                   prefix=Filter) as pb:
             for i, row in enumerate(self._iter_visible_and_masked()):
                 total += 1
                 for f in self._queued_filters:

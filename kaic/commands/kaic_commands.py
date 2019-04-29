@@ -4474,7 +4474,7 @@ def upgrade(argv, **kwargs):
 
                 bv = [row['bias'] for row in old_hic.file.get_node('/', 'node_annot').iterrows()]
 
-                with RareUpdateProgressBar(max_value=len(old_hic.edges)) as pb:
+                with RareUpdateProgressBar(prefix="Upgrade", max_value=len(old_hic.edges)) as pb:
                     for i, edge in enumerate(old_hic.edges(lazy=True)):
                         source = edge.source
                         sink = edge.sink

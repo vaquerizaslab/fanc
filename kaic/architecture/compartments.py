@@ -112,7 +112,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 oe_per_chromosome = False
             m = hic.matrix(oe=True, oe_per_chromosome=oe_per_chromosome)
             corr_m = np.corrcoef(m)
-            with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars) as pb:
+            with RareUpdateProgressBar(max_value=m.shape[0], silent=config.hide_progressbars,
+                                       prefix="AB") as pb:
                 for i, row_region in enumerate(m.row_regions):
                     for j in range(i, len(m.col_regions)):
                         if j < i:

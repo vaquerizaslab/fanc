@@ -1650,7 +1650,8 @@ class ReadPairs(RegionPairsTable):
         filtered = 0
         if not queue:
             with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
-                                       silent=not log_progress) as pb:
+                                       silent=not log_progress,
+                                       prefix="Filter") as pb:
                 for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                     stats = edge_table.filter(pair_filter, _logging=False)
                     for key, value in stats.items():
@@ -1673,7 +1674,8 @@ class ReadPairs(RegionPairsTable):
         total = 0
         filtered = 0
         with RareUpdateProgressBar(max_value=sum(1 for _ in self._edges),
-                                   silent=not log_progress) as pb:
+                                   silent=not log_progress,
+                                   prefix="Filter") as pb:
             for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                 for f in self._queued_filters:
                     edge_table.queue_filter(f)
@@ -1901,7 +1903,8 @@ class ReadPairs(RegionPairsTable):
 
         n_pairs = len(self)
         pairs_counter = 0
-        with RareUpdateProgressBar(max_value=n_pairs, silent=config.hide_progressbars) as pb:
+        with RareUpdateProgressBar(max_value=n_pairs, silent=config.hide_progressbars,
+                                   prefix="Hi-C convert") as pb:
             for _, pairs_edge_table in self._iter_edge_tables():
 
                 partition_edge_buffer = defaultdict(lambda: defaultdict(int))
