@@ -2280,23 +2280,25 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
         default_field = getattr(new_matrix, '_default_score_field', 'weight')
         logger.info("Starting fast matrix merge")
-        for source_partition, sink_partition in partition_pairs:
-            edges = defaultdict(int)
-            for matrix in matrices:
-                if not matrix._has_edge_table(source_partition, sink_partition):
-                    continue
+        with RareUpdateProgressBar(max_value=len(partition_pairs)) as pb:
+            for i, (source_partition, sink_partition) in enumerate(partition_pairs):
+                edges = defaultdict(int)
+                for matrix in matrices:
+                    if not matrix._has_edge_table(source_partition, sink_partition):
+                        continue
 
-                for row in matrix._edge_table(source_partition, sink_partition).iterrows():
-                    edges[(row['source'], row['sink'])] += row[default_field]
+                    for row in matrix._edge_table(source_partition, sink_partition).iterrows():
+                        edges[(row['source'], row['sink'])] += row[default_field]
 
-            edge_table = new_matrix._edge_table(source_partition, sink_partition)
-            new_row = edge_table.row
-            for (source, sink), weight in edges.items():
-                new_row['source'] = source
-                new_row['sink'] = sink
-                new_row[default_field] = weight
-                new_row.append()
-            edge_table.flush()
+                edge_table = new_matrix._edge_table(source_partition, sink_partition)
+                new_row = edge_table.row
+                for (source, sink), weight in edges.items():
+                    new_row['source'] = source
+                    new_row['sink'] = sink
+                    new_row[default_field] = weight
+                    new_row.append()
+                edge_table.flush()
+                pb.update(i)
         new_matrix._edges_dirty = True
 
         new_matrix.flush()
