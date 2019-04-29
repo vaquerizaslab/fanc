@@ -257,10 +257,10 @@ class InsulationScore(RegionScoreTable):
                                               trim_mean_proportion, stat=avg_stat)
 
                     if not subtract_mean:
-                        logger.debug("Dividing by mean")
+                        logger.debug("Dividing by mean {}".format(mean_ins))
                         ii_by_chromosome = ii_by_chromosome / mean_ins
                     else:
-                        logger.debug("Subtracting mean")
+                        logger.debug("Subtracting mean {}".format(mean_ins))
                         ii_by_chromosome = ii_by_chromosome - mean_ins
             ii_list.append(ii_by_chromosome)
 
