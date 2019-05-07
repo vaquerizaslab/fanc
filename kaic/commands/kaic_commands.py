@@ -4393,8 +4393,8 @@ def downsample(argv, **kwargs):
 
 def upgrade_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic upgrade-hic",
-        description='Upgrade Hic objects from old Kai-C versions.'
+        prog="kaic upgrade",
+        description='Upgrade objects from old Kai-C versions.'
     )
 
     parser.add_argument(
@@ -4404,7 +4404,8 @@ def upgrade_parser():
 
     parser.add_argument(
         'output',
-        help="Hic output."
+        nargs='?',
+        help="Output file. If omitted, will try to perform upgrade in place."
     )
 
     parser.add_argument(
@@ -4430,7 +4431,7 @@ def upgrade(argv, **kwargs):
     args = parser.parse_args(argv[2:])
 
     input_file = os.path.expanduser(args.hic)
-    output_file = os.path.expanduser(args.output)
+    output_file = os.path.expanduser(args.output) if args.output is not None else None
     force = args.force
     tmp = args.tmp
 
@@ -4464,18 +4465,21 @@ def upgrade(argv, **kwargs):
                 pass
 
         try:
-            old_hic = kaic.load(input_file)
+            old_kaic = kaic.load(input_file, mode='a')
 
-            if isinstance(old_hic, LegacyHic):
+            if isinstance(old_kaic, LegacyHic):
                 import kaic
 
+                if output_file is None:
+                    raise ValueError("Must provide an output file to upgrade to latest Hi-C version!")
+
                 new_hic = kaic.Hic(file_name=output_file, mode='w')
-                new_hic.add_regions(old_hic.regions)
+                new_hic.add_regions(old_kaic.regions)
 
-                bv = [row['bias'] for row in old_hic.file.get_node('/', 'node_annot').iterrows()]
+                bv = [row['bias'] for row in old_kaic.file.get_node('/', 'node_annot').iterrows()]
 
-                with RareUpdateProgressBar(prefix="Upgrade", max_value=len(old_hic.edges)) as pb:
-                    for i, edge in enumerate(old_hic.edges(lazy=True)):
+                with RareUpdateProgressBar(prefix="Upgrade", max_value=len(old_kaic.edges)) as pb:
+                    for i, edge in enumerate(old_kaic.edges(lazy=True)):
                         source = edge.source
                         sink = edge.sink
                         weight = int(np.round(edge.weight / bv[source] / bv[sink]))
@@ -4485,8 +4489,15 @@ def upgrade(argv, **kwargs):
                 new_hic.flush()
                 new_hic.bias_vector(bv)
 
-                old_hic.close()
+                old_kaic.close()
                 new_hic.close()
+                return
+            elif isinstance(old_kaic, kaic.ReadPairs) or isinstance(old_kaic, kaic.Hic):
+                if old_kaic._chromosomes_info is None:
+                    if output_file is not None:
+                        raise ValueError("Can only do upgrade in place for chromosome table")
+                    logger.info("Updating chromosome info table")
+                    old_kaic._update_chromosomes_info()
                 return
         except (ValueError, TypeError):
             pass
