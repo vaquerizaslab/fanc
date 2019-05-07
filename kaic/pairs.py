@@ -1163,8 +1163,8 @@ class ReadPairs(RegionPairsTable):
         if self._partition_breaks is None:
             self._pair_count = 0
         else:
-            self._pair_count = sum(edge_table._original_len()
-                                   for _, edge_table in self._iter_edge_tables())
+            self._pair_count = None
+
         self._ix_to_chromosome = dict()
         self._chromosome_to_ix = dict()
         self._update_references()
@@ -1173,14 +1173,20 @@ class ReadPairs(RegionPairsTable):
         """
         Update internal chromosome index dictionaries.
         """
-        chromosomes = []
-        for region in self.regions(lazy=True):
-            if len(chromosomes) == 0 or chromosomes[-1] != region.chromosome:
-                chromosomes.append(region.chromosome)
+        if self._chromosomes_info is not None:
+            for row in self._chromosomes_info.iterrows():
+                ix, chromosome = row['ix'], row['name'].decode()
+                self._ix_to_chromosome[ix] = chromosome
+                self._chromosome_to_ix[chromosome] = ix
+        else:
+            chromosomes = []
+            for region in self.regions(lazy=True):
+                if len(chromosomes) == 0 or chromosomes[-1] != region.chromosome:
+                    chromosomes.append(region.chromosome)
 
-        for i, chromosome in enumerate(chromosomes):
-            self._ix_to_chromosome[i] = chromosome
-            self._chromosome_to_ix[chromosome] = i
+            for i, chromosome in enumerate(chromosomes):
+                self._ix_to_chromosome[i] = chromosome
+                self._chromosome_to_ix[chromosome] = i
 
     def _flush_regions(self):
         """
@@ -1279,6 +1285,10 @@ class ReadPairs(RegionPairsTable):
         r_pos1, r_strand1, f_ix1, f_chromosome_ix1, f_start1, f_end1 = fi1
         r_pos2, r_strand2, f_ix2, f_chromosome_ix2, f_start2, f_end2 = fi2
 
+        if self._pair_count is None:
+            self._pair_count = sum(edge_table._original_len()
+                                   for _, edge_table in self._iter_edge_tables())
+
         edge = Edge(ix=self._pair_count,
                     source=f_ix1, sink=f_ix2,
                     left_read_position=r_pos1, right_read_position=r_pos2,
@@ -1307,6 +1317,10 @@ class ReadPairs(RegionPairsTable):
             open_ = gzip.open
         else:
             open_ = open
+
+        if self._pair_count is None:
+            self._pair_count = sum(edge_table._original_len()
+                                   for _, edge_table in self._iter_edge_tables())
 
         edge = {}
         with open_(read_pairs_file) as f:
@@ -1434,6 +1448,10 @@ class ReadPairs(RegionPairsTable):
         """
         self._edges_dirty = True
         self._disable_edge_indexes()
+
+        if self._pair_count is None:
+            self._pair_count = sum(edge_table._original_len()
+                                   for _, edge_table in self._iter_edge_tables())
 
         start_time = timer()
         chunk_start_time = timer()
