@@ -431,6 +431,16 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         strand = t.Int8Col(pos=4)
         _mask_ix = t.Int32Col(pos=5)
 
+    class ChromosomeDescription(t.IsDescription):
+        """
+        Description of the chromosomes in this object.
+        """
+        ix = t.Int32Col(pos=0)
+        name = t.StringCol(100, pos=1)
+        start_bin = t.Int32Col(pos=2)
+        end_bin = t.Int32Col(pos=3)
+        size = t.Int32Col(pos=4)
+
     def __init__(self, file_name=None, mode='a', tmpdir=None,
                  additional_fields=None, _table_name_regions='regions'):
         """
@@ -464,6 +474,10 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
         if file_exists and mode != 'w':
             self._regions = self._group.regions
+            try:
+                self._chromosomes_info = self._group.chromosomes
+            except t.NoSuchNodeError:
+                self._chromosomes_info = None
         else:
             basic_fields = dict()
             hidden_fields = dict()
@@ -495,6 +509,9 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                 basic_fields[key] = value
 
             self._regions = t.Table(self._group, 'regions', basic_fields, expectedrows=1000000)
+            self._chromosomes_info = t.Table(self._group, 'chromosomes',
+                                             RegionsTable.ChromosomeDescription,
+                                             expectedrows=100)
 
             # create indexes
             create_col_index(self._regions.cols.ix)
@@ -503,12 +520,51 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
         self._max_region_ix = None
 
+    def _update_chromosomes_info(self):
+        try:
+            self._chromosomes_info = self._group.chromosomes
+        except t.NoSuchNodeError:
+            try:
+                self._chromosomes_info = t.Table(self._group, 'chromosomes',
+                                                 RegionsTable.ChromosomeDescription,
+                                                 expectedrows=100)
+            except (t.FileModeError, t.HDF5ExtError):
+                self._chromosomes_info = None
+
+        if self._chromosomes_info is not None:
+            try:
+                self._chromosomes_info.remove_rows(0)
+                self._chromosomes_info.flush()
+            except t.HDF5ExtError:
+                logger.error("File not open for writing, cannot update chromosome table!")
+                return
+
+            chromosomes_info = []
+            for row in self._regions.iterrows():
+                if len(chromosomes_info) == 0 or row['chromosome'] != chromosomes_info[-1][1]:
+                    chromosomes_info.append([len(chromosomes_info), row['chromosome'],
+                                             row['ix'], row['ix'], row['end']])
+                else:
+                    chromosomes_info[-1][3] = row['ix']
+                    chromosomes_info[-1][4] = row['end']
+
+            row = self._chromosomes_info.row
+            for info in chromosomes_info:
+                row['ix'] = info[0]
+                row['name'] = info[1]
+                row['start_bin'] = info[2]
+                row['end_bin'] = info[3]
+                row['size'] = info[4]
+                row.append()
+            self._chromosomes_info.flush()
+
     def _flush_regions(self):
         """
         Write buffered regions to PyTables Table.
         """
         if self._regions_dirty:
             self._regions.flush()
+            self._update_chromosomes_info()
             self._regions_dirty = False
 
     def flush(self):
@@ -562,6 +618,9 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
         List all chromosomes in this regions table.
         :return: list of chromosome names.
         """
+        if self._chromosomes_info is not None:
+            return [name.decode() for name in self._chromosomes_info.col("name")]
+
         chromosomes_set = set()
         chromosomes = []
         for region in self.regions(lazy=True):
@@ -569,6 +628,25 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
                 chromosomes_set.add(region.chromosome)
                 chromosomes.append(region.chromosome)
         return chromosomes
+
+    @property
+    def chromosome_lengths(self):
+        if self._chromosomes_info is not None:
+            cr = {}
+            for row in self._chromosomes_info.iterrows():
+                cr[row['name'].decode()] = row['size']
+            return cr
+        else:
+            return super(RegionsTable, self).chromosome_lengths
+
+    def _chromosome_bins(self, *args, **kwargs):
+        if self._chromosomes_info is not None:
+            cb = {}
+            for row in self._chromosomes_info.iterrows():
+                cb[row['name'].decode()] = [row['start_bin'], row['end_bin'] + 1]
+            return cb
+        else:
+            return RegionBasedWithBins._chromosome_bins(self, *args, **kwargs)
 
     def add_regions(self, regions, *args, **kwargs):
         """
