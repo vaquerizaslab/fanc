@@ -17,6 +17,7 @@ from abc import ABCMeta, abstractmethod
 from builtins import object
 from collections import defaultdict
 
+import numpy as np
 import tables as t
 from future.utils import with_metaclass, string_types
 from tables.exceptions import NoSuchNodeError
@@ -636,7 +637,7 @@ class MaskedTable(t.Table):
         
         Also updates the mask index, if requested.
         """
-        self._flush(update_index, log_progress=log_progress)
+        self._flush(update_index=update_index, log_progress=log_progress)
     
     def _flush(self, update_index=False, log_progress=True):
         # commit any previous changes
@@ -767,8 +768,16 @@ class MaskedTable(t.Table):
     
     def _original_len(self):
         return t.Table.__len__(self)
+
+    def _mask_ixs_and_stats_from_masks(self, masks):
+        mask_ixs = np.zeros(masks.shape)
+        ix_masked = np.where(masks > 0)[0]
+        ix_unmasked = np.where(masks == 0)[0]
+        mask_ixs[ix_masked] = np.arange(-1, -1 * ix_masked.shape[0] - 1, -1)
+        mask_ixs[ix_unmasked] = np.arange(0, ix_unmasked.shape[0], 1)
+        stats = dict(zip(*np.unique(masks, return_counts=True)))
+        return mask_ixs, ix_unmasked.shape[0], stats
     
-    # new index update method
     def _update_ix(self, log_progress=not config.hide_progressbars):
         """
         Update the row indexes of the Table.
@@ -779,57 +788,31 @@ class MaskedTable(t.Table):
         masked, -1 otherwise.
         """
 
-        if log_progress:
-            logger.debug("Updating mask indices")
+        masks = self.col(self._mask_field)
+        mask_ixs, masked_length, stats = self._mask_ixs_and_stats_from_masks(masks)
 
-        stats = defaultdict(int)
-
-        l = self._original_len()
-        with RareUpdateProgressBar(max_value=l, silent=not log_progress,
-                                   prefix="Update") as pb:
-            ix = 0
-            masked_ix = -1
-            for i, row in enumerate(self._iter_visible_and_masked()):
-                m = row[self._mask_field]
-                stats[m] += 1
-
-                if m > 0:
-                    row[self._mask_index_field] = masked_ix
-                    masked_ix -= 1
-                else:
-                    row[self._mask_index_field] = ix
-                    ix += 1
-                row.update()
-                pb.update(i)
-            self.attrs['masked_length'] = ix
         try:
+            self.modify_column(colname=self._mask_index_field, column=mask_ixs)
+            self.attrs['masked_length'] = masked_length
             self.attrs['mask_stats'] = stats
         except t.FileModeError:
             pass
 
     def reset_all_masks(self, silent=config.hide_progressbars):
         n_rows = self._original_len()
-        with RareUpdateProgressBar(max_value=n_rows, silent=silent,
-                                   prefix="Reset") as pb:
-            ix = 0
-            for i, row in enumerate(self._iter_visible_and_masked()):
-                row[self._mask_field] = 0
-                row[self._mask_index_field] = ix
-                ix += 1
-                row.update()
-                pb.update(i)
-            self.attrs['masked_length'] = ix
-            try:
-                self.attrs['mask_stats'] = {}
-            except t.FileModeError:
-                pass
+        self.modify_column(colname=self._mask_field, column=np.arange(0, n_rows, 1))
+        self.modify_column(colname=self._mask_index_field, column=np.zeros(n_rows))
+        try:
+            self.attrs['masked_length'] = n_rows
+            self.attrs['mask_stats'] = {}
+        except t.FileModeError:
+            pass
 
         self.flush(update_index=False)
 
     def mask_stats(self):
-        stats = defaultdict(int)
-        for row in self._iter_visible_and_masked():
-            stats[row[self._mask_field]] += 1
+        masks = self.col(self._mask_field)
+        stats = dict(zip(*np.unique(masks, return_counts=True)))
 
         try:
             self.attrs['mask_stats'] = stats
@@ -852,6 +835,31 @@ class MaskedTable(t.Table):
     def _has_mask(self, row, mask):
         return mask in self._row_masks(row)
 
+    def _filter(self, mask_filters):
+        mask_filter_ixs = [2 ** mask_filter.mask_ix for mask_filter in mask_filters]
+        n_rows = self._original_len()
+        masks = self.col(self._mask_field)
+
+        for i, row in enumerate(self._iter_visible_and_masked()):
+            for j, mask_filter in enumerate(mask_filters):
+                if not mask_filter.valid(row):
+                    masks[i] = masks[i] | mask_filter_ixs[j]
+        mask_ixs, masked_length, stats = self._mask_ixs_and_stats_from_masks(masks)
+
+        try:
+            self.modify_column(colname=self._mask_index_field, column=mask_ixs)
+            self.modify_column(colname=self._mask_field, column=masks)
+            self.attrs['masked_length'] = masked_length
+            self.attrs['mask_stats'] = stats
+        except t.FileModeError:
+            pass
+
+        logger.debug("Total: {}. Valid: {}".format(n_rows, masked_length))
+
+        self.flush(update_index=False)
+
+        return stats
+
     def filter(self, mask_filter, _logging=not config.hide_progressbars):
         """
         Run a MaskFilter on this table.
@@ -864,45 +872,7 @@ class MaskedTable(t.Table):
         :param mask_filter: A :class:`~MaskFilter` object
         :param _logging: Print progress to stderr
         """
-
-        total = 0
-        ix = 0
-        mask_ix = -1
-
-        # statistics
-        stats = defaultdict(int)
-        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging,
-                                   prefix="Filter") as pb:
-            for i, row in enumerate(self._iter_visible_and_masked()):
-                total += 1
-
-                if not mask_filter.valid(row):
-                    row[self._mask_field] += 2**mask_filter.mask_ix
-
-                stats[row[self._mask_field]] += 1
-
-                # update index
-                if row[self._mask_field] > 0:
-                    row[self._mask_index_field] = mask_ix
-                    mask_ix -= 1
-                else:
-                    row[self._mask_index_field] = ix
-                    ix += 1
-                row.update()
-                pb.update(i)
-        self.attrs['masked_length'] = ix
-
-        if _logging:
-            logger.info("Total: {}. Valid: {}".format(total, total + (mask_ix-1)))
-
-        try:
-            self.attrs['mask_stats'] = stats
-        except t.FileModeError:
-            pass
-
-        self.flush(update_index=False)
-
-        return stats
+        return self._filter([mask_filter])
 
     def queue_filter(self, filter_definition):
         """
@@ -921,43 +891,9 @@ class MaskedTable(t.Table):
         queue_filter function.
 
         :param _logging: If True, prints log to stderr
+        :param _buffer_size: Number of rows to cache from table
         """
-        ix = 0
-        mask_ix = -1
-        total = 0
-
-        stats = defaultdict(int)
-        with RareUpdateProgressBar(max_value=self._original_len(), silent=not _logging,
-                                   prefix=Filter) as pb:
-            for i, row in enumerate(self._iter_visible_and_masked()):
-                total += 1
-                for f in self._queued_filters:
-                    if not f.valid(row):
-                        row[self._mask_field] += 2**f.mask_ix
-
-                stats[row[self._mask_field]] += 1
-
-                # update index
-                if row[self._mask_field] > 0:
-                    row[self._mask_index_field] = mask_ix
-                    mask_ix -= 1
-                else:
-                    row[self._mask_index_field] = ix
-                    ix += 1
-                row.update()
-                pb.update(i)
-
-        self.attrs['masked_length'] = ix
-
-        if _logging:
-            logger.info("Total: %d. Filtered: %d" % (total, -1*(mask_ix-1)))
-
-        try:
-            self.attrs['mask_stats'] = stats
-        except t.FileModeError:
-            pass
-
-        self.flush(update_index=False)
+        stats = self._filter(self._queued_filters)
         self._queued_filters = []
         return stats
 
@@ -965,8 +901,8 @@ class MaskedTable(t.Table):
               start=None, stop=None, step=None,
               excluded_filters=0, maskable=None):
         condition = "(" + condition + ") & (%s >= 0)" % self._mask_index_field
-        it = super(MaskedTable, self).where(condition, condvars=None,
-                                            start=None, stop=None, step=None)
+        it = super(MaskedTable, self).where(condition, condvars=condvars,
+                                            start=start, stop=stop, step=step)
         return MaskedTableView(self, it, excluded_masks=excluded_filters, maskable=maskable)
 
 
