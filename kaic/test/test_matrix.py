@@ -288,7 +288,7 @@ class TestRegionPairs:
         rmt = self.rp_class(additional_edge_fields={'weight': tables.Float64Col()})
         rmt.add_region(GenomicRegion(chromosome='1', start=1, end=1000))
         rmt.flush()
-        rmt.add_edge([0, 0, 100])
+        rmt.add_edge_simple(0, 0, 100)
         rmt.flush()
         edge = rmt.edges[0]
         assert edge.source == 0
@@ -383,7 +383,6 @@ class TestRegionMatrixTable:
 
         for i, row_region in enumerate(m.row_regions):
             for j, col_region in enumerate(m.col_regions):
-                print(i, j, row_region.ix, col_region.ix, m[i, j])
                 assert m[i, j] == max(row_region.ix, col_region.ix)
 
         m = self.rmt.matrix(key=('chr3', 'chr2'), score_field='bar', mask=False)
@@ -441,7 +440,7 @@ class TestHicBasic:
         hic1.add_region(GenomicRegion('chr1', 1, 1000))
         hic1.add_region(GenomicRegion('chr2', 1, 1000))
         hic1.flush()
-        hic1.add_edge([0, 1])
+        hic1.add_edge_simple(0, 1, 1)
         hic1.flush()
         hic1.close()
 
