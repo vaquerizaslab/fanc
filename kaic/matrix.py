@@ -8,7 +8,6 @@ import logging
 import os
 import warnings
 
-import gc
 import numpy as np
 import tables
 from genomic_regions import RegionBased, GenomicRegion, as_region
@@ -653,6 +652,9 @@ class RegionPairsContainer(RegionBased):
                 norm = kwargs.pop("norm", True)
                 intra_chromosomal = kwargs.pop("intra_chromosomal", True)
                 inter_chromosomal = kwargs.pop("inter_chromosomal", True)
+                bias_field = kwargs.pop('bias_field', 'bias')
+                valid_field = kwargs.pop('valid_field', 'valid')
+                check_valid = kwargs.pop('check_valid', True)
 
                 row_regions, col_regions = self._regions_pairs._key_to_regions(key)
                 if isinstance(row_regions, GenomicRegion):
@@ -676,22 +678,16 @@ class RegionPairsContainer(RegionBased):
                     edge_iter = self._regions_pairs._edges_subset(key, row_regions, col_regions,
                                                                   *args, **kwargs)
 
-                bias_field = kwargs.pop('bias_field', 'bias')
-                valid_field = kwargs.pop('valid_field', 'valid')
-
                 for edge in edge_iter:
-                    row_region = regions[edge.source]
-                    col_region = regions[edge.sink]
-                    if not intra_chromosomal and row_region.chromosome == col_region.chromosome:
+                    row_region, col_region = regions[edge.source], regions[edge.sink]
+                    is_intra_chromosomal = row_region.chromosome == col_region.chromosome
+                    if not intra_chromosomal and is_intra_chromosomal:
                         continue
-                    if not inter_chromosomal and row_region.chromosome != col_region.chromosome:
+                    if not inter_chromosomal and not is_intra_chromosomal:
                         continue
-
-                    try:
-                        if not getattr(row_region, valid_field, True) or not getattr(col_region, valid_field, True):
+                    if check_valid and (not getattr(row_region, valid_field, True) or
+                                        not getattr(col_region, valid_field, True)):
                             continue
-                    except AttributeError:
-                        pass
 
                     if norm:
                         try:
@@ -912,6 +908,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         def offset_iter(edge_iter):
             for edge in edge_iter:
                 source, sink, weight = edge.source, edge.sink, getattr(edge, score_field, self._default_value)
+
                 i = source - row_offset
                 j = sink - col_offset
                 if i >= 0 and j >= 0:
@@ -1215,12 +1212,12 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         logger.info("Calculating scaling factor...")
         m1_sum = 0
-        for v1 in self.edge_data(weight_column):
+        for v1 in self.edge_data(weight_column, lazy=True):
             if np.isfinite(v1):
                 m1_sum += v1
 
         m2_sum = 0
-        for v2 in matrix.edge_data(weight_column):
+        for v2 in matrix.edge_data(weight_column, lazy=True):
             if np.isfinite(v2):
                 m2_sum += v2
 
@@ -1920,10 +1917,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     pb.update(i)
             if log_progress:
                 logger.info("Total: {}. Filtered: {}".format(total, filtered))
+            self._update_mappability()
         else:
             self._queued_filters.append(edge_filter)
-
-        self._update_mappability()
 
     def run_queued_filters(self, log_progress=not config.hide_progressbars):
         """
