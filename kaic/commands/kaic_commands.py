@@ -1555,6 +1555,13 @@ def to_cooler_parser():
         'output',
         help='''Output cooler file.'''
     )
+
+    parser.add_argument(
+        '-u', '--uncorrected', dest='norm',
+        action='store_false',
+        default=True,
+        help='Output uncorrected matrix.'
+    )
     return parser
 
 
@@ -1564,6 +1571,7 @@ def to_cooler(argv, **kwargs):
     args = parser.parse_args(argv[2:])
     input_file = os.path.expanduser(args.input)
     output_file = os.path.expanduser(args.output)
+    norm = args.norm
 
     import kaic
     from kaic.compatibility.cooler import to_cooler
@@ -1574,7 +1582,7 @@ def to_cooler(argv, **kwargs):
         raise
 
     hic = kaic.load(input_file, mode='r')
-    to_cooler(hic, output_file)
+    to_cooler(hic, output_file, norm=norm)
     logger.info("All done.")
 
 

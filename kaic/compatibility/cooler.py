@@ -19,7 +19,7 @@ def is_cooler(file_name):
         return False
 
 
-def to_cooler(hic, path):
+def to_cooler(hic, path, norm=True):
     """
     Export Hi-C data as cooler file. Only contacts that have not been
     filtered are exported.
@@ -54,14 +54,15 @@ def to_cooler(hic, path):
     cooler.create_cooler(cool_uri=path, bins=region_df, pixels=contact_dict, ordered=True)
 
     cool_path, group_path = cooler.util.parse_cooler_uri(path)
-    logger.info("Writing bias vector")
-    # Copied this section from
-    # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
-    with h5py.File(cool_path, 'r+') as h5:
-        grp = h5[group_path]
-        # add the bias column to the file
-        h5opts = dict(compression='gzip', compression_opts=6)
-        grp['bins'].create_dataset("weight", data=bias, **h5opts)
+    if norm:
+        logger.info("Writing bias vector")
+        # Copied this section from
+        # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
+        with h5py.File(cool_path, 'r+') as h5:
+            grp = h5[group_path]
+            # add the bias column to the file
+            h5opts = dict(compression='gzip', compression_opts=6)
+            grp['bins'].create_dataset("weight", data=bias, **h5opts)
 
     return CoolerHic(path)
 
