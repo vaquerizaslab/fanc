@@ -286,7 +286,8 @@ def map(argv, **kwargs):
 
     import kaic.map as map
     from kaic.tools.general import mkdir
-    from kaic.tools.files import create_temporary_copy, random_name
+    from genomic_regions.files import create_temporary_copy
+    from kaic.tools.files import random_name
     import subprocess
     import tempfile
     import shutil
@@ -537,7 +538,8 @@ def sort_sam(argv, **kwargs):
     output_file = None if args.output is None else os.path.expanduser(args.output)
     tmp = args.tmp
 
-    from kaic.tools.files import sort_natural_sam, create_temporary_copy
+    from genomic_regions.files import create_temporary_copy
+    from kaic.tools.files import sort_natural_sam
     import tempfile
     import shutil
 
@@ -813,7 +815,7 @@ def pairs(argv, **kwargs):
     reset_filters = args.reset_filters
     tmp = args.tmp
 
-    from kaic.tools.files import create_temporary_copy, create_temporary_output
+    from genomic_regions.files import create_temporary_copy, create_temporary_output
 
     tmp_input_files = []
     original_pairs_file = None
@@ -913,7 +915,7 @@ def pairs(argv, **kwargs):
 
             if tmp:
                 tmp = False
-                from kaic.tools.files import create_temporary_copy, create_temporary_output
+                from genomic_regions.files import create_temporary_copy, create_temporary_output
                 input_file = create_temporary_copy(input_file)
                 tmp_input_files = [input_file]
                 original_pairs_file = pairs_file
@@ -937,7 +939,7 @@ def pairs(argv, **kwargs):
             pairs_file = os.path.expanduser(input_files[0])
             if tmp:
                 tmp = False
-                from kaic.tools.files import create_temporary_copy
+                from genomic_regions.files import create_temporary_copy
                 original_pairs_file = pairs_file
                 pairs_file = create_temporary_copy(pairs_file)
                 tmp = True
@@ -1221,7 +1223,7 @@ def hic(argv, **kwargs):
 
     import tempfile
     import kaic
-    from kaic.tools.files import create_temporary_copy, create_temporary_output
+    from genomic_regions.files import create_temporary_copy, create_temporary_output
 
     original_output_file = None
     output_file = None
@@ -1246,6 +1248,9 @@ def hic(argv, **kwargs):
             original_input_file = input_file
             if tmp:
                 tmp = False
+                if output_file is None:
+                    original_output_file = input_file
+
                 input_file = create_temporary_copy(input_file)
                 tmp_input_files.append(input_file)
                 tmp = True
@@ -1391,10 +1396,6 @@ def hic(argv, **kwargs):
                     for i, chromosome in enumerate(chromosomes):
                         row, col = divmod(i, cols)
                         ax = plt.subplot2grid((rows, cols), (row, col))
-                        # if rows > 1:
-                        #     ax = axes[row, col]
-                        # else:
-                        #     ax = axes[col]
                         marginals_plot(binned_hic, chromosome, lower=filter_low_coverage,
                                        rel_cutoff=filter_low_coverage_relative, ax=ax)
                         ax.set_title(chromosome)
@@ -1415,12 +1416,15 @@ def hic(argv, **kwargs):
 
             binned_hic.close()
     finally:
+        if tmp and original_output_file is not None:
+            if output_file is not None:
+                shutil.copy(output_file, original_output_file)
+                os.remove(output_file)
+            elif len(tmp_input_files) == 1:
+                shutil.copy(tmp_input_files[0], original_output_file)
+
         for tmp_input_file in tmp_input_files:
             os.remove(tmp_input_file)
-
-        if tmp and output_file is not None and original_output_file is not None:
-            shutil.copy(output_file, original_output_file)
-            os.remove(output_file)
 
 
 def from_juicer_parser():
@@ -1499,7 +1503,7 @@ def from_juicer(argv, **kwargs):
     juicer_norm = args.juicer_norm
     tmp = args.tmp
 
-    from kaic.tools.files import create_temporary_copy
+    from genomic_regions.files import create_temporary_copy
 
     original_input_file = input_file
     original_output_file = output_file
@@ -2288,7 +2292,7 @@ def loops(argv, **kwargs):
     import kaic
     import kaic.peaks
     import shutil
-    from kaic.tools.files import create_temporary_output
+    from genomic_regions.files import create_temporary_output
 
     tmp_input_files = []
 
@@ -2495,7 +2499,7 @@ def overlap_peaks(argv, **kwargs):
     args = parser.parse_args(argv[2:])
 
     import kaic.peaks as kn
-    from kaic.tools.files import create_temporary_copy
+    from genomic_regions.files import create_temporary_copy
 
     original_input_paths = [os.path.expanduser(i) for i in args.input]
     if not args.names:
@@ -4446,7 +4450,7 @@ def upgrade(argv, **kwargs):
     try:
         if tmp:
             tmp = False
-            from kaic.tools.files import create_temporary_copy, create_temporary_output
+            from genomic_regions.files import create_temporary_copy, create_temporary_output
             input_file = create_temporary_copy(input_file)
             tmp_files.append(input_file)
             original_output_file = output_file
@@ -4498,6 +4502,7 @@ def upgrade(argv, **kwargs):
                         raise ValueError("Can only do upgrade in place for chromosome table")
                     logger.info("Updating chromosome info table")
                     old_kaic._update_chromosomes_info()
+                    old_kaic.close()
                 return
         except (ValueError, TypeError):
             pass
