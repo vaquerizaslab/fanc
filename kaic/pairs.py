@@ -1547,9 +1547,12 @@ class ReadPairs(RegionPairsTable):
             gaps = []
             types = []
 
-            with RareUpdateProgressBar(max_value=len(self), silent=config.hide_progressbars,
+            max_value = sum(et._original_len() for _, et in self._iter_edge_tables())
+
+            with RareUpdateProgressBar(max_value=max_value, silent=config.hide_progressbars,
                                        prefix="Ligation error") as pb:
-                for i, pair in enumerate(self.pairs(lazy=True, **kwargs)):
+                for i, pair in enumerate(self.pairs(lazy=True, excluded_filters='all',
+                                                    **kwargs)):
                     if pair.is_same_fragment():
                         same_fragment_count += 1
                         if skip_self_ligations:
