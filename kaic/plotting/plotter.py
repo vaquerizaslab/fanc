@@ -1593,7 +1593,7 @@ class Virtual4CPlot(BasePlotter1D):
         self.alpha = alpha
 
     def _plot(self, region):
-        submatrix = self.hic.as_matrix((self.viewpoint, region))
+        submatrix = self.hic.matrix((self.viewpoint, region))
         v4c_signal = np.nanmean(submatrix, axis=0)
         x = []
         for r in self.hic.regions(region):
