@@ -43,26 +43,39 @@ def _edge_collection(*hics, region=None, scale=True,
                 s = hic.scaling_factor(reference_hic)
                 scaling_factors[i] = s
 
-    edges = defaultdict(list)
-    for i, hic in enumerate(hics):
-        logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
+    total_edges = sum(len(hic.edges) for hic in hics)
 
-        with RareUpdateProgressBar(max_value=len(hic.edges), prefix='Edge coll') as pb:
-            for j, edge in enumerate(hic.edges(region, lazy=True, **kwargs)):
+    edges = defaultdict(list)
+    j = 0
+    with RareUpdateProgressBar(max_value=total_edges, prefix='Edge collection') as pb:
+        for i, hic in enumerate(hics):
+            logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
+
+            for edge in hic.edges(region, lazy=True, **kwargs):
                 weight = edge.weight * scaling_factors[i]
                 source, sink = edge.source, edge.sink
-                edges[(source, sink)].append(weight)
+
+                weight_list = edges[(source, sink)]
+                while len(weight_list) < i:
+                    weight_list.append(0)
+                weight_list.append(weight)
 
                 pb.update(j)
+                j += 1
 
-        for k, v in edges.items():
-            if len(v) < i + 1:
-                v.append(0)
+    total = len(hics)
+    for _, weights in edges.items():
+        while len(weights) < total:
+            weights.append(0)
 
+    before_filtering = len(edges)
     for key in list(edges.keys()):
         for f in filters:
             if not f.valid(key[0], key[1], edges[key]):
                 del edges[key]
+    after_filtering = len(edges)
+
+    logger.info("Valid edges: {}/{}".format(after_filtering, before_filtering))
 
     return edges
 
@@ -166,10 +179,11 @@ class MinMaxDistanceFilter(EdgeCollectionFilter):
 
     def valid(self, source, sink, weights):
         d = abs(sink - source)
-        if self.min_distance is None and d < self.min_distance:
+        if self.min_distance is not None and d < self.min_distance:
             return False
-        if self.max_distance is None and d > self.max_distance:
+        if self.max_distance is not None and d > self.max_distance:
             return False
+        return True
 
 
 class ComparisonMatrix(RegionMatrixTable):
@@ -546,7 +560,7 @@ def hic_pca(*hics, sample_size=None, region=None, strategy='variance', scale=Tru
     for source, sink, weights in pca_edges:
         values.append(weights)
 
-    if log:
+    if not log:
         y = np.array(values)
     else:
         y = np.log(np.array(values))
