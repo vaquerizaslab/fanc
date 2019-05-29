@@ -26,36 +26,6 @@ from .sambam import natural_cmp
 logger = logging.getLogger(__name__)
 
 
-def create_temporary_copy(src_file_name, preserve_extension=True):
-    """
-    Copies the source file into a temporary file.
-    Returns a _TemporaryFileWrapper, whose destructor deletes the temp file
-    (i.e. the temp file is deleted when the object goes out of scope).
-    """
-    src_file_name = os.path.expanduser(src_file_name)
-    tf_suffix = ''
-    if preserve_extension:
-        _, tf_suffix = os.path.splitext(src_file_name)
-    tf = tempfile.NamedTemporaryFile(suffix=tf_suffix, delete=False)
-    shutil.copy2(src_file_name, tf.name)
-
-    logger.debug("Working from temporary output file: {}. "
-                 "Original file: {}".format(tf.name, src_file_name))
-
-    return tf.name
-
-
-def create_temporary_output(original_file_name, preserve_extension=True):
-    tf_suffix = ''
-    if preserve_extension:
-        _, tf_suffix = os.path.splitext(original_file_name)
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=tf_suffix)
-    tmp_file.close()
-    logger.debug("Working from temporary output file: {}. "
-                 "Original file: {}".format(tmp_file.name, original_file_name))
-    return tmp_file.name
-
-
 def get_number_of_lines(file_name):
     with open(file_name, 'r') as f:
         return sum(1 for _ in f)
@@ -531,7 +501,6 @@ def write_gff(file_name, regions, mode='w', **kwargs):
 def write_bigwig(file_name, regions, mode='w', score_field='score'):
     logger.debug("Writing output...")
     bw = pyBigWig.open(file_name, mode)
-    # write header
 
     chromosomes = []
     chromosome_lengths = defaultdict(int)
