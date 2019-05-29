@@ -596,7 +596,7 @@ class LowCoverageFilter(HicEdgeFilter):
         HicEdgeFilter.__init__(self, mask=mask)
         self.set_hic_object(hic_object)
 
-        self._marginals = hic_object.marginals()
+        self._marginals = hic_object.marginals(norm=False)
         if cutoff is None and rel_cutoff is None:
             rel_cutoff = 0.1
             logger.info("Using default 10 percent relative coverage as cutoff")
@@ -616,8 +616,8 @@ class LowCoverageFilter(HicEdgeFilter):
             len(self._regions_to_mask), len(self._regions_to_mask)/len(hic_object.regions)))
 
     def calculate_cutoffs(self, fraction_threshold=0.05):
-        lower = np.median(self._marginals[self._marginals > 0])*fraction_threshold
-        upper = np.median(self._marginals[self._marginals > 0])+lower
+        lower = np.nanmedian(self._marginals[self._marginals > 0])*fraction_threshold
+        upper = np.nanmedian(self._marginals[self._marginals > 0])+lower
         return lower, upper
 
     def valid_edge(self, edge):
