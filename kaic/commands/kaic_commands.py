@@ -1159,11 +1159,25 @@ def hic_parser():
     )
 
     parser.add_argument(
+        '--chromosomes', dest='chromosomes',
+        nargs='+',
+        help='Limit output Hic object to these chromosomes. '
+             'Only available in conjunction with "-b" option.'
+    )
+
+    parser.add_argument(
         '-f', '--force-overwrite', dest='force_overwrite',
         action='store_true',
         default=False,
         help='''If the specified output file exists, it will be 
                     overwritten without warning.'''
+    )
+
+    parser.add_argument(
+        '-t', '--threads', dest='threads',
+        type=int,
+        default=1,
+        help="Number of threads (currently used for binning only)"
     )
 
     parser.add_argument(
@@ -1199,6 +1213,8 @@ def hic(argv, **kwargs):
     force_overwrite = args.force_overwrite
     reset_filters = args.reset_filters
     marginals_plot_file = args.marginals_plot
+    limit_chromosomes = args.chromosomes
+    threads = args.threads
     tmp = args.tmp
 
     if kr and ice:
@@ -1306,7 +1322,8 @@ def hic(argv, **kwargs):
                 merged_hic = kaic.load(merged_hic_file)
 
                 logger.info("Binning Hic file ({})".format(bin_size))
-                binned_hic = merged_hic.bin(bin_size, file_name=output_file)
+                binned_hic = merged_hic.bin(bin_size, file_name=output_file,
+                                            threads=threads, chromosomes=limit_chromosomes)
             else:
                 binned_hic = kaic.load(merged_hic_file, mode='a')
 

@@ -3,15 +3,22 @@ from .regions import Chromosome, Genome
 from .matrix import RegionMatrixTable, RegionMatrixContainer, Edge, LazyEdge
 from abc import abstractmethod, ABCMeta
 from future.utils import with_metaclass, string_types, viewitems
+from .tools.load import load
 from .tools.general import distribute_integer, RareUpdateProgressBar
 from .tools.matrix import restore_sparse_rows, remove_sparse_rows
-from .general import MaskFilter
+from .general import MaskFilter, MaskedTableView
 from collections import defaultdict
+import multiprocessing as mp
+import threading
+import queue
 import numpy as np
 import warnings
 import logging
+import msgpack
+import copy
 
 logger = logging.getLogger(__name__)
+kaic_access_lock = threading.Lock()
 
 
 def _edge_overlap_split_rao(original_edge, overlap_map):
@@ -48,20 +55,21 @@ def _edge_overlap_split_rao(original_edge, overlap_map):
             else:
                 edges[(new_sink, new_source)] = 0
 
-    weights = distribute_integer(original_weight, len(edges))
     edges_list = []
-    for i, key_pair in enumerate(edges):
-        edges_list.append([key_pair[0], key_pair[1], weights[i]])
+    try:
+        weights = distribute_integer(original_weight, len(edges))
+        for i, key_pair in enumerate(edges):
+            edges_list.append([key_pair[0], key_pair[1], weights[i]])
+    except IndexError:
+        pass
 
     return edges_list
 
 
 def _get_overlap_map(old_regions, new_regions):
     # 1. organize regions in self by chromosome
-    new_region_map = {}
+    new_region_map = defaultdict(list)
     for i, new_region in enumerate(new_regions):
-        if new_region.chromosome not in new_region_map:
-            new_region_map[new_region.chromosome] = []
         new_region_map[new_region.chromosome].append([new_region.start, new_region.end, i])
 
     # 2. iterate over regions in hic to find overlap
@@ -78,6 +86,9 @@ def _get_overlap_map(old_regions, new_regions):
         if current_chromosome != old_region.chromosome:
             current_ix = 0
             current_chromosome = old_region.chromosome
+
+        if current_chromosome not in new_region_map:
+            continue
 
         found_overlap = True
         while found_overlap:
@@ -96,6 +107,52 @@ def _get_overlap_map(old_regions, new_regions):
         current_ix -= 1
 
     return old_to_new
+
+
+def _bin_hic_partition_worker(hic_file, qin, qout,
+                              overlap_map, _edges_by_overlap_method,
+                              access_lock):
+
+    try:
+        overlap_map = msgpack.loads(overlap_map)
+        while True:
+            worker_input = qin.get()
+            if worker_input is None:
+                logger.debug("Received stop signal, worker terminating.")
+                break
+
+            chromosome1, chromosome2 = worker_input
+            logger.debug("Received {}-{}".format(chromosome1, chromosome2))
+
+            with access_lock:
+                hic = None
+                try:
+                    hic = load(hic_file)
+                    _weight_field = hic._default_score_field
+                    all_edges = []
+                    for edge in hic.edges_dict((chromosome1, chromosome2), lazy=True):
+                        try:
+                            all_edges.append([edge['source'], edge['sink'], edge[_weight_field]])
+                        except KeyError:
+                            all_edges.append([edge['source'], edge['sink'], edge['weight']])
+
+                finally:
+                    if hic is not None:
+                        hic.close()
+
+            edges = defaultdict(int)
+            for old_source, old_sink, old_weight in all_edges:
+                try:
+                    for new_source, new_sink, new_weight in _edges_by_overlap_method(
+                            [old_source, old_sink, old_weight], overlap_map):
+                        if new_weight != 0:
+                            edges[(new_source, new_sink)] += new_weight
+                except KeyError:
+                    warnings.warn("key".format(old_source, old_sink))
+
+            qout.put(msgpack.dumps(edges))
+    except Exception as e:
+        qout.put(e)
 
 
 class Hic(RegionMatrixTable):
@@ -122,7 +179,9 @@ class Hic(RegionMatrixTable):
                                    _table_name_edges=_table_name_edges,
                                    _edge_buffer_size=_edge_buffer_size)
 
-    def load_from_hic(self, hic, _edges_by_overlap_method=_edge_overlap_split_rao):
+    def load_from_hic(self, hic, threads=1, chromosomes=None,
+                      _edges_by_overlap_method=_edge_overlap_split_rao,
+                      _partition_size=1000):
         """
         Load data from another :class:`~Hic` object.
 
@@ -134,11 +193,14 @@ class Hic(RegionMatrixTable):
         overlap method provided.
 
         :param hic: Another :class:`~Hic` object
+        :param threads: Number of parallel processing threads. More threads also
+                        means higher memory usage.
         :param _edges_by_overlap_method: A function that maps reads from
                                          one genomic region to others using
                                          a supplied overlap map. By default
                                          it uses the Rao et al. (2014) method.
                                          See :func:`~_edge_overlap_split_rao`
+        :param _partition_size: Number of edges processed by each thread
         """
         # if we do not have any nodes in this Hi-C object...
         if len(self.regions) == 0:
@@ -148,14 +210,22 @@ class Hic(RegionMatrixTable):
         # if already have nodes in this HiC object...
         else:
             logger.info("Binning Hi-C contacts")
+
             # create region "overlap map"
-            overlap_map = _get_overlap_map(hic.regions(), self.regions())
+            overlap_map = _get_overlap_map(hic.regions(lazy=False), self.regions(lazy=False))
+
+            file_name = hic.file.filename
+            m = mp.Manager()
+            access_lock = m.Lock()
+            qout = m.Queue()
+            qin = m.Queue()
 
             if not isinstance(hic, RegionMatrixTable):
                 edge_counter = 0
                 with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars,
                                            prefix="Binning") as pb:
-                    chromosomes = hic.chromosomes()
+                    if chromosomes is None:
+                        chromosomes = hic.chromosomes()
                     for i in range(len(chromosomes)):
                         for j in range(i, len(chromosomes)):
                             logger.debug("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
@@ -178,44 +248,67 @@ class Hic(RegionMatrixTable):
                             for (source, sink), weight in edges.items():
                                 self.add_edge_simple(source, sink, weight=weight)
             else:
-                edge_counter = 0
-                with RareUpdateProgressBar(max_value=len(hic.edges), silent=config.hide_progressbars,
-                                           prefix="Binning") as pb:
-                    for partition, edge_table in hic._iter_edge_tables():
-                        edges = defaultdict(int)
-                        for edge in edge_table.iterrows():
-                            old_source, old_sink = edge['source'], edge['sink']
-                            try:
-                                old_weight = edge[hic._default_score_field]
-                            except KeyError:
-                                old_weight = edge['weight']
+                pool = None
+                try:
+                    logger.info("Launching processes")
+                    pool = mp.Pool(threads, _bin_hic_partition_worker,
+                                   (file_name,
+                                    qin, qout,
+                                    msgpack.dumps(overlap_map),
+                                    _edges_by_overlap_method,
+                                    access_lock))
 
-                            for new_source, new_sink, new_weight in _edges_by_overlap_method(
-                                    [old_source, old_sink, old_weight], overlap_map):
-                                if new_weight != 0:
-                                    edges[(new_source, new_sink)] += new_weight
+                    logger.info("Submitting partitions")
+                    if chromosomes is None:
+                        chromosomes = hic.chromosomes()
 
-                            edge_counter += 1
-                            pb.update(edge_counter)
+                    if len(chromosomes) > 100:
+                        warnings.warn("Number of chromosomes ({}) is very large. Consider limiting "
+                                      "the processed chromosomes using the 'chromosomes' argument or "
+                                      "expect significant slowdown during binning!")
 
-                        for (source, sink), weight in edges.items():
-                            self.add_edge_simple(source, sink, weight=weight)
+                    n_chunks = 0
+                    for cix1, chromosome1 in enumerate(chromosomes):
+                        for cix2 in range(cix1, len(chromosomes)):
+                            chromosome2 = chromosomes[cix2]
+                            qin.put((chromosome1, chromosome2))
+                            n_chunks += 1
 
+                    logger.info("Collecting results")
+                    with RareUpdateProgressBar(max_value=n_chunks, prefix="Binning") as pb:
+                        for i in range(n_chunks):
+                            out = qout.get(block=True)
+                            if isinstance(out, Exception):
+                                raise out
+                            edges = msgpack.loads(out, use_list=False)
+                            for (source, sink), weight in edges.items():
+                                self.add_edge_simple(source, sink, weight=weight)
+                            pb.update(i)
+                finally:
+                    for i in range(threads):
+                        qin.put(None)
+
+                    if pool is not None:
+                        pool.terminate()
             logger.debug("Final flush")
             self.flush()
 
-    def bin(self, bin_size, *args, **kwargs):
+    def bin(self, bin_size, threads=1, chromosomes=None, *args, **kwargs):
         """
         Map edges in this object to equidistant bins.
 
         :param bin_size: Bin size in base pairs
+        :param threads: Number of threads used for binning
         :return: :class:`~Hic` object
         """
         # find chromosome lengths
-        logger.debug("Constructing binned genome...")
-        chromosomes = self.chromosomes()
+        logger.info("Constructing binned genome...")
+        if chromosomes is None:
+            chromosomes = self.chromosomes()
         chromosome_sizes = {chromosome: 0 for chromosome in chromosomes}
         for region in self.regions():
+            if region.chromosome not in chromosome_sizes:
+                continue
             if chromosome_sizes[region.chromosome] < region.end:
                 chromosome_sizes[region.chromosome] = region.end
 
@@ -231,9 +324,9 @@ class Hic(RegionMatrixTable):
         if 'mode' not in kwargs:
             kwargs['mode'] = 'w'
         hic = self.__class__(*args, **kwargs)
-        hic.add_regions(regions.regions, preserve_attributes=False)
+        hic.add_regions(regions.regions(lazy=True), preserve_attributes=False)
         regions.close()
-        hic.load_from_hic(self)
+        hic.load_from_hic(self, threads=threads, chromosomes=chromosomes)
 
         return hic
 
