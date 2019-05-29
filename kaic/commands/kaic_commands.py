@@ -1889,6 +1889,14 @@ def pca_parser():
     )
 
     parser.add_argument(
+        '-f', '--force-overwrite', dest='force_overwrite',
+        action='store_true',
+        default=False,
+        help='''If the specified output file exists, it will be 
+                        overwritten without warning.'''
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
@@ -1921,12 +1929,19 @@ def pca(argv, **kwargs):
     markers = args.markers
     eigenvectors = args.eigenvectors
     scale = args.scaling
+    force = args.force_overwrite
     tmp = args.tmp
 
     if argument_sample_names is None:
         sample_names = ['matrix_{}'.format(i) for i in range(len(input_files))]
     else:
         sample_names = argument_sample_names
+
+    if not force and os.path.exists(output_file):
+        parser.error("Output file {} already exists, use -f to overwrite!".format(output_file))
+
+    if not force and plot_file is not None and os.path.exists(plot_file):
+        parser.error("Plot file {} already exists, use -f to overwrite!".format(plot_file))
 
     if len(sample_names) != len(input_files):
         parser.error("Number of samples ({}) does not equal number "
