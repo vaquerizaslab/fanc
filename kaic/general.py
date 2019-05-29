@@ -511,14 +511,15 @@ class Maskable(FileBased):
 
 class MaskedTableView(object):
     def __init__(self, masked_table, it=None, excluded_masks=0, maskable=None):
-        self.masked_table = masked_table
-        self.iter = it if it else self.masked_table._iter_visible_and_masked()
+        self._mask_field = masked_table._mask_field
+        self.iter = iter(it) if it is not None else masked_table._iter_visible_and_masked()
         if isinstance(excluded_masks, int):
             self.excluded_mask_ix = excluded_masks
         elif maskable is not None:
             if excluded_masks == 'all':
-                excluded_masks = list(maskable.masks)
+                excluded_masks = list(maskable.masks())
             self.excluded_mask_ix = maskable.get_binary_mask_from_masks(excluded_masks)
+            logger.debug("Excluded mask binary: {}".format(self.excluded_mask_ix))
         else:
             raise ValueError("Must provide maskable object in order to derive mask "
                              "ixs from mask names ({})".format(excluded_masks))
@@ -531,7 +532,7 @@ class MaskedTableView(object):
         # bit-shift magic! Go @alexis!
         # a is a subset of b if and only if a | b == b.
         # If this condition is satisfied for each byte, return TRUE. Otherwise return FALSE
-        while row[self.masked_table._mask_field] | self.excluded_mask_ix != self.excluded_mask_ix:
+        while row[self._mask_field] | self.excluded_mask_ix != self.excluded_mask_ix:
             row = next(self.iter)
         return row
 
@@ -800,8 +801,8 @@ class MaskedTable(t.Table):
 
     def reset_all_masks(self, silent=config.hide_progressbars):
         n_rows = self._original_len()
-        self.modify_column(colname=self._mask_field, column=np.arange(0, n_rows, 1))
-        self.modify_column(colname=self._mask_index_field, column=np.zeros(n_rows))
+        self.modify_column(colname=self._mask_index_field, column=np.arange(0, n_rows, 1))
+        self.modify_column(colname=self._mask_field, column=np.zeros(n_rows))
         try:
             self.attrs['masked_length'] = n_rows
             self.attrs['mask_stats'] = {}
@@ -900,7 +901,6 @@ class MaskedTable(t.Table):
     def where(self, condition, condvars=None,
               start=None, stop=None, step=None,
               excluded_filters=0, maskable=None):
-        condition = "(" + condition + ") & (%s >= 0)" % self._mask_index_field
         it = super(MaskedTable, self).where(condition, condvars=condvars,
                                             start=start, stop=stop, step=step)
         return MaskedTableView(self, it, excluded_masks=excluded_filters, maskable=maskable)
