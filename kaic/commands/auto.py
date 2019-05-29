@@ -177,7 +177,7 @@ class SgeTaskRunner(TaskRunner):
             if kill is not None:
                 if self._log_dir is not None:
                     tmp_file.write(
-                        '    echo "Failed job ID: {}" > {}\n'.format(
+                        '    echo "Failed job ID: {}" >> {}\n'.format(
                             job_id, os.path.join(self._log_dir, self._task_prefix + "FAILED")
                         ))
                 tmp_file.write('    {} "{}*"\n'.format(config.sge_qdel_path, self._task_prefix))
@@ -287,7 +287,7 @@ class SlurmTaskRunner(TaskRunner):
             if kill is not None:
                 if self._log_dir is not None:
                     tmp_file.write(
-                        '    echo "Failed job ID: {}" > {}\n'.format(
+                        '    echo "Failed job ID: {}" >> {}\n'.format(
                             job_name, os.path.join(self._log_dir,
                                                    self._task_prefix + "FAILED")
                         ))
