@@ -4393,7 +4393,8 @@ def downsample_parser():
 
     parser.add_argument(
         'n',
-        help="Sample size or reference Hi-C object."
+        help="Sample size or reference Hi-C object. If sample size is < 1,"
+             "will be interpreted as a fraction of valid pairs."
     )
 
     parser.add_argument(
@@ -4410,6 +4411,13 @@ def downsample_parser():
              'Warning: Sampling with replacement is not exact.'
     )
 
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='Work in temporary directory'
+    )
+
     return parser
 
 
@@ -4418,21 +4426,49 @@ def downsample(argv, **kwargs):
 
     args = parser.parse_args(argv[2:])
 
+    import os
+    import shutil
     import kaic
+    from genomic_regions.files import create_temporary_copy, create_temporary_output
 
     hic_file = args.hic
-
+    tmp = args.tmp
     n = args.n
-    if os.path.exists(os.path.expanduser(n)):
-        n = kaic.load(n)
-    else:
-        n = int(n)
     output_file = args.output
     with_replacement = args.with_replacement
 
-    with kaic.load(hic_file) as hic:
-        output_hic = hic.sample(n, with_replacement=with_replacement, file_name=output_file)
-        output_hic.close()
+    original_output_file = None
+    tmp_files = []
+    try:
+
+        if os.path.exists(os.path.expanduser(n)):
+            if tmp:
+                tmp = False
+                n = create_temporary_copy(n)
+                tmp_files.append(n)
+                tmp = True
+            n = kaic.load(n)
+        else:
+            n = float(n)
+
+        if tmp:
+            tmp = False
+            hic_file = create_temporary_copy(hic_file)
+            tmp_files.append(hic_file)
+            original_output_file = output_file
+            output_file = create_temporary_output(original_output_file)
+            tmp_files.append(output_file)
+            tmp = True
+
+        with kaic.load(hic_file) as hic:
+            output_hic = hic.sample(n, with_replacement=with_replacement, file_name=output_file)
+            output_hic.close()
+    finally:
+        if original_output_file is not None:
+            shutil.copy(output_file, original_output_file)
+
+        for tmp_file in tmp_files:
+            os.remove(tmp_file)
 
 
 def upgrade_parser():
