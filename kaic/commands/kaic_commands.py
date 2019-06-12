@@ -1317,121 +1317,122 @@ def hic(argv, **kwargs):
 
         if bin_size is None and output_file is not None:
             shutil.copy(merged_hic_file, output_file)
+            merged_hic_file = output_file
+
+        if bin_size is not None:
+            merged_hic = kaic.load(merged_hic_file)
+
+            logger.info("Binning Hic file ({})".format(bin_size))
+            binned_hic = merged_hic.bin(bin_size, file_name=output_file,
+                                        threads=threads, chromosomes=limit_chromosomes)
         else:
-            if bin_size is not None:
-                merged_hic = kaic.load(merged_hic_file)
+            binned_hic = kaic.load(merged_hic_file, mode='a')
 
-                logger.info("Binning Hic file ({})".format(bin_size))
-                binned_hic = merged_hic.bin(bin_size, file_name=output_file,
-                                            threads=threads, chromosomes=limit_chromosomes)
-            else:
-                binned_hic = kaic.load(merged_hic_file, mode='a')
+        if reset_filters:
+            logger.info("Resetting all filters")
+            binned_hic.reset_filters()
 
-            if reset_filters:
-                logger.info("Resetting all filters")
-                binned_hic.reset_filters()
+        filters = []
+        if filter_low_coverage_auto:
+            from kaic.hic import LowCoverageFilter
+            logger.info("Filtering low-coverage bins at 10%%")
+            mask = binned_hic.add_mask_description('low_coverage',
+                                                   'Mask low coverage regions in the Hic matrix '
+                                                   '(relative cutoff {:.1%}'.format(0.1))
 
-            filters = []
-            if filter_low_coverage_auto:
-                from kaic.hic import LowCoverageFilter
-                logger.info("Filtering low-coverage bins at 10%%")
-                mask = binned_hic.add_mask_description('low_coverage',
-                                                       'Mask low coverage regions in the Hic matrix '
-                                                       '(relative cutoff {:.1%}'.format(0.1))
+            low_coverage_auto_filter = LowCoverageFilter(binned_hic, rel_cutoff=0.1,
+                                                         cutoff=None, mask=mask)
+            filters.append(low_coverage_auto_filter)
 
-                low_coverage_auto_filter = LowCoverageFilter(binned_hic, rel_cutoff=0.1,
-                                                             cutoff=None, mask=mask)
-                filters.append(low_coverage_auto_filter)
+        if filter_low_coverage is not None or filter_low_coverage_relative is not None:
+            from kaic.hic import LowCoverageFilter
+            logger.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
+                        "relative cutoff {:.1%}".format(float(filter_low_coverage)
+                                                        if filter_low_coverage else 0.,
+                                                        float(filter_low_coverage_relative)
+                                                        if filter_low_coverage_relative else 0.))
+            mask = binned_hic.add_mask_description('low_coverage',
+                                                   'Mask low coverage regions in the Hic matrix '
+                                                   '(absolute cutoff {:.4}, '
+                                                   'relative cutoff {:.1%}'.format(
+                                                       float(filter_low_coverage)
+                                                       if filter_low_coverage else 0.,
+                                                       float(filter_low_coverage_relative)
+                                                       if filter_low_coverage_relative else 0.)
+                                                   )
 
-            if filter_low_coverage is not None or filter_low_coverage_relative is not None:
-                from kaic.hic import LowCoverageFilter
-                logger.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
-                            "relative cutoff {:.1%}".format(float(filter_low_coverage)
-                                                            if filter_low_coverage else 0.,
-                                                            float(filter_low_coverage_relative)
-                                                            if filter_low_coverage_relative else 0.))
-                mask = binned_hic.add_mask_description('low_coverage',
-                                                       'Mask low coverage regions in the Hic matrix '
-                                                       '(absolute cutoff {:.4}, '
-                                                       'relative cutoff {:.1%}'.format(
-                                                           float(filter_low_coverage)
-                                                           if filter_low_coverage else 0.,
-                                                           float(filter_low_coverage_relative)
-                                                           if filter_low_coverage_relative else 0.)
-                                                       )
+            low_coverage_filter = LowCoverageFilter(binned_hic, rel_cutoff=filter_low_coverage_relative,
+                                                    cutoff=filter_low_coverage, mask=mask)
+            filters.append(low_coverage_filter)
 
-                low_coverage_filter = LowCoverageFilter(binned_hic, rel_cutoff=filter_low_coverage_relative,
-                                                        cutoff=filter_low_coverage, mask=mask)
-                filters.append(low_coverage_filter)
+        if filter_diagonal is not None:
+            from kaic.hic import DiagonalFilter
+            logger.info("Filtering diagonal at distance {}".format(filter_diagonal))
+            mask = binned_hic.add_mask_description('diagonal',
+                                                   'Mask the diagonal of the Hic matrix '
+                                                   '(up to distance {})'.format(filter_diagonal))
+            diagonal_filter = DiagonalFilter(binned_hic, distance=filter_diagonal, mask=mask)
+            filters.append(diagonal_filter)
 
-            if filter_diagonal is not None:
-                from kaic.hic import DiagonalFilter
-                logger.info("Filtering diagonal at distance {}".format(filter_diagonal))
-                mask = binned_hic.add_mask_description('diagonal',
-                                                       'Mask the diagonal of the Hic matrix '
-                                                       '(up to distance {})'.format(filter_diagonal))
-                diagonal_filter = DiagonalFilter(binned_hic, distance=filter_diagonal, mask=mask)
-                filters.append(diagonal_filter)
+        if len(filters) > 0:
+            logger.info("Running filters...")
+            for f in filters:
+                binned_hic.filter(f, queue=True)
+            binned_hic.run_queued_filters(log_progress=True)
+            logger.info("Done.")
 
-            if len(filters) > 0:
-                logger.info("Running filters...")
-                for f in filters:
-                    binned_hic.filter(f, queue=True)
-                binned_hic.run_queued_filters(log_progress=True)
-                logger.info("Done.")
+        if statistics_file is not None or statistics_plot_file is not None or marginals_plot_file is not None:
+            import matplotlib
+            matplotlib.use('agg')
+            import matplotlib.pyplot as plt
+            if statistics_file is not None or statistics_plot_file is not None:
+                statistics = binned_hic.filter_statistics()
 
-            if statistics_file is not None or statistics_plot_file is not None or marginals_plot_file is not None:
-                import matplotlib
-                matplotlib.use('agg')
-                import matplotlib.pyplot as plt
-                if statistics_file is not None or statistics_plot_file is not None:
-                    statistics = binned_hic.filter_statistics()
+                if statistics_file is not None:
+                    with open(statistics_file, 'w') as o:
+                        for name, value in statistics.items():
+                            o.write("{}\t{}\n".format(name, value))
 
-                    if statistics_file is not None:
-                        with open(statistics_file, 'w') as o:
-                            for name, value in statistics.items():
-                                o.write("{}\t{}\n".format(name, value))
-
-                    if statistics_plot_file is not None:
-                        logger.info("Saving statistics...")
-                        from kaic.plotting.statistics import summary_statistics_plot
-                        statistics_plot_file = os.path.expanduser(statistics_plot_file)
-                        fig, ax = plt.subplots()
-                        summary_statistics_plot(statistics)
-                        fig.savefig(statistics_plot_file)
-                        plt.close(fig)
-
-                if marginals_plot_file is not None:
-                    from kaic.plotting.statistics import marginals_plot
-                    chromosomes = binned_hic.chromosomes()
-                    cols = min(len(chromosomes), 4)
-                    rows, remainder = divmod(len(chromosomes), cols)
-                    if remainder > 0:
-                        rows += 1
-                    # fig, axes = plt.subplots(rows, cols)
-                    fig = plt.figure(figsize=(cols*2, rows*2))
-                    for i, chromosome in enumerate(chromosomes):
-                        row, col = divmod(i, cols)
-                        ax = plt.subplot2grid((rows, cols), (row, col))
-                        marginals_plot(binned_hic, chromosome, lower=filter_low_coverage,
-                                       rel_cutoff=filter_low_coverage_relative, ax=ax)
-                        ax.set_title(chromosome)
-                    fig.savefig(marginals_plot_file)
+                if statistics_plot_file is not None:
+                    logger.info("Saving statistics...")
+                    from kaic.plotting.statistics import summary_statistics_plot
+                    statistics_plot_file = os.path.expanduser(statistics_plot_file)
+                    fig, ax = plt.subplots()
+                    summary_statistics_plot(statistics)
+                    fig.savefig(statistics_plot_file)
                     plt.close(fig)
 
-            if ice or kr:
-                logger.info("Correcting binned Hic file")
-                from kaic.hic import ice_balancing, kr_balancing
+            if marginals_plot_file is not None:
+                from kaic.plotting.statistics import marginals_plot
+                chromosomes = binned_hic.chromosomes()
+                cols = min(len(chromosomes), 4)
+                rows, remainder = divmod(len(chromosomes), cols)
+                if remainder > 0:
+                    rows += 1
+                # fig, axes = plt.subplots(rows, cols)
+                fig = plt.figure(figsize=(cols*2, rows*2))
+                for i, chromosome in enumerate(chromosomes):
+                    row, col = divmod(i, cols)
+                    ax = plt.subplot2grid((rows, cols), (row, col))
+                    marginals_plot(binned_hic, chromosome, lower=filter_low_coverage,
+                                   rel_cutoff=filter_low_coverage_relative, ax=ax)
+                    ax.set_title(chromosome)
+                fig.savefig(marginals_plot_file)
+                plt.close(fig)
 
-                if ice:
-                    ice_balancing(binned_hic, whole_matrix=whole_matrix,
-                                  intra_chromosomal=not only_interchromosomal)
-                elif kr:
-                    kr_balancing(binned_hic, whole_matrix=whole_matrix,
-                                 restore_coverage=restore_coverage,
-                                 intra_chromosomal=not only_interchromosomal)
+        if ice or kr:
+            logger.info("Correcting binned Hic file")
+            from kaic.hic import ice_balancing, kr_balancing
 
-            binned_hic.close()
+            if ice:
+                ice_balancing(binned_hic, whole_matrix=whole_matrix,
+                              intra_chromosomal=not only_interchromosomal)
+            elif kr:
+                kr_balancing(binned_hic, whole_matrix=whole_matrix,
+                             restore_coverage=restore_coverage,
+                             intra_chromosomal=not only_interchromosomal)
+
+        binned_hic.close()
     finally:
         if tmp and original_output_file is not None:
             if output_file is not None:
