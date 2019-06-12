@@ -21,6 +21,9 @@ from .general import Maskable, MaskedTable
 from collections import defaultdict
 from future.utils import string_types
 from timeit import default_timer as timer
+import tempfile
+import shutil
+import shove
 
 from bisect import bisect_right
 
@@ -1957,7 +1960,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 edge_table.reset_all_masks(silent=True)
                 pb.update(i)
 
-    def sample(self, n, with_replacement=False, file_name=None):
+    def sample(self, n, with_replacement=False, file_name=None, in_memory=False):
         """
         Sample edges from this object.
 
@@ -1984,31 +1987,89 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             n = int(n)
         logger.info("Final n: {}".format(n))
 
-        region_pairs = []
-        if with_replacement:
-            weights = []
-            logger.info("Using sampling with replacement")
-            for edge in self.edges(lazy=True, norm=False):
-                region_pairs.append((edge.source, edge.sink))
-                weights.append(edge.weight)
-            s = sum(weights)
-            p = [w / s for w in weights]
-        else:
-            p = None
-            logger.info("Using sampling without replacement")
-            for edge in self.edges(lazy=True, norm=False):
-                for i in range(int(edge.weight)):
-                    region_pairs.append((edge.source, edge.sink))
+        f_pairs = None
+        f_probs = None
+        f_edges = None
+        try:
+            if in_memory:
+                region_pairs = []
+                if with_replacement:
+                    weights = []
+                    logger.info("Using sampling with replacement")
+                    for edge in self.edges(lazy=True, norm=False):
+                        region_pairs.append((edge.source, edge.sink))
+                        weights.append(edge.weight)
+                    s = sum(weights)
+                    p = [w / s for w in weights]
+                else:
+                    p = None
+                    logger.info("Using sampling without replacement")
+                    for edge in self.edges(lazy=True, norm=False):
+                        for i in range(int(edge.weight)):
+                            region_pairs.append((edge.source, edge.sink))
+            else:
+                f_pairs = tempfile.NamedTemporaryFile(suffix='.dat', prefix='sample_pairs_', delete=False)
 
-        new_pairs = self.__class__(file_name=file_name, mode='w')
-        new_pairs.add_regions(self.regions, preserve_attributes=False)
-        new_edges = defaultdict(int)
-        for new_pair_ix in np.random.choice(len(region_pairs), size=n, replace=with_replacement, p=p):
-            new_edges[region_pairs[new_pair_ix]] += 1
-        new_edges = [[source, sink, weight] for (source, sink), weight in new_edges.items()]
-        new_pairs.add_edges(new_edges)
+                if with_replacement:
+                    logger.info("Using sampling with replacement on file")
+                    f_probs = tempfile.NamedTemporaryFile(suffix='.dat', prefix='sample_prob_', delete=False)
+                    n_edges = len(self.edges)
 
-        return new_pairs
+                    region_pairs = np.memmap(f_pairs.name, dtype='int32', mode='w+', shape=(n_edges, 2))
+                    p = np.memmap(f_probs.name, dtype='float32', mode='w+', shape=(n_edges, ))
+
+                    s = 0
+                    for i, edge in enumerate(self.edges(lazy=True, norm=False)):
+                        region_pairs[i][0] = edge.source
+                        region_pairs[i][1] = edge.sink
+                        w = edge.weight
+                        s += w
+                        p[i] = w
+
+                    for i in range(n_edges):
+                        p[i] /= s
+                else:
+                    logger.info("Using sampling without replacement on file")
+                    n_weights = int(np.ceil(np.sum(e.weight for e in self.edges(lazy=True, norm=False))))
+                    region_pairs = np.memmap(f_pairs.name, dtype='int32', mode='w+', shape=(n_weights, 2))
+
+                    p = None
+                    weight_counter = 0
+                    for i, edge in enumerate(self.edges(lazy=True, norm=False)):
+                        for j in range(int(edge.weight)):
+                            region_pairs[weight_counter][0] = edge.source
+                            region_pairs[weight_counter][1] = edge.sink
+                            weight_counter += 1
+
+            new_pairs = self.__class__(file_name=file_name, mode='w')
+            new_pairs.add_regions(self.regions, preserve_attributes=False)
+            if in_memory:
+                new_edges = dict()
+            else:
+                f_edges = tempfile.mkdtemp(suffix='.dict', prefix='sample_edges_')
+                new_edges = shove.Shove('file://{}'.format(f_edges))
+            for new_pair_ix in np.random.choice(len(region_pairs), size=n, replace=with_replacement, p=p):
+                key = tuple(region_pairs[new_pair_ix])
+                sane_key = '{}-{}'.format(int(key[0]), int(key[1]))
+                if sane_key not in new_edges:
+                    new_edges[sane_key] = 1
+                else:
+                    new_edges[sane_key] += 1
+
+            for source_sink, weight in new_edges.items():
+                fields = source_sink.split("-")
+                new_pairs.add_edge_simple(int(fields[0]), int(fields[1]), weight)
+
+            new_pairs.flush()
+            return new_pairs
+        finally:
+            if f_pairs is not None:
+                os.remove(f_pairs.name)
+            if f_probs is not None:
+                os.remove(f_probs.name)
+            if f_edges is not None:
+                import shutil
+                shutil.rmtree(f_edges)
 
     @classmethod
     def merge_region_pairs_tables(cls, pairs, check_regions_identical=True,

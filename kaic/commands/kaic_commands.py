@@ -4413,6 +4413,13 @@ def downsample_parser():
     )
 
     parser.add_argument(
+        '-m', '--in-memory', dest='in_memory',
+        action='store_true',
+        default=False,
+        help='Keep all pixels in memory (only use for small matrices!)'
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
@@ -4437,6 +4444,7 @@ def downsample(argv, **kwargs):
     n = args.n
     output_file = args.output
     with_replacement = args.with_replacement
+    in_memory = args.in_memory
 
     original_output_file = None
     tmp_files = []
@@ -4462,7 +4470,8 @@ def downsample(argv, **kwargs):
             tmp = True
 
         with kaic.load(hic_file) as hic:
-            output_hic = hic.sample(n, with_replacement=with_replacement, file_name=output_file)
+            output_hic = hic.sample(n, with_replacement=with_replacement, file_name=output_file,
+                                    in_memory=in_memory)
             output_hic.close()
     finally:
         if original_output_file is not None:

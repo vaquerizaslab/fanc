@@ -55,6 +55,7 @@ setup(
         'gridmap>=0.14.0',
         'intervaltree',
         'genomic_regions>=0.0.4',
+        'shove',
     ],
     extras_require={
         'cooler': ['cooler>=0.8.0', 'h5py'],
