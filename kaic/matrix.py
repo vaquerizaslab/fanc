@@ -1963,7 +1963,8 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         Sampling is always done on uncorrected Hi-C matrices.
 
-        :param n: Sample size
+        :param n: Sample size or reference object. If n < 1 will be interpreted as
+                  a fraction of total reads in this object.
         :param with_replacement: If True, edges can be sampled multiple times,
                                  even if their weight is 1. By default, this is
                                  False, but potentially this could use a lot
@@ -1972,7 +1973,16 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         :return: :class:`~RegionPairsTable`
         """
         if isinstance(n, RegionPairsContainer):
+            logger.info("Using reference Hi-C object to downsample")
             n = len(n.edges)
+        elif n < 1:
+            logger.info("Using fraction of valid pairs to downsample")
+            total = sum(e.weight for e in self.edges(lazy=True))
+            n = int(n*total)
+        else:
+            logger.info("Using specific number to downsample")
+            n = int(n)
+        logger.info("Final n: {}".format(n))
 
         region_pairs = []
         if with_replacement:
