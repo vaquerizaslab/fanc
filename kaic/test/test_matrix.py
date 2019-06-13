@@ -9,6 +9,7 @@ from kaic.pairs import ReadPairs, SamBamReadPairGenerator
 from kaic.tools.matrix import is_symmetric
 from kaic.compatibility.juicer import JuicerHic
 from kaic.compatibility.cooler import CoolerHic
+from kaic.tools.load import load
 import tables
 import pytest
 
@@ -418,7 +419,7 @@ class TestHicBasic:
         hic.add_edges(edges)
 
         self.hic = hic
-        self.hic_cerevisiae = Hic(self.dir + "/test_matrix/cerevisiae.chrI.HindIII_upgrade.hic")
+        self.hic_cerevisiae = load(self.dir + "/test_matrix/cerevisiae.chrI.HindIII_upgrade.hic", mode='r')
         self.hic_class = Hic
 
     def teardown_method(self, method):
@@ -808,8 +809,9 @@ class TestHicBasic:
         for bin_size in bin_sizes:
             assert_binning(bin_size)
 
-    def test_from_hic_sample(self):
-        hic = self.hic_class()
+    def test_from_hic_sample(self, tmpdir):
+        dest_file = os.path.join(str(tmpdir), "hic.h5")
+        hic = self.hic_class(file_name=dest_file, mode='w')
         hic.add_region(GenomicRegion(chromosome='chr1', start=1, end=100))
         hic.add_region(GenomicRegion(chromosome='chr1', start=101, end=200))
         hic.flush()
@@ -817,6 +819,8 @@ class TestHicBasic:
         hic.add_edge([0, 1, 36])
         hic.add_edge([1, 1, 24])
         hic.flush()
+        hic.close()
+        hic = load(dest_file, mode='r')
 
         binned = self.hic_class()
         binned.add_region(GenomicRegion(chromosome='chr1', start=1, end=50))
@@ -846,8 +850,10 @@ class TestHicBasic:
         hic.close()
         binned.close()
 
-    def test_builtin_bin(self):
-        hic = self.hic_class()
+    def test_builtin_bin(self, tmpdir):
+        dest_file = os.path.join(str(tmpdir), "hic.h5")
+
+        hic = self.hic_class(file_name=dest_file, mode='w')
         hic.add_region(GenomicRegion(chromosome='chr1', start=1, end=100))
         hic.add_region(GenomicRegion(chromosome='chr1', start=101, end=200))
         hic.flush()
@@ -855,6 +861,8 @@ class TestHicBasic:
         hic.add_edge([0, 1, 36])
         hic.add_edge([1, 1, 24])
         hic.flush()
+        hic.close()
+        hic = load(dest_file, mode='r')
 
         binned = hic.bin(50)
 
