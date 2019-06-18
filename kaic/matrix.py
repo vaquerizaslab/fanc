@@ -1973,7 +1973,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         :return: :class:`~RegionPairsTable`
         """
         logger.info("Collecting valid pairs")
-        total = sum(e.weight for e in self.edges(lazy=True, norm=False))
+        total = int(sum(e.weight for e in self.edges(lazy=True, norm=False)))
 
         if isinstance(n, string_types) and os.path.exists(os.path.expanduser(n)):
             with load(n) as ref:
@@ -1989,7 +1989,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             else:
                 logger.info("Using specific number to downsample")
                 n = int(n)
-        logger.info("Final n: {}/{}".format(n, int(total)))
+        logger.info("Final n: {}/{}".format(n, total))
 
         logger.info("Determining random sample")
         choice = np.random.choice(int(total), size=n, replace=False)
@@ -1999,22 +1999,25 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         new_pairs = self.__class__(file_name=file_name, mode='w')
         new_pairs.add_regions(self.regions, preserve_attributes=False)
 
-        choice_counter = 0
-        pairs_counter = 0
-        try:
-            for edge in self.edges(lazy=True, norm=False):
-                new_weight = 0
-                for i in range(int(edge.weight)):
-                    while pairs_counter == choice[choice_counter]:
-                        new_weight += 1
-                        choice_counter += 1
+        with RareUpdateProgressBar(max_value=total) as pb:
+            choice_counter = 0
+            pairs_counter = 0
+            try:
+                for edge in self.edges(lazy=True, norm=False):
+                    new_weight = 0
+                    for i in range(int(edge.weight)):
+                        while pairs_counter == choice[choice_counter]:
+                            new_weight += 1
+                            choice_counter += 1
 
-                    pairs_counter += 1
+                        pairs_counter += 1
 
-                if new_weight > 0:
-                    new_pairs.add_edge_simple(edge.source, edge.sink, new_weight)
-        except IndexError:
-            pass
+                        pb.update(pairs_counter)
+
+                    if new_weight > 0:
+                        new_pairs.add_edge_simple(edge.source, edge.sink, new_weight)
+            except IndexError:
+                pass
 
         new_pairs.flush()
         return new_pairs
