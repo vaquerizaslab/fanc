@@ -265,7 +265,7 @@ class Hic(RegionMatrixTable):
                     if len(chromosomes) > 100:
                         warnings.warn("Number of chromosomes ({}) is very large. Consider limiting "
                                       "the processed chromosomes using the 'chromosomes' argument or "
-                                      "expect significant slowdown during binning!")
+                                      "expect significant slowdown during binning!".format(len(chromosomes)))
 
                     n_chunks = 0
                     for cix1, chromosome1 in enumerate(chromosomes):
