@@ -1110,6 +1110,13 @@ def hic_parser():
     )
 
     parser.add_argument(
+        '--downsample', dest='downsample',
+        help="Downsample a binned Hi-C object before filtering and correcting. "
+             "Sample size or reference Hi-C object. If sample size is < 1,"
+             "will be interpreted as a fraction of valid pairs."
+    )
+
+    parser.add_argument(
         '-i', '--ice-correct', dest='ice',
         action='store_true',
         default=False,
@@ -1203,6 +1210,7 @@ def hic(argv, **kwargs):
     filter_low_coverage_relative = args.filter_low_coverage_relative
     filter_low_coverage_auto = args.filter_low_coverage_auto
     filter_diagonal = args.filter_diagonal
+    downsample = args.downsample
     ice = args.ice
     kr = args.kr
     whole_matrix = args.whole_matrix
@@ -1315,18 +1323,27 @@ def hic(argv, **kwargs):
         else:
             merged_hic_file = hic_files[0]
 
-        if bin_size is None and output_file is not None:
-            shutil.copy(merged_hic_file, output_file)
-            merged_hic_file = output_file
-
         if bin_size is not None:
             merged_hic = kaic.load(merged_hic_file)
 
             logger.info("Binning Hic file ({})".format(bin_size))
-            binned_hic = merged_hic.bin(bin_size, file_name=output_file,
+            if downsample is None:
+                output_binned_file = output_file
+            else:
+                f = tempfile.NamedTemporaryFile(delete=False, suffix='.hic')
+                output_binned_file = f.name
+                tmp_input_files.append(output_binned_file)
+            binned_hic = merged_hic.bin(bin_size, file_name=output_binned_file,
                                         threads=threads, chromosomes=limit_chromosomes)
         else:
+            if downsample is None and output_file is not None:
+                shutil.copy(merged_hic_file, output_file)
+                merged_hic_file = output_file
             binned_hic = kaic.load(merged_hic_file, mode='a')
+
+        if downsample is not None:
+            downsampled_hic = binned_hic.downsample(downsample, file_name=output_file)
+            binned_hic = downsampled_hic
 
         if reset_filters:
             logger.info("Resetting all filters")
@@ -4404,22 +4421,6 @@ def downsample_parser():
     )
 
     parser.add_argument(
-        '-r', '--with-replacement', dest='with_replacement',
-        action='store_true',
-        default=False,
-        help='Use sampling of pairs with replacement. '
-             'Use this if you are having trouble with memory usage. '
-             'Warning: Sampling with replacement is not exact.'
-    )
-
-    parser.add_argument(
-        '-m', '--in-memory', dest='in_memory',
-        action='store_true',
-        default=False,
-        help='Keep all pixels in memory (only use for small matrices!)'
-    )
-
-    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
@@ -4432,6 +4433,8 @@ def downsample_parser():
 def downsample(argv, **kwargs):
     parser = downsample_parser()
 
+    print("*** kaic downsample is deprecated. Please use kaic hic --downsample instead! ***")
+
     args = parser.parse_args(argv[2:])
 
     import os
@@ -4443,8 +4446,6 @@ def downsample(argv, **kwargs):
     tmp = args.tmp
     n = args.n
     output_file = args.output
-    with_replacement = args.with_replacement
-    in_memory = args.in_memory
 
     original_output_file = None
     tmp_files = []
@@ -4470,8 +4471,7 @@ def downsample(argv, **kwargs):
             tmp = True
 
         with kaic.load(hic_file) as hic:
-            output_hic = hic.sample(n, with_replacement=with_replacement, file_name=output_file,
-                                    in_memory=in_memory)
+            output_hic = hic.downsample(n, file_name=output_file)
             output_hic.close()
     finally:
         if original_output_file is not None:
