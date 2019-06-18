@@ -1282,7 +1282,7 @@ def hic(argv, **kwargs):
             o = None
             try:
                 o = kaic.load(input_file)
-                if isinstance(o, kaic.Hic):
+                if isinstance(o, kaic.Hic) or isinstance(o, kaic.hic.LegacyHic):
                     hic_files.append(input_file)
                 elif isinstance(o, kaic.ReadPairs):
                     pairs_files.append(input_file)
