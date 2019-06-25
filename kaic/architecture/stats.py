@@ -10,7 +10,7 @@ def cis_trans_ratio(hic, normalise=False):
     cis = 0
     trans = 0
     regions_dict = hic.regions_dict
-    for edge in hic.edges(lazy=True):
+    for edge in hic.edges(lazy=True, norm=False):
         if regions_dict[edge.source].chromosome == regions_dict[edge.sink].chromosome:
             cis += edge.weight
         else:
