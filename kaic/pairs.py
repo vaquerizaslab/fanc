@@ -405,10 +405,7 @@ class ReadPairGenerator(object):
         self._total_pairs = 0
         self._valid_pairs = 0
 
-        unmapped_filter = UnmappedFilter(mask=Mask('unmappable', 'Mask unmapped reads',
-                                                   ix=len(self.filters)))
-        self.add_filter(unmapped_filter)
-        self._unmapped_filter_ix = len(self.filters) - 1
+        self._unmappable_count = 0
 
     def _iter_read_pairs(self, *args, **kwargs):
         raise NotImplementedError("Class must override iter_read_pairs")
@@ -448,11 +445,21 @@ class ReadPairGenerator(object):
         stats = dict()
         for i, count in self._filter_stats.items():
             stats[filter_names[i]] = count
+        stats['unmappable'] = self._unmappable_count
         stats['valid'] = self._valid_pairs
-        stats['total'] = self._total_pairs
+        stats['total'] = self._total_pairs + self._unmappable_count
         return stats
 
     def __iter__(self):
+        filters = []
+        for f in self.filters:
+            if not isinstance(f, UnmappedFilter):
+                filters.append(f)
+            else:
+                logger.warning("Unmappable reads are filtered by default, "
+                               "no need to add explicit filter.")
+        self.filters = filters
+
         self._filter_stats = defaultdict(int)
         self._total_pairs = 0
         self._valid_pairs = 0
@@ -707,14 +714,16 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
         reads = []
         for read in sam:
             if read.is_unmapped:
-                self._filter_stats[self._unmapped_filter_ix] += 1
                 continue
 
             qname = read.qname.encode('utf-8')
             if current_qname is None or natural_cmp(qname, current_qname) == 0:
                 reads.append(read)
             else:
-                if len(reads) > 0:
+                if len(reads) < 2:
+                    # one or both halves must be unmappable
+                    self._unmappable_count += 1
+                else:
                     read1, read2, is_chimeric = PairedSamBamReadPairGenerator.resolve_chimeric(reads)
                     if read1 is not None and read2 is not None:
                         yield (read1, read2)
@@ -728,7 +737,10 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
             current_qname = qname
 
         # final reads
-        if len(reads) > 0:
+        if len(reads) < 2:
+            # one or both halves must be unmappable
+            self._unmappable_count += 1
+        else:
             read1, read2, is_chimeric = PairedSamBamReadPairGenerator.resolve_chimeric(reads)
             if read1 is not None and read2 is not None:
                 yield (read1, read2)
