@@ -906,6 +906,15 @@ def line_parser():
     )
 
     parser.add_argument(
+        '-s', '--line-style', dest='line_style',
+        default='step',
+        help='Style of line. Default is "step": Whole region '
+             'is assigned a value, leading to rectangular appearance. '
+             'Alternative is "mid": Connect regions only at their '
+             'midpoint.'
+    )
+
+    parser.add_argument(
         '-y', '--ylim', dest='ylim',
         nargs=2,
         type=float,
@@ -923,12 +932,15 @@ def line(parameters):
     bin_size = args.bin_size
     labels = args.labels
     fill = args.fill
+    line_style = args.line_style
+    ylim = args.ylim
 
     if labels is not None and len(labels) != len(regions):
         parser.error("Number of labels ({}) must be the same as number "
                      "of datasets ({})".format(len(labels), len(regions)))
 
-    p = kplt.LinePlot(regions, bin_size=bin_size, fill=fill, attribute=attribute, labels=labels)
+    p = kplt.LinePlot(regions, bin_size=bin_size, fill=fill, attribute=attribute, labels=labels,
+                      style=line_style, ylim=ylim)
     return p, args
 
 
