@@ -2852,7 +2852,7 @@ def compare(argv, **kwargs):
         cmp.close()
     elif isinstance(matrix1, RegionScoreParameterTable) and isinstance(matrix2, RegionScoreParameterTable):
         ComparisonScores = None
-        if comparison == 'fold_change' or comparison == 'fc':
+        if comparison == 'fold-change' or comparison == 'fc':
             ComparisonScores = FoldChangeScores
         elif comparison == 'difference' or comparison == 'diff':
             ComparisonScores = DifferenceScores
@@ -2864,7 +2864,7 @@ def compare(argv, **kwargs):
         cmp.close()
     elif isinstance(matrix1, RegionBased) and isinstance(matrix2, RegionBased):
         ComparisonRegions = None
-        if comparison == 'fold_change' or comparison == 'fc':
+        if comparison == 'fold-change' or comparison == 'fc':
             ComparisonRegions = FoldChangeRegions
         elif comparison == 'difference' or comparison == 'diff':
             ComparisonRegions = DifferenceRegions
