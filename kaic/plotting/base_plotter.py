@@ -532,7 +532,8 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
 
     def __init__(self, colormap=config.colormap_hic, norm="log", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=True, replacement_color=None,
-                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None, **kwargs):
+                 unmappable_color=".9", illegal_color=None, colorbar_symmetry=None,
+                 cax=None, **kwargs):
         """
         :param colormap: Can be the name of a colormap or a Matplotlib colormap instance
         :param norm: Can be "lin", "log" or any Matplotlib Normalization instance
@@ -564,7 +565,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         self.colorbar_symmetry = colorbar_symmetry
         self.colorbar = None
         self.replacement_color = replacement_color
-        self.cax = None
+        self.cax = cax
 
     def _after_plot(self, region):
         super(BasePlotterMatrix, self)._after_plot(region)
@@ -629,16 +630,16 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
             baseline = self.colorbar_symmetry
 
         if baseline is None:
-            self.colorbar.set_clim(vmax=vmax, vmin=vmin)
+            self.colorbar.mappable.set_clim(vmax=vmax, vmin=vmin)
         else:
-            old_vmin, old_vmax = self.colorbar.get_clim()
+            old_vmin, old_vmax = self.colorbar.mappable.get_clim()
             if vmin is None:
                 vmin = old_vmin
             if vmax is None:
                 vmax = old_vmax
 
             max_diff = max(abs(baseline - vmax), abs(baseline - vmin))
-            self.colorbar.set_clim(vmin=baseline-max_diff, vmax=baseline+max_diff)
+            self.colorbar.mappable.set_clim(vmin=baseline-max_diff, vmax=baseline+max_diff)
         self.colorbar.draw_all()
 
     @property
