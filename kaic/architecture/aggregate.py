@@ -3,7 +3,7 @@ from collections import defaultdict
 import numpy as np
 from ..tools.general import RareUpdateProgressBar
 from ..general import FileGroup
-from scipy.misc import imresize
+from scipy.ndimage import zoom
 import warnings
 import tables
 
@@ -196,10 +196,16 @@ class AggregateMatrix(FileGroup):
                                                 absolute_extension=absolute_extension,
                                                 relative_extension=relative_extension,
                                                 **kwargs):
-            ms = imresize(m, shape, interp=interpolation, mode='F')
+            ms = zoom(m, (shape[0]/m.shape[0], shape[1]/m.shape[1]), mode=interpolation)
+            if ms.shape != shape:
+                raise ValueError("Matrix shape not as expected ({}) vs ({}). "
+                                 "This may be due to the recent replacement of 'imresize' with 'zoom'. "
+                                 "Please contact Kai.")
+            #ms = imresize(m, shape, interp=interpolation, mode='F')
 
             if keep_mask and hasattr(ms, 'mask'):
-                mask = imresize(m.mask, shape, interp='nearest').astype('bool')
+                # mask = imresize(m.mask, shape, interp='nearest').astype('bool')
+                mask = zoom(m.mask, (shape[0] / m.shape[0], shape[1] / m.shape[1]), mode=interpolation)
                 ms = np.ma.masked_where(mask, ms)
                 inverted_mask = ~mask
                 counter_matrix += inverted_mask.astype('int')
@@ -459,13 +465,19 @@ def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=
     shape = (pixels, pixels)
     counter_matrix = np.zeros(shape)
     matrix_sum = np.zeros(shape)
-    for m in _tad_matrix_iterator(hic, tad_regions,
-                                  absolute_extension=absolute_extension,
-                                  relative_extension=relative_extension, **kwargs):
-        ms = imresize(m, shape, interp=interpolation, mode='F')
+    for pair, m in _tad_matrix_iterator(hic, tad_regions,
+                                        absolute_extension=absolute_extension,
+                                        relative_extension=relative_extension, **kwargs):
+        # ms = imresize(m, shape, interp=interpolation, mode='F')
+        ms = zoom(m, (shape[0] / m.shape[0], shape[1] / m.shape[1]), mode=interpolation)
+        if ms.shape != shape:
+            raise ValueError("Matrix shape not as expected ({}) vs ({}). "
+                             "This may be due to the recent replacement of 'imresize' with 'zoom'. "
+                             "Please contact Kai.")
 
         if keep_mask and hasattr(ms, 'mask'):
-            mask = imresize(m.mask, shape, interp='nearest').astype('bool')
+            # mask = imresize(m.mask, shape, interp='nearest').astype('bool')
+            mask = zoom(m.mask, (shape[0] / m.shape[0], shape[1] / m.shape[1]), mode=interpolation)
             ms = np.ma.masked_where(mask, ms)
             inverted_mask = ~mask
             counter_matrix += inverted_mask.astype('int')
