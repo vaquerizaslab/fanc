@@ -944,6 +944,63 @@ def line(parameters):
     return p, args
 
 
+def bar_parser():
+    parser = subplot_parser()
+    parser.description = '''Bar plot for region scores.'''
+
+    parser.add_argument(
+        'regions',
+        nargs='+',
+        help='Region-based file, e.g. BED, GFF, BigWig, ...'
+    )
+
+    parser.add_argument(
+        '-a', '--attribute', dest='attribute',
+        default='score',
+        help='Attribute to plot. Default: score'
+    )
+
+    parser.add_argument(
+        '-b', '--bin-size', dest='bin_size',
+        type=int,
+        help='Bin size. Specify if you want to bin scores into '
+             'larger regions (using weighted mean).'
+    )
+
+    parser.add_argument(
+        '-l', '--labels', dest='labels',
+        nargs='+',
+        help='Labels for region datasets'
+    )
+
+    parser.add_argument(
+        '-y', '--ylim', dest='ylim',
+        nargs=2,
+        type=float,
+        help='''Y-axis limits.'''
+    )
+    return parser
+
+
+def bar(parameters):
+    parser = line_parser()
+    args = parser.parse_args(parameters)
+
+    regions = [kaic.load(file_name) for file_name in args.regions]
+    attribute = args.attribute
+    bin_size = args.bin_size
+    labels = args.labels
+    ylim = args.ylim
+
+    if labels is not None and len(labels) != len(regions):
+        parser.error("Number of labels ({}) must be the same as number "
+                     "of datasets ({})".format(len(labels), len(regions)))
+
+    p = kplt.BarPlot(regions, bin_size=bin_size, attribute=attribute, labels=labels,
+                     ylim=ylim)
+    return p, args
+
+
 def bigwig_parser():
     parser = subplot_parser()
     parser.description = '''BigWig plot.'''
