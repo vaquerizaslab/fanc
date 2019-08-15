@@ -1403,7 +1403,7 @@ class FeatureLayerPlot(BasePlotter1D):
 
     def __init__(self, features, gff_grouping_attribute=None,
                  element_height=0.8, include=None, exclude=None,
-                 color_by='strand', colors=((1, 'r'), (-1, 'b')),
+                 color_by='strand', colors=((1, 'orangered'), (-1, 'darkturquoise')),
                  shadow=True, shadow_width=0.005,
                  collapse=False, **kwargs):
         """
