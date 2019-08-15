@@ -13,17 +13,49 @@ logger = logging.getLogger(__name__)
 
 
 class AggregateMatrix(FileGroup):
+    """
+    Construct and store aggregate matrices from matrix-based objects.
+
+    Methods in this class can be used to generate various kinds of aggregate
+    matrices, constructed from averaging the signal from different regions
+    of a Hi-C (or similar) matrix. Particularly useful is the creation of
+    aggregate matrices from observed/expected data.
+
+    Class methods control how exactly an aggregate matrix is constructed:
+
+    - :func:`AggregateMatrix.from_center` will aggregate Hi-C matrix regions along the diagonal
+      in a fixed window around the region center. This is useful, for example,
+      to observe the signal around TAD boundaries or other local features,
+      such as the start of genes, enhancer locations, ...
+
+    - :func:`AggregateMatrix.from_regions` will extract sub-matrices using
+      regions of variable size - such as TADs - and interpolate them to the
+      same number of pixels before aggregating them.
+
+    - :func:`AggregateMatrix.from_center_pairs` will extract arbitrary Hi-C
+      submatrices from a list of region pairs (representing row and column
+      of the matrix). Each submatrix is centered on each region,
+      and a fixed number of pixels around the center is extracted. This is
+      used, for example, to plot aggregate matrices around loops, using the
+      loop anchors as input.
+
+    """
 
     _classid = 'AGGREGATEMATRIX'
 
-    def __init__(self, file_name=None, mode='r', tmpdir=None,
-                 x=None, y=None):
+    def __init__(self, file_name=None, mode='r', tmpdir=None, x=None, y=None):
         FileGroup.__init__(self, 'aggregate', file_name=file_name, mode=mode, tmpdir=tmpdir)
 
         self.x = x
         self.y = y
 
     def matrix(self, m=None):
+        """
+        Retrieve or set the aggregate matrix in this object.
+
+        :param m: Numpy matrix
+        :return: aggregate matrix
+        """
         if m is not None:
             try:
                 self.file.remove_node(self._group, 'aggregate_matrix')
@@ -35,6 +67,14 @@ class AggregateMatrix(FileGroup):
         return self._group.aggregate_matrix[:]
 
     def region_pairs(self, pairs=None):
+        """
+        Retrieve or set the regions used to generate the aggregate matrix.
+
+        :param pairs: Iterable of region tuples of the form
+                      [(region1, region2), (region3, region4), ...].
+                      If None, simply return the region pairs in this object.
+        :return: List of region pairs [(region1, region2), (region3, region4), ...].
+        """
         if pairs is not None:
             try:
                 self.file.remove_node(self._group, 'region_pairs')
@@ -80,6 +120,12 @@ class AggregateMatrix(FileGroup):
         return pairs
 
     def components(self, components=None):
+        """
+        Retrieve or store each individual submatrix composing the aggregate matrix.
+
+        :param components: List of (masked) numpy arrays
+        :return: List of (masked) numpy arrays
+        """
         if components is not None:
             try:
                 self.file.remove_node(self._group, 'components', recursive=True)
@@ -129,6 +175,49 @@ class AggregateMatrix(FileGroup):
                     keep_components=True,
                     file_name=None, tmpdir=None, region_viewpoint='center',
                     **kwargs):
+        """
+        Construct an aggregate matrix from square regions along
+        the diagonal with a fixed window size.
+
+        By default, the submatrix that is extracted from :code:`matrix` is
+        centred on the region centre and has a window size specified by
+        :code:`window`. You can change where the window will be centered using
+        :code:`region_viewpoint`, which can be any of "center", "start", "end",
+        "five_prime", or "three_prime". The latter two may be particularly useful
+        for genomic features such as genes.
+
+        Example for TAD boundaries:
+
+        .. code::
+
+            import kaic
+            hic = kaic.load("/path/to/matrix.hic")
+            tad_boundaries = kaic.load("/path/to/tad_boundaries.bed")
+
+            # run aggregate analysis
+            am = kaic.AggregateMatrix.from_center(hic, tad_boundaries.regions,
+                                                  window=500000)
+            # extract matrix when done
+            m = am.matrix()
+
+        :param matrix: An object of type :class:`RegionMatrixContainer`, such as a
+                       Hic matrix
+        :param regions: A list of :cls:`GenomicRegion` objects
+        :param window: A window size in base pairs
+        :param rescale: If True, will use :code:`scaling_exponent` to artificially rescale
+                        the aggregate matrix values using a power law
+        :param scaling_exponent: The power law exponent used if :code:`rescale` is True
+        :param keep_components: If True (default) will store each submatrix used
+                                to generate the aggregate matrix in the
+                                :class:`AggregateMatrix` object, which can be retrieved
+                                using :func:`AggregateMatrix.components`
+        :param file_name: If provided, stores the aggregate matrix object at this location.
+        :param tmpdir: If True will work in temporary directory until the object is closed
+        :param region_viewpoint: point on which window is centred. any of "center", "start", "end",
+                                 "five_prime", or "three_prime"
+        :param kwargs: Keyword argumnts passed to :func:`extract_submatrices`
+        :return: aggregate matrix
+        """
         kwargs.setdefault('oe', True)
         kwargs.setdefault('keep_invalid', False)
         kwargs.setdefault('log', True)
@@ -183,6 +272,54 @@ class AggregateMatrix(FileGroup):
                      keep_components=True,
                      file_name=None, tmpdir=None,
                      **kwargs):
+        """
+        Construct aggregate matrix from variable regions along the diagonal.
+
+        For each region in :code:`tad_regions`, a submatrix is extracted and
+        interpolated so that it is exactly :code:`pixels` x :code:`pixels` big.
+        You can expand each region by a relative amount using :code:`relative_extension`.
+
+        Example for aggregate TADs:
+
+        .. code::
+
+            import kaic
+            hic = kaic.load("/path/to/matrix.hic")
+            tads = kaic.load("/path/to/tads.bed")
+
+            # run aggregate analysis
+            am = kaic.AggregateMatrix.from_regions(hic, tads.regions,
+                                                   relative_extension=3.)
+            # extract matrix when done
+            m = am.matrix()  # 90x90 matrix with aggregate TAD in the centre
+
+
+        :param hic: An object of type :class:`RegionMatrixContainer`, such as a
+                       Hic matrix
+        :param tad_regions: A list of :cls:`GenomicRegion` objects
+        :param pixels: Number of pixels along each dimension of the aggregate matrix
+        :param rescale: If True, will use :code:`scaling_exponent` to artificially rescale
+                        the aggregate matrix values using a power law
+        :param scaling_exponent: The power law exponent used if :code:`rescale` is True
+        :param interpolation: Type of interpolation used on each submatrix.
+        :param keep_mask: If True (default) maksed Hi-C regions will also be interpolated.
+        :param absolute_extension: Absolute number of base pairs by which to expand each
+                                   region
+        :param absolute_extension: Amount by which to expand each region as a fraction
+                                   of each region. Values smaller than 1 lead to region
+                                   shrinking
+        :param keep_components: If True (default) will store each submatrix used
+                                to generate the aggregate matrix in the
+                                :class:`AggregateMatrix` object, which can be retrieved
+                                using :func:`AggregateMatrix.components`
+        :param file_name: If provided, stores the aggregate matrix object at this location.
+        :param tmpdir: If True will work in temporary directory until the object is closed
+        :param region_viewpoint: point on which window is centred. any of "center", "start", "end",
+                                 "five_prime", or "three_prime"
+        :param kwargs: Keyword argumnts passed to :func:`extract_submatrices`
+
+        :return: aggregate matrix
+        """
         kwargs.setdefault('oe', True)
         kwargs.setdefault('keep_invalid', False)
         kwargs.setdefault('log', True)
@@ -235,6 +372,19 @@ class AggregateMatrix(FileGroup):
                           keep_components=True, file_name=None, tmpdir=None,
                           region_viewpoint='center',
                           **kwargs):
+        """
+
+        :param hic:
+        :param pair_regions:
+        :param window:
+        :param pixels:
+        :param keep_components:
+        :param file_name:
+        :param tmpdir:
+        :param region_viewpoint:
+        :param kwargs:
+        :return:
+        """
         kwargs.setdefault('oe', True)
         kwargs.setdefault('keep_invalid', False)
         kwargs.setdefault('log', True)
