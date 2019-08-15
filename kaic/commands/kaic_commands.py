@@ -1597,6 +1597,24 @@ def to_cooler_parser():
         default=True,
         help='Output uncorrected matrix.'
     )
+
+    parser.add_argument(
+        '-M', '--no-multi', dest='multi',
+        action='store_false',
+        default=True,
+        help='Do not produce a multi-resolution file. This is fast, '
+             'as it does not "coarsen" the matrix at multiple resolutions, '
+             'but the resulting file will be incompatible with HiGlass!'
+    )
+
+    parser.add_argument(
+        '-r', '--resolutions', dest='resolutions',
+        nargs='+',
+        default=[1000, 25000, 5000, 10000, 20000, 25000,
+                 50000, 100000, 250000, 500000, 1000000],
+        help='Resolutions in bp at which to "coarsen" the cooler matrix.'
+    )
+
     return parser
 
 
@@ -1607,17 +1625,21 @@ def to_cooler(argv, **kwargs):
     input_file = os.path.expanduser(args.input)
     output_file = os.path.expanduser(args.output)
     norm = args.norm
+    multi = args.multi
+    resolutions = args.resolutions
 
     import kaic
+    from kaic.tools.general import str_to_int
     from kaic.compatibility.cooler import to_cooler
     try:
         import cooler
     except ImportError:
         logger.error("Cannot import cooler. Install cooler 'pip install cooler'.")
         raise
+    resolutions = [str_to_int(r) for r in resolutions]
 
-    hic = kaic.load(input_file, mode='r')
-    to_cooler(hic, output_file, norm=norm)
+    with kaic.load(input_file, mode='r') as hic:
+        to_cooler(hic, output_file, norm=norm, multires=multi, resolutions=resolutions)
     logger.info("All done.")
 
 

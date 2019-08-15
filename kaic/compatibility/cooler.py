@@ -1,10 +1,13 @@
 import logging
 
+import os
 import h5py
 import numpy as np
 import pandas
 import cooler
 from genomic_regions import GenomicRegion
+import tempfile
+
 
 from ..matrix import RegionMatrixContainer, Edge
 
@@ -19,7 +22,10 @@ def is_cooler(file_name):
         return False
 
 
-def to_cooler(hic, path, norm=True):
+def to_cooler(hic, path, norm=True, multires=True,
+              resolutions=(1000, 25000, 5000, 10000, 20000, 25000,
+                           50000, 100000, 250000, 500000, 1000000),
+              chunksize=100000):
     """
     Export Hi-C data as cooler file. Only contacts that have not been
     filtered are exported.
@@ -31,40 +37,63 @@ def to_cooler(hic, path, norm=True):
     :param hic: Hi-C file in any compatible (RegionMatrixContainer) format
     :param path: Output path for cooler file
     """
+    tmp_files = []
+    if multires:
+        single_path = tempfile.NamedTemporaryFile(delete=False, suffix='.cool').name
+        tmp_files.append(single_path)
+        multi_path = path
+    else:
+        single_path = path
+        multi_path = None
 
-    contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
-    bias = np.array(list(hic.region_data('bias')))
+    try:
+        contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
+        bias = np.array(list(hic.region_data('bias')))
 
-    logger.info("Loading contacts")
-    contact_array = np.fromiter(((edge.source, edge.sink, edge.weight)
-                                 for edge in hic.edges(lazy=True, norm=False)),
-                                dtype=contact_dtype, count=len(hic.edges))
-    logger.info("Sorting contacts")
-    order = np.argsort(contact_array, order=("source", "sink"))
-    counts = np.rint(contact_array["weight"]).astype(np.int_)
-    contact_dict = {
-        "bin1_id": contact_array["source"][order],
-        "bin2_id": contact_array["sink"][order],
-        "count": counts[order],
-    }
-    region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in hic.regions()]
-    region_df = pandas.DataFrame(region_dicts)
-    logger.info("Writing cooler")
+        logger.info("Loading contacts")
+        contact_array = np.fromiter(((edge.source, edge.sink, edge.weight)
+                                     for edge in hic.edges(lazy=True, norm=False)),
+                                    dtype=contact_dtype, count=len(hic.edges))
+        logger.info("Sorting contacts")
+        order = np.argsort(contact_array, order=("source", "sink"))
+        counts = np.rint(contact_array["weight"]).astype(np.int_)
+        contact_dict = {
+            "bin1_id": contact_array["source"][order],
+            "bin2_id": contact_array["sink"][order],
+            "count": counts[order],
+        }
+        region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in hic.regions()]
+        region_df = pandas.DataFrame(region_dicts)
+        logger.info("Writing cooler")
 
-    cooler.create_cooler(cool_uri=path, bins=region_df, pixels=contact_dict, ordered=True)
+        cooler.create_cooler(cool_uri=single_path, bins=region_df, pixels=contact_dict, ordered=True)
 
-    cool_path, group_path = cooler.util.parse_cooler_uri(path)
-    if norm:
-        logger.info("Writing bias vector")
-        # Copied this section from
-        # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
-        with h5py.File(cool_path, 'r+') as h5:
-            grp = h5[group_path]
-            # add the bias column to the file
-            h5opts = dict(compression='gzip', compression_opts=6)
-            grp['bins'].create_dataset("weight", data=bias, **h5opts)
+        cool_path, group_path = cooler.util.parse_cooler_uri(single_path)
+        if norm:
+            logger.info("Writing bias vector")
+            # Copied this section from
+            # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
+            with h5py.File(cool_path, 'r+') as h5:
+                grp = h5[group_path]
+                # add the bias column to the file
+                h5opts = dict(compression='gzip', compression_opts=6)
+                grp['bins'].create_dataset("weight", data=bias, **h5opts)
+                # grp['bins']['weight'].attrs.update(stats)
 
-    return CoolerHic(path)
+        if not multires:
+            return CoolerHic(single_path)
+        else:
+            base_resolution = hic.bin_size
+            zoom_resolutions = [base_resolution]
+            for resolution in resolutions:
+                if base_resolution < resolution:
+                    zoom_resolutions.append(resolution)
+
+            cooler.zoomify_cooler(single_path, multi_path, zoom_resolutions, chunksize)
+            return CoolerHic(multi_path + '::resolutions/{}'.format(base_resolution))
+    finally:
+        for tmp_file in tmp_files:
+            os.remove(tmp_file)
 
 
 class LazyCoolerEdge(Edge):
