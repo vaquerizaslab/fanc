@@ -43,6 +43,26 @@ You must also specify the SMTP server settings using the options
 the :ref:`kaic-config-files`.
 
 
+***************
+Temporary files
+***************
+
+Many of the more computationally intensive Kai-C commands support the :code:`-tmp`
+argument. This instructs the command to copy all input files to a temporary directory
+before processing. Similarly, output files will intitially generated in the temporary
+directory and only copied to their intended output locations once the command completes.
+
+This can be very effective when your data is located, for example, on a network file
+system or a slow external HDD, while your local machine or computing node has access
+to a fast SSD. Using :code:`-tmp`, and assuming the local machine's default temporary
+directory resides on an SSD, files are copied from their original location to the SSD
+at the start of the command, thus avoiding the slow file system access throughout the
+remainder of the processing steps.
+
+You can change the default temporary directory by setting the :code:`TMPDIR` environment
+variable on your local system to a folder of your choice.
+
+
 .. _kaic-config-files:
 
 ******************
