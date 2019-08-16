@@ -3874,10 +3874,22 @@ def aggregate_parser():
     )
 
     parser.add_argument(
+        '-b', '--boundary-mode', dest='boundary_mode',
+        default='reflect',
+        help='Points outside the boundaries of the input '
+             'are filled according to the given mode. Options are'
+             'constant, edge, symmetrix, reflect, and warp.'
+             'Default: reflect.'
+    )
+
+    parser.add_argument(
         '-i', '--interpolation', dest='interpolation',
-        default='nearest',
-        help='Type of interpolation performed to '
-             'shrink/expand matrices. Default: nearest'
+        type=int,
+        default=0,
+        help='Type of interpolation to use for resizing. '
+             '0: Nearest-neighbor (default), 1: Bi-linear, '
+             '2: Bi-quadratic, 3: Bi-cubic, 4: Bi-quartic, '
+             '5: Bi-quintic'
     )
 
     parser.add_argument(
@@ -4001,6 +4013,7 @@ def aggregate(argv, **kwargs):
     window = args.window
     pixels = args.pixels
     interpolation = args.interpolation
+    boundary_mode = args.boundary_mode
     relative = args.relative
     absolute = args.absolute
     oe = args.oe
@@ -4125,6 +4138,7 @@ def aggregate(argv, **kwargs):
                         aggregate_matrix = AggregateMatrix.from_regions(matrix, regions.regions,
                                                                         pixels=pixels, rescale=rescale,
                                                                         interpolation=interpolation,
+                                                                        boundary_mode=boundary_mode,
                                                                         absolute_extension=absolute,
                                                                         relative_extension=relative,
                                                                         keep_components=keep_submatrices,

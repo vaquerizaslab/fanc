@@ -3,7 +3,7 @@ from collections import defaultdict
 import numpy as np
 from ..tools.general import RareUpdateProgressBar
 from ..general import FileGroup
-from scipy.ndimage import zoom
+from skimage.transform import resize
 import warnings
 import tables
 
@@ -267,9 +267,10 @@ class AggregateMatrix(FileGroup):
     @classmethod
     def from_regions(cls, hic, tad_regions, pixels=90,
                      rescale=False, scaling_exponent=-0.25,
-                     interpolation='nearest', keep_mask=True,
+                     interpolation=0,
+                     boundary_mode='reflect', keep_mask=True,
                      absolute_extension=0, relative_extension=1.0,
-                     keep_components=True,
+                     keep_components=True, anti_aliasing=True,
                      file_name=None, tmpdir=None,
                      **kwargs):
         """
@@ -301,7 +302,9 @@ class AggregateMatrix(FileGroup):
         :param rescale: If True, will use :code:`scaling_exponent` to artificially rescale
                         the aggregate matrix values using a power law
         :param scaling_exponent: The power law exponent used if :code:`rescale` is True
-        :param interpolation: Type of interpolation used on each submatrix.
+        :param interpolation: Type of interpolation used on each submatrix in range 0-5.
+                              0: Nearest-neighbor (default), 1: Bi-linear, 2: Bi-quadratic,
+                              3: Bi-cubic, 4: Bi-quartic, 5: Bi-quintic
         :param keep_mask: If True (default) maksed Hi-C regions will also be interpolated.
         :param absolute_extension: Absolute number of base pairs by which to expand each
                                    region
@@ -333,16 +336,13 @@ class AggregateMatrix(FileGroup):
                                                 absolute_extension=absolute_extension,
                                                 relative_extension=relative_extension,
                                                 **kwargs):
-            ms = zoom(m, (shape[0]/m.shape[0], shape[1]/m.shape[1]), mode=interpolation)
-            if ms.shape != shape:
-                raise ValueError("Matrix shape not as expected ({}) vs ({}). "
-                                 "This may be due to the recent replacement of 'imresize' with 'zoom'. "
-                                 "Please contact Kai.")
-            #ms = imresize(m, shape, interp=interpolation, mode='F')
+
+            ms = resize(m, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
+                        preserve_range=False, clip=False, order=interpolation)
 
             if keep_mask and hasattr(ms, 'mask'):
-                # mask = imresize(m.mask, shape, interp='nearest').astype('bool')
-                mask = zoom(m.mask, (shape[0] / m.shape[0], shape[1] / m.shape[1]), mode=interpolation)
+                mask = resize(m.mask, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
+                              preserve_range=False, clip=False, order=interpolation).astype('bool')
                 ms = np.ma.masked_where(mask, ms)
                 inverted_mask = ~mask
                 counter_matrix += inverted_mask.astype('int')
@@ -605,8 +605,9 @@ def _tad_matrix_iterator(hic, tad_regions, absolute_extension=0, relative_extens
 
 
 def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=-0.25,
-                   interpolation='nearest', keep_mask=True,
+                   boundary_mode='reflect', keep_mask=True,
                    absolute_extension=0, relative_extension=1.0,
+                   anti_aliasing=True,
                    **kwargs):
     kwargs.setdefault('norm', True)
     kwargs.setdefault('keep_invalid', False)
@@ -618,8 +619,9 @@ def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=
     for pair, m in _tad_matrix_iterator(hic, tad_regions,
                                         absolute_extension=absolute_extension,
                                         relative_extension=relative_extension, **kwargs):
-        # ms = imresize(m, shape, interp=interpolation, mode='F')
-        ms = zoom(m, (shape[0] / m.shape[0], shape[1] / m.shape[1]), mode=interpolation)
+
+        ms = resize(m, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
+                    preserve_range=False, clip=False)
         if ms.shape != shape:
             raise ValueError("Matrix shape not as expected ({}) vs ({}). "
                              "This may be due to the recent replacement of 'imresize' with 'zoom'. "
@@ -627,7 +629,8 @@ def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=
 
         if keep_mask and hasattr(ms, 'mask'):
             # mask = imresize(m.mask, shape, interp='nearest').astype('bool')
-            mask = zoom(m.mask, (shape[0] / m.shape[0], shape[1] / m.shape[1]), mode=interpolation)
+            mask = resize(m.mask, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
+                          preserve_range=False, clip=False).astype('bool')
             ms = np.ma.masked_where(mask, ms)
             inverted_mask = ~mask
             counter_matrix += inverted_mask.astype('int')
