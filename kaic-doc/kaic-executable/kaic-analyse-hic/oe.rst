@@ -17,6 +17,7 @@ To calculate the expected values of any Kai-C compatible matrix, you can use the
    :func: expected_parser
    :prog: kaic expected
    :nodescription:
+   :nodefault:
 
 *******
 Example

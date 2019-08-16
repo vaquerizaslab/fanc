@@ -13,6 +13,7 @@ compartment, also called 'A' and 'B' compartments, respectively.
    :func: compartments_parser
    :prog: kaic compartments
    :nodescription:
+   :nodefault:
 
 
 ******************

@@ -9,7 +9,7 @@ Getting started
 Overview
 ********
 
-Kai-C is a Python (2.7+, 3.6+) toolkit for the analysis and visualisation of Hi-C data.
+Kai-C is a Python (3.6+) toolkit for the analysis and visualisation of Hi-C data.
 For common tasks, you can use the ``kaic`` executable. For more advanced analyses, Kai-C
 can be imported as a powerful Python module.
 
@@ -70,6 +70,7 @@ need to set an environment variable pointing to the installation directory:
    export HDF5_DIR=/path/to/hdf5/dir
 
 
+=====
 Kai-C
 =====
 
@@ -96,7 +97,7 @@ The installation is then done via setup.py:
    pip install .
 
 Kai-C can now be accessed via command line (``kaic`` for analysis, ``klot`` for plotting)
-or as a Python 2.7+ / 3.6+ module (``import kaic``).
+or as a Python 3.6+ module (``import kaic``).
 
 
 ***************************

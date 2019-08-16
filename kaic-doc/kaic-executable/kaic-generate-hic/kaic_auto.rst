@@ -38,6 +38,7 @@ Here is the help output for ``kaic auto``:
    :func: auto_parser
    :prog: kaic auto
    :nodescription:
+   :nodefault:
 
 
 ===================
@@ -103,7 +104,9 @@ FASTQ input
 To process FASTQ files with ``kaic``, you must first have
 `Bowtie2 <http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>`_ or
 `BWA <http://bio-bwa.sourceforge.net/>`_ installed on your system and available in your PATH.
-Additionally, you need the corresponding index for the reference genome of your choice.
+Additionally, you need the corresponding index for the reference genome of your choice. We currently
+recommend using BWA, as it supports chimeric reads, which are frequent in Hi-C libraries when
+ligation junctions are sequenced.
 
 Once you have these prerequisites, you can call ``kaic auto`` like this, assuming you are in the \
 ``examples`` folder:
@@ -127,13 +130,18 @@ if you are interested in support for your favourite mapper).
 The last parameter (``-g``) is necessary for generating a fragment-level Hi-C map later in the
 pipeline. This will be explained in more detail in the next section.
 
-There are a few additional parameters that you can use to control the mapping process. By default,
-``kaic auto`` performs iterative mapping: Reads are initially trimmed to 25bp before mapping, and
+There are a few additional parameters that you can use to control the mapping process. Use
+``--iterative`` to iterative mapping: Reads are initially trimmed to 25bp before mapping, and
 then iteratively expanded until a unique, high quality mapping location can be found. This can
 improve mapping efficiency by a few percent, as smaller reads have a lower likelihood of mismatches
 due to sequencing errors. ``-s`` or ``--step-size`` controls the size by which reads are extended
-at every iterative mapping step. You can switch off iterative mapping (and use regular alignments)
-with the ``--no-iterative`` option. ``kaic auto`` parallelises mapping by spawning multiple mapping
+at every iterative mapping step.
+
+As mentioned above, it is common to find reads in Hi-C libraries that contain a ligation junction
+sequence. Kai-C can automatically split these kinds of reads before mapping using the
+``--split-ligation-junction`` option, which can improve mapping efficiency.
+
+``kaic auto`` parallelises mapping by spawning multiple mapping
 processes internally. This can result in high disk I/O - if you have issues with poor performance,
 try using the ``--mapper-parallel`` option, which will instead use the multithreading of your chosen
 mapping software. If you are using Bowtie2, you can additionally use the ``--memory-map`` option,

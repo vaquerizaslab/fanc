@@ -22,6 +22,7 @@ You can easily create your own aggregate plots using ``kaic aggregate``.
    :func: aggregate_parser
    :prog: kaic aggregate
    :nodescription:
+   :nodefault:
 
 You can provide ``kaic aggregate`` with a list of genomic regions in any of the common
 region-based formats (BED, GFF, BigWig, ...) or with a list of genomic region pairs in

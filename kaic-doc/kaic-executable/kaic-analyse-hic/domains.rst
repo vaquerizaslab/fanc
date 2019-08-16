@@ -40,6 +40,7 @@ Use ``kaic insulation`` to calculate the insulation score from the command line:
    :func: insulation_parser
    :prog: kaic insulation
    :nodescription:
+   :nodefault:
 
 =======
 Example
@@ -210,6 +211,7 @@ regions:
    :func: boundaries_parser
    :prog: kaic boundaries
    :nodescription:
+   :nodefault:
 
 When we run ``kaic boundaries`` on the above example using 1mb and 2mb as the window sizes:
 
@@ -273,6 +275,7 @@ Use ``kaic directionality`` to calculate the directionality index from the comma
    :func: directionality_parser
    :prog: kaic directionality
    :nodescription:
+   :nodefault:
 
 =======
 Example

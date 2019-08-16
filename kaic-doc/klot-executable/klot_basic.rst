@@ -20,6 +20,7 @@ Overview
    :func: kaic_parser
    :prog: kaic
    :nodescription:
+   :nodefault:
 
 ******************************************
 Setting up the figure and plotting regions
@@ -77,6 +78,7 @@ which will print:
    :module: kaic.commands.klot_commands
    :func: type_parser
    :prog: klot
+   :nodefault:
 
 
 To get more information on a specific plot, simply type:
@@ -91,5 +93,6 @@ For example, ``klot -p -t hic -h`` will print the help text for the Hi-C triangl
    :module: kaic.commands.klot_commands
    :func: hic_parser
    :prog: klot
+   :nodefault:
 
 

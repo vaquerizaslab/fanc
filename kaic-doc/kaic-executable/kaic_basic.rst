@@ -15,6 +15,7 @@ Overview
    :func: kaic_parser
    :prog: kaic
    :nodescription:
+   :nodefault:
 
 
 *******
@@ -86,6 +87,7 @@ You can write the default config file to a location of your choice using ``kaic 
    :func: write_config_parser
    :prog: kaic write-config
    :nodescription:
+   :nodefault:
 
 An explanation of the different settings can be found as comments in the default config file.
 The file is written in `YAML <https://yaml.org/>`_

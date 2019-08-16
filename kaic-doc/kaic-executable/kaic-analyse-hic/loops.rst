@@ -29,6 +29,7 @@ different types of local neighborhoods defined to make loop calling robust.
    :func: loops_parser
    :prog: kaic loops
    :nodescription:
+   :nodefault:
 
 
 **********************************

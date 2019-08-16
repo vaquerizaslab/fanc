@@ -13,6 +13,7 @@ treatments, etc.
    :func: compare_parser
    :prog: kaic compare
    :nodescription:
+   :nodefault:
 
 
 ****************

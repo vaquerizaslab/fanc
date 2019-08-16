@@ -39,6 +39,7 @@ You can use additional parameters to control the mapping process:
    :func: map_parser
    :prog: kaic map
    :nodescription:
+   :nodefault:
 
 Most importantly, assign more threads to the mapping process using the ``-t`` parameter.
 ``kaic auto`` parallelises mapping by spawning multiple mapping processes internally.
@@ -156,6 +157,7 @@ Additional parameters primarily control the filtering of read pairs:
    :func: pairs_parser
    :prog: kaic pairs
    :nodescription:
+   :nodefault:
 
 *********
 Filtering
@@ -276,6 +278,7 @@ overview of all parameters:
    :func: hic_parser
    :prog: kaic hic
    :nodescription:
+   :nodefault:
 
 
 *******

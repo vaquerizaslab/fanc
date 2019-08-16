@@ -20,6 +20,7 @@ You can easily export Kai-C Hic objects to a txt file using ``kaic dump``.
    :func: dump_parser
    :prog: kaic dump
    :nodescription:
+   :nodefault:
 
 If you only pass the Hic object the ``kaic dump``, it will write all Hi-C contacts to
 the command line in a tab-delimited format with the columns: chromosome1, start1, end1,
@@ -50,6 +51,7 @@ between a user-specified genomic regions from an existing Hic object.
    :func: subset_parser
    :prog: kaic subset
    :nodescription:
+   :nodefault:
 
 
 =======================================
@@ -66,6 +68,7 @@ that downsamples Hic objects to a specific number of valid pairs.
    :func: downsample_parser
    :prog: kaic downsample
    :nodescription:
+   :nodefault:
 
 By default, the sampling is done without replacement. This requires a fairly large amount
 of system memory. If you are having trouble with memory usage, use sampling with
@@ -93,6 +96,7 @@ a BED file with equally sized regions.
    :func: fragments_parser
    :prog: kaic fragments
    :nodescription:
+   :nodefault:
 
 
 =====================================
@@ -111,3 +115,4 @@ which can speed the sorting up if you are working on a network volume.
    :func: sort_sam_parser
    :prog: kaic sort-sam
    :nodescription:
+   :nodefault:

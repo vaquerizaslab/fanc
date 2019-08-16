@@ -14,6 +14,7 @@ replicates can be safely merged.
    :func: pca_parser
    :prog: kaic pca
    :nodescription:
+   :nodefault:
 
 *******
 Example
