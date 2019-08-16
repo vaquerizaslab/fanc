@@ -55,7 +55,6 @@ setup(
         'gridmap>=0.14.0',
         'intervaltree',
         'genomic_regions>=0.0.4',
-        'shove',
         'scikit-image>=0.15.0',
     ],
     extras_require={

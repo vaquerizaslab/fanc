@@ -7,26 +7,20 @@
 import logging
 import os
 import warnings
+from bisect import bisect_right
+from collections import defaultdict
 
+import intervaltree
 import numpy as np
 import tables
-from genomic_regions import RegionBased, GenomicRegion, as_region
-import intervaltree
-
-from .config import config
-from .regions import LazyGenomicRegion, RegionsTable, RegionBasedWithBins
-from .tools.general import RareUpdateProgressBar, ranges, create_col_index, range_overlap, str_to_int
-from .tools.load import load
-from .general import Maskable, MaskedTable
-
-from collections import defaultdict
 from future.utils import string_types
-from timeit import default_timer as timer
-import tempfile
-import shutil
-import shove
 
-from bisect import bisect_right
+from genomic_regions import RegionBased, GenomicRegion
+from .config import config
+from .general import Maskable, MaskedTable
+from .regions import LazyGenomicRegion, RegionsTable, RegionBasedWithBins
+from .tools.general import RareUpdateProgressBar, create_col_index, range_overlap, str_to_int
+from .tools.load import load
 
 logger = logging.getLogger(__name__)
 
