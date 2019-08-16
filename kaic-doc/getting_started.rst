@@ -34,7 +34,6 @@ Prerequisite: HDF5
 
 If you are on Linux, download the source code of the latest version from
 the `HDF5 website <https://www.hdfgroup.org/HDF5/>`_ and unpack it.
-There are two different HDF5 branches - note that the 1.10.x branch is not supported!
 
 .. code:: bash
 
