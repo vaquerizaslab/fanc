@@ -99,6 +99,32 @@ Kai-C can now be accessed via command line (``kaic`` for analysis, ``klot`` for 
 or as a Python 2.7+ / 3.6+ module (``import kaic``).
 
 
+***************************
+Building this documentation
+***************************
+
+If you want to build this documentation on your local machine, first make sure to install the
+prerequisites by running
+
+.. code:: bash
+
+   pip install sphinx sphinx_rtd_theme sphinx-argparse
+
+Then navigate to the :code:`kaic-doc` folder (assuming your in the :code:`kaic` base folder:
+
+.. code:: bash
+
+   cd kaic-doc
+
+Type :code:`make` to get a list of possible documentation outputs, for HTML use:
+
+.. code:: bash
+
+   make html
+
+You will find the html output in :code:`_build/html`.
+
+
 .. _example-kaic-auto:
 
 ****************
