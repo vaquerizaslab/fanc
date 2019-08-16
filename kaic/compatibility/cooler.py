@@ -27,15 +27,22 @@ def to_cooler(hic, path, norm=True, multires=True,
                            50000, 100000, 250000, 500000, 1000000),
               chunksize=100000):
     """
-    Export Hi-C data as cooler file. Only contacts that have not been
-    filtered are exported.
-    https://github.com/mirnylab/cooler/
+    Export Hi-C data as cooler file.
+
+    Only contacts that have not been
+    filtered are exported. https://github.com/mirnylab/cooler/
+
     If input Hi-C matrix is uncorrected, the uncorrected matrix is stored.
     If it is corrected, the uncorrected matrix is stored and the bias vector.
     Cooler always calculates corrected matrix on-the-fly from the uncorrected
     matrix and the bias vector.
+
     :param hic: Hi-C file in any compatible (RegionMatrixContainer) format
     :param path: Output path for cooler file
+    :param norm: Include bias vector in cooler output
+    :param multires: Generate a multi-resolution cooler file
+    :param resolutions: Resolutions in bp (int) for multi-resolution cooler output
+    :param chunksize: Number of pixels processed at a time in cooler
     """
     tmp_files = []
     if multires:
