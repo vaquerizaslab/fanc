@@ -56,7 +56,7 @@ setup(
         'intervaltree',
         'genomic_regions>=0.0.4',
         'shove',
-        'skimage',
+        'scikit-image',
     ],
     extras_require={
         'cooler': ['cooler>=0.8.0', 'h5py'],
