@@ -506,11 +506,11 @@ def auto_parser():
     )
 
     parser.add_argument(
-        '--no-iterative', dest='iterative',
-        action='store_false',
-        default=True,
-        help="Do not map reads iteratively. By default, kaic uses "
-             "an iterative mapping strategy: reads are initially " 
+        '--iterative', dest='iterative',
+        action='store_true',
+        default=False,
+        help="Map reads iteratively. Can improve mappability, "
+             "especially with low-quality reads. Reads are initially " 
              "trimmed to 25bp and mapped to the reference genome. "
              "If no unique mapping location is found, the read is " 
              "extended by 3bp and the process is repeated until the " 
