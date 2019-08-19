@@ -1129,6 +1129,7 @@ def auto(argv, **kwargs):
         for ix in hic_files:
             hic_file = file_names[ix]
             binned_hic_file_base = output_folder + 'hic/binned/' + basename + '_'
+            bin_threads = min(4, threads)
 
             for bin_size in bin_sizes:
                 bin_size = str_to_int(str(bin_size))
@@ -1143,7 +1144,7 @@ def auto(argv, **kwargs):
                 hic_stats_file = output_folder + 'plots/stats/' + \
                                  hic_basename + '.stats.pdf'
 
-                hic_command = kaic_base_command + ['hic', '-f', '-b',
+                hic_command = kaic_base_command + ['hic', '-f', '-b', '-t', str(bin_threads),
                                                    str(bin_size), '-r', '0.1',
                                                    '--statistics-plot', hic_stats_file]
                 if tmp:
@@ -1158,7 +1159,7 @@ def auto(argv, **kwargs):
                 hic_command += [hic_file, binned_hic_file]
 
                 hic_task = CommandTask(hic_command)
-                runner.add_task(hic_task, wait_for=merge_hic_tasks, threads=1)
+                runner.add_task(hic_task, wait_for=merge_hic_tasks, threads=bin_threads)
 
     runner.run()
     return 0
