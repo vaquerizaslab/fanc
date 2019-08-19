@@ -1144,8 +1144,8 @@ def auto(argv, **kwargs):
                 hic_stats_file = output_folder + 'plots/stats/' + \
                                  hic_basename + '.stats.pdf'
 
-                hic_command = kaic_base_command + ['hic', '-f', '-b', '-t', str(bin_threads),
-                                                   str(bin_size), '-r', '0.1',
+                hic_command = kaic_base_command + ['hic', '-f', '-b', str(bin_size),
+                                                   '-r', '0.1', '-t', str(bin_threads),
                                                    '--statistics-plot', hic_stats_file]
                 if tmp:
                     hic_command.append('-tmp')
