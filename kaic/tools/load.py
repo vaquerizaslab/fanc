@@ -67,18 +67,21 @@ def load(file_name, *args, **kwargs):
     except (tables.HDF5ExtError, AttributeError, KeyError) as e:
         logger.debug("Not a FileBased class (exception: {})".format(e))
         pass
-
-    from kaic.compatibility.juicer import JuicerHic, is_juicer
-    if is_juicer(file_name):
-        return JuicerHic(file_name, *args, **kwargs)
+    except OSError:
+        logger.debug("Exact filename not found, might still be cooler uri")
 
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             from kaic.compatibility.cooler import is_cooler, CoolerHic
         if is_cooler(file_name):
+            logger.debug("Cooler file detected")
             return CoolerHic(file_name, *args, **kwargs)
     except (ImportError, OSError):
         pass
+
+    from kaic.compatibility.juicer import JuicerHic, is_juicer
+    if is_juicer(file_name):
+        return JuicerHic(file_name, *args, **kwargs)
 
     return gr_load(file_name, *args, **kwargs)

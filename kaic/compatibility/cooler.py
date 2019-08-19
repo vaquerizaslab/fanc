@@ -110,8 +110,8 @@ class LazyCoolerEdge(Edge):
         self._weight_field = 'weight'
         self._bias = 1.
 
-    def __getattribute__(self, item):
-        if item == '_weight_field' or item != self._weight_field:
+    def __getattr__(self, item):
+        if item != self._weight_field:
             return object.__getattribute__(self, item)
         return object.__getattribute__(self, item) * self._bias
 
@@ -154,13 +154,56 @@ class LazyCoolerEdge(Edge):
         return ['weight']
 
 
+class LazyCoolerRegion(GenomicRegion):
+    def __init__(self, series, ix=None):
+        self._series = series
+        self.ix = ix
+
+    def __getattr__(self, item):
+        return getattr(self._series, item)
+
+    @property
+    def chromosome(self):
+        try:
+            return self._series.chrom
+        except Exception as e:
+            print(e)
+            raise
+
+    @property
+    def start(self):
+        return self._series.start + 1
+
+    @property
+    def bias(self):
+        return self._series.weight
+
+    @property
+    def strand(self):
+        try:
+            return self._series.strand
+        except AttributeError:
+            return 1
+
+
 class CoolerHic(RegionMatrixContainer, cooler.Cooler):
     def __init__(self, *args, **kwargs):
         cooler.Cooler.__init__(self, *args, **kwargs)
         RegionMatrixContainer.__init__(self)
         self._mappability = None
 
-    def _series_to_region(self, series, ix=None):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return True
+
+    def _series_to_region(self, series, ix=None, lazy_region=None):
+        if lazy_region is not None:
+            lazy_region._series = series
+            lazy_region.ix = ix
+            return lazy_region
+
         index = set(series.index)
         index.remove('chrom')
         try:
@@ -176,18 +219,22 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
             kwargs['ix'] = ix
         return GenomicRegion(**kwargs)
 
-    def _region_iter(self, *args, **kwargs):
-        for df in self.bins():
-            yield self._series_to_region(df.iloc[0], ix=df.index[0])
+    def _region_iter(self, lazy=False, *args, **kwargs):
+        lazy_region = LazyCoolerRegion(None) if lazy else None
 
-    def _region_subset(self, region, *args, **kwargs):
+        for df in self.bins():
+            yield self._series_to_region(df.iloc[0], ix=df.index[0], lazy_region=lazy_region)
+
+    def _region_subset(self, region, lazy=False, *args, **kwargs):
+        lazy_region = LazyCoolerRegion(None) if lazy else None
+
         query = "{}".format(region.chromosome)
         if region.start is not None and region.end is not None:
             query += ':{}-{}'.format(region.start - 1, region.end)
 
         df = self.bins().fetch(query)
         for index, row in df.iterrows():
-            yield self._series_to_region(row, ix=index)
+            yield self._series_to_region(row, ix=index, lazy_region=lazy_region)
 
     def _get_regions(self, item, *args, **kwargs):
         regions = []
@@ -215,8 +262,11 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
             cl[row['name']] = row['length']
         return cl
 
-    def _series_to_edge(self, series, lazy=True):
-        if not lazy:
+    def _chromosome_bins(self, *args, **kwargs):
+        return RegionMatrixContainer._chromosome_bins(self, lazy=True)
+
+    def _series_to_edge(self, series, lazy_edge=None):
+        if lazy_edge is None:
             index = set(series.index)
             index.remove('bin1_id')
             index.remove('bin2_id')
@@ -231,22 +281,26 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
 
             return Edge(**kwargs)
         else:
-            return LazyCoolerEdge(series, self)
+            lazy_edge._series = series
+            return lazy_edge
 
-    def _edges_iter(self, *args, **kwargs):
+    def _edges_iter(self, lazy=False, *args, **kwargs):
+        lazy_edge = LazyCoolerEdge(None, self) if lazy else None
         selector = cooler.Cooler.matrix(self, as_pixels=True, balance=False)
         for df in selector:
             for index, row in df.iterrows():
-                yield self._series_to_edge(row)
+                yield self._series_to_edge(row, lazy_edge=lazy_edge)
 
-    def _edges_subset(self, key=None, row_regions=None, col_regions=None, *args, **kwargs):
+    def _edges_subset(self, key=None, row_regions=None, col_regions=None,
+                      lazy=False, *args, **kwargs):
+        lazy_edge = LazyCoolerEdge(None, self) if lazy else None
         row_start, row_end = self._min_max_region_ix(row_regions)
         col_start, col_end = self._min_max_region_ix(col_regions)
 
         df = cooler.Cooler.matrix(self, as_pixels=True, balance=False)[row_start:row_end+1, col_start:col_end+1]
 
         for index, row in df.iterrows():
-            yield self._series_to_edge(row, *args, **kwargs)
+            yield self._series_to_edge(row, lazy_edge=lazy_edge, *args, **kwargs)
 
     def _edges_getitem(self, item, *args, **kwargs):
         edges = []
