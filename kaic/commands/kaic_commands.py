@@ -4090,6 +4090,7 @@ def aggregate(argv, **kwargs):
                 regions = kaic.load(regions_file)
 
                 b = matrix.bin_size
+
                 if isinstance(regions, gr.Bedpe):
                     logger.info("Detected BEDPE. Running pairwise region extraction")
 
