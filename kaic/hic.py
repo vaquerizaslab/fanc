@@ -596,7 +596,7 @@ class LowCoverageFilter(HicEdgeFilter):
         HicEdgeFilter.__init__(self, mask=mask)
         self.set_hic_object(hic_object)
 
-        self._marginals = hic_object.marginals(norm=False)
+        self._marginals = hic_object.marginals(norm=False, masked=False)
         if cutoff is None and rel_cutoff is None:
             rel_cutoff = 0.1
             logger.info("Using default 10 percent relative coverage as cutoff")
