@@ -215,7 +215,7 @@ class AggregateMatrix(FileGroup):
         :param tmpdir: If True will work in temporary directory until the object is closed
         :param region_viewpoint: point on which window is centred. any of "center", "start", "end",
                                  "five_prime", or "three_prime"
-        :param kwargs: Keyword argumnts passed to :func:`extract_submatrices`
+        :param kwargs: Keyword arguments passed to :func:`extract_submatrices`
         :return: aggregate matrix
         """
         kwargs.setdefault('oe', True)
@@ -305,6 +305,9 @@ class AggregateMatrix(FileGroup):
         :param interpolation: Type of interpolation used on each submatrix in range 0-5.
                               0: Nearest-neighbor (default), 1: Bi-linear, 2: Bi-quadratic,
                               3: Bi-cubic, 4: Bi-quartic, 5: Bi-quintic
+        :param boundary_mode: Points outside the boundaries of the input are filled
+                              according to the given mode. Options are constant, edge,
+                              symmetrix, reflect, and warp. Affects submatrix interpolation.
         :param keep_mask: If True (default) maksed Hi-C regions will also be interpolated.
         :param absolute_extension: Absolute number of base pairs by which to expand each
                                    region
@@ -317,8 +320,6 @@ class AggregateMatrix(FileGroup):
                                 using :func:`AggregateMatrix.components`
         :param file_name: If provided, stores the aggregate matrix object at this location.
         :param tmpdir: If True will work in temporary directory until the object is closed
-        :param region_viewpoint: point on which window is centred. any of "center", "start", "end",
-                                 "five_prime", or "three_prime"
         :param kwargs: Keyword argumnts passed to :func:`extract_submatrices`
 
         :return: aggregate matrix
@@ -336,7 +337,6 @@ class AggregateMatrix(FileGroup):
                                                 absolute_extension=absolute_extension,
                                                 relative_extension=relative_extension,
                                                 **kwargs):
-
             ms = resize(m, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
                         preserve_range=False, clip=False, order=interpolation)
 
@@ -647,15 +647,24 @@ def aggregate_tads(hic, tad_regions, pixels=90, rescale=False, scaling_exponent=
     return am
 
 
-def tad_strength(hic, tad_regions, **kwargs):
+def tad_strength(hic, tad_regions=None, **kwargs):
     kwargs.setdefault('norm', True)
     kwargs.setdefault('keep_invalid', False)
     kwargs.setdefault('log', False)
     kwargs['relative_extension'] = 1.
     kwargs['absolute_extension'] = 0
+    kwargs['keep_components'] = True
+    kwargs['oe'] = True
+
+    if isinstance(hic, AggregateMatrix):
+        aggregate_tads = hic
+    else:
+        if tad_regions is None:
+            raise ValueError("tad_regions cannot be None when providing matrix as input!")
+        aggregate_tads = AggregateMatrix.from_regions(hic, tad_regions, **kwargs)
 
     tad_strengths = []
-    for m in _tad_matrix_iterator(hic, tad_regions, **kwargs):
+    for m in aggregate_tads.components():
         tl = int(m.shape[0]/3)
         upper_third = slice(0, tl)
         middle_third = slice(tl, 2*tl)
@@ -682,7 +691,6 @@ def _loop_matrix_iterator(hic, loop_regions, pixels=16,
     left = int(pixels / 2)
     right = left if pixels % 2 == 1 else left - 1
 
-    print(loop_regions)
     if isinstance(loop_regions, Bedpe):
         loop_regions = _loop_regions_from_bedpe(loop_regions)
 
@@ -738,6 +746,7 @@ def aggregate_loops(hic, loop_regions, pixels=16, **kwargs):
 def loop_strength(hic, loop_regions, pixels=16, **kwargs):
     kwargs.setdefault('log', False)
     kwargs.setdefault('norm', True)
+    kwargs.setdefault('oe', True)
     kwargs['keep_invalid'] = True
 
     if isinstance(loop_regions, Bedpe):
@@ -754,7 +763,7 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
         new_region_pairs.append((region2, new_right))
 
     original, left, right = [], [], []
-    for i, m in enumerate(_loop_matrix_iterator(hic, new_region_pairs, pixels=pixels, **kwargs)):
+    for i, (pair, m) in enumerate(_loop_matrix_iterator(hic, new_region_pairs, pixels=pixels, **kwargs)):
         if m is not None:
             value = float(m.sum()/np.logical_not(m.mask).sum())
         else:
