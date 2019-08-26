@@ -3529,7 +3529,8 @@ def compartments(argv, **kwargs):
                                                       only_gc=only_gc,
                                                       symmetric_at=symmetric_at,
                                                       exclude_chromosomes=exclude,
-                                                      eigenvector=ev)
+                                                      eigenvector=ev,
+                                                      genome=genome_file)
 
             if matrix_file is not None:
                 import numpy as np
