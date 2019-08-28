@@ -515,8 +515,7 @@ def auto_parser():
              "If no unique mapping location is found, the read is " 
              "extended by 3bp and the process is repeated until the " 
              "full length of the read is reached or a unique mapping " 
-             "location is found. Use this setting to only use regular " 
-             "mapping."
+             "location is found."
     )
 
     parser.add_argument(
