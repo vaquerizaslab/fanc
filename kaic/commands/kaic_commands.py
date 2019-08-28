@@ -1474,11 +1474,6 @@ def from_juicer_parser():
     )
 
     parser.add_argument(
-        'jar',
-        help='''path to juicer_tools jar file'''
-    )
-
-    parser.add_argument(
         'genome',
         help='''Path to genome (FASTA, folder with FASTA, hdf5 file)'''
     )
@@ -1516,6 +1511,11 @@ def from_juicer_parser():
     )
 
     parser.add_argument(
+        '--juicer-tools-jar', dest='juicer_tools_jar_path',
+        help='Path to juicer jar. You can also specify this in kaic.conf'
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         help='''Work in temporary directory'''
@@ -1531,7 +1531,7 @@ def from_juicer(argv, **kwargs):
     input_file = os.path.expanduser(args.input)
     output_file = os.path.expanduser(args.output)
     genome_path = os.path.expanduser(args.genome)
-    jar_path = args.jar
+    juicer_tools_jar_path = args.juicer_tools_jar_path
     resolution = args.resolution
     chromosomes = args.chromosomes
     inter_chromosomal = args.inter_chromosomal
@@ -1555,7 +1555,8 @@ def from_juicer(argv, **kwargs):
             tmp = True
 
         from kaic.compatibility.juicer import convert_juicer_to_hic
-        hic = convert_juicer_to_hic(input_file, jar_path, genome_path, resolution,
+        hic = convert_juicer_to_hic(input_file, genome_path, resolution,
+                                    juicer_tools_jar_path=juicer_tools_jar_path,
                                     norm=juicer_norm, output_file=output_file,
                                     inter_chromosomal=inter_chromosomal,
                                     chromosomes=chromosomes)

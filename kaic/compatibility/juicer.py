@@ -7,10 +7,14 @@ from genomic_regions import GenomicRegion
 
 from ..regions import Genome
 from ..hic import Hic
+from ..pairs import ReadPairs
 from ..matrix import RegionMatrixContainer, Edge
+from ..config import config
 
 import subprocess
 import warnings
+import tempfile
+import gzip
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +32,14 @@ def is_juicer(file_name):
             return True
 
 
-def convert_juicer_to_hic(juicer_file, juicer_tools_jar_path, genome_file, resolution,
+def convert_juicer_to_hic(juicer_file, genome_file, resolution, juicer_tools_jar_path=None,
                           norm='NONE', output_file=None, inter_chromosomal=True,
                           chromosomes=None):
+    if juicer_tools_jar_path is None:
+        juicer_tools_jar_path = config.juicer_tools_jar_path
+    if juicer_tools_jar_path is None:
+        raise ValueError("Just must provide the juicer tools jar path or set it in kaic.conf!")
+
     hic = Hic(file_name=output_file, mode='w')
 
     # regions
@@ -91,6 +100,68 @@ def convert_juicer_to_hic(juicer_file, juicer_tools_jar_path, genome_file, resol
                        "because they had non-finite values.".format(nan_counter))
 
     return hic
+
+
+def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
+              resolutions=None, fragment_map=False, tmpdir=None,
+              verbose=False):
+    if juicer_tools_jar_path is None:
+        juicer_tools_jar_path = config.juicer_tools_jar_path
+    if juicer_tools_jar_path is None:
+        raise ValueError("Just must provide the juicer tools jar path or set it in kaic.conf!")
+
+    if isinstance(pairs, ReadPairs):
+        pairs = [pairs]
+
+    with tempfile.NamedTemporaryFile(suffix='.chrom.sizes', mode='w', delete=False) as chrom_sizes_file:
+        for chromosome, size in pairs[0].chromosome_lengths.items():
+            chrom_sizes_file.write("{}\t{}\n".format(chromosome, size))
+        chrom_sizes_file.flush()
+
+        # make restriction site file
+        with tempfile.NamedTemporaryFile(prefix="re_sites_", suffix='.txt', mode='w', dir=tmpdir) as re_file:
+            for chromosome in pairs[0].chromosomes():
+                re_sites = []
+                for region in pairs[0].regions(chromosome, lazy=True):
+                    re_sites.append(str(region.end))
+                re_file.write("{} {}\n".format(chromosome, " ".join(re_sites)))
+            re_file.flush()
+
+            with tempfile.NamedTemporaryFile(prefix='reads_', suffix='.txt.gz', dir=tmpdir) as f:
+                f.flush()
+                fgz = gzip.GzipFile(mode='wb', fileobj=f)
+
+                for p in pairs:
+                    for pair in p.pairs(lazy=True):
+                        fgz.write("{} {} {} {} {} {} {} {}\n".format(
+                            1 if pair.left.strand == -1 else 0,
+                            pair.left.fragment.chromosome,
+                            pair.left.position,
+                            pair.left.fragment.ix,
+                            1 if pair.right.strand == -1 else 0,
+                            pair.right.fragment.chromosome,
+                            pair.right.position,
+                            pair.right.fragment.ix
+                        ).encode('utf-8'))
+                fgz.close()
+
+                f.flush()
+
+                pre_command = ['java', '-jar', juicer_tools_jar_path, 'pre']
+                if fragment_map:
+                    pre_command += ['-f', re_file.name]
+                if resolutions is not None:
+                    pre_command += ['-r', ",".join(resolutions)]
+                if tmpdir is not None:
+                    pre_command += ['-t', tmpdir]
+                if verbose:
+                    pre_command.append('-v')
+                pre_command += [f.name, juicer_file, chrom_sizes_file.name]
+
+                res = subprocess.call(pre_command)
+                if res != 0:
+                    raise RuntimeError("juicer pre had nonzero exit status ({})!".format(res))
+    return JuicerHic(juicer_file)
 
 
 def _read_cstr(f):
