@@ -1683,7 +1683,7 @@ def to_juicer_parser():
 
 
 def to_juicer(argv, **kwargs):
-    parser = to_cooler_parser()
+    parser = to_juicer_parser()
 
     args = parser.parse_args(argv[2:])
     input_files = [os.path.expanduser(f) for f in args.input]
