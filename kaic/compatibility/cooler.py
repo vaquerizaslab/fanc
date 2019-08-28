@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 def is_cooler(file_name):
     try:
+        if "@" in file_name:
+            hic_file, at_resolution = file_name.split("@")
+            file_name = hic_file + '::resolutions/{}'.format(at_resolution)
         cooler.Cooler(file_name)
         return True
     except KeyError:
@@ -188,7 +191,11 @@ class LazyCoolerRegion(GenomicRegion):
 
 class CoolerHic(RegionMatrixContainer, cooler.Cooler):
     def __init__(self, *args, **kwargs):
-        cooler.Cooler.__init__(self, *args, **kwargs)
+        largs = list(args)
+        if "@" in args[0]:
+            hic_file, at_resolution = args[0].split("@")
+            largs[0] = hic_file + '::resolutions/{}'.format(at_resolution)
+        cooler.Cooler.__init__(self, *largs, **kwargs)
         RegionMatrixContainer.__init__(self)
         self._mappability = None
 

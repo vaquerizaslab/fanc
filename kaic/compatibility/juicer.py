@@ -117,12 +117,14 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
             pairs = [pairs]
 
         with tempfile.NamedTemporaryFile(suffix='.chrom.sizes', mode='w', delete=False) as chrom_sizes_file:
+            logger.info("Writing chromosome sizes")
             for chromosome, size in pairs[0].chromosome_lengths.items():
                 chrom_sizes_file.write("{}\t{}\n".format(chromosome, size))
             chrom_sizes_file.flush()
 
             # make restriction site file
             with tempfile.NamedTemporaryFile(prefix="re_sites_", suffix='.txt', mode='w', dir=tmpdir) as re_file:
+                logger.info("Making restriction map")
                 for chromosome in pairs[0].chromosomes():
                     re_sites = []
                     for region in pairs[0].regions(chromosome, lazy=True):
@@ -130,6 +132,7 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
                     re_file.write("{} {}\n".format(chromosome, " ".join(re_sites)))
                 re_file.flush()
 
+                logger.info("Writing pairs")
                 with tempfile.NamedTemporaryFile(prefix='reads_', suffix='.txt.gz', dir=tmpdir) as f:
                     f.flush()
                     fgz = gzip.GzipFile(mode='wb', fileobj=f)
@@ -161,6 +164,7 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
                         pre_command.append('-v')
                     pre_command += [f.name, juicer_file, chrom_sizes_file.name]
 
+                    logger.info("Making Juicer file: {}".format(" ".join(pre_command)))
                     res = subprocess.call(pre_command)
                     if res != 0:
                         raise RuntimeError("juicer pre had nonzero exit status ({})!".format(res))
@@ -230,7 +234,13 @@ class LazyJuicerEdge(Edge):
 class JuicerHic(RegionMatrixContainer):
     def __init__(self, hic_file, resolution=None, norm='KR'):
         RegionMatrixContainer.__init__(self)
-        self._hic_file = hic_file
+        if hic_file.contains("@"):
+            hic_file, at_resolution = hic_file.split("@")
+            if resolution is not None and int(at_resolution) != resolution:
+                raise ValueError("Conflicting resolution specifications: {} and {}".format(at_resolution, resolution))
+            resolution = int(at_resolution)
+        else:
+            self._hic_file = hic_file
 
         bp_resolutions, _ = self.resolutions()
         if resolution is None:
