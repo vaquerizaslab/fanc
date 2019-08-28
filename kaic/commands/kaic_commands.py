@@ -1518,9 +1518,9 @@ def from_juicer_parser():
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
+        default=False,
         help='''Work in temporary directory'''
     )
-    parser.set_defaults(tmp=False)
     return parser
 
 
@@ -1641,6 +1641,71 @@ def to_cooler(argv, **kwargs):
 
     with kaic.load(input_file, mode='r') as hic:
         to_cooler(hic, output_file, norm=norm, multires=multi, resolutions=resolutions)
+    logger.info("All done.")
+
+
+def to_juicer_parser():
+    parser = argparse.ArgumentParser(
+        prog="kaic hic_to_juicer",
+        description="Convert a ReadPairs file to Juicer .hic format"
+    )
+
+    parser.add_argument(
+        'input',
+        nargs='+',
+        help='Input .pairs file(s), Kai-C format.'
+    )
+
+    parser.add_argument(
+        'output',
+        help='Output Juicer file.'
+    )
+
+    parser.add_argument(
+        '--juicer-tools-jar', dest='juicer_tools_jar_path',
+        help='Path to juicer jar. You can also specify this in kaic.conf'
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='Work in temporary directory'
+    )
+
+    parser.add_argument(
+        '-r', '--resolutions', dest='resolutions',
+        nargs='+',
+        help='Resolutions in bp at which to "zoom" the juicer matrix.'
+    )
+
+    return parser
+
+
+def to_juicer(argv, **kwargs):
+    parser = to_cooler_parser()
+
+    args = parser.parse_args(argv[2:])
+    input_files = [os.path.expanduser(f) for f in args.input]
+    output_file = os.path.expanduser(args.output)
+    juicer_tools_jar_path = args.juicer_tools_jar_path
+    resolutions = args.resolutions
+    tmp = args.tmp
+
+    import kaic
+    from kaic.tools.general import str_to_int
+    from kaic.compatibility.juicer import to_juicer
+    if resolutions is not None:
+        resolutions = [str_to_int(r) for r in resolutions]
+
+    pairs = [kaic.load(f, tmpdir=tmp) for f in input_files]
+    try:
+        to_juicer(pairs, output_file, resolutions=resolutions,
+                  juicer_tools_jar_path=juicer_tools_jar_path,
+                  tmp=tmp)
+    finally:
+        for p in pairs:
+            p.close()
     logger.info("All done.")
 
 
