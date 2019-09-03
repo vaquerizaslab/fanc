@@ -427,14 +427,13 @@ def auto_parser():
     )
 
     parser.add_argument(
-        '--mapper-parallel', dest='mapper_parallel',
-        action='store_true',
-        default=False,
-        help="Use Bowtie2/BWA parallelisation. "
-             "By default, kaic spawns multiple mapping " 
-             "processes. Using the mapper parallelisation " 
-             "is typically slower, but consumes less " 
-             "memory and has a lower disk I/O overhead. "
+        '--kaic-parallel', dest='mapper_parallel',
+        action='store_false',
+        default=True,
+        help='Use Kai-C parallelisation, which launches multiple mapper jobs. '
+             'This may be faster in some cases than relying '
+             'on the internal paralellisation of the mapper, '
+             'but has potentially high disk I/O and memory usage.'
     )
 
     parser.add_argument(
