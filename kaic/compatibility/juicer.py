@@ -139,7 +139,7 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
                     f.flush()
                     fgz = gzip.GzipFile(mode='wb', fileobj=f)
 
-                    for chri, chromosome1 in chromosomes:
+                    for chri, chromosome1 in enumerate(chromosomes):
                         for chrj in range(chri, chromosomes):
                             chromosome2 = chromosomes[chrj]
                             for p in pairs:
