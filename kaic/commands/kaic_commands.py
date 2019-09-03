@@ -4217,7 +4217,6 @@ def aggregate(argv, **kwargs):
                                                                         cache=cache)
             else:
                 aggregate_matrix = matrix
-                b = 1
 
             if matrix_file is not None:
                 np.savetxt(matrix_file, aggregate_matrix.matrix())
