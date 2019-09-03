@@ -705,6 +705,20 @@ class BasePlotter2D(BasePlotter):
         self.ax.set_xlim(self._last_xlim)
         self.ax.set_ylim(self._last_ylim)
 
+    def remove_genome_ticks(self, major=True, minor=True):
+        """
+        Remove all genome coordinate tickmarks.
+        """
+        if major:
+            plt.setp(self.ax.xaxis.get_majorticklines(), visible=False)
+            plt.setp(self.ax.yaxis.get_majorticklines(), visible=False)
+            self.ax.set_yticks([], minor=False)
+        if minor:
+            plt.setp(self.ax.xaxis.get_minorticklines(), visible=False)
+            plt.setp(self.ax.yaxis.get_minorticklines(), visible=False)
+            self.ax.set_yticks([], minor=True)
+        self._draw_ticks = False
+
     @abstractmethod
     def _refresh(self, region):
         raise NotImplementedError("Subclasses need to override _refresh function")
