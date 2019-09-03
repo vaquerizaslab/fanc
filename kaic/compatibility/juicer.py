@@ -116,6 +116,8 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
         if isinstance(pairs, ReadPairs):
             pairs = [pairs]
 
+        chromosomes = pairs[0].chromosomes()
+
         with tempfile.NamedTemporaryFile(suffix='.chrom.sizes', mode='w', delete=False) as chrom_sizes_file:
             logger.info("Writing chromosome sizes")
             for chromosome, size in pairs[0].chromosome_lengths.items():
@@ -125,7 +127,7 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
             # make restriction site file
             with tempfile.NamedTemporaryFile(prefix="re_sites_", suffix='.txt', mode='w', dir=tmpdir) as re_file:
                 logger.info("Making restriction map")
-                for chromosome in pairs[0].chromosomes():
+                for chromosome in chromosomes:
                     re_sites = []
                     for region in pairs[0].regions(chromosome, lazy=True):
                         re_sites.append(str(region.end))
@@ -137,18 +139,33 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
                     f.flush()
                     fgz = gzip.GzipFile(mode='wb', fileobj=f)
 
-                    for p in pairs:
-                        for pair in p.pairs(lazy=True):
-                            fgz.write("{} {} {} {} {} {} {} {}\n".format(
-                                1 if pair.left.strand == -1 else 0,
-                                pair.left.fragment.chromosome,
-                                pair.left.position,
-                                pair.left.fragment.ix,
-                                1 if pair.right.strand == -1 else 0,
-                                pair.right.fragment.chromosome,
-                                pair.right.position,
-                                pair.right.fragment.ix
-                            ).encode('utf-8'))
+                    for chri, chromosome1 in chromosomes:
+                        for chrj in range(chri, chromosomes):
+                            chromosome2 = chromosomes[chrj]
+                            for p in pairs:
+                                for pair in p.pairs((chromosome1, chromosome2), lazy=True):
+                                    if pair.left.chromosome <= pair.right.chromosome:
+                                        fgz.write("{} {} {} {} {} {} {} {}\n".format(
+                                            1 if pair.left.strand == -1 else 0,
+                                            pair.left.fragment.chromosome,
+                                            pair.left.position,
+                                            pair.left.fragment.ix,
+                                            1 if pair.right.strand == -1 else 0,
+                                            pair.right.fragment.chromosome,
+                                            pair.right.position,
+                                            pair.right.fragment.ix
+                                        ).encode('utf-8'))
+                                    else:
+                                        fgz.write("{} {} {} {} {} {} {} {}\n".format(
+                                            1 if pair.right.strand == -1 else 0,
+                                            pair.right.fragment.chromosome,
+                                            pair.right.position,
+                                            pair.right.fragment.ix,
+                                            1 if pair.left.strand == -1 else 0,
+                                            pair.left.fragment.chromosome,
+                                            pair.left.position,
+                                            pair.left.fragment.ix
+                                        ).encode('utf-8'))
                     fgz.close()
 
                     f.flush()
