@@ -133,12 +133,17 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
     def eigenvector(self, sub_region=None, genome=None, eigenvector=0,
                     per_chromosome=None, oe_per_chromosome=None,
-                    force=False):
+                    exclude_chromosomes=None, force=False):
         if per_chromosome is None:
             per_chromosome = self.meta.per_chromosome
 
         if oe_per_chromosome is None:
             oe_per_chromosome = self.meta.oe_per_chromosome
+
+        if exclude_chromosomes is None:
+            exclude_chromosomes = set()
+        else:
+            exclude_chromosomes = set(exclude_chromosomes)
 
         if (not force and self.meta.has_ev and
                 oe_per_chromosome == self.meta.oe_per_chromosome and
@@ -178,6 +183,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
                 gc_content = [np.nan] * len(self.regions)
                 for chromosome_sub in self.chromosomes():
+                    if chromosome_sub in exclude_chromosomes:
+                        continue
                     logger.info("{}".format(chromosome_sub))
                     chromosome_sequence = genome[chromosome_sub].sequence
                     for region in self.regions(chromosome_sub):
@@ -287,7 +294,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 gc_content = np.array(gc_content)
                 ev = gc_content
             else:
-                ev = self.eigenvector(*args, **kwargs)
+                ev = self.eigenvector(exclude_chromosomes=exclude_chromosomes, *args, **kwargs)
 
         mappable = self.mappable()
         return vector_enrichment_profile(hic, ev, mappable=mappable,
