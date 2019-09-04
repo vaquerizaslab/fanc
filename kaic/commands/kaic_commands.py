@@ -3270,7 +3270,7 @@ def _domain_scores(parser, input_file, output_file, output_format, default_outpu
                     bin_size * 3, bin_size * 5, bin_size * 7, bin_size * 10, bin_size * 15
                 ]
             kwargs['window_sizes'] = window_sizes
-            logger.info("Chosen window sizes: {}".format(window_sizes))
+            logger.info("Chosen window sizes: {}".format(" ".join([str(w) for w in window_sizes])))
             scores = score_class.from_hic(matrix, file_name=output_file,
                                           **kwargs)
         else:
