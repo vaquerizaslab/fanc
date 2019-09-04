@@ -164,7 +164,7 @@ class InsulationScores(RegionScoreParameterTable):
         if isinstance(window_sizes, int):
             window_sizes = [window_sizes]
 
-        window_sizes = [int(hic.distance_to_bins(w) / 2) for w in window_sizes]
+        bin_window_sizes = [int(hic.distance_to_bins(w) / 2) for w in window_sizes]
 
         insulation_scores = cls(parameter_prefix='insulation_',
                                 parameter_values=window_sizes,
@@ -187,20 +187,20 @@ class InsulationScores(RegionScoreParameterTable):
         else:
             intra_expected, intra_expected_chromosome = None, None
 
-        ii_list = [[] for _ in window_sizes]
+        ii_list = [[] for _ in bin_window_sizes]
         chromosomes = hic.chromosomes()
         for chromosome in chromosomes:
             chromosome_start, chromosome_stop = chromosome_bins[chromosome]
-            values_by_chromosome = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in window_sizes]
+            values_by_chromosome = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in bin_window_sizes]
 
             # add each edge weight to every insulation window that contains it
             for edge in hic.edges((chromosome, chromosome), lazy=True):
                 i = edge.source - chromosome_start + window_offset
                 j = edge.sink - chromosome_start - window_offset
 
-                for w_ix, window_size in enumerate(window_sizes):
-                    start = max(i, j - window_size + 1)
-                    stop = min(j + 1, i + window_size)
+                for w_ix, bin_window_size in enumerate(bin_window_sizes):
+                    start = max(i, j - bin_window_size + 1)
+                    stop = min(j + 1, i + bin_window_size)
                     for ii_bin in range(start, stop):
                         weight = getattr(edge, hic._default_score_field)
                         values_by_chromosome[w_ix][ii_bin] += weight
@@ -212,9 +212,9 @@ class InsulationScores(RegionScoreParameterTable):
                 covered = set()
                 for ix in range(chromosome_start, chromosome_stop):
                     if not mappable[ix]:
-                        for w_ix, window_size in enumerate(window_sizes):
+                        for w_ix, bin_window_size in enumerate(bin_window_sizes):
                             sink = ix
-                            for source in range(max(chromosome_start, ix - window_size - window_offset - 2), ix):
+                            for source in range(max(chromosome_start, ix - bin_window_size - window_offset - 2), ix):
                                 if (source, sink) in covered:
                                     continue
                                 covered.add((source, sink))
@@ -222,13 +222,13 @@ class InsulationScores(RegionScoreParameterTable):
                                 i = source - chromosome_start + window_offset
                                 j = sink - chromosome_start - window_offset
 
-                                start = max(i, j - window_size + 1)
-                                stop = min(j + 1, i + window_size)
+                                start = max(i, j - bin_window_size + 1)
+                                stop = min(j + 1, i + bin_window_size)
                                 for ii_bin in range(start, stop):
                                     values_by_chromosome[w_ix][ii_bin] += weight
 
                             source = ix
-                            for sink in range(ix, min(chromosome_stop, ix + window_offset + window_size + 2)):
+                            for sink in range(ix, min(chromosome_stop, ix + window_offset + bin_window_size + 2)):
                                 if (source, sink) in covered:
                                     continue
                                 covered.add((source, sink))
@@ -236,53 +236,53 @@ class InsulationScores(RegionScoreParameterTable):
                                 i = source - chromosome_start + window_offset
                                 j = sink - chromosome_start - window_offset
 
-                                start = max(i, j - window_size + 1)
-                                stop = min(j + 1, i + window_size)
+                                start = max(i, j - bin_window_size + 1)
+                                stop = min(j + 1, i + bin_window_size)
                                 for ii_bin in range(start, stop):
                                     values_by_chromosome[w_ix][ii_bin] += weight
 
                 for k in range(len(values_by_chromosome)):
-                    for w_ix, window_size in enumerate(window_sizes):
-                        if (k - window_offset < window_size - 1
-                                or k + window_offset > len(values_by_chromosome) - window_size):
+                    for w_ix, bin_window_size in enumerate(bin_window_sizes):
+                        if (k - window_offset < bin_window_size - 1
+                                or k + window_offset > len(values_by_chromosome) - bin_window_size):
                             values_by_chromosome[w_ix][k] = np.nan
                         else:
-                            values_by_chromosome[w_ix][k] /= window_size ** 2
+                            values_by_chromosome[w_ix][k] /= bin_window_size ** 2
             # count unmappable bins in every window
             else:
-                unmappable_horizontal = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in window_sizes]
-                unmappable_vertical = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in window_sizes]
+                unmappable_horizontal = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in bin_window_sizes]
+                unmappable_vertical = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in bin_window_sizes]
 
                 for ix in range(chromosome_start, chromosome_stop):
                     if not mappable[ix]:
-                        for w_ix, window_size in enumerate(window_sizes):
+                        for w_ix, bin_window_size in enumerate(bin_window_sizes):
                             # horizontal
                             start_bin = ix - chromosome_start + window_offset
-                            for ii_bin in range(start_bin, start_bin + window_size):
+                            for ii_bin in range(start_bin, start_bin + bin_window_size):
                                 if 0 <= ii_bin < len(unmappable_horizontal[w_ix]):
                                     unmappable_horizontal[w_ix][ii_bin] += 1
                             # vertical
                             start_bin = ix - chromosome_start - window_offset
-                            for ii_bin in range(start_bin - window_size + 1, start_bin + 1):
+                            for ii_bin in range(start_bin - bin_window_size + 1, start_bin + 1):
                                 if 0 <= ii_bin < len(unmappable_vertical[w_ix]):
                                     unmappable_vertical[w_ix][ii_bin] += 1
 
-                for w_ix, window_size in enumerate(window_sizes):
+                for w_ix, bin_window_size in enumerate(bin_window_sizes):
                     for k in range(len(values_by_chromosome[w_ix])):
-                        na_vertical = unmappable_vertical[w_ix][k] * window_size
-                        na_horizontal = unmappable_horizontal[w_ix][k] * window_size
+                        na_vertical = unmappable_vertical[w_ix][k] * bin_window_size
+                        na_horizontal = unmappable_horizontal[w_ix][k] * bin_window_size
                         na_overlap = unmappable_horizontal[w_ix][k] * unmappable_vertical[w_ix][k]
                         na_total = na_vertical + na_horizontal - na_overlap
 
                         # take into account nan values when adding zeros
-                        if ((na_total > (window_size ** 2 * na_threshold))
-                                or k - window_offset < window_size - 1
-                                or k + window_offset > len(values_by_chromosome[w_ix]) - window_size):
+                        if ((na_total > (bin_window_size ** 2 * na_threshold))
+                                or k - window_offset < bin_window_size - 1
+                                or k + window_offset > len(values_by_chromosome[w_ix]) - bin_window_size):
                             values_by_chromosome[w_ix][k] = np.nan
                         else:
-                            values_by_chromosome[w_ix][k] /= (window_size ** 2 - na_total)
+                            values_by_chromosome[w_ix][k] /= (bin_window_size ** 2 - na_total)
 
-            for w_ix, window_size in enumerate(window_sizes):
+            for w_ix, bin_window_size in enumerate(bin_window_sizes):
                 ii_by_chromosome = values_by_chromosome[w_ix]
 
                 with warnings.catch_warnings():
@@ -330,11 +330,41 @@ class DirectionalityIndex(RegionScoreTable):
         RegionScoreTable.__init__(*args, **kwargs)
 
     @classmethod
-    def from_hic(cls, hic, window_size=2000000, weight_field=None,
-                 file_name=None, tmpdir=None, **kwargs):
-        bin_window_size = hic.distance_to_bins(window_size)
+    def from_hic(cls, hic, window_size=2000000,
+                 file_name=None, tmpdir=None, *args, **kwargs):
+        directionality_indexes = DirectionalityIndexes.from_hic(hic, window_size, *args, **kwargs)
         directionality_index_regions = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         directionality_index_regions.add_regions(hic.regions, preserve_attributes=False)
+        directionality_index_regions.region_data('score', directionality_indexes.score(window_size))
+
+        return directionality_index_regions
+
+
+class DirectionalityIndexes(RegionScoreParameterTable):
+
+    _classid = 'DIRECTIONALITYINDEXES'
+
+    def __init__(*args, **kwargs):
+        RegionScoreParameterTable.__init__(*args, **kwargs)
+
+    @property
+    def window_sizes(self):
+        return self._parameters
+
+    @classmethod
+    def from_hic(cls, hic, window_sizes, weight_field=None,
+                 file_name=None, tmpdir=None, **kwargs):
+        kwargs['lazy'] = True
+
+        if isinstance(window_sizes, int):
+            window_sizes = [window_sizes]
+
+        bin_window_sizes = [int(hic.distance_to_bins(w) / 2) for w in window_sizes]
+
+        directionality_indexes = cls(parameter_prefix='directionality_',
+                                     parameter_values=list(window_sizes),
+                                     file_name=file_name, mode='w',
+                                     tmpdir=tmpdir)
 
         weight_field = hic._default_score_field if weight_field is None else weight_field
 
@@ -356,9 +386,9 @@ class DirectionalityIndex(RegionScoreTable):
         for j in range(chromosome_length):
             boundary_dist[last_chromosome_index + j] = min(j, n_bins - last_chromosome_index - 1 - j)
 
-        left_sums = np.zeros(n_bins)
-        right_sums = np.zeros(n_bins)
-        directionality_index = np.zeros(n_bins)
+        left_sums = [np.zeros(n_bins) for _ in window_sizes]
+        right_sums = [np.zeros(n_bins) for _ in window_sizes]
+        directionality_index = [np.zeros(n_bins) for _ in window_sizes]
         kwargs['inter_chromosomal'] = False
         kwargs['lazy'] = True
         for edge in hic.edges(**kwargs):
@@ -367,51 +397,24 @@ class DirectionalityIndex(RegionScoreTable):
             weight = getattr(edge, weight_field)
             if source == sink:
                 continue
-            if sink - source <= bin_window_size:
-                if boundary_dist[sink] >= sink-source:
-                    left_sums[sink] += weight
-                if boundary_dist[source] >= sink-source:
-                    right_sums[source] += weight
 
-        for i in range(n_bins):
-            A = left_sums[i]
-            B = right_sums[i]
-            E = (A+B)/2
-            if E != 0 and B-A != 0:
-                directionality_index[i] = ((B-A)/abs(B-A)) * ((((A-E)**2)/E) + (((B-E)**2)/E))
+            for w_ix, bin_window_size in enumerate(bin_window_sizes):
+                if sink - source <= bin_window_size:
+                    if boundary_dist[sink] >= sink - source:
+                        left_sums[w_ix][sink] += weight
+                    if boundary_dist[source] >= sink - source:
+                        right_sums[w_ix][source] += weight
 
-        directionality_index_regions.region_data('score', directionality_index)
+        for w_ix, window_size in enumerate(window_sizes):
+            for i in range(n_bins):
+                A = left_sums[w_ix][i]
+                B = right_sums[w_ix][i]
+                E = (A + B) / 2
+                if E != 0 and B - A != 0:
+                    directionality_index[w_ix][i] = ((B - A) / abs(B - A)) * ((((A - E) ** 2) / E) +
+                                                                              (((B - E) ** 2) / E))
 
-        return directionality_index_regions
-
-
-class DirectionalityIndexes(RegionScoreParameterTable):
-
-    _classid = 'DIRECTIONALITYINDEXES'
-
-    def __init__(*args, **kwargs):
-        RegionScoreParameterTable.__init__(*args, **kwargs)
-
-    @property
-    def window_sizes(self):
-        return self._parameters
-
-    @classmethod
-    def from_hic(cls, hic, window_sizes, file_name=None, tmpdir=None,
-                 **kwargs):
-        directionality_indexes = cls(parameter_prefix='directionality_',
-                                     parameter_values=list(window_sizes),
-                                     file_name=file_name, mode='w',
-                                     tmpdir=tmpdir)
-
-        for i, window_size in enumerate(window_sizes):
-            logger.debug("Window size {}".format(window_size))
-            di = DirectionalityIndex.from_hic(hic, window_size, **kwargs)
-            if i == 0:
-                directionality_indexes.add_regions(di.regions, preserve_attributes=False)
-
-            scores = list(di.scores())
-            directionality_indexes.scores(window_size, scores)
+            directionality_indexes.scores(window_size, directionality_index[w_ix])
 
         return directionality_indexes
 
