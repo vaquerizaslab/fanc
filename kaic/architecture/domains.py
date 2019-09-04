@@ -321,26 +321,6 @@ class InsulationScores(RegionScoreParameterTable):
 
         return insulation_scores
 
-    # @classmethod
-    # def from_hic(cls, hic, window_sizes, file_name=None, tmpdir=None,
-    #              **kwargs):
-    #     insulation_scores = cls(parameter_prefix='insulation_',
-    #                             parameter_values=list(window_sizes),
-    #                             file_name=file_name, mode='w',
-    #                             tmpdir=tmpdir)
-    #
-    #     for i, window_size in enumerate(window_sizes):
-    #         logger.info("Calculating insulation score with window size {}".format(window_size))
-    #         ii = InsulationScore.from_hic(hic, window_size, **kwargs)
-    #         if i == 0:
-    #             insulation_scores.add_regions(ii.regions, preserve_attributes=False)
-    #
-    #         scores = list(ii.scores())
-    #         insulation_scores.scores(window_size, scores)
-    #         ii.close()
-    #
-    #     return insulation_scores
-
 
 class DirectionalityIndex(RegionScoreTable):
 
