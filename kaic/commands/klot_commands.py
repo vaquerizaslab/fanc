@@ -730,9 +730,9 @@ def array_parser():
     parser.add_argument(
         '-l', '--log', dest='log',
         action='store_true',
-        help='''Log-transform heatmap values'''
+        default=False,
+        help='Log-transform heatmap values'
     )
-    parser.set_defaults(log=False)
 
     parser.add_argument(
         '-r', '--range', dest='range',
@@ -757,9 +757,9 @@ def array_parser():
     parser.add_argument(
         '-C', '--no-colorbar', dest='show_colorbar',
         action='store_false',
-        help='''Do not show colorbar in plot'''
+        default=True,
+        help='Do not show colorbar in plot'
     )
-    parser.set_defaults(show_colorbar=True)
 
     parser.add_argument(
         '-S', '--no-symmetry', dest='symmetry',
