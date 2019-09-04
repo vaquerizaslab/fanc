@@ -128,149 +128,15 @@ class InsulationScore(RegionScoreTable):
         RegionScoreTable.__init__(*args, **kwargs)
 
     @classmethod
-    def from_hic(cls, hic, window_size_in_bp, window_offset=0,
-                 file_name=None, tmpdir=None, impute_missing=False,
-                 na_threshold=0.5, normalise=True, normalisation_window=None,
-                 trim_mean_proportion=0.0, geometric_mean=False,
-                 subtract_mean=False, log=True):
-        window_size = int(hic.distance_to_bins(window_size_in_bp) / 2)
+    def from_hic(cls, hic, window_size_in_bp,
+                 file_name=None, tmpdir=None,
+                 *args, **kwargs):
+
+        insulation_scores = InsulationScores.from_hic(hic, window_size_in_bp, *args, **kwargs)
         insulation_score_regions = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         insulation_score_regions.add_regions(hic.regions, preserve_attributes=False)
+        insulation_score_regions.region_data('score', insulation_scores.scores(window_size_in_bp))
 
-        if geometric_mean:
-            avg_stat = gmean
-        else:
-            avg_stat = np.nanmean
-
-        chromosome_bins = hic.chromosome_bins
-        window_offset += 1
-
-        mappable = hic.mappable()
-
-        if impute_missing:
-            intra_expected, intra_expected_chromosome, _ = hic.expected_values()
-        else:
-            intra_expected, intra_expected_chromosome = None, None
-
-        def _pair_to_bins(source, sink):
-            # correct index by chromosome and window offset
-            i = source - chromosome_start + window_offset
-            j = sink - chromosome_start - window_offset
-
-            start = max(i, j - window_size + 1)
-            stop = min(j + 1, i + window_size)
-            for ii_bin in range(start, stop):
-                yield ii_bin
-
-        ii_list = []
-        chromosomes = hic.chromosomes()
-        for chromosome in chromosomes:
-            chromosome_start, chromosome_stop = chromosome_bins[chromosome]
-            values_by_chromosome = [0 for _ in range(chromosome_start, chromosome_stop)]
-
-            # add each edge weight to every insulation window that contains it
-            for edge in hic.edges((chromosome, chromosome), lazy=True):
-                for ii_bin in _pair_to_bins(edge.source, edge.sink):
-                    weight = getattr(edge, hic._default_score_field)
-                    values_by_chromosome[ii_bin] += weight
-
-            # add imputed values, if requested
-            if impute_missing:
-                expected = intra_expected_chromosome[chromosome]
-
-                covered = set()
-                for ix in range(chromosome_start, chromosome_stop):
-                    if not mappable[ix]:
-                        sink = ix
-                        for source in range(max(chromosome_start, ix - window_size - window_offset - 2), ix):
-                            if (source, sink) in covered:
-                                continue
-                            covered.add((source, sink))
-                            weight = expected[sink - source]
-                            for ii_bin in _pair_to_bins(source, sink):
-                                values_by_chromosome[ii_bin] += weight
-
-                        source = ix
-                        for sink in range(ix, min(chromosome_stop, ix + window_offset + window_size + 2)):
-                            if (source, sink) in covered:
-                                continue
-                            covered.add((source, sink))
-                            weight = expected[sink - source]
-                            for ii_bin in _pair_to_bins(source, sink):
-                                values_by_chromosome[ii_bin] += weight
-
-                for k in range(len(values_by_chromosome)):
-                    if (k - window_offset < window_size - 1
-                            or k + window_offset > len(values_by_chromosome) - window_size):
-                        values_by_chromosome[k] = np.nan
-                    else:
-                        values_by_chromosome[k] /= window_size ** 2
-            # count unmappable bins in every window
-            else:
-                unmappable_horizontal = [0 for _ in range(chromosome_start, chromosome_stop)]
-                unmappable_vertical = [0 for _ in range(chromosome_start, chromosome_stop)]
-
-                for ix in range(chromosome_start, chromosome_stop):
-                    if not mappable[ix]:
-                        # horizontal
-                        start_bin = ix - chromosome_start + window_offset
-                        for ii_bin in range(start_bin, start_bin + window_size):
-                            if 0 <= ii_bin < len(unmappable_horizontal):
-                                unmappable_horizontal[ii_bin] += 1
-                        # vertical
-                        start_bin = ix - chromosome_start - window_offset
-                        for ii_bin in range(start_bin - window_size + 1, start_bin + 1):
-                            if 0 <= ii_bin < len(unmappable_vertical):
-                                unmappable_vertical[ii_bin] += 1
-
-                for k in range(len(values_by_chromosome)):
-                    na_vertical = unmappable_vertical[k] * window_size
-                    na_horizontal = unmappable_horizontal[k] * window_size
-                    na_overlap = unmappable_horizontal[k] * unmappable_vertical[k]
-                    na_total = na_vertical + na_horizontal - na_overlap
-
-                    # take into account nan values when adding zeros
-                    if ((na_total > (window_size ** 2 * na_threshold))
-                            or k - window_offset < window_size - 1
-                            or k + window_offset > len(values_by_chromosome) - window_size):
-                        values_by_chromosome[k] = np.nan
-                    else:
-                        values_by_chromosome[k] /= (window_size ** 2 - na_total)
-
-            ii_by_chromosome = values_by_chromosome
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=RuntimeWarning)
-
-                ii_by_chromosome = np.array(ii_by_chromosome)
-                if normalise:
-                    logger.debug("Normalising insulation index")
-                    if normalisation_window is not None:
-                        logger.debug("Sliding window average")
-                        mean_ins = apply_sliding_func(ii_by_chromosome, normalisation_window,
-                                                      func=lambda x: trim_stats(x[np.isfinite(x)],
-                                                                                trim_mean_proportion,
-                                                                                stat=avg_stat))
-                    else:
-                        logger.debug("Whole chromosome mean")
-                        mean_ins = trim_stats(ii_by_chromosome[np.isfinite(ii_by_chromosome)],
-                                              trim_mean_proportion, stat=avg_stat)
-
-                    if not subtract_mean:
-                        logger.debug("Dividing by mean {}".format(mean_ins))
-                        ii_by_chromosome = ii_by_chromosome / mean_ins
-                    else:
-                        logger.debug("Subtracting mean {}".format(mean_ins))
-                        ii_by_chromosome = ii_by_chromosome - mean_ins
-            ii_list.append(ii_by_chromosome)
-
-        ins_matrix = np.array(list(itertools.chain.from_iterable(ii_list)))
-
-        if log:
-            logger.debug("Log-transforming insulation index")
-            ins_matrix = np.log2(ins_matrix)
-
-        insulation_score_regions.region_data('score', ins_matrix)
         return insulation_score_regions
 
     def boundaries(self, *args, **kwargs):
@@ -289,24 +155,191 @@ class InsulationScores(RegionScoreParameterTable):
         return self._parameters
 
     @classmethod
-    def from_hic(cls, hic, window_sizes, file_name=None, tmpdir=None,
-                 **kwargs):
+    def from_hic(cls, hic, window_sizes, window_offset=0,
+                 file_name=None, tmpdir=None, impute_missing=False,
+                 na_threshold=0.5, normalise=True, normalisation_window=None,
+                 trim_mean_proportion=0.0, geometric_mean=False,
+                 subtract_mean=False, log=True):
+
+        if isinstance(window_sizes, int):
+            window_sizes = [window_sizes]
+
+        window_sizes = [int(hic.distance_to_bins(w) / 2) for w in window_sizes]
+
         insulation_scores = cls(parameter_prefix='insulation_',
-                                parameter_values=list(window_sizes),
+                                parameter_values=window_sizes,
                                 file_name=file_name, mode='w',
                                 tmpdir=tmpdir)
+        insulation_scores.add_regions(hic.regions, preserve_attributes=False)
 
-        for i, window_size in enumerate(window_sizes):
-            logger.info("Calculating insulation score with window size {}".format(window_size))
-            ii = InsulationScore.from_hic(hic, window_size, **kwargs)
-            if i == 0:
-                insulation_scores.add_regions(ii.regions, preserve_attributes=False)
+        if geometric_mean:
+            avg_stat = gmean
+        else:
+            avg_stat = np.nanmean
 
-            scores = list(ii.scores())
-            insulation_scores.scores(window_size, scores)
-            ii.close()
+        chromosome_bins = hic.chromosome_bins
+        window_offset += 1
+
+        mappable = hic.mappable()
+
+        if impute_missing:
+            intra_expected, intra_expected_chromosome, _ = hic.expected_values()
+        else:
+            intra_expected, intra_expected_chromosome = None, None
+
+        ii_list = [[] for _ in window_sizes]
+        chromosomes = hic.chromosomes()
+        for chromosome in chromosomes:
+            chromosome_start, chromosome_stop = chromosome_bins[chromosome]
+            values_by_chromosome = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in window_sizes]
+
+            # add each edge weight to every insulation window that contains it
+            for edge in hic.edges((chromosome, chromosome), lazy=True):
+                i = edge.source - chromosome_start + window_offset
+                j = edge.sink - chromosome_start - window_offset
+
+                for w_ix, window_size in enumerate(window_sizes):
+                    start = max(i, j - window_size + 1)
+                    stop = min(j + 1, i + window_size)
+                    for ii_bin in range(start, stop):
+                        weight = getattr(edge, hic._default_score_field)
+                        values_by_chromosome[w_ix][ii_bin] += weight
+
+            # add imputed values, if requested
+            if impute_missing:
+                expected = intra_expected_chromosome[chromosome]
+
+                covered = set()
+                for ix in range(chromosome_start, chromosome_stop):
+                    if not mappable[ix]:
+                        for w_ix, window_size in enumerate(window_sizes):
+                            sink = ix
+                            for source in range(max(chromosome_start, ix - window_size - window_offset - 2), ix):
+                                if (source, sink) in covered:
+                                    continue
+                                covered.add((source, sink))
+                                weight = expected[sink - source]
+                                i = source - chromosome_start + window_offset
+                                j = sink - chromosome_start - window_offset
+
+                                start = max(i, j - window_size + 1)
+                                stop = min(j + 1, i + window_size)
+                                for ii_bin in range(start, stop):
+                                    values_by_chromosome[w_ix][ii_bin] += weight
+
+                            source = ix
+                            for sink in range(ix, min(chromosome_stop, ix + window_offset + window_size + 2)):
+                                if (source, sink) in covered:
+                                    continue
+                                covered.add((source, sink))
+                                weight = expected[sink - source]
+                                i = source - chromosome_start + window_offset
+                                j = sink - chromosome_start - window_offset
+
+                                start = max(i, j - window_size + 1)
+                                stop = min(j + 1, i + window_size)
+                                for ii_bin in range(start, stop):
+                                    values_by_chromosome[w_ix][ii_bin] += weight
+
+                for k in range(len(values_by_chromosome)):
+                    for w_ix, window_size in enumerate(window_sizes):
+                        if (k - window_offset < window_size - 1
+                                or k + window_offset > len(values_by_chromosome) - window_size):
+                            values_by_chromosome[w_ix][k] = np.nan
+                        else:
+                            values_by_chromosome[w_ix][k] /= window_size ** 2
+            # count unmappable bins in every window
+            else:
+                unmappable_horizontal = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in window_sizes]
+                unmappable_vertical = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in window_sizes]
+
+                for ix in range(chromosome_start, chromosome_stop):
+                    if not mappable[ix]:
+                        for w_ix, window_size in enumerate(window_sizes):
+                            # horizontal
+                            start_bin = ix - chromosome_start + window_offset
+                            for ii_bin in range(start_bin, start_bin + window_size):
+                                if 0 <= ii_bin < len(unmappable_horizontal):
+                                    unmappable_horizontal[w_ix][ii_bin] += 1
+                            # vertical
+                            start_bin = ix - chromosome_start - window_offset
+                            for ii_bin in range(start_bin - window_size + 1, start_bin + 1):
+                                if 0 <= ii_bin < len(unmappable_vertical):
+                                    unmappable_vertical[w_ix][ii_bin] += 1
+
+                for w_ix, window_size in enumerate(window_sizes):
+                    for k in range(len(values_by_chromosome[w_ix])):
+                        na_vertical = unmappable_vertical[w_ix][k] * window_size
+                        na_horizontal = unmappable_horizontal[w_ix][k] * window_size
+                        na_overlap = unmappable_horizontal[w_ix][k] * unmappable_vertical[w_ix][k]
+                        na_total = na_vertical + na_horizontal - na_overlap
+
+                        # take into account nan values when adding zeros
+                        if ((na_total > (window_size ** 2 * na_threshold))
+                                or k - window_offset < window_size - 1
+                                or k + window_offset > len(values_by_chromosome[w_ix]) - window_size):
+                            values_by_chromosome[w_ix][k] = np.nan
+                        else:
+                            values_by_chromosome[w_ix][k] /= (window_size ** 2 - na_total)
+
+            for w_ix, window_size in enumerate(window_sizes):
+                ii_by_chromosome = values_by_chromosome[w_ix]
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=RuntimeWarning)
+
+                    ii_by_chromosome = np.array(ii_by_chromosome)
+                    if normalise:
+                        logger.debug("Normalising insulation index")
+                        if normalisation_window is not None:
+                            logger.debug("Sliding window average")
+                            mean_ins = apply_sliding_func(ii_by_chromosome, normalisation_window,
+                                                          func=lambda x: trim_stats(x[np.isfinite(x)],
+                                                                                    trim_mean_proportion,
+                                                                                    stat=avg_stat))
+                        else:
+                            logger.debug("Whole chromosome mean")
+                            mean_ins = trim_stats(ii_by_chromosome[np.isfinite(ii_by_chromosome)],
+                                                  trim_mean_proportion, stat=avg_stat)
+
+                        if not subtract_mean:
+                            logger.debug("Dividing by mean {}".format(mean_ins))
+                            ii_by_chromosome = ii_by_chromosome / mean_ins
+                        else:
+                            logger.debug("Subtracting mean {}".format(mean_ins))
+                            ii_by_chromosome = ii_by_chromosome - mean_ins
+                    ii_list[w_ix].append(ii_by_chromosome)
+
+        for w_ix, window_size in enumerate(window_sizes):
+            ins_matrix = np.array(list(itertools.chain.from_iterable(ii_list[w_ix])))
+
+            if log:
+                logger.debug("Log-transforming insulation index")
+                ins_matrix = np.log2(ins_matrix)
+
+            insulation_scores.scores(window_size, ins_matrix)
 
         return insulation_scores
+
+    # @classmethod
+    # def from_hic(cls, hic, window_sizes, file_name=None, tmpdir=None,
+    #              **kwargs):
+    #     insulation_scores = cls(parameter_prefix='insulation_',
+    #                             parameter_values=list(window_sizes),
+    #                             file_name=file_name, mode='w',
+    #                             tmpdir=tmpdir)
+    #
+    #     for i, window_size in enumerate(window_sizes):
+    #         logger.info("Calculating insulation score with window size {}".format(window_size))
+    #         ii = InsulationScore.from_hic(hic, window_size, **kwargs)
+    #         if i == 0:
+    #             insulation_scores.add_regions(ii.regions, preserve_attributes=False)
+    #
+    #         scores = list(ii.scores())
+    #         insulation_scores.scores(window_size, scores)
+    #         ii.close()
+    #
+    #     return insulation_scores
 
 
 class DirectionalityIndex(RegionScoreTable):
