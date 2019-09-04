@@ -259,12 +259,12 @@ class InsulationScores(RegionScoreParameterTable):
                             # horizontal
                             start_bin = ix - chromosome_start + window_offset
                             for ii_bin in range(start_bin, start_bin + window_size):
-                                if 0 <= ii_bin < len(unmappable_horizontal):
+                                if 0 <= ii_bin < len(unmappable_horizontal[w_ix]):
                                     unmappable_horizontal[w_ix][ii_bin] += 1
                             # vertical
                             start_bin = ix - chromosome_start - window_offset
                             for ii_bin in range(start_bin - window_size + 1, start_bin + 1):
-                                if 0 <= ii_bin < len(unmappable_vertical):
+                                if 0 <= ii_bin < len(unmappable_vertical[w_ix]):
                                     unmappable_vertical[w_ix][ii_bin] += 1
 
                 for w_ix, window_size in enumerate(window_sizes):
