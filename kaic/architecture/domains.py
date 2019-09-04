@@ -290,7 +290,7 @@ class InsulationScores(RegionScoreParameterTable):
 
                     ii_by_chromosome = np.array(ii_by_chromosome)
                     if normalise:
-                        logger.debug("Normalising insulation index")
+                        logger.debug("Normalising insulation score")
                         if normalisation_window is not None:
                             logger.debug("Sliding window average")
                             mean_ins = apply_sliding_func(ii_by_chromosome, normalisation_window,
@@ -358,13 +358,14 @@ class DirectionalityIndexes(RegionScoreParameterTable):
 
         if isinstance(window_sizes, int):
             window_sizes = [window_sizes]
-
+        window_sizes = list(window_sizes)
         bin_window_sizes = [int(hic.distance_to_bins(w) / 2) for w in window_sizes]
 
         directionality_indexes = cls(parameter_prefix='directionality_',
                                      parameter_values=list(window_sizes),
                                      file_name=file_name, mode='w',
                                      tmpdir=tmpdir)
+        directionality_indexes.add_regions(hic.regions, preserve_attributes=False)
 
         weight_field = hic._default_score_field if weight_field is None else weight_field
 
@@ -388,7 +389,6 @@ class DirectionalityIndexes(RegionScoreParameterTable):
 
         left_sums = [np.zeros(n_bins) for _ in window_sizes]
         right_sums = [np.zeros(n_bins) for _ in window_sizes]
-        directionality_index = [np.zeros(n_bins) for _ in window_sizes]
         kwargs['inter_chromosomal'] = False
         kwargs['lazy'] = True
         for edge in hic.edges(**kwargs):
@@ -405,15 +405,35 @@ class DirectionalityIndexes(RegionScoreParameterTable):
                     if boundary_dist[source] >= sink - source:
                         right_sums[w_ix][source] += weight
 
-        for w_ix, window_size in enumerate(window_sizes):
+        mappability = hic.mappable()
+
+        directionality_index = [np.zeros(n_bins) for _ in window_sizes]
+        for w_ix, bin_window_size in enumerate(bin_window_sizes):
+            corr, uncorr = 0, 0
             for i in range(n_bins):
-                A = left_sums[w_ix][i]
-                B = right_sums[w_ix][i]
+                lm = np.sum(mappability[max(0, i - bin_window_size):i])
+                rm = np.sum(mappability[i:i + bin_window_size])
+                if lm / bin_window_size < 0.5 or rm / bin_window_size < 0.5:
+                    directionality_index[w_ix][i] = np.nan
+                    continue
+
+                Au = left_sums[w_ix][i]
+                Bu = right_sums[w_ix][i]
+                # correct for mappability
+                A = Au + Au / lm * (bin_window_size - lm)
+                B = Bu + Bu / rm * (bin_window_size - rm)
+
+                if Au != A:
+                    corr += 1
+                else:
+                    uncorr += 1
+
                 E = (A + B) / 2
                 if E != 0 and B - A != 0:
                     directionality_index[w_ix][i] = ((B - A) / abs(B - A)) * ((((A - E) ** 2) / E) +
                                                                               (((B - E) ** 2) / E))
 
+        for w_ix, window_size in enumerate(window_sizes):
             directionality_indexes.scores(window_size, directionality_index[w_ix])
 
         return directionality_indexes
