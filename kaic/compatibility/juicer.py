@@ -144,7 +144,7 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
                             chromosome2 = chromosomes[chrj]
                             for p in pairs:
                                 for pair in p.pairs((chromosome1, chromosome2), lazy=True):
-                                    if pair.left.chromosome <= pair.right.chromosome:
+                                    if pair.left.fragment.chromosome <= pair.right.fragment.chromosome:
                                         fgz.write("{} {} {} {} {} {} {} {}\n".format(
                                             1 if pair.left.strand == -1 else 0,
                                             pair.left.fragment.chromosome,
