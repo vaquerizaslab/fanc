@@ -2937,7 +2937,7 @@ def compare(argv, **kwargs):
                                              scale=scale,
                                              log=log,
                                              ignore_infinite=filter_infinite,
-                                             filters=filters)
+                                             ignore_zeros=filter_zero)
         cmp.close()
     elif isinstance(matrix1, RegionScoreParameterTable) and isinstance(matrix2, RegionScoreParameterTable):
         ComparisonScores = None
