@@ -465,8 +465,23 @@ def auto_parser():
 
     parser.add_argument(
         '-q', '--quality-cutoff', dest='quality_cutoff',
+        type=float,
+        help='Cutoff for the minimum mapping quality of a read. '
+             'For numbers larger than 1, will filter on MAPQ. '
+             'If a number between 0 and 1 is provided, will filter '
+             'on the AS tag instead of mapping quality (only BWA). '
+             'The quality cutoff is then interpreted as the '
+             'fraction of bases that have to be matched for any '
+             'given read. Only applies to SAM/BAM input!'
+    )
+
+    parser.add_argument(
+        '--mapping-quality-cutoff', dest='mapping_quality_cutoff',
         type=int,
-        help="Quality cutoff for mapped reads. Default: no cutoff."
+        help='MAPQ cutoff for mapped reads. Only applies when iterative '
+             'mapping is enabled: if a mapped read has MAPQ below this cutoff,'
+             'it will be sent to another iteration in an attempt to find a '
+             'higher quality alignment. Default is 3 for BWA and 30 for Bowtie2.'
     )
 
     parser.add_argument(
@@ -651,6 +666,7 @@ def auto(argv, **kwargs):
     genome_index = args.genome_index
     basename = args.basename
     quality_cutoff = args.quality_cutoff
+    mapping_quality_cutoff = args.mapping_quality_cutoff
     tmp = args.tmp
     mapper_parallel = args.mapper_parallel
     split_fastq = args.split_fastq
@@ -830,8 +846,8 @@ def auto(argv, **kwargs):
                                                    '-s', str(step_size),
                                                    '-t', str(threads)]
 
-            if quality_cutoff is not None:
-                mapping_command += ['-q', str(quality_cutoff)]
+            if mapping_quality_cutoff is not None:
+                mapping_command += ['-q', str(mapping_quality_cutoff)]
             if tmp:
                 mapping_command.append('-tmp')
             if mapper_parallel:
