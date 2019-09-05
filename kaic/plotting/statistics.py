@@ -243,7 +243,7 @@ def distance_decay_plot(*matrices, ax=None, chromosome=None, **kwargs):
     return ax
 
 
-def pca_plot(pca_res, variance=None, eigenvectors=(0, 0),
+def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
              markers=None, colors=None, names=None):
     if markers is None:
         markers = ('^', 'o', '*', 's', 'D', 'v', 'd', 'H', 'p', '>')
