@@ -244,7 +244,7 @@ def distance_decay_plot(*matrices, ax=None, chromosome=None, **kwargs):
 
 
 def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
-             markers=None, colors=None, names=None):
+             markers=None, colors=None, names=None, ax=None):
     if markers is None:
         markers = ('^', 'o', '*', 's', 'D', 'v', 'd', 'H', 'p', '>')
     if colors is None:
@@ -261,22 +261,23 @@ def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
     if variance is not None:
         ylabel += ' (%d%%)' % int(variance[eigenvectors[1]]*100)
 
-    if names is not None:
-        ax_main = plt.subplot(121)
-    else:
-        ax_main = plt.subplot(111)
-    ax_main.set_xlabel(xlabel)
-    ax_main.set_ylabel(ylabel)
+    if ax is None:
+        if names is not None:
+            ax = plt.subplot(121)
+        else:
+            ax = plt.subplot(111)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
-    ax_main.set_title('PCA on %d samples' % pca_res.shape[0])
+    ax.set_title('PCA on %d samples' % pca_res.shape[0])
 
     for i in range(pca_res.shape[0]):
         name = names[i] if names is not None else None
-        ax_main.plot(pca_res[i, eigenvectors[0]], pca_res[i, eigenvectors[1]],
-                     marker=next(markers), color=next(colors), label=name)
+        ax.plot(pca_res[i, eigenvectors[0]], pca_res[i, eigenvectors[1]],
+                marker=next(markers), color=next(colors), label=name)
 
     if names is not None:
-        ax_main.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
-    return ax_main.figure, ax_main
+    return ax.figure, ax
 
