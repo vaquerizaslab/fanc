@@ -428,8 +428,8 @@ def map(argv, **kwargs):
                             split_command += ['--simple']
                         if tmp:
                             split_command += ['-tmp']
-                        if mapper_parallel:
-                            split_command += ['--mapper-parallel']
+                        if not mapper_parallel:
+                            split_command += ['--kaic-parallel']
                         if not memory_map:
                             split_command += ['--no-memory-map']
                         if trim_front:
