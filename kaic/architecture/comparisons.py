@@ -206,30 +206,68 @@ class ComparisonMatrix(RegionMatrixTable):
 
     @classmethod
     def from_matrices(cls, matrix1, matrix2, file_name=None, tmpdir=None,
-                      log=False, ignore_infinite=True, *args, **kwargs):
+                      log=False, ignore_infinite=True, ignore_zeros=False,
+                      scale=True, **kwargs):
+        kwargs['lazy'] = True
+
         comparison_matrix = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         comparison_matrix.add_regions(matrix1.regions, preserve_attributes=False)
 
+        sf = 1.0
+        if scale:
+            sf = matrix2.scaling_factor(matrix1)
+
+        compare = comparison_matrix.compare
         chromosomes = matrix1.chromosomes()
-        for chr_i in range(len(chromosomes)):
-            chromosome1 = chromosomes[chr_i]
-            for chr_j in range(chr_i, len(chromosomes)):
-                chromosome2 = chromosomes[chr_j]
+        n_chromosome_pairs = int(np.round(len(chromosomes)**2 + len(chromosomes)/2))
+        current_chromosome_pair = 0
+        with RareUpdateProgressBar(max_value=n_chromosome_pairs, prefix='Compare') as pb:
+            for chr_i in range(len(chromosomes)):
+                chromosome1 = chromosomes[chr_i]
+                for chr_j in range(chr_i, len(chromosomes)):
+                    chromosome2 = chromosomes[chr_j]
 
-                logger.debug("Getting edges for {}-{}...".format(chromosome1, chromosome2))
-                edges = _edge_collection(matrix1, matrix2, region=(chromosome1, chromosome2),
-                                         *args, **kwargs)
+                    edges1 = dict()
+                    for edge in matrix1.edges((chromosome1, chromosome2), **kwargs):
+                        edges1[(edge.source, edge.sink)] = edge.weight
 
-                logger.debug("Comparing and saving edges...")
-                for (source, sink), weights in edges.items():
-                    weight = comparison_matrix.compare(*weights)
-                    if log:
-                        weight = np.log2(weight)
-                    if ignore_infinite and not np.isfinite(weight):
-                        continue
+                    edges2 = dict()
+                    for edge in matrix2.edges((chromosome1, chromosome2), **kwargs):
+                        edges2[(edge.source, edge.sink)] = edge.weight * sf
 
-                    comparison_matrix.add_edge_simple(source, sink, weight=weight)
-                logger.debug("Done adding edges for {}-{}...".format(chromosome1, chromosome2))
+                    for key, w1 in edges1.items():
+                        try:
+                            w2 = edges2[key]
+                        except KeyError:
+                            w2 = matrix2.default_value
+
+                        if ignore_zeros and (w1 == 0 or w2 == 0):
+                            continue
+                        weight = compare(w1, w2)
+                        if log:
+                            weight = np.log2(weight)
+                        if ignore_infinite and not np.isfinite(weight):
+                            continue
+
+                        comparison_matrix.add_edge_simple(key[0], key[1], weight=weight)
+
+                    for key, w2 in edges2.items():
+                        if key not in edges1:
+                            w1 = matrix1.default_value
+
+                            if ignore_zeros and (w1 == 0 or w2 == 0):
+                                continue
+                            weight = compare(w1, w2)
+                            if log:
+                                weight = np.log2(weight)
+                            if ignore_infinite and not np.isfinite(weight):
+                                continue
+
+                            comparison_matrix.add_edge_simple(key[0], key[1], weight=weight)
+
+                    current_chromosome_pair += 1
+                    pb.update(current_chromosome_pair)
+
         comparison_matrix.flush()
         return comparison_matrix
 
