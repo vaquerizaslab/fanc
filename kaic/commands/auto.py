@@ -850,8 +850,8 @@ def auto(argv, **kwargs):
                 mapping_command += ['-q', str(iterative_quality_cutoff)]
             if tmp:
                 mapping_command.append('-tmp')
-            if mapper_parallel:
-                mapping_command.append('--mapper-parallel')
+            if not mapper_parallel:
+                mapping_command.append('--kaic-parallel')
             if split_fastq:
                 mapping_command.append('--split-fastq')
             if memory_map:
