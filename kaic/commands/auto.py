@@ -476,7 +476,7 @@ def auto_parser():
     )
 
     parser.add_argument(
-        '--mapping-quality-cutoff', dest='mapping_quality_cutoff',
+        '--iterative-quality-cutoff', dest='iterative_quality_cutoff',
         type=int,
         help='MAPQ cutoff for mapped reads. Only applies when iterative '
              'mapping is enabled: if a mapped read has MAPQ below this cutoff,'
@@ -666,7 +666,7 @@ def auto(argv, **kwargs):
     genome_index = args.genome_index
     basename = args.basename
     quality_cutoff = args.quality_cutoff
-    mapping_quality_cutoff = args.mapping_quality_cutoff
+    iterative_quality_cutoff = args.iterative_quality_cutoff
     tmp = args.tmp
     mapper_parallel = args.mapper_parallel
     split_fastq = args.split_fastq
@@ -846,8 +846,8 @@ def auto(argv, **kwargs):
                                                    '-s', str(step_size),
                                                    '-t', str(threads)]
 
-            if mapping_quality_cutoff is not None:
-                mapping_command += ['-q', str(mapping_quality_cutoff)]
+            if iterative_quality_cutoff is not None:
+                mapping_command += ['-q', str(iterative_quality_cutoff)]
             if tmp:
                 mapping_command.append('-tmp')
             if mapper_parallel:
