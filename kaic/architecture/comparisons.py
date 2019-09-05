@@ -239,7 +239,7 @@ class ComparisonMatrix(RegionMatrixTable):
                         try:
                             w2 = edges2[key]
                         except KeyError:
-                            w2 = matrix2.default_value
+                            w2 = matrix2._default_value
 
                         if ignore_zeros and (w1 == 0 or w2 == 0):
                             continue
@@ -253,7 +253,7 @@ class ComparisonMatrix(RegionMatrixTable):
 
                     for key, w2 in edges2.items():
                         if key not in edges1:
-                            w1 = matrix1.default_value
+                            w1 = matrix1._default_value
 
                             if ignore_zeros and (w1 == 0 or w2 == 0):
                                 continue
