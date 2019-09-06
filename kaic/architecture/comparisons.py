@@ -280,7 +280,10 @@ class FoldChangeMatrix(ComparisonMatrix):
         ComparisonMatrix.__init__(self, *args, **kwargs)
 
     def compare(self, weight1, weight2):
-        return weight1 / weight2
+        try:
+            return weight1 / weight2
+        except ZeroDivisionError:
+            return np.nan
 
 
 class DifferenceMatrix(ComparisonMatrix):

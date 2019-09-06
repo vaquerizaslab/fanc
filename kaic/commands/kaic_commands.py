@@ -2920,9 +2920,7 @@ def compare(argv, **kwargs):
 
     if isinstance(matrix1, RegionMatrixContainer) and isinstance(matrix2, RegionMatrixContainer):
         if filter_zero:
-            filters = [NonzeroFilter()]
-        else:
-            filters = None
+            logger.info("Enabling zero filter")
 
         ComparisonMatrix = None
         if comparison == 'fold-change' or comparison == 'fc':
