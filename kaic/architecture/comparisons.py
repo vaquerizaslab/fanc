@@ -219,7 +219,7 @@ class ComparisonMatrix(RegionMatrixTable):
 
         compare = comparison_matrix.compare
         chromosomes = matrix1.chromosomes()
-        n_chromosome_pairs = int(np.round(len(chromosomes)**2 + len(chromosomes)/2))
+        n_chromosome_pairs = int(np.round(len(chromosomes)**2/2 + len(chromosomes)/2))
         current_chromosome_pair = 0
         with RareUpdateProgressBar(max_value=n_chromosome_pairs, prefix='Compare') as pb:
             for chr_i in range(len(chromosomes)):
