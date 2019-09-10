@@ -77,7 +77,7 @@ def load(file_name, *args, **kwargs):
         if is_cooler(file_name):
             logger.debug("Cooler file detected")
             return CoolerHic(file_name, *args, **kwargs)
-    except (ImportError, OSError):
+    except (ImportError, OSError, FileNotFoundError):
         pass
 
     from kaic.compatibility.juicer import JuicerHic, is_juicer
