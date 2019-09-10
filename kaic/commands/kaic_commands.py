@@ -4124,7 +4124,8 @@ def aggregate(argv, **kwargs):
             vmin = -1
         if vmax is None:
             vmax = 1
-        pixels = 16
+        if pixels is None:
+            pixels = 16
 
     if colormap is None:
         if oe and not rescale:
