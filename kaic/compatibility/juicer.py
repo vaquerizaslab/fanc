@@ -676,17 +676,22 @@ class JuicerHic(RegionMatrixContainer):
 
             norm = self.normalisation_vector(chromosome)
             for i, start in enumerate(range(1, chromosome_length, self._resolution)):
-                try:
-                    bias = 1/norm[i]
-                except IndexError:
+                if np.isnan([i]):
+                    valid = False
                     bias = 1.0
+                else:
+                    valid = True
+                    try:
+                        bias = 1/norm[i]
+                    except IndexError:
+                        bias = 1.0
 
                 if np.isnan(bias):
                     bias = 1.0
 
                 end = min(start + self._resolution - 1, chromosome_length)
                 region = GenomicRegion(chromosome=chromosome, start=start,
-                                       end=end, bias=bias,
+                                       end=end, bias=bias, valid=valid,
                                        ix=current_region_index)
                 current_region_index += 1
                 yield region
@@ -700,16 +705,21 @@ class JuicerHic(RegionMatrixContainer):
             end = min(start + self._resolution - 1, cl, region.end)
             bias_ix = int(start / self._resolution)
 
-            try:
-                bias = 1/norm[bias_ix]
-            except IndexError:
+            if np.isnan([i]):
+                valid = False
                 bias = 1.0
+            else:
+                valid = True
+                try:
+                    bias = 1/norm[bias_ix]
+                except IndexError:
+                    bias = 1.0
 
             if np.isnan(bias):
                 bias = 1.0
 
             r = GenomicRegion(chromosome=region.chromosome, start=start,
-                              end=end, bias=bias,
+                              end=end, bias=bias, valid=valid,
                               ix=int(subset_ix + i))
             yield r
 
@@ -945,10 +955,18 @@ class JuicerHic(RegionMatrixContainer):
         if self._mappability is not None:
             return self._mappability
 
-        mappable = [False] * len(self.regions)
-        for edge in self.edges(lazy=True):
-            mappable[edge.source] = True
-            mappable[edge.sink] = True
+        mappable = []
+        for chromosome, chromosome_length in self.chromosome_lengths.items():
+            if chromosome.lower() == 'all':
+                continue
+
+            norm = self.normalisation_vector(chromosome)
+            for i, _ in enumerate(range(1, chromosome_length, self._resolution)):
+                if np.isnan(norm[i]):
+                    mappable.append(False)
+                else:
+                    mappable.append(True)
+
         self._mappability = mappable
 
         return mappable
