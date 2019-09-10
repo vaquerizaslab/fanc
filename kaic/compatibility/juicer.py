@@ -21,16 +21,22 @@ logger = logging.getLogger(__name__)
 
 
 def is_juicer(file_name):
-    with open(file_name, 'rb') as req:
-        try:
-            magic_string = struct.unpack('<3s', req.read(3))[0]
-        except struct.error:
-            return False
+    try:
+        if "@" in file_name:
+            hic_file, _ = file_name.split("@")
+            file_name = hic_file
+        with open(file_name, 'rb') as req:
+            try:
+                magic_string = struct.unpack('<3s', req.read(3))[0]
+            except struct.error:
+                return False
 
-        if magic_string != b"HIC":
-            return False
-        else:
-            return True
+            if magic_string != b"HIC":
+                return False
+            else:
+                return True
+    except KeyError:
+        return False
 
 
 def convert_juicer_to_hic(juicer_file, genome_file, resolution, juicer_tools_jar_path=None,
@@ -251,13 +257,13 @@ class LazyJuicerEdge(Edge):
 class JuicerHic(RegionMatrixContainer):
     def __init__(self, hic_file, resolution=None, norm='KR'):
         RegionMatrixContainer.__init__(self)
-        if hic_file.contains("@"):
+        if '@' in hic_file:
             hic_file, at_resolution = hic_file.split("@")
             if resolution is not None and int(at_resolution) != resolution:
-                raise ValueError("Conflicting resolution specifications: {} and {}".format(at_resolution, resolution))
+                raise ValueError("Conflicting resolution specifications: "
+                                 "{} and {}".format(at_resolution, resolution))
             resolution = int(at_resolution)
-        else:
-            self._hic_file = hic_file
+        self._hic_file = hic_file
 
         bp_resolutions, _ = self.resolutions()
         if resolution is None:
@@ -273,6 +279,12 @@ class JuicerHic(RegionMatrixContainer):
         if not is_juicer(hic_file):
             raise ValueError("File {} does not seem to be a .hic "
                              "file produced with juicer!".format(hic_file))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return True
 
     @property
     def version(self):
