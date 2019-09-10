@@ -17,6 +17,8 @@ import tempfile
 import gzip
 import shutil
 
+from collections import defaultdict
+
 logger = logging.getLogger(__name__)
 
 
@@ -486,8 +488,8 @@ class JuicerHic(RegionMatrixContainer):
 
     @staticmethod
     def _expected_value_vectors_from_pos(req, normalisation=None, unit='BP'):
-        expected_values = dict()
-        scaling_factors = dict()
+        expected_values = defaultdict(list)
+        scaling_factors = defaultdict(dict)
 
         n_vectors = struct.unpack('<i', req.read(4))[0]
         for _ in range(n_vectors):
@@ -500,7 +502,6 @@ class JuicerHic(RegionMatrixContainer):
 
             bin_size = struct.unpack('<i', req.read(4))[0]
 
-            expected_values[bin_size] = []
             ev = []
             n_values = struct.unpack('<i', req.read(4))[0]
 
@@ -511,7 +512,6 @@ class JuicerHic(RegionMatrixContainer):
             if entry_unit == unit and (normalisation is None or entry_normalisation == normalisation):
                 expected_values[bin_size] = ev
 
-            scaling_factors[bin_size] = dict()
             sf = dict()
             n_scaling_factors = struct.unpack('<i', req.read(4))[0]
             for _ in range(n_scaling_factors):
@@ -535,11 +535,9 @@ class JuicerHic(RegionMatrixContainer):
 
         if normalisation == 'NONE':
             vectors, scaling_factors = self.expected_value_vectors()
-            return np.array(vectors[resolution]) * scaling_factors[resolution][chromosome_ix]
         else:
             vectors, scaling_factors = self.normalised_expected_value_vectors(normalisation)
-            print(vectors[resolution], scaling_factors[resolution][chromosome_ix])
-            return np.array(vectors[resolution]) * scaling_factors[resolution][chromosome_ix]
+        return np.array(vectors[resolution]) / scaling_factors[resolution][chromosome_ix]
 
     def expected_value_vectors(self):
         with open(self._hic_file, 'rb') as req:
@@ -555,6 +553,22 @@ class JuicerHic(RegionMatrixContainer):
             JuicerHic._skip_to_normalised_expected_values(req)
 
             return JuicerHic._expected_value_vectors_from_pos(req, normalisation=normalisation)
+
+    def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
+        if selected_chromosome is not None:
+            if norm:
+                return self.expected_value_vector(selected_chromosome, self._normalisation)
+            else:
+                return self.expected_value_vector(selected_chromosome, 'NONE')
+
+        intra_expected = dict()
+        for chromosome in self.chromosomes():
+            if norm:
+                intra_expected[chromosome] = self.expected_value_vector(chromosome, self._normalisation)
+            else:
+                intra_expected[chromosome] = self.expected_value_vector(chromosome, 'NONE')
+
+        return None, intra_expected, None
 
     def normalisation_vector(self, chromosome, normalisation=None, resolution=None, unit=None):
         if resolution is None:
