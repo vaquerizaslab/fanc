@@ -1612,7 +1612,7 @@ def to_cooler_parser():
     parser.add_argument(
         '-r', '--resolutions', dest='resolutions',
         nargs='+',
-        default=[1000, 25000, 5000, 10000, 20000, 25000,
+        default=[1000, 2500, 5000, 10000, 20000, 25000,
                  50000, 100000, 250000, 500000, 1000000],
         help='Resolutions in bp at which to "coarsen" the cooler matrix.'
     )
