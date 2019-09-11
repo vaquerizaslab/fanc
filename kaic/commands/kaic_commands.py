@@ -1626,6 +1626,15 @@ def to_cooler_parser():
              'zoom level.'
     )
 
+    parser.add_argument(
+        '-S', '--no-natural-sort', dest='natural_sort',
+        action='store_false',
+        default=True,
+        help='Do not sort regions by their natural chromosome order. '
+             'When using this option, chromosomes will appear in the Cooler '
+             'file in the order they are listed in the Kai-C file.'
+    )
+
     return parser
 
 
@@ -1638,6 +1647,8 @@ def to_cooler(argv, **kwargs):
     norm = args.norm
     multi = args.multi
     threads = args.threads
+    natural_sort = args.natural_sort
+
     resolutions = args.resolutions
 
     import kaic
@@ -1653,7 +1664,7 @@ def to_cooler(argv, **kwargs):
 
     with kaic.load(input_file, mode='r') as hic:
         to_cooler(hic, output_file, balance=norm, multires=multi, resolutions=resolutions,
-                  threads=threads)
+                  threads=threads, natural_order=natural_sort)
     logger.info("All done.")
 
 
