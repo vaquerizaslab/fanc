@@ -1601,6 +1601,13 @@ def to_cooler_parser():
     )
 
     parser.add_argument(
+        '-t', '--threads', dest='threads',
+        type=int,
+        default=1,
+        help='Number of threads used for balancing.'
+    )
+
+    parser.add_argument(
         '-M', '--no-multi', dest='multi',
         action='store_false',
         default=True,
@@ -1630,22 +1637,23 @@ def to_cooler(argv, **kwargs):
     output_file = os.path.expanduser(args.output)
     norm = args.norm
     multi = args.multi
+    threads = args.threads
     resolutions = args.resolutions
 
     import kaic
     from kaic.tools.general import str_to_int
-    from kaic.compatibility.cooler import to_cooler
     try:
         import cooler
     except ImportError:
-        logger.error("Cannot import cooler. Install cooler 'pip install cooler'.")
-        raise
+        parser.error("Cannot import cooler. Install cooler with 'pip install cooler'.")
+    from kaic.compatibility.cooler import to_cooler
 
     if resolutions is not None:
         resolutions = [str_to_int(r) for r in resolutions]
 
     with kaic.load(input_file, mode='r') as hic:
-        to_cooler(hic, output_file, balance=norm, multires=multi, resolutions=resolutions)
+        to_cooler(hic, output_file, balance=norm, multires=multi, resolutions=resolutions,
+                  threads=threads)
     logger.info("All done.")
 
 
