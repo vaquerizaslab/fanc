@@ -1614,7 +1614,9 @@ def to_cooler_parser():
         nargs='+',
         default=[1000, 2500, 5000, 10000, 20000, 25000,
                  50000, 100000, 250000, 500000, 1000000],
-        help='Resolutions in bp at which to "coarsen" the cooler matrix.'
+        help='Resolutions in bp at which to "coarsen" the cooler matrix. '
+             'Default resolutions: 1kb, 2.5kb, 5kb, 10kb, 20kb,'
+             '25kb, 50kb, 100kb, 250kb, 500kb, 1Mb'
     )
 
     return parser
