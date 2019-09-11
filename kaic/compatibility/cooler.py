@@ -25,10 +25,10 @@ def is_cooler(file_name):
         return False
 
 
-def to_cooler(hic, path, norm=True, multires=True,
-              resolutions=(1000, 25000, 5000, 10000, 20000, 25000,
-                           50000, 100000, 250000, 500000, 1000000),
-              chunksize=100000):
+def to_cooler(hic, path, balance=True, multires=True,
+              resolutions=None, n_zooms=10, threads=1,
+              chunksize=100000, max_resolution=5000000,
+              **kwargs):
     """
     Export Hi-C data as cooler file.
 
@@ -46,9 +46,21 @@ def to_cooler(hic, path, norm=True, multires=True,
     :param multires: Generate a multi-resolution cooler file
     :param resolutions: Resolutions in bp (int) for multi-resolution cooler output
     :param chunksize: Number of pixels processed at a time in cooler
+    :param kwargs: Additional arguments passed to cooler.iterative_correction
     """
+    base_resolution = hic.bin_size
+
     tmp_files = []
     if multires:
+        if resolutions is None:
+            resolutions = [base_resolution * 2 ** i for i in range(n_zooms)
+                           if base_resolution * 2 ** i < max_resolution]
+        else:
+            for r in resolutions:
+                if r % base_resolution != 0:
+                    raise ValueError("Resolution {} must be a multiple of "
+                                     "base resolution {}!".format(r, base_resolution))
+
         single_path = tempfile.NamedTemporaryFile(delete=False, suffix='.cool').name
         tmp_files.append(single_path)
         multi_path = path
@@ -79,27 +91,34 @@ def to_cooler(hic, path, norm=True, multires=True,
         cooler.create_cooler(cool_uri=single_path, bins=region_df, pixels=contact_dict, ordered=True)
 
         cool_path, group_path = cooler.util.parse_cooler_uri(single_path)
-        if norm:
-            logger.info("Writing bias vector")
-            # Copied this section from
-            # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
-            with h5py.File(cool_path, 'r+') as h5:
-                grp = h5[group_path]
-                # add the bias column to the file
-                h5opts = dict(compression='gzip', compression_opts=6)
-                grp['bins'].create_dataset("weight", data=bias, **h5opts)
-                # grp['bins']['weight'].attrs.update(stats)
 
         if not multires:
+            if balance:
+                logger.info("Writing bias vector from Kai-C matrix")
+                # Copied this section from
+                # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
+                with h5py.File(cool_path, 'r+') as h5:
+                    grp = h5[group_path]
+                    # add the bias column to the file
+                    h5opts = dict(compression='gzip', compression_opts=6)
+                    grp['bins'].create_dataset("weight", data=bias, **h5opts)
             return CoolerHic(single_path)
         else:
-            base_resolution = hic.bin_size
-            zoom_resolutions = [base_resolution]
-            for resolution in resolutions:
-                if base_resolution < resolution:
-                    zoom_resolutions.append(resolution)
-
-            cooler.zoomify_cooler(single_path, multi_path, zoom_resolutions, chunksize)
+            cooler.zoomify_cooler(single_path, multi_path, resolutions, chunksize, nproc=threads)
+            if balance:
+                logger.info("Balancing zoom resolutions...")
+                for resolution in resolutions:
+                    print('---------> ', resolution)
+                    uri = multi_path + "::resolutions/" + str(resolution)
+                    cool_path, group_path = cooler.util.parse_cooler_uri(uri)
+                    cool = cooler.Cooler(uri)
+                    bias, stats = cooler.balance_cooler(cool, chunksize=chunksize, **kwargs)
+                    with h5py.File(cool_path, 'r+') as h5:
+                        grp = h5[group_path]
+                        # add the bias column to the file
+                        h5opts = dict(compression='gzip', compression_opts=6)
+                        grp['bins'].create_dataset("weight", data=bias, **h5opts)
+                        grp['bins']['weight'].attrs.update(stats)
             return CoolerHic(multi_path + '::resolutions/{}'.format(base_resolution))
     finally:
         for tmp_file in tmp_files:

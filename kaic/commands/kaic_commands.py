@@ -1612,11 +1612,11 @@ def to_cooler_parser():
     parser.add_argument(
         '-r', '--resolutions', dest='resolutions',
         nargs='+',
-        default=[1000, 2500, 5000, 10000, 20000, 25000,
-                 50000, 100000, 250000, 500000, 1000000],
+        default=None,
         help='Resolutions in bp at which to "coarsen" the cooler matrix. '
-             'Default resolutions: 1kb, 2.5kb, 5kb, 10kb, 20kb,'
-             '25kb, 50kb, 100kb, 250kb, 500kb, 1Mb'
+             'Default resolutions are calculated as '
+             'base-resolution * 2 ** z, where z is an increasing integer '
+             'zoom level.'
     )
 
     return parser
@@ -1640,10 +1640,12 @@ def to_cooler(argv, **kwargs):
     except ImportError:
         logger.error("Cannot import cooler. Install cooler 'pip install cooler'.")
         raise
-    resolutions = [str_to_int(r) for r in resolutions]
+
+    if resolutions is not None:
+        resolutions = [str_to_int(r) for r in resolutions]
 
     with kaic.load(input_file, mode='r') as hic:
-        to_cooler(hic, output_file, norm=norm, multires=multi, resolutions=resolutions)
+        to_cooler(hic, output_file, balance=norm, multires=multi, resolutions=resolutions)
     logger.info("All done.")
 
 
