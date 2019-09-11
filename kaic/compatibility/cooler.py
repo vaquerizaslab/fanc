@@ -6,6 +6,8 @@ import numpy as np
 import pandas
 import cooler
 from genomic_regions import GenomicRegion
+from ..tools.sambam import natural_cmp
+from functools import cmp_to_key
 import tempfile
 
 
@@ -28,17 +30,22 @@ def is_cooler(file_name):
 def to_cooler(hic, path, balance=True, multires=True,
               resolutions=None, n_zooms=10, threads=1,
               chunksize=100000, max_resolution=5000000,
+              natural_order=True,
               **kwargs):
     """
-    Export Hi-C data as cooler file.
+    Export Hi-C data as Cooler file.
 
     Only contacts that have not been
     filtered are exported. https://github.com/mirnylab/cooler/
 
+    Single resolution files:
     If input Hi-C matrix is uncorrected, the uncorrected matrix is stored.
-    If it is corrected, the uncorrected matrix is stored and the bias vector.
+    If it is corrected, the uncorrected matrix is stored along with bias vector.
     Cooler always calculates corrected matrix on-the-fly from the uncorrected
     matrix and the bias vector.
+
+    Multi-resolution files (default):
+
 
     :param hic: Hi-C file in any compatible (RegionMatrixContainer) format
     :param path: Output path for cooler file
@@ -72,10 +79,25 @@ def to_cooler(hic, path, balance=True, multires=True,
         contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
         bias = np.array(list(hic.region_data('bias')))
 
-        logger.info("Loading contacts")
-        contact_array = np.fromiter(((edge.source, edge.sink, edge.weight)
-                                     for edge in hic.edges(lazy=True, norm=False)),
-                                    dtype=contact_dtype, count=len(hic.edges))
+        logger.info("Loading regions and contacts")
+        region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in hic.regions()]
+        if natural_order:
+            natural_key = cmp_to_key(natural_cmp)
+            regions_sorted = sorted(enumerate(region_dicts),
+                                    key=lambda x: (natural_key(str(x[1]['chrom']).encode('utf-8')),
+                                                   x[1]['start']))
+            # region_ix contains indices that sort the orginal regions list, regions is list of sorted regions
+            region_ix, region_dicts = list(zip(*regions_sorted))
+            region_ix_map = {old_idx: new_idx for (new_idx, old_idx) in enumerate(region_ix)}
+            bias = bias[np.array(region_ix)]
+
+            contact_array = np.fromiter(((region_ix_map[edge.source], region_ix_map[edge.sink], edge.weight)
+                                         for edge in hic.edges(lazy=True, norm=False)),
+                                        dtype=contact_dtype, count=len(hic.edges))
+        else:
+            contact_array = np.fromiter(((edge.source, edge.sink, edge.weight)
+                                         for edge in hic.edges(lazy=True, norm=False)),
+                                        dtype=contact_dtype, count=len(hic.edges))
         logger.info("Sorting contacts")
         order = np.argsort(contact_array, order=("source", "sink"))
         counts = np.rint(contact_array["weight"]).astype(np.int_)
@@ -84,7 +106,7 @@ def to_cooler(hic, path, balance=True, multires=True,
             "bin2_id": contact_array["sink"][order],
             "count": counts[order],
         }
-        region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in hic.regions()]
+
         region_df = pandas.DataFrame(region_dicts)
         logger.info("Writing cooler")
 
