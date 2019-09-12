@@ -49,7 +49,8 @@ def to_cooler(hic, path, balance=True, multires=True,
 
     :param hic: Hi-C file in any compatible (RegionMatrixContainer) format
     :param path: Output path for cooler file
-    :param norm: Include bias vector in cooler output
+    :param balance: Include bias vector in cooler output (single res) or perform
+                    iterative correction (multi res)
     :param multires: Generate a multi-resolution cooler file
     :param resolutions: Resolutions in bp (int) for multi-resolution cooler output
     :param chunksize: Number of pixels processed at a time in cooler
@@ -83,18 +84,18 @@ def to_cooler(hic, path, balance=True, multires=True,
 
         logger.info("Loading genomic regions")
         ix_converter = dict()
-        region_dicts = []
+        regions = []
         region_order = []
         new_region_index = 0
         for chromosome in chromosomes:
             for region in hic.regions(chromosome, lazy=True):
-                region_dicts.append({"chrom": region.chromosome,
-                                     "start": region.start - 1,
-                                     "end": region.end})
+                regions.append((region.chromosome,
+                                region.start - 1,
+                                region.end))
                 ix_converter[region.ix] = new_region_index
                 region_order.append(region.ix)
                 new_region_index += 1
-        region_df = pandas.DataFrame(region_dicts)
+        region_df = pandas.DataFrame(regions, columns=['chrom', 'start', 'end'])
 
         def pixel_iter():
             for chri in range(len(chromosomes)):
@@ -119,7 +120,7 @@ def to_cooler(hic, path, balance=True, multires=True,
                     yield pandas.DataFrame(pixels)
 
         logger.info("Writing cooler")
-        cooler.create_cooler(cool_uri=single_path, bins=region_df, pixels=pixel_iter(), ordered=True)
+        cooler.create_cooler(cool_uri=single_path, bins=region_df, pixels=pixel_iter(), ordered=False)
 
         cool_path, group_path = cooler.util.parse_cooler_uri(single_path)
 
@@ -271,7 +272,10 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
 
         kwargs = {name: series[name] for name in index}
         kwargs['chromosome'] = series.chrom
-        kwargs['bias'] = series.weight
+        try:
+            kwargs['bias'] = series.weight
+        except AttributeError:
+            kwargs['bias'] = 1.
         kwargs['start'] = series.start + 1
         if ix is not None:
             kwargs['ix'] = ix
