@@ -58,68 +58,76 @@ def to_cooler(hic, path, balance=True, multires=True,
     base_resolution = hic.bin_size
 
     tmp_files = []
-    if multires:
-        if resolutions is None:
-            resolutions = [base_resolution * 2 ** i for i in range(n_zooms)
-                           if base_resolution * 2 ** i < max_resolution]
-        else:
-            for r in resolutions:
-                if r % base_resolution != 0:
-                    raise ValueError("Resolution {} must be a multiple of "
-                                     "base resolution {}!".format(r, base_resolution))
-
-        single_path = tempfile.NamedTemporaryFile(delete=False, suffix='.cool').name
-        tmp_files.append(single_path)
-        multi_path = path
-    else:
-        single_path = path
-        multi_path = None
-
     try:
-        contact_dtype = [("source", np.int_), ("sink", np.int_), ("weight", np.float_)]
-        bias = np.array(list(hic.region_data('bias')))
+        if multires:
+            if resolutions is None:
+                resolutions = [base_resolution * 2 ** i for i in range(n_zooms)
+                               if base_resolution * 2 ** i < max_resolution]
+            else:
+                for r in resolutions:
+                    if r % base_resolution != 0:
+                        raise ValueError("Resolution {} must be a multiple of "
+                                         "base resolution {}!".format(r, base_resolution))
 
-        logger.info("Loading regions and contacts")
-        region_dicts = [{"chrom": r.chromosome, "start": r.start - 1, "end": r.end} for r in hic.regions()]
-        if natural_order:
-            natural_key = cmp_to_key(natural_cmp)
-            regions_sorted = sorted(enumerate(region_dicts),
-                                    key=lambda x: (natural_key(str(x[1]['chrom']).encode('utf-8')),
-                                                   x[1]['start']))
-            # region_ix contains indices that sort the orginal regions list, regions is list of sorted regions
-            region_ix, region_dicts = list(zip(*regions_sorted))
-            region_ix_map = {old_idx: new_idx for (new_idx, old_idx) in enumerate(region_ix)}
-            bias = bias[np.array(region_ix)]
-
-            contact_array = np.fromiter(((region_ix_map[edge.source], region_ix_map[edge.sink], edge.weight)
-                                         if region_ix_map[edge.source] <= region_ix_map[edge.sink]
-                                         else
-                                         (region_ix_map[edge.sink], region_ix_map[edge.source], edge.weight)
-                                         for edge in hic.edges(lazy=True, norm=False)),
-                                        dtype=contact_dtype, count=len(hic.edges))
+            single_path = tempfile.NamedTemporaryFile(delete=False, suffix='.cool').name
+            tmp_files.append(single_path)
+            multi_path = path
         else:
-            contact_array = np.fromiter(((edge.source, edge.sink, edge.weight)
-                                         for edge in hic.edges(lazy=True, norm=False)),
-                                        dtype=contact_dtype, count=len(hic.edges))
-        logger.info("Sorting contacts")
-        order = np.argsort(contact_array, order=("source", "sink"))
-        counts = np.rint(contact_array["weight"]).astype(np.int_)
-        contact_dict = {
-            "bin1_id": contact_array["source"][order],
-            "bin2_id": contact_array["sink"][order],
-            "count": counts[order],
-        }
+            single_path = path
+            multi_path = None
 
+        natural_key = cmp_to_key(natural_cmp)
+        chromosomes = hic.chromosomes()
+        if natural_order:
+            chromosomes = sorted(chromosomes, key=lambda x: natural_key(x.encode('utf-8')))
+
+        logger.info("Loading genomic regions")
+        ix_converter = dict()
+        region_dicts = []
+        region_order = []
+        new_region_index = 0
+        for chromosome in chromosomes:
+            for region in hic.regions(chromosome, lazy=True):
+                region_dicts.append({"chrom": region.chromosome,
+                                     "start": region.start - 1,
+                                     "end": region.end})
+                ix_converter[region.ix] = new_region_index
+                region_order.append(region.ix)
+                new_region_index += 1
         region_df = pandas.DataFrame(region_dicts)
-        logger.info("Writing cooler")
 
-        cooler.create_cooler(cool_uri=single_path, bins=region_df, pixels=contact_dict, ordered=True)
+        def pixel_iter():
+            for chri in range(len(chromosomes)):
+                chromosome1 = chromosomes[chri]
+                for chrj in range(chri, len(chromosomes)):
+                    chromosome2 = chromosomes[chrj]
+
+                    logger.info("{} - {}".format(chromosome1, chromosome2))
+
+                    def chromosome_pixel_iter():
+                        for edge in hic.edges((chromosome1, chromosome2), norm=False, lazy=True):
+                            source, sink = ix_converter[edge.source], ix_converter[edge.sink]
+                            if sink < source:
+                                source, sink = sink, source
+                            yield source, sink, edge.weight
+
+                    pixels = np.fromiter(chromosome_pixel_iter(),
+                                         dtype=[("bin1_id", np.int_),
+                                                ("bin2_id", np.int_),
+                                                ("count", np.float_)])
+                    pixels = np.sort(pixels, order=("bin1_id", "bin2_id"))
+                    yield pandas.DataFrame(pixels)
+
+        logger.info("Writing cooler")
+        cooler.create_cooler(cool_uri=single_path, bins=region_df, pixels=pixel_iter(), ordered=True)
 
         cool_path, group_path = cooler.util.parse_cooler_uri(single_path)
 
         if not multires:
             if balance:
                 logger.info("Writing bias vector from Kai-C matrix")
+                bias = hic.bias_vector()[np.array(region_order)]
+
                 # Copied this section from
                 # https://github.com/mirnylab/cooler/blob/356a89f6a62e2565f42ff13ec103352f20d251be/cooler/cli/balance.py#L195
                 with h5py.File(cool_path, 'r+') as h5:
@@ -133,7 +141,6 @@ def to_cooler(hic, path, balance=True, multires=True,
             if balance:
                 logger.info("Balancing zoom resolutions...")
                 for resolution in resolutions:
-                    print('---------> ', resolution)
                     uri = multi_path + "::resolutions/" + str(resolution)
                     cool_path, group_path = cooler.util.parse_cooler_uri(uri)
                     cool = cooler.Cooler(uri)
