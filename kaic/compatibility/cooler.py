@@ -92,6 +92,9 @@ def to_cooler(hic, path, balance=True, multires=True,
             bias = bias[np.array(region_ix)]
 
             contact_array = np.fromiter(((region_ix_map[edge.source], region_ix_map[edge.sink], edge.weight)
+                                         if region_ix_map[edge.source] <= region_ix_map[edge.sink]
+                                         else
+                                         (region_ix_map[edge.sink], region_ix_map[edge.source], edge.weight)
                                          for edge in hic.edges(lazy=True, norm=False)),
                                         dtype=contact_dtype, count=len(hic.edges))
         else:
