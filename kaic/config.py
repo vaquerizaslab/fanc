@@ -1,3 +1,30 @@
+"""
+Module that handles Kai-C configuration files.
+
+Generally, some Kai-C behaviour can be controlled using a "kaic.conf"
+file in one of the following locations, in order of preference:
+
+1. kaic.conf in current directory
+2. File specified by environment variable KAIC_CONF
+3. kaic.conf in home folder
+4. .kaic.conf in home folder
+5. ~/.config/kaic.conf
+6. /etc/kaic/kaic.conf
+
+All configuration files will be read, but the options of lower-ranking
+locations will be overwritten.
+
+To write a default configuration file use  :code:`kaic write-config`
+from the command line or
+
+.. code::
+
+    from kaic.config import write_default_config
+
+    write_default_config('~/.kaic.conf')  # or any other location
+
+"""
+
 from kaic.tools.general import Map
 import yaml
 import os
@@ -11,6 +38,12 @@ _default_config_content = """\
 # MEMORY
 #
 edge_buffer_size: 3G
+
+#
+# HDF5
+#
+hdf5_compression_level: 1
+hdf5_compression_algorithm: blosc
 
 #
 # Mapping
@@ -107,7 +140,23 @@ _config_file_locations = (
 
 
 # read the first config file that is found, checking in the order above
-def read_file_configs(config_file_locations):
+def read_file_configs(config_file_locations=None):
+    """
+    Read all kaic.conf configuration files found in
+    1. current directory
+    2. specified by environment variable KAIC_CONF
+    3. kaic.conf in home folder
+    4. .kaic.conf in home folder
+    5. ~/.config/kaic.conf
+    6. /etc/kaic/kaic.conf
+
+    :param config_file_locations: optional custom config file paths in a list
+    :return: dictionaries of parsed configs
+    """
+
+    if config_file_locations is None:
+        config_file_locations = _config_file_locations
+
     configs = []
     for location in config_file_locations:
         if location is None:
@@ -127,7 +176,7 @@ def read_file_configs(config_file_locations):
     return configs
 
 
-file_configs = read_file_configs(_config_file_locations)
+file_configs = read_file_configs()
 
 _config_dict = copy.deepcopy(default_config)
 for current_config_path, current_file_config in reversed(file_configs):
@@ -140,10 +189,20 @@ for current_config_path, current_file_config in reversed(file_configs):
 config = Map(_config_dict)
 
 
-def write_default_config(file_name, overwrite=False):
-    file_name = os.path.expanduser(file_name)
+def write_default_config(file_name=None, overwrite=False):
+    """
+    Write the default configuration file.
+
+    :param file_name: Output path, e.g. ~/.kaic.conf
+    :param overwrite: Overwrite existing file if True. Default: False
+    """
+    if file_name is None:
+        file_name = os.path.expanduser('~/.kaic.conf')
+    else:
+        file_name = os.path.expanduser(file_name)
     if not overwrite and os.path.exists(file_name):
-        raise IOError("Config file exists in this location ({}). Use overwrite=True or remove file.".format(file_name))
+        raise IOError("Config file exists in this location ({}). "
+                      "Use overwrite=True or remove file.".format(file_name))
 
     with open(file_name, 'w') as output_config_file:
         output_config_file.write(_default_config_content)

@@ -4446,6 +4446,7 @@ def write_config_parser():
 
     parser.add_argument(
         'config_file',
+        nargs='?',
         help="Output file for default configuration."
     )
 
@@ -4462,9 +4463,10 @@ def write_config(argv, **kwargs):
     parser = write_config_parser()
 
     args = parser.parse_args(argv[2:])
+    file_name = args.config_file
 
     from kaic.config import write_default_config
-    write_default_config(os.path.expanduser(args.config_file), overwrite=args.force)
+    write_default_config(file_name, overwrite=args.force)
 
 
 def cis_trans_parser():
