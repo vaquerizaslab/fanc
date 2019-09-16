@@ -1,7 +1,7 @@
 """
 Provide basic convenience data types.
 
-Most classes are based on pytables and hdf5 dictionaries,
+Most classes are based on PyTables and HDF5 dictionaries,
 allowing on-disk storage and therefore processing of large
 files. Other features include indexing and querying.
 """
@@ -26,11 +26,13 @@ from tables.nodes import filenode
 from .config import config
 from .registry import class_id_dict, class_name_dict
 from .tools.files import create_or_open_pytables_file, tmp_file_name
-from .tools.general import RareUpdateProgressBar, create_col_index
+from .tools.general import create_col_index
 
 logger = logging.getLogger(__name__)
 
-_filter = t.Filters(complib="blosc", complevel=1, shuffle=True)
+_filter = t.Filters(complib=config.hdf5_compression_algorithm,
+                    complevel=config.hdf5_compression_level,
+                    shuffle=True)
 
 
 class MetaFileBased(type):
@@ -57,6 +59,40 @@ class MetaFileBased(type):
 
 
 class FileBased(with_metaclass(MetaFileBased, object)):
+    """
+    Base class for most on-disk Kai-C objects.
+
+    :class:`~FileBased` is an interface to PyTables HDF5 files.
+    It has a number of convenience features:
+
+    - Python environment statement support
+
+      .. code::
+
+        with FileBased('/path/to/file') as f:
+            # do stuff with file
+        # file is automatically closed
+
+    - Work in a temporary directory:
+
+      .. code::
+
+         with FileBased('/path/to/file', tmpdir=True) as f:
+             # file is copied to default temporary directory
+             # do something ...
+         # file is closed and temporary copy is deleted
+
+      Alternatively you can specify the directory with :code:`tmpdir=/path/to/dir`
+      or using the :code:`$TMPDIR` Unix environment variable.
+
+    - Easy read/write of meta properties
+
+      .. code::
+
+         with FileBased('/path/to/file', mode='w') as f:
+             f.meta['genome'] = 'mm10'
+             print(f.meta['genome'])  # 'mm10'
+    """
     _classid = 'FILEBASED'
 
     def __init__(self, file_name=None, mode='a', tmpdir=None,
@@ -175,6 +211,19 @@ class FileBased(with_metaclass(MetaFileBased, object)):
                 pass
 
     def close(self, copy_tmp=True, remove_tmp=True):
+        """
+        Close this HDF5 file and run exit operations.
+
+        If file was opened with tmpdir in read-only mode:
+        close file and delete temporary copy.
+
+        If file was opened with tmpdir in write or append mode:
+        Replace original file with copy and delete copy.
+
+        :param copy_tmp: If False, does not overwrite original with modified file.
+        :param remove_tmp: If False, does not delete temporary copy of file.
+        """
+
         if not self.file.isopen:
             warnings.warn("File {} is already closed!".format(self.file.filename))
             return
@@ -208,6 +257,9 @@ class FileBased(with_metaclass(MetaFileBased, object)):
 
 
 class FileGroup(FileBased):
+    """
+    Extends :class:`~FileBased` by simply creating a default group node.
+    """
 
     _classid = 'FILEGROUP'
 
@@ -223,17 +275,13 @@ class FileGroup(FileBased):
             self._group = self.file.create_group('/', group)
 
 
-class TableObject(object):
-    def __getitem__(self, key):
-        try:
-            return self.__getattribute__(key)
-        except AttributeError:
-            raise IndexError("No item " + str(key) + " in object")
-
-
 class Mask(object):
     """
     Class providing Mask details.
+
+    Masks are used to describe the filters applied to Tables
+    which hide individual table rows based on criteria defined
+    by the filter itself.
     """
     
     def __init__(self, name=None, description='', ix=None):
@@ -273,11 +321,11 @@ class Maskable(FileBased):
     
     Note that this class only provides meta-
     information for Masks. Masking can technically 
-    performed without Maskable, but then the reasons
+    performed without :class:`~Maskable`, but then the reasons
     for masking will not be saved.
     
-    The actual masking is performed using a MaskFilter
-    on a MaskedTable object using the 
+    The actual masking is performed using a :class:`~MaskFilter`
+    on a :class:`~MaskedTable` object using the
     MaskedTable.filter(MaskFilter) function. 
     """
 
