@@ -436,6 +436,19 @@ class LegacyHic(RegionMatrixTable):
     def marginals(self, masked=True, *args, **kwargs):
         """
         Get the marginals vector of this Hic matrix.
+
+        Sums up all contacts for each bin of the Hi-C matrix.
+        Unmappable regoins will be masked in the returned vector unless
+        the :code:`masked` parameter is set to :code:`False`.
+
+        By default, corrected matrix entries are summed up.
+        To get uncorrected matrix marginals use :code:`norm=False`.
+        Generally, all parameters accepted by :func:`~RegionMatrixContainer.edges`
+        are supported.
+
+        :param masked: Use a numpy masked array to mask entries
+                       corresponding to unmappable regions
+        :param kwargs: Keyword arguments passed to :func:`~RegionPairsContainer.edges`
         """
         kwargs.setdefault('lazy', True)
         row_regions, col_regions, edges_iter = self.regions_and_matrix_entries(*args, **kwargs)
