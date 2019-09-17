@@ -4,7 +4,7 @@ from .helpers import RegionScoreMatrix
 from ..regions import RegionsTable
 from ..tools.matrix import apply_sliding_func, trim_stats
 from ..tools.files import write_bed, write_bigwig, write_gff
-from scipy.stats.mstats import gmean
+from ..tools.matrix import nangmean
 import numpy as np
 import tables
 import itertools
@@ -173,7 +173,7 @@ class InsulationScores(RegionScoreParameterTable):
         insulation_scores.add_regions(hic.regions, preserve_attributes=False)
 
         if geometric_mean:
-            avg_stat = gmean
+            avg_stat = nangmean
         else:
             avg_stat = np.nanmean
 
@@ -189,7 +189,8 @@ class InsulationScores(RegionScoreParameterTable):
 
         ii_list = [[] for _ in bin_window_sizes]
         chromosomes = hic.chromosomes()
-        for chromosome in chromosomes:
+        for chr_ix, chromosome in enumerate(chromosomes):
+            logger.info("{} ({}/{})".format(chromosome, chr_ix + 1, len(chromosomes)))
             chromosome_start, chromosome_stop = chromosome_bins[chromosome]
             values_by_chromosome = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in bin_window_sizes]
 

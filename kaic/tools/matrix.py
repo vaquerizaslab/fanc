@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats.mstats import gmean
 
 
 def remove_sparse_rows(m, cutoff=None):
@@ -103,3 +104,7 @@ def trim_stats(a, proportiontocut=0.0, axis=0, stat=np.nanmean):
     s_sub = s[tuple(sl)]
 
     return stat(s_sub)
+
+
+def nangmean(a, axis=0, dtype=None):
+    return gmean(a[np.isfinite(a)], axis=axis, dtype=dtype)
