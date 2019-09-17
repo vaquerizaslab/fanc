@@ -2282,8 +2282,7 @@ class UniquenessFilter(ReadFilter):
 class BwaMemUniquenessFilter(ReadFilter):
     """
     Filters `bwa mem` generated alignments based on whether they are unique or not.
-    The presence of a non-zero XS tag does not mean a read is a multi-mapping one.
-    Instead, we make sure that the ratio XS/AS is inferior to a certain threshold.
+
     """
     def __init__(self, strict=False, mask=None):
         """
