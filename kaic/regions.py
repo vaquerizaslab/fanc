@@ -1073,7 +1073,7 @@ class Genome(FileGroup):
 
         # self._names = self._names + [n]
         # self._lengths = self._lengths + [l]
-        self._sequences.append(s)
+        self._sequences.append(s.encode('utf-8'))
         self._sequences.flush()
         self._chromosome_table.flush()
 
