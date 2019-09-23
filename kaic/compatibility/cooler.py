@@ -377,15 +377,15 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
     def _edges_length(self):
         return len(self.pixels())
 
-    def mappable(self):
+    def mappable(self, region=None):
         """
         Get the mappability vector of this matrix.
         """
         if self._mappability is not None:
             return self._mappability
 
-        mappable = [False] * len(self.regions)
-        for edge in self.edges(lazy=True):
+        mappable = [False] * len(self.regions(region))
+        for edge in self.edges(region, lazy=True):
             mappable[edge.source] = True
             mappable[edge.sink] = True
         self._mappability = mappable

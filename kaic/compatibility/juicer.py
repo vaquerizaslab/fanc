@@ -948,25 +948,28 @@ class JuicerHic(RegionMatrixContainer):
     def bin_size(self):
         return self._resolution
 
-    def mappable(self):
+    def mappable(self, region=None):
         """
         Get the mappability vector of this matrix.
         """
-        if self._mappability is not None:
-            return self._mappability
+        if region is None:
+            if self._mappability is not None:
+                return self._mappability
 
-        mappable = []
-        for chromosome, chromosome_length in self.chromosome_lengths.items():
-            if chromosome.lower() == 'all':
-                continue
+            mappable = []
+            for chromosome, chromosome_length in self.chromosome_lengths.items():
+                if chromosome.lower() == 'all':
+                    continue
 
-            norm = self.normalisation_vector(chromosome)
-            for i, _ in enumerate(range(1, chromosome_length, self._resolution)):
-                if np.isnan(norm[i]):
-                    mappable.append(False)
-                else:
-                    mappable.append(True)
+                norm = self.normalisation_vector(chromosome)
+                for i, _ in enumerate(range(1, chromosome_length, self._resolution)):
+                    if np.isnan(norm[i]):
+                        mappable.append(False)
+                    else:
+                        mappable.append(True)
 
-        self._mappability = mappable
+            self._mappability = mappable
 
-        return mappable
+            return mappable
+        else:
+            return np.array([r.valid for r in self.regions(region, lazy=True)])
