@@ -106,11 +106,27 @@ class Edge(object):
             return self._source
         raise ValueError("Source not not provided during object initialization!")
 
+    @source_node.setter
+    def source_node(self, value):
+        self._source = value
+
+    @property
+    def source_region(self):
+        return self.source_node
+
     @property
     def sink_node(self):
         if isinstance(self._sink, GenomicRegion):
             return self._sink
         raise ValueError("Sink not not provided during object initialization!")
+
+    @sink_node.setter
+    def sink_node(self, value):
+        self._sink = value
+
+    @property
+    def sink_region(self):
+        return self.sink_node
 
     def __repr__(self):
         base_info = "{}--{}".format(self.source, self.sink)
@@ -124,7 +140,7 @@ class Edge(object):
         return base_info
 
 
-class LazyEdge(object):
+class LazyEdge(Edge):
     """
     An :class:`~Edge` equivalent supporting lazy loading.
 
@@ -171,12 +187,6 @@ class LazyEdge(object):
         else:
             object.__setattr__(self, key, value)
 
-    def __getitem__(self, item):
-        try:
-            return getattr(self, item)
-        except AttributeError:
-            raise KeyError("No such key: {}".format(item))
-
     def update(self):
         """
         Write changes to PyTables row to file.
@@ -188,7 +198,7 @@ class LazyEdge(object):
         return self._bias
 
     @property
-    def source_region(self):
+    def source_node(self):
         if self._regions_table is None:
             raise RuntimeError("Must set the _regions_table attribute before calling this method!")
 
@@ -196,7 +206,7 @@ class LazyEdge(object):
         return LazyGenomicRegion(source_row)
 
     @property
-    def sink_region(self):
+    def sink_node(self):
         if self._regions_table is None:
             raise RuntimeError("Must set the _regions_table attribute before calling this method!")
 
@@ -685,7 +695,7 @@ class RegionPairsContainer(RegionBased):
                         continue
                     if check_valid and (not getattr(row_region, valid_field, True) or
                                         not getattr(col_region, valid_field, True)):
-                            continue
+                        continue
 
                     if norm:
                         try:
