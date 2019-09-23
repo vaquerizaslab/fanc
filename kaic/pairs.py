@@ -792,7 +792,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
             reads = []
             if last_read is not None:
                 if last_read.is_unmapped:
-                    self._filter_stats[self._unmapped_filter_ix] += 1
+                    self._unmappable_count += 1
                 else:
                     reads.append(last_read)
 
@@ -803,7 +803,7 @@ class SamBamReadPairGenerator(ReadPairGenerator):
                     if not next_read.is_unmapped:
                         reads.append(next_read)
                     else:
-                        self._filter_stats[self._unmapped_filter_ix] += 1
+                        self._unmappable_count += 1
                     next_read = next(iterator)
             except StopIteration:
                 if len(reads) == 0:
