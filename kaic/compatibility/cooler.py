@@ -335,11 +335,11 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
             index.remove('count')
 
             kwargs = {name: series[name] for name in index}
-            kwargs['source'] = int(series.bin1_id)
-            kwargs['sink'] = int(series.bin2_id)
-            kwargs['weight'] = float(series.count)
-            kwargs['source_node'] = self.regions[series.bin1_id]
-            kwargs['sink_node'] = self.regions[series.bin2_id]
+            kwargs['source'] = int(series['bin1_id'])
+            kwargs['sink'] = int(series['bin2_id'])
+            kwargs['weight'] = float(series['count'])
+            kwargs['source_node'] = self.regions[kwargs['source']]
+            kwargs['sink_node'] = self.regions[kwargs['sink']]
 
             return Edge(**kwargs)
         else:
