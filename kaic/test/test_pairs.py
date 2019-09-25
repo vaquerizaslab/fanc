@@ -18,8 +18,6 @@ class TestReadPairs:
         sam2_file = os.path.join(self.dir, "test_pairs", "lambda_reads2_sort.sam")
         pair_generator = SamBamReadPairGenerator(sam1_file, sam2_file)
         self.pairs = ReadPairs()
-        f = UnmappedFilter(mask=Mask(ix=0, name='unmapped'))
-        pair_generator.add_filter(f)
         self.genome = Genome.from_folder(os.path.join(self.dir, "test_pairs", "lambda_genome"))
         regions = self.genome.get_regions(1000)
         self.pairs.add_regions(regions.regions)
