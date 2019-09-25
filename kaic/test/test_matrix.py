@@ -992,7 +992,8 @@ class TestHicBasic:
         cooler = pytest.importorskip("cooler")
         out = str(tmpdir.join("test_to_cooler.cool"))
         to_cooler(self.hic, out)
-        c = cooler.Cooler(out)
+        bin_size = self.hic.bin_size
+        c = cooler.Cooler(out + '::/resolutions/1000')
         assert np.all(np.isclose(c.matrix(balance=False)[:], self.hic[:]))
 
 
