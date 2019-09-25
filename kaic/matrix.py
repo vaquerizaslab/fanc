@@ -405,6 +405,7 @@ class RegionPairsContainer(RegionBased):
     def add_contact(self, contact, *args, **kwargs):
         """
         Alias for :func:`~RegionPairsContainer.add_edge`
+
         :param contact: :class:`~Edge`
         :param args: Positional arguments passed to
                      :func:`~RegionPairsContainer._add_edge`
@@ -820,7 +821,7 @@ class RegionPairsContainer(RegionBased):
 
         return row_regions, col_regions, edges
 
-    def mappable(self):
+    def mappable(self, region=None):
         """
         Get the mappability of regions in this object.
 
@@ -830,7 +831,8 @@ class RegionPairsContainer(RegionBased):
         :return: :class:`~np.array` where True means mappable
                  and False unmappable
         """
-        return np.array([True if getattr(r, 'valid', True) else False for r in self.regions])
+        return np.array([True if getattr(r, 'valid', True) else False
+                         for r in self.regions(region, lazy=True)])
 
 
 class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
@@ -953,14 +955,16 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
     def matrix(self, key=None,
                log=False,
-               default_value=None, mask=True,
-               _mappable=None, *args, **kwargs):
+               default_value=None, mask=True, log_base=2,
+               *args, **kwargs):
         """
         Assemble a :class:`~RegionMatrix` from region pairs.
 
         :param key: Matrix selector. See :func:`~RegionPairsContainer.edges`
                     for all supported key types
-        :param log: If True, log2-transform the matrix entries
+        :param log: If True, log-transform the matrix entries. Also see log_base
+        :param log_base: Base of the log transformation. Default: 2; only used when
+                         log=True
         :param default_value: (optional) set the default value of matrix entries
                               that have no associated edge/contact
         :param mask: If False, do not mask unmappable regions
@@ -974,7 +978,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         if default_value is None:
             default_value = self._default_value
 
-        if kwargs.get('oe', False) and not log:
+        if kwargs.get('oe', False):
             default_value = 1.0
 
         kwargs['lazy'] = True
@@ -991,7 +995,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                 m[ir, jr] = weight
 
         if log:
-            m = np.log2(m)
+            m = np.log(m) / np.log(log_base)
             m[~np.isfinite(m)] = default_value
 
         if isinstance(key, tuple) and len(key) == 2:
