@@ -328,13 +328,14 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         else:
             self.im.set_clim(vmin=self.hic_buffer.buffered_min, vmax=new_vmax)
         # Hack to force redraw of image data
-        self.im.set_data(self.current_matrix)
+        self._refresh(None)
 
         if self.colorbar is not None:
             self.update_colorbar(vmax=new_vmax)
 
     def _refresh(self, region):
-        self.current_matrix = self.hic_buffer.get_matrix(*region)
+        if region is not None:
+            self.current_matrix = self.hic_buffer.get_matrix(*region)
         old_image = self.im
 
         m = np.transpose(self.current_matrix)
