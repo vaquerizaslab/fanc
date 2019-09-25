@@ -792,6 +792,7 @@ class RegionPairsContainer(RegionBased):
         :param kwargs: Keyword arguments passed to :func:`~RegionPairsContainer.edges`
         :return: iterator over edge attribute
         """
+        kwargs.setdefault('lazy', True)
         for edge in self.edges(*args, **kwargs):
             yield getattr(edge, attribute)
 
