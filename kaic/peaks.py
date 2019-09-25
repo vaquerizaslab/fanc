@@ -59,7 +59,7 @@ class PeakInfo(RegionMatrixTable):
     observed: observed value of the peak in the Hi-C matrix, generally uncorrected
     expected: expected value of the peak at this position in the Hi-C matrix
     p_value: a P-value that reflects how likely it is to observe a peak with
-             these properties at random
+    these properties at random
     x, y: coordinates of the peak centroid, if it is larger than one pixel
     radius: radius of the peak, expressed in bins (can be converted to base pairs)
     """
@@ -218,7 +218,7 @@ class RaoPeakInfo(RegionMatrixTable):
     fdr_v: FDR of the peak given its vertical neighborhood
     fdr_d: FDR of the peak given its surrounding (donut) neighborhood
 
-    For more information about neighborhoods and peak infomration,
+    For more information about neighborhoods and peak information,
     see :class:`~RaoPeakCaller`.
     """
 
@@ -231,7 +231,7 @@ class RaoPeakInfo(RegionMatrixTable):
 
         :param file_name: If None, will create a working file in memory. If path to an
                           existing peak info file, will load its information. If path
-                          to a non-existant file will create the file.
+                          to a non-existent file will create the file.
         :param mode: File mode, use 'a' for append, 'r' for read, and 'w' for write
         :param _table_name_regions: Internal, controls name of the region PyTables table
         :param _table_name_peaks: Internal, controls name of the peak PyTables table
