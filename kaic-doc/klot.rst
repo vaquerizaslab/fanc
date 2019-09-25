@@ -10,4 +10,4 @@ It provides basic commands for plotting Hi-C data and other genomic tracks.
    :maxdepth: 2
 
     Overview and basic usage <klot-executable/klot_basic>
-
+    Panel types <klot-executable/panel_types>

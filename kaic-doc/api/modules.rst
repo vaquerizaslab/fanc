@@ -14,5 +14,7 @@ Kai-C Python modules
    matrix <modules/matrix>
    hic <modules/hic>
    peaks <modules/peaks>
+   compatibility <modules/compatibility>
    architecture <modules/architecture>
    plotting <modules/plotting>
+   tools <modules/tools>

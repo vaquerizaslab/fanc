@@ -16,10 +16,9 @@ Overview
 ********
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
-   :func: kaic_parser
-   :prog: kaic
-   :nodescription:
+   :module: kaic.commands.klot_commands
+   :func: klot_parser
+   :prog: klot
    :nodefault:
 
 ******************************************
@@ -29,70 +28,97 @@ Setting up the figure and plotting regions
 The main argument of ``klot`` is a region specification. You can list one or more
 regions by region selector (of the form <chromosome>:<start>-<end>), or you can
 provide the path to a file with region information (BED, GFF, Kai-C
-object). You can also mix the two. Regions will be plotted in the order they are
-listed.
+object, ...). You can also mix the two. Regions will be plotted in the order they are
+listed with the next plot appearing after the previous one has been closed.
 
-By default, each provided region is exactly the area that is plotted. It is, however,
+.. literalinclude:: code/klot_example_commands
+    :language: bash
+    :start-after: start snippet klot regions
+    :end-before: end snippet klot regions
+
+By default, :code:`klot` plots exactly the area that is provided. It is, however,
 also possible to merely center the plot on the provided region, and to set a fixed
 plotting window using the ``-w`` option. This is especially useful when providing
-regions from another analysis, such as ChIP-seq peaks or insulation boundaries,
+regions from other analyses, such as ChIP-seq peaks or insulation boundaries,
 and allows you to quickly survey other genomic features in their immediate surrounding.
 
-You can also customise the figure properties by additional arguments, controlling
-figure name, proportions, and spacing between panels.
+.. literalinclude:: code/klot_example_commands
+    :language: bash
+    :start-after: start snippet klot window
+    :end-before: end snippet klot window
+
+By default, :code:`klot` will open an interactive plotting window. With the ``-o <path>``
+argument, it is possible to directly plot to a file. The file ending determines its
+type.
+
+.. literalinclude:: code/klot_example_commands
+    :language: bash
+    :start-after: start snippet klot file
+    :end-before: end snippet klot file
+
+When specifying multiple regions, the output argument will be interpreted as a folder,
+and each plot will be named by the pattern
+``<region index>_[<prefix>_]_<chromosome>_<start>_<end>``. The ``<prefix>`` can be added
+using the ``--name`` argument.
+
+The figure width is controlled using the ``--width`` argument (4 inches by default).
+The figure height is determined automatically from the figure width, the number of
+panels, and their aspect ratio.
+
 
 *************
 Adding panels
 *************
 
 After setting up the figure and plotting region(s), you can start adding plots to the
-figure. On the command line, the ``-p`` or ``--plot`` argument initiates a new plotting
-section. ``klot`` will try to choose a plot type automatically according to the type of
-data you provide, but you can always choose exactly which plot you want by using the
-``-t`` option.
+figure. On the command line, the ``-p`` or ``--plot`` argument adds a new panel. You need
+to provide the type of plot you want immediately after ``-p``:
 
-A basic call to ``klot``, plotting a 2 Megabase region on chromosome 11 of a Hi-C matrix
-in classic 2D view, could look like this:
+.. literalinclude:: code/klot_example_commands
+    :language: bash
+    :start-after: start snippet klot panel
+    :end-before: end snippet klot panel
 
-.. code:: bash
+A basic call to ``klot``, plotting a 4 Megabase region on chromosome 18 of a Hi-C matrix
+in a triangular heatmap, could look like this:
 
-    klot chr11:68000000-70000000 -p -t hic2d /path/to/hic_file
+.. literalinclude:: code/klot_example_commands
+    :language: bash
+    :start-after: start snippet klot triangular example
+    :end-before: end snippet klot triangular example
 
-To add a BigWig track of ChIP-seq peaks, simply do
+.. image:: images/klot_triangular_example.png
 
-.. code:: bash
+To get help on a specific panel type, and list available parameters, use ``-h`` after
+the plot type:
 
-    klot chr11:68000000-70000000 -p -t hic2d /path/to/hic_file -p -t bigwig /path/to/bigwig_file
-
-which will add a BigWig plot underneath the Hi-C plot.
-
-To list all possible plot types, type:
-
-.. code:: bash
-
-    klot -p -h
-
-which will print:
-
-.. argparse::
-   :module: kaic.commands.klot_commands
-   :func: type_parser
-   :prog: klot
-   :nodefault:
+.. literalinclude:: code/klot_example_commands
+    :language: bash
+    :start-after: start snippet klot panel help
+    :end-before: end snippet klot panel help
 
 
-To get more information on a specific plot, simply type:
+*****************
+Common parameters
+*****************
 
-.. code:: bash
+A few parameters are supported by all panel types. For example, you can set a title above
+a panel using the ``--title`` parameter.
 
-    klot -p -t <plot_type> -h
+You can format the genome axis in various ways. For example, add minor ticks between the
+major ones on the genome axis using ``--show-minor-ticks``, or hide the major
+ticks, too using ``--hide-major-ticks``. You can add a small legend to the panel showing
+the distances between minor and major ticks, as well as the size of the plotting region
+with ``--show-tick-legend``. You can hide the x axis altogether with ``--hide-x``.
 
-For example, ``klot -p -t hic -h`` will print the help text for the Hi-C triangle plot:
+The aspect ratio of each plot controls the height of the y axis relative to the width
+of the x axis. For example, the default aspect ratio of the ``square`` plot is ``1.0``
+while the default for ``triangular`` is automatically determined so that the matrix is
+not distorted.
 
-.. argparse::
-   :module: kaic.commands.klot_commands
-   :func: hic_parser
-   :prog: klot
-   :nodefault:
+Sometimes there might be a nomenclature mismatch in the data backing different panels
+regarding chromosome naming (with or without the ``chr`` prefix). Rather than having to
+reformat your data to match with the plotting region definition, you can correct for
+this issue on the fly, for each panel separately using ``--fix-chromosome``.
 
-
+In the following sections we will introduce the different :ref:`panel_types` in more detail.

@@ -21,7 +21,6 @@ Index of plot classes
     GenePlot
     GenomicFeaturePlot
     HicComparisonPlot2D
-    HicSideBySidePlot2D
     HicSlicePlot
     HicPeakPlot
     VerticalSplitPlot
@@ -39,7 +38,7 @@ Description and examples
 
 .. automodule:: kaic.plotting
     :members:
-        HicPlot, HicPlot2D, HicComparisonPlot2D, HicSideBySidePlot2D,
+        HicPlot, HicPlot2D, HicComparisonPlot2D,
         HicSlicePlot, HicPeakPlot, VerticalSplitPlot, GenomicVectorArrayPlot,
         GenomicFeaturePlot, GenomicRegionsPlot, GenomicFeatureScorePlot,
         GenomicFigure, BigWigPlot, LinePlot,

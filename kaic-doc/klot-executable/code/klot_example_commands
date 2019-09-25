@@ -1,0 +1,31 @@
+# start snippet klot regions
+# single region
+klot chr18:6mb-10mb
+
+# multiple regions
+klot chr18:12000000-14000000 chr18:6.5mb-10mb
+
+# BED file
+klot /path/to/file.bed
+# end snippet klot regions
+
+# start snippet klot window
+klot -w 1mb /path/to/chipseq.narrowPeak
+# end snippet klot window
+
+# start snippet klot file
+klot -o /path/to/plot.png chr18:6mb-10mb
+# end snippet klot file
+
+# start snippet klot panel
+klot chr18:6mb-10mb -p triangular
+# end snippet klot panel
+
+# start snippet klot triangular example
+klot chr18:6mb-10mb -p triangular output/hic/binned/kaic_example_50kb.hic
+# end snippet klot triangular example
+klot -o ../kaic-doc/klot-executable/images/klot_triangular_example.png chr18:6mb-10mb -p triangular output/hic/binned/kaic_example_50kb.hic
+
+# start snippet klot panel help
+klot chr18:6mb-10mb -p triangular -h
+# end snippet klot panel help
