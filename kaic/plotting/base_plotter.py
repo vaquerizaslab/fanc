@@ -533,7 +533,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
     """
 
     def __init__(self, colormap=config.colormap_hic, norm="log", vmin=None, vmax=None,
-                 show_colorbar=True, blend_zero=True, replacement_color=None,
+                 show_colorbar=True, blend_zero=False, replacement_color=None,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None,
                  cax=None, **kwargs):
         """
@@ -550,7 +550,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
                                  light gray (".9")
         :param illegal_color: Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
                                  None (no special color).
-        :param float colorbar_symmetry: Set to enforce that the colorbar is symemtric around
+        :param float colorbar_symmetry: Set to enforce that the colorbar is symmetric around
                                         this value. Default: None
         """
         super(BasePlotterMatrix, self).__init__(**kwargs)
@@ -559,7 +559,6 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         self.colormap = colormap
         self._vmin = vmin
         self._vmax = vmax
-        self.norm = _prepare_normalization(norm=norm, vmin=vmin, vmax=vmax)
         self.unmappable_color = unmappable_color
         self.blend_zero = blend_zero
         self.illegal_color = illegal_color
@@ -568,6 +567,11 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
         self.colorbar = None
         self.replacement_color = replacement_color
         self.cax = cax
+        self.norm = norm
+        self._map_norm = None
+
+    def _before_plot(self, region):
+        super(BasePlotterMatrix, self)._before_plot(region)
 
     def _after_plot(self, region):
         super(BasePlotterMatrix, self)._after_plot(region)
@@ -583,25 +587,43 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
 
         :param matrix: Data matrix with values to be plotted
         """
-        matrix = np.array(matrix)
         if self.replacement_color is not None:
             cv = mpl.colors.ColorConverter()
             replacement_color = cv.to_rgba(self.replacement_color)
         else:
             replacement_color = self.colormap(0)
 
-        color_matrix = self.colormap(self.norm(matrix))
-        if self.blend_zero or self.unmappable_color:
-            if not hasattr(matrix, 'mask'):
-                zero_mask = np.isclose(matrix, 0.) | np.isnan(matrix)
-            else:
-                zero_mask = np.ma.getmaskarray(matrix)
+        if not hasattr(matrix, 'mask'):
+            zero_mask = np.isclose(matrix, 0.) | np.isnan(matrix)
+        else:
+            zero_mask = np.ma.getmaskarray(matrix)
 
-            if self.blend_zero:
-                color_matrix[zero_mask] = replacement_color
-        if self.illegal_color:
+        if self._vmin is not None:
+            vmin = self._vmin
+        else:
+            if self.norm != 'log':
+                vmin = np.nanmin(matrix)
+            else:
+                vmin = np.nanmin(matrix[matrix > 0])
+        if self._vmax is not None:
+            vmax = self._vmax
+        else:
+            vmax = np.nanmax(matrix)
+
+        if self.colorbar_symmetry is not None:
+            max_diff = max(abs(self.colorbar_symmetry - vmax), abs(self.colorbar_symmetry - vmin))
+            vmin = self.colorbar_symmetry - max_diff
+            vmax = self.colorbar_symmetry + max_diff
+
+        print(self.norm, vmax, vmin)
+        self._map_norm = _prepare_normalization(norm=self.norm, vmin=vmin, vmax=vmax)
+        color_matrix = self.colormap(self._map_norm(matrix))
+
+        if self.blend_zero:
+            color_matrix[zero_mask] = replacement_color
+        if self.illegal_color is not None:
             color_matrix[~np.isfinite(matrix)] = mpl.colors.colorConverter.to_rgba(self.illegal_color)
-        if self.unmappable_color:
+        if self.unmappable_color is not None:
             color_matrix[np.all(zero_mask, axis=1), :] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
             if matrix.shape[0] == matrix.shape[1]:
                 color_matrix[:, np.all(zero_mask, axis=0)] = mpl.colors.colorConverter.to_rgba(self.unmappable_color)
@@ -620,7 +642,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
 
         if ax is None and self.cax is not None:
             ax = self.cax
-        cmap_data = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.colormap)
+        cmap_data = mpl.cm.ScalarMappable(norm=self._map_norm, cmap=self.colormap)
 
         cmap_data.set_array(np.array([self.vmin, self.vmax]))
         self.colorbar = plt.colorbar(cmap_data, cax=ax, **kwargs)
@@ -646,20 +668,20 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
 
     @property
     def vmin(self):
-        return self._vmin if self._vmin else self.norm.vmin
+        return self._vmin if self._vmin else self._map_norm.vmin
 
     @property
     def vmax(self):
-        return self._vmax if self._vmax else self.norm.vmax
+        return self._vmax if self._vmax else self._map_norm.vmax
 
     def _update_norm(self, norm=None, vmin=None, vmax=None):
         if vmin is None:
-            vmin = self.norm.vmin
+            vmin = self._map_norm.vmin
         if vmax is None:
-            vmax = self.norm.vmax
+            vmax = self._map_norm.vmax
         if norm is None:
-            norm = self.norm
-        self.norm = _prepare_normalization(norm, vmin, vmax)
+            norm = self._map_norm
+        self._map_norm = _prepare_normalization(norm, vmin, vmax)
 
 
 class BasePlotter2D(BasePlotter):
@@ -719,7 +741,8 @@ class BasePlotter2D(BasePlotter):
             plt.setp(self.ax.xaxis.get_minorticklines(), visible=False)
             plt.setp(self.ax.yaxis.get_minorticklines(), visible=False)
             self.ax.set_yticks([], minor=True)
-        self._draw_ticks = False
+        if major or minor:
+            self._draw_ticks = False
 
     @abstractmethod
     def _refresh(self, region):

@@ -348,7 +348,7 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
 
         color_matrix = self.get_color_matrix(m)
         self.im = self.ax.imshow(color_matrix, interpolation='none', aspect='auto',
-                                 cmap=self.colormap, norm=self.norm, extent=extent)
+                                 cmap=self.colormap, norm=self._map_norm, extent=extent)
 
         self.ax.set_xlim(extent[0], extent[1])
         self.ax.set_ylim(extent[2], extent[3])
