@@ -89,6 +89,19 @@ in a triangular heatmap, could look like this:
 
 .. image:: images/klot_triangular_example.png
 
+``klot`` tries to find a sensible placement of ticks and ticklabels on the genome axis,
+but if you prefer different tick locations or if labels are overlapping in small figures,
+define your own custom labels with the ``--tick-locations`` argument.
+
+.. literalinclude:: code/klot_example_commands
+    :language: bash
+    :start-after: start snippet klot triangular custom ticks
+    :end-before: end snippet klot triangular custom ticks
+
+.. image:: images/klot_triangular_example_custom_ticks.png
+
+The first label will always get a chromosome prefix.
+
 To get help on a specific panel type, and list available parameters, use ``-h`` after
 the plot type:
 

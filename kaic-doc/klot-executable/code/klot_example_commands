@@ -26,6 +26,12 @@ klot chr18:6mb-10mb -p triangular output/hic/binned/kaic_example_50kb.hic
 # end snippet klot triangular example
 klot -o ../kaic-doc/klot-executable/images/klot_triangular_example.png chr18:6mb-10mb -p triangular output/hic/binned/kaic_example_50kb.hic
 
+# start snippet klot triangular custom ticks
+klot chr18:6mb-10mb --tick-locations 8mb 10mb -p triangular output/hic/binned/kaic_example_50kb.hic
+# end snippet klot triangular custom ticks
+klot -o ../kaic-doc/klot-executable/images/klot_triangular_example_custom_ticks.png chr18:6mb-10mb --tick-locations 8mb 10mb -p triangular output/hic/binned/kaic_example_50kb.hic
+
+
 # start snippet klot panel help
 klot chr18:6mb-10mb -p triangular -h
 # end snippet klot panel help
