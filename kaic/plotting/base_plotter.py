@@ -316,9 +316,11 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         """
         if major:
             plt.setp(self.ax.xaxis.get_majorticklines(), visible=False)
+            self.ax.set_xticks([])
         if minor:
             plt.setp(self.ax.xaxis.get_minorticklines(), visible=False)
-        self._draw_ticks = False
+        if major or minor:
+            self._draw_ticks = False
 
     def remove_genome_labels(self):
         """
