@@ -235,8 +235,8 @@ class BufferedCombinedMatrix(BufferedMatrix):
     come from different matrices.
     """
     def __init__(self, top_matrix, bottom_matrix, scale_matrices=True,
-                 buffering_strategy="relative", buffering_arg=1):
-        super(BufferedCombinedMatrix, self).__init__(None, buffering_strategy, buffering_arg)
+                 **kwargs):
+        super(BufferedCombinedMatrix, self).__init__(None, **kwargs)
 
         scaling_factor = top_matrix.scaling_factor(bottom_matrix) if scale_matrices else 1.
         self.data = SplitMatrix(top_matrix, bottom_matrix, scaling_factor=scaling_factor)
@@ -359,13 +359,16 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
 
 
 class HicComparisonPlot2D(HicPlot2D):
-    def __init__(self, hic_top, hic_bottom, buffering_strategy="relative", 
-                 buffering_arg=1., scale_matrices=True, **kwargs):
+    def __init__(self, hic_top, hic_bottom, scale_matrices=True,
+                 weight_field=None, default_value=None, smooth_sigma=None,
+                 matrix_norm=True, oe=False, log=False, **kwargs):
         super(HicComparisonPlot2D, self).__init__(hic_top, **kwargs)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
-        self.hic_buffer = BufferedCombinedMatrix(hic_bottom, hic_top, scale_matrices,
-                                                 buffering_strategy, buffering_arg)
+        self.hic_buffer = BufferedCombinedMatrix(hic_bottom, hic_top, scale_matrices=scale_matrices,
+                                                 weight_field=weight_field, default_value=default_value,
+                                                 smooth_sigma=smooth_sigma, norm=matrix_norm, oe=oe,
+                                                 log=log)
 
 
 class HicSlicePlot(ScalarDataPlot):
@@ -468,7 +471,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         :param rasterized: Draw map as image (True) or vector graphic (False).
                            Default: True
         """
-        kwargs.setdefault("aspect", .5)
+        kwargs.setdefault("aspect", None)
         super(HicPlot, self).__init__(hic_data=hic_data, **kwargs)
         self.proportional = proportional
         self.max_dist = max_dist
@@ -484,7 +487,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
             region.start = 1
         if region.end is None:
             region.end = self.hic_data.chromosome_lengths[region.chromosome]
-        if self.proportional:
+        if self.aspect is None and self.proportional:
             if self.max_dist is None:
                 self.aspect = .5
             else:
@@ -514,7 +517,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
     def _mesh_data(self, region):
         hm = self.hic_buffer.get_matrix(region, region)
         hm_copy = kaic.matrix.RegionMatrix(np.copy(hm), col_regions=hm.col_regions,
-                                                 row_regions=hm.row_regions)
+                                           row_regions=hm.row_regions)
         # update coordinates
         bin_coords = np.r_[[x.start for x in hm_copy.row_regions], hm_copy.row_regions[-1].end]
         # Make sure the matrix is not protruding over the end of the requested plotting region
@@ -544,7 +547,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         self.hm = hm
 
         old_collection = self.collection
-        self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self.norm,
+        self.collection = self.ax.pcolormesh(x_, y_, hm, cmap=self.colormap, norm=self._map_norm,
                                              rasterized=self.rasterized)
         self.collection._A = None
         self._update_mesh_colors()
@@ -744,7 +747,6 @@ class EdgeHicPlot(HicPlot2D):
         self._highlight_limit = highlight_limit
 
     def update_highlights(self, m=None):
-        print('L: ', len(self._highlight_circles))
         for circle in self._highlight_circles:
             circle.remove()
 
@@ -761,8 +763,6 @@ class EdgeHicPlot(HicPlot2D):
                                             facecolor='red')
                     self.ax.add_patch(circle)
                     self._highlight_circles.append(circle)
-            else:
-                print('limit {}'.format(len(all_x)))
 
     def _plot(self, region):
         HicPlot2D._plot(self, region)
