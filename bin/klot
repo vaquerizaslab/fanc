@@ -61,6 +61,7 @@ class Klot(object):
             output_file = os.path.expanduser(global_args.output)
 
         plots = []
+        all_subplot_args = []
         for plot_method, args in subplot_data:
             # create plot
             plot, plot_args = plot_method(args)
@@ -76,6 +77,7 @@ class Klot(object):
 
                 # set plot title
                 plot.title = plot_args.title
+            all_subplot_args.append(plot_args)
 
         # parse regions
         regions = []
@@ -105,11 +107,13 @@ class Klot(object):
         figure_width = global_args.width
 
         import kaic.plotting as kplt
+        from kaic.tools.general import str_to_int
         for i, region in enumerate(regions):
             if global_args.window_size is not None:
+                window_size = str_to_int(global_args.window_size)
                 chromosome = region.chromosome
-                start = max(1, region.start - int(global_args.window_size / 2))
-                end = region.end + int(global_args.window_size / 2)
+                start = max(1, region.center - int(window_size / 2))
+                end = region.center + int(window_size / 2)
                 import kaic
                 plot_region = kaic.GenomicRegion(chromosome=chromosome, start=start, end=end)
             else:
@@ -118,6 +122,13 @@ class Klot(object):
             with kplt.GenomicFigure(plots, width=figure_width, invert_x=global_args.invert_x) as gf:
                 try:
                     fig, axes = gf.plot(plot_region)
+                    for plot_ix, plot in enumerate(plots):
+                        plot_args = all_subplot_args[plot_ix]
+
+                        plot.remove_genome_ticks(minor=not plot_args.show_minor_ticks,
+                                                 major=not plot_args.show_major_ticks)
+                        if not plot_args.show_tick_legend:
+                            plot.remove_tick_legend()
                 except Exception as error:
                     tb = traceback.format_exc()
                     warnings.warn("There was an error with plot {}, region {}:{}-{} ({})".format(i, region.chromosome,
@@ -142,60 +153,6 @@ class Klot(object):
                     kplt.plt.show()
                 kplt.plt.close(fig)
 
-    def _plot_type(self, subplot_args):
-
-        if subplot_args.type is not None:
-            if not hasattr(commands, subplot_args.type):
-                print("klot: error: Unrecognised plot type {}".format(subplot_args.type))
-                self.subplot_parser.print_help()
-                exit(1)
-            return getattr(commands, subplot_args.type)
-        else:
-            data = []
-            for file_name in subplot_args.data:
-                try:
-                    if not os.path.isfile(file_name):
-                        data.append(str)
-                    else:
-                        import kaic
-                        with kaic.load(file_name, mode='r') as datum:
-                            data.append(type(datum))
-                except ValueError:
-                    print("klot: error: Cannot auto-detect file type for {}. Use -t option.".format(file_name))
-                    self.subplot_parser.print_help()
-                    exit(1)
-
-            if len(data) == 0:
-                print("klot: error: To automatically identify plot you "
-                      "must provide data or use -t option.".format(data))
-                self.subplot_parser.print_help()
-                exit(1)
-
-            import kaic
-            plot_type_detector = {
-                (kaic.Hic,): commands.hic,
-                (kaic.AccessOptimisedHic,): commands.hic,
-                (kaic.FoldChangeMatrix,): commands.fc,
-                (kaic.InsulationIndex,): commands.array,
-                (kaic.DirectionalityIndex,): commands.array,
-                (kaic.RegionContactAverage,): commands.array,
-                (kaic.GenomicTrack,): commands.line,
-                (kaic.Bed,): commands.region,
-                (kaic.Hic, kaic.Hic): commands.hicsplit,
-                (kaic.Hic, kaic.AccessOptimisedHic): commands.hicsplit,
-                (kaic.AccessOptimisedHic, kaic.Hic): commands.hicsplit,
-                (kaic.AccessOptimisedHic, kaic.AccessOptimisedHic): commands.hicsplit,
-                (kaic.Hic, kaic.FoldChangeMatrix): commands.hicvfc,
-                (kaic.AccessOptimisedHic, kaic.FoldChangeMatrix): commands.hicvfc
-            }
-
-            if tuple(data) in plot_type_detector:
-                return plot_type_detector[tuple(data)]
-            else:
-                print("klot: error: Could not find matching plot for {}. Use -t option.".format(data))
-                self.subplot_parser.print_help()
-                exit(1)
-
     def _parse_argument_vector(self, argv):
         subplot_data = []
         group_counter = 0
@@ -208,7 +165,11 @@ class Klot(object):
                     global_args = self.global_parser.parse_args([])
             elif not k:
                 sub_args, plot_args = self.subplot_parser.parse_known_args(list(group))
-                subplot_type = self._plot_type(sub_args)
+                subplot_type = None
+                try:
+                    subplot_type = getattr(commands, sub_args.type)
+                except AttributeError:
+                    self.global_parser.error("Unrecognised plot type {}".format(sub_args.type))
                 subplot_data.append((subplot_type, sub_args.data + plot_args))
             group_counter += 1
 
