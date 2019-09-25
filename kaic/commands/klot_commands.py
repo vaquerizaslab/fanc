@@ -101,6 +101,13 @@ def klot_parser():
     )
 
     parser.add_argument(
+        '--tick-locations', dest='tick_locations',
+        nargs='+',
+        help='Manually define the locations of the tick '
+             'labels on the genome axis.'
+    )
+
+    parser.add_argument(
         '-V', '--version', dest='print_version',
         action='store_true',
         default=False,

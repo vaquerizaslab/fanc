@@ -125,6 +125,11 @@ class Klot(object):
                     for plot_ix, plot in enumerate(plots):
                         plot_args = all_subplot_args[plot_ix]
 
+                        if global_args.tick_locations is not None:
+                            tick_locations = [str_to_int(x) for x in global_args.tick_locations]
+
+                            axes[plot_ix].set_xticks(tick_locations)
+
                         plot.remove_genome_ticks(minor=not plot_args.show_minor_ticks,
                                                  major=not plot_args.show_major_ticks)
                         if not plot_args.show_tick_legend:
