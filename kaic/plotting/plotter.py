@@ -111,7 +111,7 @@ class GenomicFigure(object):
         self._figure_setup()
 
     def _calc_figure_setup(self):
-        aspects = [p.aspect for p in self.plots]
+        aspects = [p.aspect if p.aspect is not None else 1. for p in self.plots]
         pad_b, pad_t, pad_l, pad_r = self._fig_padding
         total_width = pad_l + pad_r + self._width + self._cax_width + self._cax_padding
         plot_heights = [a*self._width for a in aspects]
@@ -533,7 +533,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
         x, y, self.hm = self._mesh_data(region=region)
         self.collection = self.ax.pcolormesh(x, y, np.ma.masked_invalid(self.hm.T),
                                              rasterized=True, cmap=self.colormap,
-                                             norm=self.norm, **self.plot_kwargs)
+                                             norm=self._map_norm, **self.plot_kwargs)
 
         self.collection._A = None
         self._update_mesh_colors()
