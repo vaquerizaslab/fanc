@@ -7,76 +7,105 @@ import kaic.plotting as kplt
 
 
 def klot_parser():
+    usage = '''klot [<klot global parameters>] <region> [<region> ...]
+            --plot <plot type> [<plot parameters>] <plot data file(s)> [...]
+
+            Run klot --plot <plot type> -h for help on a specific subplot.\n\nPlot types:\n\n'''
+
+    command_descriptions = dict()
+    for name, function in globals().items():
+        if name.endswith("_parser") and name != 'klot_parser':
+            parser = function()
+            short_name = name[:-7].replace('_', '-')
+            command_descriptions[short_name] = parser.description.split(".")[0]
+
+    max_len = max([len(name) for name in command_descriptions.keys()]) + 4
+
+    usage += "-- Matrix --\n"
+    for name in ['triangular', 'square', 'split', 'mirror']:
+        padding = ' ' * (max_len - len(name))
+        usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
+
+    usage += "\n-- Region --\n"
+    for name in ['array', 'region', 'line', 'bar', 'layer']:
+        padding = ' ' * (max_len - len(name))
+        usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
+
+    usage += "\n-- Other --\n"
+    for name in command_descriptions.keys():
+        if name in {'type', 'subplot'}:
+            continue
+        padding = ' ' * (max_len - len(name))
+        usage += "{}{}{}\n".format(name, padding, command_descriptions.get(name))
+
     parser = argparse.ArgumentParser(
         description="klot plotting tool for kaic",
-        usage='''
-            klot [<klot global parameters>] <region> [<region> ...]
-                  --plot <plot data file(s)> [<plot parameters>] [...]
-
-            Run klot --plot -t <plot type> -h for help on a specific subplot.
-            '''
+        usage=textwrap.dedent(usage)
     )
 
     parser.add_argument(
         'regions',
         nargs='*',
         default=[],
-        help='List of region selectors (<chr>:<start>-<end>) or files with region information (BED, GTF, ...).'
+        help='List of region selectors (<chr>:<start>-<end>) or '
+             'files with region information (BED, GTF, ...).'
     )
 
     parser.add_argument(
         '-o', '--output', dest='output',
-        help='''Suppresses interactive plotting window and redirects plot to file.
-                Specify path to file when plotting a single region,
-                and path to a folder for plotting multiple regions.'''
+        help='Suppresses interactive plotting window and redirects plot '
+             'to file. Specify path to file when plotting a single region, '
+             'and path to a folder for plotting multiple regions.'
     )
 
     parser.add_argument(
         '-s', '--script', dest='script',
-        help='''Use a script file to define plot.'''
+        help='Use a script file to define plot.'
     )
 
     parser.add_argument(
         '-p', '--plot', dest='plot',
         action='append',
-        help='''New plot, type will be chosen automatically by file type, unless '-t' is provided.'''
+        help='New plot, type will be chosen automatically by '
+             'file type, unless "-t" is provided.'
     )
 
     parser.add_argument(
         '-n', '--name', dest='name',
         default='',
-        help='''Plot name to be used as prefix when plotting multiple regions. Is ignored for single region and
-                interactive plot.'''
+        help='Plot name to be used as prefix when plotting '
+             'multiple regions. Is ignored for single region '
+             'and interactive plot.'
     )
 
     parser.add_argument(
         '--width', dest='width',
         type=int,
         default=4,
-        help='''Width of the figure in inches. Default: 4'''
+        help='Width of the figure in inches. Default: 4'
     )
 
     parser.add_argument(
         '-w', '--window-size', dest='window_size',
-        type=int,
-        help='''Plotting region size in base pairs. If provided, the actual size of the given region is
-                ignored and instead a region
-                <chromosome>:<region center - window size/2>-<region center + window size/2> will be plotted.'''
+        help='Plotting region size in base pairs. If provided, the '
+             'actual size of the given region is ignored and instead '
+             'a region <chromosome>:<region center - window size/2> - '
+             '<region center + window size/2> will be plotted.'
     )
 
     parser.add_argument(
         '--invert-x', dest='invert_x',
         action='store_true',
-        help='''Invert x-axis for this plot'''
+        default=False,
+        help='Invert x-axis for this plot'
     )
-    parser.set_defaults(invert_x=False)
 
     parser.add_argument(
         '-V', '--version', dest='print_version',
         action='store_true',
-        help='''Print version information'''
+        default=False,
+        help='Print version information'
     )
-    parser.set_defaults(print_version=False)
     return parser
 
 
@@ -88,200 +117,122 @@ def type_parser():
     )
 
     parser.add_argument(
+        'type',
+        help='Plot type. See klot -h for options.'
+    )
+
+    parser.add_argument(
         'data',
         nargs='*',
         help='Data to be plotted in subplot.'
     )
 
-    parser.add_argument(
-        '-t', '--type', dest='type',
-        help=textwrap.dedent('''\
-            Manually specify subplot type. Options:
-            hic          Hi-C plot, cropped triangle style
-            hic2d        Hi-C plot, matrix style
-            hicsplit     Hi-C vs Hi-C plot, split matrix
-            hicvhic      Hi-C vs Hi-C plot, matrices "mirrored"
-            fc           Fold-change plot, cropped triangle style
-            hicvfc       Hi-C vs fold-change plot, matrices "mirrored"
-            array        Array "flame" plot (e.g. insulation index)
-            region       Bar plot with region score (e.g. BED)
-            line         Line plot with values per region
-            bigwig       Plot BigWig files
-            gene         Genes plot (exon/intron structure)
-            layer        Layer plot grouping elements by attribute
-            table        Plot table-based data (BED-style with header)
-        ''')
-    )
     return parser
 
 
-def subplot_parser():
+def subplot_parser(plot_type='<plot type>'):
     parser = argparse.ArgumentParser(
+        prog='klot <region> -p {}'.format(plot_type),
         description="klot subplot identifier",
     )
 
     parser.add_argument(
         '--aspect-ratio', dest='aspect_ratio',
         type=float,
-        help='''Aspect ratio of this panel. Default is determined by figure type (usually 1.0).'''
+        help='Aspect ratio of this panel. Default is determined by figure type (usually 1.0).'
     )
 
     parser.add_argument(
         '--title', dest='title',
         default='',
-        help='''Title of this plot.'''
+        help='Title of this plot.'
     )
 
     parser.add_argument(
         '--fix-chromosome', dest='fix_chromosome',
         action='store_true',
-        help='''Fix chromosome identifier for this plot (add or remove 'chr' as required)'''
+        default=False,
+        help='Fix chromosome identifier for this plot '
+             '(add or remove "chr" as required). Use this if'
+             'there is a mismatch between the nomenclature '
+             'used by different datasets in the figure, specifically '
+             'if the chromosome prefix for this dataset does not match '
+             'the plot region definition.'
     )
-    parser.set_defaults(fix_chromosome=False)
 
     parser.add_argument(
         '--hide-x', dest='hide_x',
         action='store_true',
-        help='''Hide x-axis for this plot'''
+        default=False,
+        help='Hide x-axis for this plot'
     )
-    parser.set_defaults(hide_x=False)
+
+    parser.add_argument(
+        '--show-minor-ticks', dest='show_minor_ticks',
+        action='store_true',
+        default=False,
+        help='Show minor ticks on genome axis'
+    )
+
+    parser.add_argument(
+        '--hide-major-ticks', dest='show_major_ticks',
+        action='store_false',
+        default=True,
+        help='Hide major ticks on genome axis.'
+    )
+
+    parser.add_argument(
+        '--show-tick-legend', dest='show_tick_legend',
+        action='store_true',
+        default=False,
+        help='Show tick legend with distance between ticks '
+             'on genome axis'
+    )
 
     return parser
 
 
-def oe(parameters):
-    parser = subplot_parser()
-    parser.description = 'O/E (observed/expected) plot.'
-
-    parser.add_argument(
-        'matrix',
-        help='''Kai-C compatible matrix matrix.'''
-    )
-
-    parser.add_argument(
-        '-vmin', '--minimum-value', dest='vmin',
-        type=float,
-        help='''Minimum value assigned the first color in the colorbar.'''
-    )
-
-    parser.add_argument(
-        '-vmax', '--maximum-value', dest='vmax',
-        type=float,
-        help='''Maximum value assigned the last color in the colorbar.'''
-    )
-
-    parser.add_argument(
-        '-m', '--maximum-distance', dest='max_dist',
-        type=int,
-        help='''Maximum distance between two points after which triangle will be truncated.'''
-    )
-
-    parser.add_argument(
-        '-L', '--no-log', dest='log',
-        action='store_false',
-        default=True,
-        help='''Do not log2-transform heatmap values'''
-    )
-
-    parser.add_argument(
-        '-S', '--no-symmetry', dest='symmetry',
-        action='store_false',
-        help='''Do not plot colormap symmetrical around 0.'''
-    )
-    parser.set_defaults(symmetry=True)
-
-    parser.add_argument(
-        '-r', '--range-slider', dest='adjust_range',
-        action='store_true',
-        help='''Add vmax/vmin slider to plot'''
-    )
-    parser.set_defaults(adjust_range=False)
-
-    parser.add_argument(
-        '-c', '--colormap', dest='colormap',
-        default='RdBu_r',
-        help='''Matplotlib colormap (default: RdBu_r)'''
-    )
-
-    parser.add_argument(
-        '-d', '--default_value', dest='default_value',
-        type=float,
-        help='''Which value to use for missing edges. Default: 0'''
-    )
-
-    parser.add_argument(
-        '-f', '--weight-field', dest='weight_field',
-        help='''Which value to use for plotting. Default: weight'''
-    )
-
-    parser.add_argument(
-        '-C', '--no-colorbar', dest='show_colorbar',
-        action='store_false',
-        help='''Do not show colorbar in plot'''
-    )
-    parser.set_defaults(show_colorbar=True)
-
-    parser.add_argument(
-        '-N', '--no-norm', dest='norm',
-        action='store_false',
-        default=True,
-        help='''Do not normalise matrix values'''
-    )
-
-    args = parser.parse_args(parameters)
-
-    matrix = kaic.load(os.path.expanduser(args.matrix), mode='r')
-    norm = "lin" #  if not args.log else "log"
-    colorbar_symmetry = 0 if args.symmetry else None
-
-    from kaic.tools.general import str_to_int
-    max_dist = str_to_int(args.max_dist) if args.max_dist is not None else None
-
-    return kplt.HicPlot(matrix, colormap=args.colormap, max_dist=max_dist, norm=norm, vmin=args.vmin,
-                        vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
-                        colorbar_symmetry=colorbar_symmetry, default_value=args.default_value,
-                        weight_field=args.weight_field, matrix_norm=args.norm, oe=True, log=args.log), args
-
-
-def hic_parser():
-    parser = subplot_parser()
-    parser.description = '''Hi-C plot.'''
+def triangular_parser():
+    parser = subplot_parser('triangular')
+    parser.description = 'Triangular Hi-C plot.'
 
     parser.add_argument(
         'hic',
-        help='''Hi-C object.'''
+        help='Hi-C object.'
     )
 
     parser.add_argument(
         '-vmin', '--minimum-value', dest='vmin',
         type=float,
-        help='''Minimum value assigned the first color in the colorbar.'''
+        help='Minimum value assigned the first '
+             'color in the colorbar.'
     )
 
     parser.add_argument(
         '-vmax', '--maximum-value', dest='vmax',
         type=float,
-        help='''Maximum value assigned the last color in the colorbar.'''
+        help='Maximum value assigned the last color '
+             'in the colorbar.'
     )
 
     parser.add_argument(
         '-m', '--maximum-distance', dest='max_dist',
-        type=int,
-        help='''Maximum distance between two points after which triangle will be truncated.'''
+        help='Maximum distance between two points after '
+             'which triangle will be truncated.'
     )
 
     parser.add_argument(
         '-l', '--log', dest='log',
         action='store_true',
         default=False,
-        help='''Log-transform heatmap values'''
+        help='Log-scale colorbar.'
     )
 
     parser.add_argument(
         '-r', '--range-slider', dest='adjust_range',
         action='store_true',
         default=False,
-        help='''Add vmax/vmin slider to plot'''
+        help='Add vmax/vmin slider to plot'
     )
 
     parser.add_argument(
@@ -292,71 +243,97 @@ def hic_parser():
     )
 
     parser.add_argument(
+        '-e', '--observed-expected', dest='oe',
+        action='store_true',
+        default=False,
+        help='Log2-O/E transform matrix values.'
+    )
+
+    parser.add_argument(
         '-c', '--colormap', dest='colormap',
-        help='''Matplotlib colormap'''
+        help='Matplotlib colormap'
     )
 
     parser.add_argument(
         '-y', '--ylabel', dest='ylabel',
         default='',
-        help='''Label for y axis'''
+        help='Label for y axis'
     )
 
     parser.add_argument(
         '-d', '--default_value', dest='default_value',
         type=float,
-        help='''Which value to use for missing edges. Default: 0'''
+        help='Which value to use for missing edge '
+             'weights (pixels). Default: 0'
     )
-    parser.set_defaults(default_value=0.)
 
     parser.add_argument(
-        '-f', '--weight-field', dest='weight_field',
-        help='''Which value to use for plotting. Default: weight'''
+        '-s', '--colorbar-symmetry', dest='colorbar_symmetry',
+        type=float,
+        default=None,
+        help='Make colorbar symmetrical around this value.'
+    )
+
+    parser.add_argument(
+        '--weight-field', dest='weight_field',
+        help='Which value to use for plotting. '
+             'Default: weight'
     )
 
     parser.add_argument(
         '-C', '--no-colorbar', dest='show_colorbar',
         action='store_false',
-        help='''Do not show colorbar in plot'''
+        default=True,
+        help='Do not show colorbar in plot'
     )
-    parser.set_defaults(show_colorbar=True)
     return parser
 
 
-def hic(parameters):
-    parser = hic_parser()
+def triangular(parameters):
+    parser = triangular_parser()
     args = parser.parse_args(parameters)
 
-    colormap = config.colormap_hic if args.colormap is None else args.colormap
+    if args.colormap is None:
+        colormap = config.colormap_hic if not args.oe else 'bwr'
+    else:
+        colormap = args.colormap
 
     matrix = kaic.load(os.path.expanduser(args.hic), mode='r')
+    from kaic.tools.general import str_to_int
 
     norm = "lin" if not args.log else "log"
-    return kplt.HicPlot(matrix, colormap=colormap, max_dist=args.max_dist, norm=norm, vmin=args.vmin,
-                        vmax=args.vmax, show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
+    return kplt.HicPlot(matrix, colormap=colormap,
+                        max_dist=str_to_int(args.max_dist) if args.max_dist is not None else None,
+                        norm=norm, vmin=args.vmin,
+                        vmax=args.vmax, show_colorbar=args.show_colorbar,
+                        adjust_range=args.adjust_range, oe=args.oe, log=args.oe,
+                        colorbar_symmetry=0 if args.oe and args.colorbar_symmetry is None
+                                            else args.colorbar_symmetry,
                         ylabel=args.ylabel, weight_field=args.weight_field,
                         default_value=args.default_value, matrix_norm=args.norm), args
 
 
-def hic2d_parser():
-    parser = subplot_parser()
-    parser.description = '''Hi-C 2D plot.'''
+def square_parser():
+    parser = subplot_parser('square')
+    parser.description = 'Square Hi-C plot.'
 
     parser.add_argument(
         'hic',
-        help='''Hi-C object.'''
+        help='Hi-C object.'
     )
 
     parser.add_argument(
         '-vmin', '--minimum-value', dest='vmin',
         type=float,
-        help='''Minimum value assigned the first color in the colorbar.'''
+        help='Minimum value assigned the first '
+             'color in the colorbar.'
     )
 
     parser.add_argument(
         '-vmax', '--maximum-value', dest='vmax',
         type=float,
-        help='''Maximum value assigned the last color in the colorbar.'''
+        help='Maximum value assigned the last '
+             'color in the colorbar.'
     )
 
     parser.add_argument(
@@ -367,220 +344,335 @@ def hic2d_parser():
     )
 
     parser.add_argument(
+        '-e', '--observed-expected', dest='oe',
+        action='store_true',
+        default=False,
+        help='Log2-O/E transform matrix values. '
+             'Automatically sets colormap to bwr and '
+             'makes colorbar symmetrical around 0.'
+    )
+
+    parser.add_argument(
         '-l', '--log', dest='log',
         action='store_true',
-        help='''Log-transform heatmap values'''
+        default=False,
+        help='Log-scale colorbar.'
     )
-    parser.set_defaults(log=False)
 
     parser.add_argument(
         '-r', '--range-slider', dest='adjust_range',
         action='store_true',
-        help='''Add vmax/vmin slider to plot'''
+        default=False,
+        help='Add vmax/vmin slider to plot'
     )
-    parser.set_defaults(log=False)
 
     parser.add_argument(
         '-f', '--flip', dest='flip',
         action='store_true',
-        help='''Flip matrix upside down'''
+        default=False,
+        help='Flip matrix upside down'
     )
-    parser.set_defaults(flip=False)
 
     parser.add_argument(
         '-c', '--colormap', dest='colormap',
-        help='''Matplotlib colormap'''
+        help='Matplotlib colormap'
+    )
+
+    parser.add_argument(
+        '-s', '--colorbar-symmetry', dest='colorbar_symmetry',
+        type=float,
+        default=None,
+        help='Make colorbar symmetrical around this value.'
     )
 
     parser.add_argument(
         '-C', '--no-colorbar', dest='show_colorbar',
         action='store_false',
-        help='''Do not show colorbar in plot'''
+        default=True,
+        help='Do not show colorbar in plot'
     )
-    parser.set_defaults(show_colorbar=True)
+
+    parser.add_argument(
+        '--weight-field', dest='weight_field',
+        help='Which value to use for plotting. '
+             'Default: weight'
+    )
     return parser
 
 
-def hic2d(parameters):
-    parser = hic2d_parser()
+def square(parameters):
+    parser = square_parser()
 
     args = parser.parse_args(parameters)
     norm = "lin" if not args.log else "log"
 
-    colormap = config.colormap_hic if args.colormap is None else args.colormap
+    if args.colormap is None:
+        colormap = config.colormap_hic if not args.oe else 'bwr'
+    else:
+        colormap = args.colormap
 
     matrix = kaic.load(os.path.expanduser(args.hic), mode='r')
     return kplt.HicPlot2D(matrix, colormap=colormap, norm=norm, vmin=args.vmin, vmax=args.vmax,
                           show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
-                          flip=args.flip, matrix_norm=args.norm), args
+                          oe=args.oe, log=args.oe,
+                          colorbar_symmetry=0 if args.oe and args.colorbar_symmetry is None
+                                              else args.colorbar_symmetry,
+                          flip=args.flip, matrix_norm=args.norm,
+                          weight_field=args.weight_field), args
 
 
-def hicsplit_parser():
-    parser = subplot_parser()
-    parser.description = '''Hi-C vs Hi-C split plot.'''
+def split_parser():
+    parser = subplot_parser('split')
+    parser.description = 'Matrix vs matrix plot'
 
     parser.add_argument(
         'hic_top',
-        help='''Top Hi-C object.'''
+        help='Top Hi-C object.'
     )
 
     parser.add_argument(
         'hic_bottom',
-        help='''Bottom Hi-C object.'''
+        help='Bottom Hi-C object.'
     )
 
     parser.add_argument(
         '-vmin', '--minimum-value', dest='vmin',
         type=float,
-        help='''Minimum value assigned the first color in the colorbar.'''
+        help='Minimum value assigned the first color '
+             'in the colorbar.'
     )
 
     parser.add_argument(
         '-vmax', '--maximum-value', dest='vmax',
         type=float,
-        help='''Maximum value assigned the last color in the colorbar.'''
+        help='Maximum value assigned the last color '
+             'in the colorbar.'
     )
 
     parser.add_argument(
         '-l', '--log', dest='log',
         action='store_true',
-        help='''Log-transform heatmap values'''
+        default=False,
+        help='Log-scale colorbar'
     )
-    parser.set_defaults(log=False)
+
+    parser.add_argument(
+        '-r', '--range-slider', dest='adjust_range',
+        action='store_true',
+        default=False,
+        help='Add vmax/vmin slider to plot'
+    )
+
+    parser.add_argument(
+        '-e', '--observed-expected', dest='oe',
+        action='store_true',
+        default=False,
+        help='Log2-O/E transform matrix values. '
+             'Automatically sets colormap to bwr and '
+             'makes colorbar symmetrical around 0.'
+    )
+
+    parser.add_argument(
+        '--colorbar-symmetry', dest='colorbar_symmetry',
+        type=float,
+        default=None,
+        help='Make colorbar symmetrical around this value.'
+    )
 
     parser.add_argument(
         '-c', '--colormap', dest='colormap',
-        help='''Matplotlib colormap'''
+        help='Matplotlib colormap'
     )
 
     parser.add_argument(
         '-C', '--no-colorbar', dest='show_colorbar',
         action='store_false',
-        help='''Do not show colorbar in plot'''
+        default=True,
+        help='Do not show colorbar in plot'
     )
-    parser.set_defaults(show_colorbar=True)
 
     parser.add_argument(
-        '-S', '--no-scaling', dest='scaling',
-        action='store_false',
-        help='''Do not scale matrix values. By default, the matrices are scaled so that they sum up to the same
-                    number of contacts.'''
+        '-s', '--scale-matrices', dest='scaling',
+        action='store_true',
+        default=False,
+        help='Scale matrix values so that they sum up to the same '
+             'number of contacts. Since this is potentially very '
+             'time-consuming, it is disabled by default, assuming '
+             'that matrices are normalised to the same total number '
+             'of valid pairs'
     )
-    parser.set_defaults(scaling=True)
     return parser
 
 
-def hicsplit(parameters):
-    parser = hicsplit_parser()
+def split(parameters):
+    parser = split_parser()
 
     args = parser.parse_args(parameters)
 
-    colormap = config.colormap_hic if args.colormap is None else args.colormap
+    if args.colormap is None:
+        colormap = config.colormap_hic if not args.oe else 'bwr'
+    else:
+        colormap = args.colormap
 
     matrix_bottom = kaic.load(os.path.expanduser(args.hic_bottom), mode='r')
     matrix_top = kaic.load(os.path.expanduser(args.hic_top), mode='r')
 
     norm = "lin" if not args.log else "log"
-    sp = kplt.HicComparisonPlot2D(matrix_top, matrix_bottom, colormap=colormap, norm=norm, vmin=args.vmin,
-                                  vmax=args.vmax, scale_matrices=args.scaling, show_colorbar=args.show_colorbar)
+    sp = kplt.HicComparisonPlot2D(matrix_top, matrix_bottom, colormap=colormap,
+                                  norm=norm, vmin=args.vmin,
+                                  adjust_range=args.adjust_range,
+                                  vmax=args.vmax, scale_matrices=args.scaling,
+                                  oe=args.oe, log=args.oe,
+                                  colorbar_symmetry=0 if args.oe and args.colorbar_symmetry is None
+                                                      else args.colorbar_symmetry,
+                                  show_colorbar=args.show_colorbar)
     return sp, args
 
 
-def hicvhic_parser():
+def mirror_parser():
     parser = subplot_parser()
-    parser.description = '''Hi-C vs Hi-C plot.'''
+    parser.description = '"Mirrored" matrix comparison plot'
 
     parser.add_argument(
         'hic_upper',
-        help='''Upper Hi-C object.'''
+        help='Upper Hi-C object.'
     )
 
     parser.add_argument(
         'hic_lower',
-        help='''Lower Hi-C object.'''
+        help='Lower Hi-C object.'
     )
 
     parser.add_argument(
         '-uvmin', '--minimum-value-upper', dest='vmin_upper',
         type=float,
-        help='''Minimum value assigned the first color in the colorbar of upper plot.'''
+        help='Minimum value assigned the first color in the colorbar of upper plot.'
     )
 
     parser.add_argument(
         '-uvmax', '--maximum-value-upper', dest='vmax_upper',
         type=float,
-        help='''Maximum value assigned the last color in the colorbar of upper plot.'''
+        help='Maximum value assigned the last color in the colorbar of upper plot.'
     )
 
     parser.add_argument(
         '-lvmin', '--minimum-value-lower', dest='vmin_lower',
         type=float,
-        help='''Minimum value assigned the first color in the colorbar of lower plot.'''
+        help='Minimum value assigned the first color in '
+             'the colorbar of lower plot.'
     )
 
     parser.add_argument(
         '-lvmax', '--maximum-value-lower', dest='vmax_lower',
         type=float,
-        help='''Maximum value assigned the last color in the colorbar of lower plot.'''
+        help='Maximum value assigned the last color in '
+             'the colorbar of lower plot.'
     )
 
     parser.add_argument(
         '-d', '--maximum-distance', dest='max_dist',
-        type=int,
-        help='''Maximum distance between two points after which triangle will be truncated.'''
+        help='Maximum distance between two points after '
+             'which triangle will be truncated.'
     )
 
     parser.add_argument(
         '-ul', '--log-upper', dest='log_upper',
         action='store_true',
-        help='''Log-transform heatmap values of upper plot'''
+        default=False,
+        help='Log-scale colorbar for upper plot'
     )
-    parser.set_defaults(log_upper=False)
 
     parser.add_argument(
         '-ll', '--log-lower', dest='log_lower',
         action='store_true',
-        help='''Log-transform heatmap values of lower plot'''
+        default=False,
+        help='Log-scale colorbar for lower plot'
     )
-    parser.set_defaults(log_lower=False)
 
     parser.add_argument(
         '-uc', '--colormap-upper', dest='colormap_upper',
-        help='''Matplotlib colormap for upper plot'''
+        help='Matplotlib colormap for upper plot'
     )
 
     parser.add_argument(
         '-lc', '--colormap-lower', dest='colormap_lower',
-        help='''Matplotlib colormap for lower plot'''
+        help='Matplotlib colormap for lower plot'
+    )
+
+    parser.add_argument(
+        '-ue', '--observed-expected-upper', dest='oe_upper',
+        action='store_true',
+        default=False,
+        help='Log2-O/E transform matrix values of upper matrix. '
+             'Automatically sets colormap to bwr and '
+             'makes colorbar symmetrical around 0.'
+    )
+
+    parser.add_argument(
+        '-le', '--observed-expected-lower', dest='oe_lower',
+        action='store_true',
+        default=False,
+        help='Log2-O/E transform matrix values of lower matrix. '
+             'Automatically sets colormap to bwr and '
+             'makes colorbar symmetrical around 0.'
+    )
+
+    parser.add_argument(
+        '--colorbar-symmetry-upper', dest='colorbar_symmetry_upper',
+        type=float,
+        default=None,
+        help='Make upper colorbar symmetrical around this value.'
+    )
+
+    parser.add_argument(
+        '--colorbar-symmetry-lower', dest='colorbar_symmetry_lower',
+        type=float,
+        default=None,
+        help='Make lower colorbar symmetrical around this value.'
     )
 
     parser.add_argument(
         '-C', '--no-colorbars', dest='show_colorbar',
         action='store_false',
-        help='''Do not show colorbars in plot'''
+        default=True,
+        help='Do not show colorbars in plot'
     )
-    parser.set_defaults(show_colorbar=True)
     return parser
 
 
-def hicvhic(parameters):
-    parser = hicvhic_parser()
+def mirror(parameters):
+    parser = mirror_parser()
 
     args = parser.parse_args(parameters)
 
-    colormap_lower = config.colormap_hic if args.colormap_lower is None else args.colormap_lower
-    colormap_upper = config.colormap_hic if args.colormap_upper is None else args.colormap_upper
+    if args.colormap_lower is None:
+        colormap_lower = config.colormap_hic if not args.oe_lower else 'bwr'
+    else:
+        colormap_lower = args.colormap_lower
+
+    if args.colormap_upper is None:
+        colormap_upper = config.colormap_hic if not args.oe_upper else 'bwr'
+    else:
+        colormap_upper = args.colormap_upper
 
     matrix_upper = kaic.load(os.path.expanduser(args.hic_upper), mode='r')
     matrix_lower = kaic.load(os.path.expanduser(args.hic_lower), mode='r')
 
+    from kaic.tools.general import str_to_int
+
     norm_upper = "lin" if not args.log_upper else "log"
-    upper_plot = kplt.HicPlot(matrix_upper, colormap=colormap_upper, max_dist=args.max_dist, norm=norm_upper,
-                              vmin=args.vmin_upper, vmax=args.vmax_upper, show_colorbar=args.show_colorbar,
-                              adjust_range=False)
+    upper_plot = kplt.HicPlot(matrix_upper, colormap=colormap_upper, max_dist=str_to_int(args.max_dist),
+                              norm=norm_upper, vmin=args.vmin_upper, vmax=args.vmax_upper,
+                              oe=args.oe_upper, log=args.oe_upper,
+                              colorbar_symmetry=0 if args.oe_upper and args.colorbar_symmetry_upper is None
+                              else args.colorbar_symmetry_upper,
+                              show_colorbar=args.show_colorbar, adjust_range=False)
     norm_lower = "lin" if not args.log_lower else "log"
-    lower_plot = kplt.HicPlot(matrix_lower, colormap=colormap_lower, max_dist=args.max_dist,
+    lower_plot = kplt.HicPlot(matrix_lower, colormap=colormap_lower, max_dist=str_to_int(args.max_dist),
                               norm=norm_lower, vmin=args.vmin_lower, vmax=args.vmax_lower,
+                              oe=args.oe_lower, log=args.oe_lower,
+                              colorbar_symmetry=0 if args.oe_lower and args.colorbar_symmetry_lower is None
+                              else args.colorbar_symmetry_lower,
                               show_colorbar=args.show_colorbar, adjust_range=False)
     vsp = kplt.VerticalSplitPlot(upper_plot, lower_plot)
     return vsp, args
