@@ -1635,6 +1635,13 @@ def to_cooler_parser():
              'file in the order they are listed in the Kai-C file.'
     )
 
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='Work in temporary directory'
+    )
+
     return parser
 
 
@@ -1648,11 +1655,13 @@ def to_cooler(argv, **kwargs):
     multi = args.multi
     threads = args.threads
     natural_sort = args.natural_sort
+    tmp = args.tmp
 
     resolutions = args.resolutions
 
     import kaic
     from kaic.tools.general import str_to_int
+
     try:
         import cooler
     except ImportError:
@@ -1662,9 +1671,26 @@ def to_cooler(argv, **kwargs):
     if resolutions is not None:
         resolutions = [str_to_int(r) for r in resolutions]
 
-    with kaic.load(input_file, mode='r') as hic:
-        to_cooler(hic, output_file, balance=norm, multires=multi, resolutions=resolutions,
-                  threads=threads, natural_order=natural_sort)
+    tmp_files = []
+    original_output_file = output_file
+    try:
+        if tmp:  # copy file if required
+            tmp = False  # to prevent deleting input file should this be interrupted at this point
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.hic')
+            tmp_file.close()
+            output_file = tmp_file.name
+            logger.info("Temporary output file: %s" % output_file)
+            tmp_files = [output_file]
+            tmp = True
+
+        with kaic.load(input_file, mode='r', tmpdir=tmp) as hic:
+            to_cooler(hic, output_file, balance=norm, multires=multi, resolutions=resolutions,
+                      threads=threads, natural_order=natural_sort)
+    finally:
+        if tmp:
+            shutil.copy(output_file, original_output_file)
+        for tmp_file in tmp_files:
+            os.remove(tmp_file)
     logger.info("All done.")
 
 
