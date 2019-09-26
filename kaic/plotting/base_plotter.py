@@ -615,7 +615,8 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
             vmin = self.colorbar_symmetry - max_diff
             vmax = self.colorbar_symmetry + max_diff
 
-        self._map_norm = _prepare_normalization(norm=self.norm, vmin=vmin, vmax=vmax)
+        if self._map_norm is None:
+            self._map_norm = _prepare_normalization(norm=self.norm, vmin=vmin, vmax=vmax)
         color_matrix = self.colormap(self._map_norm(matrix))
 
         if self.blend_zero:
