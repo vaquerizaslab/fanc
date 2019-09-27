@@ -2914,7 +2914,14 @@ def compare_parser():
         '-l', '--log', dest='log',
         action='store_true',
         default=False,
-        help='''Log2-convert comparison values'''
+        help='''Log2-convert comparison values (AFTER the comparison)'''
+    )
+
+    parser.add_argument(
+        '--log-matrix', dest='log_matrix',
+        action='store_true',
+        default=False,
+        help='''Log2-convert matrices (BEFORE the comparison)'''
     )
 
     parser.add_argument(
@@ -2929,6 +2936,22 @@ def compare_parser():
         action='store_true',
         default=False,
         help='Do not consider pixels where the comparison yields "inf"'
+    )
+
+    parser.add_argument(
+        '-e', '--observed-expected', dest='oe',
+        action='store_true',
+        default=False,
+        help='Log2-O/E transform matrix values before comparison. '
+             'Only has an effect on matrix comparisons.'
+    )
+
+    parser.add_argument(
+        '-u', '--uncorrected', dest='norm',
+        action='store_false',
+        default=True,
+        help='Compare uncorrected matrices. Only has an '
+             'effect on matrix comparisons.'
     )
 
     parser.add_argument(
@@ -2954,7 +2977,10 @@ def compare(argv, **kwargs):
     filter_zero = args.ignore_zero
     filter_infinite = args.ignore_infinite
     output_format = args.output_format
+    norm = args.norm
+    oe = args.oe
     log = args.log
+    log_matrix = args.log_matrix
     tmp = args.tmp
 
     import kaic
@@ -2982,9 +3008,10 @@ def compare(argv, **kwargs):
         cmp = ComparisonMatrix.from_matrices(matrix1, matrix2, file_name=output_file,
                                              tmpdir=tmp, mode='w',
                                              scale=scale,
-                                             log=log,
+                                             log_cmp=log,
                                              ignore_infinite=filter_infinite,
-                                             ignore_zeros=filter_zero)
+                                             ignore_zeros=filter_zero,
+                                             oe=oe, norm=norm, log=log_matrix)
         cmp.close()
     elif isinstance(matrix1, RegionScoreParameterTable) and isinstance(matrix2, RegionScoreParameterTable):
         ComparisonScores = None
