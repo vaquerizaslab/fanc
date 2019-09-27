@@ -2942,7 +2942,7 @@ def compare_parser():
         '-e', '--observed-expected', dest='oe',
         action='store_true',
         default=False,
-        help='Log2-O/E transform matrix values before comparison. '
+        help='O/E transform matrix values before comparison. '
              'Only has an effect on matrix comparisons.'
     )
 
