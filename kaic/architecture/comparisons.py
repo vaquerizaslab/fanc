@@ -206,7 +206,7 @@ class ComparisonMatrix(RegionMatrixTable):
 
     @classmethod
     def from_matrices(cls, matrix1, matrix2, file_name=None, tmpdir=None,
-                      log=False, ignore_infinite=True, ignore_zeros=False,
+                      log_cmp=False, ignore_infinite=True, ignore_zeros=False,
                       scale=True, **kwargs):
         kwargs['lazy'] = True
 
@@ -215,7 +215,10 @@ class ComparisonMatrix(RegionMatrixTable):
 
         sf = 1.0
         if scale:
-            sf = matrix2.scaling_factor(matrix1)
+            if kwargs.get('oe', False):
+                logger.warning('Not computing scaling factor due to O/E conversion.')
+            else:
+                sf = matrix2.scaling_factor(matrix1)
 
         compare = comparison_matrix.compare
         chromosomes = matrix1.chromosomes()
@@ -244,7 +247,7 @@ class ComparisonMatrix(RegionMatrixTable):
                         if ignore_zeros and (w1 == 0 or w2 == 0):
                             continue
                         weight = compare(w1, w2)
-                        if log:
+                        if log_cmp:
                             weight = np.log2(weight)
                         if ignore_infinite and not np.isfinite(weight):
                             continue
@@ -258,7 +261,7 @@ class ComparisonMatrix(RegionMatrixTable):
                             if ignore_zeros and (w1 == 0 or w2 == 0):
                                 continue
                             weight = compare(w1, w2)
-                            if log:
+                            if log_cmp:
                                 weight = np.log2(weight)
                             if ignore_infinite and not np.isfinite(weight):
                                 continue
