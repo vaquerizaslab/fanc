@@ -655,7 +655,7 @@ class GenomicFeaturePlot(BasePlotter1D):
     Just draws a black box where the feature is located.
     """
     def __init__(self, regions, feature_types=False, label_field="gene_symbol",
-                 label_func=None, **kwargs):
+                 label_func=None, color='black', **kwargs):
         """
         :param regions: Any input that pybedtools can parse. Can be a path to a
                         GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), ...]
@@ -682,6 +682,7 @@ class GenomicFeaturePlot(BasePlotter1D):
         self._n_tracks = 1 if not self.feature_types else len(self.feature_types)
         self.label_field = label_field
         self.label_func = label_func
+        self.color = color
 
     def _plot(self, region):
         interval = region_to_pbt_interval(region)
@@ -700,7 +701,7 @@ class GenomicFeaturePlot(BasePlotter1D):
             gene_patch = patches.Rectangle(
                 (g.start, pos[feature_type]),
                 width=abs(g.end - g.start), height=stroke_length,
-                transform=trans, color="black"
+                transform=trans, color=self.color
             )
             self.ax.add_patch(gene_patch)
             label_x = .5*(max(region.start, g.start) + min(region.end, g.end))
@@ -1475,7 +1476,7 @@ class FeatureLayerPlot(BasePlotter1D):
         :param element_height: Height of an individual element in the plot. A row's height
                                is 1.0, so you should choose a value smaller than that.
         :param color_by: element attribute to color the element by. Currently, only categorical
-                         values are supported
+                         values are supported.
         :param colors: List of (attribute, color) pairs to color elements according to some attribute
         :param shadow: Draws a translucent box under each element the is min_element_width wide.
                        Useful if the size of elements is very small compared to plotting region
