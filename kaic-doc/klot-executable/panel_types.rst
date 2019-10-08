@@ -1,5 +1,9 @@
 .. _panel_types:
 
+===========
+Panel types
+===========
+
 .. toctree::
    :maxdepth: 2
 

@@ -26,8 +26,13 @@ Installation
 Before installing Kai-C, make sure you have all the prerequisites installed on your system.
 Specifically, Kai-C uses the HDF5 file format internally (via PyTables) to handle the large
 amount of data typically generated in Hi-C experiments. The minimum required version of HDF5
-is 1.8.4, which may already be installed on your machine, but we recommend installing the
-latest version.
+is 1.8.4, which may already be installed on your machine.
+
+.. note::
+
+    It is generally not necessary to install HDF5 manually, as some version will typically be
+    installed on any current Unix system, including macOS. If you can install Kai-C via pip
+    (see below) and ``kaic --version`` returns a version number, you are most likely good to go.
 
 Prerequisite: HDF5
 ==================
@@ -152,7 +157,7 @@ the right parameters and that there are no errors.
 
 When you remove the ``--run-with test`` argument, ``kaic`` will work through the pipeline.
 On a modern desktop computer with at least four computing cores the command should take less
-than an hour to finish. It will generate several binned, bias-corrected Hi-C matrices from the
+than 30 minutes to finish. It will generate several binned, bias-corrected Hi-C matrices from the
 FASTQ input.
 
 You can read details about ``kaic auto`` and all of its parameters in :ref:`kaic-auto`.
@@ -165,7 +170,7 @@ We can plot the newly generated Hi-C maps easily using the ``klot`` command. Sim
 
 .. code:: bash
 
-   klot chr18:63000000-70000000 -p triangular -r output/hic/binned/kaic_example_100kb.hic
+   klot chr18:63mb-70mb -p triangular -r output/hic/binned/kaic_example_100kb.hic
 
 This will plot the region 63-70Mb of chromosome 18 in the familiar Hi-C plot.
 Note that this dataset is very small and hence the quality of the matrix not

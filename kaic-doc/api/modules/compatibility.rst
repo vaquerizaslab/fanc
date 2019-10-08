@@ -1,4 +1,4 @@
-.. _kaic-architecture:
+.. _kaic-compatibility:
 
 ===========================
 Kai-C compatibility modules

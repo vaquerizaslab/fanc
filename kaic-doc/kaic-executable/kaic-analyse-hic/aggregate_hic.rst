@@ -50,7 +50,7 @@ that is everything outside of chromosomes 18 and 19:
                    architecture/aggregate/kaic_example_100kb.agg
 
 This command only produces an AggregateMatrix file (``kaic_example_100kb.agg``), which
- is useful for further usage with Kai-C, but not easily readable. To extract the aggregate
+is useful for further usage with Kai-C, but not easily readable. To extract the aggregate
 matrix in txt format, simply add ``-m`` and to plot it just use ``-p``:
 
 .. code::
