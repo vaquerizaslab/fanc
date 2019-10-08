@@ -1,0 +1,14 @@
+.. _api_generate_hic:
+
+============================
+Generate Hi-C matrices (API)
+============================
+
+In :ref:`generate_hic` we built a Hi-C matrix from FASTQ using command line tools, either
+with ``kaic auto`` or using :ref:`kaic-modular`. Here, we will accomplish the same using
+only the Python API.
+
+.. toctree::
+   :maxdepth: 1
+
+   Mapping FASTQ files <generate/map>

@@ -92,3 +92,18 @@ Here are a few more examples:
 
 The next section will discuss :ref:`common_interfaces` that make working with genomic data
 in general and Kai-C objects specifically straightforward and simple.
+
+*******
+Logging
+*******
+
+Kai-C uses the ``logging`` module. In a ``python`` session, use a statement like
+
+.. literalinclude:: generate/code/generate_example_code.py
+    :language: python
+    :start-after: start snippet logging
+    :end-before: end snippet logging
+
+to enable basic console logging. Have a look the
+`logging documentation <https://docs.python.org/3/library/logging.html>`_
+for more information on log levels and handlers.

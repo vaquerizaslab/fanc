@@ -1,6 +1,8 @@
-=====================
-Analyse Hi-C matrices
-=====================
+.. _analyse_hic:
+
+===========================
+Analyse Hi-C matrices (API)
+===========================
 
 The ``kaic`` tool should be accessible from the command line after you installed Kai-C
 (see :ref:`kaic_installation`).

@@ -1,3 +1,5 @@
+.. _generate_hic:
+
 ======================
 Generate Hi-C matrices
 ======================
