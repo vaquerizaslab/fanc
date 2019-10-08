@@ -27,7 +27,7 @@ def klot_parser():
         usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
 
     usage += "\n-- Region --\n"
-    for name in ['array', 'region', 'line', 'bar', 'layer']:
+    for name in ['scores', 'line', 'bar', 'layer', 'gene']:
         padding = ' ' * (max_len - len(name))
         usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
 
@@ -685,145 +685,25 @@ def mirror(parameters):
     return vsp, args
 
 
-def hicvfc_parser():
+def scores_parser():
     parser = subplot_parser()
-    parser.description = '''Hi-C vs fold-change plot.'''
+    parser.description = 'Region scores plot with parameter dependency.'
 
     parser.add_argument(
-        'hic',
-        help='''Hi-C object.'''
-    )
-
-    parser.add_argument(
-        'fold_change',
-        help='''Fold-change object.'''
-    )
-
-    parser.add_argument(
-        '-vmin', '--minimum-value-hic', dest='vmin_hic',
-        type=float,
-        help='''Minimum value assigned the first color in the colorbar of Hi-C plot.'''
-    )
-
-    parser.add_argument(
-        '-vmax', '--maximum-value-hic', dest='vmax_hic',
-        type=float,
-        help='''Maximum value assigned the last color in the colorbar of Hi-C plot.'''
-    )
-
-    parser.add_argument(
-        '-fvmin', '--minimum-value-fc', dest='vmin_fc',
-        type=float,
-        help='''Minimum value assigned the first color in the colorbar of fold-change plot.'''
-    )
-
-    parser.add_argument(
-        '-fvmax', '--maximum-value-fc', dest='vmax_fc',
-        type=float,
-        help='''Maximum value assigned the last color in the colorbar of fold-change plot.'''
-    )
-
-    parser.add_argument(
-        '-d', '--maximum-distance', dest='max_dist',
-        type=int,
-        help='''Maximum distance between two points after which triangle will be truncated.'''
-    )
-
-    parser.add_argument(
-        '-hl', '--log-hic', dest='log_hic',
-        action='store_true',
-        help='''Log-transform heatmap values of Hi-C plot'''
-    )
-    parser.set_defaults(log_hic=False)
-
-    parser.add_argument(
-        '-fl', '--log-fc', dest='log_fc',
-        action='store_true',
-        help='''Log-transform heatmap values of fold-change plot'''
-    )
-    parser.set_defaults(log_fc=False)
-
-    parser.add_argument(
-        '-hc', '--colormap-hic', dest='colormap_hic',
-        help='''Matplotlib colormap for Hi-C plot'''
-    )
-
-    parser.add_argument(
-        '-fc', '--colormap-fc', dest='colormap_fc',
-        default='RdBu_r',
-        help='''Matplotlib colormap for fold-change plot (default: RdBu_r)'''
-    )
-
-    parser.add_argument(
-        '-C', '--no-colorbars', dest='show_colorbar',
-        action='store_false',
-        help='''Do not show colorbars in plot'''
-    )
-    parser.set_defaults(show_colorbar=True)
-
-    parser.add_argument(
-        '-S', '--no-symmetry', dest='symmetry',
-        action='store_false',
-        help='''Do not plot colormap symmetrical around 0.'''
-    )
-    parser.set_defaults(symmetry=True)
-
-    parser.add_argument(
-        '-i', '--invert', dest='invert',
-        action='store_true',
-        help='''Invert plot (fold-change on top)'''
-    )
-    parser.set_defaults(invert=False)
-    return parser
-
-
-def hicvfc(parameters):
-    parser = hicvfc_parser()
-
-    args = parser.parse_args(parameters)
-
-    colormap_hic = config.colormap_hic if args.colormap_hic is None else args.colormap_hic
-
-    hic = kaic.load_hic(os.path.expanduser(args.hic), mode='r')
-    fc = kaic.FoldChangeMatrix(os.path.expanduser(args.fold_change), mode='r')
-
-    norm_hic = "lin" if not args.log_hic else "log"
-    hic_plot = kplt.HicPlot(hic, colormap=colormap_hic, max_dist=args.max_dist, norm=norm_hic,
-                            vmin=args.vmin_hic, vmax=args.vmax_hic, show_colorbar=args.show_colorbar,
-                            adjust_range=False)
-    norm_fc = "lin" if not args.log_fc else "log"
-    colorbar_symmetry = 0 if args.symmetry else None
-    fc_plot = kplt.HicPlot(fc, colormap=args.colormap_fc, max_dist=args.max_dist,
-                           norm=norm_fc, vmin=args.vmin_fc, vmax=args.vmax_fc,
-                           show_colorbar=args.show_colorbar, adjust_range=False,
-                           colorbar_symmetry=colorbar_symmetry)
-    if args.invert:
-        vsp = kplt.VerticalSplitPlot(fc_plot, hic_plot)
-    else:
-        vsp = kplt.VerticalSplitPlot(hic_plot, fc_plot)
-
-    return vsp, args
-
-
-def array_parser():
-    parser = subplot_parser()
-    parser.description = '''Hi-C plot.'''
-
-    parser.add_argument(
-        'array',
-        help='''Array object, e.g. InsulationScores, DirectionalityIndexes, ... .'''
+        'scores',
+        help='Array object, e.g. InsulationScores, DirectionalityIndexes, ... .'
     )
 
     parser.add_argument(
         '-vmin', '--minimum-value', dest='vmin',
         type=float,
-        help='''Minimum value assigned the first color in the colorbar.'''
+        help='Minimum value assigned the first color in the colorbar.'
     )
 
     parser.add_argument(
         '-vmax', '--maximum-value', dest='vmax',
         type=float,
-        help='''Maximum value assigned the last color in the colorbar.'''
+        help='Maximum value assigned the last color in the colorbar.'
     )
 
     parser.add_argument(
@@ -837,20 +717,20 @@ def array_parser():
         '-r', '--range', dest='range',
         nargs=2,
         type=int,
-        help='''Range of y-values to plot (<min> <max> inclusive)'''
+        help='Range of y-values to plot (<min> <max> inclusive)'
     )
 
     parser.add_argument(
         '-p', '--parameters', dest='parameters',
         type=str,
         nargs='+',
-        help='''List of specific window sizes / parameters to plot.'''
+        help='List of specific window sizes / parameters to plot.'
     )
 
     parser.add_argument(
         '-c', '--colormap', dest='colormap',
         default='RdBu_r',
-        help='''Matplotlib colormap (default: RdBu_r)'''
+        help='Matplotlib colormap (default: RdBu_r)'
     )
 
     parser.add_argument(
@@ -863,24 +743,32 @@ def array_parser():
     parser.add_argument(
         '-S', '--no-symmetry', dest='symmetry',
         action='store_false',
-        help='''Do not plot colormap symmetrical around 0.'''
+        default=True,
+        help='Do not plot colormap symmetrical around 0.'
     )
-    parser.set_defaults(symmetry=True)
+
+    parser.add_argument(
+        '-g', '--genomic-format', dest='genomic_format',
+        action='store_true',
+        default=False,
+        help='Use abbreviated genomic formatting for y axis '
+             'labels (e.g. 1kb instead of 1000).'
+    )
 
     parser.add_argument(
         '-rc', '--replacement-color', dest='replacement_color',
         default='grey',
-        help='''Color to replace missing values. Default: grey'''
+        help='Color to replace missing values. Default: grey'
     )
     return parser
 
 
-def array(parameters):
-    parser = array_parser()
+def scores(parameters):
+    parser = scores_parser()
 
     args = parser.parse_args(parameters)
 
-    array = kaic.load(os.path.expanduser(args.array), mode='r')
+    array = kaic.load(os.path.expanduser(args.scores), mode='r')
     norm = "linear" if not args.log else "log"
 
     if args.range is not None:
@@ -896,75 +784,8 @@ def array(parameters):
     colorbar_symmetry = 0 if args.symmetry else None
     p = kplt.GenomicVectorArrayPlot(array, parameters=data_selection, y_scale=norm, colormap=args.colormap,
                                     colorbar_symmetry=colorbar_symmetry, vmin=args.vmin, vmax=args.vmax,
-                                    show_colorbar=args.show_colorbar, replacement_color=args.replacement_color)
-    return p, args
-
-
-def region_parser():
-    parser = subplot_parser()
-    parser.description = '''Region plot.'''
-
-    parser.add_argument(
-        'bed',
-        help='''BED or other genomic coordinate file .'''
-    )
-
-    parser.add_argument(
-        '-f', '--features', dest='features',
-        nargs='+',
-        help='''(Only for GTF) Plot only the specified feature types (3rd GTF column).'''
-    )
-
-    parser.add_argument(
-        '-a', '--attribute', dest='attribute',
-        default='score',
-        help='''Attribute of each region to plot. Default: score.'''
-    )
-
-    parser.add_argument(
-        '-l', '--label', dest='label',
-        help='''Attribute used to label each bar in the plot.'''
-    )
-
-    parser.add_argument(
-        '-cn', '--color-neutral', dest='color_neutral',
-        default='grey',
-        help='''Neutral color (no strand information)'''
-    )
-
-    parser.add_argument(
-        '-cf', '--color-forward', dest='color_forward',
-        default='red',
-        help='''Forward color (strand +)'''
-    )
-
-    parser.add_argument(
-        '-cr', '--color-reverse', dest='color_reverse',
-        default='blue',
-        help='''Reverse color (strand -)'''
-    )
-
-    parser.add_argument(
-        '-y', '--ylim', dest='ylim',
-        nargs=2,
-        type=float,
-        help='''Y-axis limits.'''
-    )
-
-    parser.set_defaults(show_labels=True)
-    return parser
-
-
-def region(parameters):
-    parser = region_parser()
-
-    args = parser.parse_args(parameters)
-
-    p = kplt.GenomicFeatureScorePlot(os.path.expanduser(args.bed), annotation_field=args.label,
-                                     attribute=args.attribute, feature_types=args.features,
-                                     color_neutral=args.color_neutral, color_forward=args.color_forward,
-                                     color_reverse=args.color_reverse,
-                                     ylim=args.ylim)
+                                    show_colorbar=args.show_colorbar, replacement_color=args.replacement_color,
+                                    genomic_format=args.genomic_format)
     return p, args
 
 
@@ -998,6 +819,12 @@ def line_parser():
     )
 
     parser.add_argument(
+        '-c', '--colors', dest='colors',
+        nargs='+',
+        help='Colors for region datasets'
+    )
+
+    parser.add_argument(
         '-f', '--fill', dest='fill',
         action='store_true',
         default=False,
@@ -1006,11 +833,10 @@ def line_parser():
 
     parser.add_argument(
         '-s', '--line-style', dest='line_style',
-        default='step',
-        help='Style of line. Default is "step": Whole region '
+        default='mid',
+        help='Style of line. Default is "mid": Connect regions only at their'
+             'midpoint. Alternatively use "step", where the whole region '
              'is assigned a value, leading to rectangular appearance. '
-             'Alternative is "mid": Connect regions only at their '
-             'midpoint.'
     )
 
     parser.add_argument(
@@ -1018,6 +844,19 @@ def line_parser():
         nargs=2,
         type=float,
         help='''Y-axis limits.'''
+    )
+
+    parser.add_argument(
+        '--alpha', dest='alpha',
+        default=0.5,
+        type=float,
+        help='Transparency of bars. Value between 0 and 1, default: 0.5'
+    )
+
+    parser.add_argument(
+        '--legend-location', dest='legend_location',
+        default='best',
+        help='Location of the legend when providing data labels.'
     )
     return parser
 
@@ -1030,16 +869,20 @@ def line(parameters):
     attribute = args.attribute
     bin_size = args.bin_size
     labels = args.labels
+    colors = args.colors
     fill = args.fill
     line_style = args.line_style
     ylim = args.ylim
+    alpha = args.alpha
+    legend_location = args.legend_location
 
     if labels is not None and len(labels) != len(regions):
         parser.error("Number of labels ({}) must be the same as number "
                      "of datasets ({})".format(len(labels), len(regions)))
 
     p = kplt.LinePlot(regions, bin_size=bin_size, fill=fill, attribute=attribute, labels=labels,
-                      style=line_style, ylim=ylim)
+                      style=line_style, ylim=ylim, colors=colors, legend_location=legend_location,
+                      plot_kwargs={'alpha': alpha})
     return p, args
 
 
@@ -1060,10 +903,10 @@ def bar_parser():
     )
 
     parser.add_argument(
-        '-b', '--bin-size', dest='bin_size',
-        type=int,
-        help='Bin size. Specify if you want to bin scores into '
-             'larger regions (using weighted mean).'
+        '--alpha', dest='alpha',
+        default=0.5,
+        type=float,
+        help='Transparency of bars. Value between 0 and 1, default: 0.5'
     )
 
     parser.add_argument(
@@ -1078,85 +921,42 @@ def bar_parser():
         type=float,
         help='''Y-axis limits.'''
     )
+
+    parser.add_argument(
+        '-c', '--colors', dest='colors',
+        nargs='+',
+        help='Colors for region datasets'
+    )
+
+    parser.add_argument(
+        '--legend-location', dest='legend_location',
+        default='best',
+        help='Location of the legend when providing data labels.'
+    )
+
     return parser
 
 
 def bar(parameters):
-    parser = line_parser()
+    parser = bar_parser()
     args = parser.parse_args(parameters)
 
     regions = [kaic.load(file_name) for file_name in args.regions]
     attribute = args.attribute
-    bin_size = args.bin_size
     labels = args.labels
     ylim = args.ylim
+    colors = args.colors
+    alpha = args.alpha
+
+    legend_location = args.legend_location
 
     if labels is not None and len(labels) != len(regions):
         parser.error("Number of labels ({}) must be the same as number "
                      "of datasets ({})".format(len(labels), len(regions)))
 
-    p = kplt.BarPlot(regions, bin_size=bin_size, attribute=attribute, labels=labels,
-                     ylim=ylim)
-    return p, args
-
-
-def bigwig_parser():
-    parser = subplot_parser()
-    parser.description = '''BigWig plot.'''
-
-    parser.add_argument(
-        'bigwig',
-        nargs='+',
-        help='''BigWig file(s).'''
-    )
-
-    parser.add_argument(
-        '-n', '--names', dest='names',
-        nargs='+',
-        help='''Names for each bigWig (must be same length as number of bigWigs).'''
-    )
-
-    parser.add_argument(
-        '-b', '--bin', dest='bin',
-        type=int,
-        help='''Bin bigWig values to genomic region of this fixed size.'''
-    )
-
-    parser.add_argument(
-        '-y', '--ylim', dest='ylim',
-        nargs=2,
-        type=float,
-        help='''Y-axis limits.'''
-    )
-
-    parser.add_argument(
-        '-l', '--log', dest='log',
-        action='store_true',
-        help='''Log-transform y axis.'''
-    )
-    parser.set_defaults(log=False)
-
-    parser.add_argument(
-        '-c', '--condensed', dest='condensed',
-        action='store_true',
-        help='''Condense plot along y axis.'''
-    )
-    parser.set_defaults(condensed=False)
-
-    return parser
-
-
-def bigwig(parameters):
-    parser = bigwig_parser()
-    args = parser.parse_args(parameters)
-
-    bigwigs = []
-    for file_name in args.bigwig:
-        bigwigs.append(kaic.load(file_name))
-
-    p = kplt.BigWigPlot(bigwigs, names=args.names, bin_size=args.bin, ylim=args.ylim,
-                        yscale="log" if args.log else "linear", condensed=args.condensed)
-
+    p = kplt.BarPlot(regions, attribute=attribute, labels=labels,
+                     ylim=ylim, plot_kwargs={'alpha': alpha}, colors=colors,
+                     legend_location=legend_location)
     return p, args
 
 
@@ -1294,57 +1094,57 @@ def gene(parameters):
 
 def layer_parser():
     parser = subplot_parser()
-    parser.description = '''Layered feature plot.'''
+    parser.description = 'Layered feature plot.'
 
     parser.add_argument(
         'features',
-        help='''Features file (GFF, BED).'''
+        help='Features file (GFF, BED, Tabix).'
     )
 
     parser.add_argument(
         '-g', '--grouping', dest='grouping_attribute',
-        help='''GFF attribute to use for grouping into layers. For BED this is always the name column.'''
+        help='GFF attribute to use for grouping into layers. For BED this is always the name column.'
     )
 
     parser.add_argument(
         '-i', '--include', dest='include',
         nargs='+',
-        help='''Include only these groups.'''
+        help='Include only these groups.'
     )
 
     parser.add_argument(
         '-e', '--exclude', dest='exclude',
         nargs='+',
-        help='''Exclude these groups.'''
+        help='Exclude these groups.'
     )
 
     parser.add_argument(
         '-S', '--no-shadow', dest='shadow',
         action='store_false',
-        help='''Plot element size 'as is' without surrounding box to make it more visible.'''
+        default=True,
+        help='Plot element size "as is" without surrounding box to make it more visible.'
     )
-    parser.set_defaults(shadow=True)
 
     parser.add_argument(
         '-C', '--collapse', dest='collapse',
         action='store_true',
-        help='''Plot all elements in one row.'''
+        default=False,
+        help='Plot all elements in one row.'
     )
-    parser.set_defaults(collapse=False)
 
     parser.add_argument(
         '-w', '--shadow-width', dest='shadow_width',
         type=float,
         default=0.005,
-        help='''Vertical distance between rows of genes in the plot.'''
+        help='Vertical distance between rows of genes in the plot.'
     )
 
     parser.add_argument(
         '--no-colors', dest='colors',
         action='store_false',
-        help='''Do not add color to plots.'''
+        default=True,
+        help='Do not add color to plots.'
     )
-    parser.set_defaults(colors=True)
 
     return parser
 
@@ -1371,82 +1171,38 @@ def layer(parameters):
     return p, args
 
 
-def table_parser():
-    parser = subplot_parser()
-    parser.description = '''Table plot.'''
-
-    parser.add_argument(
-        'table',
-        help='''Table, BED-style with arbitrary columns (must include header,
-                first three columns must be 'chromosome', 'start', 'end').'''
-    )
-
-    parser.add_argument(
-        '-n', '--names', dest='names',
-        nargs='+',
-        help='''Names for each column (must be same length as number of bigWigs).'''
-    )
-
-    parser.add_argument(
-        '-y', '--ylim', dest='ylim',
-        nargs=2,
-        type=float,
-        help='''Y-axis limits.'''
-    )
-
-    parser.add_argument(
-        '-l', '--log', dest='log',
-        action='store_true',
-        help='''Log-transform y axis.'''
-    )
-    parser.set_defaults(log=False)
-
-    return parser
-
-
-def table(parameters):
-    parser = table_parser()
-    args = parser.parse_args(parameters)
-
-    table_file = args.table
-
-    p = kplt.GenomicDataFramePlot(table_file, names=args.names, ylim=args.ylim, log=args.log)
-
-    return p, args
-
-
-def highlight_parser():
-    parser = subplot_parser()
-    parser.description = '''Highlight regions plot.'''
-
-    parser.add_argument(
-        'regions',
-        help='''BED file or any other Bedtools compatible format.'''
-    )
-
-    parser.add_argument(
-        '-c', '--color',
-        default="grey",
-        help='''Color for shaded regions.'''
-    )
-
-    parser.add_argument(
-        '-a', '--alpha',
-        default=.5,
-        type=float,
-        help='''Alpha transparency, between 0 and 1.'''
-    )
-
-    return parser
-
-
-def highlight(parameters):
-    parser = highlight_parser()
-    args = parser.parse_args(parameters)
-    plot_kwargs = dict(
-        color=args.color,
-        fill=args.color,
-        alpha=args.alpha,
-    )
-    p = kplt.HighlightAnnotation(args.regions, None, None, plot_kwargs=plot_kwargs)
-    return p, None
+# def highlight_parser():
+#     parser = subplot_parser()
+#     parser.description = '''Highlight regions plot.'''
+#
+#     parser.add_argument(
+#         'regions',
+#         help='''BED file or any other Bedtools compatible format.'''
+#     )
+#
+#     parser.add_argument(
+#         '-c', '--color',
+#         default="grey",
+#         help='''Color for shaded regions.'''
+#     )
+#
+#     parser.add_argument(
+#         '-a', '--alpha',
+#         default=.5,
+#         type=float,
+#         help='''Alpha transparency, between 0 and 1.'''
+#     )
+#
+#     return parser
+#
+#
+# def highlight(parameters):
+#     parser = highlight_parser()
+#     args = parser.parse_args(parameters)
+#     plot_kwargs = dict(
+#         color=args.color,
+#         fill=args.color,
+#         alpha=args.alpha,
+#     )
+#     p = kplt.HighlightAnnotation(args.regions, None, None, plot_kwargs=plot_kwargs)
+#     return p, None
