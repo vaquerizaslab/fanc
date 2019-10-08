@@ -20,7 +20,7 @@ objects are used to create a :class:`~kaic.plotting.GenomicFigure`.
 Example
 -------
 
-Kaic comes with a few example datasets that can be used to explore the basic
+Kai-C comes with a few example datasets that can be used to explore the basic
 functionalities of the plotting module. The paths in this example are relative
 to the top-level kaic directory where the setup.py file is located.
 
@@ -113,7 +113,7 @@ Basic Plot types and options
     accessed by suffixing a question mark (in Ipython/Jupyter) or calling the
     help() function:
 
-    .. code:: python
+    .. code::
 
         import kaic.plotting as kplot
         kplot.BigWigPlot? # Ipython/Jupyter
