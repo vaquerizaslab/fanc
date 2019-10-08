@@ -202,7 +202,7 @@ class AggregateMatrix(FileGroup):
 
         :param matrix: An object of type :class:`RegionMatrixContainer`, such as a
                        Hic matrix
-        :param regions: A list of :cls:`GenomicRegion` objects
+        :param regions: A list of :class:`GenomicRegion` objects
         :param window: A window size in base pairs
         :param rescale: If True, will use :code:`scaling_exponent` to artificially rescale
                         the aggregate matrix values using a power law
@@ -297,7 +297,7 @@ class AggregateMatrix(FileGroup):
 
         :param hic: An object of type :class:`RegionMatrixContainer`, such as a
                        Hic matrix
-        :param tad_regions: A list of :cls:`GenomicRegion` objects
+        :param tad_regions: A list of :class:`GenomicRegion` objects
         :param pixels: Number of pixels along each dimension of the aggregate matrix
         :param rescale: If True, will use :code:`scaling_exponent` to artificially rescale
                         the aggregate matrix values using a power law
