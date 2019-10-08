@@ -30,7 +30,7 @@ def is_cooler(file_name):
 def to_cooler(hic, path, balance=True, multires=True,
               resolutions=None, n_zooms=10, threads=1,
               chunksize=100000, max_resolution=5000000,
-              natural_order=True,
+              natural_order=True, chromosomes=None,
               **kwargs):
     """
     Export Hi-C data as Cooler file.
@@ -78,9 +78,10 @@ def to_cooler(hic, path, balance=True, multires=True,
             multi_path = None
 
         natural_key = cmp_to_key(natural_cmp)
-        chromosomes = hic.chromosomes()
-        if natural_order:
-            chromosomes = sorted(chromosomes, key=lambda x: natural_key(x.encode('utf-8')))
+        if chromosomes is None:
+            chromosomes = hic.chromosomes()
+            if natural_order:
+                chromosomes = sorted(chromosomes, key=lambda x: natural_key(x.encode('utf-8')))
 
         logger.info("Loading genomic regions")
         ix_converter = dict()
