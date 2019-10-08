@@ -492,33 +492,34 @@ class ScalarDataPlot(BasePlotter1D):
             self.ax.set_yticks([high])
             self.ax.set_yticklabels([high], va='top', size='large')
 
-    def _get_values_per_step(self, values, region_list):
-        x = np.empty(len(region_list)*2)
-        y = np.empty(len(region_list)*2)
-        for i, r in enumerate(region_list):
-            j = i*2
-            x[j], x[j + 1] = r.start, r.end
-            y[j:j + 2] = values[i]
-        return x, y
+    def _get_values_per_step(self, regions, attribute='score'):
+        x = []
+        y = []
+        for region in regions:
+            x.append(region.start)
+            x.append(region.end)
+            v = getattr(region, attribute)
+            y.append(v)
+            y.append(v)
+        return np.array(x), np.array(y)
 
-    def _get_values_per_mid(self, values, region_list):
-        x = np.empty(len(values), dtype=np.int_)
-        for i, r in enumerate(region_list):
-            x[i] = int((r.end + r.start)/2 + 0.5)
-        return x, values
+    def _get_values_per_mid(self, regions, attribute='score'):
+        x = []
+        y = []
+        for region in regions:
+            x.append(int(region.center))
+            y.append(getattr(region, attribute))
+        return np.array(x), np.array(y)
 
-    def get_plot_values(self, values, region_list):
+    def values_from_region_iter(self, regions, attribute='score'):
         """
-        Convert values and regions to final x- and y-
-        coordinates for plotting, based on the selected style.
+        Get x, y coordinates from a region iterator.
 
-        :param values: List or array of scalar values
-        :type values: numpy.ndarray or list
-        :param region_list: List of class:`~kaic.data.genomic.GenomicRegion`,
-                            one for each value
-        :type region_list: list(kaic.data.genomic.GenomicRegion)
+        :param regions: iterable over :class:`~genomic_regions.GenomicRegion` objects
+        :param attribute: attribute to extract from each region as score (default: 'score')
+        :return: x, y
         """
-        return self._STYLES[self.style](self, values, region_list)
+        return self._STYLES[self.style](self, regions, attribute)
 
     _STYLES = {_STYLE_STEP: _get_values_per_step,
                _STYLE_MID: _get_values_per_mid}
