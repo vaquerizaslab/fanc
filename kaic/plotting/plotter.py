@@ -28,8 +28,8 @@ import re
 import warnings
 from collections import defaultdict
 from future.utils import string_types
-import pyBigWig
 import kaic
+from kaic.tools.general import human_format
 import logging
 logger = logging.getLogger(__name__)
 
@@ -497,7 +497,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
     """
 
     def __init__(self, array, parameters=None, y_coords=None, y_scale='linear',
-                 plot_kwargs=None, **kwargs):
+                 plot_kwargs=None, genomic_format=False, **kwargs):
         """
         :param array: :class:`~kaic.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature`
         :param keys: keys for which vectors to use for array. None indicates all vectors will be used.
@@ -528,6 +528,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
                 self.y_coords = None
         self.hm = None
         self.y_scale = y_scale
+        self._genomic_format = genomic_format
 
     def _plot(self, region):
         x, y, self.hm = self._mesh_data(region=region)
@@ -539,6 +540,9 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
         self._update_mesh_colors()
         self.ax.set_yscale(self.y_scale)
         self.ax.set_ylim(self.parameters[0], self.parameters[-1])
+
+        if self._genomic_format:
+            self.ax.set_yticklabels([human_format(tick) for tick in self.ax.get_yticks()])
 
         def drag_pan(self, button, key, x, y):
             mpl.axes.Axes.drag_pan(self, button, 'x', x, y)  # pretend key=='x'
@@ -847,10 +851,10 @@ class GenomicFeatureScorePlot(BasePlotter1D):
 
 class RegionPlotBase(ScalarDataPlot):
     """
-    Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
+    Base class for region panels.
     """
 
-    def __init__(self, data, plot_kwargs=None, labels=None, **kwargs):
+    def __init__(self, data, plot_kwargs=None, labels=None, exclude=None, include=None, **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
                      data labels. Data can be paths to files on the disk or anthing
@@ -876,7 +880,9 @@ class RegionPlotBase(ScalarDataPlot):
             data = [data]
         # If data has attribute keys, assume it's dictionary
         elif hasattr(data, "keys"):
-            self.labels = list(data.keys()) if self.labels is None else self.labels
+            if labels is not None:
+                raise ValueError("Labels cannot not be assigned accurately if input is dict of data!")
+            self.labels = list(data.keys())
             data = list(data.values())
         # First assume that input is an iterable with multiple datasets
         try:
@@ -886,18 +892,53 @@ class RegionPlotBase(ScalarDataPlot):
             # Assume input is a single data item
             self.data = [load_score_data(data)]
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
+        self.exclude = exclude
+        self.include = include
+
+    def _region_valid(self, region):
+        if self.exclude is not None:
+            for key, value in self.exclude.items():
+                a = getattr(region, key)
+                if isinstance(value, string_types):
+                    if a == string_types:
+                        return False
+                elif isinstance(value, set) or isinstance(value, list):
+                    if a in value:
+                        return False
+        if self.include is not None:
+            for key, value in self.include.items():
+                a = getattr(region, key)
+                if isinstance(value, string_types):
+                    if a != string_types:
+                        return False
+                elif isinstance(value, set) or isinstance(value, list):
+                    if a not in value:
+                        return False
+        return True
+
+    def _region_iter(self, data, region=None, **kwargs):
+        kwargs.setdefault('lazy', False)
+        region_valid = self._region_valid
+        for region in data.regions(region, **kwargs):
+            if region_valid(region):
+                yield region
+
+    def _data_iter(self, region, **kwargs):
+        kwargs.setdefault('lazy', False)
+        for data in self.data:
+            yield self._region_iter(data, region, **kwargs)
 
 
 class LinePlot(RegionPlotBase):
     """
-    Plot data as line. Data can be from BigWig or bedgraph files or anything pyBedTools can parse.
+    Plot data as line. Data must be :class:`~genomic_regions.RegionBased`
     """
 
     def __init__(self, data, bin_size=None, fill=True, attribute='score',
-                 **kwargs):
+                 colors=None, show_legend=None, legend_location='best', **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
-                     data labels. Data can be paths to files on the disk or anthing
+                     data labels. Data can be paths to files on the disk or anything
                      that pybedtools can parse [(chr, start, end, score), ...].
                      If a list of data or dict is provided multiple lines are drawn.
                      Examples:
@@ -914,38 +955,53 @@ class LinePlot(RegionPlotBase):
         super(LinePlot, self).__init__(data, **kwargs)
         self.bin_size = bin_size
         self.lines = []
+        self.fills = []
         self.fill = fill
+        if isinstance(colors, dict):
+            if self.labels is None:
+                raise ValueError("Colors can only be assigned as dict of labels are present")
+            colors = [colors[l] for l in self.labels]
+        if colors is None:
+            colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black', 'orange', 'pink', 'cyan', 'lawngreen')
+
+        self.colors = itertools.cycle(colors)
         self.attribute = attribute
+        self.show_legend = show_legend
+        self.legend_location = legend_location
 
     def _line_values(self, region):
-        for i, d in enumerate(self.data):
-            intervals = d.region_intervals(region, bin_size=self.bin_size,
-                                           score_field=self.attribute)
-            regions = []
-            values = []
-            for s, e, v in intervals:
-                regions.append(GenomicRegion(chromosome=region.chromosome, start=s, end=e))
-                values.append(v)
-
-            x, y = self.get_plot_values(values, regions)
+        for i, region_iter in enumerate(self._data_iter(region)):
+            x, y = self.values_from_region_iter(region_iter, self.attribute)
             yield i, x, y
 
     def _plot(self, region):
         for i, x, y in self._line_values(region):
-            l = self.ax.plot(x, y, label=self.labels[i] if self.labels else "",
+            color = next(self.colors)
+            l = self.ax.plot(x, y, label=self.labels[i] if self.labels else "", color=color,
                              **self.plot_kwargs)[0]
             self.lines.append(l)
             if self.fill:
-                self.ax.fill_between(x, [0] * len(y), y, color=l.get_color())
-        if self.labels:
-            self.add_legend()
+                f = self.ax.fill_between(x, [0] * len(y), y, color=l.get_color(), alpha=l.get_alpha())
+                self.fills.append(f)
+        if self.labels is not None:
+            if self.show_legend or (self.show_legend is None and len(self.labels) > 1):
+                self.ax.legend(self.lines, self.labels, loc=self.legend_location)
+
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
 
     def _refresh(self, region):
+        for f in self.fills:
+            f.remove()
+
+        self.fills = []
         for i, x, y in self._line_values(region):
             self.lines[i].set_xdata(x)
             self.lines[i].set_ydata(y)
+            if self.fill:
+                f = self.ax.fill_between(x, [0] * len(y), y, color=self.lines[i].get_color(),
+                                         alpha=self.lines[i].get_alpha())
+                self.fills.append(f)
 
 
 class BarPlot(RegionPlotBase):
@@ -954,7 +1010,8 @@ class BarPlot(RegionPlotBase):
     """
 
     def __init__(self, data, labels=None, colors=None, alpha=0.5, min_score=None,
-                 min_bar_width=0.0, **kwargs):
+                 min_bar_width=0.0, attribute='score', show_legend=None,
+                 legend_location='best', **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
                      data labels. Data can be paths to files on the disk or anthing
@@ -985,24 +1042,26 @@ class BarPlot(RegionPlotBase):
         self.alpha = alpha
         self.min_score = min_score
         self.min_bar_width = min_bar_width
+        self.attribute = attribute
+        self.show_legend = show_legend
+        self.legend_location = legend_location
 
     def _bar_values(self, region):
         min_width = self.min_bar_width * len(region)
-        for i, d in enumerate(self.data):
-            intervals = d.region_intervals(region)
+        for i, region_iter in enumerate(self._data_iter(region)):
             x, w, h = [], [], []
-            for interval in intervals:
-                if self.min_score is not None and interval[2] < self.min_score:
+            for region in region_iter:
+                score = getattr(region, self.attribute)
+                if self.min_score is not None and score < self.min_score:
                     continue
-                x.append(interval[0])
-                width = interval[1] - interval[0]
+                x.append(region.start)
+                width = len(region)
                 if width < min_width:
                     width = min_width
                 w.append(width)
-                h.append(interval[2])
-            c = next(self.colors)
-
-            yield x, w, h, c
+                h.append(region.score)
+            color = next(self.colors)
+            yield x, w, h, color
 
     def _plot(self, region):
         bars = []
@@ -1011,8 +1070,9 @@ class BarPlot(RegionPlotBase):
             if b is not None and len(b) > 0:
                 bars.append(b[0])
 
-        if self.labels:
-            self.ax.legend(bars, self.labels)
+        if self.labels is not None:
+            if self.show_legend or (self.show_legend is None and len(self.labels) > 1):
+                self.ax.legend(bars, self.labels, loc=self.legend_location)
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
 
@@ -1424,7 +1484,7 @@ class FeatureLayerPlot(BasePlotter1D):
                              you increase this parameter
         :param collapse: Collapse all rows onto a single one (ignore grouping)
         """
-        kwargs.setdefault("aspect", 1.)
+        kwargs.setdefault("aspect", 0.1)
         super(FeatureLayerPlot, self).__init__(**kwargs)
         self.features = get_region_based_object(features)
         if gff_grouping_attribute is None:
@@ -1449,10 +1509,12 @@ class FeatureLayerPlot(BasePlotter1D):
     def _plot_elements(self, region):
         groups = defaultdict(list)
         for element in self.features.regions(region):
-            if not self._collapse:
-                group = getattr(element, self.grouping_attribute)
-            else:
-                group = ' '
+            group = ' '
+            try:
+                if not self._collapse:
+                    group = getattr(element, self.grouping_attribute)
+            except AttributeError:
+                pass
 
             if self.include is not None:
                 if group not in self.include:
@@ -1470,7 +1532,7 @@ class FeatureLayerPlot(BasePlotter1D):
         for i, name in enumerate(sorted(groups)):
             y_offset = len(groups) - i
             tick_positions.append(y_offset - .5)
-            tick_labels.append(name)
+            tick_labels.append(name) if name != '.' else ''
             for element in groups[name]:
                 try:
                     ca = getattr(element, self._color_by)
@@ -1509,6 +1571,7 @@ class FeatureLayerPlot(BasePlotter1D):
         self.ax.set_ylim(0, len(groups))
         self.ax.set_yticks(tick_positions)
         self.ax.set_yticklabels(tick_labels)
+        self.ax.tick_params(axis=u'y', which=u'both', length=0)
 
     def _plot(self, region):
         self._plot_elements(region)
