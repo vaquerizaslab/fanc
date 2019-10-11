@@ -20,7 +20,7 @@ import msgpack
 import numpy as np
 import pysam
 import tables as t
-from future.utils import with_metaclass, viewitems
+from future.utils import with_metaclass, viewitems, string_types
 
 from genomic_regions import GenomicRegion, RegionBased
 from .config import config
@@ -751,10 +751,10 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
             else:
                 abnormal_pairs += 1
 
-        logger.info("Done generating read pairs.")
-        logger.info("Normal pairs: {}".format(normal_pairs))
-        logger.info("Chimeric pairs: {}".format(chimeric_pairs))
-        logger.info("Abnormal pairs: {}".format(abnormal_pairs))
+        logger.debug("Done generating read pairs.")
+        logger.debug("Normal pairs: {}".format(normal_pairs))
+        logger.debug("Chimeric pairs: {}".format(chimeric_pairs))
+        logger.debug("Abnormal pairs: {}".format(abnormal_pairs))
 
 
 class SamBamReadPairGenerator(ReadPairGenerator):
@@ -2132,7 +2132,10 @@ class ReadFilter(object):
                      Mask will be used.
         """
         if mask is not None:
-            self.mask = mask
+            if isinstance(mask, Mask):
+                self.mask = mask
+            elif isinstance(mask, string_types):
+                self.mask = Mask(mask, mask)
         else:
             self.mask = Mask('default', 'Default mask')
 
