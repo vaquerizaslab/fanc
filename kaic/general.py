@@ -987,6 +987,10 @@ class MaskFilter(with_metaclass(ABCMeta, object)):
                 self.mask_ix = mask.ix
                 self.mask_name = mask.name
                 self.mask_description = mask.description
+            elif isinstance(mask, string_types):
+                self.mask_ix = mask_ix
+                self.mask_name = mask
+                self.mask_description = mask
             else:
                 self.mask_ix = mask
                 self.mask_name = mask_name
