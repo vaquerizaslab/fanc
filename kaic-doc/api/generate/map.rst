@@ -1,3 +1,5 @@
+.. _api_map:
+
 ===================
 Mapping FASTQ files
 ===================
@@ -23,7 +25,13 @@ choose the :class:`~kaic.map.Bowtie2Mapper`. It requires only the path of the co
     :end-before: end snippet mapper
 
 The ``threads`` parameter controls how many threads are given to each ``bowtie2-align``
-process.
+process. By using a `.bam` ending, the output is converted to a BAM file at the end of
+mapping automatically.
+
+
+*****************
+Iterative mapping
+*****************
 
 Now we can use :func:`kaic.map.iterative_mapping` to start the actual mapping process:
 
@@ -41,6 +49,10 @@ will be scanned for a predicted ligation junction of the provided restriction en
 one is encountered, it will be split at the junction before alignment. This can greatly increase
 alignment rates, especially for longer reads.
 
+***************
+SAM/BAM sorting
+***************
+
 After the mapping is complete, we can sort the files by read name for further processing.
 
 .. literalinclude:: code/generate_example_code.py
@@ -49,4 +61,5 @@ After the mapping is complete, we can sort the files by read name for further pr
     :end-before: end snippet sort sam
 
 The above command replaces the original file with the sorted version. You can use the
-``output_file`` parameter to output to a different file
+``output_file`` parameter to output to a different file, if you prefer to keep the unsorted
+version.

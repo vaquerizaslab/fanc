@@ -12,3 +12,5 @@ only the Python API.
    :maxdepth: 1
 
    Mapping FASTQ files <generate/map>
+   Generating and filtering ReadPairs <generate/pairs>
+   Generating, binning, and filtering Hic objects <generate/hic>

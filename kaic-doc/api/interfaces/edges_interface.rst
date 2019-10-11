@@ -212,6 +212,12 @@ are already normalised. You can disable the normalisation on the fly using the
 
 As shown above, this can be used to count the number of valid pairs in the object, for example.
 
+.. _lazy_evaluation:
+
+~~~~~~~~~~~~~~~
+Lazy evaluation
+~~~~~~~~~~~~~~~
+
 Hi-C datasets are often very large, with hundreds of millions, even billions of valid pairs
 in the matrix. The process of creating a unique :class:`~kaic.Matrix.Edge` object for every
 matrix entry can thus cumulatively take a significant amount of time. For this reason, Kai-C
