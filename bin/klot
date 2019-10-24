@@ -5,7 +5,7 @@ import sys
 import traceback
 import os
 from itertools import groupby
-from kaic.commands import klot_commands as commands
+from kaic.commands import klot_command_parsers as klot_parsers
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -20,10 +20,10 @@ class Klot(object):
         #
 
         # global parser
-        global_parser = commands.klot_parser()
+        global_parser = klot_parsers.klot_parser()
         self.global_parser = global_parser
 
-        subplot_parser = commands.type_parser()
+        subplot_parser = klot_parsers.type_parser()
         self.subplot_parser = subplot_parser
 
         argv = sys.argv[1:]
@@ -63,10 +63,16 @@ class Klot(object):
             output_file = os.path.expanduser(global_args.output)
 
         import kaic.plotting as kplot
+        from kaic.commands import klot_commands as commands
 
         plots = []
         all_subplot_args = []
-        for plot_method, args in subplot_data:
+        for plot_method_name, args in subplot_data:
+            plot_method = None
+            try:
+                plot_method = getattr(commands, plot_method_name)
+            except AttributeError:
+                self.global_parser.error("Unrecognised plot type {}".format(plot_method_name))
             # create plot
             plot, plot_args = plot_method(args)
             plots.append(plot)
@@ -174,12 +180,7 @@ class Klot(object):
                     global_args = self.global_parser.parse_args([])
             elif not k:
                 sub_args, plot_args = self.subplot_parser.parse_known_args(list(group))
-                subplot_type = None
-                try:
-                    subplot_type = getattr(commands, sub_args.type)
-                except AttributeError:
-                    self.global_parser.error("Unrecognised plot type {}".format(sub_args.type))
-                subplot_data.append((subplot_type, sub_args.data + plot_args))
+                subplot_data.append((sub_args.type, sub_args.data + plot_args))
             group_counter += 1
 
         return global_args, subplot_data
@@ -192,7 +193,7 @@ class Klot(object):
 
         import re
         import shlex
-        re_equal_sign = re.compile("\s*=\s*")
+        re_equal_sign = re.compile(r"\s*=\s*")
         parameters = []
         with open(script, 'r') as s:
             for i, line in enumerate(s):
@@ -204,7 +205,7 @@ class Klot(object):
                     print('klot: error: Too many equal-signs on line {}'.format(i))
 
                 if len(cmd_val) == 1:
-                    if re.match("^\s*$", cmd_val[0]):
+                    if re.match(r"^\s*$", cmd_val[0]):
                         continue
                     parameters.append('--' + cmd_val[0])
                 elif len(cmd_val) == 2:
@@ -216,6 +217,7 @@ class Klot(object):
                     parameters += sub_parameters
 
         return self._parse_argument_vector(parameters)
+
 
 if __name__ == '__main__':
     Klot()
