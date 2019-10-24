@@ -12,7 +12,7 @@ genome organisation.
 .. code::
 
     klot -o architecture/domains/kaic_example_50kb_tads.png chr18:18mb-28mb \
-         -p -t hic output/hic/binned/kaic_example_100kb.hic -m 4000000 \
+         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 \
          -vmin 0 -vmax 0.05
 
 .. image:: images/kaic_example_100kb_tads.png
@@ -62,8 +62,8 @@ We can easily plot all insulation scores at the same time using ``klot``:
 .. code::
 
     klot -o architecture/domains/kaic_example_50kb_tads_insulation.png chr18:18mb-28mb \
-         -p -t hic output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
-         -p -t array architecture/domains/kaic_example_100kb.insulation
+         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+         -p scores architecture/domains/kaic_example_100kb.insulation
 
 .. image:: images/kaic_example_50kb_tads_insulation.png
 
@@ -135,9 +135,9 @@ You can plot scores from one or more window sizes using the ``line`` plot in ``k
 
     klot --width 6 -o architecture/domains/kaic_example_50kb_tads_insulation_1mb.png \
                    chr18:18mb-28mb \
-                   -p -t hic output/hic/binned/kaic_example_100kb.hic -m 4000000 \
+                   -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 \
                    -vmin 0 -vmax 0.05 \
-                   -p -t line architecture/domains/kaic_example_100kb.insulation_1mb.bed \
+                   -p line architecture/domains/kaic_example_100kb.insulation_1mb.bed \
                    architecture/domains/kaic_example_100kb.insulation_2mb.bed \
                    -l "1mb" "2mb"
 
@@ -191,8 +191,8 @@ this capability with caution!
 .. code::
 
     klot -o architecture/domains/kaic_example_50kb_tads_insulation.png chr18:18mb-28mb \
-         -p -t hic output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
-         -p -t array architecture/domains/kaic_example_100kb.insulation \
+         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+         -p scores architecture/domains/kaic_example_100kb.insulation \
          --impute
 
 .. image:: images/kaic_example_50kb_tads_insulation_imputed.png
@@ -235,9 +235,9 @@ Let's plot the boundaries from the 1mb scores:
 
     klot --width 6 -o architecture/domains/kaic_example_50kb_tads_insulation_1mb_boundaries.png \
          chr18:18mb-28mb \
-         -p -t hic output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
-         -p -t line architecture/domains/kaic_example_100kb.insulation_1mb.bed -l "1mb" \
-         -p -t region architecture/domains/kaic_example_100kb.insulation_boundaries_1mb.bed
+         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+         -p line architecture/domains/kaic_example_100kb.insulation_1mb.bed -l "1mb" \
+         -p bar architecture/domains/kaic_example_100kb.insulation_boundaries_1mb.bed
 
 .. image:: images/kaic_example_50kb_tads_insulation_1mb_boundaries.png
 
@@ -298,8 +298,8 @@ We can easily plot all directionality indexes at the same time using ``klot``:
 .. code::
 
     klot -o architecture/domains/kaic_example_50kb_tads_directionality.png chr18:18mb-28mb \
-         -p -t hic output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
-         -p -t array architecture/domains/kaic_example_100kb.directionality
+         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+         -p scores architecture/domains/kaic_example_100kb.directionality
 
 .. image:: images/kaic_example_50kb_tads_directionality.png
 

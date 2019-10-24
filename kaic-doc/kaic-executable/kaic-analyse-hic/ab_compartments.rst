@@ -40,7 +40,7 @@ We can quickly plot the correlation matrix using the ``klot`` command:
 .. code:: bash
 
     klot -o architecture/compartments/kaic_example_1mb.ab.png chr18 \
-         -p -t hic2d architecture/compartments/kaic_example_1mb.ab \
+         -p square architecture/compartments/kaic_example_1mb.ab \
          -vmin -0.75 -vmax 0.75 -c RdBu_r
 
 .. image:: images/kaic_example_1mb.ab.png
@@ -79,9 +79,9 @@ We can plot the eigenvector using ``klot``:
 .. code:: bash
 
     klot -o architecture/compartments/kaic_example_1mb.ab_and_ev.png chr18 \
-         -p -t hic2d architecture/compartments/kaic_example_1mb.ab \
+         -p square architecture/compartments/kaic_example_1mb.ab \
          -vmin -0.75 -vmax 0.75 -c RdBu_r \
-         -p -t region architecture/compartments/kaic_example_1mb.ev.txt
+         -p line architecture/compartments/kaic_example_1mb.ev.txt
 
 .. image:: images/kaic_example_1mb.ab_and_ev.png
 

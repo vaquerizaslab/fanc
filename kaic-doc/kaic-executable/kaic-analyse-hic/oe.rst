@@ -96,7 +96,7 @@ O/E matrix:
 .. code::
 
     klot -o architecture/expected/kaic_example_500kb_chr18_oe.png \
-         chr18:1-78mb -p -t oe output/hic/binned/kaic_example_500kb.hic \
+         chr18:1-78mb -p triangular -e output/hic/binned/kaic_example_500kb.hic \
          -vmin -2 -vmax 2
 
 .. image:: images/kaic_example_500kb_chr18_oe.png

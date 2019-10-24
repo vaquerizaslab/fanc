@@ -13,7 +13,7 @@ patches of increased contact intensity:
 
     klot -o architecture/loops/rao2014.chr11_77400000_78600000.png \
          chr11:77400000-78600000 \
-         -p -t hic architecture/loops/rao2014.chr11_77400000_78600000.hic \
+         -p triangular architecture/loops/rao2014.chr11_77400000_78600000.hic \
             -vmin 0.0 -vmax 0.05 -m 600000
 
 
