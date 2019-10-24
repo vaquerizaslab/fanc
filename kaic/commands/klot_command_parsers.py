@@ -15,6 +15,9 @@ def klot_parser():
             short_name = name[:-7].replace('_', '-')
             command_descriptions[short_name] = parser.description.split(".")[0]
 
+    command_descriptions.pop('type')
+    command_descriptions.pop('subplot')
+
     max_len = max([len(name) for name in command_descriptions.keys()]) + 4
 
     usage += "-- Matrix --\n"
@@ -27,10 +30,10 @@ def klot_parser():
         padding = ' ' * (max_len - len(name))
         usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
 
-    usage += "\n-- Other --\n"
+    if len(command_descriptions) > 0:
+        usage += "\n-- Other --\n"
+
     for name in command_descriptions.keys():
-        if name in {'type', 'subplot'}:
-            continue
         padding = ' ' * (max_len - len(name))
         usage += "{}{}{}\n".format(name, padding, command_descriptions.get(name))
 
