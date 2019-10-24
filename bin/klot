@@ -50,9 +50,7 @@ class Klot(object):
             subplot_data = script_subplots + subplot_data
 
         if len(subplot_data) == 0:
-            print("klot: error: Need to provide at least one plot")
-            self.global_parser.print_help()
-            exit(1)
+            self.global_parser.error("Need to provide at least one plot")
 
         # configure output
         output_file = None
@@ -62,8 +60,15 @@ class Klot(object):
             matplotlib.use("pdf")
             output_file = os.path.expanduser(global_args.output)
 
-        import kaic.plotting as kplot
-        from kaic.commands import klot_commands as commands
+        try:
+            import kaic.plotting as kplot
+            from kaic.commands import klot_commands as commands
+        except ModuleNotFoundError:
+            self.global_parser.error("Your Python installation does not seem to support "
+                                     "interactive plotting. Please use klot -o ... to plot "
+                                     "to file or install a backend that supports interactive "
+                                     "plots, such as Tkinter!")
+            raise
 
         plots = []
         all_subplot_args = []
