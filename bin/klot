@@ -6,7 +6,6 @@ import traceback
 import os
 from itertools import groupby
 from kaic.commands import klot_commands as commands
-import kaic.plotting as kplot
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -62,6 +61,8 @@ class Klot(object):
             import matplotlib
             matplotlib.use("pdf")
             output_file = os.path.expanduser(global_args.output)
+
+        import kaic.plotting as kplot
 
         plots = []
         all_subplot_args = []
