@@ -56,10 +56,9 @@ setup(
         'intervaltree',
         'genomic_regions>=0.0.4',
         'scikit-image>=0.15.0',
+        'cooler>=0.8.0',
+        'h5py'
     ],
-    extras_require={
-        'cooler': ['cooler>=0.8.0', 'h5py'],
-    },
     scripts=['bin/kaic', 'bin/klot'],
     cmdclass={
         'clean': CleanCommand
