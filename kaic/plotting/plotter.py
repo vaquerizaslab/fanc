@@ -977,9 +977,10 @@ class LinePlot(RegionPlotBase):
 
     def _plot(self, region):
         for i, x, y in self._line_values(region):
-            color = next(self.colors)
-            l = self.ax.plot(x, y, label=self.labels[i] if self.labels else "", color=color,
-                             **self.plot_kwargs)[0]
+            kwargs = self.plot_kwargs.copy()
+            kwargs.setdefault('color', next(self.colors))
+            kwargs.setdefault('label', next(self.labels[i]) if self.labels else "")
+            l = self.ax.plot(x, y, **kwargs)[0]
             self.lines.append(l)
             if self.fill:
                 f = self.ax.fill_between(x, [0] * len(y), y, color=l.get_color(), alpha=l.get_alpha())
@@ -1031,14 +1032,19 @@ class BarPlot(RegionPlotBase):
         :param min_bar_width: Minimum plotting width of a bar in fraction of the plotting window.
                               Useful if regions in data are smaller than a pixel, making them
                               invisible.
-        :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
+        :param plot_kwargs: Dictionary of additional keyword arguments passed to the bar function
         """
         super(BarPlot, self).__init__(data, **kwargs)
         self.labels = labels
         self.lines = []
 
+        if isinstance(colors, dict):
+            if self.labels is None:
+                raise ValueError("Colors can only be assigned as dict of labels are present")
+            colors = [colors[l] for l in self.labels]
         if colors is None:
             colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black', 'orange', 'pink', 'cyan', 'lawngreen')
+
         self.colors = itertools.cycle(colors)
         self.alpha = alpha
         self.min_score = min_score
@@ -1066,8 +1072,13 @@ class BarPlot(RegionPlotBase):
 
     def _plot(self, region):
         bars = []
-        for x, w, h, c in self._bar_values(region):
-            b = self.ax.bar(x, h, w, color=c, alpha=self.alpha)
+        for i, (x, w, h, c) in enumerate(self._bar_values(region)):
+            kwargs = self.plot_kwargs.copy()
+            kwargs.setdefault('color', c)
+            kwargs.setdefault('label', next(self.labels[i]) if self.labels else "")
+            kwargs.setdefault('alpha', self.alpha)
+
+            b = self.ax.bar(x, h, w, **kwargs)
             if b is not None and len(b) > 0:
                 bars.append(b[0])
 
