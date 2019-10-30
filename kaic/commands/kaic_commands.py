@@ -3699,6 +3699,7 @@ def compartments(argv, **kwargs):
                 heatmap_ax.set_xticklabels(['active', 'inactive'])
                 heatmap_ax.set_yticks([0, m.shape[1] - 1])
                 heatmap_ax.set_yticklabels(['active', 'inactive'])
+                heatmap_ax.set_ylim(heatmap_ax.get_xlim())
 
                 pos = np.arange(m.shape[1])
                 barplot_ax = plt.subplot(gs[2, 0])
