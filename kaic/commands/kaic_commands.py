@@ -4325,6 +4325,7 @@ def aggregate(argv, **kwargs):
                 ax.set_xticklabels(labels)
                 ax.set_yticks([0, pixels/2, pixels - 1])
                 ax.set_yticklabels(labels)
+                ax.set_ylim(ax.get_xlim())
                 fig.savefig(plot_file)
                 plt.close(fig)
     finally:
