@@ -979,7 +979,7 @@ class LinePlot(RegionPlotBase):
         for i, x, y in self._line_values(region):
             kwargs = self.plot_kwargs.copy()
             kwargs.setdefault('color', next(self.colors))
-            kwargs.setdefault('label', next(self.labels[i]) if self.labels else "")
+            kwargs.setdefault('label', self.labels[i] if self.labels else "")
             l = self.ax.plot(x, y, **kwargs)[0]
             self.lines.append(l)
             if self.fill:
@@ -1075,7 +1075,7 @@ class BarPlot(RegionPlotBase):
         for i, (x, w, h, c) in enumerate(self._bar_values(region)):
             kwargs = self.plot_kwargs.copy()
             kwargs.setdefault('color', c)
-            kwargs.setdefault('label', next(self.labels[i]) if self.labels else "")
+            kwargs.setdefault('label', self.labels[i] if self.labels else "")
             kwargs.setdefault('alpha', self.alpha)
 
             b = self.ax.bar(x, h, w, **kwargs)
