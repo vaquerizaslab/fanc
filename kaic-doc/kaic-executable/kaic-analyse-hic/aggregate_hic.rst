@@ -43,23 +43,19 @@ Let's try this on TADs called using the arrowhead algorithm (`Rao and Huntley et
 all regions in the file that are not present in the Hi-C matrix. In our example Hic file,
 that is everything outside of chromosomes 18 and 19:
 
-.. code::
-
-    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-                   architecture/domains/gm12878_tads.bed \
-                   architecture/aggregate/kaic_example_100kb.agg
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate basic
+    :end-before: end snippet aggregate basic
 
 This command only produces an AggregateMatrix file (``kaic_example_100kb.agg``), which
 is useful for further usage with Kai-C, but not easily readable. To extract the aggregate
 matrix in txt format, simply add ``-m`` and to plot it just use ``-p``:
 
-.. code::
-
-    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-                   architecture/domains/gm12878_tads.bed \
-                   architecture/aggregate/kaic_example_100kb.agg \
-                   -p architecture/aggregate/kaic_example_100kb.agg.png \
-                   -m architecture/aggregate/kaic_example_100kb.agg.txt
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate plot
+    :end-before: end snippet aggregate plot
 
 The resulting plot looks a bit strange:
 
@@ -73,28 +69,20 @@ the diagonal. You can easily correct for this effect using O/E matrices instead 
 regular Hi-C matrix. Simply set the ``-e`` flag for this. ``-e`` works very well with
 log2-transformed data (``-l``). Let's see how this changes your matrix:
 
-.. code::
-
-    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-                   architecture/domains/gm12878_tads.bed \
-                   architecture/aggregate/kaic_example_100kb.agg \
-                   -p architecture/aggregate/kaic_example_100kb_oe.agg.png \
-                   -m architecture/aggregate/kaic_example_100kb_oe.agg.txt \
-                   -e -l
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate oe
+    :end-before: end snippet aggregate oe
 
 .. image:: images/kaic_example_100kb_oe.agg.png
 
 This still does not look like much of a TAD, but we can add a little more context by
 expanding the plotting region relative to the region size using ``-r``:
 
-.. code::
-
-    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-                   architecture/domains/gm12878_tads.bed \
-                   architecture/aggregate/kaic_example_100kb.agg \
-                   -p architecture/aggregate/kaic_example_100kb_oe_large.agg.png \
-                   -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
-                   -e -l -r 1.0
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate expand
+    :end-before: end snippet aggregate expand
 
 .. image:: images/kaic_example_100kb_oe_large.agg.png
 
@@ -106,14 +94,10 @@ corner, where the corner loops are typically located.
 We can further apply an exponential rescaling (``--rescale``) of the data to make this
 look more like a Hi-C matrix:
 
-.. code::
-
-    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-                   architecture/domains/gm12878_tads.bed \
-                   architecture/aggregate/kaic_example_100kb.agg \
-                   -p architecture/aggregate/kaic_example_100kb_oe_large.agg.png \
-                   -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
-                   -e -r 1.0 --rescale --vmax 0.045
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate rescale
+    :end-before: end snippet aggregate rescale
 
 .. image:: images/kaic_example_100kb_oe_large_res.agg.png
 
@@ -132,14 +116,10 @@ aggregate matrices in this fashion
 (`Flyamer et al., 2017 <http://www.nature.com/doifinder/10.1038/nature21711>`_). In
 the above example, you can simply run
 
-.. code::
-
-    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-                   architecture/domains/gm12878_tads.bed \
-                   architecture/aggregate/kaic_example_100kb.agg \
-                   -p architecture/aggregate/kaic_example_100kb_oe_large.agg.png \
-                   -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
-                   --tads
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate tads
+    :end-before: end snippet aggregate tads
 
 
 *******************
@@ -151,13 +131,10 @@ aggregate analysis, such as TAD boundaries. ``kaic aggregate`` provides the ``-w
 option to plot the aggregate Hi-C matrix in a window os size w around the center
 of each region in the list provided.
 
-.. code::
-
-    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-                   architecture/domains/kaic_example_100kb.insulation_boundaries_score0.7_1mb.bed \
-                   architecture/aggregate/kaic_example_100kb_boundaries.agg \
-                   -w 5mb -p architecture/aggregate/kaic_example_100kb_boundaries.agg.png \
-                   -m architecture/aggregate/kaic_example_100kb_boundaries.agg.txt
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate fixed
+    :end-before: end snippet aggregate fixed
 
 .. image:: images/kaic_example_100kb_boundaries.agg.png
 
@@ -165,14 +142,10 @@ of each region in the list provided.
 You can see the relatively faint "average boundary" in the centre of the plot. When using
 O/E and log2-transformed matrices, this becomes much more obvious:
 
-.. code::
-
-    kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-                   architecture/domains/kaic_example_100kb.insulation_boundaries_score0.7_1mb.bed \
-                   architecture/aggregate/kaic_example_100kb_boundaries_oe.agg \
-                   -w 5mb -p architecture/aggregate/kaic_example_100kb_boundaries_oe.agg.png \
-                   -m architecture/aggregate/kaic_example_100kb_boundaries_oe.agg.txt \
-                   -e -l
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate oefixed
+    :end-before: end snippet aggregate oefixed
 
 .. image:: images/kaic_example_100kb_boundaries_oe.agg.png
 
@@ -188,13 +161,10 @@ Loops and other pairwise genomic regions
 When you have loop calls or other pairwise genomic regions in BEDPE format, you can use
 ``kaic aggregate`` to make aggregate loop plots. The preset for this is ``--loops``.
 
-.. code::
-
-    kaic aggregate architecture/loops/rao2014.chr11_77400000_78600000.hic \
-                   architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.bedpe \
-                   architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.agg \
-                   -p architecture/aggregate/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png \
-                   --loops
+.. literalinclude:: code/aggregate_example_code
+    :language: bash
+    :start-after: start snippet aggregate loops
+    :end-before: end snippet aggregate loops
 
 .. image:: images/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png
 

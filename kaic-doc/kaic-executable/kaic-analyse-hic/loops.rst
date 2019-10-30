@@ -9,13 +9,10 @@ Loop calling
 Loops frequently form between two genomic regions, and are visible in the Hi-C matrix as
 patches of increased contact intensity:
 
-.. code::
-
-    klot -o architecture/loops/rao2014.chr11_77400000_78600000.png \
-         chr11:77400000-78600000 \
-         -p triangular architecture/loops/rao2014.chr11_77400000_78600000.hic \
-            -vmin 0.0 -vmax 0.05 -m 600000
-
+.. literalinclude:: code/loops_example_code
+    :language: bash
+    :start-after: start snippet loops example
+    :end-before: end snippet loops example
 
 .. image:: images/rao2014.chr11_77400000_78600000.png
 
@@ -43,11 +40,10 @@ related to their loop probability. The most important ones are
 - FDR of the local enrichment
 - Mappability of the local neighborhood
 
-.. code::
-
-    kaic loops architecture/loops/rao2014.chr11_77400000_78600000.hic \
-               architecture/loops/rao2014.chr11_77400000_78600000.loops \
-               -t 2
+.. literalinclude:: code/loops_example_code
+    :language: bash
+    :start-after: start snippet loops annotate
+    :end-before: end snippet loops annotate
 
 When run like this, ``kaic loops`` does not actually call any loops, but merely returns
 a matrix object where every pixel is annotated with the above properties. Importantly,
@@ -119,11 +115,10 @@ every neighborhood.
 
 An example command could look like this:
 
-.. code::
-
-    kaic loops architecture/loops/rao2014.chr11_77400000_78600000.loops \
-               architecture/loops/rao2014.chr11_77400000_78600000_filtered.loops \
-               --rh-filter -d 5 -o 5
+.. literalinclude:: code/loops_example_code
+    :language: bash
+    :start-after: start snippet loops filter
+    :end-before: end snippet loops filter
 
 This filters the vast majority of pixels in the matrix.
 
@@ -136,11 +131,10 @@ Pixels that pass all filtering steps are good candidates for loops. Often, these
 appear in clusters, which we merge/join in this step. Pixels that do not form a cluster
 are generally false-positives, so we filter them using ``--remove-singlets``.
 
-.. code::
-
-    kaic loops architecture/loops/rao2014.chr11_77400000_78600000_filtered.loops \
-               architecture/loops/rao2014.chr11_77400000_78600000_merged.loops \
-               -j --remove-singlets
+.. literalinclude:: code/loops_example_code
+    :language: bash
+    :start-after: start snippet loops merge
+    :end-before: end snippet loops merge
 
 ******************
 Exporting to BEDPE
@@ -148,8 +142,8 @@ Exporting to BEDPE
 
 Finally, we can export all the merged loops to BEDPE using ``-b``:
 
-.. code::
-
-    kaic loops architecture/loops/rao2014.chr11_77400000_78600000_merged.loops \
-               -b architecture/loops/rao2014.chr11_77400000_78600000_merged.bedpe
+.. literalinclude:: code/loops_example_code
+    :language: bash
+    :start-after: start snippet loops export
+    :end-before: end snippet loops export
 

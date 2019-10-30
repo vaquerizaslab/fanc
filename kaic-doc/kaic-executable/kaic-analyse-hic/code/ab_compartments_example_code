@@ -1,0 +1,85 @@
+
+# start snippet compartments basic
+kaic compartments output/hic/binned/kaic_example_1mb.hic architecture/compartments/kaic_example_1mb.ab
+# end snippet compartments basic
+
+# start snippet compartments plot
+klot -o architecture/compartments/kaic_example_1mb.ab.png chr18 \
+     -p square architecture/compartments/kaic_example_1mb.ab \
+     -vmin -0.75 -vmax 0.75 -c RdBu_r
+# end snippet compartments plot
+
+klot -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_1mb.ab.png chr18 \
+     -p square architecture/compartments/kaic_example_1mb.ab \
+     -vmin -0.75 -vmax 0.75 -c RdBu_r
+
+
+# start snippet compartments ev
+kaic compartments -v architecture/compartments/kaic_example_1mb.ev.txt \
+                  output/hic/binned/kaic_example_1mb.hic \
+                  architecture/compartments/kaic_example_1mb.ab
+# end start snippet compartments ev
+
+# start snippet
+    kaic compartments -v architecture/compartments/kaic_example_1mb.ev.txt \
+                      architecture/compartments/kaic_example_1mb.ab
+
+# start snippet compartments pre
+kaic compartments -v architecture/compartments/kaic_example_1mb.ev.txt \
+                  architecture/compartments/kaic_example_1mb.ab
+# end snippet compartments pre
+
+# start snippet compartments evplot
+klot -o architecture/compartments/kaic_example_1mb.ab_and_ev.png chr18 \
+     -p square architecture/compartments/kaic_example_1mb.ab \
+     -vmin -0.75 -vmax 0.75 -c RdBu_r \
+     -p line architecture/compartments/kaic_example_1mb.ev.txt
+# end snippet compartments evplot
+klot -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_1mb.ab_and_ev.png chr18 \
+     -p square architecture/compartments/kaic_example_1mb.ab \
+     -vmin -0.75 -vmax 0.75 -c RdBu_r \
+     -p line architecture/compartments/kaic_example_1mb.ev.txt
+
+# start snippet compartments gc
+kaic compartments -g hg19_chr18_19.fa -v architecture/compartments/kaic_example_1mb.ev_gc.txt \
+                      architecture/compartments/kaic_example_1mb.ab
+# end snippet compartments gc
+
+# start snippet compartments domain
+kaic compartments -d architecture/compartments/kaic_example_1mb.domains.bed \
+                      architecture/compartments/kaic_example_1mb.ab
+# end snippet compartments domain
+
+# start snippet compartments gcdomain
+kaic compartments -g hg19_chr18_19.fa \
+                  -d architecture/compartments/kaic_example_1mb.domains_gc.bed \
+                  architecture/compartments/kaic_example_1mb.ab
+# end snippet compartments gcdomain
+
+
+# start snippet compartments enrichment
+kaic compartments -e architecture/compartments/kaic_example_1mb.ab_profile.png \
+                  output/hic/binned/kaic_example_1mb.hic \
+                  architecture/compartments/kaic_example_1mb.ab
+# end snippet compartments enrichment
+kaic compartments -e ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_1mb.ab_profile.png \
+                  output/hic/binned/kaic_example_1mb.hic \
+                  architecture/compartments/kaic_example_1mb.ab
+
+# start snippet compartments gcenrichment
+kaic compartments -g hg19_chr18_19.fa \
+                  -e architecture/compartments/kaic_example_1mb.ab_profile.png \
+                  output/hic/binned/kaic_example_1mb.hic \
+                  architecture/compartments/kaic_example_1mb.ab
+# end snippet compartments gcenrichment
+kaic compartments -g hg19_chr18_19.fa \
+                  -e ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_1mb.ab_profile.png \
+                  output/hic/binned/kaic_example_1mb.hic \
+                  architecture/compartments/kaic_example_1mb.ab
+
+kaic compartments -g hg19_chr18_19.fa \
+                  -e ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_1mb.ab_profile_sym.png \
+                  -p 10 20 30 40 50 60 70 80 90 100 \
+                  -s 0 \
+                  output/hic/binned/kaic_example_1mb.hic \
+                  architecture/compartments/kaic_example_1mb.ab

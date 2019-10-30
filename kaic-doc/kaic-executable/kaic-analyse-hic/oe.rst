@@ -26,12 +26,10 @@ Example
 The following example calculates and plots the expected values for a 500kb resolution
 Hi-C matrix of chromosome 19.
 
-.. code::
-
-    kaic expected -p architecture/expected/kaic_example_500kb_expected.png \
-                  -c chr19 \
-                  output/hic/binned/kaic_example_500kb.hic \
-                  architecture/expected/kaic_example_500kb_expected.txt
+.. literalinclude:: code/oe_example_code
+    :language: bash
+    :start-after: start snippet expected basic
+    :end-before: end snippet expected basic
 
 The resulting plot (from ``-p``) looks like this:
 
@@ -73,14 +71,10 @@ Comparing expected values
 When you are providing more than one matrix as input to ``kaic expected``, the expected values
 for all matrices will be written to file and plotted if using the ``-p`` option:
 
-.. code::
-
-    kaic expected -l "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k"
-                  -c chr19 -p architecture/expected/expected_multi.png \
-                  lowc_hindiii_100k_1mb.hic lowc_hindiii_5M_1mb.hic \
-                  lowc_mboi_100k_1mb.hic lowc_mboi_1M_1mb.hic \
-                  lowc_mboi_50k_1mb.hic \
-                  architecture/expected/expected_multi.txt
+.. literalinclude:: code/oe_example_code
+    :language: bash
+    :start-after: start snippet expected multi
+    :end-before: end snippet expected multi
 
 .. image:: images/expected_multi.png
 
@@ -93,11 +87,10 @@ Using ``klot``, we can visualise the observed/expected Hi-C matrix, which normal
 value to its given expected value at that distance. Here, we are showing a log2-transformed
 O/E matrix:
 
-.. code::
-
-    klot -o architecture/expected/kaic_example_500kb_chr18_oe.png \
-         chr18:1-78mb -p triangular -e output/hic/binned/kaic_example_500kb.hic \
-         -vmin -2 -vmax 2
+.. literalinclude:: code/oe_example_code
+    :language: bash
+    :start-after: start snippet expected klot
+    :end-before: end snippet expected klot
 
 .. image:: images/kaic_example_500kb_chr18_oe.png
 

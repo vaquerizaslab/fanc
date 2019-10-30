@@ -1,0 +1,114 @@
+# start snippet domains basic
+klot -o architecture/domains/kaic_example_100kb_tads.png chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 \
+     -vmin 0 -vmax 0.05
+# end snippet domains basic
+klot -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_100kb_tads.png chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 \
+     -vmin 0 -vmax 0.05
+
+# start snippet domains window
+kaic insulation output/hic/binned/kaic_example_100kb.hic \
+                architecture/domains/kaic_example_100kb.insulation \
+                -w 1000000 1500000 2000000 2500000 3000000 3500000 4000000
+# end snippet domains window
+
+# start snippet domains scores
+klot -o architecture/domains/kaic_example_50kb_tads_insulation.png chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+     -p scores architecture/domains/kaic_example_100kb.insulation
+# end snippet domains scores
+klot -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_50kb_tads_insulation.png chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+     -p scores architecture/domains/kaic_example_100kb.insulation
+
+# start snippet domains bed
+kaic insulation output/hic/binned/kaic_example_100kb.hic \
+                architecture/domains/kaic_example_100kb.insulation \
+                -w 1000000 1500000 2000000 2500000 3000000 3500000 4000000 \
+                -o bed
+# end snippet domains bed
+
+# start snippet domains simplebed
+kaic insulation architecture/domains/kaic_example_100kb.insulation \
+                -o bed
+# end snippet domains simplebed
+
+# start snippet domains info
+kaic insulation architecture/domains/kaic_example_100kb.insulation
+# end snippet domains info
+
+
+# start snippet domains line
+klot --width 6 -o architecture/domains/kaic_example_50kb_tads_insulation_1mb.png \
+               chr18:18mb-28mb \
+               -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 \
+               -vmin 0 -vmax 0.05 \
+               -p line architecture/domains/kaic_example_100kb.insulation_1mb.bed \
+               architecture/domains/kaic_example_100kb.insulation_2mb.bed \
+               -l "1mb" "2mb"
+# end snippet domains line
+klot --width 6 -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_50kb_tads_insulation_1mb.png \
+               chr18:18mb-28mb \
+               -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 \
+               -vmin 0 -vmax 0.05 \
+               -p line architecture/domains/kaic_example_100kb.insulation_1mb.bed \
+               architecture/domains/kaic_example_100kb.insulation_2mb.bed \
+               -l "1mb" "2mb"
+
+
+# start snippet domains impute
+kaic insulation output/hic/binned/kaic_example_100kb.hic \
+                architecture/domains/kaic_example_100kb.insulation_imputed \
+                -w 1000000 1500000 2000000 2500000 3000000 3500000 4000000 \
+                --impute
+# end snippet domains impute
+
+# start snippet domains plotimpute
+klot -o architecture/domains/kaic_example_50kb_tads_insulation.png chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+     -p scores architecture/domains/kaic_example_100kb.insulation
+# end snippet domains plotimpute
+klot -o architecture/domains/kaic_example_50kb_tads_insulation.png chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+     -p scores architecture/domains/kaic_example_100kb.insulation
+
+# start snippet domains boundaries
+kaic boundaries architecture/domains/kaic_example_100kb.insulation \
+                architecture/domains/kaic_example_100kb.insulation_boundaries \
+                -w 1mb 2mb
+# end snippet domains boundaries
+
+# start snippet domains plotboundaries
+klot --width 6 -o architecture/domains/kaic_example_50kb_tads_insulation_1mb_boundaries.png \
+     chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+     -p line architecture/domains/kaic_example_100kb.insulation_1mb.bed -l "1mb" \
+     -p bar architecture/domains/kaic_example_100kb.insulation_boundaries_1mb.bed
+# end snippet domains plotboundaries
+klot --width 6 -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_50kb_tads_insulation_1mb_boundaries.png \
+     chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+     -p line architecture/domains/kaic_example_100kb.insulation_1mb.bed -l "1mb" \
+     -p bar architecture/domains/kaic_example_100kb.insulation_boundaries_1mb.bed
+
+# start snippet domains minscore
+kaic boundaries architecture/domains/kaic_example_100kb.insulation \
+                architecture/domains/kaic_example_100kb.insulation_boundaries_score0.7 \
+                -w 1mb 2mb --min-score 0.7
+# end snippet domains minscore
+
+# start snippet domains directionality
+kaic directionality output/hic/binned/kaic_example_100kb.hic \
+                    architecture/domains/kaic_example_100kb.directionality \
+                    -w 1000000 1500000 2000000 2500000 3000000 3500000 4000000
+# end snippet domains directionality
+
+# start snippet domains plotdirectionality
+klot -o architecture/domains/kaic_example_50kb_tads_directionality.png chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+     -p scores architecture/domains/kaic_example_100kb.directionality
+# end snippet domains plotdirectionality
+klot -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_50kb_tads_directionality.png chr18:18mb-28mb \
+     -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
+     -p scores architecture/domains/kaic_example_100kb.directionality

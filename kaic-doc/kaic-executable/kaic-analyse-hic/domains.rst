@@ -9,11 +9,10 @@ Hi-C domain analysis
 Like compartments, topologically associating domains, or TADs, for a fundamental level of
 genome organisation.
 
-.. code::
-
-    klot -o architecture/domains/kaic_example_50kb_tads.png chr18:18mb-28mb \
-         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 \
-         -vmin 0 -vmax 0.05
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains basic
+    :end-before: end snippet domains basic
 
 .. image:: images/kaic_example_100kb_tads.png
 
@@ -26,7 +25,7 @@ Insulation Score
 ****************
 
 The insulation score (`Crane et al. 2015 <http://www.nature.com/doifinder/10.1038/nature14450>`_)
-adds up contacts in a sliding window alogn the Hi-C matrix diagonal.
+adds up contacts in a sliding window align the Hi-C matrix diagonal.
 
 .. image:: images/kaic_example_100kb_tads_insulation_score_example.png
 
@@ -49,21 +48,19 @@ Example
 ``kaic insulation`` is typically used to calculate insulation scores with multiple window
 sizes at the same time, as a single window size might be prone to local matrix differences:
 
-.. code::
-
-    kaic insulation output/hic/binned/kaic_example_100kb.hic \
-                    architecture/domains/kaic_example_100kb.insulation \
-                    -w 1000000 1500000 2000000 2500000 3000000 3500000 4000000
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains window
+    :end-before: end snippet domains window
 
 Window sizes are chosen using the ``-w`` parameter.
 
 We can easily plot all insulation scores at the same time using ``klot``:
 
-.. code::
-
-    klot -o architecture/domains/kaic_example_50kb_tads_insulation.png chr18:18mb-28mb \
-         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
-         -p scores architecture/domains/kaic_example_100kb.insulation
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains scores
+    :end-before: end snippet domains scores
 
 .. image:: images/kaic_example_50kb_tads_insulation.png
 
@@ -84,12 +81,10 @@ When using an output format other than the default, the second positional argume
 abbreviated form, i.e. 1000000 becomes "1mb") and gets the file ending of the chosen
 format. Example:
 
-.. code::
-
-    kaic insulation output/hic/binned/kaic_example_100kb.hic \
-                    architecture/domains/kaic_example_100kb.insulation \
-                    -w 1000000 1500000 2000000 2500000 3000000 3500000 4000000
-                    -o bed
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains bed
+    :end-before: end snippet domains bed
 
 This produces the output files:
 
@@ -106,10 +101,10 @@ This produces the output files:
 Of course, you can also simply convert existing insulation scores to another format
 without having to recalculate everything. Simply run:
 
-.. code::
-
-    kaic insulation architecture/domains/kaic_example_100kb.insulation \
-                    -o bed
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains simplebed
+    :end-before: end snippet domains simplebed
 
 and the insulation scores for all window sizes in the object will be converted to BED
 files using the input file name as prefix. If you only want to convert specific window
@@ -117,9 +112,10 @@ sizes, use the ``-w`` parameter. To find out which window sizes are available in
 previously calculated scores object, simply run ``kaic insulation`` without any
 parameters:
 
-.. code::
-
-    kaic insulation architecture/domains/kaic_example_100kb.insulation
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains info
+    :end-before: end snippet domains info
 
 This prints:
 
@@ -131,15 +127,11 @@ This prints:
 
 You can plot scores from one or more window sizes using the ``line`` plot in ``klot``:
 
-.. code::
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains line
+    :end-before: end snippet domains line
 
-    klot --width 6 -o architecture/domains/kaic_example_50kb_tads_insulation_1mb.png \
-                   chr18:18mb-28mb \
-                   -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 \
-                   -vmin 0 -vmax 0.05 \
-                   -p line architecture/domains/kaic_example_100kb.insulation_1mb.bed \
-                   architecture/domains/kaic_example_100kb.insulation_2mb.bed \
-                   -l "1mb" "2mb"
 
 .. image:: images/kaic_example_50kb_tads_insulation_1mb.png
 
@@ -177,23 +169,20 @@ matrix. In the insulation score calculation, if the insulation window is covered
 50% of unmappable regions, the score will be NaN. ``kaic insulation`` offers the option to
 impute the unmappable values from the expected values of the chromosome using ``--impute``.
 
-.. code::
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains impute
+    :end-before: end snippet domains impute
 
-    kaic insulation output/hic/binned/kaic_example_100kb.hic \
-                    architecture/domains/kaic_example_100kb.insulation_imputed \
-                    -w 1000000 1500000 2000000 2500000 3000000 3500000 4000000 \
-                    --impute
 
 This will result in score without NaN (at least in the center of chromosomes), but can also
 be misleading if the region of interest happens to lie in an unmappable region. Therefore use
 this capability with caution!
 
-.. code::
-
-    klot -o architecture/domains/kaic_example_50kb_tads_insulation.png chr18:18mb-28mb \
-         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
-         -p scores architecture/domains/kaic_example_100kb.insulation \
-         --impute
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains plotimpute
+    :end-before: end snippet domains plotimpute
 
 .. image:: images/kaic_example_50kb_tads_insulation_imputed.png
 
@@ -215,11 +204,10 @@ regions:
 
 When we run ``kaic boundaries`` on the above example using 1mb and 2mb as the window sizes:
 
-.. code::
-
-    kaic boundaries architecture/domains/kaic_example_100kb.insulation \
-                    architecture/domains/kaic_example_100kb.insulation_boundaries \
-                    -w 1mb 2mb
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains boundaries
+    :end-before: end snippet domains boundaries
 
 We get two output files with all insulation score minima and associated scores (the depth of
 the minimum compared to the two neighboring maxima):
@@ -231,13 +219,10 @@ the minimum compared to the two neighboring maxima):
 
 Let's plot the boundaries from the 1mb scores:
 
-.. code::
-
-    klot --width 6 -o architecture/domains/kaic_example_50kb_tads_insulation_1mb_boundaries.png \
-         chr18:18mb-28mb \
-         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
-         -p line architecture/domains/kaic_example_100kb.insulation_1mb.bed -l "1mb" \
-         -p bar architecture/domains/kaic_example_100kb.insulation_boundaries_1mb.bed
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains plotboundaries
+    :end-before: end snippet domains plotboundaries
 
 .. image:: images/kaic_example_50kb_tads_insulation_1mb_boundaries.png
 
@@ -245,11 +230,10 @@ As you can see, lower minima get higher scores. By default, ``kaic boundaries`` 
 minima, but you may set a threshold using ``--min-score <s>`` to report only boundaries with
 scores greater than *s*.
 
-.. code::
-
-    kaic boundaries architecture/domains/kaic_example_100kb.insulation \
-                    architecture/domains/kaic_example_100kb.insulation_boundaries_score0.7 \
-                    -w 1mb 2mb --min-score 0.7
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains minscore
+    :end-before: end snippet domains minscore
 
 By default, ``kaic boundaries`` will return minima as matrix bins. However, since the boundary
 calls rely on a smoothed insulation score track, it can attempt to identify the boundary location
@@ -285,21 +269,20 @@ Example
 It is typically used to calculate directionality indexes with multiple window
 sizes at the same time, as a single window size might be prone to local matrix differences:
 
-.. code::
-
-    kaic directionality output/hic/binned/kaic_example_100kb.hic \
-                        architecture/domains/kaic_example_100kb.directionality \
-                        -w 1000000 1500000 2000000 2500000 3000000 3500000 4000000
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains directionality
+    :end-before: end snippet domains directionality
 
 Window sizes are chosen using the ``-w`` parameter.
 
 We can easily plot all directionality indexes at the same time using ``klot``:
 
-.. code::
+.. literalinclude:: code/domains_example_code
+    :language: bash
+    :start-after: start snippet domains plotdirectionality
+    :end-before: end snippet domains plotdirectionality
 
-    klot -o architecture/domains/kaic_example_50kb_tads_directionality.png chr18:18mb-28mb \
-         -p triangular output/hic/binned/kaic_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
-         -p scores architecture/domains/kaic_example_100kb.directionality
 
 .. image:: images/kaic_example_50kb_tads_directionality.png
 
