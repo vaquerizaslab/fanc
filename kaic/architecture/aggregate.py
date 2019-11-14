@@ -743,7 +743,7 @@ def aggregate_loops(hic, loop_regions, pixels=16, **kwargs):
     return matrix_sum/counter_matrix
 
 
-def loop_strength(hic, loop_regions, pixels=16, **kwargs):
+def loop_strength(hic, loop_regions, pixels=16, include_nan=False, **kwargs):
     kwargs.setdefault('log', False)
     kwargs.setdefault('norm', True)
     kwargs.setdefault('oe', True)
@@ -778,18 +778,22 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
 
     ratios = []
     for i in range(len(original)):
-        if original[i] is None:
-            continue
-        if left[i] is None and right[i] is None:
+        if original[i] is None or (left[i] is None and right[i] is None):
+            if include_nan:
+                ratios.append(np.nan)
             continue
 
-        if left[i] is None:
-            r = original[i]/right[i]
-        elif right[i] is None:
-            r = original[i]/left[i]
-        else:
-            r = original[i]/((left[i]+right[i])/2)
-        ratios.append(np.log2(r))
+        try:
+            if left[i] is None:
+                r = original[i]/right[i]
+            elif right[i] is None:
+                r = original[i]/left[i]
+            else:
+                r = original[i]/((left[i]+right[i])/2)
+            ratios.append(np.log2(r))
+        except ZeroDivisionError:
+            if include_nan:
+                ratios.append(np.nan)
     return ratios
 
 
