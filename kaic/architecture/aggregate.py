@@ -152,7 +152,6 @@ class AggregateMatrix(FileGroup):
         components = dict()
         component_group = self.file.get_node(self._group, 'components')
         for node in self.file.iter_nodes(component_group):
-            print(node)
             if node.name.startswith('mask_'):
                 ix = int(node.name[5:])
                 masks[ix] = node[:]
@@ -166,7 +165,6 @@ class AggregateMatrix(FileGroup):
                     components[ix] = m
                 max_ix = max(ix, max_ix)
 
-        print(components)
         sorted_components = []
         for ix in range(max_ix + 1):
             component = components[ix]
