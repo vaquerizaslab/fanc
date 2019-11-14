@@ -753,11 +753,15 @@ def aggregate_loops(hic, loop_regions, pixels=16, **kwargs):
     return matrix_sum/counter_matrix
 
 
-def loop_strength(hic, loop_regions, pixels=16, include_nan=False, **kwargs):
+def loop_strength(hic, loop_regions, pixels=16, **kwargs):
     kwargs.setdefault('log', False)
     kwargs.setdefault('norm', True)
     kwargs.setdefault('oe', True)
-    kwargs['keep_invalid'] = True
+
+    try:
+        include_nan = kwargs.pop('keep_invalid')
+    except KeyError:
+        include_nan = False
 
     if isinstance(loop_regions, Bedpe):
         loop_regions = _loop_regions_from_bedpe(loop_regions)
@@ -773,7 +777,8 @@ def loop_strength(hic, loop_regions, pixels=16, include_nan=False, **kwargs):
         new_region_pairs.append((region2, new_right))
 
     original, left, right = [], [], []
-    for i, (pair, m) in enumerate(_loop_matrix_iterator(hic, new_region_pairs, pixels=pixels, **kwargs)):
+    for i, (pair, m) in enumerate(_loop_matrix_iterator(hic, new_region_pairs, pixels=pixels,
+                                                        keep_invalid=True, **kwargs)):
         if m is not None:
             value = float(m.sum()/np.logical_not(m.mask).sum())
         else:
