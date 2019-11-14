@@ -675,6 +675,11 @@ def tad_strength(hic, tad_regions=None, **kwargs):
 
     tad_strengths = []
     for m in aggregate_tads.components():
+        if m is None:
+            if kwargs['keep_invalid']:
+                tad_strengths.append(np.nan)
+            continue
+
         tl = int(m.shape[0]/3)
         upper_third = slice(0, tl)
         middle_third = slice(tl, 2*tl)
@@ -682,7 +687,12 @@ def tad_strength(hic, tad_regions=None, **kwargs):
         tad_sum = m[middle_third, middle_third].sum() / np.logical_not(m.mask)[middle_third, middle_third].sum()
         upper_sum = m[upper_third, middle_third].sum() / np.logical_not(m.mask)[upper_third, middle_third].sum()
         lower_sum = m[lower_third, upper_third].sum() / np.logical_not(m.mask)[lower_third, upper_third].sum()
-        ts = float(tad_sum / ((upper_sum + lower_sum) / 2))
+        try:
+            ts = float(tad_sum / ((upper_sum + lower_sum) / 2))
+        except ZeroDivisionError:
+            if kwargs['keep_invalid']:
+                tad_strengths.append(np.nan)
+            continue
         tad_strengths.append(np.log2(ts))
     return tad_strengths
 
