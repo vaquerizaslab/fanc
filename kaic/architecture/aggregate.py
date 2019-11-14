@@ -135,6 +135,8 @@ class AggregateMatrix(FileGroup):
             component_group = self.file.create_group(self._group, 'components')
 
             for i, m in enumerate(components):
+                if m is None:
+                    m = np.array([np.nan])
                 cm = self.file.create_carray(component_group, 'component_{}'.format(i),
                                              tables.Float32Atom(), m.shape)
                 cm[:] = m
@@ -143,6 +145,7 @@ class AggregateMatrix(FileGroup):
                     mm = self.file.create_carray(component_group, 'mask_{}'.format(i),
                                                  tables.BoolAtom(), m.shape)
                     mm[:] = m.mask
+            self.file.flush()
 
         max_ix = 0
         masks = dict()
@@ -155,18 +158,25 @@ class AggregateMatrix(FileGroup):
                 max_ix = max(ix, max_ix)
             elif node.name.startswith('component_'):
                 ix = int(node.name[10:])
-                components[ix] = node[:]
+                m = node[:]
+                if m.shape == (1,) and np.isnan(m[0]):
+                    components[ix] = None
+                else:
+                    components[ix] = m
                 max_ix = max(ix, max_ix)
 
         sorted_components = []
-        for ix in range(max_ix):
+        for ix in range(max_ix + 1):
             component = components[ix]
-            if ix in masks:
-                mask = masks[ix]
-            else:
-                mask = None
+            if component is not None:
+                if ix in masks:
+                    mask = masks[ix]
+                else:
+                    mask = None
 
-            sorted_components.append(np.ma.masked_array(component, mask=mask))
+                sorted_components.append(np.ma.masked_array(component, mask=mask))
+            else:
+                sorted_components.append(None)
         return sorted_components
 
     @classmethod
