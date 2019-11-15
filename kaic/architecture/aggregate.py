@@ -347,19 +347,20 @@ class AggregateMatrix(FileGroup):
                                                 absolute_extension=absolute_extension,
                                                 relative_extension=relative_extension,
                                                 **kwargs):
-            ms = resize(m, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
-                        preserve_range=False, clip=False, order=interpolation)
+            if m is not None:
+                ms = resize(m, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
+                            preserve_range=False, clip=False, order=interpolation)
 
-            if keep_mask and hasattr(ms, 'mask'):
-                mask = resize(m.mask, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
-                              preserve_range=False, clip=False, order=interpolation).astype('bool')
-                ms = np.ma.masked_where(mask, ms)
-                inverted_mask = ~mask
-                counter_matrix += inverted_mask.astype('int')
-            else:
-                counter_matrix += np.ones(shape)
+                if keep_mask and hasattr(ms, 'mask'):
+                    mask = resize(m.mask, shape, mode=boundary_mode, anti_aliasing=anti_aliasing,
+                                  preserve_range=False, clip=False, order=interpolation).astype('bool')
+                    ms = np.ma.masked_where(mask, ms)
+                    inverted_mask = ~mask
+                    counter_matrix += inverted_mask.astype('int')
+                else:
+                    counter_matrix += np.ones(shape)
 
-            matrix_sum += ms
+                matrix_sum += ms
 
             component_regions.append((r1, r2))
             if keep_components:
