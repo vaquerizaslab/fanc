@@ -1795,9 +1795,9 @@ def dump_parser():
     parser.add_argument(
         '-S', '--no-sparse', dest='sparse',
         action='store_false',
+        default=True,
         help='''Store full, square matrix instead of sparse format.'''
     )
-    parser.set_defaults(sparse=True)
 
     parser.add_argument(
         '--only-intra', dest='only_intra',
@@ -1806,14 +1806,20 @@ def dump_parser():
         help='''Only dump intra-chromosomal data. 
                 Dumps everything by default.'''
     )
-    parser.set_defaults(sparse=True)
+
+    parser.add_argument(
+        '-e', '--observed-expected', dest='oe',
+        action='store_true',
+        default=False,
+        help='Log2-O/E transform matrix values.'
+    )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
+        default=False,
         help='''Work in temporary directory'''
     )
-    parser.set_defaults(tmp=False)
 
     return parser
 
@@ -1826,6 +1832,7 @@ def dump(argv, **kwargs):
     output_regions = None if args.regions is None else os.path.expanduser(args.regions)
     subset_string = args.subset
     sparse = args.sparse
+    oe = args.oe
     only_intra = args.only_intra
     tmp = args.tmp
 
@@ -1862,7 +1869,7 @@ def dump(argv, **kwargs):
             np.savetxt(output_matrix, m)
         else:
             if output_matrix is None:
-                for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, oe=oe):
                     source, i = row_regions_dict[edge.source]
                     sink, j = col_regions_dict[edge.sink]
 
@@ -1878,7 +1885,7 @@ def dump(argv, **kwargs):
             else:
                 with open(output_matrix, 'w') as o:
                     if output_regions is None:
-                        for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                        for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, oe=oe):
                             source, i = row_regions_dict[edge.source]
                             sink, j = col_regions_dict[edge.sink]
                             weight = getattr(edge, hic._default_score_field)
@@ -1888,7 +1895,7 @@ def dump(argv, **kwargs):
                                 weight
                             ))
                     else:
-                        for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                        for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, oe=oe):
                             source, i = row_regions_dict[edge.source]
                             sink, j = col_regions_dict[edge.sink]
                             weight = getattr(edge, hic._default_score_field)
