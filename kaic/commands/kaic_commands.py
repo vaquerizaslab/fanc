@@ -1864,7 +1864,7 @@ def dump(argv, **kwargs):
             if output_matrix is None or output_regions is None:
                 raise ValueError("Cannot write matrix to stdout, must provide "
                                  "both matrix and regions file for output")
-            m = hic.as_matrix(key=(row_subset_region, col_subset_region))
+            m = hic.as_matrix(key=(row_subset_region, col_subset_region), oe=oe)
             import numpy as np
             np.savetxt(output_matrix, m)
         else:
