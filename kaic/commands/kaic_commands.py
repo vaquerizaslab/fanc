@@ -1811,14 +1811,22 @@ def dump_parser():
         '-e', '--observed-expected', dest='oe',
         action='store_true',
         default=False,
-        help='Log2-O/E transform matrix values.'
+        help='O/E transform matrix values.'
+    )
+
+    parser.add_argument(
+        '-l', '--log2', dest='log2',
+        action='store_true',
+        default=False,
+        help='Log2-transform matrix values. '
+             'Useful for O/E matrices (-e option)'
     )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
-        help='''Work in temporary directory'''
+        help='Work in temporary directory'
     )
 
     return parser
@@ -1833,10 +1841,13 @@ def dump(argv, **kwargs):
     subset_string = args.subset
     sparse = args.sparse
     oe = args.oe
+    log2 = args.log2
     only_intra = args.only_intra
     tmp = args.tmp
 
     import kaic
+    import sys
+    import numpy as np
 
     col_subset_region = None
     row_subset_region = None
@@ -1860,6 +1871,16 @@ def dump(argv, **kwargs):
         row_regions_dict = {region.ix: (region, i) for i, region in enumerate(row_regions)}
         col_regions_dict = {region.ix: (region, i) for i, region in enumerate(col_regions)}
 
+        if oe:
+            _, expected_intra, expected_inter = hic.expected_values()
+        else:
+            expected_intra, expected_inter = {}, 1
+
+        if log2:
+            transform = np.log2
+        else:
+            transform = float
+
         if not sparse:
             if output_matrix is None or output_regions is None:
                 raise ValueError("Cannot write matrix to stdout, must provide "
@@ -1869,39 +1890,41 @@ def dump(argv, **kwargs):
             np.savetxt(output_matrix, m)
         else:
             if output_matrix is None:
-                for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, oe=oe):
+                o = sys.stdout
+            else:
+                o = open(output_matrix, 'w')
+
+            try:
+                for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
                     source, i = row_regions_dict[edge.source]
                     sink, j = col_regions_dict[edge.sink]
-
-                    if only_intra and ix_to_chromosome[source.ix] != ix_to_chromosome[sink.ix]:
-                        continue
-
                     weight = getattr(edge, hic._default_score_field)
-                    print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-                        source.chromosome, source.start, source.end,
-                        sink.chromosome, sink.start, sink.end,
-                        weight
-                    ))
-            else:
-                with open(output_matrix, 'w') as o:
-                    if output_regions is None:
-                        for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, oe=oe):
-                            source, i = row_regions_dict[edge.source]
-                            sink, j = col_regions_dict[edge.sink]
-                            weight = getattr(edge, hic._default_score_field)
-                            o.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                                source.chromosome, source.start, source.end,
-                                sink.chromosome, sink.start, sink.end,
-                                weight
-                            ))
+                    source_ix, sink_ix = source.ix, sink.ix
+                    source_chromosome, sink_chromosome = ix_to_chromosome[source_ix], ix_to_chromosome[sink_ix]
+
+                    if source_chromosome == sink_chromosome:
+                        if oe:
+                            weight /= expected_intra[source_chromosome][abs(sink_ix - source_ix)]
                     else:
-                        for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, oe=oe):
-                            source, i = row_regions_dict[edge.source]
-                            sink, j = col_regions_dict[edge.sink]
-                            weight = getattr(edge, hic._default_score_field)
-                            o.write("{}\t{}\t{}\n".format(
-                                i, j, weight
-                            ))
+                        if only_intra:
+                            continue
+                        if oe:
+                            weight /= expected_inter
+
+                    if output_regions is None:
+                        print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                            source.chromosome, source.start, source.end,
+                            sink.chromosome, sink.start, sink.end,
+                            transform(weight)), file=o)
+                    else:
+                        print("{}\t{}\t{}".format(
+                            i, j, transform(weight)
+                        ), file=o)
+            except BrokenPipeError:
+                pass
+            finally:
+                if output_matrix is not None:
+                    o.close()
 
     # write regions to file
     if output_regions is not None:
