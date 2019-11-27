@@ -2014,7 +2014,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         logger.info("Final n: {}/{}".format(n, total))
 
         logger.info("Determining random sample")
-        choice = np.random.choice(int(total), size=n, replace=False)
+        choice = np.random.choice(int(total), size=int(n), replace=False)
         choice = sorted(choice)
 
         logger.info("Adding sampled pairs to new object...")
