@@ -18,11 +18,11 @@ klot -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_1mb.ab.
 kaic compartments -v architecture/compartments/kaic_example_1mb.ev.txt \
                   output/hic/binned/kaic_example_1mb.hic \
                   architecture/compartments/kaic_example_1mb.ab
-# end start snippet compartments ev
+# end snippet compartments ev
 
 # start snippet
-    kaic compartments -v architecture/compartments/kaic_example_1mb.ev.txt \
-                      architecture/compartments/kaic_example_1mb.ab
+kaic compartments -v architecture/compartments/kaic_example_1mb.ev.txt \
+                  architecture/compartments/kaic_example_1mb.ab
 
 # start snippet compartments pre
 kaic compartments -v architecture/compartments/kaic_example_1mb.ev.txt \
