@@ -4140,7 +4140,7 @@ def aggregate_parser():
         '-C', '--no-cache', dest='cache',
         action='store_false',
         default=True,
-        help='Do not cache chromosome matrices '
+        help='Do not cache chromosome matrices. '
              'Slower, but saves a lot of memory. '
              'Use this if you are having trouble '
              'with memory usage.'
