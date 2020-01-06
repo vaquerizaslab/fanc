@@ -285,12 +285,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         if isinstance(region, string_types):
             region = GenomicRegion.from_string(region)
         if self.fix_chromosome:
-            chromosome = region.chromosome
-            if chromosome.startswith('chr'):
-                chromosome = chromosome[3:]
-            else:
-                chromosome = 'chr' + chromosome
-            region = GenomicRegion(chromosome=chromosome, start=region.start, end=region.end)
+            region = region.fix_chromosome(copy=True)
         if self.ax is None:
             self.ax = plt.gca()
         self._before_plot(region)
