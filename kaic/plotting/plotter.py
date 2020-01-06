@@ -1679,9 +1679,14 @@ class Virtual4CPlot(BasePlotter1D):
         self.alpha = alpha
         self.norm = norm
         self.oe = oe
+        self.check_valid = check_valid
+        self.excluded_filters = excluded_filters
+        self.mask = mask
 
     def _plot(self, region):
-        submatrix = self.hic.matrix((self.viewpoint, region), norm=self.norm, oe=self.oe)
+        submatrix = self.hic.matrix((self.viewpoint, region), norm=self.norm, oe=self.oe,
+                                    check_valid=self.check_valid, excluded_filters=self.excluded_filters,
+                                    mask=self.mask)
         v4c_signal = np.nanmean(submatrix, axis=0)
         x = []
         for r in self.hic.regions(region):
