@@ -148,7 +148,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
         if (not force and self.meta.has_ev and
                 oe_per_chromosome == self.meta.oe_per_chromosome and
                 per_chromosome == self.meta.per_chromosome and
-                eigenvector == self.meta.eigenvector):
+                eigenvector == self.meta.eigenvector and
+                (genome is not None) == self.meta.gc):
             ev = np.array([region.score for region in self.regions])
         else:
             ev = np.zeros(len(self.regions))
