@@ -573,7 +573,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
         self._update_mesh_colors()
 
 
-class VerticalSplitPlot(BasePlotter1D):
+class MirrorMatrixPlot(BasePlotter1D):
     """
     Stack two plots on top of each other, bottom plot inverted.
     Especially suited to stacking two Hic plots (triangles) on top
@@ -587,7 +587,7 @@ class VerticalSplitPlot(BasePlotter1D):
         :param cax_gap: Gap between colorbars in inches
         """
         kwargs.setdefault("aspect", 1.)
-        super(VerticalSplitPlot, self).__init__(**kwargs)
+        super(MirrorMatrixPlot, self).__init__(**kwargs)
         self.top_plot = top_plot
         self.bottom_plot = bottom_plot
         self.parent_ax = None
@@ -647,6 +647,9 @@ class VerticalSplitPlot(BasePlotter1D):
     def _clear(self):
         self.top_plot._clear()
         self.bottom_plot._clear()
+
+
+VerticalSplitPlot = MirrorMatrixPlot
 
 
 class GenomicFeaturePlot(BasePlotter1D):
@@ -1656,7 +1659,7 @@ class GenomicDataFramePlot(ScalarDataPlot):
 
 class Virtual4CPlot(BasePlotter1D):
     def __init__(self, hic, viewpoint, color='blue', alpha=1.0,
-                 norm=False, oe=False,
+                 norm=True, oe=False, check_valid=True, excluded_filters=0, mask=True,
                  *args, **kwargs):
         BasePlotter1D.__init__(self, *args, **kwargs)
         self.hic = hic
