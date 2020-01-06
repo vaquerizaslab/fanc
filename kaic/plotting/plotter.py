@@ -979,11 +979,16 @@ class LinePlot(RegionPlotBase):
             yield i, x, y
 
     def _plot(self, region):
+        limits = [999999999999999, 0]
+
         for i, x, y in self._line_values(region):
+            limits[0] = min(limits[0], x[0])
+            limits[1] = max(limits[1], x[-1])
             kwargs = self.plot_kwargs.copy()
             kwargs.setdefault('color', next(self.colors))
             kwargs.setdefault('label', self.labels[i] if self.labels else "")
             l = self.ax.plot(x, y, **kwargs)[0]
+
             self.lines.append(l)
             if self.fill:
                 f = self.ax.fill_between(x, [0] * len(y), y, color=l.get_color(), alpha=l.get_alpha())
@@ -994,6 +999,7 @@ class LinePlot(RegionPlotBase):
 
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
+        self.ax.set_xlim(limits)
 
     def _refresh(self, region):
         for f in self.fills:
