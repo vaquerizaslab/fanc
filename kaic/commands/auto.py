@@ -985,7 +985,7 @@ def auto(argv, **kwargs):
                                                  '-g', genome,
                                                  '-t', str(load_threads),
                                                  # filtering
-                                                 '-m', '-us']
+                                                 '-us']
             if restriction_enzyme is not None:
                 pairs_command += ['-r', restriction_enzyme]
             if quality_cutoff is not None:
