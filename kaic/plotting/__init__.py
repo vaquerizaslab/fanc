@@ -202,11 +202,11 @@ Hi-C datasets are visualized in a single figure:
 """
 
 from kaic.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, \
-    HicSlicePlot, HicPeakPlot
+    HicSlicePlot, HicPeakPlot, TriangularMatrixPlot, SquareMatrixPlot, SplitMatrixPlot
 from kaic.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot, GenomicRegionsPlot, \
     GenomicFeatureScorePlot, GenomicFigure, BigWigPlot, GenePlot, LinePlot, \
     FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation, RegionsValuesPlot, \
-    BarPlot, Virtual4CPlot
+    BarPlot, Virtual4CPlot, MirrorMatrixPlot
 from kaic.plotting.helpers import append_axes, absolute_wspace_hspace, SymmetricNorm, \
                                   style_ticks_whitegrid, LimitGroup
 
