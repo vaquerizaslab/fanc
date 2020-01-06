@@ -960,7 +960,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         """
         Assemble a :class:`~RegionMatrix` from region pairs.
 
-        :param key: Matrix selector. See :func:`~RegionPairsContainer.edges`
+        :param key: Matrix selector. See :func:`~kaic.matrix.RegionPairsContainer.edges`
                     for all supported key types
         :param log: If True, log-transform the matrix entries. Also see log_base
         :param log_base: Base of the log transformation. Default: 2; only used when
@@ -969,10 +969,10 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                               that have no associated edge/contact
         :param mask: If False, do not mask unmappable regions
         :param args: Positional arguments passed to
-                     :func:`~RegionMatrixContainer.regions_and_matrix_entries`
+                     :func:`~kaic.matrix.RegionMatrixContainer.regions_and_matrix_entries`
         :param kwargs: Keyword arguments passed to
-                       :func:`~RegionMatrixContainer.regions_and_matrix_entries`
-        :return: :class:`~RegionMatrix`
+                       :func:`~kaic.matrix.RegionMatrixContainer.regions_and_matrix_entries`
+        :return: :class:`~kaic.matrix.RegionMatrix`
         """
 
         if default_value is None:
@@ -1085,9 +1085,11 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return intra_total, chromosome_intra_total, inter_total
 
-    def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
+    def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
+                                      *args, **kwargs):
         """
-        Calculate the expected values for genomic contacts at all distances.
+        Calculate the expected values for genomic contacts at all distances
+        and the whole matrix marginals.
 
         This calculates the expected values between genomic regions
         separated by a specific distance. Expected values are calculated
@@ -1105,13 +1107,15 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                                     chromosome.
         :param norm: If False, will calculate the expected values on the
                      unnormalised matrix.
-        :param args:
-        :param kwargs:
+        :param args: Not used in this context
+        :param kwargs: Not used in this context
         :return: list of intra-chromosomal expected values,
                  dict of intra-chromosomal expected values by chromosome,
                  inter-chromosomal expected value
-
         """
+        weight_field = getattr(self, '_default_score_field', None)
+        default_value = getattr(self, '_default_value', 1.)
+
         # get all the bins of the different chromosomes
         chromosome_bins = self.chromosome_bins
         chromosome_dict = defaultdict(list)
@@ -1138,7 +1142,10 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
             for i, edge in enumerate(self.edges(lazy=True, norm=norm)):
                 source, sink = edge.source, edge.sink
-                weight = getattr(edge, self._default_score_field)
+                try:
+                    weight = getattr(edge, weight_field)
+                except AttributeError:
+                    weight = default_value
 
                 source_chromosome = chromosome_dict[source]
                 sink_chromosome = chromosome_dict[sink]
@@ -1157,7 +1164,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
 
         # expected values
-        inter_expected = 0 if inter_total == 0 else inter_sums/inter_total
+        inter_expected = 0 if inter_total == 0 else inter_sums / inter_total
 
         intra_expected = [0.0] * max_distance
         bin_size = self.bin_size
@@ -1175,12 +1182,45 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
             for d in range(chromosome_max_distance[chromosome]):
                 chromosome_count = chromosome_intra_total[chromosome][d]
                 if chromosome_count > 0:
-                    chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][d] / chromosome_count
+                    chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][
+                                                                   d] / chromosome_count
 
         if selected_chromosome is not None:
-            return chromosome_intra_expected[selected_chromosome]
+            return chromosome_intra_expected[selected_chromosome], marginals
 
-        return intra_expected, chromosome_intra_expected, inter_expected
+        return intra_expected, chromosome_intra_expected, inter_expected, marginals
+
+    def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
+        """
+        Calculate the expected values for genomic contacts at all distances.
+
+        This calculates the expected values between genomic regions
+        separated by a specific distance. Expected values are calculated
+        as the average weight of edges between region pairs with the same
+        genomic separation, taking into account unmappable regions.
+
+        It will return a tuple with three values: a list of genome-wide
+        intra-chromosomal expected values (list index corresponds to number
+        of separating bins), a dict with chromosome names as keys and
+        intra-chromosomal expected values specific to each chromosome, and
+        a float for inter-chromosomal expected value.
+
+        :param selected_chromosome: (optional) Chromosome name. If provided,
+                                    will only return expected values for this
+                                    chromosome.
+        :param norm: If False, will calculate the expected values on the
+                     unnormalised matrix.
+        :param args: Not used in this context
+        :param kwargs: Not used in this context
+        :return: list of intra-chromosomal expected values,
+                 dict of intra-chromosomal expected values by chromosome,
+                 inter-chromosomal expected value
+
+        """
+        result = self.expected_values_and_marginals(selected_chromosome=selected_chromosome,
+                                                    norm=norm, *args, **kwargs)
+
+        return result[:-1]
 
     def marginals(self, masked=True, *args, **kwargs):
         """
@@ -1982,6 +2022,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             for i, (_, edge_table) in enumerate(self._iter_edge_tables()):
                 edge_table.reset_all_masks(silent=True)
                 pb.update(i)
+        self._update_mappability()
 
     def downsample(self, n, file_name=None):
         """
@@ -2231,8 +2272,8 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         self.region_data('bias', biases)
         self._remove_expected_values()
 
-    def expected_values(self, selected_chromosome=None, norm=True,
-                        force=False, *args, **kwargs):
+    def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
+                                      force=False, *args, **kwargs):
         group_name = 'corrected' if norm else 'uncorrected'
 
         if not force and self._expected_value_group is not None:
@@ -2262,7 +2303,9 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
             except tables.NoSuchNodeError:
                 pass
 
-        intra_expected, chromosome_intra_expected, inter_expected = RegionMatrixContainer.expected_values(self, norm=norm)
+        (intra_expected, chromosome_intra_expected,
+         inter_expected, marginals) = RegionMatrixContainer.expected_values_and_marginals(self, norm=norm, *args,
+                                                                                          **kwargs)
 
         # try saving to object
         if hasattr(self, '_expected_value_group') and self._expected_value_group is not None:
@@ -2283,13 +2326,25 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
             except tables.FileModeError:
                 warnings.warn("Matrix file opened in read-only mode, "
                               "cannot save expected values to object. "
-                              "Use mode 'a' to add expected values to "
-                              "an existing object!")
+                              "Run 'kaic expected <matrix_file>' on the "
+                              "command line or in Python "
+                              "use mode 'a' to add expected values to "
+                              "an existing object. The results of the current "
+                              "computation are not affected if you don't "
+                              "do this, but it will speed things up in the future.")
+
+        try:
+            self.region_data('valid', np.array(marginals) > 0)
+        except OSError:
+            pass
 
         if selected_chromosome is not None:
-            return chromosome_intra_expected[selected_chromosome]
+            return chromosome_intra_expected[selected_chromosome], marginals
 
-        return intra_expected, chromosome_intra_expected, inter_expected
+        return intra_expected, chromosome_intra_expected, inter_expected, marginals
+
+    def _update_mappability(self):
+        _ = self.expected_values_and_marginals(force=True)
 
     @classmethod
     def merge_region_matrix_tables(cls, matrices, check_regions_identical=True,
