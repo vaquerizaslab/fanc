@@ -275,7 +275,7 @@ class BasePlotterHic(BasePlotterMatrix):
         self.vmax_slider = None
 
 
-class HicPlot2D(BasePlotterHic, BasePlotter2D):
+class SquareMatrixPlot(BasePlotterHic, BasePlotter2D):
     """
     Plot Hi-C map as a square matrix.
     """
@@ -285,7 +285,7 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
         """
         :param flip: Transpose matrix before plotting
         """
-        super(HicPlot2D, self).__init__(hic_data=hic_data, **kwargs)
+        super(SquareMatrixPlot, self).__init__(hic_data=hic_data, **kwargs)
         self.vmax_slider = None
         self.current_matrix = None
         self.flip = flip
@@ -358,17 +358,23 @@ class HicPlot2D(BasePlotterHic, BasePlotter2D):
             old_image.remove()
 
 
-class HicComparisonPlot2D(HicPlot2D):
+HicPlot2D = SquareMatrixPlot
+
+
+class SplitMatrixPlot(HicPlot2D):
     def __init__(self, hic_top, hic_bottom, scale_matrices=True,
                  weight_field=None, default_value=None, smooth_sigma=None,
                  matrix_norm=True, oe=False, log=False, **kwargs):
-        super(HicComparisonPlot2D, self).__init__(hic_top, **kwargs)
+        super(SplitMatrixPlot, self).__init__(hic_top, **kwargs)
         self.hic_top = hic_top
         self.hic_bottom = hic_bottom
         self.hic_buffer = BufferedCombinedMatrix(hic_bottom, hic_top, scale_matrices=scale_matrices,
                                                  weight_field=weight_field, default_value=default_value,
                                                  smooth_sigma=smooth_sigma, norm=matrix_norm, oe=oe,
                                                  log=log)
+
+
+HicComparisonPlot2D = SplitMatrixPlot
 
 
 class HicSlicePlot(ScalarDataPlot):
@@ -457,7 +463,7 @@ class HicSlicePlot(ScalarDataPlot):
         sns.despine(ax=self.ax, top=True, right=True)
 
 
-class HicPlot(BasePlotterHic, BasePlotter1D):
+class TriangularMatrixPlot(BasePlotterHic, BasePlotter1D):
     """
     A triangle Hi-C heatmap plot.
     """
@@ -472,7 +478,7 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
                            Default: True
         """
         kwargs.setdefault("aspect", None)
-        super(HicPlot, self).__init__(hic_data=hic_data, **kwargs)
+        super(TriangularMatrixPlot, self).__init__(hic_data=hic_data, **kwargs)
         self.proportional = proportional
         self.max_dist = max_dist
         self.hm = None
@@ -577,6 +583,9 @@ class HicPlot(BasePlotterHic, BasePlotter1D):
         self._update_mesh_colors()
         if self.colorbar is not None:
             self.update_colorbar(vmax=new_vmax)
+
+
+HicPlot = TriangularMatrixPlot
 
 
 class HicPeakPlot(BaseOverlayPlotter):
