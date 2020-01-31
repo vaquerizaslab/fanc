@@ -1864,6 +1864,8 @@ def dump(argv, **kwargs):
         if col_subset_string is not None:
             col_subset_region = kaic.GenomicRegion.from_string(col_subset_string)
 
+    logger.info("Extracting the following matrix region: {} vs {}".format(row_subset_region, col_subset_region))
+
     with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
         ix_to_chromosome = dict()
         for i, region in enumerate(hic.regions):
