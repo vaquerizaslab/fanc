@@ -1844,6 +1844,13 @@ def dump_parser():
     )
 
     parser.add_argument(
+        '-u', '--uncorrected', dest='norm',
+        action='store_false',
+        default=True,
+        help='Output uncorrected (not normalised) matrix values).'
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
@@ -1864,6 +1871,7 @@ def dump(argv, **kwargs):
     oe = args.oe
     log2 = args.log2
     only_intra = args.only_intra
+    norm = args.norm
     tmp = args.tmp
 
     import kaic
@@ -1911,7 +1919,7 @@ def dump(argv, **kwargs):
             if output_matrix is None or output_regions is None:
                 raise ValueError("Cannot write matrix to stdout, must provide "
                                  "both matrix and regions file for output")
-            m = hic.matrix(key=(row_subset_region, col_subset_region), oe=oe, log=log2)
+            m = hic.matrix(key=(row_subset_region, col_subset_region), oe=oe, log=log2, norm=norm)
             np.savetxt(output_matrix, m)
         else:
             if output_matrix is None:
@@ -1920,7 +1928,7 @@ def dump(argv, **kwargs):
                 o = open(output_matrix, 'w')
 
             try:
-                for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True):
+                for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, norm=norm):
                     source, i = row_regions_dict[edge.source]
                     sink, j = col_regions_dict[edge.sink]
                     weight = getattr(edge, hic._default_score_field)
