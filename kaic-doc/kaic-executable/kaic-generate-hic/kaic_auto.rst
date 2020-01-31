@@ -127,6 +127,13 @@ BWA mem or Bowtie2 index is provided and choose the mapping software accordingly
 currently not supported (raise an `issue on GitHub <http://www.github.com/vaquerizaslab/kaic>`_
 if you are interested in support for your favourite mapper).
 
+.. warning::
+
+    Always use the most comprehensive assembly of your genome of interest. Do not generate
+    and index from a subset of chromosomes. If you want to limit the chromosomes in your
+    Hi-C analysis, for example to canonical chromosomes, please do that using the ``-g``
+    argument!
+
 The last parameter (``-g``) is necessary for generating a fragment-level Hi-C map later in the
 pipeline. This will be explained in more detail in the next section.
 
@@ -181,6 +188,16 @@ formats are supported, including BED and GFF), or use a FASTA file with the geno
 in conjunction with the ``-r`` or ``--restriction-enzyme`` parameter. In the latter case,
 ``kaic auto`` will perform an in silico digestion of the genome and use the resulting
 restriction fragments from there.
+
+.. note::
+
+    Genome assembly FASTA files typically contain a large number of unassembled contigs or
+    other sequences that are often irrelevant for downstream Hi-C analysis. As the number of
+    chromosomes can negatively affect Kai-C performance, it is generally a good idea to limit
+    the analysis to canonical chromosomes. A very easy way to do with with ``kaic`` is the
+    ``kaic fragments`` command, which accepts a ``--chromosomes`` option to specify exactly
+    which chromosomes you want in the final analysis. The output file can be directly used as
+    input for the ``-g`` argument.
 
 SAM/BAM files are first sorted and then matched by ``qname``. Together with the restriction
 fragment list, mate pairs will be assigned to restriction fragments and stored in a "Pairs"
