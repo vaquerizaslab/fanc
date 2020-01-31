@@ -204,8 +204,13 @@ class Mapper(object):
 
             ret = self._map(input_file, sam_output_file)
 
+            if isinstance(ret, tuple) and len(ret) == 2:
+                ret, error_message = ret
+            else:
+                error_message = ''
+
         if ret != 0:
-            raise RuntimeError('Mapping had non-zero exit status {}'.format(ret))
+            raise RuntimeError('Mapping had non-zero exit status {}. {}'.format(ret, error_message))
 
         logger.debug('Done mapping')
 
@@ -383,10 +388,11 @@ class Bowtie2Mapper(Mapper):
         proc.wait()
 
         if proc.returncode != 0:
-            print(proc.stderr.read())
-            print(" ".join(bowtie2_command))
+            error_message = proc.stderr.read()
+        else:
+            error_message = ''
 
-        return proc.returncode
+        return proc.returncode, error_message
 
     def _resubmit(self, sam_fields):
         if int(sam_fields[4]) < self.min_quality:
@@ -497,10 +503,11 @@ class BwaMapper(Mapper):
         proc.wait()
 
         if proc.returncode != 0:
-            print(" ".join(bwa_command))
-            print(proc.stderr.read())
+            error_message = proc.stderr.read()
+        else:
+            error_message = ''
 
-        return proc.returncode
+        return proc.returncode, error_message
 
     def _resubmit(self, sam_fields):
         if int(sam_fields[4]) < self.min_quality:
