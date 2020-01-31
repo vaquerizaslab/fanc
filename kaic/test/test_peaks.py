@@ -113,7 +113,7 @@ class TestRaoPeakCaller:
 
     def test_call_peaks(self):
         dir = os.path.dirname(os.path.realpath(__file__))
-        hic_10kb = Hic(dir + "/test_peaks/rao2014.chr11_77400000_78600000.hic", mode='r')
+        hic_10kb = kaic.load(dir + "/test_peaks/rao2014.chr11_77400000_78600000.hic", mode='r')
 
         peak_caller = RaoPeakCaller()
         peaks = peak_caller.call_peaks(hic_10kb)
