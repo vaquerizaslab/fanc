@@ -476,6 +476,14 @@ def fragments_parser():
         help='Output file with restriction fragments in BED format.'
     )
 
+    parser.add_argument(
+        '-c', '--chromosomes', dest='chromosomes',
+        nargs='+',
+        help='List of chromosomes to include in fragments BED file. '
+             'Other chromosomes will be excluded. The order of chromosomes will '
+             'be as stated in the list.'
+    )
+
     return parser
 
 
@@ -488,12 +496,25 @@ def fragments(argv, **kwargs):
     genome_file = os.path.expanduser(args.input)
     re_or_bin_size = args.re_or_bin_size
     output_file = os.path.expanduser(args.output)
+    chromosomes = args.chromosomes
 
     from kaic.regions import genome_regions
     regions = genome_regions(genome_file, re_or_bin_size)
 
     from kaic.tools.files import write_bed
     import warnings
+    from collections import defaultdict
+
+    if chromosomes is not None:
+        chromosome_regions = defaultdict(list)
+        for region in regions:
+            chromosome_regions[region.chromosome].append(region)
+
+        regions = []
+        for chromosome in chromosomes:
+            if chromosome not in chromosome_regions:
+                raise ValueError("Chromosome {} is not found in genome. Please check your chromosome list!")
+            regions += chromosome_regions[chromosome]
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
