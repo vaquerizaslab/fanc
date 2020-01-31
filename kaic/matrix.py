@@ -1219,7 +1219,6 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         """
         result = self.expected_values_and_marginals(selected_chromosome=selected_chromosome,
                                                     norm=norm, *args, **kwargs)
-
         return result[:-1]
 
     def marginals(self, masked=True, *args, **kwargs):
@@ -2284,12 +2283,15 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                 else:
                     intra_expected = None
                     inter_expected = None
+                    marginals = None
                     chromosome_intra_expected = {}
                     for node in self.file.walk_nodes(group):
                         if isinstance(node, tables.Group):
                             continue
                         if node.name == '__intra__':
                             intra_expected = node[:]
+                        elif node.name == '__marginals__':
+                            marginals = node[:]
                         elif node.name == '__inter__':
                             inter_expected = node[0]
                         else:
@@ -2297,9 +2299,9 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                                 chromosome = node.name[1:]
                                 chromosome_intra_expected[chromosome] = node[:]
 
-                    if intra_expected is not None and inter_expected is not None \
+                    if intra_expected is not None and inter_expected is not None and marginals is not None \
                             and len(chromosome_intra_expected) > 0:
-                        return intra_expected, chromosome_intra_expected, inter_expected
+                        return intra_expected, chromosome_intra_expected, inter_expected, marginals
             except tables.NoSuchNodeError:
                 pass
 
@@ -2311,14 +2313,18 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         if hasattr(self, '_expected_value_group') and self._expected_value_group is not None:
             try:
                 try:
-                    group = self.file.get_node(self._expected_value_group, group_name)
+                    self.file.remove_node(self._expected_value_group, group_name, recursive=True)
                 except tables.NoSuchNodeError:
-                    group = self.file.create_group(self._expected_value_group, group_name)
+                    pass
+
+                group = self.file.create_group(self._expected_value_group, group_name)
 
                 self.file.create_array(group, '__intra__',
                                        np.array(intra_expected), "Intra-chromosomal expected values")
                 self.file.create_array(group, '__inter__',
                                        np.array([inter_expected]), "Inter-chromosomal expected value")
+                self.file.create_array(group, '__marginals__',
+                                       np.array(marginals), "Marginals")
                 for chromosome, values in chromosome_intra_expected.items():
                     self.file.create_array(group, '_' + chromosome,
                                            np.array(values), "Intra-chromosomal expected "
