@@ -56,7 +56,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'FAN-C'
-copyright = u'2019, Kai Kruse, Vaquerizas lab'
+copyright = u'2020, Kai Kruse, Vaquerizas lab'
 author = u'Kai Kruse'
 
 # The version info for the project you're documenting, acts as replacement for
