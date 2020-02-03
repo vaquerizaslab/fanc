@@ -49,7 +49,7 @@ that is everything outside of chromosomes 18 and 19:
     :end-before: end snippet aggregate basic
 
 This command only produces an AggregateMatrix file (``fanc_example_100kb.agg``), which
-is useful for further usage with Kai-C, but not easily readable. To extract the aggregate
+is useful for further usage with FAN-C, but not easily readable. To extract the aggregate
 matrix in txt format, simply add ``-m`` and to plot it just use ``-p``:
 
 .. literalinclude:: code/aggregate_example_code

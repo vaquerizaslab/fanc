@@ -17,7 +17,7 @@ genome organisation.
 .. image:: images/fanc_example_100kb_tads.png
 
 
-Kai-C provides multiple "scores" that are designed to find the boundaries between domains.
+FAN-C provides multiple "scores" that are designed to find the boundaries between domains.
 
 
 ****************
@@ -69,7 +69,7 @@ We can easily plot all insulation scores at the same time using ``klot``:
 Output formats
 ==============
 
-The default output format has maximum compatibility within Kai-C, but other tools like
+The default output format has maximum compatibility within FAN-C, but other tools like
 genome browsers won't be able to read it. Export of insulation scores to a different
 format is simple. Just choose ``-output-format bed`` to export to BED file,
 ``-output-format gff`` to export to GFF format, or ``-output-format bigwig`` to export
@@ -299,5 +299,5 @@ we have written called `TADtool <https://github.com/vaquerizaslab/tadtool>`_. Ho
 and this is a point we are also making with TADtool specifically, TAD calling algorithms
 often depend critically on their input parameters, and different TAD callers can lead to
 very different results. We are therefore currently not bundling a TAD calling tool with
-Kai-C, and refer the user to one of the many available tools for TAD calling that offer
+FAN-C, and refer the user to one of the many available tools for TAD calling that offer
 a wide range of features.

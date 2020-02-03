@@ -8,7 +8,7 @@ import itertools
 
 def summary_statistics_plot(stats, ax=None, **kwargs):
     """
-    Barplot with filter statistics for Kai-C objects.
+    Barplot with filter statistics for FAN-C objects.
 
     :param stats: dictionary of the form {filter_name: int, ...}
     :param ax: (optional) axis in which to plot the bars.

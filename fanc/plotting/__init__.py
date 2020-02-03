@@ -20,7 +20,7 @@ objects are used to create a :class:`~fanc.plotting.GenomicFigure`.
 Example
 -------
 
-Kai-C comes with a few example datasets that can be used to explore the basic
+FAN-C comes with a few example datasets that can be used to explore the basic
 functionalities of the plotting module. The paths in this example are relative
 to the top-level fanc directory where the setup.py file is located.
 

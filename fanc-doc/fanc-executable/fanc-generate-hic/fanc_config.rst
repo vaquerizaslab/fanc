@@ -1,6 +1,6 @@
 .. _fanc-config:
 
 ==================
-Kai-C config files
+FAN-C config files
 ==================
 

@@ -47,7 +47,7 @@ The expected values are typically plotted on a log-log scale, as illustrated her
 
 .. image:: images/oe_500kb.png
 
-Note: as Hi-C matrices are normalised on a per-chromosome basis in Kai-C by default, it would be misleading
+Note: as Hi-C matrices are normalised on a per-chromosome basis in FAN-C by default, it would be misleading
 to plot the overall normalised intra-chromosomal expected values, or to use them for downstream analysis.
 We can, however, also calculate the unnormalised expected values easily enough:
 
@@ -58,6 +58,6 @@ We can, however, also calculate the unnormalised expected values easily enough:
 
 .. image:: images/oe_500kb_nonorm.png
 
-Expected values rarely need to be calculated explicitly in Kai-C analysis functions, but will be calculated
+Expected values rarely need to be calculated explicitly in FAN-C analysis functions, but will be calculated
 (or retrieved) on demand whenever necessary. To obtain observed/expected matrices, for example, please
 refer to :ref:`matrix_interface`.

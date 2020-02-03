@@ -6,7 +6,7 @@ Generating Hi-C matrices with fanc
 ##################################
 
 This part of the documentation will focus primarily on ``fanc auto`` - the most versatile
-command in the Kai-C toolkit. Its main goal is to convert any input to binned Hi-C matrices.
+command in the FAN-C toolkit. Its main goal is to convert any input to binned Hi-C matrices.
 The following schematic will give you an overview of what file types ``fanc auto`` can handle
 and how they are processed downstream.
 
@@ -52,7 +52,7 @@ Mandatory arguments
 
 ``fanc auto`` accepts any number of input files, which will be discussed below.
 The last positional argument (without '-') must always be the output folder for
-all intermediate and final Kai-C files. ``fanc auto`` will generate the following
+all intermediate and final FAN-C files. ``fanc auto`` will generate the following
 folder structure in the output folder:
 
 .. code:: bash
@@ -145,7 +145,7 @@ due to sequencing errors. ``-s`` or ``--step-size`` controls the size by which r
 at every iterative mapping step.
 
 As mentioned above, it is common to find reads in Hi-C libraries that contain a ligation junction
-sequence. Kai-C can automatically split these kinds of reads before mapping using the
+sequence. FAN-C can automatically split these kinds of reads before mapping using the
 ``--split-ligation-junction`` option, which can improve mapping efficiency.
 
 ``fanc auto`` parallelises mapping by spawning multiple mapping
@@ -193,7 +193,7 @@ restriction fragments from there.
 
     Genome assembly FASTA files typically contain a large number of unassembled contigs or
     other sequences that are often irrelevant for downstream Hi-C analysis. As the number of
-    chromosomes can negatively affect Kai-C performance, it is generally a good idea to limit
+    chromosomes can negatively affect FAN-C performance, it is generally a good idea to limit
     the analysis to canonical chromosomes. A very easy way to do with with ``fanc`` is the
     ``fanc fragments`` command, which accepts a ``--chromosomes`` option to specify exactly
     which chromosomes you want in the final analysis. The output file can be directly used as
@@ -214,7 +214,7 @@ You can run the SAM/BAM to Pairs step of the ``fanc auto`` pipeline separately u
 =======================
 
 Many tools for processing Hi-C data output "valid pairs" files, which are typically tab-delimited
-text files that contain read pair information. Kai-C supports valid pairs files from
+text files that contain read pair information. FAN-C supports valid pairs files from
 `HiC-Pro <http://nservant.github.io/HiC-Pro/RESULTS.html#list-of-valid-interaction-products>`_
 and the `4D Nucleome project <https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md>`_.
 
@@ -232,7 +232,7 @@ With ``fanc auto`` you can load them like this
 ===========
 Pairs input
 ===========
-If you already have a Kai-C Pairs object, for example from a previous ``fanc auto`` run or
+If you already have a FAN-C Pairs object, for example from a previous ``fanc auto`` run or
 from the ``fanc pairs`` command, you can feed them to ``fanc auto`` directly:
 
 .. code:: bash
@@ -255,7 +255,7 @@ applying to their processing are described in the next section.
 Hic input
 =========
 
-If you already have a Kai-C Hic object, for example from a previous ``fanc auto`` run or
+If you already have a FAN-C Hic object, for example from a previous ``fanc auto`` run or
 from the ``fanc hic`` command, you can feed them to ``fanc auto`` directly:
 
 .. code:: bash
@@ -319,5 +319,5 @@ Next steps
 **********
 
 Once you have generated your binned, filtered, and corrected Hic objects with ``fanc auto``,
-you may want to explore the data in those matrices. Kai-C provides a number of commands for
+you may want to explore the data in those matrices. FAN-C provides a number of commands for
 data analsyis and exploration. Continue with :ref:`` for further details.

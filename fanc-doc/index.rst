@@ -1,11 +1,11 @@
 ===================
-Kai-C documentation
+FAN-C documentation
 ===================
 
 .. toctree::
    :maxdepth: 3
 
-   Getting started with Kai-C <getting_started>
+   Getting started with FAN-C <getting_started>
    fanc: command line tools <fanc>
    klot: plotting from the command line <klot>
    Python API <api/api>

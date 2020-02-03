@@ -21,7 +21,7 @@ AB correlation matrices can very easily be obtained from Hi-C files using the
     :start-after: start snippet ab matrix
     :end-before: end snippet ab matrix
 
-The ``ab`` object acts like any Kai-C matrix (see :ref:`matrix_interface`), which means you
+The ``ab`` object acts like any FAN-C matrix (see :ref:`matrix_interface`), which means you
 can query and subset the data any way you like. For example, to get the correlation matrix
 of chromosome 18:
 
@@ -67,8 +67,8 @@ to avoid biases from subsetting.
    using additional biological information to determine the correspondence between EV entry
    sign and compartment.
 
-   One option implemented in Kai-C is to use GC content as a proxy for activity, as GC-rich
-   regions have been shown to be associated with the active compartment. Kai-C implements the
+   One option implemented in FAN-C is to use GC content as a proxy for activity, as GC-rich
+   regions have been shown to be associated with the active compartment. FAN-C implements the
    use of a genomic FASTA file, to calculate GC content and then choose the EV sign so that
    positive entries correspond to A, and negative entries to the B compartment.
 

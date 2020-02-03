@@ -27,7 +27,7 @@ Setting up the figure and plotting regions
 
 The main argument of ``klot`` is a region specification. You can list one or more
 regions by region selector (of the form <chromosome>:<start>-<end>), or you can
-provide the path to a file with region information (BED, GFF, Kai-C
+provide the path to a file with region information (BED, GFF, FAN-C
 object, ...). You can also mix the two. Regions will be plotted in the order they are
 listed with the next plot appearing after the previous one has been closed.
 

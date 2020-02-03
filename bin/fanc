@@ -96,7 +96,7 @@ class Fanc(object):
                 import traceback
 
                 exception_message = traceback.format_exc().replace("\n", "<br>")
-                message = "Kai-C command (start date: {}): " \
+                message = "FAN-C command (start date: {}): " \
                           "{}<br>failed with the following exception:<br>{}".format(start_date, fanc_command,
                                                                                     exception_message)
                 subject = "{} ({}) failed".format(start_date, sys.argv[option_ix])
@@ -109,7 +109,7 @@ class Fanc(object):
             from fanc.tools import emails
             import traceback
 
-            message = "Kai-C command (start date: {}): " \
+            message = "FAN-C command (start date: {}): " \
                       "{}<br>executed successfully!".format(start_date, fanc_command)
             subject = "{} ({}) completed".format(start_date, sys.argv[option_ix])
             emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,

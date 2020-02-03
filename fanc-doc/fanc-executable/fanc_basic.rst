@@ -3,7 +3,7 @@ Basic usage
 ===========
 
 ``fanc`` uses subcommands to run all of its analyses. The ``fanc`` command itself can
-be used to get an overview of available subcommands, to print the current Kai-C version,
+be used to get an overview of available subcommands, to print the current FAN-C version,
 or to set logging and notification parameters that affect all subcommands.
 
 ********
@@ -48,7 +48,7 @@ the :ref:`fanc-config-files`.
 Temporary files
 ***************
 
-Many of the more computationally intensive Kai-C commands support the :code:`-tmp`
+Many of the more computationally intensive FAN-C commands support the :code:`-tmp`
 argument. This instructs the command to copy all input files to a temporary directory
 before processing. Similarly, output files will intitially generated in the temporary
 directory and only copied to their intended output locations once the command completes.
@@ -67,10 +67,10 @@ variable on your local system to a folder of your choice.
 .. _fanc-config-files:
 
 ******************
-Kai-C config files
+FAN-C config files
 ******************
 
-Kai-C supports configuration files, which can be located (in descending order of priority)
+FAN-C supports configuration files, which can be located (in descending order of priority)
 
 - in the current directory, named ``fanc.conf``
 - in a path specified by the Unix environment variable ``fanc_CONF``

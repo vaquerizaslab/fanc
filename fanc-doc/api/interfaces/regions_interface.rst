@@ -4,13 +4,13 @@
 RegionBased
 ===========
 
-Kai-C builds extensively on the :code:`genomic_regions` package, which provides a unified
+FAN-C builds extensively on the :code:`genomic_regions` package, which provides a unified
 interface for most types of region-based genomic data. We highly recommend
 `reading the documentation <https://github.com/vaquerizaslab/genomic_regions>`_
-of that package before going into the details of Kai-C, as many of the concepts discussed
-therein are central to the handling of data in Kai-C.
+of that package before going into the details of FAN-C, as many of the concepts discussed
+therein are central to the handling of data in FAN-C.
 
-You can check whether a Kai-C object supports the :class:`~genomic_regions.RegionBased`
+You can check whether a FAN-C object supports the :class:`~genomic_regions.RegionBased`
 interface with
 
 .. code::
@@ -18,7 +18,7 @@ interface with
    import genomic_regions as gr
    isinstance(o, gr.RegionBased)  # True for objects supporting the regions interface
 
-The current list of Kai-C objects supporting the :class:`~genomic_regions.RegionBased`
+The current list of FAN-C objects supporting the :class:`~genomic_regions.RegionBased`
 interface is:
 :class:`~fanc.architecture.domains.InsulationScore`,
 :class:`~fanc.architecture.domains.DirectionalityIndex`,
@@ -84,9 +84,9 @@ Refer to the
 all the details.
 
 Similarly to the :code:`regions` interface for handling collections of genomic regions,
-Kai-C implements interfaces for working with pairs of genomic regions (:code:`edges`)
-and matrix operations (:code:`matrix`). These work in exactly the same way for Kai-C,
-Cooler, and Juicer files. Hence, all of these are directly compatible with Kai-C architectural
+FAN-C implements interfaces for working with pairs of genomic regions (:code:`edges`)
+and matrix operations (:code:`matrix`). These work in exactly the same way for FAN-C,
+Cooler, and Juicer files. Hence, all of these are directly compatible with FAN-C architectural
 functions such as the insulation score or AB compartment analyses, ...
 
 These interfaces will be introduced in the following sections, starting with :ref:`edges_interface`.

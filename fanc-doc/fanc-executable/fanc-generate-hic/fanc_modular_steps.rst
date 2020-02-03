@@ -10,7 +10,7 @@ Individual pipeline steps
 fanc map: Mapping FASTQ files
 =============================
 
-To (iteratively) map FASTQ files directly with Kai-C, use the ``fanc map`` command.
+To (iteratively) map FASTQ files directly with FAN-C, use the ``fanc map`` command.
 
 Here is a minimal example:
 
@@ -109,7 +109,7 @@ the mate pairs in a Hi-C library mapped to restriction fragments. Possible input
 files (paired-end reads, sorted by read name), a
 `HiC-Pro valid pairs file <http://nservant.github.io/HiC-Pro/RESULTS.html#list-of-valid-interaction-products>`_,
 a `4D Nucleome pairs file <https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md>`_,
-or an existing Kai-C Pairs object. For all but the latter, an output file is also required as last
+or an existing FAN-C Pairs object. For all but the latter, an output file is also required as last
 positional argument, for Pairs files the output file is optional. If omitted, filtering is performed
 in place.
 
@@ -139,7 +139,7 @@ HiC-Pro valid pairs file:
     fanc pairs hic_pro.validPairs output/pairs/hic_pro.pairs \
                -g hg19_chr18_19_re_fragments.bed
 
-Existing Kai-C Pairs object:
+Existing FAN-C Pairs object:
 
 .. code:: bash
 
@@ -228,7 +228,7 @@ cutoff, you may use the ``--ligation-error-plot`` parameter.
 
 .. image:: images/ligation-err.png
 
-Otherwise 1-10kb are often a reasonable cutoffs. You can also let Kai-C attempt to find suitable
+Otherwise 1-10kb are often a reasonable cutoffs. You can also let FAN-C attempt to find suitable
 cutoffs based on the over-representation of certain ligation products using the
 ``--filter-ligation-auto`` parameter, but this is not always 100% reliable.
 
@@ -252,7 +252,7 @@ fanc hic: Generating, binning, and filtering Hic objects
 
 The ``fanc hic`` command is used to generate fragment-level and binned Hi-C matrices.
 
-You can use Kai-C Pairs files as input for ``fanc hic``:
+You can use FAN-C Pairs files as input for ``fanc hic``:
 
 .. code:: bash
 

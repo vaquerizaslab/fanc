@@ -18,7 +18,7 @@ support of the :class:`~fanc.matrix.RegionMatrixContainer` interface with:
     :start-after: start snippet check
     :end-before: end snippet check
 
-The current list of Kai-C classes supporting :class:`~fanc.matrix.RegionMatrixContainer` is:
+The current list of FAN-C classes supporting :class:`~fanc.matrix.RegionMatrixContainer` is:
 :class:`~fanc.compatibility.cooler.CoolerHic`,
 :class:`~fanc.compatibility.juicer.JuicerHic`,
 :class:`~fanc.hic.Hic`,
@@ -72,7 +72,7 @@ for example calculating marginals by summing up values in rows or columns:
 close to 1)
 
 Rows and columns in a matrix can be masked, i.e. their entries are considered invalid and
-are ignored for most downstream analysis to prevent artifacts. By default, Kai-C masks
+are ignored for most downstream analysis to prevent artifacts. By default, FAN-C masks
 regions that have no edges (after filtering), typically due to mappability issues.
 You can turn off masking using the :code:`mask=False` parameter:
 

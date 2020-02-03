@@ -127,7 +127,7 @@ def to_cooler(hic, path, balance=True, multires=True,
 
         if not multires:
             if balance:
-                logger.info("Writing bias vector from Kai-C matrix")
+                logger.info("Writing bias vector from FAN-C matrix")
                 bias = hic.bias_vector()[np.array(region_order)]
 
                 # Copied this section from

@@ -11,7 +11,7 @@ def send_email(to_address, message, subject='', from_address=None, server=None, 
         subject = ''
 
     if include_default_subject:
-        subject = '[Kai-C] ' + subject
+        subject = '[FAN-C] ' + subject
 
     if from_address is None:
         if config.email_from_address is None:

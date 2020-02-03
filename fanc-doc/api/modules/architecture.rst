@@ -1,7 +1,7 @@
 .. _fanc-architecture:
 
 =================================
-Kai-C Python architecture modules
+FAN-C Python architecture modules
 =================================
 
 .. toctree::

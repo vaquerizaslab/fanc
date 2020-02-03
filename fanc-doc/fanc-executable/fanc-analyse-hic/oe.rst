@@ -9,7 +9,7 @@ two loci are. The expected values follow a distinctive profile with distance for
 Hi-C matrices, which can be approximated by a power law and forms an almost straight
 line in a log-log plot.
 
-To calculate the expected values of any Kai-C compatible matrix, you can use the
+To calculate the expected values of any FAN-C compatible matrix, you can use the
 ``fanc expected`` command:
 
 .. argparse::

@@ -60,7 +60,7 @@ class MetaFileBased(type):
 
 class FileBased(with_metaclass(MetaFileBased, object)):
     """
-    Base class for most on-disk Kai-C objects.
+    Base class for most on-disk FAN-C objects.
 
     :class:`~FileBased` is an interface to PyTables HDF5 files.
     It has a number of convenience features:

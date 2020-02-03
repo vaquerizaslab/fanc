@@ -216,7 +216,7 @@ def map_parser():
         '--fanc-parallel', dest='mapper_parallel',
         action='store_false',
         default=True,
-        help='Use Kai-C parallelisation, which launches multiple mapper jobs. '
+        help='Use FAN-C parallelisation, which launches multiple mapper jobs. '
              'This may be faster in some cases than relying '
              'on the internal paralellisation of the mapper, '
              'but has potentially high disk I/O and memory usage.'
@@ -1074,7 +1074,7 @@ def hic_parser():
                 the output file, unless only a single Hic object
                 is provided. In that case, binning, filtering and 
                 correcting will be done in place.
-                Input files. If these are Kai-C Pairs objects 
+                Input files. If these are FAN-C Pairs objects 
                 (see "fanc pairs"), they will be turned into 
                 Hic objects. Hic objects (also the ones converted 
                 from Pairs) will first be merged and the merged 
@@ -1653,7 +1653,7 @@ def to_cooler_parser():
         default=True,
         help='Do not sort regions by their natural chromosome order. '
              'When using this option, chromosomes will appear in the Cooler '
-             'file in the order they are listed in the Kai-C file.'
+             'file in the order they are listed in the FAN-C file.'
     )
 
     parser.add_argument(
@@ -1724,7 +1724,7 @@ def to_juicer_parser():
     parser.add_argument(
         'input',
         nargs='+',
-        help='Input .pairs file(s), Kai-C format.'
+        help='Input .pairs file(s), FAN-C format.'
     )
 
     parser.add_argument(
@@ -2236,7 +2236,7 @@ def pca(argv, **kwargs):
 def loops_parser():
     parser = argparse.ArgumentParser(
         prog="fanc loops",
-        description='Call loops in a Hic object using Kai-C '
+        description='Call loops in a Hic object using FAN-C '
                     'implementation of HICCUPS. See. Rao, Huntley et '
                     'al. (2014), Cell, for details.'
     )
@@ -2250,7 +2250,7 @@ def loops_parser():
         'output',
         nargs='?',
         help='Output file. If input file is already '
-             'a Kai-C compatible loops object, filtering '
+             'a FAN-C compatible loops object, filtering '
              'can also be done in place.'
     )
 
@@ -3131,7 +3131,7 @@ def directionality_parser():
         'output',
         nargs='?',
         help='Output file. Format will be determined by '
-             '"-o". By default, this is a Kai-C DirectionalityIndexes '
+             '"-o". By default, this is a FAN-C DirectionalityIndexes '
              'object, for maximum compatibility with other analyses. '
              'If you choose a text-based output format (BED, GFF, '
              'BigWig), this parameter will be the file prefix, and '
@@ -3145,7 +3145,7 @@ def directionality_parser():
         '-o', '--output-format', dest='output_format',
         default='directionality_index',
         help='Format of the output file. '
-             'By default, this is a Kai-C DirectionalityIndex '
+             'By default, this is a FAN-C DirectionalityIndex '
              'object, for maximum compatibility with other '
              'analyses. Other options are "bed", "bigwig", '
              'and "gff"'
@@ -3215,7 +3215,7 @@ def insulation_parser():
         'output',
         nargs='?',
         help='Output file. Format will be determined by '
-             '"-o". By default, this is a Kai-C InsulationScores '
+             '"-o". By default, this is a FAN-C InsulationScores '
              'object, for maximum compatibility with other analyses. '
              'If you choose a text-based output format (BED, GFF, '
              'BigWig), this parameter will be the file prefix, and '
@@ -3229,7 +3229,7 @@ def insulation_parser():
         '-o', '--output-format', dest='output_format',
         default='insulation_score',
         help='Format of the output file. '
-             'By default, this is a Kai-C InsulationScore '
+             'By default, this is a FAN-C InsulationScore '
              'object, for maximum compatibility with other '
              'analyses. Other options are "bed", "bigwig", '
              'and "gff"'
@@ -3679,7 +3679,7 @@ def compartments(argv, **kwargs):
         # input is Hic or other matrix
         if not isinstance(matrix, ABCompartmentMatrix):
             if not isinstance(matrix, RegionMatrixContainer):
-                parser.error("Input must be Kai-C matrix (e.g. Hic)")
+                parser.error("Input must be FAN-C matrix (e.g. Hic)")
 
             if output_file is None:
                 parser.error("Must provide an output file if calculating or loading "
@@ -3995,12 +3995,12 @@ def subset(argv, **kwargs):
 def aggregate_parser():
     parser = argparse.ArgumentParser(
         prog="fanc aggregate",
-        description='Make aggregate plots with Kai-C'
+        description='Make aggregate plots with FAN-C'
     )
 
     parser.add_argument(
         'input',
-        help='Kai-C matrix file (e.g. Hic)'
+        help='FAN-C matrix file (e.g. Hic)'
     )
 
     parser.add_argument(
@@ -4731,7 +4731,7 @@ def downsample(argv, **kwargs):
 def upgrade_parser():
     parser = argparse.ArgumentParser(
         prog="fanc upgrade",
-        description='Upgrade objects from old Kai-C versions.'
+        description='Upgrade objects from old FAN-C versions.'
     )
 
     parser.add_argument(

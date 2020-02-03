@@ -1,7 +1,7 @@
 .. _fanc-modules:
 
 ====================
-Kai-C Python modules
+FAN-C Python modules
 ====================
 
 .. toctree::

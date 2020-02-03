@@ -430,7 +430,7 @@ def auto_parser():
         '--fanc-parallel', dest='mapper_parallel',
         action='store_false',
         default=True,
-        help='Use Kai-C parallelisation, which launches multiple mapper jobs. '
+        help='Use FAN-C parallelisation, which launches multiple mapper jobs. '
              'This may be faster in some cases than relying '
              'on the internal paralellisation of the mapper, '
              'but has potentially high disk I/O and memory usage.'

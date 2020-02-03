@@ -522,7 +522,7 @@ class RegionPairsContainer(RegionBased):
 
             import fanc
 
-            # file from Kai-C examples
+            # file from FAN-C examples
             hic = fanc.load("output/hic/binned/fanc_example_1mb.hic")
 
         We can easily find the number of edges in the sample
@@ -600,7 +600,7 @@ class RegionPairsContainer(RegionBased):
                 # ...
 
         By default, :func:`~RegionPairsContainer.edges` will retrieve all edge attributes,
-        which can be slow when iterating over a lot of edges. This is why all file-based Kai-C
+        which can be slow when iterating over a lot of edges. This is why all file-based FAN-C
         :class:`~RegionPairsContainer` objects support lazy loading, where attributes
         are only read on demand.
 

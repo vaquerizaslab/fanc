@@ -24,7 +24,7 @@ Compartments are derived from a correlation matrix, in which each entry i, j cor
 to the Pearson correlation between row i and column j of the (Hi-C) matrix.
 
 The ``fanc compartments`` command can produce a correlation matrix (AB compartment) object
-from a Kai-C matrix file. Example:
+from a FAN-C matrix file. Example:
 
 .. literalinclude:: code/ab_compartments_example_code
     :language: bash

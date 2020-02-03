@@ -13,7 +13,7 @@ triangular
 
 This is the common triangular heatmap plot used primarily for Hi-C data, but which
 is compatible with all sort of input matrices, including difference and fold-change
-comparisons. You simply provide it with a Kai-C compatible matrix file:
+comparisons. You simply provide it with a FAN-C compatible matrix file:
 
 .. literalinclude:: code/panel_types_commands
     :language: bash

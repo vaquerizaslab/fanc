@@ -6,7 +6,7 @@ RegionPairsContainer
 
 This interface provides common properties and functions to data based on pairs of regions.
 A typical example in this regard would be pairs of ligated fragments in a Hi-C library, as
-represented within Kai-C by the :class:`~fanc.pairs.ReadPairs` class. But also matrix-based
+represented within FAN-C by the :class:`~fanc.pairs.ReadPairs` class. But also matrix-based
 data, such as in :class:`~fanc.matrix.Hic` can be interpreted as scores between pairs of
 binned genomic regions, hence it also supports the :class:`~fanc.matrix.RegionPairsContainer`
 interface. After loading a dataset using :func:`~fanc.tools.load.load`, you can check for
@@ -17,7 +17,7 @@ support of the :class:`~fanc.matrix.RegionPairsContainer` interface with:
     :start-after: start snippet check
     :end-before: end snippet check
 
-The current list of Kai-C classes supporting :class:`~fanc.matrix.RegionPairsContainer` is:
+The current list of FAN-C classes supporting :class:`~fanc.matrix.RegionPairsContainer` is:
 :class:`~fanc.pairs.ReadPairs`,
 :class:`~fanc.compatibility.cooler.CoolerHic`,
 :class:`~fanc.compatibility.juicer.JuicerHic`,
@@ -220,7 +220,7 @@ Lazy evaluation
 
 Hi-C datasets are often very large, with hundreds of millions, even billions of valid pairs
 in the matrix. The process of creating a unique :class:`~fanc.Matrix.Edge` object for every
-matrix entry can thus cumulatively take a significant amount of time. For this reason, Kai-C
+matrix entry can thus cumulatively take a significant amount of time. For this reason, FAN-C
 offers *lazy* evaluation of edge properties. When enabled, edge data is only
 read when it is requested. This, for example, avoids reading from file when it is not absolutely
 necessary, and saves on time during object creation and population. Edge iterators support
@@ -259,7 +259,7 @@ The example accesses the edge data in the loop and stores it independently of th
 but **be very careful** working with them!
 
 Another useful feature of lazy iterators is that they support data modification for
-native Kai-C objects. For example, you double the edge weight of each edge in the
+native FAN-C objects. For example, you double the edge weight of each edge in the
 object like this:
 
 .. literalinclude:: code/edges_interface_snippets.py

@@ -4,7 +4,7 @@
 Helper tools in fanc
 ####################
 
-Kai-C provides little helper tools that make working with Hi-C and associated data
+FAN-C provides little helper tools that make working with Hi-C and associated data
 somewhat easier. These are not strictly necessary for matrix generation and analysis,
 but can often speed your analysis up or simply make it a little more convenient.
 
@@ -13,7 +13,7 @@ but can often speed your analysis up or simply make it a little more convenient.
 fanc dump: export Hic objects to text file
 ==========================================
 
-You can easily export Kai-C Hic objects to a txt file using ``fanc dump``.
+You can easily export FAN-C Hic objects to a txt file using ``fanc dump``.
 
 .. argparse::
    :module: fanc.commands.fanc_commands

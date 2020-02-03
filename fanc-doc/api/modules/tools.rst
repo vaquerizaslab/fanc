@@ -1,7 +1,7 @@
 .. _fanc-tools:
 
 ==========================
-Kai-C Python tools modules
+FAN-C Python tools modules
 ==========================
 
 .. toctree::

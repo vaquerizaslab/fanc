@@ -9,11 +9,11 @@ Getting started
 Overview
 ********
 
-Kai-C is a Python (3.6+) toolkit for the analysis and visualisation of Hi-C data.
-For common tasks, you can use the ``fanc`` executable. For more advanced analyses, Kai-C
+FAN-C is a Python (3.6+) toolkit for the analysis and visualisation of Hi-C data.
+For common tasks, you can use the ``fanc`` executable. For more advanced analyses, FAN-C
 can be imported as a powerful Python module.
 
-Beyond objects generated within Kai-C, the toolkit is largely compatible with Hi-C files from
+Beyond objects generated within FAN-C, the toolkit is largely compatible with Hi-C files from
 `Cooler <https://github.com/mirnylab/cooler>`_ and `Juicer <https://github.com/aidenlab/juicer>`_.
 
 
@@ -23,15 +23,15 @@ Beyond objects generated within Kai-C, the toolkit is largely compatible with Hi
 Installation
 ************
 
-Before installing Kai-C, make sure you have all the prerequisites installed on your system.
-Specifically, Kai-C uses the HDF5 file format internally (via PyTables) to handle the large
+Before installing FAN-C, make sure you have all the prerequisites installed on your system.
+Specifically, FAN-C uses the HDF5 file format internally (via PyTables) to handle the large
 amount of data typically generated in Hi-C experiments. The minimum required version of HDF5
 is 1.8.4, which may already be installed on your machine.
 
 .. note::
 
     It is generally not necessary to install HDF5 manually, as some version will typically be
-    installed on any current Unix system, including macOS. If you can install Kai-C via pip
+    installed on any current Unix system, including macOS. If you can install FAN-C via pip
     (see below) and ``fanc --version`` returns a version number, you are most likely good to go.
 
 Prerequisite: HDF5
@@ -76,10 +76,10 @@ need to set an environment variable pointing to the installation directory:
 
 
 =====
-Kai-C
+FAN-C
 =====
 
-The simplest way to install Kai-C is via pip:
+The simplest way to install FAN-C is via pip:
 
 .. code:: bash
 
@@ -92,7 +92,7 @@ try:
 
    pip install --user fanc
 
-You can also directly download the Kai-C source code from Github by cloning its repository.
+You can also directly download the FAN-C source code from Github by cloning its repository.
 The installation is then done via setup.py:
 
 .. code:: bash
@@ -101,7 +101,7 @@ The installation is then done via setup.py:
    cd fanc
    pip install .
 
-Kai-C can now be accessed via command line (``fanc`` for analysis, ``klot`` for plotting)
+FAN-C can now be accessed via command line (``fanc`` for analysis, ``klot`` for plotting)
 or as a Python 3.6+ module (``import fanc``).
 
 
@@ -184,6 +184,6 @@ Next steps
 ==========
 
 Find out more about ``fanc auto`` and its parameters in :ref:`fanc-auto`. If you are interested
-in customising individual steps of the pipeline, or in exploring all of Kai-C's analysis options,
+in customising individual steps of the pipeline, or in exploring all of FAN-C's analysis options,
 have a look at :ref:`fanc-modular`. For more plotting functions, continue to :ref:`klot-executable`.
-To access Kai-C functionality from within Python, check out :ref:`fanc-api`.
+To access FAN-C functionality from within Python, check out :ref:`fanc-api`.

@@ -1,10 +1,10 @@
 .. _quickstart:
 
 =============================
-Quickstart with the Kai-C API
+Quickstart with the FAN-C API
 =============================
 
-After you have installed Kai-C (see :ref:`fanc_installation`), you can import the module
+After you have installed FAN-C (see :ref:`fanc_installation`), you can import the module
 from a Python console or script:
 
 .. code::
@@ -18,7 +18,7 @@ manner.
 Loading datasets
 ****************
 
-Any analysis typically begins with loading datasets into your workspace. Kai-C tries to make this
+Any analysis typically begins with loading datasets into your workspace. FAN-C tries to make this
 as simple as possible with the :func:`~fanc.__init__.load` function.
 If you already have processed Hi-C files, either from the :code:`fanc` command line
 application (see :ref:`fanc-auto` or :ref:`fanc-modular`), or from a compatible Hi-C application
@@ -38,9 +38,9 @@ Juicer, you can load a specific resolution using the :code:`@` notation:
      data = fanc.load("/path/to/file.mcool@25000")
 
 :func:`~fanc.__init__.load` is not limited to Hi-C files, but also works on any other file
-produced with Kai-C, such as :class:`~fanc.pairs.RegionPairs` files, :class:`~fanc.regions.Genome`,
+produced with FAN-C, such as :class:`~fanc.pairs.RegionPairs` files, :class:`~fanc.regions.Genome`,
 analysis results like :class:`~fanc.architecture.comparisons.FoldChangeMatrix` and generally most
-other Kai-C files.
+other FAN-C files.
 
 :func:`~fanc.__init__.load` even works on most of the common file formats for genomic
 datasets, such as BED, GFF, BigWig, Tabix, BEDPE and more. Try it out on your dataset of choice and
@@ -61,7 +61,7 @@ is equivalent to
     hic = fanc.load("output/hic/binned/fanc_example_1mb.hic")
 
 with the big advantage that you don't need to worry about remembering class names or
-their location within the Kai-C module hierarchy. In both cases, the type of the
+their location within the FAN-C module hierarchy. In both cases, the type of the
 returned object is :code:`fanc.hic.Hic`:
 
 .. code::
@@ -91,13 +91,13 @@ Here are a few more examples:
     # and many other data types
 
 The next section will discuss :ref:`common_interfaces` that make working with genomic data
-in general and Kai-C objects specifically straightforward and simple.
+in general and FAN-C objects specifically straightforward and simple.
 
 *******
 Logging
 *******
 
-Kai-C uses the ``logging`` module. In a ``python`` session, use a statement like
+FAN-C uses the ``logging`` module. In a ``python`` session, use a statement like
 
 .. literalinclude:: generate/code/generate_example_code.py
     :language: python

@@ -1,6 +1,6 @@
 """
 
-Kai-C
+FAN-C
 =====
 
 Provides

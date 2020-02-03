@@ -1,8 +1,8 @@
 ========================
-Kai-C command line tools
+FAN-C command line tools
 ========================
 
-The ``fanc`` tool should be accessible from the command line after you installed Kai-C
+The ``fanc`` tool should be accessible from the command line after you installed FAN-C
 (see :ref:`fanc_installation`).
 It provides convenient commands for the generation, modification, and analysis of Hi-C data.
 

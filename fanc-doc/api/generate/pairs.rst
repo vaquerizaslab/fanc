@@ -124,7 +124,7 @@ Read/fragment pair filters
 **************************
 
 In addition to the quality and uniqueness filters, which had to be used during read pair import,
-Kai-C offers a number of :class:`~fanc.pairs.FragmentReadPairFilter` to remove problematic pairs.
+FAN-C offers a number of :class:`~fanc.pairs.FragmentReadPairFilter` to remove problematic pairs.
 First of all, however, we'll introduce one little function that you can use to reset all filters
 (and restore the original pairs) in case you found your filtering t be too harsh or if you want
 a fresh start, which is called :func:`~fanc.pairs.ReadPairs.reset_filters`:
@@ -183,7 +183,7 @@ To obtain a dictionary with the filter statistics, use :func:`~fanc.pairs.ReadPa
 Filter types
 ~~~~~~~~~~~~
 
-Here are the filters available in Kai-C for read/fragment pairs:
+Here are the filters available in FAN-C for read/fragment pairs:
 
 - :class:`~fanc.pairs.SelfLigationFilter` removes all pairs where both reads map to the same fragment
 - :class:`~fanc.pairs.ReDistanceFilter` can filter for an expected DNA (not restriction) fragment

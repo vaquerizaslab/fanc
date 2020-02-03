@@ -15,7 +15,7 @@ line
 To visualise a single track of continuous scores, a simple ``line`` plot generally works very
 well. This plot works on any file compatible with the :ref:`genomic_regions` interface, which
 includes most of the common genomic data containers (BED, GFF, BigWig, Tabix, ...) and almost
-all Kai-C objects.
+all FAN-C objects.
 
 .. literalinclude:: code/region_panel_types_commands
     :language: bash
@@ -76,7 +76,7 @@ do this by simply adding more datasets.
 .. image:: images/klot_line_multi.png
 
 You can label datasets with ``-l``, which will add a legend to your plot. By default,
-Kai-C will try to find a placement with minimum overlap to the plotted lines. If you prefer,
+FAN-C will try to find a placement with minimum overlap to the plotted lines. If you prefer,
 you can position the legend somewhere else using the ``--legend-location`` parameter.
 Possible locations can be found
 `here <https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.legend.html>`_.

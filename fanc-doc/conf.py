@@ -55,7 +55,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Kai-C'
+project = u'FAN-C'
 copyright = u'2019, Kai Kruse, Vaquerizas lab'
 author = u'Kai Kruse'
 

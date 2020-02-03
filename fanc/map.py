@@ -5,7 +5,7 @@ The main function is :func:`~iterative_mapping`, which requires an input FASTQ f
 an output SAM file, and a suitable mapper. Mapper options are :class:`~Bowtie2Mapper`
 and :class:`~BwaMapper` for the time being, but by subclassing :class:`~Mapper` a user
 can easily write their own mapper implementations that can fully leverage the iterative
-mapping capabilities of Kai-C. Take a look at the code of :class:`~Bowtie2Mapper` for
+mapping capabilities of FAN-C. Take a look at the code of :class:`~Bowtie2Mapper` for
 an example.
 
 Example usage:

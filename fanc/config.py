@@ -1,7 +1,7 @@
 """
-Module that handles Kai-C configuration files.
+Module that handles FAN-C configuration files.
 
-Generally, some Kai-C behaviour can be controlled using a "fanc.conf"
+Generally, some FAN-C behaviour can be controlled using a "fanc.conf"
 file in one of the following locations, in order of preference:
 
 1. fanc.conf in current directory

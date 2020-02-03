@@ -1,7 +1,7 @@
 .. _fanc-compatibility:
 
 ===========================
-Kai-C compatibility modules
+FAN-C compatibility modules
 ===========================
 
 .. toctree::
