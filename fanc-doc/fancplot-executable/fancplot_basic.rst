@@ -1,10 +1,10 @@
-.. _klot-executable:
+.. _fancplot-executable:
 
 ===========
 Basic usage
 ===========
 
-``klot`` is modular and multiple plots can be combined into a single figure.
+``fancplot`` is modular and multiple plots can be combined into a single figure.
 Each plot can be configured individually, with a number of customisation options.
 
 There are two modes: by default, an interactive plot opens in a new window,
@@ -16,45 +16,45 @@ Overview
 ********
 
 .. argparse::
-   :module: fanc.commands.klot_command_parsers
-   :func: klot_parser
-   :prog: klot
+   :module: fanc.commands.fancplot_command_parsers
+   :func: fancplot_parser
+   :prog: fancplot
    :nodefault:
 
 ******************************************
 Setting up the figure and plotting regions
 ******************************************
 
-The main argument of ``klot`` is a region specification. You can list one or more
+The main argument of ``fancplot`` is a region specification. You can list one or more
 regions by region selector (of the form <chromosome>:<start>-<end>), or you can
 provide the path to a file with region information (BED, GFF, FAN-C
 object, ...). You can also mix the two. Regions will be plotted in the order they are
 listed with the next plot appearing after the previous one has been closed.
 
-.. literalinclude:: code/klot_example_commands
+.. literalinclude:: code/fancplot_example_commands
     :language: bash
-    :start-after: start snippet klot regions
-    :end-before: end snippet klot regions
+    :start-after: start snippet fancplot regions
+    :end-before: end snippet fancplot regions
 
-By default, :code:`klot` plots exactly the area that is provided. It is, however,
+By default, :code:`fancplot` plots exactly the area that is provided. It is, however,
 also possible to merely center the plot on the provided region, and to set a fixed
 plotting window using the ``-w`` option. This is especially useful when providing
 regions from other analyses, such as ChIP-seq peaks or insulation boundaries,
 and allows you to quickly survey other genomic features in their immediate surrounding.
 
-.. literalinclude:: code/klot_example_commands
+.. literalinclude:: code/fancplot_example_commands
     :language: bash
-    :start-after: start snippet klot window
-    :end-before: end snippet klot window
+    :start-after: start snippet fancplot window
+    :end-before: end snippet fancplot window
 
-By default, :code:`klot` will open an interactive plotting window. With the ``-o <path>``
+By default, :code:`fancplot` will open an interactive plotting window. With the ``-o <path>``
 argument, it is possible to directly plot to a file. The file ending determines its
 type.
 
-.. literalinclude:: code/klot_example_commands
+.. literalinclude:: code/fancplot_example_commands
     :language: bash
-    :start-after: start snippet klot file
-    :end-before: end snippet klot file
+    :start-after: start snippet fancplot file
+    :end-before: end snippet fancplot file
 
 When specifying multiple regions, the output argument will be interpreted as a folder,
 and each plot will be named by the pattern
@@ -74,41 +74,41 @@ After setting up the figure and plotting region(s), you can start adding plots t
 figure. On the command line, the ``-p`` or ``--plot`` argument adds a new panel. You need
 to provide the type of plot you want immediately after ``-p``:
 
-.. literalinclude:: code/klot_example_commands
+.. literalinclude:: code/fancplot_example_commands
     :language: bash
-    :start-after: start snippet klot panel
-    :end-before: end snippet klot panel
+    :start-after: start snippet fancplot panel
+    :end-before: end snippet fancplot panel
 
-A basic call to ``klot``, plotting a 4 Megabase region on chromosome 18 of a Hi-C matrix
+A basic call to ``fancplot``, plotting a 4 Megabase region on chromosome 18 of a Hi-C matrix
 in a triangular heatmap, could look like this:
 
-.. literalinclude:: code/klot_example_commands
+.. literalinclude:: code/fancplot_example_commands
     :language: bash
-    :start-after: start snippet klot triangular example
-    :end-before: end snippet klot triangular example
+    :start-after: start snippet fancplot triangular example
+    :end-before: end snippet fancplot triangular example
 
-.. image:: images/klot_triangular_example.png
+.. image:: images/fancplot_triangular_example.png
 
-``klot`` tries to find a sensible placement of ticks and ticklabels on the genome axis,
+``fancplot`` tries to find a sensible placement of ticks and ticklabels on the genome axis,
 but if you prefer different tick locations or if labels are overlapping in small figures,
 define your own custom labels with the ``--tick-locations`` argument.
 
-.. literalinclude:: code/klot_example_commands
+.. literalinclude:: code/fancplot_example_commands
     :language: bash
-    :start-after: start snippet klot triangular custom ticks
-    :end-before: end snippet klot triangular custom ticks
+    :start-after: start snippet fancplot triangular custom ticks
+    :end-before: end snippet fancplot triangular custom ticks
 
-.. image:: images/klot_triangular_example_custom_ticks.png
+.. image:: images/fancplot_triangular_example_custom_ticks.png
 
 The first label will always get a chromosome prefix.
 
 To get help on a specific panel type, and list available parameters, use ``-h`` after
 the plot type:
 
-.. literalinclude:: code/klot_example_commands
+.. literalinclude:: code/fancplot_example_commands
     :language: bash
-    :start-after: start snippet klot panel help
-    :end-before: end snippet klot panel help
+    :start-after: start snippet fancplot panel help
+    :end-before: end snippet fancplot panel help
 
 
 *****************

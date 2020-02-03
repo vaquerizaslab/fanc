@@ -28,11 +28,11 @@ fanc expected -l "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
               architecture/other-hic/lowc_mboi_50k_1mb.hic \
               architecture/expected/expected_multi.txt
 
-# start snippet expected klot
-klot -o architecture/expected/fanc_example_500kb_chr18_oe.png \
+# start snippet expected fancplot
+fancplot -o architecture/expected/fanc_example_500kb_chr18_oe.png \
      chr18:1-78mb -p triangular -e output/hic/binned/fanc_example_500kb.hic \
      -vmin -2 -vmax 2
-# end snippet expected klot
-klot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_500kb_chr18_oe.png \
+# end snippet expected fancplot
+fancplot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_500kb_chr18_oe.png \
      chr18:1-78mb -p triangular -e output/hic/binned/fanc_example_500kb.hic \
      -vmin -2 -vmax 2

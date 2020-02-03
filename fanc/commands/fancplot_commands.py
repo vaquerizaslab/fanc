@@ -2,7 +2,7 @@ import os
 import fanc
 from fanc.config import config
 import fanc.plotting as kplt
-import fanc.commands.klot_command_parsers as parsers
+import fanc.commands.fancplot_command_parsers as parsers
 
 
 def triangular(parameters):

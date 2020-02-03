@@ -1,0 +1,86 @@
+# start snippet scores basic
+fancplot chr18:6mb-10mb -p scores architecture/domains/fanc_example_100kb.insulation
+# end snippet scores basic
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_scores_example.png chr18:6mb-10mb -p scores architecture/domains/fanc_example_100kb.insulation
+
+# start snippet scores genomic
+fancplot chr18:6mb-10mb -p scores -g architecture/domains/fanc_example_100kb.insulation
+# end snippet scores genomic
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_scores_genomic.png chr18:6mb-10mb -p scores -g architecture/domains/fanc_example_100kb.insulation
+
+# start snippet scores parameters
+fancplot chr18:6mb-10mb -p scores -g -c PiYG -vmin -0.4 -vmax 0.4 architecture/domains/fanc_example_100kb.insulation
+# end snippet scores parameters
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_scores_parameters.png chr18:6mb-10mb -p scores -g -c PiYG -vmin -0.4 -vmax 0.4 architecture/domains/fanc_example_100kb.insulation
+
+
+# start snippet line basic
+fancplot chr18:6mb-10mb -p line architecture/domains/fanc_example_100kb.insulation_1mb.bw
+# end snippet line basic
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_line.png chr18:6mb-10mb -p line architecture/domains/fanc_example_100kb.insulation_1mb.bw
+
+# start snippet line step
+fancplot chr18:6mb-10mb -p line -s step architecture/domains/fanc_example_100kb.insulation_1mb.bw
+# end snippet line step
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_line_step.png chr18:6mb-10mb -p line -s step architecture/domains/fanc_example_100kb.insulation_1mb.bw
+
+
+# start snippet line fill
+fancplot chr18:6mb-10mb -p line -f architecture/domains/fanc_example_100kb.insulation_1mb.bw
+# end snippet line fill
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_line_fill.png chr18:6mb-10mb -p line -f architecture/domains/fanc_example_100kb.insulation_1mb.bw
+
+# start snippet line limit
+fancplot chr18:6mb-10mb -p line -f -y -1 1 architecture/domains/fanc_example_100kb.insulation_1mb.bw
+# end snippet line limit
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_line_limit.png chr18:6mb-10mb -p line -f -y -1 1 architecture/domains/fanc_example_100kb.insulation_1mb.bw
+
+# start snippet line color
+fancplot chr18:6mb-10mb -p line -f -c cyan --alpha 1. architecture/domains/fanc_example_100kb.insulation_1mb.bw
+# end snippet line color
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_line_color.png chr18:6mb-10mb -p line -f -c cyan --alpha 1. architecture/domains/fanc_example_100kb.insulation_1mb.bw
+
+# start snippet line multi
+fancplot chr18:6mb-10mb -p line -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+# end snippet line multi
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_line_multi.png chr18:6mb-10mb -p line -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+
+# start snippet line labels
+fancplot chr18:6mb-10mb -p line -l 1mb 2mb -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+# end snippet line labels
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_line_labels.png chr18:6mb-10mb -p line -l 1mb 2mb -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+
+# start snippet line legend
+fancplot chr18:6mb-10mb -p line -l 1mb 2mb -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+# end snippet line legend
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_line_legend.png chr18:6mb-10mb -p line -l 1mb 2mb --legend-location "upper right" -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+
+
+# start snippet bar example
+fancplot chr18:6mb-10mb -p bar -l 1mb 2mb architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+# end snippet bar example
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_bar_example.png chr18:6mb-10mb -p bar -l 1mb 2mb --legend-location "upper right" architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+
+# start snippet bar boundaries
+fancplot chr18:20mb-30mb -p bar architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+# end snippet bar boundaries
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_bar_boundaries.png chr18:20mb-30mb -p bar architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+
+# start snippet bar combined
+fancplot chr18:20mb-30mb -p line architecture/domains/fanc_example_100kb.insulation_1mb.bw -p bar architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+# end snippet bar combined
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_bar_combined.png chr18:20mb-30mb -p line architecture/domains/fanc_example_100kb.insulation_1mb.bw -p bar architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+
+
+# start snippet layer
+fancplot chr18:20mb-30mb -p layer architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+# end snippet layer
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_layer.png chr18:20mb-30mb -p layer architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+
+# start snippet layer bed
+fancplot chr18:20mb-30mb -p layer architecture/domains/fanc_example_100kb.insulation_boundaries_1mb_and_2mb.bed
+# end snippet layer bed
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_layer_bed.png chr18:20mb-30mb -p layer architecture/domains/fanc_example_100kb.insulation_boundaries_1mb_and_2mb.bed
+
+
+

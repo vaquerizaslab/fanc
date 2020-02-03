@@ -5,25 +5,25 @@ import sys
 import traceback
 import os
 from itertools import groupby
-from fanc.commands import klot_command_parsers as klot_parsers
+from fanc.commands import fancplot_command_parsers as fancplot_parsers
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 logger = logging.getLogger(__name__)
 
 
-class Klot(object):
+class FancPlot(object):
 
     def __init__(self):
         #
-        # define parsers for klot and subplots
+        # define parsers for fancplot and subplots
         #
 
         # global parser
-        global_parser = klot_parsers.klot_parser()
+        global_parser = fancplot_parsers.fancplot_parser()
         self.global_parser = global_parser
 
-        subplot_parser = klot_parsers.type_parser()
+        subplot_parser = fancplot_parsers.type_parser()
         self.subplot_parser = subplot_parser
 
         argv = sys.argv[1:]
@@ -62,10 +62,10 @@ class Klot(object):
 
         try:
             import fanc.plotting as kplot
-            from fanc.commands import klot_commands as commands
+            from fanc.commands import fancplot_commands as commands
         except ModuleNotFoundError:
             self.global_parser.error("Your Python installation does not seem to support "
-                                     "interactive plotting. Please use klot -o ... to plot "
+                                     "interactive plotting. Please use fancplot -o ... to plot "
                                      "to file or install a backend that supports interactive "
                                      "plots, such as Tkinter!")
             raise
@@ -194,7 +194,7 @@ class Klot(object):
         script = os.path.expanduser(script)
 
         if not os.path.isfile(script):
-            print('klot: error: This is not a script file: {}'.format(script))
+            print('fancplot: error: This is not a script file: {}'.format(script))
 
         import re
         import shlex
@@ -207,7 +207,7 @@ class Klot(object):
 
                 cmd_val = re_equal_sign.split(line.rstrip())
                 if len(cmd_val) > 2:
-                    print('klot: error: Too many equal-signs on line {}'.format(i))
+                    print('fancplot: error: Too many equal-signs on line {}'.format(i))
 
                 if len(cmd_val) == 1:
                     if re.match(r"^\s*$", cmd_val[0]):
@@ -225,4 +225,4 @@ class Klot(object):
 
 
 if __name__ == '__main__':
-    Klot()
+    FancPlot()

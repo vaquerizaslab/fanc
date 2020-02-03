@@ -22,7 +22,7 @@ all FAN-C objects.
     :start-after: start snippet line basic
     :end-before: end snippet line basic
 
-.. image:: images/klot_line.png
+.. image:: images/fancplot_line.png
 
 When dealing with regions of variable size or if you want to emphasise that a value is assigned
 to an interval rather than a single point, you can change the line style to a stepwise
@@ -33,7 +33,7 @@ representation using ``-s step``:
     :start-after: start snippet line step
     :end-before: end snippet line step
 
-.. image:: images/klot_line_step.png
+.. image:: images/fancplot_line_step.png
 
 If you like, you can also fill the area between the horizontal line at 0 and the curve
 using ``-f``
@@ -43,7 +43,7 @@ using ``-f``
     :start-after: start snippet line fill
     :end-before: end snippet line fill
 
-.. image:: images/klot_line_fill.png
+.. image:: images/fancplot_line_fill.png
 
 Use ``-y`` to set the y axis limits
 
@@ -52,7 +52,7 @@ Use ``-y`` to set the y axis limits
     :start-after: start snippet line limit
     :end-before: end snippet line limit
 
-.. image:: images/klot_line_limit.png
+.. image:: images/fancplot_line_limit.png
 
 You can control color and transparency of the line and its fill with ``-c`` and ``--alpha``,
 respectively. By default, the alpha value is at ``0.5``. Any custom value must be between
@@ -63,7 +63,7 @@ respectively. By default, the alpha value is at ``0.5``. Any custom value must b
     :start-after: start snippet line color
     :end-before: end snippet line color
 
-.. image:: images/klot_line_color.png
+.. image:: images/fancplot_line_color.png
 
 Transparency is especially useful when plotting multiple tracks in the same panels. You can
 do this by simply adding more datasets.
@@ -73,7 +73,7 @@ do this by simply adding more datasets.
     :start-after: start snippet line multi
     :end-before: end snippet line multi
 
-.. image:: images/klot_line_multi.png
+.. image:: images/fancplot_line_multi.png
 
 You can label datasets with ``-l``, which will add a legend to your plot. By default,
 FAN-C will try to find a placement with minimum overlap to the plotted lines. If you prefer,
@@ -86,14 +86,14 @@ Possible locations can be found
     :start-after: start snippet line labels
     :end-before: end snippet line labels
 
-.. image:: images/klot_line_labels.png
+.. image:: images/fancplot_line_labels.png
 
 .. literalinclude:: code/region_panel_types_commands
     :language: bash
     :start-after: start snippet line legend
     :end-before: end snippet line legend
 
-.. image:: images/klot_line_legend.png
+.. image:: images/fancplot_line_legend.png
 
 
 ******
@@ -113,7 +113,7 @@ principle be extended to other data containers.
     :start-after: start snippet scores basic
     :end-before: end snippet scores basic
 
-.. image:: images/klot_scores_example.png
+.. image:: images/fancplot_scores_example.png
 
 When your parameter represents a measure of base pairs, you can use the ``--genomic-format``
 or ``-g`` parameter for a more abbreviated representation:
@@ -123,7 +123,7 @@ or ``-g`` parameter for a more abbreviated representation:
     :start-after: start snippet scores genomic
     :end-before: end snippet scores genomic
 
-.. image:: images/klot_scores_genomic.png
+.. image:: images/fancplot_scores_genomic.png
 
 As with regular matrix plots, you can control various plot parameters such as heatmap
 color and saturation limits:
@@ -133,7 +133,7 @@ color and saturation limits:
     :start-after: start snippet scores parameters
     :end-before: end snippet scores parameters
 
-.. image:: images/klot_scores_parameters.png
+.. image:: images/fancplot_scores_parameters.png
 
 
 ***
@@ -148,7 +148,7 @@ recommend you read about ``line`` first. Here is an example:
     :start-after: start snippet bar example
     :end-before: end snippet bar example
 
-.. image:: images/klot_bar_example.png
+.. image:: images/fancplot_bar_example.png
 
 However, ``bar`` may be most useful when dealing with sparse data that does not cover every
 genomic interval. One example are domain boundaries. Here is a larger region of ``chr18``
@@ -160,7 +160,7 @@ The bar height corresponds to the boundary score:
     :start-after: start snippet bar boundaries
     :end-before: end snippet bar boundaries
 
-.. image:: images/klot_bar_boundaries.png
+.. image:: images/fancplot_bar_boundaries.png
 
 This is especially useful in combination with the ``line`` plot of the insulation score, where
 you can see exactly that each score minimum corresponds to a boundary call.:
@@ -170,7 +170,7 @@ you can see exactly that each score minimum corresponds to a boundary call.:
     :start-after: start snippet bar combined
     :end-before: end snippet bar combined
 
-.. image:: images/klot_bar_combined.png
+.. image:: images/fancplot_bar_combined.png
 
 
 *****
@@ -186,7 +186,7 @@ Using the boundary locations above:
     :start-after: start snippet layer
     :end-before: end snippet layer
 
-.. image:: images/klot_layer.png
+.. image:: images/fancplot_layer.png
 
 As you can see, this will only plot the location of the provided features as rectangles - the
 height is simply a consequence of the panel height and has no biological meaning. (Remember that
@@ -203,7 +203,7 @@ name field is used by ``layer`` to divide features into rows:
     :start-after: start snippet layer bed
     :end-before: end snippet layer bed
 
-.. image:: images/klot_layer_bed.png
+.. image:: images/fancplot_layer_bed.png
 
 
 *****
@@ -211,7 +211,7 @@ genes
 *****
 
 The feature plot is very versatile, but it cannot handle exon specifications and does not label
-individual features. For that purpose, ``klot`` proves the ``genes`` panel. It is intended for use
+individual features. For that purpose, ``fancplot`` proves the ``genes`` panel. It is intended for use
 with GFF files, such as can be obtained from Gencode, although it is in principle compatible with
 any :ref:`genomic_regions` file (untested). It is most efficient when the GFF files have been sorted
 by chromosome and start coordinate, bgzipped and indexed with Tabix

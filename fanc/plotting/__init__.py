@@ -73,7 +73,7 @@ to the top-level fanc directory where the setup.py file is located.
     # Open plot in an interactive window
     fig.show()
 
-.. figure:: ../../../fanc-doc/klot-executable/images/example_plot.png
+.. figure:: ../../../fanc-doc/fancplot-executable/images/example_plot.png
 
     Example rendering of the above code saved using
     ``fig.savefig("example.png", dpi=100)``.

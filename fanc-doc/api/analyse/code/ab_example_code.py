@@ -1,6 +1,6 @@
 # start snippet ab setup
 import fanc
-import fanc.plotting as klot
+import fanc.plotting as fancplot
 import matplotlib.pyplot as plt
 
 hic_1mb = fanc.load("output/hic/binned/fanc_example_1mb.hic")
@@ -15,15 +15,15 @@ ab = fanc.ABCompartmentMatrix.from_hic(hic_1mb)
 ab_chr18 = ab.matrix(('chr18', 'chr18'))
 # end snippet ab subset
 
-# start snippet ab klot-correlation
+# start snippet ab fancplot-correlation
 fig, ax = plt.subplots()
-mp = klot.SquareMatrixPlot(ab, ax=ax,
+mp = fancplot.SquareMatrixPlot(ab, ax=ax,
                            norm='lin', colormap='RdBu_r',
                            vmin=-1, vmax=1,
                            draw_minor_ticks=False)
 mp.plot('chr18')
 plt.show()
-# end snippet ab klot-correlation
+# end snippet ab fancplot-correlation
 fig.savefig('../fanc-doc/api/analyse/images/ab_1mb_correlation.png')
 
 
@@ -38,7 +38,7 @@ gc_ev = ab.eigenvector(genome='hg19_chr18_19.fa', force=True)
 
 # start snippet ab plot-ev
 fig, ax = plt.subplots()
-lp = klot.LinePlot(ab)
+lp = fancplot.LinePlot(ab)
 lp.plot('chr18')
 plt.show()
 # end snippet ab plot-ev

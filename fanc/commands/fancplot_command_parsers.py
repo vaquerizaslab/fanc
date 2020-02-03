@@ -2,15 +2,15 @@ import argparse
 import textwrap
 
 
-def klot_parser():
-    usage = '''klot [<klot global parameters>] <region> [<region> ...]
+def fancplot_parser():
+    usage = '''fancplot [<fancplot global parameters>] <region> [<region> ...]
             --plot <plot type> [<plot parameters>] <plot data file(s)> [...]
 
-            Run klot --plot <plot type> -h for help on a specific subplot.\n\nPlot types:\n\n'''
+            Run fancplot --plot <plot type> -h for help on a specific subplot.\n\nPlot types:\n\n'''
 
     command_descriptions = dict()
     for name, function in globals().items():
-        if name.endswith("_parser") and name != 'klot_parser':
+        if name.endswith("_parser") and name != 'fancplot_parser':
             parser = function()
             short_name = name[:-7].replace('_', '-')
             command_descriptions[short_name] = parser.description.split(".")[0]
@@ -38,7 +38,7 @@ def klot_parser():
         usage += "{}{}{}\n".format(name, padding, command_descriptions.get(name))
 
     parser = argparse.ArgumentParser(
-        description="klot plotting tool for fanc",
+        description="fancplot plotting tool for fanc",
         usage=textwrap.dedent(usage)
     )
 
@@ -117,14 +117,14 @@ def klot_parser():
 
 def type_parser():
     parser = argparse.ArgumentParser(
-        description="klot subplot identifier",
+        description="fancplot subplot identifier",
         add_help=False,
         formatter_class=argparse.RawTextHelpFormatter
     )
 
     parser.add_argument(
         'type',
-        help='Plot type. See klot -h for options.'
+        help='Plot type. See fancplot -h for options.'
     )
 
     parser.add_argument(
@@ -138,8 +138,8 @@ def type_parser():
 
 def subplot_parser(plot_type='<plot type>'):
     parser = argparse.ArgumentParser(
-        prog='klot <region> -p {}'.format(plot_type),
-        description="klot subplot identifier",
+        prog='fancplot <region> -p {}'.format(plot_type),
+        description="fancplot subplot identifier",
     )
 
     parser.add_argument(

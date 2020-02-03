@@ -55,7 +55,7 @@ sizes at the same time, as a single window size might be prone to local matrix d
 
 Window sizes are chosen using the ``-w`` parameter.
 
-We can easily plot all insulation scores at the same time using ``klot``:
+We can easily plot all insulation scores at the same time using ``fancplot``:
 
 .. literalinclude:: code/domains_example_code
     :language: bash
@@ -125,7 +125,7 @@ This prints:
     1mb 1.5mb 2mb 2.5mb 3mb 3.5mb 4mb
 
 
-You can plot scores from one or more window sizes using the ``line`` plot in ``klot``:
+You can plot scores from one or more window sizes using the ``line`` plot in ``fancplot``:
 
 .. literalinclude:: code/domains_example_code
     :language: bash
@@ -276,7 +276,7 @@ sizes at the same time, as a single window size might be prone to local matrix d
 
 Window sizes are chosen using the ``-w`` parameter.
 
-We can easily plot all directionality indexes at the same time using ``klot``:
+We can easily plot all directionality indexes at the same time using ``fancplot``:
 
 .. literalinclude:: code/domains_example_code
     :language: bash

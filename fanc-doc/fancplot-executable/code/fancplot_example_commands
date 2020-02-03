@@ -1,0 +1,37 @@
+# start snippet fancplot regions
+# single region
+fancplot chr18:6mb-10mb
+
+# multiple regions
+fancplot chr18:12000000-14000000 chr18:6.5mb-10mb
+
+# BED file
+fancplot /path/to/file.bed
+# end snippet fancplot regions
+
+# start snippet fancplot window
+fancplot -w 1mb /path/to/chipseq.narrowPeak
+# end snippet fancplot window
+
+# start snippet fancplot file
+fancplot -o /path/to/plot.png chr18:6mb-10mb
+# end snippet fancplot file
+
+# start snippet fancplot panel
+fancplot chr18:6mb-10mb -p triangular
+# end snippet fancplot panel
+
+# start snippet fancplot triangular example
+fancplot chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
+# end snippet fancplot triangular example
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example.png chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
+
+# start snippet fancplot triangular custom ticks
+fancplot chr18:6mb-10mb --tick-locations 8mb 10mb -p triangular output/hic/binned/fanc_example_50kb.hic
+# end snippet fancplot triangular custom ticks
+fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_custom_ticks.png chr18:6mb-10mb --tick-locations 8mb 10mb -p triangular -vmax 0.04 output/hic/binned/fanc_example_50kb.hic
+
+
+# start snippet fancplot panel help
+fancplot chr18:6mb-10mb -p triangular -h
+# end snippet fancplot panel help

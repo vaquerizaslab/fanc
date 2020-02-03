@@ -34,8 +34,8 @@ And to visualise the matrix:
 
 .. literalinclude:: code/ab_example_code.py
     :language: python
-    :start-after: start snippet ab klot-correlation
-    :end-before: end snippet ab klot-correlation
+    :start-after: start snippet ab fancplot-correlation
+    :end-before: end snippet ab fancplot-correlation
 
 .. image:: images/ab_1mb_correlation.png
 

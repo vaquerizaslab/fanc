@@ -35,7 +35,7 @@ By default, compartment matrices are calculated on a per-chromosome basis, since
 chromosome might be normalised differently. To force the AB calculation on the whole genome,
 use the ``-w`` option.
 
-We can quickly plot the correlation matrix using the ``klot`` command:
+We can quickly plot the correlation matrix using the ``fancplot`` command:
 
 .. literalinclude:: code/ab_compartments_example_code
     :language: bash
@@ -72,7 +72,7 @@ Alternatively, if you have already calculated the correlation matrix previously,
 
 Note that I have not specified an output file for the correlation matrix in this case.
 
-We can plot the eigenvector using ``klot``:
+We can plot the eigenvector using ``fancplot``:
 
 .. literalinclude:: code/ab_compartments_example_code
     :language: bash

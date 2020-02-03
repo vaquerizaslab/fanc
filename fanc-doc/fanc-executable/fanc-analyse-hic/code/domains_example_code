@@ -1,9 +1,9 @@
 # start snippet domains basic
-klot -o architecture/domains/fanc_example_100kb_tads.png chr18:18mb-28mb \
+fancplot -o architecture/domains/fanc_example_100kb_tads.png chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 \
      -vmin 0 -vmax 0.05
 # end snippet domains basic
-klot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_100kb_tads.png chr18:18mb-28mb \
+fancplot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_100kb_tads.png chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 \
      -vmin 0 -vmax 0.05
 
@@ -14,11 +14,11 @@ fanc insulation output/hic/binned/fanc_example_100kb.hic \
 # end snippet domains window
 
 # start snippet domains scores
-klot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb \
+fancplot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
      -p scores architecture/domains/fanc_example_100kb.insulation
 # end snippet domains scores
-klot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb \
+fancplot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
      -p scores architecture/domains/fanc_example_100kb.insulation
 
@@ -40,7 +40,7 @@ fanc insulation architecture/domains/fanc_example_100kb.insulation
 
 
 # start snippet domains line
-klot --width 6 -o architecture/domains/fanc_example_50kb_tads_insulation_1mb.png \
+fancplot --width 6 -o architecture/domains/fanc_example_50kb_tads_insulation_1mb.png \
                chr18:18mb-28mb \
                -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 \
                -vmin 0 -vmax 0.05 \
@@ -48,7 +48,7 @@ klot --width 6 -o architecture/domains/fanc_example_50kb_tads_insulation_1mb.png
                architecture/domains/fanc_example_100kb.insulation_2mb.bed \
                -l "1mb" "2mb"
 # end snippet domains line
-klot --width 6 -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_50kb_tads_insulation_1mb.png \
+fancplot --width 6 -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_50kb_tads_insulation_1mb.png \
                chr18:18mb-28mb \
                -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 \
                -vmin 0 -vmax 0.05 \
@@ -65,11 +65,11 @@ fanc insulation output/hic/binned/fanc_example_100kb.hic \
 # end snippet domains impute
 
 # start snippet domains plotimpute
-klot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb \
+fancplot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
      -p scores architecture/domains/fanc_example_100kb.insulation
 # end snippet domains plotimpute
-klot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb \
+fancplot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
      -p scores architecture/domains/fanc_example_100kb.insulation
 
@@ -80,13 +80,13 @@ fanc boundaries architecture/domains/fanc_example_100kb.insulation \
 # end snippet domains boundaries
 
 # start snippet domains plotboundaries
-klot --width 6 -o architecture/domains/fanc_example_50kb_tads_insulation_1mb_boundaries.png \
+fancplot --width 6 -o architecture/domains/fanc_example_50kb_tads_insulation_1mb_boundaries.png \
      chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
      -p line architecture/domains/fanc_example_100kb.insulation_1mb.bed -l "1mb" \
      -p bar architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
 # end snippet domains plotboundaries
-klot --width 6 -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_50kb_tads_insulation_1mb_boundaries.png \
+fancplot --width 6 -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_50kb_tads_insulation_1mb_boundaries.png \
      chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
      -p line architecture/domains/fanc_example_100kb.insulation_1mb.bed -l "1mb" \
@@ -105,10 +105,10 @@ fanc directionality output/hic/binned/fanc_example_100kb.hic \
 # end snippet domains directionality
 
 # start snippet domains plotdirectionality
-klot -o architecture/domains/fanc_example_50kb_tads_directionality.png chr18:18mb-28mb \
+fancplot -o architecture/domains/fanc_example_50kb_tads_directionality.png chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
      -p scores architecture/domains/fanc_example_100kb.directionality
 # end snippet domains plotdirectionality
-klot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_50kb_tads_directionality.png chr18:18mb-28mb \
+fancplot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_50kb_tads_directionality.png chr18:18mb-28mb \
      -p triangular output/hic/binned/fanc_example_100kb.hic -m 4000000 -vmin 0 -vmax 0.05 \
      -p scores architecture/domains/fanc_example_100kb.directionality

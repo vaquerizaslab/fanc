@@ -5,8 +5,8 @@ import subprocess as sp
 import uuid
 import os
 
-def run_klot(*args):
-    args = ["klot"] + [str(x) for x in args]
+def run_fancplot(*args):
+    args = ["fancplot"] + [str(x) for x in args]
     return sp.check_call(args)
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def get_filesize(path):
     return os.stat(str(path)).st_size
 
 @pytest.mark.plotting
-@pytest.mark.klot
+@pytest.mark.fancplot
 class TestHicPlot:
     def setup_method(self, method):
         self.hic_path = fanc.example_data["hic"]
@@ -32,7 +32,7 @@ class TestHicPlot:
             "chr11:{}-{}".format(start, end),
             "-p", "-t", "hic", self.hic_path,
         ]
-        result = run_klot(*args)
+        result = run_fancplot(*args)
         assert get_filesize(out_path) > 10000
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
@@ -45,11 +45,11 @@ class TestHicPlot:
             "chr11:{}-{}".format(start, end),
             "-p", "-t", "hic2d", self.hic_path,
         ]
-        result = run_klot(*args)
+        result = run_fancplot(*args)
         assert get_filesize(out_path) > 10000
 
 @pytest.mark.plotting
-@pytest.mark.klot
+@pytest.mark.fancplot
 class TestScorePlots:
     def setup_method(self, method):
         self.bigwig_path = self.bigwig_path = fanc.example_data["chip_bigwig"]
@@ -66,7 +66,7 @@ class TestScorePlots:
             "chr11:{}-{}".format(start, end),
             "-p", "-t", "region", self.peak_path,
         ]
-        result = run_klot(*args)
+        result = run_fancplot(*args)
         assert get_filesize(out_path) > 10000
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
@@ -80,5 +80,5 @@ class TestScorePlots:
             "-p", "-t", "bigwig", self.bigwig_path,
             "-p", "-t", "bigwig", self.bedgraph_path,
         ]
-        result = run_klot(*args)
+        result = run_fancplot(*args)
         assert get_filesize(out_path) > 10000

@@ -2,12 +2,12 @@
 FAN-C command line plotting
 ===========================
 
-The ``klot`` tool should be accessible from the command line after you installed FAN-C
+The ``fancplot`` tool should be accessible from the command line after you installed FAN-C
 (see :ref:`fanc_installation`).
 It provides basic commands for plotting Hi-C data and other genomic tracks.
 
 .. toctree::
    :maxdepth: 2
 
-    Overview and basic usage <klot-executable/klot_basic>
-    Panel types <klot-executable/panel_types>
+    Overview and basic usage <fancplot-executable/fancplot_basic>
+    Panel types <fancplot-executable/panel_types>

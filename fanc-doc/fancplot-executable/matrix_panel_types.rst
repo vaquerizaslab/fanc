@@ -5,7 +5,7 @@ Matrix panel types
 ==================
 
 This section will provide details about the different types of panels in the
-command-line interface of ``klot``.
+command-line interface of ``fancplot``.
 
 **********
 triangular
@@ -20,7 +20,7 @@ comparisons. You simply provide it with a FAN-C compatible matrix file:
     :start-after: start snippet triangular basic
     :end-before: end snippet triangular basic
 
-.. image:: images/klot_triangular_example.png
+.. image:: images/fancplot_triangular_example.png
 
 You can truncate the triangle at a certain distance with ``-m`` for more compact plots:
 
@@ -29,7 +29,7 @@ You can truncate the triangle at a certain distance with ``-m`` for more compact
     :start-after: start snippet triangular truncated
     :end-before: end snippet triangular truncated
 
-.. image:: images/klot_triangular_example_truncated.png
+.. image:: images/fancplot_triangular_example_truncated.png
 
 For interactive plotting, you can add a slider that controls the saturation of the
 heatmap colors using ``-r``:
@@ -39,7 +39,7 @@ heatmap colors using ``-r``:
     :start-after: start snippet triangular range
     :end-before: end snippet triangular range
 
-.. image:: images/klot_triangular_example_range.png
+.. image:: images/fancplot_triangular_example_range.png
 
 Or you can set the saturation values directly using ``-vmin`` and ``-vmax``:
 
@@ -48,7 +48,7 @@ Or you can set the saturation values directly using ``-vmin`` and ``-vmax``:
     :start-after: start snippet triangular vminvmax
     :end-before: end snippet triangular vminvmax
 
-.. image:: images/klot_triangular_example_vminvmax.png
+.. image:: images/fancplot_triangular_example_vminvmax.png
 
 To change the default colormap use ``-c <matplotlib colormap>`` - any
 `colormap in matplotlib <https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html>`_
@@ -59,7 +59,7 @@ is supported.
     :start-after: start snippet triangular colormap
     :end-before: end snippet triangular colormap
 
-.. image:: images/klot_triangular_example_colormap.png
+.. image:: images/fancplot_triangular_example_colormap.png
 
 You can change the color scale from linear to log using ``-l``:
 
@@ -68,7 +68,7 @@ You can change the color scale from linear to log using ``-l``:
     :start-after: start snippet triangular log
     :end-before: end snippet triangular log
 
-.. image:: images/klot_triangular_example_log.png
+.. image:: images/fancplot_triangular_example_log.png
 
 By default, ``triangular`` plots normalised matrix data. You can turn this off
 on the fly to plot uncorrected data using ``-u``:
@@ -78,7 +78,7 @@ on the fly to plot uncorrected data using ``-u``:
     :start-after: start snippet triangular nonorm
     :end-before: end snippet triangular nonorm
 
-.. image:: images/klot_triangular_example_nonorm.png
+.. image:: images/fancplot_triangular_example_nonorm.png
 
 Similarly, you can convert the matrix on the fly to an observed/expected (O/E)
 matrix using ``-e``. When using this option, the matrix values are automatically
@@ -90,7 +90,7 @@ around 0.
     :start-after: start snippet triangular oe
     :end-before: end snippet triangular oe
 
-.. image:: images/klot_triangular_example_oe.png
+.. image:: images/fancplot_triangular_example_oe.png
 
 
 ******
@@ -105,7 +105,7 @@ This plot is the common square matrix plot. It has nearly the same options as
     :start-after: start snippet square basic
     :end-before: end snippet square basic
 
-.. image:: images/klot_square_example.png
+.. image:: images/fancplot_square_example.png
 
 In addition to ``triangle``, ``square`` supports flipping the matrix upside-down
 with ``-f``:
@@ -115,7 +115,7 @@ with ``-f``:
     :start-after: start snippet square flip
     :end-before: end snippet square flip
 
-.. image:: images/klot_square_example_flip.png
+.. image:: images/fancplot_square_example_flip.png
 
 
 *****
@@ -146,7 +146,7 @@ resolutions:
     :start-after: start snippet mirror basic
     :end-before: end snippet mirror basic
 
-.. image:: images/klot_square_example_mirror.png
+.. image:: images/fancplot_square_example_mirror.png
 
 As this plot essentially consists of two ``triangular`` plots stapled together, the
 parameters for the top and bottom plot can also be controlled independently. The
@@ -162,4 +162,4 @@ Here is one more example showing a matrix and its O/E transformed version:
     :start-after: start snippet mirror oe
     :end-before: end snippet mirror oe
 
-.. image:: images/klot_square_example_mirror_oe.png
+.. image:: images/fancplot_square_example_mirror_oe.png

@@ -83,14 +83,14 @@ for all matrices will be written to file and plotted if using the ``-p`` option:
 O/E matrices
 ************
 
-Using ``klot``, we can visualise the observed/expected Hi-C matrix, which normalised each matrix
+Using ``fancplot``, we can visualise the observed/expected Hi-C matrix, which normalised each matrix
 value to its given expected value at that distance. Here, we are showing a log2-transformed
 O/E matrix:
 
 .. literalinclude:: code/oe_example_code
     :language: bash
-    :start-after: start snippet expected klot
-    :end-before: end snippet expected klot
+    :start-after: start snippet expected fancplot
+    :end-before: end snippet expected fancplot
 
 .. image:: images/fanc_example_500kb_chr18_oe.png
 

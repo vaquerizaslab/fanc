@@ -4,12 +4,12 @@ fanc compartments output/hic/binned/fanc_example_1mb.hic architecture/compartmen
 # end snippet compartments basic
 
 # start snippet compartments plot
-klot -o architecture/compartments/fanc_example_1mb.ab.png chr18 \
+fancplot -o architecture/compartments/fanc_example_1mb.ab.png chr18 \
      -p square architecture/compartments/fanc_example_1mb.ab \
      -vmin -0.75 -vmax 0.75 -c RdBu_r
 # end snippet compartments plot
 
-klot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_1mb.ab.png chr18 \
+fancplot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_1mb.ab.png chr18 \
      -p square architecture/compartments/fanc_example_1mb.ab \
      -vmin -0.75 -vmax 0.75 -c RdBu_r
 
@@ -30,12 +30,12 @@ fanc compartments -v architecture/compartments/fanc_example_1mb.ev.txt \
 # end snippet compartments pre
 
 # start snippet compartments evplot
-klot -o architecture/compartments/fanc_example_1mb.ab_and_ev.png chr18 \
+fancplot -o architecture/compartments/fanc_example_1mb.ab_and_ev.png chr18 \
      -p square architecture/compartments/fanc_example_1mb.ab \
      -vmin -0.75 -vmax 0.75 -c RdBu_r \
      -p line architecture/compartments/fanc_example_1mb.ev.txt
 # end snippet compartments evplot
-klot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_1mb.ab_and_ev.png chr18 \
+fancplot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_1mb.ab_and_ev.png chr18 \
      -p square architecture/compartments/fanc_example_1mb.ab \
      -vmin -0.75 -vmax 0.75 -c RdBu_r \
      -p line architecture/compartments/fanc_example_1mb.ev.txt

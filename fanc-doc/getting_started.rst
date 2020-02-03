@@ -101,7 +101,7 @@ The installation is then done via setup.py:
    cd fanc
    pip install .
 
-FAN-C can now be accessed via command line (``fanc`` for analysis, ``klot`` for plotting)
+FAN-C can now be accessed via command line (``fanc`` for analysis, ``fancplot`` for plotting)
 or as a Python 3.6+ module (``import fanc``).
 
 
@@ -166,11 +166,11 @@ You can read details about ``fanc auto`` and all of its parameters in :ref:`fanc
 Plotting
 ========
 
-We can plot the newly generated Hi-C maps easily using the ``klot`` command. Simply execute
+We can plot the newly generated Hi-C maps easily using the ``fancplot`` command. Simply execute
 
 .. code:: bash
 
-   klot chr18:63mb-70mb -p triangular -vmax 0.05 output/hic/binned/fanc_example_100kb.hic
+   fancplot chr18:63mb-70mb -p triangular -vmax 0.05 output/hic/binned/fanc_example_100kb.hic
 
 This will plot the region 63-70Mb of chromosome 18 in the familiar Hi-C plot.
 Note that this dataset is very small and hence the quality of the matrix not
@@ -178,12 +178,12 @@ particularly great - but TADs are clearly visible.
 
 .. image:: fanc-executable/fanc-generate-hic/images/chr18_63-70Mb.png
 
-You can find details about the plotting executable ``klot`` in :ref:`klot-executable`.
+You can find details about the plotting executable ``fancplot`` in :ref:`fancplot-executable`.
 
 Next steps
 ==========
 
 Find out more about ``fanc auto`` and its parameters in :ref:`fanc-auto`. If you are interested
 in customising individual steps of the pipeline, or in exploring all of FAN-C's analysis options,
-have a look at :ref:`fanc-modular`. For more plotting functions, continue to :ref:`klot-executable`.
+have a look at :ref:`fanc-modular`. For more plotting functions, continue to :ref:`fancplot-executable`.
 To access FAN-C functionality from within Python, check out :ref:`fanc-api`.

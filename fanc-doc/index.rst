@@ -7,7 +7,7 @@ FAN-C documentation
 
    Getting started with FAN-C <getting_started>
    fanc: command line tools <fanc>
-   klot: plotting from the command line <klot>
+   fancplot: plotting from the command line <fancplot>
    Python API <api/api>
 
 Indices and tables
